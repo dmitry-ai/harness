@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "output": ".agents/Context.md",
+  "sections": [
+    {"title": "Scope", "files": ["Specification.md"]},
+    {"title": "Knowledge base", "globs": ["KB/*.md"]},
+    {"title": "Correspondence", "letters": [
+      {"root": "Letters/my", "author": "Consultant", "languages": ["EN", "RU"]},
+      {"root": "Letters/client", "author": "Client", "languages": ["EN", "RU"]}
+    ]}
+  ]
+}
