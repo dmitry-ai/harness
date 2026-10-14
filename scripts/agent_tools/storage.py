@@ -7,6 +7,18 @@ import tempfile
 import time
 
 
+def data_dir_for(path: Path) -> Path:
+    """Locate the .agents/data directory for a project or target path."""
+    resolved = Path(path).resolve()
+    start = resolved if not resolved.exists() or resolved.is_dir() else resolved.parent
+    for parent in (start, *start.parents):
+        if parent.name == '.agents':
+            return parent / 'data'
+        if (parent / '.agents').is_dir():
+            return parent / '.agents' / 'data'
+    return start / '.agents' / 'data'
+
+
 @contextmanager
 def locked(path: Path, timeout: float = 15):
     """OS releases the lock on process death; the persistent lock file is not deleted."""

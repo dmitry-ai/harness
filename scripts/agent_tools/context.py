@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import re
 
-from .storage import locked, replace_bytes
+from .storage import data_dir_for, locked, replace_bytes
 
 
 def inside(root: Path, path: str | Path) -> Path:
@@ -114,6 +114,6 @@ def generate(root: Path, config: Path, output: Path | None = None, dry_run=False
     if target in sources or target == Path(config).resolve():
         raise ValueError('Context output would overwrite an input')
     if not dry_run:
-        with locked(target.with_name(f'.{target.name}.lock')):
+        with locked(data_dir_for(root) / 'context.lock'):
             replace_bytes(target, content.encode('utf-8'))
     return target, content, sources

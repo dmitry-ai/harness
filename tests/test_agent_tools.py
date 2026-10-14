@@ -42,10 +42,14 @@ class TemporaryCase(unittest.TestCase):
 class JournalTests(TemporaryCase):
     def test_exact_bytes_and_no_keyword_authorization(self):
         req, res = '  вопрос\r\n\r\n', '[Источник](https://www.example.org/a/?q=%20)\n'
-        step = journal.record_step(self.root, req, res)
-        self.assertEqual((self.root / 'req/1.md').read_bytes(), req.encode())
-        self.assertEqual((self.root / 'res/1.md').read_bytes(), res.encode())
-        self.assertEqual(journal.step_errors(self.root, step), [])
+        journal_dir = self.root / 'chat'
+        step = journal.record_step(journal_dir, req, res)
+        self.assertEqual((journal_dir / 'req/1.md').read_bytes(), req.encode())
+        self.assertEqual((journal_dir / 'res/1.md').read_bytes(), res.encode())
+        self.assertFalse((journal_dir / '.journal').exists())
+        self.assertFalse((journal.state_dir(journal_dir) / '1.json').exists())
+        self.assertTrue((journal.state_dir(journal_dir) / 'writer.lock').exists())
+        self.assertEqual(journal.step_errors(journal_dir, step), [])
 
     def test_existing_same_request_is_not_ownership(self):
         self.put('req/7.md', 'same')
@@ -75,20 +79,30 @@ class JournalTests(TemporaryCase):
         with patch.object(journal, 'create_bytes', side_effect=failing):
             with self.assertRaises(RuntimeError):
                 journal.record_step(self.root, 'request', 'response')
-        state = json.loads((self.root / '.journal/1.json').read_text())
+        receipt = journal.state_dir(self.root) / '1.json'
+        state = json.loads(receipt.read_text())
         self.assertTrue(journal.step_errors(self.root, 1))
         with self.assertRaises(ValueError):
             journal.recover_step(self.root, 1, 'someone-else')
         journal.recover_step(self.root, 1, state['token'])
-        journal.recover_step(self.root, 1, state['token'])
+        self.assertFalse(receipt.exists())
         self.assertEqual(journal.step_errors(self.root, 1), [])
 
     def test_recovery_does_not_overwrite_conflict(self):
-        journal.record_step(self.root, 'req', 'res')
-        state = json.loads((self.root / '.journal/1.json').read_text())
+        actual = journal.create_bytes
+        def failing(path, data):
+            if path.parent.name == 'res':
+                raise OSError('simulated disk error')
+            actual(path, data)
+        with patch.object(journal, 'create_bytes', side_effect=failing):
+            with self.assertRaises(RuntimeError):
+                journal.record_step(self.root, 'req', 'res')
+        receipt = journal.state_dir(self.root) / '1.json'
+        state = json.loads(receipt.read_text())
         self.put('res/1.md', 'human correction')
         with self.assertRaises(FileExistsError):
             journal.recover_step(self.root, 1, state['token'])
+        self.assertTrue(receipt.exists())
         self.assertTrue(journal.step_errors(self.root, 1))
 
     def test_process_crash_releases_lock_and_reservation_is_recoverable(self):
@@ -106,9 +120,11 @@ journal.record_step(Path(sys.argv[2]), 'request', 'response')
 '''
         result = subprocess.run([sys.executable, '-c', code, str(SCRIPTS), str(self.root)])
         self.assertEqual(result.returncode, 43)
-        state = json.loads((self.root / '.journal/1.json').read_text())
+        receipt = journal.state_dir(self.root) / '1.json'
+        state = json.loads(receipt.read_text())
         self.assertEqual(journal.record_step(self.root, 'next', 'answer'), 2)
         journal.recover_step(self.root, 1, state['token'])
+        self.assertFalse(receipt.exists())
         self.assertEqual(journal.step_errors(self.root, 1), [])
 
     def test_concurrent_real_processes_same_request_get_distinct_pairs(self):
@@ -121,6 +137,7 @@ journal.record_step(Path(sys.argv[2]), 'request', 'response')
         self.assertEqual(journal.get_existing_step_ids(self.root), set(range(1, 13)))
         self.assertEqual({p.read_text() for p in (self.root / 'res').glob('*.md')},
                          {f'response {i}' for i in range(12)})
+        self.assertEqual(list(journal.state_dir(self.root).glob('*.json')), [])
         for step in range(1, 13):
             self.assertEqual(journal.step_errors(self.root, step), [])
 
@@ -217,12 +234,15 @@ class LinkTests(unittest.TestCase):
 
 class SnapshotTests(TemporaryCase):
     def test_current_bytes_preserved_once_per_turn(self):
-        draft = self.put('draft.md', 'user change\r\n')
+        (self.root / '.agents').mkdir()
+        draft = self.put('Letters/draft.md', 'user change\r\n')
         saved = snapshot_draft(draft, 'turn_1')
-        self.put('draft.md', 'agent revision')
+        self.assertTrue(saved.is_relative_to(self.root / '.agents/data/.draft-snapshots'))
+        self.assertFalse((draft.parent / '.draft-snapshots').exists())
+        self.put('Letters/draft.md', 'agent revision')
         self.assertEqual(snapshot_draft(draft, 'turn_1'), saved)
         self.assertEqual(saved.read_bytes(), b'user change\r\n')
-        self.assertEqual((self.root / 'draft.prev.md').read_bytes(), b'user change\r\n')
+        self.assertEqual((draft.parent / 'draft.prev.md').read_bytes(), b'user change\r\n')
         second = snapshot_draft(draft, 'turn_2')
         self.assertEqual(second.read_bytes(), b'agent revision')
         self.assertEqual(saved.read_bytes(), b'user change\r\n')
@@ -271,6 +291,10 @@ class ContextTests(TemporaryCase):
         self.put('kb.md', 'source')
         generate(self.root, config, dry_run=True)
         self.assertFalse((self.root / 'out.md').exists())
+        generate(self.root, config)
+        self.assertTrue((self.root / 'out.md').exists())
+        self.assertFalse((self.root / '.out.md.lock').exists())
+        self.assertTrue((self.root / '.agents/data/context.lock').exists())
 
     def test_output_cannot_overwrite_input_or_escape_root(self):
         config = self.put('context.json', json.dumps({'version': 1, 'output': 'kb.md', 'sections': [

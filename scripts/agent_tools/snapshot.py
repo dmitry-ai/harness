@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import re
 
-from .storage import create_bytes, locked, replace_bytes
+from .storage import create_bytes, data_dir_for, locked, replace_bytes
 
 
 def snapshot_draft(source: Path, turn: str) -> Path:
@@ -14,11 +14,12 @@ def snapshot_draft(source: Path, turn: str) -> Path:
         raise ValueError('Expected an explicit draft.md path')
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', turn):
         raise ValueError('Turn ID must contain 1..80 ASCII letters, digits, _ or -')
-    archive = source.parent / '.draft-snapshots' / turn
+    snapshots = data_dir_for(source) / '.draft-snapshots'
+    archive = snapshots / turn
     archive.mkdir(parents=True, exist_ok=True)
     saved = archive / 'draft.md'
     previous = source.with_name('draft.prev.md')
-    with locked(source.parent / '.draft-snapshots' / 'writer.lock'):
+    with locked(snapshots / 'writer.lock'):
         if saved.exists():
             receipt = json.loads((archive / 'snapshot.json').read_text(encoding='utf-8'))
             if hashlib.sha256(saved.read_bytes()).hexdigest() != receipt['sha256']:
