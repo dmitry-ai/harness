@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
 import re
+import json
 from urllib.parse import unquote, urldefrag, urlsplit
 from urllib.request import Request, urlopen
 
@@ -71,6 +72,7 @@ def validate_content(content: str, *, local_anchors: bool = False,
     for anchor, count in Counter(anchors).items():
         if count > 1:
             errors.append(f'Duplicate explicit HTML anchor: {anchor}')
+    available_anchors = set(anchors) | heading_anchors(content)
     for url in links:
         try:
             parsed = urlsplit(url)
@@ -78,8 +80,8 @@ def validate_content(content: str, *, local_anchors: bool = False,
                 if not parsed.hostname or any(c.isspace() for c in url):
                     errors.append(f'Invalid HTTP URL: {url}')
                 _ = parsed.port  # Validate invalid ports and bracketed hosts.
-            elif local_anchors and url.startswith('#') and unquote(url[1:]) not in anchors:
-                errors.append(f'No explicit HTML anchor for {url}; renderer-generated IDs need separate verification')
+            elif local_anchors and url.startswith('#') and unquote(url[1:]) not in available_anchors:
+                errors.append(f'Missing local anchor: {url}')
         except ValueError as exc:
             errors.append(f'Invalid URL {url}: {exc}')
     if unique_urls:
@@ -89,10 +91,59 @@ def validate_content(content: str, *, local_anchors: bool = False,
     return errors
 
 
+def heading_anchors(content: str) -> set[str]:
+    """GitHub-style Markdown heading IDs; stable ID-only headings need no HTML tags."""
+    from markdown_it import MarkdownIt
+    tokens = MarkdownIt('commonmark').parse(content)
+    used = set()
+    for index, token in enumerate(tokens):
+        if token.type != 'heading_open':
+            continue
+        inline = tokens[index + 1]
+        text = ''.join(t.content for t in inline.children or []
+                       if t.type in ('text', 'code_inline', 'image'))
+        slug = re.sub(r'[^\w\- ]', '', text.lower()).replace(' ', '-')
+        anchor, number = slug, 0
+        while anchor in used:
+            number += 1
+            anchor = f'{slug}-{number}'
+        used.add(anchor)
+    return used
+
+
 def validate_file(file_path: Path, **options) -> list[str]:
     try:
-        return validate_content(Path(file_path).read_text(encoding='utf-8'), **options)
-    except (OSError, UnicodeError) as exc:
+        file_path = Path(file_path).resolve()
+        content = file_path.read_text(encoding='utf-8')
+        errors = validate_content(content, **options)
+        for href in references(content, options.get('include_code', False))[0]:
+            parsed = urlsplit(href)
+            windows_path = bool(re.match(r'^[A-Za-z]:[/\\]', href))
+            if (parsed.scheme and parsed.scheme != 'file' and not windows_path) or href.startswith('#'):
+                continue
+            path_text = unquote(urldefrag(href)[0] if windows_path else parsed.path)
+            if not path_text:
+                continue
+            target = (file_path.parent / path_text).resolve()
+            if not target.is_file():
+                errors.append(f'Missing local file: {href}')
+                continue
+            fragment = unquote(parsed.fragment)
+            if fragment and target.suffix.lower() in ('.md', '.html', '.htm'):
+                other = target.read_text(encoding='utf-8')
+                ids = set(references(other)[1]) | heading_anchors(other)
+                if fragment not in ids:
+                    errors.append(f'Missing cross-file anchor: {href}')
+            elif fragment.startswith('/') and target.suffix.lower() == '.json':
+                value = json.loads(target.read_text(encoding='utf-8'))
+                try:
+                    for part in fragment[1:].split('/'):
+                        part = part.replace('~1', '/').replace('~0', '~')
+                        value = value[int(part)] if isinstance(value, list) else value[part]
+                except (KeyError, ValueError, IndexError, TypeError):
+                    errors.append(f'Missing JSON pointer: {href}')
+        return errors
+    except (OSError, UnicodeError, ValueError) as exc:
         return [f'{file_path}: {exc}']
 
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 
 from .storage import data_dir_for, locked, replace_bytes
+from .journal import get_existing_step_ids, step_errors
 
 
 def inside(root: Path, path: str | Path) -> Path:
@@ -82,14 +83,11 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
                 if section.get('optional', False):
                     continue
                 raise FileNotFoundError(f'Missing journal directory: {journal_rel}')
-            step_ids = sorted({
-                int(p.stem)
-                for sub in ('req', 'res')
-                if (jdir / sub).is_dir()
-                for p in (jdir / sub).glob('*.md')
-                if p.is_file() and p.stem.isascii() and p.stem.isdigit()
-            })
+            step_ids = sorted(get_existing_step_ids(jdir))
             for step_id in step_ids:
+                errors = step_errors(jdir, step_id)
+                if errors:
+                    raise ValueError('Incomplete journal; context preserved: ' + '; '.join(errors))
                 for sub, role in (('req', 'User (req)'), ('res', 'Agent (res)')):
                     candidate = jdir / sub / f'{step_id}.md'
                     if candidate.is_file() and candidate.read_text(encoding='utf-8').strip():
@@ -131,11 +129,15 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
 def generate(root: Path, config: Path, output: Path | None = None, dry_run=False):
     root = Path(root).resolve()
     manifest = json.loads(Path(config).read_text(encoding='utf-8-sig'))
-    content, sources = assemble(root, manifest)
-    target = inside(root, output if output is not None else manifest['output'])
-    if target in sources or target == Path(config).resolve():
-        raise ValueError('Context output would overwrite an input')
-    if not dry_run:
-        with locked(data_dir_for(root) / 'context.lock'):
+    def build():
+        content, sources = assemble(root, manifest)
+        target = inside(root, output if output is not None else manifest['output'])
+        if target in sources or target == Path(config).resolve():
+            raise ValueError('Context output would overwrite an input')
+        if not dry_run:
             replace_bytes(target, content.encode('utf-8'))
-    return target, content, sources
+        return target, content, sources
+    if dry_run:
+        return build()
+    with locked(data_dir_for(root) / 'context.lock'):
+        return build()

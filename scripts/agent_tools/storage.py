@@ -8,7 +8,7 @@ import time
 
 
 def data_dir_for(path: Path) -> Path:
-    """Locate the ꘖ/data (or fallback .agents/data) directory for a project or target path."""
+    """Locate project-owned service storage; never put mutable state in .agents."""
     resolved = Path(path).resolve()
     start = resolved if not resolved.exists() or resolved.is_dir() else resolved.parent
     for parent in (start, *start.parents):
@@ -17,12 +17,10 @@ def data_dir_for(path: Path) -> Path:
         if (parent / 'ꘖ').is_dir():
             return parent / 'ꘖ' / 'data'
         if parent.name == '.agents':
-            if (parent.parent / 'ꘖ').is_dir():
-                return parent.parent / 'ꘖ' / 'data'
-            return parent / 'data'
+            return parent.parent / 'ꘖ' / 'data'
         if (parent / '.agents').is_dir():
-            return parent / '.agents' / 'data'
-    return start / '.agents' / 'data'
+            return parent / 'ꘖ' / 'data'
+    return start / 'ꘖ' / 'data'
 
 
 @contextmanager

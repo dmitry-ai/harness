@@ -15,13 +15,16 @@ def snapshot_draft(source: Path, turn: str) -> Path:
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', turn):
         raise ValueError('Turn ID must contain 1..80 ASCII letters, digits, _ or -')
     snapshots = data_dir_for(source) / '.draft-snapshots'
-    archive = snapshots / turn
+    source_id = hashlib.sha256(str(source).casefold().encode('utf-8')).hexdigest()[:24]
+    archive = snapshots / turn / source_id
     archive.mkdir(parents=True, exist_ok=True)
     saved = archive / 'draft.md'
     previous = source.with_name('draft.prev.md')
     with locked(snapshots / 'writer.lock'):
         if saved.exists():
             receipt = json.loads((archive / 'snapshot.json').read_text(encoding='utf-8'))
+            if receipt['source'] != str(source):
+                raise ValueError('Snapshot belongs to a different source')
             if hashlib.sha256(saved.read_bytes()).hexdigest() != receipt['sha256']:
                 raise ValueError('Snapshot changed after capture')
             if previous.read_bytes() != saved.read_bytes():

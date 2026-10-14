@@ -13,7 +13,8 @@ def digest(data: bytes) -> str:
 
 
 def state_dir(directory: Path) -> Path:
-    return data_dir_for(directory) / '.journal'
+    identity = str(Path(directory).resolve()).casefold()
+    return data_dir_for(directory) / '.journal' / digest(identity.encode('utf-8'))[:24]
 
 
 def get_existing_step_ids(directory: Path) -> set[int]:
@@ -64,7 +65,7 @@ def record_step(journal_dir: Path, req_content: str, res_content: str,
         step = target_step if target_step is not None else max(used, default=0) + 1
         if step in used:
             raise FileExistsError(f'Step {step} is occupied or reserved')
-        state = {'version': 1, 'step': step, 'token': uuid.uuid4().hex,
+        state = {'version': 2, 'journal': str(directory), 'step': step, 'token': uuid.uuid4().hex,
                  'status': 'pending', 'request': req_content, 'response': res_content,
                  'request_sha256': digest(req_content.encode('utf-8')),
                  'response_sha256': digest(res_content.encode('utf-8'))}
@@ -85,8 +86,9 @@ def recover_step(directory: Path, step: int, token: str):
     with locked(journal_state / 'writer.lock'):
         receipt = journal_state / f'{step}.json'
         state = json.loads(receipt.read_text(encoding='utf-8'))
-        if state['token'] != token or state['step'] != step:
-            raise ValueError('Reservation token or step mismatch')
+        if (state.get('journal') != str(directory) or state['token'] != token
+                or state['step'] != step):
+            raise ValueError('Reservation journal, token or step mismatch')
         _payload(state['request'], state['response'])
         for key in ('request', 'response'):
             if digest(state[key].encode('utf-8')) != state[key + '_sha256']:
