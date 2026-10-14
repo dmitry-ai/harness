@@ -140,6 +140,24 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None,
     day = request_day(date_str) if date_str else date(int(root.parents[2].name), int(root.parents[1].name), int(root.parent.name))
     name = f'{domain_or_topic} - U.P.{day:%Y.%m.%d}'
     with locked(projects / 'ꘖ' / 'data' / 'registration.lock'):
+        folders = Path(folders_json_path)
+        # Folders is our installed add-on, not a native Antigravity field.
+        # Reject a missing/broken store before publishing an ungrouped project.
+        before = folders.read_bytes()
+        listing = json.loads(before.decode('utf-8-sig'))
+        nodes, assignments = listing.get('folders'), listing.get('projectFolderMap')
+        if not isinstance(nodes, list) or not isinstance(assignments, dict):
+            raise ValueError('Folders requires folders[] and projectFolderMap{}')
+        branch = ('Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}')
+        parent = None
+        for part in branch:
+            node = next((x for x in nodes if x['name'].casefold() == part.casefold()
+                         and x.get('parentId') == parent), None)
+            if node is None:
+                node = {'id': f'folder-{uuid.uuid4().hex[:16]}', 'name': part,
+                        'parentId': parent, 'color': '#10b981', 'isExpanded': True}
+                nodes.append(node)
+            parent = node['id']
         ident, payload, destination = None, None, None
         for path in projects.glob('*.json'):
             item = json.loads(path.read_text(encoding='utf-8-sig'))
@@ -154,27 +172,16 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None,
                        'projectResources': {'resources': [{'folderUri': root.as_uri()}]},
                        'settings': {}, 'isWorkspaceOnly': False}
             create_bytes(destination, json_bytes(payload))
-        folder_id = None
-        folders = Path(folders_json_path)
-        if folders.is_file():
-            before = folders.read_bytes()
-            listing = json.loads(before.decode('utf-8-sig'))
-            nodes, assignments = listing.setdefault('folders', []), listing.setdefault('assignments', {})
-            parent = None
-            for part in ('Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}'):
-                node = next((x for x in nodes if x['name'] == part and x.get('parentId') == parent), None)
-                if node is None:
-                    node = {'id': f'folder-{uuid.uuid4().hex[:16]}', 'name': part, 'parentId': parent,
-                            'order': max((int(x.get('order', 0)) for x in nodes if x.get('parentId') == parent), default=-1) + 1}
-                    nodes.append(node)
-                parent = node['id']
-            folder_id = parent
-            assignments[ident] = parent
-            if folders.read_bytes() != before:
-                raise RuntimeError('Folders changed concurrently; no external changes overwritten')
-            if json_bytes(listing) != before:
-                replace_bytes(folders, json_bytes(listing))
-        return {'project_id': ident, 'project_name': payload['name'], 'project_file': str(destination), 'folder_id': folder_id}
+        assignments[ident] = parent
+        if folders.read_bytes() != before:
+            raise RuntimeError('Folders changed concurrently; retry registration')
+        if json_bytes(listing) != before:
+            replace_bytes(folders, json_bytes(listing))
+        effective = json.loads(folders.read_text(encoding='utf-8-sig'))
+        if effective['projectFolderMap'].get(ident) != parent:
+            raise RuntimeError('Project folder assignment did not persist; retry registration')
+        return {'project_id': ident, 'project_name': payload['name'], 'project_file': str(destination),
+                'folder_id': parent, 'folder_path': ' / '.join(branch), 'folders_file': str(folders)}
 
 
 def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None,
@@ -265,6 +272,9 @@ def main(argv=None):
     init.add_argument('--no-register', action='store_true')
     config = sub.add_parser('configure', help='Create missing native manifests; preserve existing configuration')
     config.add_argument('project', type=Path)
+    register = sub.add_parser('register', help='Register an existing project in Antigravity and its Folders branch')
+    register.add_argument('project', type=Path)
+    register.add_argument('--domain')
     validate = sub.add_parser('validate-analysis', help='Check all five analysis stages and their evidence graph')
     validate.add_argument('input', type=Path)
     validate.add_argument('--render', type=Path)
@@ -278,6 +288,10 @@ def main(argv=None):
             result = install_global_customizations()
         elif args.command == 'configure':
             result = {'configuration': str(configure_project(args.project))}
+        elif args.command == 'register':
+            if not args.project.is_dir():
+                raise FileNotFoundError(args.project)
+            result = register_antigravity_project(args.project, args.domain or args.project.name.split(' - ', 1)[-1])
         elif args.command == 'inspect':
             if args.output.exists():
                 raise FileExistsError('Capture exists; reuse it with init --from-json')

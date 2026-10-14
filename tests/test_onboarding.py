@@ -377,10 +377,49 @@ class RegistrationTests(TemporaryCase):
                     'settings': {'keep': True}}
         record = self.put('native-projects/existing.json', json.dumps(original))
         before = record.read_bytes()
+        folders = self.put('folders.json', '{"folders":[],"projectFolderMap":{}}')
         result = up.register_antigravity_project(root, 'Topic', projects_dir=record.parent,
-                                                 folders_json_path=self.root / 'missing.json')
+                                                 folders_json_path=folders)
         self.assertEqual(result['project_id'], 'existing')
         self.assertEqual(record.read_bytes(), before)
+        self.assertEqual(result['folder_path'], 'Upwork / Proposals / 2026 / 10 / 15')
+        self.assertEqual(json.loads(folders.read_text())['projectFolderMap']['existing'], result['folder_id'])
+
+    def test_missing_or_wrong_folders_store_does_not_publish_ungrouped_project(self):
+        root = self.root / '2026/10/15/1 - Topic'
+        root.mkdir(parents=True)
+        projects = self.root / 'native-projects'
+        for filename in ('missing.json', 'wrong.json'):
+            if filename == 'wrong.json':
+                self.put(filename, '{"folders":[],"assignments":{}}')
+            with self.assertRaises((FileNotFoundError, ValueError)):
+                up.register_antigravity_project(root, 'Topic', projects_dir=projects,
+                                                folders_json_path=self.root / filename)
+            self.assertEqual(list(projects.glob('*.json')), [])
+
+    def test_branch_is_reused_by_parent_and_date_with_other_assignments_preserved(self):
+        data = {'folders': [{'id': 'work', 'name': 'upwork', 'parentId': None},
+                            {'id': 'other-15', 'name': '15', 'parentId': 'work'}],
+                'projectFolderMap': {'manual-project': 'other-15'}, 'collapsedFolders': ['keep']}
+        folders = self.put('folders.json', json.dumps(data))
+        root = self.root / '2026/10/14/1 - Topic'
+        root.mkdir(parents=True)
+        kwargs = dict(projects_dir=self.root / 'native', folders_json_path=folders)
+        result = up.register_antigravity_project(root, 'Topic', **kwargs)
+        before = folders.read_bytes()
+        self.assertEqual(up.register_antigravity_project(root, 'Topic', **kwargs), result)
+        self.assertEqual(folders.read_bytes(), before)
+        actual = json.loads(before)
+        self.assertEqual(actual['projectFolderMap']['manual-project'], 'other-15')
+        self.assertEqual(actual['collapsedFolders'], ['keep'])
+        self.assertNotIn('assignments', actual)
+        node = next(x for x in actual['folders'] if x['id'] == result['folder_id'])
+        self.assertEqual(node['name'], '14')
+        chain = []
+        while node:
+            chain.insert(0, node['name'])
+            node = next((x for x in actual['folders'] if x['id'] == node['parentId']), None)
+        self.assertEqual(chain, ['upwork', 'Proposals', '2026', '10', '14'])
 
     def test_global_install_preserves_other_customizations_and_is_idempotent(self):
         original = {'inherits': [{'path': 'other.json'}], 'entries': [{'path': 'my-skills'}]}
@@ -394,7 +433,7 @@ class RegistrationTests(TemporaryCase):
         self.assertIn(original['entries'][0], value['entries'])
 
     def test_parallel_registration_retains_all_assignments(self):
-        folders = self.put('folders.json', '{"folders":[],"assignments":{}}')
+        folders = self.put('folders.json', '{"folders":[],"projectFolderMap":{}}')
         projects = self.root / 'native-projects'
         roots = [self.root / f'2026/10/15/{i} - Topic' for i in range(1, 9)]
         for root in roots:
@@ -404,7 +443,7 @@ class RegistrationTests(TemporaryCase):
         with ThreadPoolExecutor(max_workers=4) as pool:
             results = list(pool.map(register, roots))
         actual = json.loads(folders.read_text(encoding='utf-8'))
-        self.assertEqual(set(actual['assignments']), {x['project_id'] for x in results})
+        self.assertEqual(set(actual['projectFolderMap']), {x['project_id'] for x in results})
         same = register(roots[0])
         self.assertEqual(same['project_id'], results[0]['project_id'])
 
