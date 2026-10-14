@@ -353,5 +353,171 @@ class StatementTests(TemporaryCase):
         self.assertEqual(validate_statements(self.root), [])
 
 
+class UpworkProjectTests(TemporaryCase):
+    def test_agent_data_dir_prefers_vai_directory(self):
+        (self.root / 'ꘖ').mkdir()
+        draft = self.put('Letters/draft.md', 'v1\r\n')
+        saved = snapshot_draft(draft, 'turn_vai')
+        self.assertTrue(saved.is_relative_to(self.root / 'ꘖ/data/.draft-snapshots'))
+        journal_dir = self.root / 'ꙮ/1 - Анализ'
+        step = journal.record_step(journal_dir, 'req text', 'res text')
+        self.assertEqual(step, 1)
+        self.assertTrue((self.root / 'ꘖ/data/.journal/writer.lock').exists())
+        self.assertFalse((self.root / '.agents/data').exists())
+
+    def test_initialize_upwork_project_and_single_source_linking(self):
+        from agent_tools.upwork_project import initialize_upwork_project, PRIMARY_AGENTS_DIR
+        sample_data = {
+            'job_id': '~022110350932005639807',
+            'title': 'Google tracking expert, GTM tag manager',
+            'url': 'https://upwork.com/jobs/~022110350932005639807',
+            'description': 'We have Google Ads Purchase set as primary.',
+            'workload': 'Not Sure',
+            'duration_label': '1-3 months',
+            'contractor_tier': 3,
+            'budget': {'amount': 0},
+            'client_activity': {
+                'totalApplicants': '20 to 50',
+                'totalInvitedToInterview': 2,
+                'invitationsSent': 1,
+                'unansweredInvites': 1,
+            },
+            'questions': ['Have you fixed this problem before?'],
+            'attachments': [{'fileName': 'google_tag.png', 'length': 1234}],
+            'skills': ['Google Tag Manager', 'stape.io', 'PostgreSQL'],
+            'buyer': {
+                'location': {'country': 'United States', 'city': 'Miami Beach', 'countryTimezone': 'UTC-03:00'},
+                'stats': {
+                    'totalJobsWithHires': 212,
+                    'totalCharges': {'amount': 102661.67},
+                    'totalAssignments': 307,
+                    'activeAssignmentsCount': 15,
+                    'hoursCount': 5210.83,
+                },
+                'jobs': {'postedCount': 912, 'openCount': 80},
+                'avgHourlyJobsRate': {'amount': 13.32},
+                'company': {
+                    'contractDate': '2010-06-28T00:00:00.000Z',
+                    'profile': {'industry': 'Retail & Consumer Goods', 'size': 2},
+                },
+            },
+            'work_history': [
+                {
+                    'startDate': '2026-01-07T05:06:38.752Z',
+                    'endDate': '2026-09-23T08:25:48.594Z',
+                    'totalCharge': 4639.13,
+                    'totalHours': 924,
+                    'rate': {'amount': 8},
+                    'jobInfo': {'title': 'Social Media Ads', 'ciphertext': None},
+                    'contractorInfo': {'contractorName': 'Tooba A.', 'ciphertext': '~01c31aa3100d5cb31c'},
+                    'feedback': {'score': 5, 'comment': 'Excellent A player'},
+                    'feedbackToClient': {'score': 5, 'comment': 'William is a very nice client to work with.'},
+                }
+            ],
+            'open_jobs': [
+                {'title': 'Video editor for luxury brands', 'ciphertext': '~022110290601956419553'}
+            ],
+            'related_descriptions': {
+                '~022110290601956419553': {'title': 'Video editor', 'description': 'Need 3-4 video edits a week.'}
+            },
+            'client_names': [{'name': 'William', 'mentions': [{'project_index': 1, 'project_title': 'Social Media Ads', 'quote': 'William is a very nice client'}]}],
+            'candidate_domains': ['scoutandnimble.com'],
+        }
+        res = initialize_upwork_project(
+            url_or_id='https://www.upwork.com/jobs/~022110350932005639807',
+            domain_or_topic='scoutandnimble.com',
+            site_note='Confirmed from screenshot.',
+            date_str='2026-10-14',
+            daily_root=self.root,
+            primary_agents_dir=PRIMARY_AGENTS_DIR,
+            extracted_data=sample_data,
+        )
+        proj = Path(res['project_dir'])
+        self.assertEqual(proj.name, '1 - scoutandnimble.com')
+        self.assertTrue((proj / '.md').is_file())
+        self.assertIn('# Google tracking expert, GTM tag manager\nhttps://upwork.com/jobs/~022110350932005639807', (proj / '.md').read_text(encoding='utf-8'))
+        self.assertTrue((proj / 'KB/Project.md').is_file())
+        self.assertIn('William', (proj / 'KB/Project.md').read_text(encoding='utf-8'))
+        self.assertTrue((proj / 'ꘖ/KB/Client.md').is_file())
+        self.assertTrue((proj / 'ꘖ/KB/Website.md').is_file())
+        self.assertTrue((proj / 'ꘖ/KB/Projects.md').is_file())
+        self.assertTrue((proj / 'ꘖ/KB/Glossary.md').is_file())
+        self.assertTrue((proj / 'ꘖ/KB/.md').is_file())
+        self.assertTrue((proj / 'ꙮ/0/Context.md').is_file())
+        self.assertTrue((proj / 'ꘖ/data/context.lock').is_file())
+        self.assertTrue((proj / '.agents/rules/00-scope.md').exists())
+        self.assertTrue((proj / '.agents/rules/90-project.md').is_file())
+        self.assertFalse((proj / '.agents/rules/90-project.md').is_symlink())
+        self.assertFalse((PRIMARY_AGENTS_DIR / 'rules/90-project.md').exists())
+
+        # Verify KB/Project.md follows reference schema (# 1. Клиент, ## 1.1 Имя, ~~~markdown, ## 3.0, ## 3.1)
+        kb_text = (proj / 'KB/Project.md').read_text(encoding='utf-8')
+        self.assertIn('## 1.1 Имя\nWilliam', kb_text)
+        self.assertIn('## 1.3 Сайт\nhttps://scoutandnimble.com', kb_text)
+        self.assertIn('~~~markdown\nGoogle tracking expert, GTM tag manager\n#\n', kb_text)
+        self.assertIn('## 3.0\n', kb_text)
+        self.assertIn('## 3.1\nhttps://upwork.com/jobs/~022110290601956419553\n~~~markdown\nVideo editor for luxury brands\n#\n', kb_text)
+
+        # Verify ꘖ/KB/ compliance (KB-3 metadata, KB-4 Glossary numbered sections + Источник, full work history in Projects.md)
+        glossary_text = (proj / 'ꘖ/KB/Glossary.md').read_text(encoding='utf-8')
+        self.assertIn('## 1. Google Tag Manager', glossary_text)
+        self.assertIn('- **Источник**:', glossary_text)
+        projects_text = (proj / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8')
+        self.assertIn('## 2.1. Social Media Ads', projects_text)
+        self.assertIn('Tooba A.', projects_text)
+
+        # Verify legacy ꙮ/1 - Анализ/.journal migration and journal inclusion in Context.md
+        legacy_journal = proj / 'ꙮ/1 - Анализ/.journal'
+        legacy_journal.mkdir(parents=True, exist_ok=True)
+        (legacy_journal / 'legacy.txt').write_text('migrated', encoding='utf-8')
+        journal.record_step(proj / 'ꙮ/1 - Анализ', 'Request 1?', 'Response 1.')
+
+        ag_projects = self.root / 'ag_projects'
+        ag_folders = self.root / 'folders.json'
+        ag_folders.write_text(json.dumps({
+            'folders': [
+                {'id': 'f-upw', 'name': 'Upwork', 'parentId': None, 'order': 0, 'collapsed': False},
+                {'id': 'f-prop', 'name': 'Proposals', 'parentId': 'f-upw', 'order': 0, 'collapsed': False},
+                {'id': 'f-2026', 'name': '2026', 'parentId': 'f-prop', 'order': 0, 'collapsed': False},
+                {'id': 'f-10', 'name': '10', 'parentId': 'f-2026', 'order': 0, 'collapsed': False},
+                {'id': 'f-14', 'name': '14', 'parentId': 'f-10', 'order': 0, 'collapsed': False},
+            ],
+            'workspaceFolders': {},
+            'ProjectOrder': {'f-14': []},
+        }), encoding='utf-8')
+
+        # Verify KB/Project.md is NOT overwritten on subsequent runs without force_kb (KB-1)
+        (proj / 'KB/Project.md').write_text('# Custom manual edit\n', encoding='utf-8')
+        res2 = initialize_upwork_project(
+            url_or_id='~022110350932005639807',
+            domain_or_topic='scoutandnimble.com',
+            date_str='2026-10-14',
+            daily_root=self.root,
+            primary_agents_dir=PRIMARY_AGENTS_DIR,
+            extracted_data=sample_data,
+            force_kb=False,
+            register_antigravity=True,
+            antigravity_projects_dir=ag_projects,
+            antigravity_folders_json=ag_folders,
+        )
+        self.assertEqual((proj / 'KB/Project.md').read_text(encoding='utf-8'), '# Custom manual edit\n')
+        self.assertFalse(legacy_journal.exists())
+        self.assertTrue((proj / 'ꘖ/data/.journal/legacy.txt').is_file())
+
+        # Verify Context.md includes ꙮ/1 - Анализ journal and omits empty # Correspondence
+        ctx_text = (proj / 'ꙮ/0/Context.md').read_text(encoding='utf-8')
+        self.assertIn('Request 1?', ctx_text)
+        self.assertIn('Response 1.', ctx_text)
+        self.assertNotIn('# Correspondence', ctx_text)
+
+        # Verify Antigravity Folders registration
+        self.assertIsNotNone(res2['antigravity'])
+        self.assertEqual(res2['antigravity']['project_name'], 'scoutandnimble.com - U.P.2026.10.14')
+        self.assertEqual(res2['antigravity']['folder_id'], 'f-14')
+        folders_data = json.loads(ag_folders.read_text(encoding='utf-8'))
+        self.assertEqual(folders_data['assignments'][res2['antigravity']['project_id']], 'f-14')
+
+
 if __name__ == '__main__':
     unittest.main()
+

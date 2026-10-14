@@ -22,34 +22,44 @@ Markdown-парсер нужен для проверки ссылок и Markdow
 Новое окружение тоже можно держать внутри `.agents`: создайте его командой `python -m venv .agents/.venv` и активируйте перед установкой зависимостей.
 Папка окружения и кэши Python исключены из Git через `.agents/.gitignore`.
 
+# Инициализация проекта Upwork (`upwork_project.py`)
+
+```text
+python .agents/scripts/upwork_project.py inspect "https://www.upwork.com/jobs/~02..." --attachments-dir "temp_att"
+python .agents/scripts/upwork_project.py init "https://www.upwork.com/jobs/~02..." --domain "example.com" --site-note "Обоснование"
+python .agents/scripts/upwork_project.py link-agents "C:\work\upwork\code\proposals\daily\2026\10\14\1 - hairrave.co" --rebuild-context
+```
+
+Скрипт неразрушающим образом подключается к открытому браузеру Chrome через CDP (`127.0.0.1:9222`), извлекает `__NUXT_DATA__` целевой вакансии, подгружает описания связанных открытых и публичных прошлых вакансий клиента, скачивает вложения, создаёт папку `proposals/daily/YYYY/MM/DD/<N> - <domain_or_topic>`, заполняет `.md`, `KB/Project.md`, портирует данные в `ꘖ/KB/`, настраивает `.agents/` (симлинки на `primary/result/.agents` + локальный `90-project.md`) и собирает `ꙮ/0/Context.md`.
+
 # Журнал
 
 ```text
-python .agents/scripts/record_step.py --dir ".agents/data/journal" --req "Точный запрос" --res "Точный окончательный ответ"
-python .agents/scripts/record_step.py --dir ".agents/data/journal" --req-file "request.txt" --res-file "response.txt"
-python .agents/scripts/validate_step.py --dir ".agents/data/journal" --step 1
-python .agents/scripts/validate_step.py --dir ".agents/data/journal" --all
+python .agents/scripts/record_step.py --dir "ꙮ/1 - Анализ" --req "Точный запрос" --res "Точный окончательный ответ"
+python .agents/scripts/record_step.py --dir "ꙮ/1 - Анализ" --req-file "request.txt" --res-file "response.txt"
+python .agents/scripts/validate_step.py --dir "ꙮ/1 - Анализ" --step 1
+python .agents/scripts/validate_step.py --dir "ꙮ/1 - Анализ" --all
 ```
 
-Указывайте каталог, выбранный пользователем для текущего чата.
+Указывайте каталог, выбранный пользователем для текущего чата (по умолчанию `ꙮ/1 - Анализ`).
 Файлы на входе нужны только если они уже существуют или многострочный текст нельзя безопасно передать строкой.
 Скрипт сохраняет UTF-8 без изменения переносов строк и проверяет записанные байты.
-Номер выбирается по обеим папкам и незавершённым резервированиям в `.agents/data/.journal`.
+Номер выбирается по обеим папкам и незавершённым резервированиям в `ꘖ/data/.journal` (или `.agents/data/.journal`, если `ꘖ/` отсутствует).
 `--step N` допускает только свободный положительный номер.
 Перезаписи существующего шага нет.
 
-Параллельные процессы согласуют запись через блокировку ОС в `.agents/data/.journal/writer.lock`.
-Во время записи в `.agents/data/.journal/N.json` временно сохраняются токен, точные тексты, хеши и статус `pending`.
+Параллельные процессы согласуют запись через блокировку ОС в `ꘖ/data/.journal/writer.lock`.
+Во время записи в `ꘖ/data/.journal/N.json` временно сохраняются токен, точные тексты, хеши и статус `pending`.
 После успешной записи и проверки `req/N.md` и `res/N.md` файл резервирования `N.json` удаляется, чтобы не накапливать копии завершённых шагов.
 В пользовательском каталоге журнала создаются только папки `req/` и `res/`.
-Файл блокировки остаётся в `.agents/data/.journal/writer.lock`, но сама блокировка освобождается ОС при завершении процесса.
+Файл блокировки остаётся в `ꘖ/data/.journal/writer.lock`, но сама блокировка освобождается ОС при завершении процесса.
 
 Две отдельные записи файлов не являются одной атомарной операцией файловой системы.
-При аварии резервирование остаётся в `.agents/data/.journal/N.json` со статусом `pending`, валидатор сообщает незавершённость, а новый писатель использует следующий номер.
+При аварии резервирование остаётся в `ꘖ/data/.journal/N.json` со статусом `pending`, валидатор сообщает незавершённость, а новый писатель использует следующий номер.
 Для восстановления именно этого резервирования:
 
 ```text
-python .agents/scripts/record_step.py --dir ".agents/data/journal" --recover 1 --token "TOKEN_FROM_RECEIPT"
+python .agents/scripts/record_step.py --dir "ꙮ/1 - Анализ" --recover 1 --token "TOKEN_FROM_RECEIPT"
 ```
 
 Восстановление дописывает отсутствующие файлы только при совпадении токена и уже существующих байтов, после чего удаляет `N.json`.
@@ -65,7 +75,7 @@ python .agents/scripts/snapshot_draft.py "Letters/my/result/EN/draft.md" --turn 
 
 Запускайте до первой правки существующего черновика в ходе.
 Используйте уникальный ID чата и хода.
-Сохраняются реальные байты в соседний `draft.prev.md` и в `.agents/data/.draft-snapshots/<turn>/draft.md` с хешем.
+Сохраняются реальные байты в соседний `draft.prev.md` и в `ꘖ/data/.draft-snapshots/<turn>/draft.md` с хешем.
 Повтор с тем же ID проверяет исходную копию и не заменяет её промежуточной редакцией.
 Новый ход получает новый ID.
 Обнаруженные после снимка пользовательские правки требуют отдельного сохранения новой исходной версии.
@@ -106,7 +116,7 @@ python .agents/scripts/validate_anchors.py "report.md" --timeout 15
 Скопируйте `.agents/context.example.json` в `.agents/context.json` и укажите реальные источники проекта.
 Пример намеренно не является активной конфигурацией нового проекта.
 Порядок `sections` задаёт порядок разделов.
-`files` перечисляет обязательные файлы, `globs` — маски, `exclude` — исключения, `letters` — корни переписки с авторами и приоритетом языков.
+`files` перечисляет обязательные файлы, `globs` — маски, `journals` — каталоги журналов с нумерованными парами `req/N.md` и `res/N.md` (собираются в порядке возрастания `N`), `exclude` — исключения, `letters` — корни переписки с авторами и приоритетом языков.
 Для необязательного пустого раздела укажите `optional: true`.
 Пути разрешаются относительно явно переданного корня проекта.
 Выход за этот корень и перезапись источника выходным файлом запрещены.
@@ -144,7 +154,7 @@ python .agents/scripts/safe_commit.py --repo "." --file "report.md" --file "KB/t
 # Statements
 
 ```text
-python .agents/scripts/validate_statements.py "KB/Verification/Statements"
+python .agents/scripts/validate_statements.py "ꘖ/KB/Verification/Statements"
 ```
 
 Проверяется наличие непустых UTF-8-файлов `.md` и `Test.md` в каждом числовом каталоге.

@@ -1,12 +1,16 @@
 {
   "version": 1,
-  "output": ".agents/data/Context.md",
+  "output": "ꙮ/0/Context.md",
   "sections": [
-    {"title": "Scope", "files": ["Specification.md"]},
-    {"title": "Knowledge base", "globs": ["KB/*.md"]},
-    {"title": "Correspondence", "letters": [
+    {"title": "Project Overview", "files": [".md"], "optional": true},
+    {"title": "Manual Knowledge Base (KB)", "globs": ["KB/*.md", "KB/**/*.md"], "optional": true},
+    {"title": "Agent Knowledge Base (ꘖ/KB)", "globs": ["ꘖ/KB/*.md", "ꘖ/KB/**/*.md"], "optional": true},
+    {"title": "Analysis (ꙮ/1 - Анализ)", "journals": ["ꙮ/1 - Анализ"], "optional": true},
+    {"title": "Proposals (result)", "globs": ["result/**/final/*.md", "result/**/final.md"], "optional": true},
+    {"title": "Correspondence", "optional": true, "letters": [
       {"root": "Letters/my", "author": "Consultant", "languages": ["EN", "RU"]},
       {"root": "Letters/client", "author": "Client", "languages": ["EN", "RU"]}
     ]}
   ]
 }
+

@@ -8,11 +8,17 @@ import time
 
 
 def data_dir_for(path: Path) -> Path:
-    """Locate the .agents/data directory for a project or target path."""
+    """Locate the ꘖ/data (or fallback .agents/data) directory for a project or target path."""
     resolved = Path(path).resolve()
     start = resolved if not resolved.exists() or resolved.is_dir() else resolved.parent
     for parent in (start, *start.parents):
+        if parent.name == 'ꘖ':
+            return parent / 'data'
+        if (parent / 'ꘖ').is_dir():
+            return parent / 'ꘖ' / 'data'
         if parent.name == '.agents':
+            if (parent.parent / 'ꘖ').is_dir():
+                return parent.parent / 'ꘖ' / 'data'
             return parent / 'data'
         if (parent / '.agents').is_dir():
             return parent / '.agents' / 'data'

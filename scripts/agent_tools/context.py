@@ -68,7 +68,6 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
     selected = []
     seen = set()
     for section in manifest['sections']:
-        blocks.append(f'\n# {section["title"]}\n')
         items = [(inside(root, path), None) for path in section.get('files', [])]
         for pattern in section.get('globs', []):
             if Path(pattern).is_absolute() or '..' in Path(pattern).parts:
@@ -77,14 +76,37 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
             if not matches and not section.get('optional', False):
                 raise FileNotFoundError(f'No sources match {pattern}')
             items.extend((inside(root, p), None) for p in matches)
+        for journal_rel in section.get('journals', []):
+            jdir = inside(root, journal_rel)
+            if not jdir.is_dir():
+                if section.get('optional', False):
+                    continue
+                raise FileNotFoundError(f'Missing journal directory: {journal_rel}')
+            step_ids = sorted({
+                int(p.stem)
+                for sub in ('req', 'res')
+                if (jdir / sub).is_dir()
+                for p in (jdir / sub).glob('*.md')
+                if p.is_file() and p.stem.isascii() and p.stem.isdigit()
+            })
+            for step_id in step_ids:
+                for sub, role in (('req', 'User (req)'), ('res', 'Agent (res)')):
+                    candidate = jdir / sub / f'{step_id}.md'
+                    if candidate.is_file() and candidate.read_text(encoding='utf-8').strip():
+                        items.append((inside(root, candidate), role))
         for group in section.get('letters', []):
             directory = inside(root, group['root'])
+            if not directory.is_dir() and section.get('optional', False):
+                continue
             items.extend((inside(root, p), group['author']) for p in discover_letters(
                 directory, group.get('languages', ['EN', 'RU'])))
         items = [(p, author) for p, author in items if not any(
             p.relative_to(root).match(pattern) for pattern in section.get('exclude', []))]
-        if not items and not section.get('optional', False):
-            raise ValueError(f'Empty source section: {section["title"]}')
+        if not items:
+            if not section.get('optional', False):
+                raise ValueError(f'Empty source section: {section["title"]}')
+            continue
+        blocks.append(f'\n# {section["title"]}\n')
         for source, author in items:
             if source in seen:
                 continue
