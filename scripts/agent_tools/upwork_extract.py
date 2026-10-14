@@ -54,7 +54,10 @@ def download_attachment(attachment, directory: Path, cookies=(), user_agent='Upw
     for cookie in cookies:
         domain = cookie.get('domain', 'www.upwork.com')
         host_matches = (parsed.hostname.endswith(domain) or parsed.hostname == domain[1:]) if domain.startswith('.') else parsed.hostname == domain
-        if host_matches and parsed.path.startswith(cookie.get('path', '/')):
+        cookie_path = cookie.get('path') or '/'
+        path_matches = (parsed.path == cookie_path or parsed.path.startswith(
+            cookie_path if cookie_path.endswith('/') else cookie_path + '/'))
+        if host_matches and path_matches:
             allowed.append(f'{cookie["name"]}={cookie["value"]}')
     headers = {'User-Agent': user_agent}
     if allowed:
@@ -89,7 +92,10 @@ class RPC:
                     if 'error' in message:
                         raise RuntimeError(f'CDP {method}: {message["error"]}')
                     return message['result']
-        return await asyncio.wait_for(receive(), timeout=self.timeout)
+        try:
+            return await asyncio.wait_for(receive(), timeout=self.timeout)
+        except TimeoutError as exc:
+            raise TimeoutError(f'CDP {method} did not respond within {self.timeout}s') from exc
 
     async def evaluate(self, expression):
         result = await self.call('Runtime.evaluate', expression=expression,
@@ -99,12 +105,35 @@ class RPC:
         return result.get('result', {}).get('value')
 
 
+def decode_page(page, job_id):
+    """Distinguish a job source from an access error or an unloaded/unsupported page."""
+    if not isinstance(page, dict):
+        raise ValueError('Browser page state is unavailable')
+    raw = page.get('nuxt') or ''
+    decoded = resolve_nuxt_devalue(json.loads(raw)) if raw else {}
+    details = ((decoded.get('vuex') or {}).get('jobDetails') or {}) if isinstance(decoded, dict) else {}
+    if (details.get('job') or {}).get('ciphertext') == job_id:
+        return details
+    status = ' '.join(str(page.get(k) or '') for k in ('title', 'heading', 'body'))
+    if re.search(r'access denied|not authorized|no longer available|do not have permission|don.t have permission', status, re.I):
+        raise PermissionError('Upwork denies access to this job. No job data captured; do not bypass the restriction.')
+    if not raw:
+        raise ValueError('Selected tab has no Upwork source data; it may be unloaded or use an unsupported page format')
+    raise ValueError('Selected page data does not match the requested job ID')
+
+
 def select_tab(tabs, job_id, tab_id=None):
     candidates = [t for t in tabs if t.get('type') == 'page' and upwork_host(t.get('url', ''))]
     if tab_id:
         candidates = [t for t in candidates if t.get('id') == tab_id]
     else:
-        candidates = [t for t in candidates if re.search(r'/jobs/(?:[^/]+/)?' + re.escape(job_id) + r'(?:[/?#]|$)', t['url'])]
+        def matches(tab):
+            path = urlsplit(tab['url']).path
+            try:
+                return path.startswith('/jobs/') and normalize_job_id(path) == job_id
+            except ValueError:
+                return False
+        candidates = [t for t in candidates if matches(t)]
     if len(candidates) != 1:
         raise ValueError('Select one exact Upwork job tab with --tab-id; no arbitrary account fallback')
     return candidates[0]
@@ -117,13 +146,11 @@ async def _extract(job_id, cdp_port, fetch_related, attachments_dir, tab_id):
     tab = select_tab(tabs, job_id, tab_id)
     async with websockets.connect(tab['webSocketDebuggerUrl'], max_size=50_000_000, open_timeout=10) as websocket:
         rpc = RPC(websocket)
-        raw = await rpc.evaluate('document.getElementById("__NUXT_DATA__")?.textContent || ""')
-        if not raw:
-            raise ValueError('The selected tab has no Upwork source data')
-        details = (resolve_nuxt_devalue(json.loads(raw)).get('vuex') or {}).get('jobDetails') or {}
+        page = await rpc.evaluate('''({nuxt:document.getElementById("__NUXT_DATA__")?.textContent||"",
+            title:document.title,heading:document.querySelector("h1")?.textContent||"",
+            body:(document.body?.innerText||"").slice(0,1000)})''')
+        details = decode_page(page or {}, job_id)
         job = details.get('job') or {}
-        if job.get('ciphertext') != job_id:
-            raise ValueError('Selected page data does not match the requested job ID')
         history, open_jobs = details.get('workHistory') or [], details.get('openJobs') or []
         related, failures = {}, []
         if fetch_related:
@@ -144,12 +171,15 @@ async def _extract(job_id, cdp_port, fetch_related, attachments_dir, tab_id):
                     related[ident] = {k: found.get(k) for k in ('title', 'description')}
                 except (ValueError, KeyError, RuntimeError, TimeoutError) as exc:
                     failures.append({'job_id': ident, 'error': str(exc)})
-        assets = []
+        assets, asset_failures = [], []
         if attachments_dir is not None and job.get('attachments'):
             cookies = (await rpc.call('Network.getCookies', urls=['https://www.upwork.com']))['cookies']
             ua = await rpc.evaluate('navigator.userAgent')
             for attachment in job['attachments']:
-                assets.append(download_attachment(attachment, Path(attachments_dir), cookies, ua))
+                try:
+                    assets.append(download_attachment(attachment, Path(attachments_dir), cookies, ua))
+                except (OSError, ValueError, KeyError) as exc:
+                    asset_failures.append({'filename': attachment.get('fileName'), 'error': str(exc)})
         sands = details.get('sands') or {}
         skills = [child['name'] for group in sands.get('ontologySkills') or []
                   for child in group.get('children') or [] if child.get('name')]
@@ -167,7 +197,8 @@ async def _extract(job_id, cdp_port, fetch_related, attachments_dir, tab_id):
             'candidate_domains': extract_candidate_domains(texts),
             'coverage': {'history_records': len(history), 'history_complete': False,
                          'scope': 'records embedded in the selected page; no pagination asserted',
-                         'related_failures': failures},
+                         'related_failures': failures, 'attachment_failures': asset_failures,
+                         'attachments_downloaded': len(assets)},
             **{key: job.get(src) for key, src in (('posted_on', 'postedOn'), ('workload', 'workload'),
                ('duration_label', 'durationLabel'), ('contractor_tier', 'contractorTier'), ('budget', 'budget'),
                ('extended_budget', 'extendedBudgetInfo'), ('client_activity', 'clientActivity'))},

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI entrypoint for deterministic Upwork project initialization and .agents linking."""
+"""Internal agent entrypoint for deterministic capture and project initialization."""
 
 from pathlib import Path
 import sys

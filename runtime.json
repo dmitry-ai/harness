@@ -1,0 +1,12 @@
+{
+  "timezone": "Europe/Istanbul",
+  "models": {"AA": "gemini-4-argon-high", "AF": "gemini-3.8-flash-high"},
+  "effort": "high",
+  "surface": "antigravity-app",
+  "delegation": {"tool": "invoke_subagent", "complex_agent": "self", "simple_agent": "af-worker"},
+  "paths": {
+    "daily_root": "proposals/daily",
+    "folders_json": "C:/work/research/provision/code/Software/Google/AI/Antigravity/primary/tools/Folders/code/folders.json"
+  },
+  "browser": {"cdp_port": 9222, "owned_window_bounds": null}
+}

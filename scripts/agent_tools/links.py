@@ -8,6 +8,7 @@ import re
 import json
 from urllib.parse import unquote, urldefrag, urlsplit
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 
 class HTMLReferences(HTMLParser):
@@ -122,6 +123,12 @@ def validate_file(file_path: Path, **options) -> list[str]:
             if (parsed.scheme and parsed.scheme != 'file' and not windows_path) or href.startswith('#'):
                 continue
             path_text = unquote(urldefrag(href)[0] if windows_path else parsed.path)
+            if parsed.scheme == 'file':
+                if parsed.netloc and parsed.netloc != 'localhost':
+                    path_text = (parsed.netloc + path_text if re.fullmatch(r'[A-Za-z]:', parsed.netloc)
+                                 else f'//{parsed.netloc}{path_text}')
+                if re.match(r'^/[A-Za-z]:/', path_text):
+                    path_text = path_text[1:]
             if not path_text:
                 continue
             target = (file_path.parent / path_text).resolve()
@@ -159,7 +166,12 @@ def fetch_page(url: str, timeout: float = 15) -> Page:
     if urlsplit(url).scheme not in ('http', 'https'):
         raise ValueError('Only HTTP(S) fetching is supported')
     request = Request(url, headers={'User-Agent': 'ProjectLinkCheck/1.0'})
-    with urlopen(request, timeout=timeout) as response:
+    try:
+        response = urlopen(request, timeout=timeout)
+    except HTTPError as exc:
+        exc.close()
+        raise
+    with response:
         data = response.read(16 * 1024 * 1024 + 1)
         if len(data) > 16 * 1024 * 1024:
             raise ValueError('Response exceeds 16 MiB')
@@ -190,6 +202,7 @@ def check_network(urls: list[str], *, anchors: bool = False, timeout: float = 15
             results.append({'url': url, 'status': 'fetch-error', 'detail': str(page)})
             continue
         status = 'http-ok'
+        details = {}
         if not 200 <= page.status < 300:
             status = 'http-error'
         elif anchors:
@@ -201,6 +214,9 @@ def check_network(urls: list[str], *, anchors: bool = False, timeout: float = 15
                 html = HTMLReferences()
                 html.feed(page.text)
                 status = 'found-in-source' if unquote(fragment) in html.anchors else 'not-found-in-source'
+                if status == 'not-found-in-source':
+                    details = {'available_anchors': html.anchors[:100],
+                               'anchor_count': len(html.anchors), 'source_bytes': len(page.text.encode('utf-8'))}
         results.append({'url': url, 'status': status, 'http_status': page.status,
-                        'final_url': page.url})
+                        'final_url': page.url, **details})
     return results

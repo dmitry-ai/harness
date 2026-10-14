@@ -7,7 +7,7 @@ from .links import validate_file
 
 
 def git(root: Path, *args) -> bytes:
-    result = subprocess.run(['git', '-C', str(root), *args], capture_output=True)
+    result = subprocess.run(['git', '--no-optional-locks', '-C', str(root), *args], capture_output=True)
     if result.returncode:
         raise RuntimeError(result.stderr.decode('utf-8', errors='replace').strip())
     return result.stdout

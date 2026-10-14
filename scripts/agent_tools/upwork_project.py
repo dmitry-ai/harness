@@ -1,30 +1,29 @@
 """Create new Upwork workspaces from one capture; preserve existing human/agent work."""
 
 import argparse
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
-import subprocess
 import sys
 import uuid
 from zoneinfo import ZoneInfo
+from urllib.parse import unquote
 
 from .context import generate as generate_context
 from .knowledge import create_once, json_bytes, populate_agent_kb, render_analysis, validate_analysis
 from .storage import create_bytes, locked, replace_bytes
-from .upwork_data import (canonical_job_url, normalize_job_id, format_kb_project_md,
-                          extract_candidate_domains, extract_client_names, resolve_nuxt_devalue)
+from .upwork_data import canonical_job_url, normalize_job_id, format_kb_project_md
 from .upwork_extract import attachment_path, extract_upwork_job
 
 PRIMARY_AGENTS_DIR = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = next(p for p in PRIMARY_AGENTS_DIR.parents if (p / 'proposals' / 'daily').is_dir())
-DAILY_PROPOSALS_ROOT = WORKSPACE_ROOT / 'proposals' / 'daily'
+RUNTIME = json.loads((PRIMARY_AGENTS_DIR / 'runtime.json').read_text(encoding='utf-8'))
+DAILY_PROPOSALS_ROOT = WORKSPACE_ROOT / RUNTIME['paths']['daily_root']
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini' / 'config' / 'projects'
-ANTIGRAVITY_FOLDERS_JSON = Path(r'C:\work\research\provision\code\Software\Google\AI\Antigravity\primary\tools\Folders\code\folders.json')
-MODEL_IDS = {'AA': 'gemini-4-argon-high', 'AF': 'gemini-3.8-flash-high'}
+ANTIGRAVITY_FOLDERS_JSON = Path(RUNTIME['paths']['folders_json'])
+MODEL_IDS = RUNTIME['models']
 
 
 def default_context_config():
@@ -40,7 +39,7 @@ def default_context_config():
 
 
 def request_day(value=None):
-    return date.fromisoformat(value) if value else datetime.now(ZoneInfo('Europe/Istanbul')).date()
+    return date.fromisoformat(value) if value else datetime.now(ZoneInfo(RUNTIME['timezone'])).date()
 
 
 def validate_label(value):
@@ -66,22 +65,41 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
         if not shared.is_dir():
             raise FileNotFoundError(shared)
         manifest = {'entries': [{'path': shared.as_posix()}]}
-        create_once(agents / f'{kind}.json', json_bytes(manifest).decode('utf-8'))
+        if kind == 'rules':
+            manifest['entries'].append({'path': 'rules'})
+        path = agents / f'{kind}.json'
+        if path.exists() and not isinstance(json.loads(path.read_text(encoding='utf-8-sig')), dict):
+            raise ValueError(f'Native manifest must be a JSON object; preserved: {path}')
+        create_once(path, json_bytes(manifest).decode('utf-8'))
     create_once(agents / 'context.json', json_bytes(default_context_config()).decode('utf-8'))
     create_once(rules / '90-project.md', '\n'.join([
         '---', 'trigger: always_on', 'description: "Параметры проекта"', '---', '', '# Проект',
         f'Вакансия: {job_url or "не указана"}.',
         f'Название каталога: `{domain_or_topic or root.name}`; принадлежность домена этим не доказана.',
-        'KB и журнал: [KB-1](../../../AI/primary/result/.agents/rules/06-knowledge-base.md).', '']))
-    # The shared rules already supply boundaries; local rules contain only this project's parameters.
-    local = rules / '90-project.md'
-    if local.is_file():
-        # No assumptions about how relative file links would resolve in a different depth.
-        text = local.read_text(encoding='utf-8')
-        if '](../../../AI/' in text:
-            local.write_text(text.replace('KB и журнал: [KB-1](../../../AI/primary/result/.agents/rules/06-knowledge-base.md).',
-                                          'Пути и границы: общие правила KB-1 и FILE-4.'), encoding='utf-8')
+        'Пути и границы: общие правила KB-1 и FILE-4.', '']))
     return agents
+
+
+def install_global_customizations(config_dir=None):
+    config = Path(config_dir) if config_dir is not None else Path.home() / '.gemini' / 'config'
+    result = {}
+    with locked(config / 'ꘖ' / 'data' / 'customizations.lock'):
+        for kind in ('skills', 'agents'):
+            target = config / f'{kind}.json'
+            payload = json.loads(target.read_text(encoding='utf-8-sig')) if target.exists() else {'entries': []}
+            entry = {'path': (PRIMARY_AGENTS_DIR / kind).as_posix()}
+            if entry not in payload.setdefault('entries', []):
+                payload['entries'].append(entry)
+                replace_bytes(target, json_bytes(payload))
+            result[kind] = str(target)
+    return result
+
+
+def folder_path(uri):
+    path = unquote(uri[7:]) if uri.startswith('file://') else uri
+    if re.match(r'^/[A-Za-z]:/', path):
+        path = path[1:]
+    return Path(path).resolve()
 
 
 def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_root=DAILY_PROPOSALS_ROOT):
@@ -126,14 +144,14 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None,
         for path in projects.glob('*.json'):
             item = json.loads(path.read_text(encoding='utf-8-sig'))
             resources = (item.get('projectResources') or {}).get('resources') or []
-            if any(Path(res.get('folderUri', '')).resolve() == root for res in resources):
+            if any(folder_path(res.get('folderUri', '')) == root for res in resources):
                 ident, payload, destination = item.get('id') or path.stem, item, path
                 break
         if ident is None:
             ident = str(uuid.uuid4())
             destination = projects / f'{ident}.json'
             payload = {'id': ident, 'name': name,
-                       'projectResources': {'resources': [{'folderUri': root.as_posix()}]},
+                       'projectResources': {'resources': [{'folderUri': root.as_uri()}]},
                        'settings': {}, 'isWorkspaceOnly': False}
             create_bytes(destination, json_bytes(payload))
         folder_id = None
@@ -159,13 +177,17 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None,
         return {'project_id': ident, 'project_name': payload['name'], 'project_file': str(destination), 'folder_id': folder_id}
 
 
-def initialize_upwork_project(url_or_id, domain_or_topic=None, site_note=None, date_str=None,
+def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None,
                               daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR,
-                              cdp_port=9222, extracted_data=None, register_antigravity=None,
+                              extracted_data=None, register_antigravity=None,
                               antigravity_projects_dir=ANTIGRAVITY_PROJECTS_DIR,
-                              antigravity_folders_json=ANTIGRAVITY_FOLDERS_JSON, tab_id=None):
+                              antigravity_folders_json=ANTIGRAVITY_FOLDERS_JSON, site_hypothesis=None):
     job_id, day = normalize_job_id(url_or_id), request_day(date_str)
-    data = extracted_data if extracted_data is not None else extract_upwork_job(job_id, cdp_port=cdp_port, tab_id=tab_id)
+    if extracted_data is None:
+        raise ValueError('Capture once with inspect; initialize from that capture')
+    data = extracted_data
+    if not isinstance(data, dict):
+        raise ValueError('Capture must be a JSON object')
     if data.get('job_id') != job_id or not data.get('title') or not data.get('description'):
         raise ValueError('A capture with matching job ID, title and full description is required')
     label = domain_or_topic or ' '.join(re.findall(r'[\w-]+', data['title'])[:5])
@@ -181,7 +203,8 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, site_note=None, d
             (root / folder).mkdir(parents=True, exist_ok=True)
         if not state['initialized']:
             create_once(root / '.md', f'# {data["title"]}\n{canonical_job_url(job_id)}\n')
-            create_once(root / 'KB' / 'Project.md', format_kb_project_md(data, domain=label, site_note=site_note))
+            create_once(root / 'KB' / 'Project.md', format_kb_project_md(
+                {**data, **({'site_hypothesis': site_hypothesis} if site_hypothesis else {})}))
         assets = []
         for asset in data.get('saved_attachments') or []:
             source = Path(asset['path'])
@@ -196,7 +219,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, site_note=None, d
                 create_bytes(target, payload)
             assets.append({'file': target.relative_to(root / 'ꘖ' / 'KB').as_posix(), 'sha256': digest})
         source_data = {**data, 'asset_evidence': assets}
-        snapshot = populate_agent_kb(root, source_data, domain=label, site_note=site_note, date_str=day.isoformat())
+        snapshot = populate_agent_kb(root, source_data)
         state.update(initialized=True, snapshot=str(snapshot.relative_to(root)), request_date=day.isoformat())
         replace_bytes(state_file, json_bytes(state))
         target, _, _ = generate_context(root, root / '.agents/context.json')
@@ -219,7 +242,9 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
         raise ValueError('Every shared rule must remain always_on')
     return {'rules': len(files), 'rule_bytes': sum(sizes.values()), 'per_file_bytes': sizes,
             'skills': sorted(p.parent.name for p in (primary / 'skills').glob('*/SKILL.md')),
-            'models': MODEL_IDS, 'effort': 'high'}
+            'required_models': MODEL_IDS, 'required_effort': RUNTIME['effort'],
+            'surface': RUNTIME['surface'], 'delegation': RUNTIME['delegation'],
+            'actual_session_models_verified': False}
 
 
 def main(argv=None):
@@ -235,6 +260,7 @@ def main(argv=None):
     init.add_argument('--from-json', required=True, type=Path)
     init.add_argument('--domain')
     init.add_argument('--date')
+    init.add_argument('--site-hypothesis', type=Path, help='Four-part identity hypothesis with evidence and expert probability')
     init.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
     init.add_argument('--no-register', action='store_true')
     config = sub.add_parser('configure', help='Create missing native manifests; preserve existing configuration')
@@ -243,15 +269,13 @@ def main(argv=None):
     validate.add_argument('input', type=Path)
     validate.add_argument('--render', type=Path)
     sub.add_parser('doctor', help='Check discovery inputs, always_on rules, size and model settings')
-    run = sub.add_parser('run-agent', help='Run AA or AF with an explicit native model ID and effort')
-    run.add_argument('--role', choices=MODEL_IDS, required=True)
-    run.add_argument('--prompt-file', type=Path, required=True)
-    run.add_argument('--project', type=Path, required=True)
-    run.add_argument('--timeout', type=int, default=600)
+    sub.add_parser('install-global', help='Register only the shared skill and worker in native global manifests')
     args = parser.parse_args(argv)
     try:
         if args.command == 'doctor':
             result = doctor()
+        elif args.command == 'install-global':
+            result = install_global_customizations()
         elif args.command == 'configure':
             result = {'configuration': str(configure_project(args.project))}
         elif args.command == 'inspect':
@@ -264,11 +288,14 @@ def main(argv=None):
             result = {'capture': str(args.output), 'job_id': result['job_id'], 'coverage': result['coverage']}
         elif args.command == 'init':
             data = json.loads(args.from_json.read_text(encoding='utf-8-sig'))
+            if not isinstance(data, dict):
+                raise ValueError('Capture must be a JSON object')
             for asset in data.get('saved_attachments') or []:
                 if not Path(asset['path']).resolve().is_relative_to(args.from_json.parent.resolve()):
                     raise ValueError('Attachment must belong to the capture directory')
             result = initialize_upwork_project(args.url, args.domain, date_str=args.date,
                 daily_root=args.daily_root, extracted_data=data,
+                site_hypothesis=json.loads(args.site_hypothesis.read_text(encoding='utf-8')) if args.site_hypothesis else None,
                 register_antigravity=False if args.no_register else None)
         elif args.command == 'validate-analysis':
             value = json.loads(args.input.read_text(encoding='utf-8-sig'))
@@ -277,17 +304,10 @@ def main(argv=None):
                 args.render.parent.mkdir(parents=True, exist_ok=True)
                 create_bytes(args.render, rendered.encode('utf-8'))
             result = {'valid': True, 'claims': sum(len(value[key]) for key in value if key in ('identity', 'concerns', 'misconceptions', 'causes', 'methods'))}
-        else:
-            command = ['agy', '--model', MODEL_IDS[args.role], '--effort', 'high', '--output-format', 'json',
-                       '--print-timeout', f'{args.timeout}s', '--print', args.prompt_file.read_text(encoding='utf-8')]
-            if args.role == 'AF':
-                command[1:1] = ['--agent', 'af-worker']
-            completed = subprocess.run(command, cwd=args.project, timeout=args.timeout + 30)
-            return completed.returncode
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
-        print(f'ERROR: {exc}', file=sys.stderr)
+        print(f'ERROR: {type(exc).__name__}: {exc}', file=sys.stderr)
         return 1
 
 

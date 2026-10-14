@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 from .storage import create_bytes
-from .upwork_data import canonical_job_url
+from .upwork_data import canonical_job_url, markdown_fence
 
 SECTIONS = ('identity', 'concerns', 'misconceptions', 'causes', 'methods')
 TITLES = ('Идентификация клиента', 'Источники беспокойства', 'Возможные заблуждения',
@@ -26,25 +26,35 @@ def create_once(path: Path, content: str):
 
 def validate_analysis(value: dict) -> None:
     """Check the reviewable claim graph; truth still requires checking its evidence."""
+    if not isinstance(value, dict):
+        raise ValueError('Analysis must be a JSON object')
     ids, references = set(), []
     for section in SECTIONS:
         items = value.get(section)
         if not isinstance(items, list):
             raise ValueError(f'Analysis requires list: {section}')
-        if not items and not (value.get('notes') or {}).get(section):
+        notes = value.get('notes') or {}
+        if not isinstance(notes, dict):
+            raise ValueError('Analysis notes must be an object')
+        if not items and not (isinstance(notes.get(section), str) and notes[section].strip()):
             raise ValueError(f'Empty {section}: explain what is unknown/not established')
         for item in items:
+            if not isinstance(item, dict):
+                raise ValueError(f'{section}: each claim must be an object')
             ident = item.get('id', '')
             if not re.fullmatch(r'[A-Z][A-Z0-9-]*', ident) or ident in ids:
                 raise ValueError(f'Invalid or duplicate claim ID: {ident}')
             ids.add(ident)
-            references.extend(item.get('addresses') or [])
+            addresses = item.get('addresses', [])
+            if not isinstance(addresses, list) or any(not isinstance(x, str) for x in addresses):
+                raise ValueError(f'{ident}: addresses must be a list of claim IDs')
+            references.extend(addresses)
             score = item.get('score_percent' if section == 'methods' else 'probability_percent')
             if type(score) is not int or not 0 <= score <= 100:
                 raise ValueError(f'{ident}: assessment must be an integer from 0 to 100')
-            if not item.get('essence') or not item.get('assessment_basis'):
+            if not all(isinstance(item.get(k), str) and item[k].strip() for k in ('essence', 'assessment_basis')):
                 raise ValueError(f'{ident}: essence and assessment_basis are required')
-            if section == 'methods' and not item.get('criterion'):
+            if section == 'methods' and not (isinstance(item.get('criterion'), str) and item['criterion'].strip()):
                 raise ValueError(f'{ident}: method score requires a criterion')
             if section in ('causes', 'methods') and not item.get('addresses'):
                 raise ValueError(f'{ident}: link causes to concerns, methods to causes/tasks')
@@ -53,10 +63,10 @@ def validate_analysis(value: dict) -> None:
                 if not isinstance(arguments, list) or not arguments:
                     raise ValueError(f'{ident}: concrete arguments {side} are required')
                 for argument in arguments:
-                    if not all(isinstance(argument.get(k), str) and argument[k].strip()
+                    if not isinstance(argument, dict) or not all(isinstance(argument.get(k), str) and argument[k].strip()
                                for k in ('argument', 'source', 'quote')):
                         raise ValueError(f'{ident}: each argument needs source and exact quote')
-                    if argument.get('documentation') and not argument['source'].split('#', 1)[-1] != argument['source']:
+                    if argument.get('documentation') and ('#' not in argument['source'] or not argument['source'].split('#', 1)[1]):
                         raise ValueError(f'{ident}: documentation needs a section anchor')
     if set(references) - ids:
         raise ValueError(f'Unknown claim references: {sorted(set(references) - ids)}')
@@ -85,7 +95,7 @@ def render_analysis(value: dict) -> str:
                 lines.append(f'### {label}')
                 for argument in item[side]:
                     lines.extend([argument['argument'],
-                                  f'> {argument["quote"]}',
+                                  '> ' + argument['quote'].replace('\n', '\n> '),
                                   f'[Источник]({argument["source"]})', ''])
             if key == 'methods':
                 lines.append(f'Оценка: {item["score_percent"]}% ({item["criterion"]}).')
@@ -95,10 +105,7 @@ def render_analysis(value: dict) -> str:
     return '\n'.join(lines)
 
 
-def populate_agent_kb(project_root: Path, data: dict, domain=None, site_note=None,
-                      date_str=None, overwrite_curated=False):
-    if overwrite_curated:
-        raise ValueError('KB regeneration cannot overwrite curated files')
+def populate_agent_kb(project_root: Path, data: dict):
     kb = project_root / 'ꘖ' / 'KB'
     evidence = kb / 'Evidence'
     evidence.mkdir(parents=True, exist_ok=True)
@@ -123,7 +130,7 @@ def populate_agent_kb(project_root: Path, data: dict, domain=None, site_note=Non
               '```json', json.dumps(buyer, ensure_ascii=False, indent=2), '```',
               f'[Снимок]({source_link}#/buyer).', '']
     if data.get('client_names'):
-        client.extend(['## F-CLIENT-3', 'Имена, встречающиеся в отзывах; личность заказчика не установлена:',
+        client.extend(['## F-CLIENT-3', 'Совпадения эвристики имён в отзывах; личность заказчика не установлена:',
                        '```json', json.dumps(data['client_names'], ensure_ascii=False, indent=2), '```',
                        f'[Отзывы]({source_link}#/client_names).', ''])
     create_once(kb / 'Client.md', '\n'.join(client))
@@ -135,14 +142,18 @@ def populate_agent_kb(project_root: Path, data: dict, domain=None, site_note=Non
                '```json', json.dumps(data.get('candidate_domains') or [], ensure_ascii=False, indent=2), '```',
                f'[Снимок]({source_link}#/candidate_domains).', '']
     create_once(kb / 'Website.md', '\n'.join(website))
+    fence = markdown_fence(data.get('description', ''), '`')
     projects = ['# Проекты', '', '## F-PROJECT-1', f'[Текущая вакансия]({url}).',
-                '```markdown', data.get('title', ''), data.get('description', ''), '```',
+                fence + 'markdown', data.get('title', ''), data.get('description', ''), fence,
                 f'[Исходный текст]({source_link}#/description).', '', '## F-PROJECT-2',
                 'История, фактически возвращённая страницей; связь всех заказов с одним сайтом не установлена.',
                 '```json', json.dumps({k: data.get(k) for k in ('work_history', 'open_jobs', 'related_descriptions', 'coverage')},
                                      ensure_ascii=False, indent=2), '```',
                 f'[Снимок]({source_link}).', '']
     create_once(kb / 'Projects.md', '\n'.join(projects))
+    if data.get('asset_evidence'):
+        create_once(kb / 'Evidence.md', '# Вложения\n\n' + '\n'.join(
+            f'[{Path(x["file"]).name}]({x["file"]}) — SHA-256 `{x["sha256"]}`.' for x in data['asset_evidence']) + '\n')
     create_once(kb / 'Glossary.md', '# Термины\n\nОпределения добавляются при использовании; каждый термин — со ссылкой на источник.\n')
     create_once(kb / '.md', '# База знаний\n\n'
                 '[Клиент](Client.md) · [Сайт](Website.md) · [Проекты](Projects.md) · '

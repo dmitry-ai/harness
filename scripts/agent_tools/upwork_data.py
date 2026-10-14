@@ -1,47 +1,6 @@
 """Upwork identifiers, observed name/domain mentions and source formatting."""
 
-from datetime import datetime
 import re
-
-IGNORED_CANDIDATE_DOMAINS = {
-    'upwork.com',
-    'www.upwork.com',
-    'youtube.com',
-    'www.youtube.com',
-    'youtu.be',
-    'linkedin.com',
-    'www.linkedin.com',
-    'facebook.com',
-    'www.facebook.com',
-    'instagram.com',
-    'www.instagram.com',
-    'google.com',
-    'www.google.com',
-    'docs.google.com',
-    'drive.google.com',
-    'loom.com',
-    'www.loom.com',
-    'figma.com',
-    'www.figma.com',
-    'canva.com',
-    'www.canva.com',
-    'speedtest.net',
-    'www.speedtest.net',
-    'stape.io',
-    'www.stape.io',
-    'adbeacon.com',
-    'www.adbeacon.com',
-    'klaviyo.com',
-    'www.klaviyo.com',
-    'shopify.com',
-    'www.shopify.com',
-    'webflow.com',
-    'www.webflow.com',
-    'wordpress.org',
-    'wordpress.com',
-    'zendesk.com',
-    'www.zendesk.com',
-}
 
 
 def normalize_job_id(url_or_id: str) -> str:
@@ -76,17 +35,6 @@ def resolve_nuxt_devalue(arr: list, idx: int = 0, seen: set[int] | None = None):
     if isinstance(val, dict):
         return {k: (resolve_nuxt_devalue(arr, v, seen) if isinstance(v, int) else v) for k, v in val.items()}
     return val
-
-
-def format_month_year(iso_str: str | None) -> str:
-    """Convert ISO timestamp like 2026-01-07T05:06:38.752Z to Jan 2026."""
-    if not iso_str:
-        return 'Present'
-    try:
-        dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
-        return dt.strftime('%b %Y')
-    except ValueError:
-        return iso_str[:10]
 
 
 def extract_client_names(work_history: list[dict]) -> list[dict]:
@@ -124,26 +72,15 @@ def extract_client_names(work_history: list[dict]) -> list[dict]:
 
 
 def extract_candidate_domains(texts: list[str]) -> list[str]:
-    """Extract candidate client domains from job descriptions and related texts."""
-    candidates: list[str] = []
-    url_re = re.compile(r'https?://([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:/[^\s"\'<>)]*)?')
-    bare_re = re.compile(r'\b([a-zA-Z0-9-]+\.(?:com|co|org|net|io|ai|de|dk|uk|eu|pt|es|fr|nl|us|ca|au|shop|store))\b')
-    for text in texts:
-        if not text:
-            continue
-        for match in url_re.finditer(text):
-            host = match.group(1).lower().lstrip('.')
-            base = host[4:] if host.startswith('www.') else host
-            if host not in IGNORED_CANDIDATE_DOMAINS and base not in IGNORED_CANDIDATE_DOMAINS:
-                if base not in candidates:
-                    candidates.append(base)
-        for match in bare_re.finditer(text):
-            host = match.group(1).lower()
-            base = host[4:] if host.startswith('www.') else host
-            if host not in IGNORED_CANDIDATE_DOMAINS and base not in IGNORED_CANDIDATE_DOMAINS:
-                if base not in candidates:
-                    candidates.append(base)
-    return candidates
+    """Collect literal domain mentions, without guessing client ownership or excluding vendors."""
+    pattern = r'(?<![\w.-])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63})(?![\w.-])'
+    domains = (m[4:] if m.startswith('www.') else m
+               for text in texts for m in re.findall(pattern, text.lower()))
+    return list(dict.fromkeys(domains))
+
+
+def markdown_fence(text: str, marker: str = '~') -> str:
+    return marker * max(3, 1 + max((len(m[0]) for m in re.finditer(re.escape(marker) + r'+', text)), default=0))
 
 
 _SENTENCE_SPLIT_RE = re.compile(
@@ -152,7 +89,7 @@ _SENTENCE_SPLIT_RE = re.compile(
 
 
 def split_sentences_one_per_line(text: str) -> list[str]:
-    """Split a paragraph into individual sentences (one per line per DOC-6)."""
+    """Split a paragraph into individual sentences (one per line per DOC-4)."""
     parts = [p.strip() for p in _SENTENCE_SPLIT_RE.split(text.strip()) if p.strip()]
     return parts or ([text.strip()] if text.strip() else [])
 
@@ -274,21 +211,14 @@ def collect_unique_public_past_jobs(data: dict) -> list[dict]:
     return public_jobs
 
 
-def format_kb_project_md(
-    data: dict,
-    domain: str | None = None,
-    site_note: str | None = None,
-    client_name_override: str | None = None,
-) -> str:
+def format_kb_project_md(data: dict) -> str:
     """Format KB/Project.md strictly following the user's reference schema (§§23-24)."""
     buyer = data.get('buyer') or {}
     loc = buyer.get('location') or {}
 
     # 1.1 Имя
     client_names = data.get('client_names') or []
-    if client_name_override:
-        name_str = client_name_override.strip()
-    elif client_names:
+    if client_names:
         name_str = 'не установлено; имена из отзывов требуют проверки'
     else:
         name_str = 'неизвестно'
@@ -301,18 +231,24 @@ def format_kb_project_md(
         loc_lines.append(city)
 
     # 1.3 Сайт
-    if domain and '.' in domain and ' ' not in domain:
-        site_str = domain if domain.startswith(('http://', 'https://')) else f'https://{domain}'
-    elif len(data.get('candidate_domains') or []) == 1:
-        site_str = f'https://{data["candidate_domains"][0]}'
-    else:
-        site_str = 'неизвестно'
+    site_str = 'не установлен; упоминание домена и имя папки не доказывают принадлежность'
+    if data.get('site_hypothesis'):
+        h = data['site_hypothesis']
+        from .knowledge import validate_analysis, SECTIONS
+        analysis = {key: ([h] if key == 'identity' else []) for key in SECTIONS}
+        analysis['notes'] = {key: 'Отдельный этап анализа.' for key in SECTIONS if key != 'identity'}
+        validate_analysis(analysis)
+        site_str = '\n'.join([h['essence'],
+            'За: ' + '; '.join(f'{a["argument"]} «{a["quote"]}» ({a["source"]})' for a in h['for']),
+            'Против: ' + '; '.join(f'{a["argument"]} «{a["quote"]}» ({a["source"]})' for a in h['against']),
+            f'Экспертная правдоподобность: {h["probability_percent"]}%.', h['assessment_basis']])
 
     # 2. Текущий проект клиента
     job_url = canonical_job_url(data.get('job_id') or data.get('url') or '')
     job_title = (data.get('title') or '').strip()
     structured_desc = structure_job_description(data.get('description') or '', data.get('questions'))
 
+    fence = markdown_fence(structured_desc)
     lines = [
         '# 1. Клиент',
         '## 1.1 Имя',
@@ -326,11 +262,11 @@ def format_kb_project_md(
         '',
         '# 2. Текущий проект клиента',
         job_url,
-        '~~~markdown',
+        fence + 'markdown',
         job_title,
         '#',
         structured_desc,
-        '~~~',
+        fence,
         '',
         '# 3. Прошлые проекты клиента',
         '## 3.0',
@@ -342,15 +278,16 @@ def format_kb_project_md(
 
     for idx, pjob in enumerate(collect_unique_public_past_jobs(data), start=1):
         p_structured = structure_job_description(pjob['description'])
+        fence = markdown_fence(p_structured)
         lines.extend([
             '',
             f'## 3.{idx}',
             pjob['url'],
-            '~~~markdown',
+            fence + 'markdown',
             pjob['title'],
             '#',
             p_structured,
-            '~~~',
+            fence,
         ])
 
     return '\n'.join(lines) + '\n'
