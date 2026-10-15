@@ -93,6 +93,8 @@ def analysis_issues(value):
         allowed = ('concerns',) if section == 'causes' else ('concerns', 'causes')
         if section in ('causes', 'methods') and addresses and not any(claims.get(x) in allowed for x in addresses):
             add('claim.reference_kind', field + '/addresses', 'Reference must address a concern or applicable cause', ident)
+    from .red_flags import red_flag_issues
+    issues.extend(red_flag_issues(value, claims))
     return issues
 
 
@@ -160,7 +162,8 @@ def iter_arguments(value):
 
 def render_analysis(value):
     validate_analysis(value)
-    lines = []
+    from .red_flags import render_red_flags
+    lines = [render_red_flags(value)] if value.get('red_flags') else []
     for number, (key, title) in enumerate(zip(SECTIONS, TITLES), 1):
         lines.extend([f'# {number}. {title}', ''])
         if not value[key]:
@@ -188,6 +191,21 @@ def render_analysis(value):
                 lines.append(f'Экспертная правдоподобность: {item["probability_percent"]}%.')
             lines.extend([item['assessment_basis'], ''])
     return '\n'.join(lines)
+
+
+def publish_analysis(source, target=None):
+    """Render the report and synchronize its screening block in the project card."""
+    from .red_flags import sync_project_red_flags
+    source = Path(source).resolve()
+    value = json.loads(source.read_text(encoding='utf-8-sig'))
+    result = publish_owned(target or source.with_suffix('.md'), render_analysis(value), source=source)
+    # Arbitrary standalone inputs must not mutate an unrelated project card.
+    if source.name == 'Analysis.json' and source.parent.name == 'KB' and source.parent.parent.name == 'ꘖ':
+        card = sync_project_red_flags(source.parents[2], value)
+        result['project_card'] = card
+        if card['status'] == 'conflict':
+            result['status'] = 'conflict'
+    return result
 
 
 def digest(data):

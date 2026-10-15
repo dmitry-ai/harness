@@ -334,7 +334,7 @@ def main(argv=None):
                 register_antigravity=False if args.no_register else None)
         elif args.command == 'validate-analysis':
             value = json.loads(args.input.read_text(encoding='utf-8-sig'))
-            from .analysis import analysis_issues, publish_owned
+            from .analysis import analysis_issues, publish_analysis
             issues = analysis_issues(value)
             if args.evidence and isinstance(value, dict):
                 from .evidence import evidence_issues
@@ -350,7 +350,7 @@ def main(argv=None):
                     print('\n'.join(f"{x['code']} {x.get('claim_id', '')} {x['field']}: {x['message']}" for x in issues))
                 return 1
             if args.render:
-                result['publication'] = publish_owned(args.render, render_analysis(value), source=args.input)
+                result['publication'] = publish_analysis(args.input, args.render)
                 if result['publication']['status'] == 'conflict':
                     print(json.dumps(result, ensure_ascii=False, indent=2)); return 2
             result['claims'] = sum(len(value[key]) for key in ('identity', 'concerns', 'misconceptions', 'causes', 'methods'))

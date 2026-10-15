@@ -161,7 +161,6 @@ def execute(args):
         from .evidence import source_reference
         return {'source': source_reference(args.project, args.file, args.part)}
     if command == 'render-analysis':
-        from .analysis import render_analysis, publish_owned
-        value = json.loads(args.input.read_text(encoding='utf-8-sig'))
-        return publish_owned(args.output or args.input.with_suffix('.md'), render_analysis(value), source=args.input)
+        from .analysis import publish_analysis
+        return publish_analysis(args.input, args.output)
     raise ValueError('Unknown workflow command')
