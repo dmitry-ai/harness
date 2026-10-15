@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "sources": {
+    "client_statement": "Evidence/example-source.json#/client_statement",
+    "identity": "Evidence/example-source.json#/identity",
+    "identity_limit": "Evidence/example-source.json#/identity_limit",
+    "observation": "Evidence/example-source.json#/observation",
+    "alternative": "Evidence/example-source.json#/alternative",
+    "method": "Evidence/example-source.json#/method",
+    "method_limit": "Evidence/example-source.json#/method_limit",
+    "limitations": "Evidence/example-source.json#/limitations"
+  },
+  "identity": [
+    {
+      "id": "H-SITE-1",
+      "essence": "Гипотеза: example.invalid принадлежит учебному клиенту.",
+      "for": [
+        {
+          "argument": "Прямое заявление клиента.",
+          "source_id": "identity",
+          "quote": "Учебный клиент называет example.invalid своим магазином."
+        }
+      ],
+      "against": [
+        {
+          "argument": "Независимое подтверждение отсутствует.",
+          "source_id": "identity_limit",
+          "quote": "Принадлежность домена не проверена независимыми данными."
+        }
+      ],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
+      "probability_percent": 70
+    }
+  ],
+  "concerns": [
+    {
+      "id": "H-CONCERN-1",
+      "essence": "Клиент обеспокоен расхождением цены в магазине и объявлениях.",
+      "for": [
+        {
+          "argument": "Беспокойство прямо сформулировано.",
+          "source_id": "client_statement",
+          "quote": "Учебный клиент сообщает, что после изменения цены товара объявления показывают старую цену."
+        }
+      ],
+      "against": [
+        {
+          "argument": "Нельзя оценить длительность и причину расхождения.",
+          "source_id": "alternative",
+          "quote": "Время последнего обновления feed неизвестно."
+        }
+      ],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
+      "probability_percent": 90
+    }
+  ],
+  "misconceptions": [],
+  "causes": [
+    {
+      "id": "H-CAUSE-1",
+      "essence": "Возможная причина: feed ещё не обновился после изменения цены.",
+      "for": [
+        {
+          "argument": "В снимках есть расхождение, совместимое с задержкой.",
+          "source_id": "observation",
+          "quote": "В учебном снимке JSON товара цена 25.97, а в учебной выгрузке feed — 24.97."
+        }
+      ],
+      "against": [],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
+      "probability_percent": 55,
+      "addresses": [
+        "H-CONCERN-1"
+      ],
+      "counterevidence": {
+        "status": "unavailable",
+        "reviewed_sources": [
+          "Evidence/example-source.json#/limitations"
+        ],
+        "limitations": "Журналы и точное время обновления недоступны; расхождение не доказывает причинность. Гипотеза требует проверки."
+      }
+    }
+  ],
+  "methods": [
+    {
+      "id": "M-1",
+      "essence": "Сопоставить один SKU в feed и магазине, затем проверить обновление.",
+      "for": [
+        {
+          "argument": "Проверка разделяет наблюдаемое расхождение и причину.",
+          "source_id": "method",
+          "quote": "Учебное условие: сначала сравнить один SKU, время обновления и источник цены."
+        }
+      ],
+      "against": [
+        {
+          "argument": "Без доступа нельзя выполнить полное сопоставление.",
+          "source_id": "method_limit",
+          "quote": "Доступ к реальному feed и журналу синхронизации пока не предоставлен."
+        }
+      ],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
+      "score_percent": 75,
+      "addresses": [
+        "H-CAUSE-1"
+      ],
+      "criterion": "Пригодность как следующей проверки при доступе к нужным данным"
+    }
+  ],
+  "notes": {
+    "misconceptions": "Заблуждений клиента по учебным материалам не установлено."
+  }
+}

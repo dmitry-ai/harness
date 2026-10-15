@@ -58,11 +58,23 @@ def locked(path: Path, timeout: float = 15):
 
 
 def create_bytes(path: Path, data: bytes):
-    """Never replace an existing file, including an empty file."""
-    with path.open('xb') as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
+    """Publish complete bytes exclusively; never replace even an empty existing file."""
+    path = Path(path)
+    fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
+    temp = Path(name)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if os.name == 'nt':
+            # Windows rename is atomic and refuses an existing destination.
+            os.rename(temp, path)
+        else:
+            # Exclusive atomic publication; the temporary link is removed below.
+            os.link(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def replace_bytes(path: Path, data: bytes):

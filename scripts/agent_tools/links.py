@@ -141,12 +141,11 @@ def validate_file(file_path: Path, **options) -> list[str]:
                 ids = set(references(other)[1]) | heading_anchors(other)
                 if fragment not in ids:
                     errors.append(f'Missing cross-file anchor: {href}')
-            elif fragment.startswith('/') and target.suffix.lower() == '.json':
+            elif fragment and target.suffix.lower() == '.json':
                 value = json.loads(target.read_text(encoding='utf-8'))
                 try:
-                    for part in fragment[1:].split('/'):
-                        part = part.replace('~1', '/').replace('~0', '~')
-                        value = value[int(part)] if isinstance(value, list) else value[part]
+                    from .evidence import resolve_pointer
+                    resolve_pointer(value, fragment)
                 except (KeyError, ValueError, IndexError, TypeError):
                     errors.append(f'Missing JSON pointer: {href}')
         return errors

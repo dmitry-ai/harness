@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import sqlite3
 import sys
 import uuid
 from zoneinfo import ZoneInfo
@@ -247,11 +248,21 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
         raise ValueError('Rules are missing or exceed the 24,000-byte per-file limit')
     if any(not re.search(r'^trigger: always_on\s*$', p.read_text(encoding='utf-8'), re.M) for p in files):
         raise ValueError('Every shared rule must remain always_on')
-    return {'rules': len(files), 'rule_bytes': sum(sizes.values()), 'per_file_bytes': sizes,
+    from .operations import COMMANDS
+    version_files = sorted(p for p in primary.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.json') and '__pycache__' not in p.parts)
+    tool_version = hashlib.sha256(b''.join(p.relative_to(primary).as_posix().encode() + hashlib.sha256(p.read_bytes()).digest() for p in version_files)).hexdigest()
+    return {'tool_version': tool_version, 'rules': len(files), 'rule_bytes': sum(sizes.values()), 'per_file_bytes': sizes,
             'skills': sorted(p.parent.name for p in (primary / 'skills').glob('*/SKILL.md')),
             'required_models': MODEL_IDS, 'required_effort': RUNTIME['effort'],
             'surface': RUNTIME['surface'], 'delegation': RUNTIME['delegation'],
-            'actual_session_models_verified': False}
+            'actual_session_models_verified': False,
+            'paths': {'rules': [str(p.resolve()) for p in files], 'reference': str((primary / 'scripts/README-agent-tools.md').resolve()),
+                      'analysis_contract': str((primary / 'scripts/agent_tools/analysis.py').resolve()),
+                      'workflow_reference': str((primary / 'skills/upwork-init/references/workflow.md').resolve()),
+                      'examples': str((primary / 'skills/upwork-init/references').resolve()),
+                      'example_files': [str(p.resolve()) for p in sorted((primary / 'skills/upwork-init/references').glob('*.json'))]},
+            'workflow_commands': list(COMMANDS), 'internal_knowledge': 'ꘖ/KB',
+            'context_purpose': 'complete external export for Gemini DeepThink or another external agent'}
 
 
 def main(argv=None):
@@ -278,10 +289,20 @@ def main(argv=None):
     validate = sub.add_parser('validate-analysis', help='Check all five analysis stages and their evidence graph')
     validate.add_argument('input', type=Path)
     validate.add_argument('--render', type=Path)
+    validate.add_argument('--format', choices=('text', 'json'), default='text')
+    validate.add_argument('--evidence', action='store_true', help='Verify saved sources and quotes without network requests')
     sub.add_parser('doctor', help='Check discovery inputs, always_on rules, size and model settings')
     sub.add_parser('install-global', help='Register only the shared skill and worker in native global manifests')
+    from .operations import COMMANDS, add_parsers, execute, analysis_root
+    add_parsers(sub)
     args = parser.parse_args(argv)
     try:
+        if args.command in COMMANDS:
+            result = execute(args)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            if result.get('valid') is False or result.get('complete') is False or result.get('content_available_for_all') is False or result.get('error') or result.get('status') == 'conflict' or result.get('publication', {}).get('status') == 'conflict':
+                return 2
+            return 0
         if args.command == 'doctor':
             result = doctor()
         elif args.command == 'install-global':
@@ -313,15 +334,33 @@ def main(argv=None):
                 register_antigravity=False if args.no_register else None)
         elif args.command == 'validate-analysis':
             value = json.loads(args.input.read_text(encoding='utf-8-sig'))
-            rendered = render_analysis(value)
+            from .analysis import analysis_issues, publish_owned
+            issues = analysis_issues(value)
+            if args.evidence and isinstance(value, dict):
+                from .evidence import evidence_issues
+                issues.extend(evidence_issues(analysis_root(args.input), value))
+            for issue in issues:
+                if not issue.get('file'):
+                    issue['file'] = str(args.input.resolve())
+            result = {'valid': not issues, 'issues': issues, 'evidence_checked': args.evidence, 'semantic_truth_verified': False}
+            if issues:
+                if args.format == 'json':
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    print('\n'.join(f"{x['code']} {x.get('claim_id', '')} {x['field']}: {x['message']}" for x in issues))
+                return 1
             if args.render:
-                args.render.parent.mkdir(parents=True, exist_ok=True)
-                create_bytes(args.render, rendered.encode('utf-8'))
-            result = {'valid': True, 'claims': sum(len(value[key]) for key in value if key in ('identity', 'concerns', 'misconceptions', 'causes', 'methods'))}
+                result['publication'] = publish_owned(args.render, render_analysis(value), source=args.input)
+                if result['publication']['status'] == 'conflict':
+                    print(json.dumps(result, ensure_ascii=False, indent=2)); return 2
+            result['claims'] = sum(len(value[key]) for key in ('identity', 'concerns', 'misconceptions', 'causes', 'methods'))
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
-    except (OSError, ValueError, KeyError, RuntimeError) as exc:
-        print(f'ERROR: {type(exc).__name__}: {exc}', file=sys.stderr)
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError, sqlite3.Error) as exc:
+        if args.command in COMMANDS or getattr(args, 'format', None) == 'json':
+            print(json.dumps({'valid': False, 'issues': [{'code': 'operation.input', 'field': '/', 'message': str(exc)}]}, ensure_ascii=False, indent=2))
+        else:
+            print(f'ERROR: {type(exc).__name__}: {exc}', file=sys.stderr)
         return 1
 
 

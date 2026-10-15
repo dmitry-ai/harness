@@ -9,100 +9,17 @@ import re
 from .storage import create_bytes
 from .upwork_data import canonical_job_url, markdown_fence
 
-SECTIONS = ('identity', 'concerns', 'misconceptions', 'causes', 'methods')
-TITLES = ('Идентификация клиента', 'Источники беспокойства', 'Возможные заблуждения',
-          'Причины проблемы у этого клиента', 'Способы решения')
+from .analysis import SECTIONS, TITLES, validate_analysis, render_analysis
 
 
 def json_bytes(value):
-    return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
 
 
 def create_once(path: Path, content: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        create_bytes(path, content.encode('utf-8'))
-
-
-def validate_analysis(value: dict) -> None:
-    """Check the reviewable claim graph; truth still requires checking its evidence."""
-    if not isinstance(value, dict):
-        raise ValueError('Analysis must be a JSON object')
-    ids, references = set(), []
-    for section in SECTIONS:
-        items = value.get(section)
-        if not isinstance(items, list):
-            raise ValueError(f'Analysis requires list: {section}')
-        notes = value.get('notes') or {}
-        if not isinstance(notes, dict):
-            raise ValueError('Analysis notes must be an object')
-        if not items and not (isinstance(notes.get(section), str) and notes[section].strip()):
-            raise ValueError(f'Empty {section}: explain what is unknown/not established')
-        for item in items:
-            if not isinstance(item, dict):
-                raise ValueError(f'{section}: each claim must be an object')
-            ident = item.get('id', '')
-            if not re.fullmatch(r'[A-Z][A-Z0-9-]*', ident) or ident in ids:
-                raise ValueError(f'Invalid or duplicate claim ID: {ident}')
-            ids.add(ident)
-            addresses = item.get('addresses', [])
-            if not isinstance(addresses, list) or any(not isinstance(x, str) for x in addresses):
-                raise ValueError(f'{ident}: addresses must be a list of claim IDs')
-            references.extend(addresses)
-            score = item.get('score_percent' if section == 'methods' else 'probability_percent')
-            if type(score) is not int or not 0 <= score <= 100:
-                raise ValueError(f'{ident}: assessment must be an integer from 0 to 100')
-            if not all(isinstance(item.get(k), str) and item[k].strip() for k in ('essence', 'assessment_basis')):
-                raise ValueError(f'{ident}: essence and assessment_basis are required')
-            if section == 'methods' and not (isinstance(item.get('criterion'), str) and item['criterion'].strip()):
-                raise ValueError(f'{ident}: method score requires a criterion')
-            if section in ('causes', 'methods') and not item.get('addresses'):
-                raise ValueError(f'{ident}: link causes to concerns, methods to causes/tasks')
-            for side in ('for', 'against'):
-                arguments = item.get(side)
-                if not isinstance(arguments, list) or not arguments:
-                    raise ValueError(f'{ident}: concrete arguments {side} are required')
-                for argument in arguments:
-                    if not isinstance(argument, dict) or not all(isinstance(argument.get(k), str) and argument[k].strip()
-                               for k in ('argument', 'source', 'quote')):
-                        raise ValueError(f'{ident}: each argument needs source and exact quote')
-                    if argument.get('documentation') and ('#' not in argument['source'] or not argument['source'].split('#', 1)[1]):
-                        raise ValueError(f'{ident}: documentation needs a section anchor')
-    if set(references) - ids:
-        raise ValueError(f'Unknown claim references: {sorted(set(references) - ids)}')
-    concerns = {x['id'] for x in value['concerns']}
-    causes = {x['id'] for x in value['causes']}
-    for item in value['causes']:
-        if not set(item['addresses']) & concerns:
-            raise ValueError(f'{item["id"]}: cause must address a concern')
-    for item in value['methods']:
-        if not set(item['addresses']) & (concerns | causes):
-            raise ValueError(f'{item["id"]}: method must address a cause or task')
-
-
-def render_analysis(value: dict) -> str:
-    validate_analysis(value)
-    lines = []
-    for number, (key, title) in enumerate(zip(SECTIONS, TITLES), 1):
-        lines.extend([f'# {number}. {title}', ''])
-        if not value[key]:
-            lines.extend([value['notes'][key], ''])
-        for item in value[key]:
-            lines.extend([f'## {item["id"]}', item['essence'], ''])
-            if item.get('addresses'):
-                lines.extend(['Основания: ' + ', '.join(f'[{i}](#{i.lower()})' for i in item['addresses']) + '.', ''])
-            for side, label in (('for', 'За'), ('against', 'Против')):
-                lines.append(f'### {label}')
-                for argument in item[side]:
-                    lines.extend([argument['argument'],
-                                  '> ' + argument['quote'].replace('\n', '\n> '),
-                                  f'[Источник]({argument["source"]})', ''])
-            if key == 'methods':
-                lines.append(f'Оценка: {item["score_percent"]}% ({item["criterion"]}).')
-            else:
-                lines.append(f'Экспертная правдоподобность: {item["probability_percent"]}%.')
-            lines.extend([item['assessment_basis'], ''])
-    return '\n'.join(lines)
+        create_bytes(path, content.encode("utf-8"))
 
 
 def populate_agent_kb(project_root: Path, data: dict):

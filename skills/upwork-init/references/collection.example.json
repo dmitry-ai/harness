@@ -1,0 +1,16 @@
+{
+  "requests": [
+    {
+      "url": "https://example.invalid/",
+      "profile": "html",
+      "scope": "public",
+      "max_age": 86400
+    },
+    {
+      "url": "https://example.invalid/products/sample.json",
+      "profile": "shopify",
+      "scope": "public",
+      "max_age": 86400
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""Assemble complete sources using a project-owned JSON manifest."""
+"""Complete standalone export for an external agent; internal agents read their KB."""
 
 from datetime import datetime, timezone
 import json
@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 
 from .storage import data_dir_for, locked, replace_bytes
-from .journal import get_existing_step_ids, step_errors
+from .journal import get_existing_step_ids, step_errors, answer_groups
 
 
 def inside(root: Path, path: str | Path) -> Path:
@@ -65,7 +65,9 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
     if manifest.get('version') != 1 or not manifest.get('sections'):
         raise ValueError('Context manifest requires version=1 and nonempty sections')
     timestamp = (now or datetime.now(timezone.utc)).isoformat(timespec='seconds')
-    blocks = [f'# Context\n\nGenerated: {timestamp}\n']
+    blocks = [f'# Context\n\nGenerated: {timestamp}\n\n'
+              'Назначение: единый полный экспорт для внешнего агента, в том числе Gemini DeepThink в веб-интерфейсе.\n'
+              'Внутренние агенты Antigravity работают с актуальной агентской KB и первичными доказательствами.\n']
     selected = []
     seen = set()
     for section in manifest['sections']:
@@ -84,10 +86,24 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
                     continue
                 raise FileNotFoundError(f'Missing journal directory: {journal_rel}')
             step_ids = sorted(get_existing_step_ids(jdir))
+            groups = answer_groups(jdir)
+            group_by_step = {step: group for group in groups for step in group['steps']}
+            added_groups = set()
             for step_id in step_ids:
                 errors = step_errors(jdir, step_id)
                 if errors:
                     raise ValueError('Incomplete journal; context preserved: ' + '; '.join(errors))
+                if step_id in group_by_step:
+                    group = group_by_step[step_id]
+                    if group['turn'] in added_groups:
+                        continue
+                    added_groups.add(group['turn'])
+                    # Several real requests precede one shared final response, with provenance for every byte copy.
+                    for member in group['steps']:
+                        items.append((inside(root, jdir / 'req' / f'{member}.md'), 'User (req; shared answer group ' + group['turn'] + ')'))
+                    for member in group['steps']:
+                        items.append((inside(root, jdir / 'res' / f'{member}.md'), 'Agent (one final answer shared across requests; group ' + group['turn'] + ')'))
+                    continue
                 for sub, role in (('req', 'User (req)'), ('res', 'Agent (res)')):
                     candidate = jdir / sub / f'{step_id}.md'
                     if candidate.is_file() and candidate.read_text(encoding='utf-8').strip():
