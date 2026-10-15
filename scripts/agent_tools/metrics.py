@@ -2,16 +2,21 @@
 
 from collections import Counter
 from pathlib import Path
-import hashlib
 import json
 import re
-import sqlite3
-
-from .research import json_data
-from .storage import create_bytes
 
 
 def summarize(paths, bindings=None):
+    formats = []
+    for path in paths:
+        with Path(path).open(encoding='utf-8') as stream:
+            first = next((json.loads(line) for line in stream if line.strip()), {})
+        formats.append(first.get('type') == 'session_meta')
+    if any(formats):
+        if not all(formats):
+            raise ValueError('Summarize native Codex and Antigravity traces separately; their accounting formats differ')
+        from .platforms.codex import summarize as summarize_codex
+        return summarize_codex(paths, bindings)
     records, seen, duplicates = [], set(), 0
     tools, phases, urls, queries = Counter(), {}, Counter(), Counter()
     error_results = 0
@@ -101,149 +106,23 @@ def project_metrics(root):
             'semantic_quality_verified': False, 'unrecorded_activity': 'unknown'}
 
 
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True):
-    """Require an actual child self conversation and its successful final native step."""
-    backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
-    if not all(re.fullmatch(r'[a-f0-9-]{36}', x) for x in (parent_id, reviewer_id)):
-        raise ValueError('Native parent/reviewer UUIDs required')
-    conn = sqlite3.connect((backend / 'conversation_summaries.db').resolve().as_uri() + '?mode=ro', uri=True)
-    conn.row_factory = sqlite3.Row
-    try:
-        child = conn.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (reviewer_id,)).fetchone()
-    finally:
-        conn.close()
-    if child is None or child['parent_conversation_id'] != parent_id or child['agent_name'] != 'self':
-        raise ValueError('Native trace does not establish an independent self/A.A child of this parent')
-    log = backend / 'brain' / reviewer_id / '.system_generated/logs/transcript_full.jsonl'
-    rows = [json.loads(line) for line in log.read_text(encoding='utf-8').splitlines() if line.strip()]
-    last = rows[-1] if rows else {}
-    if last.get('type') != 'PLANNER_RESPONSE' or last.get('tool_calls') or not last.get('content', '').strip():
-        raise ValueError('Reviewer has no successful final response in the native trace')
-    conn = sqlite3.connect((backend / 'conversations' / (reviewer_id + '.db')).resolve().as_uri() + '?mode=ro', uri=True)
-    try:
-        final = conn.execute('SELECT idx,step_type,status FROM steps ORDER BY idx DESC LIMIT 1').fetchone()
-    finally:
-        conn.close()
-    if not final or final[0] != last['step_index'] or final[1] != 15 or final[2] != 3:
-        raise ValueError('Native database reports an unfinished/failed later reviewer step')
-    parent_log = backend / 'brain' / parent_id / '.system_generated/logs/transcript_full.jsonl'
-    project = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))
-    parent_inputs = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
-    if not any(x.get('type') == 'USER_INPUT' and project['job_id'] in x.get('content', '') for x in parent_inputs):
-        raise ValueError('Parent conversation does not belong to the selected job')
-    initial_prompt = rows[0].get('content', '')
-    invocation = None
-    for row in parent_inputs:
-        for call in row.get('tool_calls', []):
-            if call.get('name') != 'invoke_subagent':
-                continue
-            subs = call.get('args', {}).get('Subagents', [])
-            if isinstance(subs, str):
-                try: subs = json.loads(subs)
-                except ValueError: subs = []
-            for sub in subs if isinstance(subs, list) else []:
-                if isinstance(sub, dict) and sub.get('TypeName') == 'self' and sub.get('Prompt') and sub['Prompt'] in initial_prompt:
-                    if sub.get('Model') != 'inherit':
-                        raise ValueError('Native A.A reviewer was not requested with the inherited parent model')
-                    invocation = row['step_index']
-    if invocation is None:
-        raise ValueError('Matching native self/inherit invocation is not established')
-    def observed_models(cid, step=None):
-        database = backend / 'conversations' / (cid + '.db')
-        connection = sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)
-        try:
-            columns = {r[1] for r in connection.execute('PRAGMA table_info(steps)')}
-            if 'metadata' not in columns:
-                return set()
-            metadata = connection.execute('SELECT metadata FROM steps WHERE step_type=15 AND status=3' + (' AND idx=?' if step is not None else ''), (step,) if step is not None else ()).fetchall()
-            ids = set()
-            for (blob,) in metadata:
-                try:
-                    ids.update(value for field, kind, value in wire_fields(blob or b'') if field == 11 and kind == 0 and value)
-                except (ValueError, IndexError):
-                    return set()
-            return ids
-        finally:
-            connection.close()
-    parent_models, child_models = observed_models(parent_id, invocation), observed_models(reviewer_id)
-    if parent_models and child_models and not child_models.issubset(parent_models):
-        raise ValueError('Observed reviewer model differs from the inherited A.A model')
-    proof = {'surface': 'antigravity-ui', 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'agent_name': 'self',
-             'status': 'completed', 'model_verification': 'same observed model IDs; exact version/High unverified' if parent_models and child_models else 'inherit requested; actual version/High unverified',
-             'observed_model_ids': sorted(child_models), 'invocation_step': invocation,
-             'native_log': str(log), 'native_log_sha256': hashlib.sha256(log.read_bytes()).hexdigest(),
-             'final_step': last['step_index'], 'final_response_sha256': hashlib.sha256(last['content'].encode()).hexdigest(),
-             'parent_log': str(parent_log), 'job_id': project['job_id']}
-    target = Path(root) / 'ꘖ/KB/Evidence/Reviews' / (reviewer_id + '-' + proof['native_log_sha256'][:16] + '-native.json')
-    payload = json_data(proof)
-    if not write:
-        return {'proof': target.relative_to(Path(root).resolve()).as_posix(), **proof}
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        if target.read_bytes() != payload:
-            raise ValueError('Existing reviewer proof changed; preserve both and recheck native progress')
-    else:
-        create_bytes(target, payload)
-    return {'proof': target.relative_to(Path(root).resolve()).as_posix(), **proof}
+def native_requests(root, conversation_id, *, backend=None, platform=None):
+    from .platforms import adapter
+    return adapter(platform).native_requests(root, conversation_id, backend=backend)
 
 
-def verify_native_proof(root, native):
-    """Reject model-authored identity assertions without their real source trace."""
-    result = native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), write=False)
-    for field in ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'):
-        if native.get(field) != result.get(field):
-            raise ValueError('Review proof differs from the current native trace')
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None):
+    from .platforms import adapter
+    return adapter(platform).native_review_proof(root, parent_id, reviewer_id, backend=backend, write=write)
+
+
+def verify_native_proof(root, native, package=None):
+    from .platforms import adapter
+    if not isinstance(native, dict) or not native.get('surface'):
+        raise ValueError('Native review proof must declare its actual surface')
+    return adapter(surface=native.get('surface')).verify_native_proof(root, native, package=package)
 
 
 def wire_fields(data):
-    def number(offset):
-        value, shift = 0, 0
-        while True:
-            byte = data[offset]; offset += 1; value |= (byte & 127) << shift
-            if byte < 128: return value, offset
-            shift += 7
-            if shift > 70: raise ValueError('Unsupported native protobuf varint')
-    offset, result = 0, []
-    while offset < len(data):
-        tag, offset = number(offset); field, kind = tag >> 3, tag & 7
-        if not field: raise ValueError('Unsupported native protobuf field')
-        if kind == 0: value, offset = number(offset)
-        elif kind == 2:
-            size, offset = number(offset); value = data[offset:offset + size]; offset += size
-            if len(value) != size: raise ValueError('Native protobuf field is truncated')
-        elif kind in (1, 5):
-            size = 8 if kind == 1 else 4; value = data[offset:offset + size]; offset += size
-        else: raise ValueError('Unsupported native protobuf encoding')
-        result.append((field, kind, value))
-    return result
-
-
-def native_requests(root, conversation_id, *, backend=None):
-    """Exact USER_INPUT bytes from the current task's native DB, not expanded summaries."""
-    if not re.fullmatch(r'[a-f0-9-]{36}', conversation_id):
-        raise ValueError('Exact current native conversation UUID required')
-    backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
-    project = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))
-    conn = sqlite3.connect((backend / 'conversations' / (conversation_id + '.db')).resolve().as_uri() + '?mode=ro', uri=True)
-    try:
-        rows = conn.execute('SELECT idx,step_format,step_payload FROM steps WHERE step_type=14 AND status=3 ORDER BY idx').fetchall()
-    finally: conn.close()
-    requests, active = [], False
-    for index, format_id, payload in rows:
-        if format_id != 0:
-            raise ValueError('Native request format is unsupported; save exact requests from the current chat, without reconstruction')
-        try:
-            message = next(value for field, kind, value in wire_fields(payload) if field == 19 and kind == 2)
-            text = next(value.decode('utf-8') for field, kind, value in wire_fields(message) if field == 2 and kind == 2)
-        except (IndexError, StopIteration, UnicodeError) as exc:
-            raise ValueError('Exact native user text is unavailable; do not reconstruct it from summaries') from exc
-        command = re.search(r'/upwork-init\s+https?://[^\s]+/~(\d+)', text)
-        if command:
-            active = ('~' + command[1]) == project['job_id']
-        elif not active and project['job_id'] in text:
-            active = True
-        if active and text.strip():
-            requests.append({'id': f'{conversation_id}-{index}', 'text': text, 'native_conversation_id': conversation_id, 'native_step': index})
-    if not requests:
-        raise ValueError('Native requests do not identify this project')
-    return requests
+    from .platforms.antigravity import wire_fields as decode
+    return decode(data)

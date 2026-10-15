@@ -5,7 +5,7 @@ import json
 
 COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'check-project', 'stage',
             'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search',
-            'prepare-review', 'native-review-proof', 'record-review', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis')
+            'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis')
 
 
 def add_parsers(sub):
@@ -43,7 +43,7 @@ def add_parsers(sub):
         elif command == 'capture-dom':
             parser.add_argument('--url', required=True)
             parser.add_argument('--tab-id', required=True)
-            parser.add_argument('--cdp-port', type=int, default=9222)
+            parser.add_argument('--cdp-port', type=int)
             parser.add_argument('--refresh-reason')
         elif command in ('extract', 'extract-file'):
             parser.add_argument('source')
@@ -74,6 +74,8 @@ def add_parsers(sub):
         elif command == 'prepare-review':
             parser.add_argument('--parent', required=True)
             parser.add_argument('--risk', choices=('routine', 'significant'), default='routine')
+        elif command == 'review-input':
+            parser.add_argument('--package', required=True)
         elif command in ('native-review-proof', 'record-review'):
             parser.add_argument('--parent', required=True)
             parser.add_argument('--reviewer', required=True)
@@ -125,7 +127,9 @@ def execute(args):
         return extract_observation(args.project, args.source, args.profile)
     if command == 'capture-dom':
         from .research import capture_dom
-        return capture_dom(args.project, args.url, args.tab_id, port=args.cdp_port, refresh_reason=args.refresh_reason)
+        from .runtime import platform_settings
+        port = args.cdp_port or platform_settings()['browser']['cdp_port']
+        return capture_dom(args.project, args.url, args.tab_id, port=port, refresh_reason=args.refresh_reason)
     if command == 'extract-file':
         from .research import extract_file
         return extract_file(args.project, args.source, args.profile)
@@ -147,6 +151,8 @@ def execute(args):
         return native_review_proof(args.project, args.parent, args.reviewer)
     if command == 'prepare-review':
         return flow.prepare_review(args.project, args.parent, args.risk)
+    if command == 'review-input':
+        return flow.review_input(args.project, args.package)
     if command == 'record-review':
         return flow.record_review(args.project, args.report, parent_id=args.parent, reviewer_id=args.reviewer, risk=args.risk)
     if command == 'metrics':

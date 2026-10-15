@@ -83,13 +83,34 @@ def receipt_current(root, receipt):
             and ('evidence_inputs' not in receipt or receipt['evidence_inputs'] == hashes(root, evidence_paths(root))))
 
 
+def registration_status(root):
+    from .runtime import settings, platform_name, profile_name
+    root = Path(root).resolve()
+    config, platform = settings(), platform_name()
+    path = root / 'ꘖ/data/registrations.json'
+    required = path.exists() or root.is_relative_to(Path(config['workspace_root']) / config['daily_root'])
+    receipt = json.loads(path.read_text(encoding='utf-8')).get(platform) if path.exists() else None
+    complete = not required
+    if receipt:
+        complete = receipt.get('complete', bool(receipt.get('project_id') and receipt.get('folder_id')))
+        if receipt.get('profiles'):
+            complete = bool(receipt['profiles'].get(profile_name(), {}).get('ready'))
+    return {'platform': platform, 'required': required, 'complete': complete, 'receipt': receipt}
+
+
 def stage_statuses(root, state):
     statuses, dependency_ok = {}, True
     for stage in STAGES:
         receipt = state['stages'].get(stage)
         current = bool(receipt and receipt.get('status') == 'complete' and receipt_current(root, receipt))
+        if stage == 'identity_init':
+            current = current and registration_status(root)['complete']
         if stage == 'research' and receipt:
             current = current and questions_current(root, state) and receipt.get('research_questions') == state['questions']
+        if stage == 'finalize':
+            covered = receipt.get('request_ids') if receipt else None
+            current = current and (covered == [request['id'] for request in state['requests']] if covered is not None
+                                   else all(request.get('response_prepared') for request in state['requests']))
         statuses[stage] = 'complete' if current and dependency_ok else ('stale' if receipt else 'pending')
         dependency_ok = dependency_ok and current
     return statuses
@@ -104,6 +125,7 @@ def status(root):
             'agent_kb': str(root / 'ꘖ/KB'), 'existing_drafts': existing,
             'kb_hashes': hashes(root, kb_paths(root)),
             'questions': list(state['questions'].values()),
+            'registration': registration_status(root),
             'detail': 'Continue in this chat using agent KB and saved evidence. Context.md is an external export.'}
 
 
@@ -175,7 +197,10 @@ def adopt_requests(root, conversation_id):
     def change(state):
         recorded = {x['id']: x for x in state['requests'] if x.get('native_conversation_id')}
         # Native exact inputs replace unverified manual continuation copies, preserving native IDs/statuses.
-        state['requests'] = []
+        incoming = {x['id'] for x in requests}
+        exact_texts = {x['text'] for x in requests}
+        state['requests'] = [x for x in state['requests'] if x['id'] not in incoming
+                             and (x.get('native_conversation_id') or x['text'] not in exact_texts)]
         for request in requests:
             prepared = saved_answers.get(request['id']) or recorded.get(request['id'], {}).get('response_prepared')
             state['requests'].append({**request, **({'response_prepared': prepared} if prepared else {})})
@@ -189,6 +214,10 @@ def record_current_answer(root, response):
     if not unanswered:
         raise ValueError('No unrecorded current requests; import exact native inputs or save the current request first')
     turn = unanswered[-1]['id']
+    # Native IDs may contain colons, which are invalid in Windows group filenames.
+    # Keep the original IDs in the receipt and use a stable filename-safe turn key.
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}', turn):
+        turn = 'native-' + hashlib.sha256(turn.encode('utf-8')).hexdigest()
     steps = record_answer(Path(root) / 'ꙮ/1 - Анализ', [x['text'] for x in unanswered], response, turn, [x['id'] for x in unanswered])
     ids = {x['id'] for x in unanswered}
     def change(state):
@@ -331,15 +360,10 @@ def record_review(root, report, *, parent_id, reviewer_id, role='AA', risk='rout
     if independent:
         execution = inside(root, data.get('native_evidence', ''))
         native = json.loads(execution.read_text(encoding='utf-8'))
-        if native.get('parent_id') != parent_id or native.get('reviewer_id') != reviewer_id or native.get('status') != 'completed' or native.get('surface') != 'antigravity-ui':
+        if native.get('parent_id') != parent_id or native.get('reviewer_id') != reviewer_id or native.get('status') != 'completed':
             raise ValueError('Saved native review identity/status differs')
         from .metrics import verify_native_proof
-        verify_native_proof(root, native)
-        native_log = Path(native['native_log'])
-        with native_log.open(encoding='utf-8') as stream:
-            first_message = json.loads(stream.readline()).get('content', '')
-        if package.name not in first_message:
-            raise ValueError('Native reviewer was not assigned this immutable KB review package')
+        verify_native_proof(root, native, package=package.name)
         proof_paths.append(data['native_evidence'])
     else:
         if data.get('review_kind') != 'self_review':
@@ -382,6 +406,22 @@ def prepare_review(root, parent_id, risk='routine'):
     return {'package': path.relative_to(Path(root).resolve()).as_posix(), **data}
 
 
+def review_input(root, package):
+    """Read and verify an immutable package inside the actual reviewer process."""
+    import os
+    path = inside(root, package)
+    data = json.loads(path.read_text(encoding='utf-8'))
+    if data.get('kb_inputs') != hashes(root, kb_paths(Path(root))) or data.get('evidence_inputs') != hashes(root, evidence_paths(root)):
+        raise ValueError('Reviewer package does not match the present KB and primary evidence')
+    reviewer = os.environ.get('CODEX_THREAD_ID')
+    if not reviewer:
+        raise ValueError('Native Codex reviewer thread ID is unavailable')
+    return {'upwork_review_input': 1, 'verified': True, 'project_root': str(Path(root).resolve()),
+            'job_id': load(root)['job_id'], 'parent_id': data['parent_id'], 'reviewer_id': reviewer,
+            'package': path.relative_to(Path(root).resolve()).as_posix(), 'package_sha256': file_hash(path),
+            'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs']}
+
+
 def complete_stage(root, stage, inputs, outputs, *, note=None):
     if stage not in STAGES or not inputs or not outputs:
         raise ValueError('Known stage and explicit nonempty input/output artifacts required')
@@ -393,6 +433,8 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
         preceding = STAGES[:STAGES.index(stage)]
         if any(statuses[s] != 'complete' for s in preceding):
             raise ValueError('Complete/check preceding stages before marking this stage complete')
+        if stage == 'identity_init' and not registration_status(root)['complete']:
+            raise ValueError('Complete native project/folder registration in the current platform/profile first')
         if stage == 'research':
             if not questions_current(root, state):
                 raise ValueError('A research question is open or its inputs/results changed')
@@ -437,6 +479,8 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
             target, _, _ = generate(Path(root), Path(root) / '.agents/context.json')
             out_hashes[target.relative_to(Path(root).resolve()).as_posix()] = file_hash(target)
         state['stages'][stage] = {'status': 'complete', 'time': now(), 'inputs': in_hashes, 'outputs': out_hashes, 'note': note}
+        if stage == 'finalize':
+            state['stages'][stage]['request_ids'] = [request['id'] for request in state['requests']]
         if stage == 'research':
             from copy import deepcopy
             state['stages'][stage]['research_questions'] = deepcopy(state['questions'])

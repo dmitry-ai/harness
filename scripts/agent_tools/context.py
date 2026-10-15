@@ -67,7 +67,7 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
     timestamp = (now or datetime.now(timezone.utc)).isoformat(timespec='seconds')
     blocks = [f'# Context\n\nGenerated: {timestamp}\n\n'
               'Назначение: единый полный экспорт для внешнего агента, в том числе Gemini DeepThink в веб-интерфейсе.\n'
-              'Внутренние агенты Antigravity работают с актуальной агентской KB и первичными доказательствами.\n']
+              'Внутренние агенты работают с актуальной агентской KB и первичными доказательствами.\n']
     selected = []
     seen = set()
     for section in manifest['sections']:
