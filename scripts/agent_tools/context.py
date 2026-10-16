@@ -79,6 +79,17 @@ def assemble(root: Path, manifest: dict, now: datetime | None = None) -> tuple[s
             if not matches and not section.get('optional', False):
                 raise FileNotFoundError(f'No sources match {pattern}')
             items.extend((inside(root, p), None) for p in matches)
+        for relative in section.get('drafts', []):
+            directory = inside(root, relative)
+            if not directory.is_dir() and section.get('optional', False):
+                continue
+            if not directory.is_dir():
+                raise FileNotFoundError(directory)
+            groups = sorted({path.parent for path in directory.rglob('*.md') if path.name in ('draft.md', 'final.md')})
+            for group in groups:
+                chosen = resolve_letter_file(group)
+                if chosen:
+                    items.append((inside(root, chosen), None))
         for journal_rel in section.get('journals', []):
             jdir = inside(root, journal_rel)
             if not jdir.is_dir():

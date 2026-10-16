@@ -17,6 +17,8 @@ from test_onboarding import source
 from agent_tools import configuration, runtime, metrics, workflow as flow, upwork_project as up
 from agent_tools.platforms import codex
 from agent_tools.analysis import publish_owned, render_analysis, SECTIONS
+from agent_tools.context import generate
+from agent_tools.snapshot import snapshot_draft
 
 
 class ProjectionTests(TemporaryCase):
@@ -79,6 +81,106 @@ class ProjectionTests(TemporaryCase):
         self.assertEqual(result['projects']['C:/elsewhere']['trust_level'], 'trusted')
         self.assertIn('CODEX.md', result['project_doc_fallback_filenames'])
         self.assertGreaterEqual(result['project_doc_max_bytes'], 65536)
+
+    def test_project_rules_feed_both_systems_and_detect_stale_codex_projection(self):
+        project = self.output / 'job'
+        local = project / '.agents/rules/91-proposal.md'
+        local.parent.mkdir(parents=True)
+        local.write_text('---\ntrigger: always_on\n---\n# Proposal\nPreserve the agreed scope.\n', encoding='utf-8')
+        manual = project / 'KB/Project.md'
+        manual.parent.mkdir()
+        manual.write_bytes(b'MANUAL KB\r\n')
+        native = project / '.codex/config.toml'
+        native.parent.mkdir()
+        native.write_text('model = "user-selected"\n[features]\ncustom = true\n')
+        up.configure_project(project, self.primary, job_url='https://www.upwork.com/jobs/~021234', domain_or_topic='Topic')
+        self.assertIn('Preserve the agreed scope.', (project / 'CODEX.md').read_text(encoding='utf-8'))
+        self.assertEqual(manual.read_bytes(), b'MANUAL KB\r\n')
+        config = tomllib.loads(native.read_text())
+        self.assertEqual(config['model'], 'user-selected')
+        self.assertTrue(config['features']['custom'])
+        self.assertTrue(configuration.configure_codex_project(project, self.primary, check=True)['valid'])
+        self.assertTrue(up.check_configuration(project, self.primary)['valid'])
+        self.assertFalse(list((project / '.agents').rglob('*.py')))
+        local.write_text(local.read_text(encoding='utf-8') + 'New user instruction.\n', encoding='utf-8')
+        self.assertFalse(configuration.configure_codex_project(project, self.primary, check=True)['valid'])
+        up.configure_project(project, self.primary)
+        self.assertIn('New user instruction.', (project / 'CODEX.md').read_text(encoding='utf-8'))
+        self.assertTrue(configuration.configure_codex_project(project, self.primary, check=True)['valid'])
+        (project / '.agents/skills.json').unlink()
+        self.assertFalse(up.check_configuration(project, self.primary)['valid'])
+
+    def test_multiline_toml_values_do_not_damage_unrelated_settings(self):
+        original = '''# Preserve root and table settings.
+"project_doc_fallback_filenames" = [
+    "TEAM.md", # ], # and quotes are not structure
+    'AGENTS.local.md',
+]
+model = "keep-me"
+developer_instructions = ''' + "'''" + '''A multiline instruction.
+[This is plain text, not a TOML table]
+project_doc_max_bytes = 1
+''' + "'''" + '''
+[features]
+custom = true
+'''
+        expected = tomllib.loads(original)
+        updated = configuration._root_options(original)
+        actual = tomllib.loads(updated)
+        self.assertEqual(actual['model'], expected['model'])
+        self.assertEqual(actual['developer_instructions'], expected['developer_instructions'])
+        self.assertEqual(actual['features'], expected['features'])
+        self.assertEqual(actual['project_doc_fallback_filenames'], ['TEAM.md', 'AGENTS.local.md', 'CODEX.md'])
+        self.assertEqual(configuration._root_options(updated), updated)
+        for quote in ('"', "'"):
+            for ending in (4, 5):
+                with self.subTest(quote=quote, ending=ending):
+                    source = ('banner = ' + quote * 3 + 'text' + quote * ending + '\n'
+                              'project_doc_fallback_filenames = [\n "TEAM.md",\n]\n')
+                    actual = tomllib.loads(configuration._root_options(source))
+                    self.assertEqual(actual['banner'], tomllib.loads(source)['banner'])
+                    self.assertEqual(actual['project_doc_fallback_filenames'], ['TEAM.md', 'CODEX.md'])
+
+    def test_extra_rule_sources_are_projected_and_unsupported_selectors_reported(self):
+        project = self.output / 'job'
+        up.configure_project(project, self.primary)
+        agents = project / '.agents'
+        extra = agents / 'extra-rules/nested/91-manual.md'
+        extra.parent.mkdir(parents=True)
+        extra.write_text('---\ntrigger: always_on\n---\n# Local\nAdditional actual project rule.\n', encoding='utf-8')
+        manifest = agents / 'rules.json'
+        data = json.loads(manifest.read_text(encoding='utf-8'))
+        data['entries'].extend([{'path': 'extra-rules'}, {'path': extra.as_posix()}])
+        manifest.write_text(json.dumps(data), encoding='utf-8')
+        self.assertFalse(up.check_configuration(project, self.primary)['valid'])
+        up.configure_project(project, self.primary)
+        generated = (project / 'CODEX.md').read_text(encoding='utf-8')
+        self.assertEqual(generated.count('Additional actual project rule.'), 1)
+        self.assertTrue(up.check_configuration(project, self.primary)['valid'])
+        previous = (project / 'CODEX.md').read_bytes()
+        data['entries'][-1]['include_only'] = ['some.md']
+        manifest.write_text(json.dumps(data), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'filtered'):
+            up.configure_project(project, self.primary)
+        check = up.check_configuration(project, self.primary)
+        self.assertFalse(check['valid'])
+        self.assertIn('filtered', check['issues'][0]['message'])
+        self.assertEqual((project / 'CODEX.md').read_bytes(), previous)
+
+    def test_project_setup_merges_native_entries_and_preserves_custom_context(self):
+        project = self.output / 'job'
+        agents = project / '.agents'
+        agents.mkdir(parents=True)
+        manifest = agents / 'rules.json'
+        manifest.write_text(json.dumps({'entries': [{'path': str(self.primary / 'rules')}], 'custom': 'keep'}))
+        context = agents / 'context.json'
+        original = b'{"version":1,"output":"custom.md","sections":[{"title":"Custom","files":[".md"]}]}\n'
+        context.write_bytes(original)
+        up.configure_project(project, self.primary)
+        saved = json.loads(manifest.read_text())
+        self.assertEqual(saved['custom'], 'keep')
+        self.assertIn({'path': 'rules'}, saved['entries'])
+        self.assertEqual(context.read_bytes(), original)
 
 
 class CodexEvidenceTests(ProjectCase):
@@ -184,6 +286,21 @@ class CodexEvidenceTests(ProjectCase):
         with self.assertRaises(ValueError):
             codex.native_review_proof(self.project, self.parent, self.child, backend=self.home)
 
+    def test_native_windows_extended_path_keeps_the_profile_boundary(self):
+        path = self.write_trace(self.child, self.child_rows)
+        connection = sqlite3.connect(self.home / 'state_5.sqlite')
+        connection.execute('UPDATE threads SET rollout_path=? WHERE id=?', ('\\\\?\\' + str(path), self.child))
+        connection.commit(); connection.close()
+        with self.selected():
+            proof = metrics.native_review_proof(self.project, self.parent, self.child)
+            self.assertEqual(Path(proof['native_log']), path)
+        outside = self.root / 'outside.jsonl'
+        outside.write_bytes(path.read_bytes())
+        connection = sqlite3.connect(self.home / 'state_5.sqlite')
+        connection.execute('UPDATE threads SET rollout_path=? WHERE id=?', ('\\\\?\\' + str(outside), self.child))
+        connection.commit(); connection.close()
+        with self.assertRaisesRegex(ValueError, 'outside the selected profile'):
+            codex.native_review_proof(self.project, self.parent, self.child, backend=self.home)
     def test_parent_can_select_another_model_and_effort_with_native_proof(self):
         self.parent_rows[-1]['payload']['arguments'] = json.dumps({'task_name': 'reviewer', 'message': self.assignment,
             'model': 'context-selected-model', 'reasoning_effort': 'high', 'fork_turns': 'none'})
@@ -251,6 +368,15 @@ class CodexEvidenceTests(ProjectCase):
             flow.record_current_answer(self.project, answer)
             flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/1 - Анализ/res/1.md'])
             self.assertTrue(all(value == 'complete' for value in flow.status(self.project)['stages'].values()))
+            draft = self.put_project('result/EN/draft.md', 'User draft\r\n')
+            self.put_project('ꘖ/data/continuation.md', 'Current goal: revise the existing proposal.\n')
+            snapshot_draft(draft, 'cross_system_proposal')
+            draft.write_text('Revised proposal', encoding='utf-8')
+            status = flow.status(self.project)
+            self.assertEqual(status['scope'], 'initial_analysis')
+            self.assertTrue(all(value == 'complete' for value in status['stages'].values()))
+            self.assertIn('result/EN/draft.md', [item['path'] for item in status['proposal_artifacts']])
+            self.assertEqual((draft.parent / 'draft.prev.md').read_bytes(), b'User draft\r\n')
             flow.resume(self.project, 'another request', 'Новый точный запрос')
             self.assertEqual(flow.status(self.project)['next_stage'], 'finalize')
             self.put_project('ꘖ/data/registrations.json', json.dumps({'codex': {'complete': False,
@@ -277,3 +403,34 @@ class CodexEvidenceTests(ProjectCase):
         self.assertEqual(state['request_date'], state_before['request_date'])
         self.assertEqual(state['snapshot'], state_before['snapshot'])
         self.assertIn('`Topic`', (self.project / 'CODEX.md').read_text(encoding='utf-8'))
+
+    def test_proposal_export_selects_each_language_final_or_existing_draft(self):
+        en = self.put_project('result/EN/draft.md', 'English draft')
+        self.put_project('result/RU/draft.md', 'Русский черновик')
+        self.put_project('result/EN/draft.prev.md', 'Earlier version')
+        target, _, _ = generate(self.project, self.project / '.agents/context.json')
+        first = target.read_text(encoding='utf-8')
+        self.assertIn('English draft', first)
+        self.assertIn('Русский черновик', first)
+        self.assertNotIn('Earlier version', first)
+        final = self.put_project('result/EN/final.md', 'Approved English version')
+        generate(self.project, self.project / '.agents/context.json')
+        saved = target.read_bytes()
+        self.assertIn(b'Approved English version', saved)
+        self.assertNotIn(b'English draft', saved)
+        final.write_bytes(b'')
+        with self.assertRaises(ValueError):
+            generate(self.project, self.project / '.agents/context.json')
+        self.assertEqual(target.read_bytes(), saved)
+        self.assertEqual(en.read_text(), 'English draft')
+
+    def test_known_old_context_is_upgraded_with_a_preserved_original(self):
+        context = self.project / '.agents/context.json'
+        legacy = up.default_context_config()
+        next(section for section in legacy['sections'] if section['title'] == 'Proposals').pop('drafts')
+        original = json.dumps(legacy, ensure_ascii=False).encode('utf-8')
+        context.write_bytes(original)
+        up.configure_project(self.project)
+        saved = json.loads(context.read_text(encoding='utf-8'))
+        self.assertEqual(next(section for section in saved['sections'] if section['title'] == 'Proposals')['drafts'], ['result'])
+        self.assertIn(original, [file.read_bytes() for file in (self.project / 'ꘖ/data/config-history').glob('*.json')])

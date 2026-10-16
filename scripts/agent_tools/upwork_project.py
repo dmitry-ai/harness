@@ -26,7 +26,7 @@ def default_context_config():
         {'title': 'Manual KB', 'globs': ['KB/**/*.md'], 'optional': True},
         {'title': 'Agent KB', 'globs': ['ꘖ/KB/**/*.md'], 'optional': True},
         {'title': 'Analysis', 'journals': ['ꙮ/1 - Анализ'], 'optional': True},
-        {'title': 'Proposals', 'globs': ['result/**/final/*.md', 'result/**/final.md'], 'optional': True},
+        {'title': 'Proposals', 'globs': ['result/**/final/*.md', 'result/**/final.md'], 'drafts': ['result'], 'optional': True},
         {'title': 'Correspondence', 'optional': True, 'letters': [
             {'root': 'Letters/my', 'author': 'Consultant', 'languages': ['EN', 'RU']},
             {'root': 'Letters/client', 'author': 'Client', 'languages': ['EN', 'RU']}]}]}
@@ -43,7 +43,7 @@ def validate_label(value):
 
 
 def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_url=None, domain_or_topic=None, *, platform=None):
-    """Declare native discovery. Never delete, relocate, replace or convert existing files."""
+    """Merge native discovery and update owned projections; preserve user sources."""
     root, primary = Path(project_root).resolve(), Path(primary_agents_dir).resolve()
     agents = root / '.agents'
     if agents.is_symlink() or agents.is_junction():
@@ -61,10 +61,33 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
         if kind == 'rules':
             manifest['entries'].append({'path': 'rules'})
         path = agents / f'{kind}.json'
-        if path.exists() and not isinstance(json.loads(path.read_text(encoding='utf-8-sig')), dict):
-            raise ValueError(f'Native manifest must be a JSON object; preserved: {path}')
-        create_once(path, json_bytes(manifest).decode('utf-8'))
-    create_once(agents / 'context.json', json_bytes(default_context_config()).decode('utf-8'))
+        if path.exists():
+            existing = json.loads(path.read_text(encoding='utf-8-sig'))
+            if not isinstance(existing, dict) or not isinstance(existing.get('entries', []), list):
+                raise ValueError(f'Native manifest needs an entries list; preserved: {path}')
+            changed = False
+            for entry in manifest['entries']:
+                if entry not in existing.setdefault('entries', []):
+                    existing['entries'].append(entry)
+                    changed = True
+            if changed:
+                replace_bytes(path, json_bytes(existing))
+        else:
+            create_once(path, json_bytes(manifest).decode('utf-8'))
+    context_path = agents / 'context.json'
+    context_config = default_context_config()
+    if context_path.exists():
+        old_config = default_context_config()
+        next(section for section in old_config['sections'] if section['title'] == 'Proposals').pop('drafts')
+        if json.loads(context_path.read_text(encoding='utf-8-sig')) == old_config:
+            previous = context_path.read_bytes()
+            history = root / 'ꘖ/data/config-history' / (hashlib.sha256(previous).hexdigest() + '-context.json')
+            history.parent.mkdir(parents=True, exist_ok=True)
+            if not history.exists():
+                create_bytes(history, previous)
+            replace_bytes(context_path, json_bytes(context_config))
+    else:
+        create_once(context_path, json_bytes(context_config).decode('utf-8'))
     create_once(rules / '90-project.md', '\n'.join([
         '---', 'trigger: always_on', 'description: "Параметры проекта"', '---', '', '# Проект',
         f'Вакансия: {job_url or "не указана"}.',
@@ -73,6 +96,28 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
     from .configuration import configure_codex_project
     configure_codex_project(root, primary, job_url, domain_or_topic)
     return agents
+
+
+def check_configuration(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR):
+    from .configuration import configure_codex_project
+    root, primary = Path(project_root).resolve(), Path(primary_agents_dir).resolve()
+    result = configure_codex_project(root, primary, check=True)
+    for kind in ('rules', 'skills', 'agents'):
+        path = root / f'.agents/{kind}.json'
+        try:
+            manifest = json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else {}
+            if not isinstance(manifest, dict) or not isinstance(manifest.get('entries', []), list):
+                raise ValueError('Native manifest needs an entries list')
+            entries = manifest.get('entries', [])
+        except (ValueError, OSError) as exc:
+            result['valid'] = False
+            result['issues'].append({'file': str(path), 'message': str(exc)})
+            continue
+        expected = [{'path': (primary / kind).as_posix()}] + ([{'path': 'rules'}] if kind == 'rules' else [])
+        if any(entry not in entries for entry in expected):
+            result['valid'] = False
+            result['issues'].append({'file': str(path), 'message': 'Antigravity common/local discovery entry is missing; run configure'})
+    return result
 
 
 def install_global_customizations(config_dir=None):
@@ -132,7 +177,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None,
                               extracted_data=None, register_antigravity=None,
                               antigravity_projects_dir=ANTIGRAVITY_PROJECTS_DIR,
                               antigravity_folders_json=ANTIGRAVITY_FOLDERS_JSON, site_hypothesis=None,
-                              platform=None, register_native=None):
+                              platform=None, register_native=None, all_platforms=None):
     platform = platform_name(platform)
     job_id, day = normalize_job_id(url_or_id), request_day(date_str)
     if extracted_data is None:
@@ -182,36 +227,27 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None,
     initial_day = state['request_date']
     info = None
     if should_register:
-        if platform == 'antigravity':
-            info = register_antigravity_project(root, root.name.split(' - ', 1)[1], initial_day,
-                projects_dir=antigravity_projects_dir, folders_json_path=antigravity_folders_json)
-            save_registration(root, platform, info)
-        else:
-            info = register_project(root, root.name.split(' - ', 1)[1], initial_day, platform=platform)
+        from .registration import register_projects
+        both = all_platforms if all_platforms is not None else Path(daily_root).resolve() == DAILY_PROPOSALS_ROOT.resolve()
+        registrars = {'antigravity': lambda project, label, day: register_antigravity_project(project, label, day,
+                      projects_dir=antigravity_projects_dir, folders_json_path=antigravity_folders_json)}
+        info = register_projects(root, root.name.split(' - ', 1)[1], initial_day, platform=platform,
+                                 targets=None if both else [platform], registrars=registrars)
     return {'project_dir': str(root), 'job_id': job_id, 'domain_or_topic': label,
             'context_path': str(target), 'snapshot': str(snapshot), 'registration': info, 'platform': platform,
-            'antigravity': info if platform == 'antigravity' else None,
+            'registrations': info['registrations'] if info else {},
+            'antigravity': info['registrations'].get('antigravity') if info else None,
             'analysis_status': 'pending; initialization is not a completed analysis'}
 
 
 def register_project(project, label=None, day=None, *, platform=None):
-    from .platforms import adapter
-    root = Path(project).resolve()
-    if day is None:
-        state = json.loads((root / 'ꘖ/project.json').read_text(encoding='utf-8'))
-        day = state['request_date']
-    label = label or root.name.split(' - ', 1)[-1]
-    result = adapter(platform).register(root, label, day)
-    save_registration(root, platform_name(platform), result)
-    return result
+    from .registration import register_project as register_one
+    return register_one(project, label, day, platform=platform)
 
 
 def save_registration(root, platform, result):
-    path = root / 'ꘖ/data/registrations.json'
-    with locked(root / 'ꘖ/data/registration.lock'):
-        receipts = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
-        receipts[platform] = result
-        replace_bytes(path, json_bytes(receipts))
+    from .registration import save_registration as save
+    return save(root, platform, result)
 
 
 def doctor(primary=PRIMARY_AGENTS_DIR):
@@ -258,9 +294,11 @@ def main(argv=None):
     init.add_argument('--no-register', action='store_true')
     config = sub.add_parser('configure', help='Create missing native manifests; preserve existing configuration')
     config.add_argument('project', type=Path)
-    register = sub.add_parser('register', help='Register an existing project in Antigravity and its Folders branch')
+    config.add_argument('--check', action='store_true', help='Check the project Codex projection without writing')
+    register = sub.add_parser('register', help='Ensure the same project and folder in both configured platforms')
     register.add_argument('project', type=Path)
     register.add_argument('--domain')
+    register.add_argument('--target', choices=tuple(settings()['platforms']), help='Repair one platform only; default: both')
     validate = sub.add_parser('validate-analysis', help='Check all five analysis stages and their evidence graph')
     validate.add_argument('input', type=Path)
     validate.add_argument('--render', type=Path)
@@ -298,11 +336,18 @@ def run(args):
         elif args.command == 'install-global':
             result = install_global_customizations()
         elif args.command == 'configure':
-            result = {'configuration': str(configure_project(args.project))}
+            if args.check:
+                result = check_configuration(args.project)
+            else:
+                result = {'configuration': str(configure_project(args.project))}
         elif args.command == 'register':
             if not args.project.is_dir():
                 raise FileNotFoundError(args.project)
-            result = register_project(args.project, args.domain)
+            if args.target:
+                result = register_project(args.project, args.domain, platform=args.target)
+            else:
+                from .registration import register_projects
+                result = register_projects(args.project, args.domain)
         elif args.command == 'inspect':
             if args.output.exists():
                 raise FileExistsError('Capture exists; reuse it with init --from-json')

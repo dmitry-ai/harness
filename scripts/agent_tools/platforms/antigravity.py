@@ -102,8 +102,6 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
     parent_log = backend / 'brain' / parent_id / '.system_generated/logs/transcript_full.jsonl'
     project = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))
     parent_inputs = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
-    if not any(x.get('type') == 'USER_INPUT' and project['job_id'] in x.get('content', '') for x in parent_inputs):
-        raise ValueError('Parent conversation does not belong to the selected job')
     initial_prompt = rows[0].get('content', '')
     invocation = None
     for row in parent_inputs:
@@ -121,6 +119,10 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
                     invocation = row['step_index']
     if invocation is None:
         raise ValueError('Matching native self/inherit invocation is not established')
+    require_current_binding(root, parent_id, backend=backend,
+        inputs=[(item.get('step_index', index), item['content']) for index, item in enumerate(parent_inputs)
+                if item.get('type') == 'USER_INPUT' and isinstance(item.get('content'), str)],
+        until=invocation)
     def observed_models(cid, step=None):
         database = backend / 'conversations' / (cid + '.db')
         connection = sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)
@@ -183,17 +185,14 @@ def wire_fields(data):
     return result
 
 
-def native_requests(root, conversation_id, *, backend=None):
-    """Exact USER_INPUT bytes from the current task's native DB, not expanded summaries."""
+def _native_inputs(backend, conversation_id):
     if not re.fullmatch(r'[a-f0-9-]{36}', conversation_id):
         raise ValueError('Exact current native conversation UUID required')
-    backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
-    project = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))
     conn = sqlite3.connect((backend / 'conversations' / (conversation_id + '.db')).resolve().as_uri() + '?mode=ro', uri=True)
     try:
         rows = conn.execute('SELECT idx,step_format,step_payload FROM steps WHERE step_type=14 AND status=3 ORDER BY idx').fetchall()
     finally: conn.close()
-    requests, active = [], False
+    inputs = []
     for index, format_id, payload in rows:
         if format_id != 0:
             raise ValueError('Native request format is unsupported; save exact requests from the current chat, without reconstruction')
@@ -202,16 +201,58 @@ def native_requests(root, conversation_id, *, backend=None):
             text = next(value.decode('utf-8') for field, kind, value in wire_fields(message) if field == 2 and kind == 2)
         except (IndexError, StopIteration, UnicodeError) as exc:
             raise ValueError('Exact native user text is unavailable; do not reconstruct it from summaries') from exc
-        command = re.search(r'/upwork-init\s+https?://[^\s]+/~(\d+)', text)
-        if command:
-            active = ('~' + command[1]) == project['job_id']
-        elif not active and project['job_id'] in text:
-            active = True
-        if active and text.strip():
-            requests.append({'id': f'{conversation_id}-{index}', 'text': text, 'native_conversation_id': conversation_id, 'native_step': index})
-    if not requests:
-        raise ValueError('Native requests do not identify this project')
-    return requests
+        inputs.append((index, text))
+    return inputs
+
+
+def _workspace_context(backend, conversation_id):
+    file = backend / 'conversation_summaries.db'
+    if not file.is_file():
+        return []
+    conn = sqlite3.connect(file.resolve().as_uri() + '?mode=ro', uri=True)
+    try:
+        columns = {row[1] for row in conn.execute('PRAGMA table_info(conversation_summaries)')}
+        if 'workspace_uris' not in columns:
+            return []
+        row = conn.execute('SELECT workspace_uris FROM conversation_summaries WHERE conversation_id=?', (conversation_id,)).fetchone()
+    finally:
+        conn.close()
+    roots = json.loads(row[0]) if row and row[0] else []
+    if not isinstance(roots, list) or any(not isinstance(root, str) or not root.startswith('file://') for root in roots):
+        raise ValueError('Native Antigravity workspace_uris format is unsupported')
+    if not roots:
+        return []
+    # This native conversation field is not a per-step cwd history; multiple roots
+    # cannot establish which particular project owns an otherwise unbound request.
+    root = str(folder_path(roots[0])) if len(roots) == 1 else None
+    return [(-1, root, 'antigravity-workspace-uris')]
+
+
+def _request_scope(root, conversation_id, backend, *, inputs=None, until=None):
+    from .request_binding import scoped_inputs
+    job_id = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))['job_id']
+    inputs = _native_inputs(backend, conversation_id) if inputs is None else inputs
+    return scoped_inputs(root, job_id, inputs, _workspace_context(backend, conversation_id), until=until)
+
+
+def native_requests(root, conversation_id, *, backend=None):
+    """Exact USER_INPUT bytes, scoped by a native workspace or explicit user choice."""
+    backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
+    selected, _, _ = _request_scope(root, conversation_id, backend)
+    if not selected:
+        raise ValueError('Native requests do not identify this project; say "Продолжай анализ. Корень проекта: `<absolute path>`"')
+    return [{'id': f'{conversation_id}-{index}', 'text': text,
+             'native_conversation_id': conversation_id, 'native_step': index,
+             'surface': 'antigravity-ui', 'project_binding': binding}
+            for index, text, binding in selected]
+
+
+def require_current_binding(root, conversation_id, *, backend=None, inputs=None, until=None):
+    backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
+    selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until)
+    if not selected or not active:
+        raise ValueError('Native Antigravity conversation is currently bound to another project or no exact project root')
+    return binding
 
 
 def verify_native_proof(root, native, package=None):

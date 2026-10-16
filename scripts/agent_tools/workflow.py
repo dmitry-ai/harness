@@ -120,13 +120,19 @@ def status(root):
     root = Path(root).resolve(); state = load(root)
     statuses = stage_statuses(root, state)
     existing = {name: (root / 'ꘖ/KB' / name).is_file() for name in ('Analysis.json', 'Analysis.md', 'Progress.md')}
+    proposals = [{'path': inside(root, path).relative_to(root).as_posix(), 'sha256': file_hash(inside(root, path))}
+                 for path in sorted((root / 'result').rglob('*.md'))
+                 if path.is_file() and path.name in ('draft.md', 'final.md', 'draft.prev.md')]
+    checkpoint = root / 'ꘖ/data/continuation.md'
     return {'project': str(root), 'job_id': state['job_id'], 'legacy': state['legacy'], 'stages': statuses,
+            'scope': 'initial_analysis', 'proposal_artifacts': proposals,
+            'continuation': {'file': 'ꘖ/data/continuation.md', 'exists': checkpoint.is_file()},
             'next_stage': next((s for s in STAGES if statuses[s] != 'complete'), None),
             'agent_kb': str(root / 'ꘖ/KB'), 'existing_drafts': existing,
             'kb_hashes': hashes(root, kb_paths(root)),
             'questions': list(state['questions'].values()),
             'registration': registration_status(root),
-            'detail': 'Continue in this chat using agent KB and saved evidence. Context.md is an external export.'}
+            'detail': 'Stages cover initial analysis only. Continue the same filesystem project in either UI using agent KB, journal and actual proposal files; Context.md is an external export.'}
 
 
 def publish_progress(root, state):
@@ -135,6 +141,8 @@ def publish_progress(root, state):
              f'Вакансия: {state["job_id"]}.', '', '## Этапы']
     lines += [f'- {stage}: {statuses[stage]}.' for stage in STAGES if stage != 'finalize']
     lines += ['Завершение и квитанцию внешнего экспорта проверяй командой status.', '']
+    if (Path(root) / 'ꘖ/data/continuation.md').is_file():
+        lines += ['Текущее поручение после анализа: [состояние продолжения](../data/continuation.md).', '']
     lines += ['', '## Вопросы']
     for question in state['questions'].values():
         lines += [f'- {question["id"]}: {question["question"]}',
@@ -368,8 +376,8 @@ def record_review(root, report, *, parent_id, reviewer_id, role='AA', risk='rout
     else:
         if data.get('review_kind') != 'self_review':
             raise ValueError('Parent review must explicitly say self_review; it is not independent')
-        from .metrics import native_requests
-        native_requests(root, parent_id)  # Verify the actual parent task; do not require its future final answer.
+        from .platforms import adapter
+        adapter().require_current_binding(root, parent_id)  # Observe the current task, not only an earlier matching request.
         native = {'model_verification': 'parent self-review; exact model/High requires session metadata'}
     if package_data.get('risk') == 'significant' or any(f.get('severity') in ('significant', 'critical') for f in data['findings'] if isinstance(f, dict)):
         risk = 'significant'

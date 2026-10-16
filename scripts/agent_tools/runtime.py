@@ -37,6 +37,20 @@ def profile_name(value=None):
     return matches[0]
 
 
+def registration_profile_name(value=None):
+    """Choose a write-registration profile without relaxing native evidence reads."""
+    config = settings()['platforms']['codex']
+    if value or _profile.get() or os.environ.get('UPWORK_CODEX_PROFILE') or os.environ.get('CODEX_HOME'):
+        name = profile_name(value)
+    else:
+        name = config.get('registration_profile')
+        if not name:
+            raise ValueError('Select a Codex registration profile or configure registration_profile')
+    if name not in config['homes']:
+        raise ValueError(f'Unknown Codex registration profile: {name}')
+    return name
+
+
 def platform_settings(name=None):
     return deepcopy(settings()['platforms'][platform_name(name)])
 

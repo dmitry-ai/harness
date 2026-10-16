@@ -3,6 +3,7 @@
   "workspace_root": "C:/work/upwork/code",
   "timezone": "Europe/Istanbul",
   "daily_root": "proposals/daily",
+  "registration": {"targets": ["antigravity", "codex"]},
   "platforms": {
     "antigravity": {
       "surface": "antigravity-ui",
@@ -16,6 +17,7 @@
     },
     "codex": {
       "surface": "codex-ui",
+      "registration_profile": "C2",
       "subagents": {"selection": "parent", "fallback": "inherit", "record_decision": true},
       "roles": {
         "AA": {"selection": "parent", "agent": "upwork-aa"},

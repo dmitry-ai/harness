@@ -12,6 +12,17 @@ from ..research import json_data
 from ..storage import create_bytes
 
 
+def _local_path(value):
+    path = str(Path(value).resolve())
+    # SQLite can store Windows extended-length paths after an app update.
+    # Resolve links first, then compare the same filesystem spelling on both sides.
+    if path.startswith('\\\\?\\UNC\\'):
+        path = '\\\\' + path[8:]
+    elif path.startswith('\\\\?\\') and re.match(r'^[A-Za-z]:\\', path[4:]):
+        path = path[4:]
+    return Path(path)
+
+
 def _home(backend=None, profile=None):
     if backend is not None:
         return Path(backend).resolve()
@@ -23,6 +34,7 @@ def _home(backend=None, profile=None):
 
 
 def _trace(home, conversation_id):
+    home = _local_path(home)
     if not re.fullmatch(r'[a-f0-9-]{36}', conversation_id):
         raise ValueError('Exact native Codex thread UUID required')
     databases = sorted(home.glob('state_*.sqlite'))
@@ -39,7 +51,7 @@ def _trace(home, conversation_id):
     if len(found) != 1:
         raise ValueError('Native Codex thread is missing or ambiguous in this profile')
     row = found[0]
-    path = Path(row['rollout_path']).resolve()
+    path = _local_path(row['rollout_path'])
     if not path.is_relative_to(home / 'sessions'):
         raise ValueError('Codex trace is outside the selected profile sessions')
     raw = path.read_bytes()
@@ -74,27 +86,60 @@ def _messages(rows, role):
             yield index, ''.join(texts), payload
 
 
+def _actual_user_input(text, payload):
+    kinds = payload.get('internal_chat_message_metadata_passthrough', {}).get('content_item_kinds', [])
+    if 'user.text' in kinds:
+        return True
+    if any(kind in ('agents_md.instructions', 'environments.environment_context') for kind in kinds):
+        return False
+    if kinds:
+        return not text.lstrip().startswith('<external_codex_apps_open_page>')
+    return (not text.lstrip().startswith(('<environment_context>', '<external_codex_apps_open_page>'))
+            and not (text.lstrip().startswith('# AGENTS.md instructions') and '<INSTRUCTIONS>' in text))
+
+
+def _request_scope(root, rows, *, until=None):
+    from .request_binding import scoped_inputs
+    job_id = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))['job_id']
+    visible = [(index, item) for index, item in rows if until is None or index <= until]
+    contexts = [(index, item['payload']) for index, item in visible if item.get('type') == 'turn_context' and item['payload'].get('cwd')]
+    roots = []
+    meta = visible[0][1]['payload'] if visible else {}
+    if meta.get('cwd'):
+        roots.append((visible[0][0], str(_local_path(meta['cwd'])), 'codex-session-cwd'))
+    roots.extend((index, str(_local_path(value['cwd'])), 'codex-turn-cwd') for index, value in contexts)
+    inputs = []
+    for index, text, payload in _messages(visible, 'user'):
+        if not _actual_user_input(text, payload):
+            continue
+        turn = payload.get('internal_chat_message_metadata_passthrough', {}).get('turn_id')
+        # A native turn_context may be emitted just after that turn's user input.
+        matching = [(step, value) for step, value in contexts if turn and value.get('turn_id') == turn]
+        if matching and not any(step <= index for step, _ in matching):
+            roots.append((index, str(_local_path(matching[0][1]['cwd'])), 'codex-turn-cwd'))
+        inputs.append((index, text))
+    return scoped_inputs(root, job_id, inputs, roots, until=until)
+
+
 def native_requests(root, conversation_id, *, backend=None):
     home = _home(backend)
     _, _, _, rows = _trace(home, conversation_id)
-    job_id = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))['job_id']
-    requests, active = [], False
-    for index, text, _ in _messages(rows, 'user'):
-        # Exclude injected environment messages; retain actual user text verbatim.
-        if text.lstrip().startswith(('<environment_context>', '<external_codex_apps_open_page>')):
-            continue
-        command = re.search(r'(?:/|\$)upwork-init\s+https?://[^\s]*?~(\d+)', text)
-        if command:
-            active = '~' + command[1] == job_id
-        elif not active and job_id in text:
-            active = True
-        if active and text.strip():
-            requests.append({'id': f'codex:{conversation_id}:{index}', 'text': text,
-                             'native_conversation_id': conversation_id, 'native_step': index,
-                             'surface': 'codex-ui', 'native_profile_home': str(home)})
-    if not requests:
-        raise ValueError('Native Codex requests do not identify this project')
-    return requests
+    selected, _, _ = _request_scope(root, rows)
+    if not selected:
+        raise ValueError('Native Codex requests do not identify this project; use its exact project root or /upwork-init URL')
+    return [{'id': f'codex:{conversation_id}:{index}', 'text': text,
+             'native_conversation_id': conversation_id, 'native_step': index,
+             'surface': 'codex-ui', 'native_profile_home': str(home), 'project_binding': binding}
+            for index, text, binding in selected]
+
+
+def require_current_binding(root, conversation_id, *, backend=None, rows=None, until=None):
+    if rows is None:
+        rows = _trace(_home(backend), conversation_id)[3]
+    selected, active, binding = _request_scope(root, rows, until=until)
+    if not selected or not active:
+        raise ValueError('Native Codex conversation is currently bound to another project or no exact project root')
+    return binding
 
 
 def _model(rows, before=None):
@@ -209,7 +254,6 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
     home = _home(backend)
     _, parent_path, _, parent_rows = _trace(home, parent_id)
     child_row, path, raw, rows = _trace(home, reviewer_id)
-    native_requests(root, parent_id, backend=home)
     meta = rows[0][1]['payload']
     source = meta.get('source')
     if not isinstance(source, dict):
@@ -224,6 +268,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
         raise ValueError('Codex reviewer has no completed final native turn')
     final_index, final = events[-1]
     invocation = _spawn(parent_rows, meta)
+    require_current_binding(root, parent_id, backend=home, rows=parent_rows, until=invocation[0])
     selection, child_model = _selection(parent_rows, meta, invocation), _model(rows)
     if child_model['model'] != selection['model'] or selection['effort'] is not None and child_model['effort'] != selection['effort']:
         raise ValueError('Observed reviewer model/effort differs from the native parent spawn selection')
@@ -272,9 +317,10 @@ def verify_native_proof(root, native, package=None):
 
 
 def register(project_dir, domain_or_topic, date_str=None):
-    from ..runtime import request_day
+    from ..runtime import request_day, registration_profile_name
+    from ..registration import validate_registration
     config = platform_settings('codex')
-    profile = profile_name()
+    profile = registration_profile_name()
     day = request_day(date_str)
     request = {'command': 'shared-ensure-project', 'profile': profile,
                'project': {'name': f'{domain_or_topic} - U.P.{day:%Y.%m.%d}',
@@ -288,9 +334,8 @@ def register(project_dir, domain_or_topic, date_str=None):
     if result.returncode:
         raise RuntimeError('Shared-Projects registration failed: ' + (result.stderr.strip() or result.stdout.strip()))
     receipt = json.loads(result.stdout)
-    if not receipt.get('shared_id') or receipt.get('folder_path') != ' / '.join(request['project']['folderPath']):
-        raise ValueError('Shared-Projects did not confirm project identity and folder assignment')
-    return {'surface': 'codex-ui', 'profile': profile, **receipt}
+    return validate_registration(project_dir, domain_or_topic, day.isoformat(), 'codex',
+                                 {**receipt, 'surface': 'codex-ui', 'profile': profile})
 
 
 def summarize(paths, bindings=None):
