@@ -1,9 +1,11 @@
 """Destructive cleanup regressions run only against isolated native stores."""
 
 from copy import deepcopy
-from contextlib import closing
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing, redirect_stdout
 from datetime import datetime, timedelta, timezone
 import json
+import io
 from pathlib import Path
 from types import SimpleNamespace
 import sqlite3
@@ -84,6 +86,24 @@ class CleanupTests(TemporaryCase):
     def run_cleanup(self, **kwargs):
         return cleanup.cleanup_projects(config=self.config, ag_directory=self.ag,
             ag_backend=self.backend, now=self.now, control=kwargs.pop('control', self.control), **kwargs)
+
+    def make_legacy(self, number=1, *, old_uri=False):
+        root, native, ident = self.project(number)
+        (root / 'ꘖ/project.json').unlink()
+        agents = root / '.agents'
+        (agents / 'rules').mkdir(parents=True)
+        for kind in ('rules', 'skills', 'agents'):
+            (agents / (kind + '.json')).write_text(json.dumps({'entries': [
+                {'path': str(runtime.PRIMARY / kind)}]}), encoding='utf-8')
+        url = 'https://upwork.com/jobs/~02123456789' + str(number)
+        (agents / 'rules/90-project.md').write_text(f'Целевая вакансия Upwork: `{url}`.\n', encoding='utf-8')
+        (root / 'KB').mkdir()
+        (root / 'KB/Project.md').write_text(f'# 1. Клиент\nClient\n\n# 2. Текущий проект клиента\n{url}\n', encoding='utf-8')
+        if old_uri:
+            value = json.loads(native.read_text(encoding='utf-8'))
+            value['projectResources']['resources'][0]['folderUri'] = 'file://' + root.as_posix()
+            native.write_text(json.dumps(value), encoding='utf-8')
+        return root, native, ident
 
     def archive(self):
         return {str(p.relative_to(self.daily)): p.read_bytes() for p in self.daily.rglob('*') if p.is_file()}
@@ -167,6 +187,103 @@ class CleanupTests(TemporaryCase):
         created, basis = cleanup._age(without_birth, state, self.config)
         self.assertEqual(created.isoformat(), '2026-10-16T00:00:00+03:00')
         self.assertEqual(basis, 'legacy-request-day-upper-bound')
+
+    def test_legacy_init_without_marker_is_discovered_and_old_file_uri_matches_native_registration(self):
+        root, native, _ = self.make_legacy(old_uri=True)
+        before = self.archive()
+        # The temporary directory is young; test at a future instant so the
+        # real filesystem birth-time branch passes the same strict age check.
+        self.now = datetime.now(timezone.utc) + timedelta(days=4)
+        preview = self.run_cleanup()
+        self.assertEqual(preview['counts']['eligible'], 1, preview)
+        self.assertEqual(preview['projects'][0]['initialization_basis'], 'legacy-manifests-rule-and-kb')
+        self.assertEqual(preview['projects'][0]['native_projects']['antigravity'], [native.stem])
+        result = self.run_cleanup(apply=True)
+        self.assertTrue(result['complete'], result)
+        self.assertEqual(result['counts']['removed'], 1)
+        self.assertFalse(native.exists())
+        self.assertEqual(self.archive(), before)
+        self.assertFalse((root / 'ꘖ/project.json').exists())
+
+    def test_file_uri_with_drive_in_authority_is_the_same_local_workspace(self):
+        root, _, _ = self.project()
+        for uri in ('file://' + root.as_posix(), root.as_uri(), 'file://' + root.as_posix().replace(':', '%3A', 1)):
+            self.assertEqual(cleanup.path_key(uri), cleanup.path_key(root))
+
+    def test_legacy_native_id_conversation_preserves_project_with_unrelated_cwd(self):
+        root, native, _ = self.make_legacy(old_uri=True)
+        self.now = datetime.now(timezone.utc) + timedelta(days=4)
+        self.connection(self.backend / 'conversation_summaries.db',
+            'INSERT INTO conversation_summaries VALUES (?,?)', (native.stem, '[]'))
+        result = self.run_cleanup(apply=True)
+        self.assertEqual(result['counts']['preserved'], 1, result)
+        self.assertTrue(native.exists())
+
+    def test_legacy_conflicting_job_or_unowned_manifests_never_authorize_deletion(self):
+        root, native, _ = self.make_legacy()
+        self.now = datetime.now(timezone.utc) + timedelta(days=4)
+        kb = root / 'KB/Project.md'
+        kb.write_text('# 2. Текущий проект клиента\nhttps://upwork.com/jobs/~099999\n', encoding='utf-8')
+        result = self.run_cleanup(apply=True)
+        self.assertFalse(result['complete'])
+        self.assertEqual(len(result['issues']), 1)
+        self.assertTrue(native.exists())
+
+    def test_legacy_discovery_failure_with_conversations_is_preserved_without_an_issue(self):
+        for platform in ('antigravity', 'codex'):
+            with self.subTest(platform=platform), runtime.using(platform):
+                root, native, ident = self.make_legacy(number=len(self.catalog['projects']) + 1)
+                (root / '.agents/rules/90-project.md').write_text('Идентификатор / домен проекта: topic.\n', encoding='utf-8')
+                if platform == 'antigravity':
+                    self.connection(self.backend / 'conversation_summaries.db',
+                        'INSERT INTO conversation_summaries VALUES (?,?)', (native.stem, '[]'))
+                else:
+                    self.connection(Path(self.config['platforms']['codex']['homes']['C2']) / 'state_5.sqlite',
+                        'INSERT INTO threads VALUES (?,?,?,?)', ('archived-child', 'unrelated', str(root / 'result'), 1))
+                before = self.archive()
+                native_before, folders_before = native.read_bytes(), self.folders.read_bytes()
+                result = self.run_cleanup(apply=True)
+                self.assertTrue(result['complete'], result)
+                self.assertEqual(result['issues'], [])
+                self.assertEqual(result['discovery']['unresolved_entries'], 0)
+                self.assertEqual(result['discovery']['verified_projects'], 0)
+                self.assertEqual(result['discovery']['excluded_with_conversations'], len(self.catalog['projects']))
+                self.assertEqual(result['counts']['preserved'], len(self.catalog['projects']))
+                self.assertEqual(native.read_bytes(), native_before)
+                self.assertEqual(self.folders.read_bytes(), folders_before)
+                self.assertEqual(self.archive(), before)
+                self.assertIn(ident, self.catalog['projects'])
+                self.assertFalse(any(c['command'] == 'shared-cleanup-project' for c in self.calls))
+
+    def test_legacy_discovery_failure_without_readable_history_stays_unresolved(self):
+        root, native, _ = self.make_legacy()
+        (root / '.agents/rules/90-project.md').write_text('Идентификатор / домен проекта: topic.\n', encoding='utf-8')
+        (self.backend / 'conversation_summaries.db').unlink()
+        result = self.run_cleanup(apply=True)
+        self.assertFalse(result['complete'], result)
+        self.assertEqual(result['discovery']['unresolved_entries'], 1)
+        self.assertEqual(result['discovery']['excluded_with_conversations'], 0)
+        self.assertEqual(result['projects'], [])
+        self.assertTrue(native.exists())
+
+    def test_legacy_historical_ids_are_compared_in_full_instead_of_their_numeric_prefix(self):
+        root, native, _ = self.make_legacy()
+        self.now = datetime.now(timezone.utc) + timedelta(days=4)
+        first = '~01d46772b31197f41a'
+        second = '~01d9f93da4952d012b'
+        (root / '.agents/rules/90-project.md').write_text(f'Вакансия: https://upwork.com/jobs/{first}\n', encoding='utf-8')
+        for current in (second, first):
+            (root / 'KB/Project.md').write_text(f'# 2. Текущий проект клиента\nhttps://upwork.com/jobs/{current}\n', encoding='utf-8')
+            result = self.run_cleanup(apply=True)
+            self.assertFalse(result['complete'], result)
+            self.assertEqual(result['projects'], [])
+            self.assertEqual(len(result['issues']), 1)
+            self.assertTrue(native.exists())
+        manifest = root / '.agents/skills.json'
+        manifest.write_text('{"entries":[{"path":"C:/unrelated/skills"}]}', encoding='utf-8')
+        result = self.run_cleanup(apply=True)
+        self.assertEqual(result['projects'], [])
+        self.assertTrue(native.exists())
         self.assertFalse(any(c['command'] == 'shared-cleanup-project' for c in self.calls))
 
     def test_missing_history_or_invalid_schema_blocks_cleanup(self):
@@ -345,6 +462,58 @@ class CleanupTests(TemporaryCase):
         up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15',
             daily_root=self.daily, extracted_data=source(), register_native=False)
         self.assertEqual(json.loads((root / 'ꘖ/project.json').read_text(encoding='utf-8'))['created_at'], state['created_at'])
+
+
+class CleanupReportTests(TemporaryCase):
+    def test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight(self):
+        body = 'Очистка завершена.\n\n[История](<C:/work/upwork/code/proposals/daily>)\n'
+        with patch.object(cleanup, 'settings', return_value={'workspace_root': str(self.root)}):
+            result = cleanup.record_cleanup_answer(body,
+                now=datetime(2026, 10, 17, 21, 49, tzinfo=timezone.utc))
+        path = self.root / 'AI/log/cleanup/2026/10/18--00-49.md'
+        self.assertEqual(Path(result['path']), path)
+        self.assertEqual(result['timestamp'], '2026-10-18 00:49 UTC+3')
+        self.assertEqual(path.read_bytes(), ('2026-10-18 00:49 UTC+3\n\n' + body).encode('utf-8'))
+        self.assertEqual(result['answer'].encode('utf-8'), path.read_bytes())
+
+    def test_repeated_and_concurrent_answers_never_overwrite_logs_in_the_same_minute(self):
+        now = datetime(2026, 10, 17, 21, 49, tzinfo=timezone.utc)
+        root = self.root / 'logs'
+        first = cleanup.record_cleanup_answer('Первый ответ', now=now, log_root=root)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            others = list(pool.map(lambda text: cleanup.record_cleanup_answer(text, now=now, log_root=root),
+                                   ['Второй ответ', 'Третий ответ']))
+        results = [first, *others]
+        self.assertEqual({Path(r['path']).name for r in results},
+                         {'18--00-49.md', '18--00-49--2.md', '18--00-49--3.md'})
+        self.assertEqual(len({r['path'] for r in results}), 3)
+        for result in results:
+            self.assertEqual(Path(result['path']).read_bytes(), result['answer'].encode('utf-8'))
+        self.assertTrue(Path(first['path']).read_text(encoding='utf-8').endswith('Первый ответ'))
+
+    def test_cli_logs_actual_stdin_answer_from_either_platform_without_running_cleanup(self):
+        for platform in ('antigravity', 'codex'):
+            with self.subTest(platform=platform):
+                body = 'Режим: предварительный просмотр.\nПодходящих проектов нет.\n'
+                output = io.StringIO()
+                with (patch.object(cleanup, 'settings', return_value={'workspace_root': str(self.root)}),
+                      patch.object(cleanup, 'cleanup_projects', side_effect=AssertionError('Logging must not run cleanup')),
+                      patch('sys.stdin', io.StringIO(body)), redirect_stdout(output)):
+                    code = up.main(['cleanup-report', '--answer', '-', '--platform', platform])
+                result = json.loads(output.getvalue())
+                self.assertEqual(code, 0, result)
+                self.assertRegex(result['answer'], r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\+3\n\n')
+                self.assertTrue(result['answer'].endswith(body))
+                self.assertEqual(Path(result['path']).read_bytes(), result['answer'].encode('utf-8'))
+                self.assertTrue(Path(result['path']).is_relative_to(self.root / 'AI/log/cleanup'))
+
+    def test_empty_answer_or_naive_timestamp_does_not_create_a_log(self):
+        root = self.root / 'logs'
+        with self.assertRaises(ValueError):
+            cleanup.record_cleanup_answer('  ', log_root=root)
+        with self.assertRaises(ValueError):
+            cleanup.record_cleanup_answer('Отчёт', now=datetime(2026, 10, 18), log_root=root)
+        self.assertFalse(root.exists())
 
 
 if __name__ == '__main__':

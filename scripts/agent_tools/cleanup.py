@@ -15,6 +15,39 @@ from .runtime import PRIMARY, platform_name, settings
 from .storage import create_bytes, locked, replace_bytes
 
 
+def record_cleanup_answer(body, *, now=None, log_root=None):
+    """Publish the actual final answer once, with an Istanbul timestamp."""
+    if not isinstance(body, str) or not body.strip():
+        raise ValueError('Cleanup answer must not be empty')
+    moment = now or datetime.now(timezone.utc)
+    if moment.tzinfo is None or moment.utcoffset() is None:
+        raise ValueError('Cleanup report time must include a timezone')
+    local = moment.astimezone(ZoneInfo('Europe/Istanbul'))
+    offset = int(local.utcoffset().total_seconds() / 60)
+    hours, minutes = divmod(abs(offset), 60)
+    zone = f'UTC{"+" if offset >= 0 else "-"}{hours}' + (f':{minutes:02d}' if minutes else '')
+    timestamp = f'{local:%Y-%m-%d %H:%M} {zone}'
+    answer = timestamp + '\n\n' + body
+    payload = answer.encode('utf-8')
+    root = Path(log_root or Path(settings()['workspace_root']) / 'AI/log/cleanup').absolute()
+    directory = root / f'{local:%Y/%m}'
+    if linked(directory):
+        raise ValueError('Cleanup log directory must not be linked')
+    directory.mkdir(parents=True, exist_ok=True)
+    number = 1
+    while True:
+        suffix = '' if number == 1 else f'--{number}'
+        target = directory / f'{local:%d--%H-%M}{suffix}.md'
+        try:
+            create_bytes(target, payload)
+            break
+        except FileExistsError:
+            number += 1
+    if target.read_bytes() != payload:
+        raise OSError('Cleanup answer log read-back mismatch')
+    return {'path': str(target), 'timestamp': timestamp, 'answer': answer}
+
+
 def path_key(value):
     if isinstance(value, os.PathLike):
         value = os.fspath(value)
@@ -23,8 +56,13 @@ def path_key(value):
     if value.startswith('file:'):
         uri = urlsplit(value)
         value = unquote(uri.path)
-        if uri.netloc and uri.netloc != 'localhost':
-            value = '//' + uri.netloc + value
+        host = unquote(uri.netloc)
+        if re.fullmatch(r'[A-Za-z]:', host):
+            # Older Antigravity versions emitted file://C:/... without the
+            # third slash. It is a local drive, not a UNC server named C:.
+            value = host + value
+        elif host and host.casefold() != 'localhost':
+            value = '//' + host + value
         if re.match(r'^/[A-Za-z]:/', value):
             value = value[1:]
     if value.startswith('\\\\?\\'):
@@ -62,18 +100,53 @@ def _age(root, state, config):
     return day + timedelta(days=1), 'legacy-request-day-upper-bound'
 
 
+def legacy_initialization(root):
+    """Recognize pre-project.json init through its independent saved outputs."""
+    agents = root / '.agents'
+    rule = agents / 'rules/90-project.md'
+    kb = root / 'KB/Project.md'
+    manifests = [agents / (kind + '.json') for kind in ('rules', 'skills', 'agents')]
+    if not all(p.is_file() for p in [rule, kb, *manifests]):
+        return None
+    for kind, manifest in zip(('rules', 'skills', 'agents'), manifests):
+        entries = _json(manifest).get('entries')
+        if not isinstance(entries, list):
+            raise ValueError('Legacy discovery manifest requires entries[]')
+        paths = [Path(entry['path']) for entry in entries if isinstance(entry, dict) and isinstance(entry.get('path'), str)]
+        if not any((p if p.is_absolute() else agents / p).resolve() == (PRIMARY / kind).resolve() for p in paths):
+            return None
+    if linked(rule) or linked(kb):
+        raise ValueError('Linked legacy initialization evidence preserved')
+    pattern = r'https?://(?:www\.)?upwork\.com/jobs/[^\s`"<>]*?(~[A-Za-z0-9]+)'
+    ids = set(re.findall(pattern, rule.read_text(encoding='utf-8-sig')))
+    current = re.search(r'^#\s*2\.\s*Текущий проект клиента[^\n]*\n(.*?)(?=^#\s|\Z)',
+                        kb.read_text(encoding='utf-8-sig'), re.M | re.S)
+    current_ids = re.findall(pattern, current.group(1)) if current else []
+    if len(ids) != 1 or not current_ids or current_ids[0] not in ids:
+        raise ValueError('Legacy project rule and current-job KB do not establish one job ID')
+    if not re.fullmatch(r'~\d+', current_ids[0]):
+        raise ValueError('Unsupported historical job ID preserved without cleanup')
+    day = datetime(int(root.parents[2].name), int(root.parents[1].name), int(root.parent.name)).date()
+    return {'job_id': current_ids[0], 'initialized': True, 'request_date': day.isoformat()}
+
+
 def candidates(daily, config, now):
     values, issues = [], []
-    for marker in sorted(daily.glob('????/??/??/*/ꘖ/project.json')):
-        root = marker.parent.parent
+    for root in sorted(daily.glob('????/??/??/*')):
+        if not root.is_dir():
+            continue
+        marker = root / 'ꘖ/project.json'
         try:
             if linked(marker) or not root.resolve().is_relative_to(daily):
                 raise ValueError('Linked or escaped archive entry preserved')
-            state = _json(marker)
+            state = _json(marker) if marker.exists() else legacy_initialization(root)
+            if state is None:
+                continue
             if state.get('initialized') is not True or not re.fullmatch(r'~\d+', state.get('job_id', '')):
                 continue
             created, basis = _age(root, state, config)
             values.append({'root': str(root.resolve()), 'job_id': state['job_id'],
+                           'initialization_basis': 'project.json' if marker.exists() else 'legacy-manifests-rule-and-kb',
                            'created_at': created.isoformat(), 'age_basis': basis,
                            'old_enough': now - created > timedelta(days=3)})
         except (OSError, ValueError, TypeError, KeyError) as exc:
@@ -353,7 +426,13 @@ def cleanup_projects(*, apply=False, daily_root=None, now=None, config=None, ag_
     lock = PRIMARY.parent / 'ꘖ/data/cleanup.lock'
     with locked(lock) if apply else nullcontext():
         found, issues = candidates(daily, config, now)
-        result['issues'].extend(issues)
+        result['discovery'] = {
+            'verified_projects': len(found),
+            'modern_projects': sum(p['initialization_basis'] == 'project.json' for p in found),
+            'legacy_projects': sum(p['initialization_basis'] != 'project.json' for p in found),
+            'excluded_with_conversations': 0,
+            'unresolved_entries': len(issues),
+        }
         try:
             catalog = control({'command': 'shared-catalog'})
             if not isinstance(catalog, dict):
@@ -362,6 +441,45 @@ def cleanup_projects(*, apply=False, daily_root=None, now=None, config=None, ag_
         except (OSError, ValueError, RuntimeError) as exc:
             result.update(complete=False, issues=[*issues, {'error': str(exc)}])
             return result
+
+        def recover_preserved(entry, root, cx):
+            if not apply:
+                return
+            try:
+                entry['antigravity_recovery'] = restore_antigravity(root, directory, folder_file)
+                if cx:
+                    current_cx = catalog_projects(control({'command': 'shared-catalog'}), root, homes)
+                    if any(p['cleanup_hold'] for p in current_cx):
+                        entry['recovery'] = control({'command': 'shared-cleanup-project', 'preserve': True,
+                            'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings']})
+                        if entry['recovery'].get('complete') is not True:
+                            result['complete'] = False
+            except (OSError, ValueError, RuntimeError) as recovery_error:
+                entry['recovery_error'] = str(recovery_error)
+                result['complete'] = False
+
+        # A chat excludes a workspace regardless of whether old init evidence
+        # can identify its job. Resolve that exclusion before publishing issues;
+        # it never supplies provenance or authorizes deletion of an empty root.
+        for issue in issues:
+            root = Path(issue['root'])
+            try:
+                if linked(root) or not root.resolve().is_relative_to(daily):
+                    raise ValueError('Linked or escaped archive entry preserved')
+                ag = antigravity_projects(directory, root)
+                cx = catalog_projects(catalog, root, homes)
+                counts = conversations(root, ag, backend, homes, cx)
+                if any(counts.values()):
+                    entry = {'root': str(root), 'status': 'preserved', 'conversations': counts}
+                    result['projects'].append(entry)
+                    result['discovery']['excluded_with_conversations'] += 1
+                    recover_preserved(entry, root, cx)
+                    continue
+            except (OSError, ValueError, RuntimeError, KeyError, TypeError, sqlite3.Error):
+                pass
+            result['issues'].append(issue)
+        result['discovery']['unresolved_entries'] = len(result['issues'])
+
         for item in found:
             root = Path(item['root'])
             entry = {**item, 'status': 'recent' if not item['old_enough'] else 'checking'}
@@ -419,19 +537,8 @@ def cleanup_projects(*, apply=False, daily_root=None, now=None, config=None, ag_
                 except (OSError, ValueError, TypeError, sqlite3.Error):
                     pass
                 entry.update(status='preserved' if any(entry.get('conversations', {}).values()) else 'blocked', error=str(exc))
-                if apply and entry['status'] == 'preserved':
-                    try:
-                        entry['antigravity_recovery'] = restore_antigravity(root, directory, folder_file)
-                        if cx:
-                            current_cx = catalog_projects(control({'command': 'shared-catalog'}), root, homes)
-                            if any(p['cleanup_hold'] for p in current_cx):
-                                entry['recovery'] = control({'command': 'shared-cleanup-project', 'preserve': True,
-                                    'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings']})
-                                if entry['recovery'].get('complete') is not True:
-                                    result['complete'] = False
-                    except (OSError, ValueError, RuntimeError) as recovery_error:
-                        entry['recovery_error'] = str(recovery_error)
-                        result['complete'] = False
+                if entry['status'] == 'preserved':
+                    recover_preserved(entry, root, cx)
                 if entry['status'] == 'blocked':
                     result['complete'] = False
         if result['issues']:

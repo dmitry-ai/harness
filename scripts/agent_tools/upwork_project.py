@@ -300,6 +300,8 @@ def main(argv=None):
     cleanup = sub.add_parser('cleanup', help='Remove empty native Upwork projects older than 72 hours; keep the entire daily archive')
     cleanup.add_argument('--apply', action='store_true', help='Apply cleanup; default is a read-only preview')
     cleanup.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
+    cleanup_report = sub.add_parser('cleanup-report', help='Save the exact cleanup answer with an Istanbul timestamp in AI/log/cleanup')
+    cleanup_report.add_argument('--answer', default='-', help='Answer body as a UTF-8 file, or - for stdin')
     config = sub.add_parser('configure', help='Create missing native manifests; preserve existing configuration')
     config.add_argument('project', type=Path)
     config.add_argument('--check', action='store_true', help='Check the project Codex projection without writing')
@@ -389,6 +391,10 @@ def run(args):
         elif args.command == 'cleanup':
             from .cleanup import cleanup_projects
             result = cleanup_projects(apply=args.apply, daily_root=args.daily_root)
+        elif args.command == 'cleanup-report':
+            from .cleanup import record_cleanup_answer
+            body = sys.stdin.read() if args.answer == '-' else Path(args.answer).read_bytes().decode('utf-8')
+            result = record_cleanup_answer(body)
         elif args.command == 'validate-analysis':
             value = json.loads(args.input.read_text(encoding='utf-8-sig'))
             from .analysis import analysis_issues, publish_analysis
