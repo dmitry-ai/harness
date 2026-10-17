@@ -1,6 +1,7 @@
 """Project screening regressions: visible risks, evidence links and card preservation."""
 
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 import unittest
@@ -41,12 +42,14 @@ class RedFlagTests(TemporaryCase):
             self.assertIn('Клиент — посредник', text)
             self.assertIn('Сайт, над которым предстоит работать, не установлен', text)
         self.assertLess(report.index('Red Flags'), report.index('# 1.'))
-        self.assertLess(card.index('Red Flags'), card.index('https://upwork'))
+        self.assertGreater(card.index('# Red Flags'), card.index('# Notes'))
+        self.assertLess(card.index('# Red Flags'), card.index(START.decode()))
+        self.assertNotIn('## Red Flags', card)
         self.assertIn('ꘖ/KB/Analysis.json#/identity/1', card)
         self.assertIn('#h-site-1', report)
         updated = self.card.read_bytes()
-        begin, end = updated.index(START), updated.index(END) + len(END) + 4
-        self.assertEqual(updated[:begin] + updated[end:], self.original)
+        self.assertTrue(updated.startswith(self.original))
+        self.assertTrue(updated.rstrip().endswith(END))
 
     def test_each_risk_can_be_shown_alone_without_combination_warning(self):
         for flag in self.value['red_flags']:
@@ -73,9 +76,47 @@ class RedFlagTests(TemporaryCase):
         publish_analysis(self.source)
         self.card.write_bytes(self.card.read_bytes() + b'Another note.\r\n')
         result = publish_analysis(self.source)
-        self.assertEqual(result['project_card']['status'], 'unchanged')
+        self.assertEqual(result['project_card']['status'], 'published')
         self.assertEqual(self.card.read_bytes().count(START), 1)
-        self.assertTrue(self.card.read_bytes().endswith(b'Another note.\r\n'))
+        self.assertTrue(self.card.read_bytes().startswith(self.original + b'Another note.\r\n'))
+        self.assertTrue(self.card.read_bytes().rstrip().endswith(END))
+        previous = self.card.read_bytes()
+        self.assertEqual(publish_analysis(self.source)['project_card']['status'], 'unchanged')
+        self.assertEqual(self.card.read_bytes(), previous)
+
+    def test_legacy_top_block_moves_to_final_first_level_section_without_losing_text(self):
+        from agent_tools.red_flags import render_red_flags
+        newline = b'\r\n'
+        legacy = render_red_flags(self.value, project_card=True).replace('# Red Flags', '## Red Flags', 1).encode().replace(b'\n', newline)
+        block = START + newline * 2 + legacy + END + newline * 2
+        offset = self.original.index(b'\n') + 1
+        self.card.write_bytes(self.original[:offset] + block + self.original[offset:])
+        self.put('ꘖ/data/red-flags.json', json.dumps({'block_sha256': hashlib.sha256(block).hexdigest()}))
+        self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'published')
+        updated = self.card.read_bytes()
+        self.assertTrue(updated.startswith(self.original))
+        self.assertTrue(updated.rstrip().endswith(END))
+        self.assertEqual(updated.count('# Red Flags'.encode()), 1)
+        self.assertLess(updated.index('# Red Flags'.encode()), updated.index(START))
+        self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'unchanged')
+
+    def test_append_and_remove_preserve_newlines_bom_and_empty_cards(self):
+        for original in (b'', b'\xef\xbb\xbf', b'# Project', b'# Project\n', b'# Project\n\n', b'\xef\xbb\xbf# Project\r\n\r\n\r\n'):
+            with self.subTest(original=original):
+                self.card.write_bytes(original)
+                sync_project_red_flags(self.root, self.value)
+                self.assertTrue(self.card.read_bytes().startswith(original))
+                newline = b'\r\n' if b'\r\n' in original else b'\n'
+                self.assertTrue(self.card.read_bytes().endswith(END + newline))
+                sync_project_red_flags(self.root, {**self.value, 'red_flags': []})
+                self.assertEqual(self.card.read_bytes(), original)
+
+    def test_manual_section_heading_edits_are_preserved_as_conflicts(self):
+        sync_project_red_flags(self.root, self.value)
+        self.card.write_bytes(self.card.read_bytes().replace(b'# Red Flags', b'# My assessment', 1))
+        changed = self.card.read_bytes()
+        self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'conflict')
+        self.assertEqual(self.card.read_bytes(), changed)
 
     def test_resolved_risks_update_both_surfaces_and_keep_original_card_history(self):
         publish_analysis(self.source)

@@ -48,7 +48,7 @@ def render_red_flags(value, *, project_card=False):
     if not flags:
         return ''
     by_id = {flag['id']: flag for flag in flags}
-    lines = [f'{"##" if project_card else "#"} Red Flags — {len(flags)}', '']
+    lines = [f'# Red Flags — {len(flags)}', '']
     if len(by_id) == 2:
         qualifier = ' (посредничество пока является гипотезой)' if by_id['RF-CLIENT-INTERMEDIARY']['status'] == 'suspected' else ''
         lines += [f'**Оба Red Flags одновременно{qualifier}: высокая вероятность отказа от проекта.**', '']
@@ -77,24 +77,41 @@ def sync_project_red_flags(root, value):
         original = target.read_bytes()
         original.decode('utf-8-sig')  # Do not replace a card with an unknown encoding.
         newline = b'\r\n' if b'\r\n' in original else b'\n'
-        content = render_red_flags(value, project_card=True).encode('utf-8').replace(b'\n', newline)
-        block = START + newline + newline + content + END + newline + newline if content else b''
+        rendered = render_red_flags(value, project_card=True)
+        title, content = rendered.split('\n\n', 1) if rendered else ('', '')
+        heading = (title + '\n\n').encode('utf-8').replace(b'\n', newline) if title else b''
+        content = content.encode('utf-8').replace(b'\n', newline)
+        block = START + newline + newline + content + END + newline if content else b''
+        receipt = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {}
         current, body = b'', original
         if START in original or END in original:
             if original.count(START) != 1 or original.count(END) != 1 or original.index(START) > original.index(END):
                 return {'status': 'conflict', 'target': str(target), 'detail': 'Malformed Red Flags block; card preserved'}
             start, end = original.index(START), original.index(END) + len(END)
-            if original[end:end + len(newline) * 2] == newline * 2:
-                end += len(newline) * 2
+            ending = newline if receipt.get('heading') else newline * 2
+            if original[end:end + len(ending)] == ending:
+                end += len(ending)
+            elif original[end:end + len(newline)] == newline:
+                end += len(newline)
             current = original[start:end]
-            body = original[:start] + original[end:]
-            receipt = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {}
             if current != block and digest(current) != receipt.get('block_sha256'):
                 return {'status': 'conflict', 'target': str(target), 'detail': 'Red Flags block was manually edited; reconcile it explicitly'}
-        offset = 3 if body.startswith(b'\xef\xbb\xbf') else 0
-        if body[offset:].startswith(b'# ') and b'\n' in body[offset:]:
-            offset = body.index(b'\n', offset) + 1
-        payload = body[:offset] + block + body[offset:]
+            previous_heading = receipt.get('heading', '').encode('utf-8')
+            if previous_heading:
+                if not original[:start].endswith(previous_heading):
+                    return {'status': 'conflict', 'target': str(target), 'detail': 'Red Flags heading was manually edited; reconcile it explicitly'}
+                start -= len(previous_heading)
+                separator = receipt.get('separator', '').encode('utf-8')
+                if separator and original[:start].endswith(separator):
+                    start -= len(separator)
+            elif heading and original[:start].endswith(heading) and current == block:
+                # Adopt an identical section prepared manually, without duplicating its title.
+                start -= len(heading)
+            body = original[:start] + original[end:]
+        separator = b''
+        if block and body not in (b'', b'\xef\xbb\xbf'):
+            separator = b'' if body.endswith(newline * 2) else (newline if body.endswith(newline) else newline * 2)
+        payload = body + separator + heading + block if block else body
         if payload != original:
             archive = state_dir / 'red-flags-history' / (digest(original) + '.md')
             archive.parent.mkdir(parents=True, exist_ok=True)
@@ -105,5 +122,6 @@ def sync_project_red_flags(root, value):
             replace_bytes(target, payload)
         if target.read_bytes() != payload:
             raise OSError('Project card failed read-back verification')
-        replace_bytes(state_file, (json.dumps({'block_sha256': digest(block)}, indent=2) + '\n').encode())
+        metadata = {'block_sha256': digest(block), 'heading': heading.decode('utf-8'), 'separator': separator.decode('utf-8')}
+        replace_bytes(state_file, (json.dumps(metadata, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
     return {'status': 'unchanged' if payload == original else 'published', 'target': str(target), 'sha256': digest(payload)}
