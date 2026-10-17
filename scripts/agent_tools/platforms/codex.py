@@ -324,10 +324,11 @@ def register(project_dir, domain_or_topic, date_str=None):
     day = request_day(date_str)
     request = {'command': 'shared-ensure-project', 'profile': profile,
                'project': {'name': f'{domain_or_topic} - U.P.{day:%Y.%m.%d}',
+                           'trustPolicy': 'upwork-daily',
                            'rootPaths': [str(Path(project_dir).resolve())],
                            'folderPath': ['Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}']}}
     # JSON travels over stdin; no shell interpolation or direct catalogue writes.
-    script = "import {control} from " + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
+    script = "import {controlWithHelper as control} from " + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
     result = subprocess.run([config['node'], '--input-type=module', '-e', script],
                             input=json.dumps(request), text=True, capture_output=True, timeout=25,
                             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))

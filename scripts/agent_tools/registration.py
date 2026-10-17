@@ -84,7 +84,9 @@ def validate_registration(project, label, day, platform, result):
         raise RegistrationConflict('; '.join(issues), expected=expected, actual=value, issues=issues)
     value['root_paths'] = normalized_roots
     value['complete'] = _complete(value)
-    value['status'] = 'registered' if value['complete'] else 'pending'
+    block = (binding.get('registration_block') or {}) if platform == 'codex' and isinstance(binding, dict) else {}
+    value['status'] = ('registered' if value['complete'] else
+                       block['status'] if block.get('status') in ('untrusted', 'blocked') else 'pending')
     return value
 
 

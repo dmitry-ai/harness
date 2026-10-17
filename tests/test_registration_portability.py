@@ -260,7 +260,14 @@ class RegistrationProfileTests(TemporaryCase):
             request = json.loads(invoke.call_args.kwargs['input'])
             self.assertEqual(request['profile'], 'C2')
             self.assertEqual(request['command'], 'shared-ensure-project')
+            self.assertEqual(request['project']['trustPolicy'], 'upwork-daily')
             self.assertFalse(result['complete'])
+        receipt['profiles']['C2']['registration_block'] = {'status': 'untrusted', 'error': 'Explicit untrusted'}
+        with patch.object(codex.subprocess, 'run', return_value=SimpleNamespace(returncode=0,
+                stdout=json.dumps(receipt), stderr='')):
+            blocked = codex.register(self.root, 'Topic', '2026-10-15')
+            self.assertFalse(blocked['complete'])
+            self.assertEqual(blocked['status'], 'untrusted')
         receipt['project_name'] = 'Manual name'
         with patch.object(codex.subprocess, 'run', return_value=SimpleNamespace(returncode=0,
                 stdout=json.dumps(receipt), stderr='')) as invoke:
