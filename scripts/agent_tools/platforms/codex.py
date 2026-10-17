@@ -320,9 +320,12 @@ def shared_control(request):
     """Use the installed helper; never write native registration stores here."""
     config = platform_settings('codex')
     script = "import {controlWithHelper as control} from " + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
-    result = subprocess.run([config['node'], '--input-type=module', '-e', script],
-                            input=json.dumps(request), text=True, capture_output=True, timeout=55,
-                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    try:
+        result = subprocess.run([config['node'], '--input-type=module', '-e', script],
+                                input=json.dumps(request), text=True, capture_output=True, timeout=55,
+                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError('Shared-Projects timed out; the request may have been accepted. Repeat the same idempotent command to recover.') from exc
     if result.returncode:
         raise RuntimeError('Shared-Projects request failed: ' + (result.stderr.strip() or result.stdout.strip()))
     return json.loads(result.stdout)
