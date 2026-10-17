@@ -83,7 +83,8 @@ python <инструмент> question-finish <проект> Q-SITE --owner <ID>
 ```text
 python <инструмент> collect <проект> --plan - --output "ꘖ/KB/Evidence/site-report.json"
 python <инструмент> extract <проект> <observation из результата> --profile tracking
-python <инструмент> extract-file <проект> "ꘖ/KB/Evidence/Attachments/.../audit.docx" --profile document
+python <инструмент> extract-file <проект> "ꘖ/KB/Evidence/Attachments/.../audit.pdf" --profile document
+python <инструмент> sync-attachments <проект> --media-descriptions -
 python <инструмент> source-ref <проект> "Evidence/данные.json" --part related_descriptions --part "~022..." --part description
 ```
 
@@ -94,8 +95,8 @@ URL-фрагмент относится к адресу цитаты, а не к
 `refresh_reason` создаёт отдельное измерение; прежнее не заменяется.
 Сохранённый HTTP 403/404 — полученный результат; не повторяй его вслепую.
 Признак JS/challenge — повод выбрать правильную проверку, не доказательство блокировки реального бота.
-HTML/bundle показывает исходник, не исполнение; Shopify JSON не равен реальному Merchant Center feed; текст DOCX не проверяет визуальную верстку или изображения.
-Для значимых нетекстовых вложений используй соответствующую визуальную проверку исходного файла.
+HTML/bundle показывает исходник, не исполнение; Shopify JSON не равен реальному Merchant Center feed; текст DOCX/PDF извлекается с гиперссылками и форматированием Markdown.
+Все приложенные клиентом файлы сохраняются одновременно в корневой папке `source/` и в `ꘖ/KB/Evidence/Attachments/<sha256>/`, а их полный текст, расшифровки видео (`# Видео:`, `# Ключевые моменты устного комментария (дополнения к тексту документа):`, `# Полная расшифровка аудиозаписи:` с `[MM:SS]`) и расшифровки изображений (дословный текст в `«»`, описание UI, подтверждения и противоречия словам клиента с оценками в `%`) синхронизируются в обе KB (`KB/Project.md` и `ꘖ/KB/{Project,Projects,Evidence}.md`) при `init` и через `sync-attachments`.
 
 Для DOM разрешено только чтение явно выбранной вкладки с точным URL:
 

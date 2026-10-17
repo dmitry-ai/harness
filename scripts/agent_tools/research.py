@@ -266,8 +266,14 @@ class HTMLData(HTMLParser):
 def extract_bytes(body, content_type, profile, charset='utf-8'):
     if profile not in PROFILES:
         raise ValueError(f'Unknown profile: {profile}; choose {PROFILES}')
+    if profile == 'document' and body.startswith(b'%PDF-'):
+        from .upwork_data import extract_pdf_markdown
+        md = extract_pdf_markdown(body)
+        paragraphs = [line for line in md.splitlines() if line.strip()]
+        return {'paragraphs': paragraphs, 'text': md, 'markdown': md, 'layout_checked': True}
     if profile == 'document' and body.startswith(b'PK'):
         import io
+        from .upwork_data import extract_docx_markdown
         with zipfile.ZipFile(io.BytesIO(body)) as doc:
             item = doc.getinfo('word/document.xml')
             if item.file_size > MAX_BYTES:
@@ -276,7 +282,11 @@ def extract_bytes(body, content_type, profile, charset='utf-8'):
             non_text = [name for name in doc.namelist() if name.startswith(('word/media/', 'word/charts/', 'word/embeddings/'))]
         ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
         paragraphs = [''.join(p.itertext()) for p in xml.findall('.//w:p', ns)]
-        return {'paragraphs': paragraphs, 'text': '\n'.join(paragraphs), 'layout_checked': False, 'non_text_parts': non_text}
+        try:
+            md = extract_docx_markdown(body)
+        except Exception:
+            md = '\n'.join(paragraphs)
+        return {'paragraphs': paragraphs, 'text': '\n'.join(paragraphs), 'markdown': md, 'layout_checked': False, 'non_text_parts': non_text}
     text = body.decode(charset, errors='replace')
     if profile == 'shopify':
         value = json.loads(text)

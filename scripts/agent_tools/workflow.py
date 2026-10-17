@@ -46,7 +46,10 @@ def evidence_paths(root):
     """Pin primary evidence and manual inputs; reviewer reports are separate receipts."""
     root = Path(root).resolve()
     evidence = root / 'ꘖ/KB/Evidence'
-    return sorted({p.relative_to(root).as_posix() for directory in (evidence, root / 'KB')
+    dirs = [evidence, root / 'KB']
+    if (root / 'source').is_dir():
+        dirs.append(root / 'source')
+    return sorted({p.relative_to(root).as_posix() for directory in dirs
                    for p in directory.rglob('*') if p.is_file() and not p.is_relative_to(evidence / 'Reviews')})
 
 
@@ -328,9 +331,152 @@ def kb_issues(root):
     return issues
 
 
+def attachment_issues(root):
+    from .upwork_data import classify_attachment, detect_client_videos, extract_attachment_markdown
+    root = Path(root).resolve()
+    issues = []
+    pj_file = root / 'ꘖ/project.json'
+    if not pj_file.is_file():
+        return issues
+    try:
+        pj = json.loads(pj_file.read_text(encoding='utf-8'))
+        snap_path = root / pj.get('snapshot', '')
+        snap = json.loads(snap_path.read_text(encoding='utf-8')) if snap_path.is_file() else {}
+    except Exception:
+        return issues
+
+    kb_dir = root / 'ꘖ/KB'
+    att_root = kb_dir / 'Evidence/Attachments'
+    source_dir = root / 'source'
+
+    attachments = []
+    seen_sha = set()
+    for item in (snap.get('asset_evidence') or []):
+        rel = item.get('file')
+        if rel and (kb_dir / rel).is_file():
+            target = kb_dir / rel
+            sha = item.get('sha256') or file_hash(target)
+            if sha not in seen_sha:
+                seen_sha.add(sha)
+                attachments.append({'filename': target.name, 'sha256': sha, 'evidence_path': target})
+    if att_root.is_dir():
+        for sha_dir in sorted(att_root.iterdir()):
+            if sha_dir.is_dir() and re.fullmatch(r'[0-9a-f]{64}', sha_dir.name):
+                for f in sorted(sha_dir.iterdir()):
+                    if f.is_file() and sha_dir.name not in seen_sha:
+                        seen_sha.add(sha_dir.name)
+                        attachments.append({'filename': f.name, 'sha256': sha_dir.name, 'evidence_path': f})
+    if source_dir.is_dir():
+        for f in sorted(source_dir.iterdir()):
+            if f.is_file():
+                sha = file_hash(f)
+                ev_target = att_root / sha / f.name
+                if not ev_target.is_file():
+                    issues.append(problem(
+                        'attachment.evidence_missing',
+                        f'source/{f.name}',
+                        f'Attached file in source/{f.name} is not synced to ꘖ/KB/Evidence/Attachments/{sha}/{f.name}; run sync-attachments',
+                        file=f,
+                    ))
+                if sha not in seen_sha:
+                    seen_sha.add(sha)
+                    attachments.append({'filename': f.name, 'sha256': sha, 'evidence_path': f})
+
+    manual_proj = root / 'KB/Project.md'
+    agent_proj = root / 'ꘖ/KB/Project.md'
+    agent_projects = root / 'ꘖ/KB/Projects.md'
+    manual_text = manual_proj.read_text(encoding='utf-8') if manual_proj.is_file() else ''
+    agent_text = agent_proj.read_text(encoding='utf-8') if agent_proj.is_file() else ''
+    projects_text = agent_projects.read_text(encoding='utf-8') if agent_projects.is_file() else ''
+
+    doc_markdowns = []
+    for att in attachments:
+        fname = att['filename']
+        sha = att['sha256']
+        payload = att['evidence_path'].read_bytes()
+        src_candidates = [p for p in (source_dir.iterdir() if source_dir.is_dir() else []) if p.is_file() and file_hash(p) == sha]
+        if not src_candidates:
+            issues.append(problem(
+                'attachment.source_missing',
+                f'source/{fname}',
+                f'Attached file {fname} must be saved in the root source/ folder (§2.1); run sync-attachments',
+                file=att['evidence_path'],
+            ))
+        kind = classify_attachment(fname, payload)
+        if kind == 'document':
+            doc_md = extract_attachment_markdown(att['evidence_path'], payload)
+            doc_markdowns.append(doc_md)
+            heading_marker = f'Описание в `{fname}`'
+            for label, target_file, target_text in (
+                ('KB/Project.md', manual_proj, manual_text),
+                ('ꘖ/KB/Project.md', agent_proj, agent_text),
+                ('ꘖ/KB/Projects.md', agent_projects, projects_text),
+            ):
+                if heading_marker not in target_text:
+                    issues.append(problem(
+                        'attachment.kb_missing',
+                        label,
+                        f'Attached document {fname} is missing from {label} (§2.2); run sync-attachments',
+                        file=target_file,
+                    ))
+        elif kind == 'image':
+            heading_marker = f'Описание в `{fname}`'
+            for label, target_file, target_text in (
+                ('KB/Project.md', manual_proj, manual_text),
+                ('ꘖ/KB/Project.md', agent_proj, agent_text),
+                ('ꘖ/KB/Projects.md', agent_projects, projects_text),
+            ):
+                if heading_marker not in target_text:
+                    issues.append(problem(
+                        'attachment.image_missing',
+                        label,
+                        f'Attached image {fname} must be transcribed and analyzed in {label} (§2.4)',
+                        file=target_file,
+                    ))
+                else:
+                    sec_match = re.search(rf'(?ms){re.escape(heading_marker)}.*?(?:~~~+|```+)markdown\n(.*?)\n(?:~~~+|```+)', target_text)
+                    sec_body = (sec_match.group(1) if sec_match else '').strip()
+                    if (not sec_body or '«' not in sec_body
+                            or not re.search(r'(?i)подтверждени|противоречи', sec_body)
+                            or not re.search(r'(?i)оценка.*\d+\s*%', sec_body)):
+                        issues.append(problem(
+                            'attachment.image_incomplete',
+                            label,
+                            f'Attached image {fname} in {label} requires verbatim «...» text transcription, exhaustive UI description, and confirmation/contradiction analysis with % score (§2.4)',
+                            file=target_file,
+                        ))
+
+    videos = detect_client_videos(snap.get('description') or '', doc_markdowns,
+                                  [{'filename': a['filename'], 'sha256': a['sha256']} for a in attachments])
+    for v in videos:
+        v_heading = v['heading']
+        for label, target_file, target_text in (
+            ('KB/Project.md', manual_proj, manual_text),
+            ('ꘖ/KB/Project.md', agent_proj, agent_text),
+            ('ꘖ/KB/Projects.md', agent_projects, projects_text),
+        ):
+            if v_heading not in target_text:
+                issues.append(problem(
+                    'attachment.video_missing',
+                    label,
+                    f'Client video ({v_heading}) must be transcribed in {label} (§2.3)',
+                    file=target_file,
+                ))
+            else:
+                if ('# Полная расшифровка аудиозаписи:' not in target_text
+                        or not re.search(r'\[\d{2}:\d{2}\]', target_text)):
+                    issues.append(problem(
+                        'attachment.video_incomplete',
+                        label,
+                        f'Client video ({v_heading}) in {label} requires # Видео:, # Ключевые моменты..., and # Полная расшифровка аудиозаписи: with [MM:SS] timestamps (§2.3)',
+                        file=target_file,
+                    ))
+    return issues
+
+
 def check_project(root):
     root = Path(root).resolve()
-    issues = kb_issues(root)
+    issues = kb_issues(root) + attachment_issues(root)
     path = root / 'ꘖ/KB/Analysis.json'
     if not path.is_file():
         issues.append(problem('analysis.missing', 'ꘖ/KB/Analysis.json', 'Analysis draft is not saved'))

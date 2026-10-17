@@ -47,10 +47,38 @@ def local_file(root, reference):
             raise ValueError('Remote file URI is not a local project source')
     else:
         path = unquote(reference)
-    target = (Path(root).resolve() / 'ꘖ/KB' / path).resolve()
-    if not target.is_relative_to(Path(root).resolve()):
+    root_resolved = Path(root).resolve()
+    target = (root_resolved / 'ꘖ/KB' / path).resolve()
+    if not target.exists() and path.replace('\\', '/').lstrip('/').startswith('source/'):
+        alt = (root_resolved / path.replace('\\', '/').lstrip('/')).resolve()
+        if alt.is_relative_to(root_resolved / 'source'):
+            target = alt
+    if not target.is_relative_to(root_resolved):
         raise ValueError('Source path escapes the project; copy authorized primary evidence into Evidence first')
     return target
+
+
+def _markdown_section(text: str, fragment: str) -> str:
+    from markdown_it import MarkdownIt
+    tokens = MarkdownIt('commonmark').parse(text)
+    lines, headings, used = text.splitlines(keepends=True), [], set()
+    for index, token in enumerate(tokens):
+        if token.type != 'heading_open':
+            continue
+        inline = tokens[index + 1]
+        title = ''.join(t.content for t in inline.children or [] if t.type in ('text', 'code_inline', 'image'))
+        slug = re.sub(r'[^\w\- ]', '', title.lower()).replace(' ', '-')
+        ident, number = slug, 0
+        while ident in used:
+            number += 1; ident = f'{slug}-{number}'
+        used.add(ident)
+        headings.append((ident, int(token.tag[1]), token.map[0]))
+    match = next((i for i, h in enumerate(headings) if h[0] == unquote(fragment)), None)
+    if match is None:
+        raise ValueError('Markdown section anchor is absent')
+    heading = headings[match]
+    end = next((h[2] for h in headings[match + 1:] if h[1] <= heading[1]), len(lines))
+    return ''.join(lines[heading[2]:end])
 
 
 def saved_source(root, source, observation=None):
@@ -87,6 +115,14 @@ def saved_source(root, source, observation=None):
     raw = file.read_bytes()
     if re.fullmatch(r'[a-f0-9]{64}', file.stem.lower()) and hashlib.sha256(raw).hexdigest() != file.stem.lower():
         raise ValueError('Immutable source file differs from its content-addressed filename')
+    if file.suffix.lower() in ('.pdf', '.docx', '.odt', '.xlsx', '.xlsm', '.rtf'):
+        from .upwork_data import extract_attachment_markdown
+        md_text = extract_attachment_markdown(file, raw)
+        if fragment:
+            md_text = _markdown_section(md_text, fragment)
+        plain_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', md_text).replace('**', '')
+        return {'kind': 'text', 'text': md_text + '\n' + plain_text, 'fragment': unquote(fragment),
+                'file': file, 'sha256': hashlib.sha256(raw).hexdigest()}
     text = raw.decode('utf-8-sig')
     if file.suffix.lower() == '.json':
         value = resolve_pointer(json.loads(text), fragment)
@@ -96,26 +132,7 @@ def saved_source(root, source, observation=None):
         return {'kind': 'html', 'data': extract_bytes(raw, 'text/html', 'html'), 'raw': text,
                 'fragment': unquote(fragment), 'file': file, 'sha256': hashlib.sha256(raw).hexdigest()}
     if (file.suffix.lower() == '.md' or file.name == '.md') and fragment:
-        from markdown_it import MarkdownIt
-        tokens = MarkdownIt('commonmark').parse(text)
-        lines, headings, used = text.splitlines(keepends=True), [], set()
-        for index, token in enumerate(tokens):
-            if token.type != 'heading_open':
-                continue
-            inline = tokens[index + 1]
-            title = ''.join(t.content for t in inline.children or [] if t.type in ('text', 'code_inline', 'image'))
-            slug = re.sub(r'[^\w\- ]', '', title.lower()).replace(' ', '-')
-            ident, number = slug, 0
-            while ident in used:
-                number += 1; ident = f'{slug}-{number}'
-            used.add(ident)
-            headings.append((ident, int(token.tag[1]), token.map[0]))
-        match = next((i for i, h in enumerate(headings) if h[0] == unquote(fragment)), None)
-        if match is None:
-            raise ValueError('Markdown section anchor is absent')
-        heading = headings[match]
-        end = next((h[2] for h in headings[match + 1:] if h[1] <= heading[1]), len(lines))
-        text = ''.join(lines[heading[2]:end])
+        text = _markdown_section(text, fragment)
     elif fragment:
         raise ValueError('This source format does not support a verified fragment locator')
     return {'kind': 'text', 'text': text, 'fragment': unquote(fragment), 'file': file, 'sha256': hashlib.sha256(raw).hexdigest()}

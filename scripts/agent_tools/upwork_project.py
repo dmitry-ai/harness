@@ -199,24 +199,16 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None,
         configure_project(root, primary_agents_dir, canonical_job_url(job_id), root.name.split(' - ', 1)[-1], platform=platform)
         for folder in ('KB', 'ꘖ/KB', 'ꙮ/0', 'ꙮ/1 - Анализ/req', 'ꙮ/1 - Анализ/res'):
             (root / folder).mkdir(parents=True, exist_ok=True)
+        from .knowledge import sync_source_folder_attachments, build_project_extra_sources
+        assets = sync_source_folder_attachments(root, data.get('saved_attachments') or [])
+        extra_sources = build_project_extra_sources(root, data, assets)
         if not state['initialized']:
             create_once(root / '.md', f'# {data["title"]}\n{canonical_job_url(job_id)}\n')
             create_once(root / 'KB' / 'Project.md', format_kb_project_md(
-                {**data, **({'site_hypothesis': site_hypothesis} if site_hypothesis else {})}))
-        assets = []
-        for asset in data.get('saved_attachments') or []:
-            source = Path(asset['path'])
-            payload = source.read_bytes()
-            digest = hashlib.sha256(payload).hexdigest()
-            if digest != asset['sha256']:
-                raise ValueError(f'Attachment changed after capture: {source}')
-            folder = root / 'ꘖ' / 'KB' / 'Evidence' / 'Attachments' / digest
-            target = attachment_path(folder, asset['filename'])
-            folder.mkdir(parents=True, exist_ok=True)
-            if not target.exists():
-                create_bytes(target, payload)
-            assets.append({'file': target.relative_to(root / 'ꘖ' / 'KB').as_posix(), 'sha256': digest})
-        source_data = {**data, 'asset_evidence': assets}
+                {**data, 'extra_sources': extra_sources,
+                 **({'site_hypothesis': site_hypothesis} if site_hypothesis else {})}))
+        source_data = {**data, 'asset_evidence': [{'file': a['file'], 'sha256': a['sha256']} for a in assets],
+                       'extra_sources': extra_sources}
         snapshot = populate_agent_kb(root, source_data)
         if not state['initialized']:
             from .knowledge import sync_initial_website

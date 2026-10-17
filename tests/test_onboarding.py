@@ -288,6 +288,104 @@ class AttachmentTests(TemporaryCase):
                 select_tab(tabs, '~02999')
         self.assertEqual(select_tab([a, b], '~02123', 'b'), b)
 
+    def test_docx_and_text_attachments_saved_in_source_and_both_kbs(self):
+        import zipfile
+        from agent_tools.knowledge import sync_project_attachments_and_kb
+        from agent_tools.workflow import attachment_issues
+
+        docx_path = self.root / 'capture/attachments/Expectations.docx'
+        docx_path.parent.mkdir(parents=True, exist_ok=True)
+        doc_xml = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body>'
+            '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Full Funnel Tracking</w:t></w:r></w:p>'
+            '<w:p>'
+            '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+            '<w:r><w:instrText xml:space="preserve"> HYPERLINK "https://www.loom.com/share/abcd1234ef567890abcd1234ef567890" </w:instrText></w:r>'
+            '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+            '<w:r><w:t>Watch Loom Video</w:t></w:r>'
+            '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+            '</w:p>'
+            '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+            '<w:r><w:rPr><w:b/></w:rPr><w:t>Step 1: </w:t></w:r>'
+            '<w:r><w:t>Verify GTM container. Ensure GA4 events fire accurately.</w:t></w:r>'
+            '</w:p>'
+            '</w:body></w:document>'
+        )
+        with zipfile.ZipFile(docx_path, 'w') as zf:
+            zf.writestr('word/document.xml', doc_xml)
+        img_path = self.root / 'capture/attachments/checkout-error.png'
+        img_path.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR')
+
+        data = {
+            **source(),
+            'saved_attachments': [
+                {'path': str(docx_path), 'filename': docx_path.name, 'sha256': hashlib.sha256(docx_path.read_bytes()).hexdigest()},
+                {'path': str(img_path), 'filename': img_path.name, 'sha256': hashlib.sha256(img_path.read_bytes()).hexdigest()},
+            ],
+        }
+        with patch('agent_tools.upwork_data.extract_loom_video', return_value={}):
+            root = Path(up.initialize_upwork_project(
+                data['job_id'], domain_or_topic='Topic', date_str='2026-10-15',
+                daily_root=self.root / 'daily', extracted_data=data, register_antigravity=False,
+            )['project_dir'])
+
+        # §2.1: Every attachment is saved in root source/ folder
+        self.assertEqual((root / 'source/Expectations.docx').read_bytes(), docx_path.read_bytes())
+        self.assertEqual((root / 'source/checkout-error.png').read_bytes(), img_path.read_bytes())
+
+        # §2.2: Full formatted Markdown of DOCX is in both KBs (byte-identical Project.md + Projects.md + Evidence.md)
+        manual_kb = (root / 'KB/Project.md').read_text(encoding='utf-8')
+        agent_kb = (root / 'ꘖ/KB/Project.md').read_text(encoding='utf-8')
+        projects_kb = (root / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8')
+        evidence_kb = (root / 'ꘖ/KB/Evidence.md').read_text(encoding='utf-8')
+        self.assertEqual(manual_kb, agent_kb)
+        for text in (manual_kb, projects_kb, evidence_kb):
+            self.assertIn('# Full Funnel Tracking', text)
+            self.assertIn('[Watch Loom Video](https://www.loom.com/share/abcd1234ef567890abcd1234ef567890)', text)
+            self.assertIn('- Step 1: Verify GTM container.', text)
+
+        # Before supplying video transcript and image analysis, attachment_issues flags §§2.3 and 2.4
+        issues_before = {item['code'] for item in attachment_issues(root)}
+        self.assertIn('attachment.video_incomplete', issues_before)
+        self.assertIn('attachment.image_incomplete', issues_before)
+
+        # §§2.3 & 2.4: Syncing video transcript and image transcription updates both KBs and clears all attachment issues
+        media_descriptions = {
+            'https://www.loom.com/share/abcd1234ef567890abcd1234ef567890': (
+                '# Видео:\n'
+                'https://www.loom.com/share/abcd1234ef567890abcd1234ef567890\n\n'
+                '# Ключевые моменты устного комментария (дополнения к тексту документа):\n'
+                '- **Контекст:** Клиент показывает настройки контейнера GTM.\n\n'
+                '# Полная расшифровка аудиозаписи:\n'
+                '- **[00:00]** Hello, here is our current GTM setup and what needs fixing.'
+            ),
+            'checkout-error.png': (
+                '# 1. Дословный текст на изображении\n'
+                '- «Payment failed: invalid merchant configuration»\n'
+                '- Кнопка «Try Again»\n\n'
+                '# 2. Описание элементов интерфейса (UI)\n'
+                '- Модальное окно ошибки чекаута с красным баннером «Error».\n\n'
+                '# 3. Соотношение со словами клиента\n'
+                '## 3.1. Подтверждения слов клиента\n'
+                '### 1\n'
+                '- **Суть:** Скриншот подтверждает сбой оплаты в чекауте.\n'
+                '- **Доводы за:** Текст «Payment failed: invalid merchant configuration» прямо указывает на ошибку конфигурации.\n'
+                '- **Доводы против:** Скриншот не показывает серверный лог шлюза.\n'
+                '- **Оценка:** `95%`\n\n'
+                '## 3.2. Противоречия словам клиента\n'
+                '### 1\n'
+                '- **Суть:** Ошибка возникает на шаге инициализации, а не после 3DS.\n'
+                '- **Доводы за:** Поле карты ещё не активно на экране.\n'
+                '- **Доводы против:** Клиент мог сделать скриншот после сброса формы.\n'
+                '- **Оценка:** `70%`'
+            ),
+        }
+        sync_project_attachments_and_kb(root, media_descriptions=media_descriptions)
+        self.assertEqual((root / 'KB/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
+        self.assertEqual(attachment_issues(root), [])
+
 
 class RPCTests(unittest.IsolatedAsyncioTestCase):
     async def test_events_and_unrelated_responses_do_not_complete_call(self):

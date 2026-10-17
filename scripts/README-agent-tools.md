@@ -69,16 +69,17 @@ scope=initial_analysis явно ограничивает смысл стадий
 
 `collect <проект> --plan <JSON>` пакетно сохраняет GET-наблюдения и извлечение.
 [collection.example.json](../skills/upwork-init/references/collection.example.json) учебный: example.invalid не настоящий источник.
-Профили: html (title/meta/meta_all/canonical/текст/разделы/anchors/JSON-LD), shopify (публичный JSON), tracking (идентификаторы и literal JSON), document (текст/DOCX).
+Профили: html (title/meta/meta_all/canonical/текст/разделы/anchors/JSON-LD), shopify (публичный JSON), tracking (идентификаторы и literal JSON), document (текст/PDF/DOCX с Markdown).
 `extract <проект> <observation> --profile <имя>` повторно извлекает из сохранённого ответа, без нового HTTP-запроса.
 `extract-file <проект> <путь внутри проекта> --profile document` сохраняет извлечение вместе с хешем исходника.
+`sync-attachments <проект> [--media-descriptions <JSON|->] [--no-fetch-videos]` синхронизирует все вложения клиента в корневую папку `source/` и `ꘖ/KB/Evidence/Attachments/`, извлекает дословный Markdown документов (PDF, DOCX, TXT, MD и др.), расшифровки видео (включая Loom) и расшифровки изображений в обе базы знаний (`KB/Project.md` и `ꘖ/KB/{Project,Projects,Evidence}.md`).
 Полные исходники и метаданные остаются в Evidence; модели можно передавать выбранные фрагменты.
 Различающиеся URL/headers/scope дают разные ключи; значения секретных headers не публикуются в метаданных.
 По умолчанию cache 24 часа, ошибки до 5 минут; refresh_reason задаёт причину нового наблюдения.
 HTTP 403/404 — завершённое наблюдение недоступности, не повод для слепого повтора.
 Ошибка извлечения оставляет ссылку на сохранённый ответ для другого профиля/проверки.
 DOM читается отдельной командой capture-dom по точному URL и явно выбранному tab-id, без навигации; неизвестный HTTP-код остаётся неизвестным.
-JS не исполняется; tracking исходник не доказывает исполнение, JSON товара не равен feed, текст DOCX не проверяет изображения/верстку.
+JS не исполняется; tracking исходник не доказывает исполнение, JSON товара не равен feed.
 
 # Контракт анализа
 

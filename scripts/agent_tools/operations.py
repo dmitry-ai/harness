@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 import sys
 
-COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'check-project', 'stage',
+COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage',
             'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search',
             'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis')
 
@@ -15,6 +15,7 @@ def add_parsers(sub):
             'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init',
             'status': 'Read-only current stage and agent KB navigation',
             'collect': 'Batch GET observations and extraction with persistent project cache',
+            'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions',
             'check-project': 'All saved-source and local KB diagnostics; no network calls',
             'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits'
         }.get(command, 'Internal ' + command + ' operation'))
@@ -28,7 +29,7 @@ def add_parsers(sub):
             parser.add_argument('--output', type=Path)
             continue
         parser.add_argument('project', type=Path, help='Exact existing project root from the current chat')
-        if command in ('record-answer', 'save-analysis', 'collect', 'question-add'):
+        if command in ('record-answer', 'save-analysis', 'collect', 'question-add', 'sync-attachments'):
             parser.add_argument('--consume-input', action='store_true', help='After success remove an unchanged input only from project ꘖ/data/scratch; use - for stdin')
         if command == 'resume':
             parser.add_argument('--reason', required=True)
@@ -51,6 +52,9 @@ def add_parsers(sub):
         elif command in ('extract', 'extract-file'):
             parser.add_argument('source')
             parser.add_argument('--profile', choices=('html', 'shopify', 'tracking', 'document'), default='html' if command == 'extract' else 'document')
+        elif command == 'sync-attachments':
+            parser.add_argument('--media-descriptions', type=Path, help='Optional JSON mapping attachment filename/sha256/video URL to Markdown transcription/analysis')
+            parser.add_argument('--no-fetch-videos', action='store_true', help='Skip network fetching for external video transcripts')
         elif command == 'stage':
             from .workflow import STAGES
             parser.add_argument('stage', choices=STAGES)
@@ -179,6 +183,14 @@ def execute(args):
     if command == 'extract-file':
         from .research import extract_file
         return extract_file(args.project, args.source, args.profile)
+    if command == 'sync-attachments':
+        from .knowledge import sync_project_attachments_and_kb
+        descriptions, payload = None, None
+        if args.media_descriptions:
+            payload = _operation_input(args, args.media_descriptions)
+            descriptions = json.loads(payload.decode('utf-8-sig'))
+        result = sync_project_attachments_and_kb(args.project, descriptions, fetch_videos=not args.no_fetch_videos)
+        return _consumed(args, args.media_descriptions, payload, result) if args.media_descriptions else result
     if command == 'stage':
         return flow.complete_stage(args.project, args.stage, args.input, args.output, note=args.note)
     if command == 'question-add':
