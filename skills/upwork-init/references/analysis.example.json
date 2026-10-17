@@ -1,5 +1,8 @@
 {
   "schema_version": 2,
+  "websites": [
+    {"url": "https://example.invalid/", "role": "target", "basis_id": "H-SITE-1"}
+  ],
   "sources": {
     "client_statement": "Evidence/example-source.json#/client_statement",
     "identity": "Evidence/example-source.json#/identity",

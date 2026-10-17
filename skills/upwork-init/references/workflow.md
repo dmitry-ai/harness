@@ -3,6 +3,7 @@
 Все команды выполняет агент из текущего чата через `scripts/upwork_project.py`; они не запускают LLM.
 Добавляй `--platform codex` или `--platform antigravity`; в Codex профиль определяется по CODEX_HOME либо явно через --codex-profile.
 `<проект>` — точный существующий корень текущей вакансии, не общая папка code/daily и не другой проект.
+Candidate/spec/plan/answer передавай как UTF-8 через stdin (`-`), без промежуточного файла или скрипта в проекте. Если файл нужен для восстановления, используй `ꘖ/data/scratch` и `--consume-input`: успешная проверенная фиксация удаляет неизменившийся вход, ошибка/конфликт сохраняет его. План collect остаётся целиком в provenance публикации.
 Все записи доказательств — в `ꘖ/KB/Evidence`, служебное состояние — в `ꘖ/data`; ручная KB сохраняется.
 
 ## Продолжение
@@ -65,7 +66,7 @@ python <инструмент> stage <проект> identity_init --input "ꘖ/pr
 Пример — [question.example.json](question.example.json); адаптируй фактические пути/вопрос к задаче.
 
 ```text
-python <инструмент> question-add <проект> --spec <спецификация>
+python <инструмент> question-add <проект> --spec -
 python <инструмент> question-claim <проект> Q-SITE --owner <наблюдаемый ID исполнителя>
 python <инструмент> question-search <проект> Q-SITE --owner <ID> --query "точный запрос" --useful
 python <инструмент> question-finish <проект> Q-SITE --owner <ID> --output "ꘖ/KB/Evidence/site-report.json"
@@ -80,7 +81,7 @@ python <инструмент> question-finish <проект> Q-SITE --owner <ID>
 ## Сохранённые источники
 
 ```text
-python <инструмент> collect <проект> --plan <план> --output "ꘖ/KB/Evidence/site-report.json"
+python <инструмент> collect <проект> --plan - --output "ꘖ/KB/Evidence/site-report.json"
 python <инструмент> extract <проект> <observation из результата> --profile tracking
 python <инструмент> extract-file <проект> "ꘖ/KB/Evidence/Attachments/.../audit.docx" --profile document
 python <инструмент> source-ref <проект> "Evidence/данные.json" --part related_descriptions --part "~022..." --part description
@@ -119,7 +120,7 @@ JSON pointers экранирует source-ref; цитата сверяется �
 Documentation без anchor требует anchor_exception: section + observation; проверяются существование раздела, отсутствие подходящего anchor и цитата в разделе.
 
 ```text
-python <инструмент> save-analysis <проект> --candidate "ꘖ/data/analysis-candidate.json" --expected-sha256 <текущий хеш из status>
+python <инструмент> save-analysis <проект> --candidate - --expected-sha256 <текущий хеш из status>
 python <инструмент> render-analysis <проект>/ꘖ/KB/Analysis.json
 python <инструмент> validate-analysis <проект>/ꘖ/KB/Analysis.json --format json --evidence
 python <инструмент> check-project <проект>
@@ -165,6 +166,9 @@ ID тезисов в примере замени на фактические; д
 Явный проверенный `red_flags: []` снимает прежний управляемый блок; историю оснований сохраняй в KB.
 Перед публикацией окончательного ответа воспроизведи тот же состав/статусы рисков в самом начале ответа, адаптируя ссылки к чату; прежние журнальные ответы не переписывай.
 
+В `websites` явно укажи URL сайта клиента/целевого проекта или null, роль client/target и basis_id из identity. Корневой `.md` показывает эти адреса, оценку и доказательство; имя папки не используется как подтверждение.
+История служебного Progress.md не копится; исходные доказательства, версии анализа и review packages сохраняются.
+
 ## Независимая рецензия
 
 ```text
@@ -194,7 +198,7 @@ Codex сверяет фактические model/effort с нативным spa
 ## Журнал, внешний экспорт и метрики
 
 ```text
-python <инструмент> record-answer <проект> --response-file "<проект>/ꘖ/data/final-response.txt"
+python <инструмент> record-answer <проект> --response-file -
 python <инструмент> stage <проект> finalize --input "ꘖ/KB/Analysis.json" --output "ꙮ/1 - Анализ/res/<N>.md"
 ```
 

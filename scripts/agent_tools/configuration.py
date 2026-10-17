@@ -7,7 +7,7 @@ import re
 import tomllib
 from contextlib import nullcontext
 
-from .runtime import PRIMARY, settings, role_settings
+from .runtime import PRIMARY, settings, role_settings, profile_name
 from .storage import locked, replace_bytes
 
 
@@ -15,33 +15,85 @@ def _digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def _publish(root, outputs, *, check=False):
+def _publish(root, outputs, *, check=False, merge=None, retire=()):
     root = Path(root).resolve()
     manifest = root / 'ꘖ/data/native-config.json'
+    if not outputs and not any(Path(path).exists() for path in retire):
+        return {'valid': True, 'issues': [], 'written': [], 'outputs': [], 'removed': []}
     with (nullcontext() if check else locked(root / 'ꘖ/data/native-config.lock')):
-        previous = json.loads(manifest.read_text(encoding='utf-8')) if manifest.exists() else {}
-        issues, planned = [], {}
+        receipt_bytes = manifest.read_bytes() if manifest.exists() else None
+        previous = json.loads(receipt_bytes) if receipt_bytes is not None else {}
+        issues, planned, removed, preimages = [], {}, [], {}
         for target, text in outputs.items():
             target = Path(target)
+            if any(p.is_symlink() or p.is_junction() for p in (target, *target.parents) if p.exists()):
+                issues.append({'file': str(target), 'message': 'Linked native configuration preserved'})
+                continue
             payload = text.encode('utf-8')
             actual = target.read_bytes() if target.exists() else None
             key = str(target.resolve())
             if actual != payload:
-                if actual is not None and previous.get(key) != _digest(actual):
+                owned = previous.get(key)
+                owned = owned.get('sha256') if isinstance(owned, dict) else owned
+                if actual is not None and owned != _digest(actual) and (merge or {}).get(target) != actual:
                     issues.append({'file': key, 'message': 'Manual/unowned native configuration preserved'})
                 elif check:
                     issues.append({'file': key, 'message': 'Native projection is missing or stale; run build-native'})
                 else:
                     planned[target] = payload
+                    preimages[target] = actual
+        for target in retire:
+            target = Path(target)
+            if any(p.is_symlink() or p.is_junction() for p in (target, *target.parents) if p.exists()):
+                issues.append({'file': str(target), 'message': 'Linked legacy file preserved'})
+                continue
+            target = target.resolve()
+            if not target.is_relative_to(root):
+                raise ValueError('Retirement must stay inside the configured root')
+            if target.exists():
+                if previous.get(str(target)) != _digest(target.read_bytes()):
+                    issues.append({'file': str(target), 'message': 'Manual/unowned legacy file preserved'})
+                elif check:
+                    issues.append({'file': str(target), 'message': 'Owned legacy file needs migration'})
+                else:
+                    removed.append(target)
         if issues:
             return {'valid': False, 'issues': issues, 'written': []}
         if not check:
             for target, payload in planned.items():
+                if (target.read_bytes() if target.exists() else None) != preimages[target]:
+                    raise ValueError('Native configuration changed during publication; external edit preserved')
                 replace_bytes(target, payload)
             previous.update({str(Path(p).resolve()): _digest(text.encode('utf-8')) for p, text in outputs.items()})
-            replace_bytes(manifest, (json.dumps(previous, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
+            for target in removed:
+                # Native configuration is in place before retiring its old projection.
+                if _digest(target.read_bytes()) != previous[str(target)]:
+                    raise ValueError('Legacy file changed during migration')
+                target.unlink()
+                previous.pop(str(target), None)
+            config = root / '.codex/config.toml'
+            if config in outputs:
+                if not outputs[config].strip():
+                    if config.read_bytes() != outputs[config].encode('utf-8'):
+                        raise ValueError('Empty projection changed during retirement; external edit preserved')
+                    config.unlink()  # Only the exact empty, merged and read-back projection.
+                    previous.pop(str(config), None)
+                    try:
+                        config.parent.rmdir()  # Empty directory only; custom roles/settings stay.
+                    except OSError:
+                        pass
+                else:
+                    value = tomllib.loads(outputs[config]).get('developer_instructions', '')
+                    previous[str(config)] = {'sha256': _digest(outputs[config].encode()),
+                                             'block_sha256': _digest(_managed_block(value).encode())}
+            if (manifest.read_bytes() if manifest.exists() else None) != receipt_bytes:
+                raise ValueError('Ownership receipt changed during publication; external edit preserved')
+            if previous:
+                replace_bytes(manifest, (json.dumps(previous, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
+            elif manifest.exists():
+                manifest.unlink()  # No remaining projections need an ownership receipt.
         return {'valid': True, 'issues': [], 'written': [str(p) for p in planned],
-                'outputs': [str(p) for p in outputs]}
+                'outputs': [str(p) for p in outputs], 'removed': [str(p) for p in removed]}
 
 
 def _toml_statements(text):
@@ -88,13 +140,34 @@ def _toml_statements(text):
         yield start, len(text)
 
 
-def _root_options(text, minimum=65536):
+START = '<!-- upwork-init:instructions:start -->'
+END = '<!-- upwork-init:instructions:end -->'
+
+
+def _managed_block(value):
+    if START not in value and END not in value:
+        return ''
+    if value.count(START) != 1 or value.count(END) != 1 or value.index(START) > value.index(END):
+        raise ValueError('Malformed managed developer instructions; configuration preserved')
+    return value[value.index(START):value.index(END) + len(END)]
+
+
+def _root_options(text, instructions=None, *, legacy_bytes=None, expected_block=None):
     data = tomllib.loads(text) if text.strip() else {}
-    names = list(data.get('project_doc_fallback_filenames', []))
-    if 'CODEX.md' not in names:
-        names.append('CODEX.md')
-    values = {'project_doc_fallback_filenames': json.dumps(names, ensure_ascii=False),
-              'project_doc_max_bytes': str(max(minimum, data.get('project_doc_max_bytes', 0)))}
+    value = data.get('developer_instructions', '')
+    old_block = _managed_block(value)
+    block = START + '\n' + instructions.strip() + '\n' + END if instructions else ''
+    if old_block and old_block != block and _digest(old_block.encode()) != expected_block:
+        raise ValueError('Managed developer instructions were manually edited; configuration preserved')
+    value = value.replace(old_block, block) if old_block else value + ('\n\n' if value and block else '') + block
+    values = {'developer_instructions': json.dumps(value, ensure_ascii=False) if value.strip() else None} if 'developer_instructions' in data or block else {}
+    if legacy_bytes is not None:
+        names = data.get('project_doc_fallback_filenames', [])
+        if 'CODEX.md' in names:
+            remaining = [name for name in names if name != 'CODEX.md']
+            values['project_doc_fallback_filenames'] = json.dumps(remaining) if remaining else None
+        if data.get('project_doc_max_bytes') in (65536, 65536 + legacy_bytes):
+            values['project_doc_max_bytes'] = None
     edits, found = [], set()
     for start, end in _toml_statements(text):
         statement = text[start:end].lstrip()
@@ -103,39 +176,63 @@ def _root_options(text, minimum=65536):
         for key, value in values.items():
             if re.match(r'^(?:' + key + '|"' + key + '"|\'' + key + r"')\s*=", statement):
                 newline = '\r\n' if text[start:end].endswith('\r\n') else '\n'
-                edits.append((start, end, key + ' = ' + value + newline))
+                edits.append((start, end, '' if value is None else key + ' = ' + value + newline))
                 found.add(key)
     for start, end, replacement in reversed(edits):
         text = text[:start] + replacement + text[end:]
-    text = ''.join(key + ' = ' + value + '\n' for key, value in values.items() if key not in found) + text
+    text = ''.join(key + ' = ' + value + '\n' for key, value in values.items() if key not in found and value is not None) + text
     tomllib.loads(text)
     return text
 
 
-def _rule_body(path):
-    body = re.sub(r'\A---\r?\n[\s\S]*?\r?\n---\r?\n', '', path.read_text(encoding='utf-8'))
-    def link(match):
-        label, target = match.groups()
-        if target.startswith('<') and target.endswith('>'):
-            target = target[1:-1]
-        if re.match(r'^[a-z]+:|^#|^/', target, re.I):
-            return match.group(0)
-        file, sep, fragment = target.partition('#')
-        return f'[{label}](<{(path.parent / file).resolve().as_posix()}{sep}{fragment}>)'
-    return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', link, body).strip()
-
-
-def _discovery_config(root, result, *, check=False, minimum=65536):
+def _native_config(root, instructions=None):
     config_path = root / '.codex/config.toml'
-    existing = config_path.read_text(encoding='utf-8') if config_path.exists() else ''
-    wanted = _root_options(existing, minimum)
-    if check and existing != wanted:
-        result['valid'] = False
-        result['issues'].append({'file': str(config_path), 'message': 'CODEX.md discovery is not configured'})
-    elif not check and result['valid'] and existing != wanted:
-        replace_bytes(config_path, wanted.encode('utf-8'))
-        result['written'].append(str(config_path))
-    return result
+    actual = config_path.read_bytes() if config_path.exists() else None
+    existing = actual.decode('utf-8') if actual is not None else ''
+    manifest = root / 'ꘖ/data/native-config.json'
+    receipt = json.loads(manifest.read_text(encoding='utf-8')) if manifest.exists() else {}
+    owned = receipt.get(str(config_path), {})
+    legacy = root / 'CODEX.md'
+    legacy_bytes = None
+    if legacy.exists() and receipt.get(str(legacy)) == _digest(legacy.read_bytes()):
+        legacy_bytes = len(legacy.read_bytes())
+    wanted = _root_options(existing, instructions, legacy_bytes=legacy_bytes,
+                           expected_block=owned.get('block_sha256') if isinstance(owned, dict) else None)
+    return config_path, wanted, {config_path: actual}
+
+
+def _loader(primary, local=(), *, restore_global=True):
+    paths = [*sorted((primary / 'rules').glob('*.md')), primary / 'platforms/codex.md', *local]
+    lines = ['До выполнения задания прочитай перечисленные канонические источники правил.',
+             'Общие правила always_on и адаптер Codex обязательны в каждом новом чате, включая дочерние.',
+             'Для проектных источников соблюдай trigger из frontmatter; ссылки не являются копиями правил.']
+    if restore_global:
+        lines.append(f'Сначала выполни Python-инструмент "{(primary / "scripts/upwork_project.py").as_posix()}" policy-instructions --platform codex; примени возвращённые глобальные developer_instructions текущего профиля дополнительно к этим правилам. Команда читает только нужный TOML-ключ, не весь конфиг.')
+    lines.extend(f'- {path.as_posix()}' for path in dict.fromkeys(paths))
+    lines.extend(['Затем в точном корне проекта текущего чата прочитай локальные .agents/rules/*.md и .agents/rules.json.',
+                  'Прочитай все дополнительные path-источники из rules.json, соблюдая trigger; общий каталог правил повторно читать не нужно.',
+                  'Не выбирай соседний проект. Если корень текущей задачи неизвестен, определи его по явной привязке чата.'])
+    return '\n'.join(lines)
+
+
+def global_codex_instructions():
+    """Preserve profile-specific global instructions shadowed by a native string key."""
+    homes = settings()['platforms']['codex']['homes']
+    try:
+        name = profile_name()
+        names = [name]
+    except ValueError:
+        names = list(homes)
+    values = []
+    for name in names:
+        path = Path(homes[name]) / 'config.toml'
+        value = tomllib.loads(path.read_bytes().decode('utf-8-sig')).get('developer_instructions', '') if path.exists() else ''
+        if not isinstance(value, str):
+            raise ValueError('Global developer_instructions must be a string')
+        values.append(value)
+    if len(set(values)) != 1:
+        raise ValueError('Global profile instructions differ; select the actual --codex-profile instead of combining accounts')
+    return {'developer_instructions': values[0], 'profile': names[0] if len(names) == 1 else 'identical across configured profiles'}
 
 
 def _project_rule_paths(root, primary):
@@ -177,23 +274,19 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
         if not check:
             raise
         return {'valid': False, 'issues': [{'file': str(root / '.agents/rules.json'), 'message': str(exc)}], 'written': []}
-    fingerprint = _digest(b''.join(str(path).encode('utf-8') + b'\0' + path.read_bytes() for path in paths))
-    body = f'<!-- Generated from project .agents rule sources; source {fingerprint}; edit those rules. -->\n\n'
-    body += '# Правила проекта Upwork\n\n'
-    shared = Path(settings()['workspace_root']) / 'CODEX.md'
-    body += f'Общий регламент: [CODEX.md](<{shared.as_posix()}>).\n'
-    body += 'Если полный текст общего регламента ещё не загружен нативно, прочитай его до работы.\n'
-    body += f'Общий навык: [upwork-init](<{(primary / "skills/upwork-init/SKILL.md").as_posix()}>).\n'
-    body += 'Правила ниже получены из проектной .agents/rules и подключений rules.json; пользовательская KB, рабочие proposal и точный журнал общие для обеих систем.\n\n'
-    for path in paths:
-        trigger = re.search(r'^trigger:\s*(\S+)', path.read_text(encoding='utf-8'), re.M)
-        if trigger and trigger[1] != 'always_on':
-            body += f'Условное правило ({trigger[1]}): [{path.name}](<{path.as_posix()}>); прочитай при применимости.\n\n'
-        else:
-            body += _rule_body(path) + '\n\n'
-    body = body.rstrip() + '\n'
-    result = _publish(root, {root / 'CODEX.md': body}, check=check)
-    _discovery_config(root, result, check=check, minimum=65536 + len(body.encode('utf-8')))
+    try:
+        native = root / '.codex/config.toml'
+        data = tomllib.loads(native.read_bytes().decode('utf-8')) if native.exists() else {}
+        current = data.get('developer_instructions', '')
+        # An absent local key must keep inheriting all native parent instructions.
+        # Only a pre-existing local override needs an explicit shared loader.
+        manual = current.replace(_managed_block(current), '').strip()
+        path, text, merge = _native_config(root, _loader(primary, paths, restore_global=False) if manual else None)
+        result = _publish(root, {path: text} if text or path.exists() else {}, check=check, merge=merge, retire=[root / 'CODEX.md'])
+    except ValueError as exc:
+        if not check:
+            raise
+        return {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
     if not check and not result['valid']:
         raise ValueError(result['issues'])
     return result
@@ -203,30 +296,26 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
     config = settings()
     root = Path(root or config['workspace_root']).resolve()
     primary = Path(primary).resolve()
-    pieces = []
-    for path in sorted((primary / 'rules').glob('*.md')):
-        pieces.append(_rule_body(path))
-    driver = (primary / 'platforms/codex.md').read_text(encoding='utf-8')
     source_paths = [primary / 'runtime.json', *sorted((primary / 'rules').glob('*.md')),
                     primary / 'platforms/codex.md', primary / 'agents/worker.md',
                     primary / 'skills/upwork-init/SKILL.md']
     source_hash = _digest(b''.join(p.read_bytes() for p in source_paths))
-    header = f'<!-- Generated by upwork_project.py build-native; source {source_hash}; edit canonical sources. -->\n\n'
-    instructions = header + '\n\n'.join(pieces) + '\n\n' + driver
-    if len(instructions.encode('utf-8')) > 65536:
-        raise ValueError('Codex policy projection exceeds the configured native instruction budget')
+    native = root / '.codex/config.toml'
+    current = tomllib.loads(native.read_bytes().decode('utf-8')).get('developer_instructions', '') if native.exists() else ''
+    old_block = _managed_block(current)
+    restore_global = 'policy-instructions' in old_block if old_block else not bool(current.strip())
+    instructions = _loader(primary, restore_global=restore_global)
     skill_source = primary / 'skills/upwork-init/SKILL.md'
     skill = ('---\nname: upwork-init\ndescription: Создаёт проект и выполняет полный анализ вакансии Upwork; продолжает его после прерывания.\n---\n'
              f'Прочитай и выполни общий навык [{skill_source.name}](<{skill_source.as_posix()}>).\n'
              'Определи текущую UI-среду по беседе и используй соответствующий платформенный адаптер общего навыка.\n')
-    outputs = {root / 'CODEX.md': instructions,
-               root / '.agents/skills/upwork-init/SKILL.md': skill}
-    worker = (primary / 'agents/worker.md').read_text(encoding='utf-8')
+    outputs = {root / '.agents/skills/upwork-init/SKILL.md': skill}
     for role in ('AA', 'AF'):
         value = role_settings('codex', role)
         name = value['agent']
         purpose = 'Независимая предметная проверка пяти этапов и согласованности KB.' if role == 'AA' else 'Сбор и извлечение доказательств по назначенному вопросу.'
-        instructions_role = f'Роль: {role}. {purpose}\n{worker}\n{driver}'
+        instructions_role = (f'Роль: {role}. {purpose}\n' + instructions +
+                             f'\nПрочитай также протокол исполнителя: {(primary / "agents/worker.md").as_posix()}')
         model_fields = '' if config['platforms']['codex'].get('subagents', {}).get('selection') == 'parent' else (
             f'model = {json.dumps(value["model"])}\nmodel_reasoning_effort = {json.dumps(value["effort"])}\n')
         outputs[root / f'.codex/agents/{name}.toml'] = (
@@ -237,10 +326,15 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
     # Shared worker text is also projected into the existing Antigravity discovery path.
     flash = role_settings('antigravity', 'AF')
     outputs[primary / 'agents/af-worker.md'] = ('---\nname: af-worker\ndescription: "Извлекает и проверяет доказательства Upwork по назначенному вопросу."\n'
-        f'model: {flash["tier"]}\nsubagent: true\nmainAgent: false\n---\n{worker}\n'
+        f'model: {flash["tier"]}\nsubagent: true\nmainAgent: false\n---\n'
+        f'Прочитай общий протокол исполнителя: {(primary / "agents/worker.md").as_posix()}\n'
         'Среда: Antigravity. Следуй платформенному протоколу и runtime.json; tier не доказывает точную модель.\n')
-    result = _publish(root, outputs, check=check)
-    _discovery_config(root, result, check=check)
+    try:
+        path, text, merge = _native_config(root, instructions)
+        outputs[path] = text
+        result = _publish(root, outputs, check=check, merge=merge, retire=[root / 'CODEX.md'])
+    except ValueError as exc:
+        return {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
     result.update(source_sha256=source_hash, policy_bytes=len(instructions.encode('utf-8')),
                   canonical_runtime=str(primary / 'runtime.json'))
     return result

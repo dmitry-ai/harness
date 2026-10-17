@@ -156,10 +156,20 @@ class InitializationTests(TemporaryCase):
 class CapturedProjectTests(TemporaryCase):
     @unittest.skipUnless(os.environ.get('UPWORK_CAPTURE_DIR'), 'Optional real Upwork captures are not configured')
     def test_real_captures_preserve_description_port_and_curated_work(self):
-        captures = sorted(Path(os.environ['UPWORK_CAPTURE_DIR']).glob('*/source.json'))
-        self.assertTrue(captures, 'No source.json captures found')
-        for path in captures:
-            data = json.loads(path.read_text(encoding='utf-8'))
+        capture_root = Path(os.environ['UPWORK_CAPTURE_DIR'])
+        captures = [json.loads(path.read_text(encoding='utf-8')) for path in sorted(capture_root.glob('*/source.json'))]
+        # Production staging is disposable; permanent intake receipts are reusable fixtures.
+        for manifest in sorted(capture_root.glob('**/Evidence/Intake/*.json')):
+            receipt = json.loads(manifest.read_text(encoding='utf-8'))
+            project = manifest.parents[4]
+            entries = {entry['original_relative_provenance']: entry for entry in receipt['entries']}
+            data = json.loads((project / entries['source.json']['durable_file']).read_text(encoding='utf-8'))
+            for asset in data.get('saved_attachments') or []:
+                relative = 'attachments/' + Path(asset['path']).name
+                asset['path'] = str(project / entries[relative]['durable_file'])
+            captures.append(data)
+        self.assertTrue(captures, 'No captures or permanent intake receipts found')
+        for data in captures:
             with self.subTest(job_id=data['job_id']):
                 kwargs = dict(url_or_id=data['job_id'], extracted_data=data, date_str='2026-10-15',
                               daily_root=self.root / 'daily', register_antigravity=False)

@@ -160,7 +160,7 @@ def publish_progress(root, state):
     lines += ['', 'Перед новым исследованием проверь обзор и профильные модули KB.',
               'Исправления распространяются на связанные утверждения и документы; непроверенное отмечается явно.',
               'Context.md предназначен для передачи внешнему агенту (например Gemini DeepThink), а не для внутренней работы.', '']
-    return publish_owned(Path(root) / 'ꘖ/KB/Progress.md', '\n'.join(lines), source=state_path(root))
+    return publish_owned(Path(root) / 'ꘖ/KB/Progress.md', '\n'.join(lines), source=state_path(root), history=False)
 
 
 def update(root, event, change):
@@ -337,9 +337,16 @@ def check_project(root):
     else:
         try:
             value = json.loads(path.read_text(encoding='utf-8-sig'))
-            issues.extend(analysis_issues(value))
+            contract_issues = analysis_issues(value)
+            issues.extend(contract_issues)
             if isinstance(value, dict):
                 issues.extend(evidence_issues(root, value))
+                if value.get('schema_version') == 2 and not contract_issues:
+                    from .knowledge import sync_website_card
+                    website = sync_website_card(root, value, check=True)
+                    if website['status'] not in ('published', 'unchanged'):
+                        issues.append(problem('project.website', '.md',
+                            'Publish the explicit evidenced client/target website selection, or null if unidentified', file=root / '.md'))
         except (OSError, ValueError, TypeError) as exc:
             issues.append(problem('analysis.input', str(path), str(exc)))
     for issue in issues:

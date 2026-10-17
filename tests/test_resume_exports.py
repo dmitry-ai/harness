@@ -130,6 +130,8 @@ class ResumeExportTests(ProjectCase):
         self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
         self.assertEqual(analysis_issues(value), [])
         self.assertEqual(evidence_issues(self.project, value), [])
+        from agent_tools.analysis import publish_analysis
+        publish_analysis(self.project / 'ꘖ/KB/Analysis.json')
         self.assertTrue(flow.check_project(self.project)['valid'])
 
     def test_failed_extraction_keeps_saved_observation_and_reuses_it(self):

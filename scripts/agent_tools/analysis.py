@@ -95,6 +95,8 @@ def analysis_issues(value):
             add('claim.reference_kind', field + '/addresses', 'Reference must address a concern or applicable cause', ident)
     from .red_flags import red_flag_issues
     issues.extend(red_flag_issues(value, claims))
+    from .knowledge import website_issues
+    issues.extend(website_issues(value))
     return issues
 
 
@@ -120,8 +122,7 @@ def save_analysis(root, candidate, expected_sha256=None):
     """Commit a schema-valid candidate against the exact current agent draft, with history."""
     from .research import inside
     root = Path(root).resolve()
-    candidate = inside(root, candidate)
-    value = json.loads(candidate.read_text(encoding='utf-8-sig'))
+    value = candidate if isinstance(candidate, dict) else json.loads(inside(root, candidate).read_text(encoding='utf-8-sig'))
     validate_analysis(value)
     payload = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode()
     target = root / 'ꘖ/KB/Analysis.json'
@@ -199,11 +200,17 @@ def publish_analysis(source, target=None):
     source = Path(source).resolve()
     value = json.loads(source.read_text(encoding='utf-8-sig'))
     result = publish_owned(target or source.with_suffix('.md'), render_analysis(value), source=source)
+    if result['status'] == 'conflict':
+        return result
     # Arbitrary standalone inputs must not mutate an unrelated project card.
     if source.name == 'Analysis.json' and source.parent.name == 'KB' and source.parent.parent.name == 'ꘖ':
+        from .knowledge import sync_website_card
+        result['website_card'] = sync_website_card(source.parents[2], value)
         card = sync_project_red_flags(source.parents[2], value)
         result['project_card'] = card
         if card['status'] == 'conflict':
+            result['status'] = 'conflict'
+        if result['website_card']['status'] == 'conflict':
             result['status'] = 'conflict'
     return result
 
@@ -212,7 +219,7 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def publish_owned(target, content, *, source=None):
+def publish_owned(target, content, *, source=None, history=True):
     """Only update bytes previously published by this tool; preserve unknown edits."""
     target = Path(target).resolve()
     payload = content.encode('utf-8') if isinstance(content, str) else content
@@ -230,7 +237,7 @@ def publish_owned(target, content, *, source=None):
                 create_bytes(candidate, payload)
             return {'status': 'conflict', 'target': str(target), 'candidate': str(candidate),
                     'detail': 'Existing file is untracked or changed; preserved for reconciliation'}
-        if previous is not None and previous != payload:
+        if history and previous is not None and previous != payload:
             archive = state_dir / 'render-history' / digest(key.encode())[:16] / (digest(previous) + target.suffix)
             archive.parent.mkdir(parents=True, exist_ok=True)
             if not archive.exists():
@@ -242,6 +249,7 @@ def publish_owned(target, content, *, source=None):
             replace_bytes(target, payload)
         if target.read_bytes() != payload:
             raise OSError('Published file failed read-back verification')
-        receipt[key] = {'sha256': digest(payload), 'source': str(source) if source else None}
+        receipt[key] = {**receipt.get(key, {}), 'sha256': digest(payload),
+                        'source': source if isinstance(source, dict) else str(source) if source else None}
         replace_bytes(state_file, (json.dumps(receipt, ensure_ascii=False, indent=2) + '\n').encode())
     return {'status': 'unchanged' if previous == payload else 'published', 'target': str(target), 'sha256': digest(payload)}

@@ -33,6 +33,64 @@ class ProjectionTests(TemporaryCase):
             shutil.copyfile(runtime.PRIMARY / relative, self.primary / relative)
         self.output = self.root / 'workspace'
 
+    def test_verified_legacy_migrates_but_manual_configuration_and_fallback_survive(self):
+        configuration.build_native(self.output, primary=self.primary)
+        legacy = self.output / 'CODEX.md'
+        legacy.write_bytes(b'old owned projection')
+        receipt = self.output / 'ꘖ/data/native-config.json'
+        ownership = json.loads(receipt.read_text(encoding='utf-8'))
+        ownership[str(legacy)] = configuration._digest(legacy.read_bytes())
+        receipt.write_text(json.dumps(ownership), encoding='utf-8')
+        native = self.output / '.codex/config.toml'
+        native.write_text('model = "mine"\nproject_doc_fallback_filenames = ["TEAM.md", "CODEX.md"]\nproject_doc_max_bytes = 65536\ndeveloper_instructions = "Keep my instructions"\n[features]\ncustom = true\n')
+        result = configuration.build_native(self.output, primary=self.primary)
+        self.assertTrue(result['valid'], result)
+        self.assertFalse(legacy.exists())
+        value = tomllib.loads(native.read_text())
+        self.assertEqual(value['project_doc_fallback_filenames'], ['TEAM.md'])
+        self.assertNotIn('project_doc_max_bytes', value)
+        self.assertEqual(value['model'], 'mine')
+        self.assertTrue(value['features']['custom'])
+        self.assertTrue(value['developer_instructions'].startswith('Keep my instructions'))
+        native.write_text(native.read_text().replace('До выполнения', 'Manual modification'))
+        previous = native.read_bytes()
+        self.assertFalse(configuration.build_native(self.output, primary=self.primary)['valid'])
+        self.assertEqual(native.read_bytes(), previous)
+
+    def test_unowned_legacy_prevents_partial_migration(self):
+        self.output.mkdir()
+        legacy = self.output / 'CODEX.md'
+        legacy.write_text('MY ORIGINAL')
+        result = configuration.build_native(self.output, primary=self.primary)
+        self.assertFalse(result['valid'])
+        self.assertEqual(legacy.read_text(), 'MY ORIGINAL')
+        self.assertFalse((self.output / '.codex/config.toml').exists())
+
+    def test_global_instructions_are_read_safely_and_local_override_keeps_its_priority(self):
+        config = deepcopy(runtime.settings())
+        homes = {name: str(self.root / name) for name in ('C1', 'C2')}
+        config['platforms']['codex']['homes'] = homes
+        for home in homes.values():
+            path = Path(home) / 'config.toml'
+            path.parent.mkdir()
+            path.write_text('developer_instructions = "GLOBAL"\nsecret = "DO NOT RETURN"\n')
+        with patch.object(configuration, 'settings', return_value=config), patch.object(configuration, 'profile_name', side_effect=ValueError('unknown')):
+            value = configuration.global_codex_instructions()
+            self.assertEqual(value['developer_instructions'], 'GLOBAL')
+            self.assertNotIn('DO NOT RETURN', str(value))
+            (Path(homes['C2']) / 'config.toml').write_text('developer_instructions = "DIFFERENT"\n')
+            with self.assertRaisesRegex(ValueError, 'differ'):
+                configuration.global_codex_instructions()
+        project = self.output / 'job'
+        native = project / '.codex/config.toml'
+        native.parent.mkdir(parents=True)
+        native.write_text('developer_instructions = "LOCAL OVERRIDE"\n')
+        up.configure_project(project, self.primary)
+        value = tomllib.loads(native.read_text())['developer_instructions']
+        self.assertTrue(value.startswith('LOCAL OVERRIDE'))
+        self.assertNotIn('policy-instructions', value)
+        self.assertIn('00-scope.md', value)
+
     def test_generation_is_idempotent_detects_source_changes_and_preserves_manual_edits(self):
         first = configuration.build_native(self.output, primary=self.primary)
         self.assertTrue(first['valid'])
@@ -40,9 +98,9 @@ class ProjectionTests(TemporaryCase):
         self.assertTrue(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
         rule = self.primary / 'rules/00-scope.md'
         rule.write_text(rule.read_text(encoding='utf-8') + '\nSpecific changed policy.\n', encoding='utf-8')
-        self.assertFalse(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
-        self.assertTrue(configuration.build_native(self.output, primary=self.primary)['valid'])
-        generated = self.output / 'CODEX.md'
+        self.assertTrue(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
+        self.assertEqual(configuration.build_native(self.output, primary=self.primary)['written'], [])
+        generated = self.output / '.codex/agents/upwork-aa.toml'
         generated.write_text('USER CHANGE', encoding='utf-8')
         result = configuration.build_native(self.output, primary=self.primary)
         self.assertFalse(result['valid'])
@@ -76,11 +134,12 @@ class ProjectionTests(TemporaryCase):
             self.assertEqual(runtime.role_settings('codex', 'AF')['selection'], 'parent')
             self.assertNotIn('model', runtime.role_settings('codex', 'AF'))
         original = 'model = "user-selected"\n[projects."C:/elsewhere"]\ntrust_level = "trusted"\n'
-        result = tomllib.loads(configuration._root_options(original))
+        result = tomllib.loads(configuration._root_options(original, 'Load source policy.'))
         self.assertEqual(result['model'], 'user-selected')
         self.assertEqual(result['projects']['C:/elsewhere']['trust_level'], 'trusted')
-        self.assertIn('CODEX.md', result['project_doc_fallback_filenames'])
-        self.assertGreaterEqual(result['project_doc_max_bytes'], 65536)
+        self.assertNotIn('project_doc_fallback_filenames', result)
+        self.assertNotIn('project_doc_max_bytes', result)
+        self.assertIn('Load source policy.', result['developer_instructions'])
 
     def test_project_rules_feed_both_systems_and_detect_stale_codex_projection(self):
         project = self.output / 'job'
@@ -94,7 +153,8 @@ class ProjectionTests(TemporaryCase):
         native.parent.mkdir()
         native.write_text('model = "user-selected"\n[features]\ncustom = true\n')
         up.configure_project(project, self.primary, job_url='https://www.upwork.com/jobs/~021234', domain_or_topic='Topic')
-        self.assertIn('Preserve the agreed scope.', (project / 'CODEX.md').read_text(encoding='utf-8'))
+        self.assertFalse((project / 'CODEX.md').exists())
+        self.assertNotIn('developer_instructions', tomllib.loads(native.read_text()))
         self.assertEqual(manual.read_bytes(), b'MANUAL KB\r\n')
         config = tomllib.loads(native.read_text())
         self.assertEqual(config['model'], 'user-selected')
@@ -103,9 +163,10 @@ class ProjectionTests(TemporaryCase):
         self.assertTrue(up.check_configuration(project, self.primary)['valid'])
         self.assertFalse(list((project / '.agents').rglob('*.py')))
         local.write_text(local.read_text(encoding='utf-8') + 'New user instruction.\n', encoding='utf-8')
-        self.assertFalse(configuration.configure_codex_project(project, self.primary, check=True)['valid'])
+        self.assertTrue(configuration.configure_codex_project(project, self.primary, check=True)['valid'])
         up.configure_project(project, self.primary)
-        self.assertIn('New user instruction.', (project / 'CODEX.md').read_text(encoding='utf-8'))
+        self.assertNotIn('New user instruction.', native.read_text())
+        self.assertNotIn('developer_instructions', tomllib.loads(native.read_text()))
         self.assertTrue(configuration.configure_codex_project(project, self.primary, check=True)['valid'])
         (project / '.agents/skills.json').unlink()
         self.assertFalse(up.check_configuration(project, self.primary)['valid'])
@@ -125,21 +186,21 @@ project_doc_max_bytes = 1
 custom = true
 '''
         expected = tomllib.loads(original)
-        updated = configuration._root_options(original)
+        updated = configuration._root_options(original, 'Load source policy.')
         actual = tomllib.loads(updated)
         self.assertEqual(actual['model'], expected['model'])
-        self.assertEqual(actual['developer_instructions'], expected['developer_instructions'])
+        self.assertTrue(actual['developer_instructions'].startswith(expected['developer_instructions']))
         self.assertEqual(actual['features'], expected['features'])
-        self.assertEqual(actual['project_doc_fallback_filenames'], ['TEAM.md', 'AGENTS.local.md', 'CODEX.md'])
-        self.assertEqual(configuration._root_options(updated), updated)
+        self.assertEqual(actual['project_doc_fallback_filenames'], ['TEAM.md', 'AGENTS.local.md'])
+        self.assertEqual(configuration._root_options(updated, 'Load source policy.'), updated)
         for quote in ('"', "'"):
             for ending in (4, 5):
                 with self.subTest(quote=quote, ending=ending):
                     source = ('banner = ' + quote * 3 + 'text' + quote * ending + '\n'
                               'project_doc_fallback_filenames = [\n "TEAM.md",\n]\n')
-                    actual = tomllib.loads(configuration._root_options(source))
+                    actual = tomllib.loads(configuration._root_options(source, 'Load source policy.'))
                     self.assertEqual(actual['banner'], tomllib.loads(source)['banner'])
-                    self.assertEqual(actual['project_doc_fallback_filenames'], ['TEAM.md', 'CODEX.md'])
+                    self.assertEqual(actual['project_doc_fallback_filenames'], ['TEAM.md'])
 
     def test_extra_rule_sources_are_projected_and_unsupported_selectors_reported(self):
         project = self.output / 'job'
@@ -152,12 +213,12 @@ custom = true
         data = json.loads(manifest.read_text(encoding='utf-8'))
         data['entries'].extend([{'path': 'extra-rules'}, {'path': extra.as_posix()}])
         manifest.write_text(json.dumps(data), encoding='utf-8')
-        self.assertFalse(up.check_configuration(project, self.primary)['valid'])
-        up.configure_project(project, self.primary)
-        generated = (project / 'CODEX.md').read_text(encoding='utf-8')
-        self.assertEqual(generated.count('Additional actual project rule.'), 1)
         self.assertTrue(up.check_configuration(project, self.primary)['valid'])
-        previous = (project / 'CODEX.md').read_bytes()
+        up.configure_project(project, self.primary)
+        self.assertEqual(configuration._project_rule_paths(project, self.primary).count(extra.resolve()), 1)
+        self.assertFalse((project / '.codex/config.toml').exists())
+        self.assertTrue(up.check_configuration(project, self.primary)['valid'])
+        previous = (project / '.agents/rules/90-project.md').read_bytes()
         data['entries'][-1]['include_only'] = ['some.md']
         manifest.write_text(json.dumps(data), encoding='utf-8')
         with self.assertRaisesRegex(ValueError, 'filtered'):
@@ -165,7 +226,7 @@ custom = true
         check = up.check_configuration(project, self.primary)
         self.assertFalse(check['valid'])
         self.assertIn('filtered', check['issues'][0]['message'])
-        self.assertEqual((project / 'CODEX.md').read_bytes(), previous)
+        self.assertEqual((project / '.agents/rules/90-project.md').read_bytes(), previous)
 
     def test_project_setup_merges_native_entries_and_preserves_custom_context(self):
         project = self.output / 'job'
@@ -402,7 +463,8 @@ class CodexEvidenceTests(ProjectCase):
         state = json.loads((self.project / 'ꘖ/project.json').read_text(encoding='utf-8'))
         self.assertEqual(state['request_date'], state_before['request_date'])
         self.assertEqual(state['snapshot'], state_before['snapshot'])
-        self.assertIn('`Topic`', (self.project / 'CODEX.md').read_text(encoding='utf-8'))
+        self.assertFalse((self.project / '.codex/config.toml').exists())
+        self.assertIn('`Topic`', (self.project / '.agents/rules/90-project.md').read_text(encoding='utf-8'))
 
     def test_proposal_export_selects_each_language_final_or_existing_draft(self):
         en = self.put_project('result/EN/draft.md', 'English draft')

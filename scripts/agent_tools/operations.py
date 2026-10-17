@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import json
+import sys
 
 COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'check-project', 'stage',
             'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search',
@@ -27,6 +28,8 @@ def add_parsers(sub):
             parser.add_argument('--output', type=Path)
             continue
         parser.add_argument('project', type=Path, help='Exact existing project root from the current chat')
+        if command in ('record-answer', 'save-analysis', 'collect', 'question-add'):
+            parser.add_argument('--consume-input', action='store_true', help='After success remove an unchanged input only from project ꘖ/data/scratch; use - for stdin')
         if command == 'resume':
             parser.add_argument('--reason', required=True)
             parser.add_argument('--request-file', type=Path, help='Exact current user message; kept in service state until final journal')
@@ -95,6 +98,36 @@ def analysis_root(file):
     return file.parent
 
 
+def _read_input(path):
+    return sys.stdin.buffer.read() if str(path) == '-' else Path(path).read_bytes()
+
+
+def _consumed(args, path, payload, result):
+    if not getattr(args, 'consume_input', False) or str(path) == '-':
+        return result
+    target = Path(path).resolve()
+    scratch = Path(args.project).resolve() / 'ꘖ/data/scratch'
+    if not target.is_relative_to(scratch) or Path(path).is_symlink() or any(p.is_junction() for p in (target, *target.parents) if p.exists()):
+        raise ValueError('Consumed input must be an ordinary file inside project ꘖ/data/scratch')
+    if result.get('status') == 'conflict' or result.get('complete') is False or result.get('valid') is False:
+        return result
+    if target.exists() and target.read_bytes() == payload:
+        target.unlink()
+        result['consumed_input'] = str(target)
+    return result
+
+
+def _operation_input(args, path):
+    if getattr(args, 'consume_input', False) and str(path) != '-':
+        # Validate the deletion scope before the operation changes any state.
+        target = Path(path).resolve()
+        if (not target.is_relative_to(Path(args.project).resolve() / 'ꘖ/data/scratch')
+                or Path(path).is_symlink()
+                or any(p.is_junction() for p in (target, *target.parents) if p.exists())):
+            raise ValueError('Consumed input must be an ordinary file inside project ꘖ/data/scratch')
+    return _read_input(path)
+
+
 def execute(args):
     from . import workflow as flow
     command = args.command
@@ -108,19 +141,32 @@ def execute(args):
     if command == 'adopt-requests':
         return flow.adopt_requests(args.project, args.conversation)
     if command == 'record-answer':
-        return flow.record_current_answer(args.project, args.response_file.read_bytes().decode('utf-8'))
+        payload = _operation_input(args, args.response_file)
+        result = flow.record_current_answer(args.project, payload.decode('utf-8'))
+        return _consumed(args, args.response_file, payload, result)
     if command == 'save-analysis':
         from .analysis import save_analysis
-        return save_analysis(args.project, args.candidate, args.expected_sha256)
+        from .research import inside
+        candidate = args.candidate if str(args.candidate) == '-' else inside(args.project, args.candidate)
+        payload = _operation_input(args, candidate)
+        result = save_analysis(args.project, json.loads(payload.decode('utf-8-sig')), args.expected_sha256)
+        return _consumed(args, candidate, payload, result)
     if command == 'collect':
         from .research import collect_plan, inside, json_data
-        result = collect_plan(args.project, json.loads(args.plan.read_text(encoding='utf-8-sig')))
+        payload = _operation_input(args, args.plan)
+        plan = json.loads(payload.decode('utf-8-sig'))
+        result = collect_plan(args.project, plan)
         if args.output:
             from .analysis import publish_owned
             target = inside(args.project, args.output)
             if not target.is_relative_to(Path(args.project).resolve() / 'ꘖ/KB/Evidence') or '/HTTP/' in target.as_posix() or '/Reviews/' in target.as_posix():
                 raise ValueError('Collection report must be a project Evidence file outside immutable HTTP/Reviews observations')
-            result['publication'] = publish_owned(target, json_data(result), source=args.plan)
+            from .analysis import digest
+            result['publication'] = publish_owned(target, json_data(result), source={
+                'kind': 'collection-plan', 'sha256': digest(payload), 'plan': plan})
+            if result['publication']['status'] == 'conflict':
+                return result
+            return _consumed(args, args.plan, payload, result)
         return result
     if command == 'extract':
         from .research import extract_observation
@@ -136,8 +182,10 @@ def execute(args):
     if command == 'stage':
         return flow.complete_stage(args.project, args.stage, args.input, args.output, note=args.note)
     if command == 'question-add':
-        spec = json.loads(args.spec.read_text(encoding='utf-8-sig'))
-        return flow.add_question(args.project, spec['id'], spec['question'], spec['impact'], spec['done_when'], spec['inputs'], spec['outputs'])
+        payload = _operation_input(args, args.spec)
+        spec = json.loads(payload.decode('utf-8-sig'))
+        result = flow.add_question(args.project, spec['id'], spec['question'], spec['impact'], spec['done_when'], spec['inputs'], spec['outputs'])
+        return _consumed(args, args.spec, payload, result)
     if command == 'question-claim':
         return flow.claim_question(args.project, args.id, args.owner)
     if command == 'question-finish':

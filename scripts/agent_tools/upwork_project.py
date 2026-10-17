@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -217,6 +218,11 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None,
             assets.append({'file': target.relative_to(root / 'ꘖ' / 'KB').as_posix(), 'sha256': digest})
         source_data = {**data, 'asset_evidence': assets}
         snapshot = populate_agent_kb(root, source_data)
+        if not state['initialized']:
+            from .knowledge import sync_initial_website
+            website = sync_initial_website(root, snapshot, site_hypothesis)
+            if website['status'] == 'conflict':
+                raise ValueError('Initial website card conflicts with a manual block; preserve and reconcile it')
         state.update(initialized=True, snapshot=str(snapshot.relative_to(root)))
         state.setdefault('request_date', day.isoformat())
         replace_bytes(state_file, json_bytes(state))
@@ -292,6 +298,10 @@ def main(argv=None):
     init.add_argument('--site-hypothesis', type=Path, help='Four-part identity hypothesis with evidence and expert probability')
     init.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
     init.add_argument('--no-register', action='store_true')
+    intake = sub.add_parser('intake-drain', help='Verify and commit managed staging evidence; dry-run unless --apply')
+    intake.add_argument('capture', nargs='?', type=Path, help='One immediate capture directory; default: all managed incoming')
+    intake.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
+    intake.add_argument('--apply', action='store_true', help='Drain only after durable evidence and receipt verification')
     config = sub.add_parser('configure', help='Create missing native manifests; preserve existing configuration')
     config.add_argument('project', type=Path)
     config.add_argument('--check', action='store_true', help='Check the project Codex projection without writing')
@@ -309,6 +319,7 @@ def main(argv=None):
     build = sub.add_parser('build-native', help='Generate/check native projections from canonical policy and runtime')
     build.add_argument('--root', type=Path)
     build.add_argument('--check', action='store_true')
+    sub.add_parser('policy-instructions', help='Read only the current profile global developer_instructions key')
     from .operations import COMMANDS, add_parsers, execute, analysis_root
     add_parsers(sub)
     for child in sub.choices.values():
@@ -333,6 +344,9 @@ def run(args):
         elif args.command == 'build-native':
             from .configuration import build_native
             result = build_native(args.root, check=args.check)
+        elif args.command == 'policy-instructions':
+            from .configuration import global_codex_instructions
+            result = global_codex_instructions()
         elif args.command == 'install-global':
             result = install_global_customizations()
         elif args.command == 'configure':
@@ -367,6 +381,13 @@ def run(args):
                 daily_root=args.daily_root, extracted_data=data,
                 site_hypothesis=json.loads(args.site_hypothesis.read_text(encoding='utf-8')) if args.site_hypothesis else None,
                 register_native=False if args.no_register else None)
+            from .intake import INCOMING, commit_capture
+            capture = Path(os.path.abspath(args.from_json)).parent
+            if args.from_json.name == 'source.json' and capture.parent == Path(os.path.abspath(INCOMING)):
+                result['intake'] = commit_capture(capture, incoming_root=INCOMING, daily_root=args.daily_root, apply=True)
+        elif args.command == 'intake-drain':
+            from .intake import INCOMING, drain_incoming
+            result = drain_incoming(args.capture, incoming_root=INCOMING, daily_root=args.daily_root, apply=args.apply)
         elif args.command == 'validate-analysis':
             value = json.loads(args.input.read_text(encoding='utf-8-sig'))
             from .analysis import analysis_issues, publish_analysis
@@ -390,7 +411,9 @@ def run(args):
                     print(json.dumps(result, ensure_ascii=False, indent=2)); return 2
             result['claims'] = sum(len(value[key]) for key in ('identity', 'concerns', 'misconceptions', 'causes', 'methods'))
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        if result.get('valid') is False or result.get('complete') is False or (result.get('registration') or {}).get('complete') is False:
+        if (result.get('valid') is False or result.get('complete') is False
+                or (result.get('registration') or {}).get('complete') is False
+                or result.get('intake', {}).get('status') == 'retained'):
             return 2
         return 0
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, sqlite3.Error) as exc:

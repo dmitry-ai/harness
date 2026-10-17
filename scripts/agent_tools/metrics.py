@@ -84,11 +84,9 @@ def project_metrics(root):
     state = load(root)
     path = root / 'ꘖ/data/research-metrics.json'
     uses = json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
+    from .research import bounded_metrics
     collector = None if uses is None else {
-        'uses': len(uses), 'cache_hits': sum(x.get('cached') is True for x in uses),
-        'fresh_attempts': sum(x.get('cached') is False for x in uses),
-        'failed_attempts': sum(bool(x.get('error')) for x in uses),
-        'http_unavailable': sum(x.get('kind') == 'http' and (x.get('status') or 0) >= 400 for x in uses),
+        **bounded_metrics(uses)['totals'],
         'scope': 'Only recorded collector operations since instrumentation; earlier requests unknown'}
     questions = []
     for question in state['questions'].values():

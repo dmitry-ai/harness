@@ -85,6 +85,24 @@ def request_key(url, headers, scope):
     return url, hashlib.sha256(json_data({'url': url, 'method': 'GET', 'headers': normalized, 'scope': scope})).hexdigest()
 
 
+METRIC_KEYS = ('uses', 'cache_hits', 'fresh_attempts', 'failed_attempts', 'http_unavailable')
+
+
+def metric_counts(events):
+    return dict(zip(METRIC_KEYS, (len(events), sum(x.get('cached') is True for x in events),
+        sum(x.get('cached') is False for x in events), sum(bool(x.get('error')) for x in events),
+        sum(x.get('kind') == 'http' and (x.get('status') or 0) >= 400 for x in events))))
+
+
+def bounded_metrics(value):
+    """Migrate only observed totals; retain at most 32 diagnostic events."""
+    if isinstance(value, list):
+        return {'version': 2, 'totals': metric_counts(value), 'recent': value[-32:]}
+    if not isinstance(value, dict) or value.get('version') != 2 or set(value.get('totals', {})) != set(METRIC_KEYS):
+        raise ValueError('Unknown collector metrics format; preserve and inspect')
+    return value
+
+
 def observed_use(root, result):
     """Count actual collector uses, including cache hits; do not infer earlier activity."""
     directory = Path(root) / 'ꘖ/data'
@@ -92,9 +110,11 @@ def observed_use(root, result):
     event = {k: result.get(k) for k in ('url', 'cached', 'observation', 'status', 'error', 'kind', 'request_key')}
     event['time'] = datetime.now(timezone.utc).isoformat(timespec='microseconds')
     with locked(directory / 'research-metrics.lock'):
-        events = json.loads(path.read_text(encoding='utf-8')) if path.exists() else []
-        events.append(event)
-        replace_bytes(path, json_data(events))
+        value = bounded_metrics(json.loads(path.read_text(encoding='utf-8')) if path.exists() else [])
+        counts = metric_counts([event])
+        value['totals'] = {key: value['totals'][key] + counts[key] for key in METRIC_KEYS}
+        value['recent'] = (value['recent'] + [event])[-32:]
+        replace_bytes(path, json_data(value))
     return result
 
 
