@@ -316,10 +316,21 @@ def verify_native_proof(root, native, package=None):
     return result
 
 
+def shared_control(request):
+    """Use the installed helper; never write native registration stores here."""
+    config = platform_settings('codex')
+    script = "import {controlWithHelper as control} from " + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
+    result = subprocess.run([config['node'], '--input-type=module', '-e', script],
+                            input=json.dumps(request), text=True, capture_output=True, timeout=55,
+                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    if result.returncode:
+        raise RuntimeError('Shared-Projects request failed: ' + (result.stderr.strip() or result.stdout.strip()))
+    return json.loads(result.stdout)
+
+
 def register(project_dir, domain_or_topic, date_str=None):
     from ..runtime import request_day, registration_profile_name
     from ..registration import validate_registration
-    config = platform_settings('codex')
     profile = registration_profile_name()
     day = request_day(date_str)
     request = {'command': 'shared-ensure-project', 'profile': profile,
@@ -327,14 +338,7 @@ def register(project_dir, domain_or_topic, date_str=None):
                            'trustPolicy': 'upwork-daily',
                            'rootPaths': [str(Path(project_dir).resolve())],
                            'folderPath': ['Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}']}}
-    # JSON travels over stdin; no shell interpolation or direct catalogue writes.
-    script = "import {controlWithHelper as control} from " + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
-    result = subprocess.run([config['node'], '--input-type=module', '-e', script],
-                            input=json.dumps(request), text=True, capture_output=True, timeout=25,
-                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-    if result.returncode:
-        raise RuntimeError('Shared-Projects registration failed: ' + (result.stderr.strip() or result.stdout.strip()))
-    receipt = json.loads(result.stdout)
+    receipt = shared_control(request)
     return validate_registration(project_dir, domain_or_topic, day.isoformat(), 'codex',
                                  {**receipt, 'surface': 'codex-ui', 'profile': profile})
 

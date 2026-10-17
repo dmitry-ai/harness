@@ -298,7 +298,7 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
     primary = Path(primary).resolve()
     source_paths = [primary / 'runtime.json', *sorted((primary / 'rules').glob('*.md')),
                     primary / 'platforms/codex.md', primary / 'agents/worker.md',
-                    primary / 'skills/upwork-init/SKILL.md']
+                    *sorted((primary / 'skills').glob('*/SKILL.md'))]
     source_hash = _digest(b''.join(p.read_bytes() for p in source_paths))
     native = root / '.codex/config.toml'
     current = tomllib.loads(native.read_bytes().decode('utf-8')).get('developer_instructions', '') if native.exists() else ''
@@ -310,6 +310,12 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
              f'Прочитай и выполни общий навык [{skill_source.name}](<{skill_source.as_posix()}>).\n'
              'Определи текущую UI-среду по беседе и используй соответствующий платформенный адаптер общего навыка.\n')
     outputs = {root / '.agents/skills/upwork-init/SKILL.md': skill}
+    cleanup_source = primary / 'skills/upwork-cleanup/SKILL.md'
+    if cleanup_source.is_file():
+        outputs[root / '.agents/skills/upwork-cleanup/SKILL.md'] = (
+            '---\nname: upwork-cleanup\ndescription: Очищает пустые проекты Upwork старше трёх суток в Antigravity и Codex, сохраняя историю на диске.\n---\n'
+            f'Прочитай и выполни общий навык [{cleanup_source.name}](<{cleanup_source.as_posix()}>).\n'
+            'Определи текущую UI-среду по беседе; обычный запуск выполняет очистку в обеих системах.\n')
     for role in ('AA', 'AF'):
         value = role_settings('codex', role)
         name = value['agent']

@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from datetime import datetime, timezone
 import re
 import sqlite3
 import sys
@@ -193,7 +194,9 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None,
     (root / 'ꘖ').mkdir(exist_ok=True)
     with locked(root / 'ꘖ' / 'data' / 'init.lock'):
         state_file = root / 'ꘖ' / 'project.json'
-        state = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {'job_id': job_id, 'initialized': False}
+        state = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {
+            'job_id': job_id, 'initialized': False, 'created_by': 'upwork-init',
+            'created_at': datetime.now(timezone.utc).isoformat()}
         if state['job_id'] != job_id:
             raise ValueError('Project identity mismatch')
         configure_project(root, primary_agents_dir, canonical_job_url(job_id), root.name.split(' - ', 1)[-1], platform=platform)
@@ -294,6 +297,9 @@ def main(argv=None):
     intake.add_argument('capture', nargs='?', type=Path, help='One immediate capture directory; default: all managed incoming')
     intake.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
     intake.add_argument('--apply', action='store_true', help='Drain only after durable evidence and receipt verification')
+    cleanup = sub.add_parser('cleanup', help='Remove empty native Upwork projects older than 72 hours; keep the entire daily archive')
+    cleanup.add_argument('--apply', action='store_true', help='Apply cleanup; default is a read-only preview')
+    cleanup.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
     config = sub.add_parser('configure', help='Create missing native manifests; preserve existing configuration')
     config.add_argument('project', type=Path)
     config.add_argument('--check', action='store_true', help='Check the project Codex projection without writing')
@@ -380,6 +386,9 @@ def run(args):
         elif args.command == 'intake-drain':
             from .intake import INCOMING, drain_incoming
             result = drain_incoming(args.capture, incoming_root=INCOMING, daily_root=args.daily_root, apply=args.apply)
+        elif args.command == 'cleanup':
+            from .cleanup import cleanup_projects
+            result = cleanup_projects(apply=args.apply, daily_root=args.daily_root)
         elif args.command == 'validate-analysis':
             value = json.loads(args.input.read_text(encoding='utf-8-sig'))
             from .analysis import analysis_issues, publish_analysis
