@@ -2,6 +2,8 @@
 
 import re
 
+from .links import markdown_link, readable_reference
+
 
 def normalize_job_id(url_or_id: str) -> str:
     """Extract canonical Upwork job ciphertext (~02... or ~01...) from URL or string."""
@@ -239,8 +241,8 @@ def format_kb_project_md(data: dict) -> str:
         analysis['notes'] = {key: 'Отдельный этап анализа.' for key in SECTIONS if key != 'identity'}
         validate_analysis(analysis)
         site_str = '\n'.join([h['essence'],
-            'За: ' + '; '.join(f'{a["argument"]} «{a["quote"]}» ({a["source"]})' for a in h['for']),
-            'Против: ' + '; '.join(f'{a["argument"]} «{a["quote"]}» ({a["source"]})' for a in h['against']),
+            'За: ' + '; '.join(f'{a["argument"]} «{a["quote"]}» ' + markdown_link('Источник', a['source']) for a in h['for']),
+            'Против: ' + '; '.join(f'{a["argument"]} «{a["quote"]}» ' + markdown_link('Источник', a['source']) for a in h['against']),
             f'Экспертная правдоподобность: {h["probability_percent"]}%.', h['assessment_basis']])
 
     # 2. Текущий проект клиента
@@ -573,7 +575,7 @@ def extract_pdf_markdown(raw_bytes: bytes, pdf_path=None) -> str:
                         if child.tag.lower() == 'a' and child.attrib.get('href'):
                             href = child.attrib['href'].strip()
                             label = clean_txt(ctext)
-                            parts.append(f'[{label}]({href})' if label else href)
+                            parts.append(markdown_link(label, href) if label else readable_reference(href))
                         else:
                             parts.append(ctext)
                         if child.tail:
@@ -777,8 +779,8 @@ def extract_docx_markdown(raw_bytes: bytes) -> str:
             return text
         m = re.match(r'^(.*?\s+-\s+)(Watch\s+Video.*)$', t, re.I)
         if m:
-            return f'{m.group(1)}[{m.group(2)}]({url})'
-        return f'[{t}]({url})'
+            return m.group(1) + markdown_link(m.group(2), url)
+        return markdown_link(t, url)
 
     with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
         rels: dict[str, str] = {}

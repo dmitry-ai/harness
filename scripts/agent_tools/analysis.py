@@ -164,6 +164,7 @@ def iter_arguments(value):
 def render_analysis(value):
     validate_analysis(value)
     from .red_flags import render_red_flags
+    from .links import markdown_link
     lines = [render_red_flags(value)] if value.get('red_flags') else []
     for number, (key, title) in enumerate(zip(SECTIONS, TITLES), 1):
         lines.extend([f'# {number}. {title}', ''])
@@ -177,14 +178,14 @@ def render_analysis(value):
                 lines.append(f'### {label}')
                 for arg in item[side]:
                     source = source_uri(arg, value.get('sources', {}))
-                    lines.extend([arg['argument'], '> ' + arg['quote'].replace('\n', '\n> '), f'[Источник]({source})', ''])
+                    lines.extend([arg['argument'], '> ' + arg['quote'].replace('\n', '\n> '), markdown_link('Источник', source), ''])
                     if arg.get('anchor_exception'):
                         locator = arg['anchor_exception']
-                        lines.extend([f'Раздел: {locator["section"]}.', f'[Проверка адреса]({locator["observation"]})', ''])
+                        lines.extend([f'Раздел: {locator["section"]}.', markdown_link('Проверка адреса', locator['observation']), ''])
                 if side == 'against' and not item[side]:
                     gap = item['counterevidence']
                     lines.extend([f'Статус контрдоказательств: {gap["status"]}.', gap['limitations'], ''])
-                    lines.extend(f'[Рассмотренный источник]({x})' for x in gap['reviewed_sources'])
+                    lines.extend(markdown_link('Рассмотренный источник', x) for x in gap['reviewed_sources'])
                     lines.append('')
             if key == 'methods':
                 lines.append(f'Оценка: {item["score_percent"]}% ({item["criterion"]}).')
@@ -223,6 +224,11 @@ def publish_owned(target, content, *, source=None, history=True):
     """Only update bytes previously published by this tool; preserve unknown edits."""
     target = Path(target).resolve()
     payload = content.encode('utf-8') if isinstance(content, str) else content
+    if target.suffix.lower() in ('.md', '.markdown', '.txt', '.html', '.htm'):
+        from .links import readable_link_issues
+        issues = readable_link_issues(payload.decode('utf-8'))
+        if issues:
+            raise ValueError('\n'.join(issues))
     state_dir = data_dir_for(target)
     state_file = state_dir / 'rendered.json'
     with locked(state_dir / 'render.lock'):

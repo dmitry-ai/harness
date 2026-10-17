@@ -139,6 +139,7 @@ def status(root):
 
 
 def publish_progress(root, state):
+    from .links import markdown_link
     statuses = stage_statuses(root, state)
     lines = ['# Ход анализа', '', 'Служебная навигация агентской KB; статусы не доказывают истинность выводов.',
              f'Вакансия: {state["job_id"]}.', '', '## Этапы']
@@ -157,9 +158,9 @@ def publish_progress(root, state):
             target = inside(root, ref)
             import os
             relative = Path(os.path.relpath(target, Path(root) / 'ꘖ/KB')).as_posix()
-            lines.append(f'  [Сохранённый результат](<{relative}>)')
+            lines.append('  ' + markdown_link('Сохранённый результат', relative))
     lines += ['', '## Профильные модули']
-    lines += [f'- [{p.name}]({p.name})' for p in sorted((Path(root) / 'ꘖ/KB').glob('*.md')) if p.name != 'Progress.md']
+    lines += ['- ' + markdown_link(p.name, p.name) for p in sorted((Path(root) / 'ꘖ/KB').glob('*.md')) if p.name != 'Progress.md']
     lines += ['', 'Перед новым исследованием проверь обзор и профильные модули KB.',
               'Исправления распространяются на связанные утверждения и документы; непроверенное отмечается явно.',
               'Context.md предназначен для передачи внешнему агенту (например Gemini DeepThink), а не для внутренней работы.', '']
@@ -220,6 +221,10 @@ def adopt_requests(root, conversation_id):
 
 def record_current_answer(root, response):
     from .journal import record_answer
+    from .links import readable_link_issues
+    issues = readable_link_issues(response)
+    if issues:
+        raise ValueError('\n'.join(issues))
     state = load(root)
     unanswered = [x for x in state['requests'] if not x.get('response_prepared')]
     if not unanswered:
@@ -323,7 +328,7 @@ def kb_issues(root):
         file = inside(root, relative)
         if file.suffix.lower() != '.md' and file.name != '.md':
             continue
-        for error in validate_file(file, local_anchors=True):
+        for error in validate_file(file, local_anchors=True, readable_links=True):
             issues.append(problem('kb.link', relative, error, file=file))
         text = file.read_text(encoding='utf-8')
         if re.search(r'(?im)^\s*\|.*\|\s*$\n\s*\|?\s*:?-{3,}', text) or re.search(r'(?i)<a\s+[^>]*(?:name|id)\s*=', text):
@@ -477,6 +482,12 @@ def attachment_issues(root):
 def check_project(root):
     root = Path(root).resolve()
     issues = kb_issues(root) + attachment_issues(root)
+    from .links import readable_link_issues
+    documents = [root / '.md', *sorted((root / 'result').rglob('*'))]
+    for document in documents:
+        if document.is_file() and document.name != 'draft.prev.md' and (document.name == '.md' or document.suffix.lower() in ('.md', '.markdown', '.txt', '.html', '.htm')):
+            for error in readable_link_issues(document.read_text(encoding='utf-8')):
+                issues.append(problem('document.link_style', document.relative_to(root).as_posix(), error, file=document))
     path = root / 'ꘖ/KB/Analysis.json'
     if not path.is_file():
         issues.append(problem('analysis.missing', 'ꘖ/KB/Analysis.json', 'Analysis draft is not saved'))
@@ -633,6 +644,10 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
                 raise ValueError('Complete exact req/res journal pairs before external export')
             latest = max(ids)
             reply = journal / 'res' / f'{latest}.md'
+            from .links import readable_link_issues
+            link_issues = readable_link_issues(reply.read_text(encoding='utf-8'))
+            if link_issues:
+                raise ValueError('\n'.join(link_issues))
             if reply.relative_to(Path(root).resolve()).as_posix() not in out_hashes:
                 raise ValueError('Declare the actual final reply file as a finalize output')
             if state['requests'] and (journal / 'req' / f'{latest}.md').read_bytes().decode('utf-8') != state['requests'][-1]['text']:

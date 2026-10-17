@@ -11,13 +11,97 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 
+def _readable_escapes(value: str) -> str:
+    """Decode display characters once; preserve escaped delimiters and literal %."""
+    def decode(match):
+        encoded = match.group()
+        raw = bytes.fromhex(encoded.replace('%', ''))
+        result, offset = [], 0
+        for char in raw.decode('utf-8', errors='surrogateescape'):
+            size = len(char.encode('utf-8', errors='surrogateescape')) * 3
+            original = encoded[offset:offset + size]
+            offset += size
+            safe_ascii = char.isascii() and (char.isalnum() or char in ' -._~')
+            safe_unicode = 0xA0 <= ord(char) < 0xD800 or 0xE000 <= ord(char) <= 0x10FFFF
+            result.append(char if safe_ascii or safe_unicode else original)
+        return ''.join(result)
+    return re.sub(r'(?:%[0-9a-fA-F]{2})+', decode, value)
+
+
+def readable_reference(value: str | Path) -> str:
+    """Human-readable document reference, without changing opaque query parameters."""
+    value = value.as_posix() if isinstance(value, Path) else value
+    base, fragment_sep, fragment = value.partition('#')
+    path, query_sep, query = base.partition('?')
+    if path.lower().startswith('file:'):
+        parsed = urlsplit(path)
+        path = parsed.path
+        if parsed.netloc and parsed.netloc != 'localhost':
+            path = '//' + parsed.netloc + path
+        elif re.match(r'^/[A-Za-z]:/', path):
+            path = path[1:]
+    return (_readable_escapes(path) + query_sep + query
+            + fragment_sep + _readable_escapes(fragment))
+
+
+def markdown_link(label: str | None, target: str | Path) -> str:
+    """Write readable Markdown source; the viewer handles URI serialization."""
+    target = readable_reference(target)
+    if any(char in target for char in '\r\n<>'):
+        raise ValueError('A document link cannot contain line endings or literal angle brackets')
+    text = target if label is None else label
+    text = text.replace('\\', '\\\\').replace('[', '\\[').replace(']', '\\]')
+    destination = f'<{target}>' if any(char.isspace() or char in '()' for char in target) else target
+    return f'[{text}]({destination})'
+
+
+def readable_link_issues(content: str) -> list[str]:
+    """Inspect original authored references, not a renderer's encoded href output."""
+    from markdown_it import MarkdownIt
+    parser = MarkdownIt('commonmark', {'html': True})
+    parser.normalizeLink = lambda value: value
+    parser.validateLink = lambda value: True  # Parsing data only, including legacy file: links.
+    targets, quote_depth = [], 0
+    html = HTMLReferences(authored_only=True)
+    for block in parser.parse(content):
+        if block.type == 'blockquote_open':
+            quote_depth += 1
+        elif block.type == 'blockquote_close':
+            quote_depth -= 1
+        if quote_depth:
+            continue  # Exact quotations and fenced source copies retain their original bytes.
+        if block.type == 'html_block':
+            html.feed(block.content)
+        for token in block.children or []:
+            if token.type == 'link_open':
+                targets.append(token.attrGet('href'))
+            elif token.type == 'image':
+                targets.append(token.attrGet('src'))
+            elif token.type == 'html_inline':
+                html.feed(token.content)
+            elif token.type == 'text':
+                targets.extend(_document_urls(token.content))
+    errors = []
+    for target in dict.fromkeys(targets + html.links):
+        readable = readable_reference(target)
+        if target != readable:
+            errors.append(f'LINK-5: Use a readable document link: {readable} (instead of {target})')
+    return errors
+
+
 class HTMLReferences(HTMLParser):
-    def __init__(self):
+    def __init__(self, *, authored_only=False):
         super().__init__(convert_charrefs=True)
         self.anchors = []
         self.links = []
+        self.authored_only = authored_only
+        self.literal_depth = 0
 
     def handle_starttag(self, tag, attrs):
+        if self.authored_only and tag in ('pre', 'code', 'blockquote'):
+            self.literal_depth += 1
+        if self.authored_only and self.literal_depth:
+            return
         values = dict(attrs)
         if values.get('id'):
             self.anchors.append(values['id'])
@@ -26,6 +110,16 @@ class HTMLReferences(HTMLParser):
                 self.anchors.append(values['name'])
             if values.get('href'):
                 self.links.append(values['href'])
+        elif tag == 'img' and values.get('src'):
+            self.links.append(values['src'])
+
+    def handle_endtag(self, tag):
+        if self.authored_only and tag in ('pre', 'code', 'blockquote'):
+            self.literal_depth = max(0, self.literal_depth - 1)
+
+    def handle_data(self, data):
+        if self.authored_only and not self.literal_depth:
+            self.links.extend(_document_urls(data))
 
 
 def _bare_urls(text: str):
@@ -38,6 +132,12 @@ def _bare_urls(text: str):
         yield url
 
 
+def _document_urls(text: str):
+    yield from _bare_urls(text)
+    for match in re.finditer(r'(?:file://|[A-Za-z]:[/\\])[^\s<>`"\x00-\x1f]+', text):
+        yield match.group().rstrip('.,;!?)')
+
+
 def references(content: str, include_code: bool = False) -> tuple[list[str], list[str]]:
     try:
         from markdown_it import MarkdownIt
@@ -45,6 +145,8 @@ def references(content: str, include_code: bool = False) -> tuple[list[str], lis
         requirements = Path(__file__).resolve().parents[1] / 'requirements-agent-tools.txt'
         raise RuntimeError(f'Install {requirements} with this Python interpreter') from exc
     parser = MarkdownIt('commonmark', {'html': True})
+    validate_uri = parser.validateLink
+    parser.validateLink = lambda value: value.lower().startswith('file:') or validate_uri(value)
     links = []
     html = HTMLReferences()
     for block in parser.parse(content):
@@ -67,7 +169,8 @@ def references(content: str, include_code: bool = False) -> tuple[list[str], lis
 
 
 def validate_content(content: str, *, local_anchors: bool = False,
-                     unique_urls: bool = False, include_code: bool = False) -> list[str]:
+                     unique_urls: bool = False, include_code: bool = False,
+                     readable_links: bool = False) -> list[str]:
     links, anchors = references(content, include_code)
     errors = []
     for anchor, count in Counter(anchors).items():
@@ -89,6 +192,8 @@ def validate_content(content: str, *, local_anchors: bool = False,
         for url, count in Counter(links).items():
             if count > 1 and url.startswith(('http://', 'https://')):
                 errors.append(f'Repeated URL ({count}): {url}')
+    if readable_links:
+        errors.extend(readable_link_issues(content))
     return errors
 
 
@@ -132,10 +237,14 @@ def validate_file(file_path: Path, **options) -> list[str]:
             if not path_text:
                 continue
             target = (file_path.parent / path_text).resolve()
-            if not target.is_file():
+            if not target.exists():
                 errors.append(f'Missing local file: {href}')
                 continue
             fragment = unquote(parsed.fragment)
+            if target.is_dir():
+                if fragment:
+                    errors.append(f'A directory link cannot have a document anchor: {href}')
+                continue
             if fragment and target.suffix.lower() in ('.md', '.html', '.htm'):
                 other = target.read_text(encoding='utf-8')
                 ids = set(references(other)[1]) | heading_anchors(other)

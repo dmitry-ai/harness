@@ -29,6 +29,7 @@ def main(command: str, argv=None, *, context_default: Path | None = None,
         parser.add_argument('--local-anchors', action='store_true')
         parser.add_argument('--unique-urls', action='store_true')
         parser.add_argument('--include-code', action='store_true')
+        parser.add_argument('--readable', action='store_true', help='Enforce LINK-5 on authored document references, before renderer URL normalization')
         parser.add_argument('--network', '--check-http', action='store_true')
         parser.add_argument('--timeout', type=float, default=15)
     elif command in ('generate_context', 'rebuild_context'):
@@ -90,7 +91,8 @@ def main(command: str, argv=None, *, context_default: Path | None = None,
             urls = []
             for path in args.targets:
                 errors.extend(validate_file(path, local_anchors=args.local_anchors,
-                                            unique_urls=args.unique_urls, include_code=args.include_code))
+                                            unique_urls=args.unique_urls, include_code=args.include_code,
+                                            readable_links=args.readable))
                 urls.extend(references(path.read_text(encoding='utf-8'), args.include_code)[0])
             if errors:
                 raise ValueError('\n'.join(errors))

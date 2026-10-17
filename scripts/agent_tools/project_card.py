@@ -23,6 +23,10 @@ def sync_block(root, target, key, content, position='after-title', *, check=Fals
         raise ValueError('Known block position and a lowercase block key required')
     if not isinstance(content, str) or '<!-- upwork-init:' in content:
         raise ValueError('Managed block content must be text without reserved markers')
+    from .links import readable_link_issues
+    issues = readable_link_issues(content)
+    if issues:
+        raise ValueError('\n'.join(issues))
     directory = root / 'ꘖ/data'
     receipt_path = directory / 'rendered.json'
     result = {'target': str(target), 'block': key}

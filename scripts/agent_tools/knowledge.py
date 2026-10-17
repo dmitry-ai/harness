@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 
 from .storage import create_bytes, replace_bytes
+from .links import markdown_link
 from .upwork_data import (
     canonical_job_url,
     classify_attachment,
@@ -75,7 +76,7 @@ def sync_website_card(root, value, *, selections=None, check=False):
             return {'status': 'conflict', 'target': str(root / '.md'), 'detail': 'Website identity evidence changed; reassess its explicit selection'}
         label = 'Сайт клиента' if site['role'] == 'client' else 'Целевой сайт проекта'
         url = site.get('url')
-        address = f'[{url}]({url})' if url else '**не установлен по доступным данным**'
+        address = markdown_link(None, url) if url else '**не установлен по доступным данным**'
         probability = claim.get('probability_percent')
         assessment = f' Оценка идентификации: {probability}%.' if probability is not None else ''
         lines.append(f'- **{label}:** {address}.{assessment} [Основание: {claim["id"]}](<ꘖ/KB/Analysis.json#/identity/{index}>).')
@@ -97,7 +98,7 @@ def sync_initial_website(root, snapshot, hypothesis=None):
         issues = website_issues({'identity': [hypothesis], 'websites': [site]})
         if issues:
             raise ValueError(issues)
-        address = f'[{url}]({url})' if url else '**не установлен**'
+        address = markdown_link(None, url) if url else '**не установлен**'
         content = (f'## Сайт клиента и проекта\n\n**Целевой сайт проекта:** {address}. '
                    f'Оценка гипотезы: {hypothesis["probability_percent"]}%. '
                    f'[Основание: {hypothesis["id"]}](KB/Project.md#13-сайт).\n')
@@ -117,6 +118,11 @@ def json_bytes(value):
 def create_once(path: Path, content: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
+        if path.suffix.lower() in ('.md', '.markdown', '.txt', '.html', '.htm'):
+            from .links import readable_link_issues
+            issues = readable_link_issues(content)
+            if issues:
+                raise ValueError('\n'.join(issues))
         create_bytes(path, content.encode("utf-8"))
 
 
@@ -326,7 +332,7 @@ def _render_projects_md(data: dict, url: str, source_link: str, extra_sources: l
         elif extra.get('file'):
             projects.append(f"[Первичный файл](<{extra['file']}>).")
         elif extra.get('url'):
-            projects.append(f"[Видеоисточник]({extra['url']}).")
+            projects.append(markdown_link('Видеоисточник', extra['url']) + '.')
         if ebody:
             projects.extend([efence + 'markdown', ebody, efence])
         projects.append('')
@@ -366,7 +372,7 @@ def _render_evidence_md(asset_evidence: list[dict], extra_sources: list[dict], p
     for e in extra_sources:
         if e.get('kind') == 'video' and e.get('url') and not e.get('sha256'):
             ev_lines.append(f"## {e['heading']}")
-            ev_lines.append(f"[{e['url']}]({e['url']}).")
+            ev_lines.append(markdown_link(None, e['url']) + '.')
             if (e.get('body') or '').strip():
                 ebody = e['body'].strip()
                 bfence = markdown_fence(ebody, '`')

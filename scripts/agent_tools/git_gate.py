@@ -40,7 +40,7 @@ def check_commit(root: Path, paths: list[str]) -> list[str]:
     for name in relative:
         path = root / name
         if path.is_file() and path.suffix.lower() == '.md':
-            errors = validate_file(path)
+            errors = validate_file(path, readable_links=True)
             if errors:
                 raise ValueError('\n'.join(errors))
     git(root, 'diff', '--cached', '--check')

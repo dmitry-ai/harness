@@ -160,6 +160,9 @@ Context.md предназначен для ручной передачи вне�
 
 `snapshot_draft.py <draft.md> --turn <ID>` сохраняет реальные байты в соседний draft.prev.md и архив ꘖ/data/.draft-snapshots; повтор хода сохраняет исходную версию.
 `validate_links.py <файлы> --local-anchors` проверяет локальные файлы, anchors и JSON pointers; --unique-urls — явная политика без повторов.
+`validate_links.py --readable <файлы>` проверяет LINK-5 в исходном Markdown/тексте/HTML: авторские ссылки содержат пробелы и Unicode; преобразование адреса рендерером не считается ошибкой.
+Формируй новые ссылки через `agent_tools.links.markdown_link`; `readable_reference` убирает лишнее кодирование пути/fragment, сохраняя исходные значимые параметры и разделители.
+`check-project`, `record-answer`, finalize и общие функции публикации проверяют авторский текст; точные цитаты, код, первичные источники и журнал сохраняют исходные байты.
 `validate_anchors.py <файлы> --include-code` проверяет исходный HTML по HTTP; это не доказательство DOM, авторизации или смысла.
 Эти standalone link tools: 0 — проверки прошли; 1 — вход/локальная ошибка; 2 — сетевой результат не подтверждён.
 `safe_commit.py --repo <корень> --file <путь> -m <текст> [--execute]` сверяет точный индекс, unstaged/conflicts/Markdown, не делает add/push.
