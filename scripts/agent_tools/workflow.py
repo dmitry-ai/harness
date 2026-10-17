@@ -53,11 +53,34 @@ def evidence_paths(root):
                    for p in directory.rglob('*') if p.is_file() and not p.is_relative_to(evidence / 'Reviews')})
 
 
+def question_contract_issues(root, question):
+    from .experiments import requirement_issues, result_issues
+    requirements = question.get('requirements')
+    issues = requirement_issues(requirements)
+    results = question.get('requirement_results', [])
+    if not isinstance(results, list):
+        return [*issues, 'Structured requirement_results list is required']
+    expected = {r['id']: r for r in requirements if isinstance(r, dict) and isinstance(r.get('id'), str)} if isinstance(requirements, list) else {}
+    seen = set()
+    for result in results:
+        ident = result.get('requirement_id') if isinstance(result, dict) else None
+        if ident not in expected or ident in seen:
+            issues.append('Each declared requirement must have one structured result')
+            continue
+        seen.add(ident)
+        issues.extend(result_issues(root, expected[ident], result))
+    if seen != set(expected):
+        issues.append('Research requirement results are incomplete')
+    if any(r.get('status') in ('unverified', 'unavailable') for r in results if isinstance(r, dict)) and not question.get('gap'):
+        issues.append('Unavailable/unverified requirements require an explicit question gap')
+    return issues
+
+
 def questions_current(root, state):
     return all(q['status'] in ('complete', 'gap')
                and receipt_current(root, {'inputs': q['inputs'], 'outputs': q['results']})
+               and not question_contract_issues(root, q)
                for q in state['questions'].values())
-
 
 def state_path(root):
     return Path(root).resolve() / 'ꘖ/data/workflow.json'
@@ -110,6 +133,9 @@ def stage_statuses(root, state):
             current = current and registration_status(root)['complete']
         if stage == 'research' and receipt:
             current = current and questions_current(root, state) and receipt.get('research_questions') == state['questions']
+        if stage in ('review', 'kb_review', 'finalize') and current:
+            from .review import approval_current
+            current = approval_current(root, state, receipt.get('review_approval'))
         if stage == 'finalize':
             covered = receipt.get('request_ids') if receipt else None
             current = current and (covered == [request['id'] for request in state['requests']] if covered is not None
@@ -135,7 +161,7 @@ def status(root):
             'kb_hashes': hashes(root, kb_paths(root)),
             'questions': list(state['questions'].values()),
             'registration': registration_status(root),
-            'detail': 'Stages cover initial analysis only. Continue the same filesystem project in either UI using agent KB, journal and actual proposal files; Context.md is an external export.'}
+            'detail': 'Stages track saved analysis. Every new analytical reply requires current request/answer-bound approval. Continue the same filesystem project in either UI using agent KB, journal and actual proposal files; Context.md is an external export.'}
 
 
 def publish_progress(root, state):
@@ -181,6 +207,8 @@ def update(root, event, change):
 def resume(root, reason, request=None):
     if not isinstance(reason, str) or not reason.strip():
         raise ValueError('Record why the current analysis is being continued')
+    if request is not None and (not isinstance(request, str) or not request.strip()):
+        raise ValueError('Continuation request must preserve exact nonempty user text')
     def change(state):
         state['legacy'] = False
         if request is not None:
@@ -226,6 +254,8 @@ def record_current_answer(root, response):
     if issues:
         raise ValueError('\n'.join(issues))
     state = load(root)
+    from .review import authorize
+    approval = authorize(root, state, response=response)
     unanswered = [x for x in state['requests'] if not x.get('response_prepared')]
     if not unanswered:
         raise ValueError('No unrecorded current requests; import exact native inputs or save the current request first')
@@ -237,18 +267,23 @@ def record_current_answer(root, response):
     steps = record_answer(Path(root) / 'ꙮ/1 - Анализ', [x['text'] for x in unanswered], response, turn, [x['id'] for x in unanswered])
     ids = {x['id'] for x in unanswered}
     def change(state):
+        authorize(root, state, response=response, package_path=approval['package'])
         for request in state['requests']:
             if request['id'] in ids:
-                request['response_prepared'] = {'turn': turn, 'steps': steps, 'sha256': hashlib.sha256(response.encode()).hexdigest()}
+                request['response_prepared'] = {'turn': turn, 'steps': steps, 'sha256': hashlib.sha256(response.encode()).hexdigest(), 'review_approval': approval}
     result = update(root, {'action': 'reply_prepared', 'turn': turn, 'steps': steps}, change)
     return {**result, 'journal_steps': steps, 'delivery_verified': False}
 
 
-def add_question(root, ident, question, impact, done_when, inputs, outputs):
+def add_question(root, ident, question, impact, done_when, inputs, outputs, *, requirements=None):
     if not re.fullmatch(r'[A-Z][A-Z0-9-]*', ident) or not all(isinstance(x, str) and x.strip() for x in (question, impact, done_when)):
         raise ValueError('Question needs a stable ID, question, impact and completion criterion')
     if not inputs:
         raise ValueError('Declare at least the saved capture or relevant KB module as question input')
+    from .experiments import requirement_issues
+    issues = requirement_issues(requirements)
+    if issues:
+        raise ValueError('\n'.join(issues))
     input_hashes = hashes(root, inputs)
     permitted = [inside(root, path).relative_to(Path(root).resolve()).as_posix() for path in outputs]
     if not permitted or any(not p.startswith('ꘖ/') or p.startswith('ꘖ/data/workflow') for p in permitted):
@@ -257,7 +292,7 @@ def add_question(root, ident, question, impact, done_when, inputs, outputs):
         if ident in state['questions']:
             raise ValueError('Question already exists; use its saved inputs/results')
         state['questions'][ident] = {'id': ident, 'question': question, 'impact': impact, 'done_when': done_when,
-            'inputs': input_hashes, 'allowed_outputs': permitted, 'status': 'pending', 'owner': None, 'searches': [], 'results': {}}
+            'inputs': input_hashes, 'allowed_outputs': permitted, 'status': 'pending', 'owner': None, 'searches': [], 'results': {}, 'requirements': requirements, 'requirement_results': []}
     return update(root, {'action': 'question', 'question_id': ident}, change)
 
 
@@ -306,7 +341,7 @@ def record_search(root, ident, owner, query, useful=False, method_change=None):
     return update(root, {'action': 'search', 'question_id': ident}, change)
 
 
-def finish_question(root, ident, owner, outputs, gap=None):
+def finish_question(root, ident, owner, outputs, gap=None, *, results=None):
     def change(state):
         q = state['questions'][ident]
         if q['owner'] != owner or q['status'] != 'running':
@@ -317,7 +352,11 @@ def finish_question(root, ident, owner, outputs, gap=None):
             raise ValueError('Question inputs changed; review the result against the new inputs')
         if not outputs or (gap is not None and not gap.strip()):
             raise ValueError('A saved result/report and explicit gap explanation are required')
-        q.update(status='gap' if gap else 'complete', results=hashes(root, outputs), gap=gap)
+        candidate = {**q, 'gap': gap, 'requirement_results': results}
+        issues = question_contract_issues(root, candidate)
+        if issues:
+            raise ValueError('\n'.join(issues))
+        q.update(status='gap' if gap else 'complete', results=hashes(root, outputs), gap=gap, requirement_results=results)
     return update(root, {'action': 'finish_question', 'question_id': ident}, change)
 
 
@@ -498,7 +537,7 @@ def check_project(root):
             issues.extend(contract_issues)
             if isinstance(value, dict):
                 issues.extend(evidence_issues(root, value))
-                if value.get('schema_version') == 2 and not contract_issues:
+                if value.get('schema_version') in (2, 3) and not contract_issues:
                     from .knowledge import sync_website_card
                     website = sync_website_card(root, value, check=True)
                     if website['status'] not in ('published', 'unchanged'):
@@ -512,87 +551,26 @@ def check_project(root):
     return {'valid': not issues, 'issues': issues, 'semantic_truth_verified': False}
 
 
-def record_review(root, report, *, parent_id, reviewer_id, role='AA', risk='routine'):
-    if role != 'AA' or not parent_id or not reviewer_id or risk not in ('routine', 'significant'):
-        raise ValueError('Observed A.A parent/reviewer IDs and explicit risk required')
-    independent = reviewer_id != parent_id
-    file = inside(root, report)
-    data = json.loads(file.read_text(encoding='utf-8'))
-    if not isinstance(data, dict):
-        raise ValueError('Review report must be a JSON object')
-    if data.get('result') != 'approved' or not isinstance(data.get('findings'), list) or not data.get('scope'):
-        raise ValueError('Review needs scope, findings and approved result')
-    if not isinstance(data['scope'], list) or not set((*SECTIONS, 'kb_consistency')).issubset(data['scope']):
-        raise ValueError('Independent review must cover all five stages and KB consistency')
-    package = inside(root, data.get('package', ''))
-    package_data = json.loads(package.read_text(encoding='utf-8'))
-    if package_data.get('kb_inputs') != hashes(root, kb_paths(Path(root))) or package_data.get('evidence_inputs') != hashes(root, evidence_paths(root)) or package_data.get('parent_id') != parent_id:
-        raise ValueError('Review package does not match the present KB and parent')
-    proof_paths = [report, data['package']]
-    if independent:
-        execution = inside(root, data.get('native_evidence', ''))
-        native = json.loads(execution.read_text(encoding='utf-8'))
-        if native.get('parent_id') != parent_id or native.get('reviewer_id') != reviewer_id or native.get('status') != 'completed':
-            raise ValueError('Saved native review identity/status differs')
-        from .metrics import verify_native_proof
-        verify_native_proof(root, native, package=package.name)
-        proof_paths.append(data['native_evidence'])
-    else:
-        if data.get('review_kind') != 'self_review':
-            raise ValueError('Parent review must explicitly say self_review; it is not independent')
-        from .platforms import adapter
-        adapter().require_current_binding(root, parent_id)  # Observe the current task, not only an earlier matching request.
-        native = {'model_verification': 'parent self-review; exact model/High requires session metadata'}
-    if package_data.get('risk') == 'significant' or any(f.get('severity') in ('significant', 'critical') for f in data['findings'] if isinstance(f, dict)):
-        risk = 'significant'
-    for finding in data['findings']:
-        if not isinstance(finding, dict) or finding.get('status') not in ('resolved', 'rejected') or not finding.get('disposition') or not finding.get('evidence'):
-            raise ValueError('Every finding needs a resolved/rejected disposition with evidence; unresolved findings block review')
-        local_file = inside(root, finding['evidence'])
-        if not local_file.is_file():
-            raise ValueError('Review finding evidence is missing')
-    def change(state):
-        state['reviews'] = [r for r in state['reviews'] if r['reviewer_id'] != reviewer_id]
-        state['reviews'].append({'parent_id': parent_id, 'reviewer_id': reviewer_id, 'role': role, 'risk': risk,
-            'report': str(file.relative_to(Path(root).resolve())), 'proof': hashes(root, proof_paths), 'independent': independent,
-            'kb_inputs': hashes(root, kb_paths(Path(root))), 'evidence_inputs': hashes(root, evidence_paths(root)),
-            'model_verification': native.get('model_verification', 'unverified'), 'time': now()})
-    return update(root, {'action': 'review', 'reviewer_id': reviewer_id}, change)
+def record_review(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=None, risk=None):
+    from .review import record
+    return record(root, report, parent_id=parent_id, reviewer_id=reviewer_id, role=role,
+                  native_evidence=native_evidence, risk=risk)
 
 
-def prepare_review(root, parent_id, risk='routine'):
-    if not parent_id or risk not in ('routine', 'significant'):
-        raise ValueError('Observed parent ID and routine/significant risk required')
-    current = hashes(root, kb_paths(Path(root)))
-    data = {'schema_version': 1, 'parent_id': parent_id, 'risk': risk, 'kb_inputs': current, 'evidence_inputs': hashes(root, evidence_paths(root)),
-            'scope': [*SECTIONS, 'kb_consistency'], 'knowledge_source': 'agent KB and primary evidence; no Context.md'}
-    payload = json_data(data)
-    path = Path(root) / 'ꘖ/KB/Evidence/Reviews' / (hashlib.sha256(payload).hexdigest() + '-inputs.json')
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        if path.read_bytes() != payload:
-            raise ValueError('Immutable review input package differs')
-    else:
-        from .storage import create_bytes
-        create_bytes(path, payload)
-    return {'package': path.relative_to(Path(root).resolve()).as_posix(), **data}
+def prepare_review(root, parent_id, spec=None, response=None):
+    from .review import prepare
+    return prepare(root, parent_id, spec, response)
 
 
 def review_input(root, package):
-    """Read and verify an immutable package inside the actual reviewer process."""
-    import os
-    path = inside(root, package)
-    data = json.loads(path.read_text(encoding='utf-8'))
-    if data.get('kb_inputs') != hashes(root, kb_paths(Path(root))) or data.get('evidence_inputs') != hashes(root, evidence_paths(root)):
-        raise ValueError('Reviewer package does not match the present KB and primary evidence')
-    reviewer = os.environ.get('CODEX_THREAD_ID')
-    if not reviewer:
-        raise ValueError('Native Codex reviewer thread ID is unavailable')
-    return {'upwork_review_input': 1, 'verified': True, 'project_root': str(Path(root).resolve()),
-            'job_id': load(root)['job_id'], 'parent_id': data['parent_id'], 'reviewer_id': reviewer,
-            'package': path.relative_to(Path(root).resolve()).as_posix(), 'package_sha256': file_hash(path),
-            'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs']}
+    """Verify exact requests, response, claim versions and evidence in the reviewer."""
+    from .review import input_receipt
+    return input_receipt(root, package)
 
+
+def record_review_disposition(root, review_id, finding_id, status, basis, evidence, parent_id):
+    from .review import disposition
+    return disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 
 def complete_stage(root, stage, inputs, outputs, *, note=None):
     if stage not in STAGES or not inputs or not outputs:
@@ -611,26 +589,16 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
             if not questions_current(root, state):
                 raise ValueError('A research question is open or its inputs/results changed')
         if stage == 'analysis':
+            from .analysis import require_current_contract
+            require_current_contract(json.loads((Path(root) / 'ꘖ/KB/Analysis.json').read_text(encoding='utf-8-sig')))
             result = check_project(root)
             if not result['valid']:
                 raise ValueError('Resolve project/evidence diagnostics before completing analysis')
             if 'ꘖ/KB/Analysis.json' not in out_hashes:
                 raise ValueError('Analysis.json must be a declared stage output')
         if stage in ('review', 'kb_review', 'finalize'):
-            current_kb = hashes(root, kb_paths(Path(root)))
-            from .metrics import verify_native_proof
-            reviews = []
-            for review in state['reviews']:
-                if review['kb_inputs'] == current_kb and review.get('evidence_inputs') == hashes(root, evidence_paths(root)) and receipt_current(root, {'inputs': review['proof']}):
-                    report_data = json.loads(inside(root, review['report']).read_text(encoding='utf-8'))
-                    if review.get('independent', True):
-                        native = json.loads(inside(root, report_data['native_evidence']).read_text(encoding='utf-8'))
-                        verify_native_proof(root, native)
-                    reviews.append(review)
-            required = 2 if any(r['risk'] == 'significant' for r in state['reviews']) else 1
-            eligible = [r for r in reviews if required == 1 or r.get('independent', True)]
-            if len({r['reviewer_id'] for r in eligible}) < required:
-                raise ValueError('Need current A.A review; significant risk requires two independent reviewers and handled findings')
+            from .review import authorize
+            approval = authorize(root, state)
             if not check_project(root)['valid']:
                 raise ValueError('Current KB/evidence checks failed')
         if stage == 'kb_review' and not note:
@@ -652,6 +620,11 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
                 raise ValueError('Declare the actual final reply file as a finalize output')
             if state['requests'] and (journal / 'req' / f'{latest}.md').read_bytes().decode('utf-8') != state['requests'][-1]['text']:
                 raise ValueError('Latest journal request differs from the recorded current continuation request')
+            from .review import authorize
+            approval = authorize(root, state, response=reply.read_bytes().decode('utf-8'))
+            if (any(not request.get('response_prepared') for request in state['requests']) or
+                    not state['requests'] or state['requests'][-1]['response_prepared'].get('sha256') != approval['response_sha256']):
+                raise ValueError('Record the exact approved answer for current requests before finalizing')
             target, _, _ = generate(Path(root), Path(root) / '.agents/context.json')
             out_hashes[target.relative_to(Path(root).resolve()).as_posix()] = file_hash(target)
         state['stages'][stage] = {'status': 'complete', 'time': now(), 'inputs': in_hashes, 'outputs': out_hashes, 'note': note}
@@ -661,6 +634,7 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
             from copy import deepcopy
             state['stages'][stage]['research_questions'] = deepcopy(state['questions'])
         if stage in ('review', 'kb_review', 'finalize'):
+            state['stages'][stage]['review_approval'] = approval
             state['stages'][stage]['kb_inputs'] = hashes(root, kb_paths(Path(root)))
             state['stages'][stage]['evidence_inputs'] = hashes(root, evidence_paths(root))
         # Derived stages are rechecked after a changed prerequisite, even if their old files still exist.

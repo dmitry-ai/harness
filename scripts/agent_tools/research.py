@@ -25,6 +25,11 @@ def json_data(value):
     return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 
 
+def _fingerprint(value):
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                     separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+
+
 def inside(root, relative):
     root = Path(root).resolve()
     target = (root / relative).resolve()
@@ -75,14 +80,61 @@ def fetch(url, headers, timeout):
                         response.headers.get_content_charset() or 'utf-8', tuple(redirects.chain))
 
 
-def request_key(url, headers, scope):
+def request_context(value=None):
+    """Explicit cache conditions, never a proof of private mode or IP geography.
+
+    Do not persist cookies, authorization headers or profile secrets. A caller
+    supplies a state fingerprint when the same browser tab changes its state.
+    """
+    if value is None:
+        return {'session': {'mode': 'unknown', 'verification': 'unverified'},
+                'egress': {'country': None, 'verification': 'unverified'}}
+    if not isinstance(value, dict):
+        raise ValueError('Request context must be an object')
+    allowed = {'session', 'egress', 'url_country', 'language', 'selected_country',
+               'currency', 'session_id', 'state_fingerprint'}
+    if set(value) - allowed:
+        raise ValueError('Context accepts explicit session/geography/state conditions, not credentials')
+    result = json.loads(json.dumps(value, ensure_ascii=False, allow_nan=False))
+    session = result.setdefault('session', {'mode': 'unknown', 'verification': 'unverified'})
+    egress = result.setdefault('egress', {'country': None, 'verification': 'unverified'})
+    if (not isinstance(session, dict) or set(session) - {'mode', 'verification', 'evidence'} or
+            session.get('mode') not in ('normal', 'incognito', 'isolated', 'unknown')):
+        raise ValueError('Session mode must distinguish normal, incognito, isolated and unknown')
+    if (not isinstance(egress, dict) or set(egress) - {'country', 'verification', 'evidence'} or
+            egress.get('country') is not None and not re.fullmatch(r'[A-Z]{2}', str(egress.get('country')))):
+        raise ValueError('Egress country must be an explicit ISO country or null; URL country is separate')
+    for condition in (session, egress):
+        if condition.get('verification', 'unverified') not in ('verified', 'unverified'):
+            raise ValueError('Context verification must be verified or unverified')
+        if condition.get('verification') == 'verified' and not condition.get('evidence'):
+            raise ValueError('Verified conditions require recorded evidence; empty cookies prove no browser mode')
+    for key in allowed - {'session', 'egress'}:
+        if key in result and (not isinstance(result[key], str) or not result[key].strip()):
+            raise ValueError('Explicit context fields must be nonempty strings')
+    return result
+
+
+def request_key(url, headers, scope, context=None):
     url = urldefrag(url)[0]
     parsed = urlsplit(url)
     if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password or any(c.isspace() for c in url):
         raise ValueError('A valid HTTP(S) URL without embedded credentials is required')
     _ = parsed.port
     normalized = {k.lower(): str(v) for k, v in headers.items()}
-    return url, hashlib.sha256(json_data({'url': url, 'method': 'GET', 'headers': normalized, 'scope': scope})).hexdigest()
+    return url, _fingerprint({'url': url, 'method': 'GET', 'headers': normalized,
+        'scope': scope, 'context': request_context(context)})
+
+
+def observation_capabilities(meta):
+    """Read-only measurements cannot establish a click, configuration or IP."""
+    if meta.get('error'):
+        return set()
+    if meta.get('kind') == 'http' and meta.get('method') == 'GET' and 200 <= (meta.get('status') or 0) < 300:
+        return {'content', 'markup', 'platform_capability'}
+    if meta.get('kind') == 'dom' and meta.get('method') == 'READ_DOM':
+        return {'content', 'markup', 'dom', 'platform_capability'}
+    return set()
 
 
 METRIC_KEYS = ('uses', 'cache_hits', 'fresh_attempts', 'failed_attempts', 'http_unavailable')
@@ -118,7 +170,7 @@ def observed_use(root, result):
     return result
 
 
-def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_reason=None, timeout=15, fetcher=None, observation_kind='http'):
+def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_reason=None, timeout=15, fetcher=None, observation_kind='http', context=None):
     root = Path(root).resolve()
     if max_age < 0 or timeout <= 0 or not isinstance(scope, str) or not scope.strip():
         raise ValueError('Nonnegative max_age, positive timeout and explicit request scope required')
@@ -127,13 +179,14 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
         raise ValueError('DOM observation needs an explicit read-only browser capture')
     if not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
         raise ValueError('Request headers must contain string keys and values')
-    url, key = request_key(url, headers, scope + ':' + observation_kind)
+    context = request_context(context)
+    url, key = request_key(url, headers, scope + ':' + observation_kind, context)
     data_dir = root / 'ꘖ/data'
     index_file = data_dir / 'http-index.json'
     with locked(data_dir / ('http-' + key[:24] + '.lock'), timeout=max(30, timeout + 15)):
         index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {}
         entry = index.get(key)
-        if entry and not refresh_reason:
+        if entry and not refresh_reason and max_age > 0:
             meta = load_observation(root, entry['observation'])
             ttl = min(max_age, 300) if meta.get('error') or (meta.get('status') is not None and meta.get('status', 0) >= 400) else max_age
             if time.time() - datetime.fromisoformat(meta['observed_at']).timestamp() <= ttl:
@@ -160,7 +213,10 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
                 'content_type': response.content_type, 'charset': response.charset, 'redirects': list(response.redirects),
                 'body_sha256': hashlib.sha256(response.body).hexdigest(), 'body_bytes': len(response.body),
                 'refresh_reason': refresh_reason, 'error': error,
-                'conditions': {'header_names': sorted(k.lower() for k in headers), 'values_fingerprint': key}}
+                'conditions': {'header_names': sorted(k.lower() for k in headers), 'values_fingerprint': key,
+                               'reported_context': context, 'context_fingerprint': _fingerprint(context)},
+                'collector': 'read-only-http' if observation_kind == 'http' else 'read-only-dom',
+                'interaction_checked': False}
         create_bytes(folder / 'observation.json', json_data(meta))
         reference = (folder / 'observation.json').relative_to(root / 'ꘖ/KB').as_posix()
         with locked(data_dir / 'http-index.lock'):
@@ -356,7 +412,7 @@ def select_dom_tab(tabs, url, tab_id):
     return matches[0]
 
 
-def capture_dom(root, url, tab_id, *, port=9222, refresh_reason=None, reader=None):
+def capture_dom(root, url, tab_id, *, port=9222, refresh_reason=None, reader=None, context=None):
     if not tab_id or type(port) is not int or not 1 <= port <= 65535:
         raise ValueError('Explicit local CDP port and exact tab ID required')
     def read_dom(target, headers, timeout):
@@ -382,8 +438,10 @@ def capture_dom(root, url, tab_id, *, port=9222, refresh_reason=None, reader=Non
         if not isinstance(data, dict) or not isinstance(data.get('html'), str) or urldefrag(data.get('url', ''))[0] != urldefrag(target)[0]:
             raise ValueError('Tab navigated or DOM capture does not match the intended resource')
         return Response(data['url'], 0, 'text/html', data['html'].encode('utf-8'))
-    observation = collect(root, url, scope=f'CDP:{port}:tab:{tab_id}', max_age=300,
-        refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom')
+    # The tab may keep its URL while currency, cookies or selected country change.
+    # A new DOM scenario is therefore fresh even when a caller omits context.
+    observation = collect(root, url, scope=f'CDP:{port}:tab:{tab_id}', max_age=0,
+        refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom', context=context)
     if observation['error']:
         return observation
     return {**observation, **extract_observation(root, observation['observation'])}
@@ -401,7 +459,8 @@ def collect_plan(root, plan, *, fetcher=None):
             if profile not in PROFILES:
                 raise ValueError('Unknown extraction profile')
             observation = collect(root, entry['url'], headers=entry.get('headers'), scope=entry.get('scope', 'public'),
-                max_age=entry.get('max_age', 86400), refresh_reason=entry.get('refresh_reason'), fetcher=fetcher)
+                max_age=entry.get('max_age', 86400), refresh_reason=entry.get('refresh_reason'), fetcher=fetcher,
+                context=entry.get('context'))
             item = {k: observation[k] for k in ('url', 'cached', 'observation', 'status', 'observed_at', 'error')}
             if not observation['error'] and 200 <= observation['status'] < 300:
                 try:

@@ -49,6 +49,95 @@ class ProjectCase(TemporaryCase):
         self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
         return value
 
+    def valid_review_analysis(self):
+        """A minimal v3 client report with real registered intake provenance."""
+        from agent_tools.knowledge import sync_website_card
+        project = json.loads((self.project / 'ꘖ/project.json').read_text(encoding='utf-8'))
+        snapshot = self.project / project['snapshot']
+        reference = snapshot.relative_to(self.project / 'ꘖ/KB').as_posix()
+        title = json.loads(snapshot.read_text(encoding='utf-8'))['title']
+        claim = {'id': 'F-TITLE', 'essence': title, 'assessment_basis': 'Exact title in the registered client intake.',
+            'knowledge_type': 'client_report', 'verification_status': 'verified',
+            'scope': {'description': 'The saved job title only.', 'sample': [reference], 'limitations': []},
+            'properties': ['content'], 'missing_checks': [], 'derived_from': [],
+            'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive',
+            'impact': {'severity': 'unknown', 'basis': 'No business impact inferred from a title.', 'evidence_claim_ids': []},
+            'probability_percent': 100, 'addresses': [],
+            'evidence': [{'id': 'E-TITLE', 'kind': 'intake', 'source': reference, 'manifest': reference,
+                'source_sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'quote': title,
+                'locator': {'type': 'json_pointer', 'value': '/title'}}],
+            'for': [{'argument': 'The registered intake contains the title.', 'evidence_id': 'E-TITLE'}],
+            'against': [], 'counterevidence': {'status': 'not_found', 'reviewed_sources': [reference],
+                'limitations': 'No independent confirmation; this is an attributed client report.'}}
+        value = {'schema_version': 3, 'facts': [], 'identity': [claim],
+            **{s: [] for s in SECTIONS if s != 'identity'},
+            'notes': {s: 'No conclusion established in this fixture.' for s in SECTIONS},
+            'websites': [{'role': 'client', 'url': None, 'basis_id': 'F-TITLE'}]}
+        self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
+        sync_website_card(self.project, value)
+        self.assertEqual(analysis_issues(value), [])
+        self.assertEqual(evidence_issues(self.project, value), [])
+        return value
+
+    def review_package(self, parent, response='Client task', risk='routine', claims=None):
+        if not (self.project / 'ꘖ/KB/Analysis.json').exists() or json.loads((self.project / 'ꘖ/KB/Analysis.json').read_text()).get('schema_version') != 3:
+            self.valid_review_analysis()
+        if not flow.load(self.project)['requests']:
+            flow.resume(self.project, 'review fixture', 'Fixture current request')
+        from agent_tools.knowledge import sync_website_card
+        sync_website_card(self.project, json.loads((self.project / 'ꘖ/KB/Analysis.json').read_text(encoding='utf-8')))
+        manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'}] if claims is None else claims
+        from agent_tools.claims import claim_index
+        index = claim_index(json.loads((self.project / 'ꘖ/KB/Analysis.json').read_text(encoding='utf-8')))
+        flags = set()
+        for entry in manifest:
+            claim = index[entry['claim_id']]
+            if entry.get('novelty') == 'restatement':
+                continue
+            if claim['materiality'] == 'significant':
+                flags.add('material_analysis')
+            props = set(claim['properties'])
+            for category, prop, flag in (('causal', 'causality', 'new_causal_analysis'),
+                    ('architecture', 'architecture_change', 'architecture_change'), ('pricing', 'pricing_change', 'pricing_change')):
+                if claim['category'] == category or prop in props:
+                    flags.add(flag)
+            flags.update(props & {'admin_configuration', 'business_impact'})
+        spec = {'risk': risk, 'basis': 'Explicit fixture risk based on the declared claims and current request.',
+                'request_scope': 'Answer only the current fixture request.',
+                'claim_ids': [c['claim_id'] for c in manifest], 'claims': manifest, 'task_flags': sorted(flags)}
+        return flow.prepare_review(self.project, parent, spec, response)
+
+    def review_report(self, package, *, self_review=False, result='approved', findings=None):
+        report = {'schema_version': 2, 'package': package['package'], 'package_sha256': package['package_sha256'],
+            'scope': [*SECTIONS, 'kb_consistency', 'response'], 'result': result,
+            'claim_reviews': [{'claim_id': c['claim_id'], 'observed': 'Exact registered title inspected.',
+                'inferred': 'Only the attributed title is asserted.', 'method': 'Read saved intake JSON.',
+                'alternatives': 'No hidden configuration or cause is inferred.', 'limits': 'Client attribution only.',
+                'falsification': 'A different registered title would contradict the literal attribution.',
+                'raw_vs_criteria': 'The saved title equals the response excerpt; no causal experiment is claimed.',
+                'test_alignment': {'target_claim': c['essence'], 'tested_claim': 'The registered intake literally contains this title.',
+                    'relationship': 'direct', 'rationale': 'A different literal title would fail this attribution check.',
+                    'counterexample': 'A later change on the live site could leave the old intake title unchanged; this answer only attributes the saved title.'},
+                'outcome': 'supported'} for c in package['claims']], 'findings': findings or []}
+        if self_review:
+            report['review_kind'] = 'self_review'
+        return report
+
+    def experiment_requirement(self, ident='R-CONTENT'):
+        return {'id': ident, 'claim': 'Inspect the returned document content.', 'property': 'content',
+                'alternatives': ['The requested document may be unavailable.'], 'method': 'http',
+                'conditions': {}, 'scope': {'objects': ['https://example.invalid/']},
+                'falsification': 'The returned content contradicts the proposed text.',
+                'discriminating_test': 'Compare literal returned content to the expected text, including contradictory content.',
+                'expected': 'Saved content or an explicit gap.', 'completion_criterion': 'Hash-checked saved response or unavailable result.'}
+
+    def experiment_gap(self, requirement):
+        from agent_tools.experiments import prepare_experiment, record_experiment
+        plan = prepare_experiment(self.project, requirement)
+        return record_experiment(self.project, {'plan': plan['plan'], 'plan_sha256': plan['plan_sha256'],
+            'status': 'unavailable', 'conditions': {}, 'artifacts': [], 'actual_steps': [],
+            'actual_result': 'No usable document could be obtained.', 'limitation': 'Source unavailable in this fixture.'})
+
 
 class AnalysisContractTests(ProjectCase):
     def test_many_independent_errors_are_reported_with_fields_and_ids(self):
@@ -282,17 +371,18 @@ class ContinuationTests(ProjectCase):
 
     def test_question_has_one_owner_and_explicit_handoff(self):
         flow.resume(self.project, 'quota')
-        flow.add_question(self.project, 'Q-SITE', 'Check canonical URL', 'Affects identity', 'Saved exact canonical', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/site.json'])
+        requirement = self.experiment_requirement()
+        flow.add_question(self.project, 'Q-SITE', 'Check canonical URL', 'Affects identity', 'Saved exact canonical', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/site.json'], requirements=[requirement])
         flow.claim_question(self.project, 'Q-SITE', 'worker-a')
         with self.assertRaises(ValueError): flow.claim_question(self.project, 'Q-SITE', 'worker-b')
         flow.handoff(self.project, 'Q-SITE', 'worker-a', 'worker-b', 'Native status shows worker-a stopped')
         self.put_project('ꘖ/KB/Evidence/site.json', '{"canonical":"https://example.org"}')
-        flow.finish_question(self.project, 'Q-SITE', 'worker-b', ['ꘖ/KB/Evidence/site.json'])
+        flow.finish_question(self.project, 'Q-SITE', 'worker-b', ['ꘖ/KB/Evidence/site.json'], gap='Source unavailable.', results=[self.experiment_gap(requirement)])
         with self.assertRaises(ValueError): flow.claim_question(self.project, 'Q-SITE', 'worker-a')
 
     def test_search_cycle_returns_gap_or_requires_a_new_method(self):
         flow.resume(self.project, 'quota')
-        flow.add_question(self.project, 'Q-DOC', 'Find diagnostics source', 'Needed for cause', 'Exact source or gap', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/doc.json'])
+        flow.add_question(self.project, 'Q-DOC', 'Find diagnostics source', 'Needed for cause', 'Exact source or gap', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/doc.json'], requirements=[self.experiment_requirement()])
         flow.claim_question(self.project, 'Q-DOC', 'worker')
         for n in range(3): flow.record_search(self.project, 'Q-DOC', 'worker', f'variant {n}')
         with self.assertRaises(ValueError): flow.record_search(self.project, 'Q-DOC', 'worker', 'fourth variant')
@@ -311,7 +401,7 @@ class NativeReviewTests(ProjectCase):
         for cid, items in [(parent, [{'step_index': 0, 'type': 'USER_INPUT', 'content': '/upwork-init https://upwork.com/jobs/' + source()['job_id']},
                                     {'step_index': 1, 'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'invoke_subagent', 'args': {'Subagents': [{'TypeName': 'self', 'Model': 'inherit', 'Prompt': prompt}]}}]}]),
                            (child, [{'step_index': 0, 'type': 'SYSTEM_MESSAGE', 'content': 'Review package: ' + Path(package['package']).name},
-                                    {'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': 'Independent report delivered.'}])]:
+                                    {'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': json.dumps(self.review_report(package))}])]:
             file = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text('\n'.join(json.dumps(x) for x in items) + '\n', encoding='utf-8')
@@ -326,13 +416,13 @@ class NativeReviewTests(ProjectCase):
         return home, backend, parent, child
 
     def test_af_or_terminal_quota_error_is_not_an_independent_completed_aa_review(self):
-        package = flow.prepare_review(self.project, str(uuid.uuid4()))
+        package = self.review_package(str(uuid.uuid4()))
         for agent, final in [('af-worker', 15), ('self', 17)]:
             home, backend, parent, child = self.native_fixture(package, agent=agent, final_type=final)
             with self.assertRaises(ValueError): native_review_proof(self.project, parent, child, backend=backend)
 
     def test_flash_request_or_observed_model_mismatch_is_rejected(self):
-        package = flow.prepare_review(self.project, str(uuid.uuid4()))
+        package = self.review_package(str(uuid.uuid4()))
         home, backend, parent, child = self.native_fixture(package)
         parent_log = backend / 'brain' / parent / '.system_generated/logs/transcript_full.jsonl'
         original = parent_log.read_text(encoding='utf-8')
@@ -349,44 +439,44 @@ class NativeReviewTests(ProjectCase):
         with self.assertRaises(ValueError): native_review_proof(self.project, parent, child, backend=backend)
 
     def test_significant_risk_cannot_finish_with_one_independent_aa(self):
-        self.valid_analysis()
+        self.valid_review_analysis()
         flow.resume(self.project, 'quota')
         self.put_project('ꘖ/KB/Evidence/init.json', '{}')
         self.put_project('ꘖ/KB/Evidence/research.json', '{}')
         flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init.json'])
         flow.complete_stage(self.project, 'research', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/research.json'])
         flow.complete_stage(self.project, 'analysis', ['ꘖ/project.json'], ['ꘖ/KB/Analysis.json'])
-        package = flow.prepare_review(self.project, str(uuid.uuid4()), 'significant')
+        package = self.review_package(str(uuid.uuid4()), risk='significant')
         home, backend, parent, child = self.native_fixture(package)
         with patch.object(Path, 'home', return_value=home):
             native = native_review_proof(self.project, parent, child)
-            report = {'result': 'approved', 'scope': [*SECTIONS, 'kb_consistency'], 'findings': [], 'native_evidence': native['proof'], 'package': package['package']}
+            report = self.review_report(package)
             self.put_project('ꘖ/KB/Evidence/Reviews/significant.json', json.dumps(report))
-            flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/significant.json', parent_id=parent, reviewer_id=child)
+            flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/significant.json', parent_id=parent, reviewer_id=child, native_evidence=native['proof'])
             with self.assertRaises(ValueError):
                 flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/significant.json'])
 
     def test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context(self):
-        value = self.valid_analysis()
+        value = self.valid_review_analysis()
         publish_owned(self.project / 'ꘖ/KB/Analysis.md', render_analysis(value))
         flow.resume(self.project, 'quota', 'Продолжай анализ.')
         self.put_project('ꘖ/KB/Evidence/init-check.json', '{}')
         self.put_project('ꘖ/KB/Evidence/research-report.json', '{}')
         flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init-check.json'])
         flow.complete_stage(self.project, 'research', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/research-report.json'])
-        flow.complete_stage(self.project, 'analysis', ['ꘖ/KB/Evidence/client.json'], ['ꘖ/KB/Analysis.json', 'ꘖ/KB/Analysis.md'])
+        flow.complete_stage(self.project, 'analysis', ['ꘖ/project.json'], ['ꘖ/KB/Analysis.json', 'ꘖ/KB/Analysis.md'])
         with self.assertRaises(ValueError): flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Analysis.md'])
-        package = flow.prepare_review(self.project, str(uuid.uuid4()))
+        package = self.review_package(str(uuid.uuid4()), response='Final response exactly as saved: Client task')
         home, backend, parent, child = self.native_fixture(package)
         with patch.object(Path, 'home', return_value=home):
             native = native_review_proof(self.project, parent, child)
-            report = {'result': 'approved', 'scope': [*SECTIONS, 'kb_consistency'], 'findings': [], 'native_evidence': native['proof'], 'package': package['package']}
+            report = self.review_report(package)
             self.put_project('ꘖ/KB/Evidence/Reviews/report.json', json.dumps(report))
-            flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/report.json', parent_id=parent, reviewer_id=child)
+            flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/report.json', parent_id=parent, reviewer_id=child, native_evidence=native['proof'])
             flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/report.json'])
             flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.md'], note='Reviewed contradictions and missing evidence in the present KB')
             journal = self.project / 'ꙮ/1 - Анализ'
-            record_step(journal, 'Продолжай анализ.', 'Final response exactly as saved')
+            flow.record_current_answer(self.project, 'Final response exactly as saved: Client task')
             flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/1 - Анализ/res/1.md'])
             self.assertTrue(all(x == 'complete' for x in flow.status(self.project)['stages'].values()))
             context = (self.project / 'ꙮ/0/Context.md').read_text(encoding='utf-8')

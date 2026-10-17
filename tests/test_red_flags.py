@@ -8,6 +8,7 @@ import unittest
 
 from test_agent_tools import TemporaryCase
 from test_onboarding import analysis, claim
+from test_evidence_contract import v3_analysis
 from agent_tools.analysis import analysis_issues, publish_analysis, render_analysis
 from agent_tools.red_flags import START, END, sync_project_red_flags
 
@@ -29,6 +30,7 @@ class RedFlagTests(TemporaryCase):
             {'id': 'RF-WEBSITE-UNIDENTIFIED', 'status': 'unresolved',
              'summary': 'Research did not establish the target checkout; the client must supply its URL.', 'basis_ids': ['H-SITE-1']},
         ]
+        self.value = v3_analysis(self.root, self.value)
         self.source = self.put('ꘖ/KB/Analysis.json', json.dumps(self.value, ensure_ascii=False))
 
     def test_both_risks_precede_technical_analysis_and_are_duplicated_in_card(self):
@@ -174,8 +176,9 @@ class RedFlagTests(TemporaryCase):
 
     def test_standalone_input_never_updates_project_card(self):
         standalone = self.put('standalone.json', json.dumps(self.value))
-        result = publish_analysis(standalone)
-        self.assertNotIn('project_card', result)
+        with self.assertRaisesRegex(ValueError, 'project ꘖ/KB/Analysis.json'):
+            publish_analysis(standalone)
+        self.assertFalse(standalone.with_suffix('.md').exists())
         self.assertEqual(self.card.read_bytes(), self.original)
 
     def test_both_cli_entrypoints_sync_card_and_return_conflicts(self):

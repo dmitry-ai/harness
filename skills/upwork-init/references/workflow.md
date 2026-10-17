@@ -4,6 +4,7 @@
 Добавляй `--platform codex` или `--platform antigravity`; в Codex профиль определяется по CODEX_HOME либо явно через --codex-profile.
 `<проект>` — точный существующий корень текущей вакансии, не общая папка code/daily и не другой проект.
 Candidate/spec/plan/answer передавай как UTF-8 через stdin (`-`), без промежуточного файла или скрипта в проекте. Если файл нужен для восстановления, используй `ꘖ/data/scratch` и `--consume-input`: успешная проверенная фиксация удаляет неизменившийся вход, ошибка/конфликт сохраняет его. План collect остаётся целиком в provenance публикации.
+Если команда принимает и spec, и response-file, stdin используется только для одного из них; второй точный вход сохраняется в ꘖ/data/scratch и обрабатывается с той же проверкой/consume-input.
 Все записи доказательств — в `ꘖ/KB/Evidence`, служебное состояние — в `ꘖ/data`; ручная KB сохраняется.
 
 ## Продолжение
@@ -54,14 +55,14 @@ python <инструмент> stage <проект> identity_init --input "ꘖ/pr
 
 Сохрани фактическое подтверждение в указанном выходе; не сочиняй результат для квитанции.
 `research` требует закрытых вопросов/зафиксированных пробелов; `analysis` — текущих KB/доказательств; дальнейшие этапы — текущей предметной проверки A.A.
-В рутинном случае основной A.A сохраняет отчёт `review_kind: self_review` с package/scope/result/findings, а record-review получает одинаковые --parent и --reviewer текущего чата.
+В обоснованном рутинном случае основной A.A сохраняет отчёт schema_version 2 с review_kind self_review, проверкой ответа и каждого его тезиса; record-review получает одинаковые --parent и --reviewer текущего чата.
 Такая самопроверка не является независимой; для significant нужны два независимых A.A.
 Если вход/результат поменялся, запись считается устаревшей, а прежние файлы и квитанции сохраняются.
 Сбой между публикациями не означает завершения; атомарные записи и текущие хеши позволяют повторить только незавершённую операцию.
 
 ## Вопрос и владелец
 
-Спецификация — JSON с `id`, `question`, `impact`, `done_when`, `inputs`, `outputs`.
+Спецификация — JSON с `id`, `question`, `impact`, `done_when`, `inputs`, `outputs`, `requirements` по [контракту опытов](evidence-contract.md#план-до-результата).
 Входы должны существовать; результаты — точные разрешённые файлы в `ꘖ`.
 Пример — [question.example.json](question.example.json); адаптируй фактические пути/вопрос к задаче.
 
@@ -69,12 +70,18 @@ python <инструмент> stage <проект> identity_init --input "ꘖ/pr
 python <инструмент> question-add <проект> --spec -
 python <инструмент> question-claim <проект> Q-SITE --owner <наблюдаемый ID исполнителя>
 python <инструмент> question-search <проект> Q-SITE --owner <ID> --query "точный запрос" --useful
-python <инструмент> question-finish <проект> Q-SITE --owner <ID> --output "ꘖ/KB/Evidence/site-report.json"
+python <инструмент> prepare-experiment <проект> --spec <JSON одного requirement>
+python <инструмент> record-experiment <проект> --spec <JSON фактического опыта>
+python <инструмент> question-finish <проект> Q-SITE --owner <ID> --output "ꘖ/KB/Evidence/site-report.json" --results <JSON результатов>
 ```
 
 Владельца проверяют по текущему native UI-прогрессу; строка owner не является ОС-аутентификацией.
 После трёх пустых поисков сначала верни пробел или обоснуй `--method-change`; журнал поисков не перехватывает встроенный search_web, агент соблюдает этот порядок.
 Пробел закрывается сохранённым отчётом и `--gap "что не проверено и почему"`, не выдуманным подтверждением.
+Результаты — по одному на requirement: requirement_id, status, experiment (ссылка на неизменяемый run), а для unverified/unavailable также limitation.
+План фиксируется до нового наблюдения; record-experiment связывает plan/plan_sha256, требование и первичные артефакты, сравнивая исход с заранее заданными критериями.
+Изменённый тест регистрируй prepare-experiment с --amendment-of и --amendment-reason; новый вердикт требует новых измерений, старый сохраняется.
+Шаги, сырой вывод и вердикт различаются; фактически опровергнутый или неопределённый исход не заменяется желаемым verified.
 Для остановленного исполнителя используй question-handoff с прежним/новым ID и фактической причиной, проверив UI; не забирай живое задание молча.
 Сборщик пишет только разрешённый отчёт; хранилище HTTP-наблюдений управляется инструментом под отдельными блокировками.
 
@@ -90,7 +97,8 @@ python <инструмент> source-ref <проект> "Evidence/данные.j
 
 [collection.example.json](collection.example.json) задаёт requests: URL, профиль (`html`, `shopify`, `tracking`, `document`), scope, при необходимости headers/max_age/refresh_reason.
 URL-фрагмент относится к адресу цитаты, а не к отдельному HTTP-запросу.
-Различающиеся параметры URL, headers и scope разделяют наблюдения; секретные значения headers в метаданные не записываются.
+Различающиеся URL, headers, scope и context разделяют наблюдения; context хранит отпечаток сессии/состояния, выбранный рынок и условия подключения, без cookies или секретов.
+Указанный context не доказывает Incognito или страну egress; для этого нужны фактические измерения в том же контексте.
 По умолчанию ответ используется до 24 часов, ошибочное наблюдение — до 5 минут; всегда учитывай observed_at и нужную актуальность.
 `refresh_reason` создаёт отдельное измерение; прежнее не заменяется.
 Сохранённый HTTP 403/404 — полученный результат; не повторяй его вслепую.
@@ -110,12 +118,14 @@ DOM-наблюдение хранится отдельно и не припис�
 
 ## Анализ и проверка
 
-Канонический контракт проверяет analysis.py; совместимы legacy version 1 и schema_version 2.
-Пример структуры — [analysis.example.json](analysis.example.json), данные — [example-source.json](example-source.json); оба учебные, не факты реального клиента.
-`for` содержит реальные доводы с источником и цитатой; `against` — доводы либо документированное counterevidence.
+Канонический новый контракт schema_version 3 проверяют analysis.py, claims.py и evidence.py; версии 1/2 остаются читаемыми для диагностики и восстановления.
+Новые save-analysis/render-analysis требуют v3 и первичные основания; автоматического повышения legacy-тезисов до verified нет.
+Структура, источники и ограниченные результаты — в [контракте](evidence-contract.md), проверяемый пример — [analysis.example.json](analysis.example.json).
+`for` содержит argument и версионный claim_id либо собственный evidence_id; `against` — доводы либо документированное counterevidence.
 Counterevidence: status not_found/unavailable, reviewed_sources, limitations.
 Заявление not_found после недоступного источника неверно; укажи unavailable.
-Источник можно повторно использовать через sources/source_id; иначе аргумент содержит source.
+Первичные source/quote/hash/locator хранятся в evidence; ссылкой на собственный Markdown источник не заменяется.
+sources/source_id остаются читаемыми в legacy; в v3 переиспользуй F и derived_from с точным claim_digest.
 JSON pointers экранирует source-ref; цитата сверяется именно с указанным фрагментом.
 По умолчанию цитата точная; `quote_match: whitespace` явно допускает только канонизацию пробельных символов, не слов/чисел/пунктуации.
 Documentation без anchor требует anchor_exception: section + observation; проверяются существование раздела, отсутствие подходящего anchor и цитата в разделе.
@@ -182,27 +192,44 @@ ID тезисов в примере замени на фактические; д
 ## Независимая рецензия
 
 ```text
-python <инструмент> prepare-review <проект> --parent <UUID родителя> --risk routine
+python <инструмент> prepare-review <проект> --parent <UUID родителя> --spec <review JSON> --response-file <точный кандидат>
 ```
 
-Для значимого спорного вывода/архитектуры выбирай significant; нужно два независимых A.A.
+Спецификация содержит risk, basis, request_scope, task_flags, claim_ids и claims; пример — [review.example.json](review.example.json).
+Каждый элемент claims указывает claim_id, точный response_excerpt и novelty new/restatement.
+Для аналитического ответа claims и claim_ids непусты; полноту карты существенных утверждений предметно проверяет аудитор. Служебное сообщение о ходе работы записывается обычным record_step и не получает аналитический допуск через пустую карту.
+task_flags: new_causal_analysis, architecture_change, pricing_change, admin_configuration, business_impact, material_analysis; пустой список допустим для обоснованной рутинной задачи.
+Минимальная категория пересчитывается по новым типизированным тезисам; routine не обходит значимые причины, настройки, архитектурные и ценовые изменения.
+restatement требует ранее одобренной неизменившейся версии тезиса и доказательств; significant требует двух независимых A.A.
 Используй штатный инструмент делегирования по адаптеру среды: в Antigravity invoke_subagent с TypeName self/Model inherit, в Codex spawn_agent с ролью A.A и моделью/effort по выбору родителя.
-Передай точный корень и полный путь package из результата; пакет неизменяем и связан с текущими хешами KB, первичных Evidence и ручных входов.
+Передай точный корень и полный путь package из результата; пакет v2 связывает текущие запросы, точные байты ответа, карту тезисов, KB, первичные Evidence и ручные входы.
 В Codex аудитор сначала выполняет `review-input <проект> --package <путь> --platform codex` и выводит полный JSON инструмента; квитанция нативного выполнения связывает его с конкретным пакетом при зашифрованном назначении.
-Передай goal: проверить пять этапов, первичные доказательства, альтернативы и непротиворечивость KB.
+Передай goal: проверить пять этапов, первичные доказательства, альтернативы, непротиворечивость KB и точный ответ, включая полноту карты его существенных тезисов.
 Не передавай рецензенту намеренный вывод и отчёт другого рецензента.
-Его отдельный JSON-отчёт содержит package, scope всех пяти этапов + kb_consistency, result approved/needs_changes, findings.
-Каждое замечание хранит claim_id, severity, status open/resolved/rejected, disposition и evidence; перед approved существенные замечания обработаны с доказательствами.
+Независимый аудитор возвращает окончательным нативным сообщением исходный JSON schema_version 2: package, package_sha256, scope (пять этапов + kb_consistency + response), result approved/needs_changes, claim_reviews, findings.
+По каждому тезису claim_reviews содержит claim_id, observed, inferred, method, alternatives, limits, falsification, raw_vs_criteria и outcome supported/qualified/unsupported.
+Обязательный test_alignment содержит target_claim (точная essence тезиса), tested_claim, relationship direct/proxy/irrelevant, rationale и counterexample.
+Proxy допускает только qualified с видимым ограничением; irrelevant требует unsupported, который не допускает approved.
+Предметно проверь саму классификацию: наличие строковых полей не доказывает, что тест проверяет весь исходный тезис.
+Для qualified обязательный response_qualification должен дословно присутствовать в проверяемом ответе.
+falsification оценивает, мог ли тест опровергнуть тезис; raw_vs_criteria сопоставляет сырой результат с заранее зафиксированными критериями, а не желаемым выводом.
+Замечание содержит id, claim_ids, severity minor/significant/critical, description, status open/resolved/rejected; обработка содержит disposition и evidence.
+needs_changes/open сохраняются и блокируют завершение; родительский disposition не превращает исходный вердикт аудитора в approved.
 После исправления KB нужен пакет/рецензия соответствующей версии; рецензент проверяет затронутое, повторный весь сбор не обязателен.
+Чтобы новый независимый одобренный отчёт явно обработал прежний needs_changes другого аудитора, он содержит addresses_reviews: review_id, basis и evidence; родительский JSON или смена названия пакета прежний отказ не снимают.
+Смена родительского чата также не снимает отказ по тем же запросам, ответу и основаниям; нативное происхождение каждой новой рецензии проверяется отдельно.
 
 ```text
 python <инструмент> native-review-proof <проект> --parent <UUID> --reviewer <UUID дочернего A.A>
-python <инструмент> record-review <проект> --parent <UUID> --reviewer <UUID дочернего A.A> --report "ꘖ/KB/Evidence/Reviews/review.json"
+python <инструмент> record-review <проект> --parent <UUID> --reviewer <UUID дочернего A.A> --report <исходный JSON аудитора> --native-evidence <proof из предыдущей команды>
+python <инструмент> review-disposition <проект> --parent <UUID> --review-id <ID рецензии> --finding-id <ID замечания> --status resolved --basis <основание> --evidence <первичное доказательство>
 ```
 
-В отчёте native_evidence ссылается на proof (путь относительно проекта).
+Нативная квитанция создаётся после окончания аудитора и передаётся отдельно: исходный вердикт не может ссылаться на будущее подтверждение своего завершения.
+Содержимое отчёта сверяется с нативным окончательным сообщением дочернего A.A; записи вердикта и обработки замечаний неизменяемы и не используют повторно перезаписываемый self-review.json.
 Proof берётся из нативных данных выбранной среды: подтверждённая связь родителя с отдельным A.A, его назначение, выбор модели и успешное завершение. Незавершённый исполнитель или работа без назначения рецензии не считаются аудитом A.A.
-Codex сверяет фактические model/effort с нативным spawn_agent родителя; Antigravity сохраняет проверку self/inherit и доступных ID моделей. Точная версия/High Antigravity могут остаться непроверенными.
+Codex сверяет фактические model/effort с нативным spawn_agent родителя; Antigravity читает доступные generation/executor metadata и конфигурацию. Неизвестные version/effort остаются unverified.
+native-executor-metadata <проект> --conversation <UUID> --role primary|AA|AF [--parent <UUID>] [--save] показывает requested/observed, источники и статус; --save сохраняет неизменяемый снимок.
 Смысл рецензии и источников проверяет A.A; программная квитанция этого не доказывает.
 
 ## Журнал, внешний экспорт и метрики
@@ -213,6 +240,7 @@ python <инструмент> stage <проект> finalize --input "ꘖ/KB/Anal
 ```
 
 record-answer связывает все ещё не записанные точные запросы с одним реальным окончательным ответом, сохраняет полные пары и явную группу общего ответа.
+Записываются только точные байты одобренного кандидата; иной ответ требует нового пакета даже при неизменной KB.
 Доставка сообщения в UI не считается подтверждённой записью файлов; публикуй в чате ровно сохранённый ответ.
 Ответ после сбоя публикации восстанавливается из сохранившейся группы, без вымышленного промежуточного сообщения.
 Полный Context.md собирается после текущей предметной проверки/проверки KB и журнала и передаётся внешнему агенту вручную.

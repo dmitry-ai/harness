@@ -4,12 +4,20 @@
       "url": "https://example.invalid/",
       "profile": "html",
       "scope": "public",
-      "max_age": 86400
+      "max_age": 86400,
+      "context": {
+        "session": {"mode": "unknown", "verification": "unverified"},
+        "egress": {"country": null, "verification": "unverified"}
+      }
     },
     {
       "url": "https://example.invalid/products/sample.json",
       "profile": "shopify",
       "scope": "public",
+      "context": {
+        "session": {"mode": "unknown", "verification": "unverified"},
+        "egress": {"country": null, "verification": "unverified"}
+      },
       "max_age": 86400
     }
   ]

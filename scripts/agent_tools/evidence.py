@@ -148,6 +148,8 @@ def contains_quote(text, quote, mode='exact'):
 
 
 def evidence_issues(root, value):
+    if not isinstance(value, dict):
+        return [problem('analysis.object', '/', 'Analysis must be a JSON object')]
     issues = []
     for ident, field, argument, source in iter_arguments(value):
         if not isinstance(source, str) or not isinstance(argument.get('quote'), str):
@@ -218,6 +220,8 @@ def evidence_issues(root, value):
                             raise FileNotFoundError(source)
                 except (OSError, ValueError, KeyError, TypeError) as exc:
                     issues.append(problem('counterevidence.unconfirmed', f'/{section}/{index}/counterevidence', str(exc), claim_id=claim.get('id')))
+    from .claims import evidence_contract_issues
+    issues.extend(evidence_contract_issues(root, value))
     return issues
 
 

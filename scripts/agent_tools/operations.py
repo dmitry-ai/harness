@@ -6,7 +6,7 @@ import sys
 
 COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage',
             'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search',
-            'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis')
+            'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis')
 
 
 def add_parsers(sub):
@@ -29,7 +29,7 @@ def add_parsers(sub):
             parser.add_argument('--output', type=Path)
             continue
         parser.add_argument('project', type=Path, help='Exact existing project root from the current chat')
-        if command in ('record-answer', 'save-analysis', 'collect', 'question-add', 'sync-attachments'):
+        if command in ('record-answer', 'save-analysis', 'collect', 'question-add', 'sync-attachments', 'prepare-review', 'record-review', 'prepare-experiment', 'record-experiment'):
             parser.add_argument('--consume-input', action='store_true', help='After success remove an unchanged input only from project ꘖ/data/scratch; use - for stdin')
         if command == 'resume':
             parser.add_argument('--reason', required=True)
@@ -74,13 +74,15 @@ def add_parsers(sub):
             if command == 'question-finish':
                 parser.add_argument('--output', action='append', required=True)
                 parser.add_argument('--gap')
+                parser.add_argument('--results', required=True, type=Path, help='Structured experiment result list JSON; use - for stdin')
             elif command == 'question-search':
                 parser.add_argument('--query', required=True)
                 parser.add_argument('--useful', action='store_true')
                 parser.add_argument('--method-change')
         elif command == 'prepare-review':
             parser.add_argument('--parent', required=True)
-            parser.add_argument('--risk', choices=('routine', 'significant'), default='routine')
+            parser.add_argument('--spec', required=True, type=Path, help='Explicit risk/basis/request_scope/claim_ids/claims JSON')
+            parser.add_argument('--response-file', required=True, type=Path, help='Exact candidate response; use - for stdin')
         elif command == 'review-input':
             parser.add_argument('--package', required=True)
         elif command in ('native-review-proof', 'record-review'):
@@ -88,7 +90,25 @@ def add_parsers(sub):
             parser.add_argument('--reviewer', required=True)
             if command == 'record-review':
                 parser.add_argument('--report', required=True)
-                parser.add_argument('--risk', choices=('routine', 'significant'), default='routine')
+                parser.add_argument('--native-evidence', help='Separate native proof from the completed reviewer')
+        elif command == 'review-disposition':
+            parser.add_argument('--review-id', required=True)
+            parser.add_argument('--finding-id', required=True)
+            parser.add_argument('--status', choices=('resolved', 'rejected'), required=True)
+            parser.add_argument('--basis', required=True)
+            parser.add_argument('--evidence', action='append', required=True)
+            parser.add_argument('--parent', required=True)
+        elif command == 'record-experiment':
+            parser.add_argument('--spec', required=True, type=Path)
+        elif command == 'prepare-experiment':
+            parser.add_argument('--spec', required=True, type=Path)
+            parser.add_argument('--amendment-of')
+            parser.add_argument('--amendment-reason')
+        elif command == 'native-executor-metadata':
+            parser.add_argument('--conversation', required=True)
+            parser.add_argument('--save', action='store_true', help='Persist immutable native metadata; default is read-only')
+            parser.add_argument('--role', choices=('primary', 'AA', 'AF'), default='primary')
+            parser.add_argument('--parent')
         elif command == 'source-ref':
             parser.add_argument('file')
             parser.add_argument('--part', action='append', default=[])
@@ -138,7 +158,7 @@ def execute(args):
     if command == 'status':
         return flow.status(args.project)
     if command == 'resume':
-        request = args.request_file.read_bytes().decode('utf-8') if args.request_file else None
+        request = _read_input(args.request_file).decode('utf-8') if args.request_file else None
         return flow.resume(args.project, args.reason, request)
     if command == 'check-project':
         return flow.check_project(args.project)
@@ -196,12 +216,12 @@ def execute(args):
     if command == 'question-add':
         payload = _operation_input(args, args.spec)
         spec = json.loads(payload.decode('utf-8-sig'))
-        result = flow.add_question(args.project, spec['id'], spec['question'], spec['impact'], spec['done_when'], spec['inputs'], spec['outputs'])
+        result = flow.add_question(args.project, spec['id'], spec['question'], spec['impact'], spec['done_when'], spec['inputs'], spec['outputs'], requirements=spec.get('requirements'))
         return _consumed(args, args.spec, payload, result)
     if command == 'question-claim':
         return flow.claim_question(args.project, args.id, args.owner)
     if command == 'question-finish':
-        return flow.finish_question(args.project, args.id, args.owner, args.output, args.gap)
+        return flow.finish_question(args.project, args.id, args.owner, args.output, args.gap, results=json.loads(_read_input(args.results).decode('utf-8-sig')))
     if command == 'question-handoff':
         return flow.handoff(args.project, args.id, args.previous_owner, args.new_owner, args.reason)
     if command == 'question-search':
@@ -210,11 +230,36 @@ def execute(args):
         from .metrics import native_review_proof
         return native_review_proof(args.project, args.parent, args.reviewer)
     if command == 'prepare-review':
-        return flow.prepare_review(args.project, args.parent, args.risk)
+        if str(args.spec) == '-' and str(args.response_file) == '-':
+            raise ValueError('Only one prepare-review input may use stdin')
+        spec_payload = _operation_input(args, args.spec)
+        payload = _operation_input(args, args.response_file)
+        result = flow.prepare_review(args.project, args.parent, json.loads(spec_payload.decode('utf-8-sig')), payload.decode('utf-8'))
+        result = _consumed(args, args.spec, spec_payload, result)
+        return _consumed(args, args.response_file, payload, result)
     if command == 'review-input':
         return flow.review_input(args.project, args.package)
     if command == 'record-review':
-        return flow.record_review(args.project, args.report, parent_id=args.parent, reviewer_id=args.reviewer, risk=args.risk)
+        payload = _operation_input(args, args.report)
+        result = flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence)
+        return _consumed(args, args.report, payload, result)
+    if command == 'review-disposition':
+        return flow.record_review_disposition(args.project, args.review_id, args.finding_id, args.status, args.basis, args.evidence, args.parent)
+    if command == 'record-experiment':
+        from .experiments import record_experiment
+        payload = _operation_input(args, args.spec)
+        result = record_experiment(args.project, json.loads(payload.decode('utf-8-sig')))
+        return _consumed(args, args.spec, payload, result)
+    if command == 'prepare-experiment':
+        from .experiments import prepare_experiment
+        payload = _operation_input(args, args.spec)
+        result = prepare_experiment(args.project, json.loads(payload.decode('utf-8-sig')),
+            amendment_of=args.amendment_of, amendment_reason=args.amendment_reason)
+        return _consumed(args, args.spec, payload, result)
+    if command == 'native-executor-metadata':
+        from .metrics import native_executor_metadata, record_executor_metadata
+        callback = record_executor_metadata if args.save else native_executor_metadata
+        return callback(args.project, args.conversation, role=args.role, parent_id=args.parent)
     if command == 'metrics':
         from .metrics import summarize
         bindings = json.loads(args.bindings.read_text(encoding='utf-8')) if args.bindings else None

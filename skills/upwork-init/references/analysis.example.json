@@ -1,59 +1,204 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "websites": [
-    {"url": "https://example.invalid/", "role": "target", "basis_id": "H-SITE-1"}
+    {
+      "url": "https://example.invalid/",
+      "role": "target",
+      "basis_id": "H-SITE-1"
+    }
   ],
-  "sources": {
-    "client_statement": "Evidence/example-source.json#/client_statement",
-    "identity": "Evidence/example-source.json#/identity",
-    "identity_limit": "Evidence/example-source.json#/identity_limit",
-    "observation": "Evidence/example-source.json#/observation",
-    "alternative": "Evidence/example-source.json#/alternative",
-    "method": "Evidence/example-source.json#/method",
-    "method_limit": "Evidence/example-source.json#/method_limit",
-    "limitations": "Evidence/example-source.json#/limitations"
-  },
+  "red_flags": [],
+  "facts": [
+    {
+      "id": "F-CLIENT-REPORT",
+      "essence": "Учебный клиент сообщает, что после изменения цены товара объявления показывают старую цену.",
+      "knowledge_type": "client_report",
+      "verification_status": "verified",
+      "scope": {
+        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "sample": [
+          "https://example.invalid/source.json"
+        ],
+        "limitations": [
+          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+        ]
+      },
+      "properties": [
+        "content"
+      ],
+      "materiality": "routine",
+      "novelty": "new",
+      "category": "descriptive",
+      "derived_from": [],
+      "evidence": [
+        {
+          "id": "E-CLIENT-STATEMENT",
+          "kind": "observation",
+          "source": "https://example.invalid/source.json",
+          "observation": "Evidence/Examples/observation.json",
+          "source_sha256": "be470a3a286da2925bd045d7c961fa99b71527b62eaac79455edbfeef73d8ac3",
+          "quote": "Учебный клиент сообщает, что после изменения цены товара объявления показывают старую цену.",
+          "locator": {
+            "type": "json_pointer",
+            "value": "/client_statement"
+          }
+        }
+      ],
+      "missing_checks": [],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "impact": {
+        "severity": "unknown",
+        "basis": "Коммерческий ущерб не измерялся.",
+        "evidence_claim_ids": []
+      }
+    },
+    {
+      "id": "F-SITE-REPORT",
+      "essence": "Учебный клиент называет example.invalid своим магазином.",
+      "knowledge_type": "client_report",
+      "verification_status": "verified",
+      "scope": {
+        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "sample": [
+          "https://example.invalid/source.json"
+        ],
+        "limitations": [
+          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+        ]
+      },
+      "properties": [
+        "content"
+      ],
+      "materiality": "routine",
+      "novelty": "new",
+      "category": "descriptive",
+      "derived_from": [],
+      "evidence": [
+        {
+          "id": "E-IDENTITY",
+          "kind": "observation",
+          "source": "https://example.invalid/source.json",
+          "observation": "Evidence/Examples/observation.json",
+          "source_sha256": "be470a3a286da2925bd045d7c961fa99b71527b62eaac79455edbfeef73d8ac3",
+          "quote": "Учебный клиент называет example.invalid своим магазином.",
+          "locator": {
+            "type": "json_pointer",
+            "value": "/identity"
+          }
+        }
+      ],
+      "missing_checks": [],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "impact": {
+        "severity": "unknown",
+        "basis": "Коммерческий ущерб не измерялся.",
+        "evidence_claim_ids": []
+      }
+    }
+  ],
   "identity": [
     {
       "id": "H-SITE-1",
       "essence": "Гипотеза: example.invalid принадлежит учебному клиенту.",
+      "knowledge_type": "hypothesis",
+      "verification_status": "limited",
+      "scope": {
+        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "sample": [
+          "https://example.invalid/source.json"
+        ],
+        "limitations": [
+          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+        ]
+      },
+      "properties": [
+        "content"
+      ],
+      "materiality": "routine",
+      "novelty": "new",
+      "category": "descriptive",
+      "derived_from": [
+        {
+          "claim_id": "F-SITE-REPORT",
+          "sha256": "552c815d8b2755df4f236e671fdc6fa69b5cf8468dedd57c409f806f17251ce1"
+        }
+      ],
+      "evidence": [],
+      "missing_checks": [
+        "Нужна отдельная проверка на первичных данных клиента."
+      ],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "impact": {
+        "severity": "unknown",
+        "basis": "Коммерческий ущерб не измерялся.",
+        "evidence_claim_ids": []
+      },
       "for": [
         {
-          "argument": "Прямое заявление клиента.",
-          "source_id": "identity",
-          "quote": "Учебный клиент называет example.invalid своим магазином."
+          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "claim_id": "F-SITE-REPORT"
         }
       ],
-      "against": [
-        {
-          "argument": "Независимое подтверждение отсутствует.",
-          "source_id": "identity_limit",
-          "quote": "Принадлежность домена не проверена независимыми данными."
-        }
-      ],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
+      "against": [],
+      "counterevidence": {
+        "status": "unavailable",
+        "reviewed_sources": [
+          "Evidence/Examples/observation.json"
+        ],
+        "limitations": "Независимая проверка клиента и административных источников недоступна."
+      },
       "probability_percent": 70
     }
   ],
   "concerns": [
     {
       "id": "H-CONCERN-1",
-      "essence": "Клиент обеспокоен расхождением цены в магазине и объявлениях.",
+      "essence": "Клиент сообщает о расхождении цены в магазине и объявлениях.",
+      "knowledge_type": "client_report",
+      "verification_status": "verified",
+      "scope": {
+        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "sample": [
+          "https://example.invalid/source.json"
+        ],
+        "limitations": [
+          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+        ]
+      },
+      "properties": [
+        "content"
+      ],
+      "materiality": "routine",
+      "novelty": "new",
+      "category": "descriptive",
+      "derived_from": [
+        {
+          "claim_id": "F-CLIENT-REPORT",
+          "sha256": "743b7525461a19d2ce55ca8c172446145305ed49da02003814d11d12f59ec590"
+        }
+      ],
+      "evidence": [],
+      "missing_checks": [],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "impact": {
+        "severity": "unknown",
+        "basis": "Коммерческий ущерб не измерялся.",
+        "evidence_claim_ids": []
+      },
       "for": [
         {
-          "argument": "Беспокойство прямо сформулировано.",
-          "source_id": "client_statement",
-          "quote": "Учебный клиент сообщает, что после изменения цены товара объявления показывают старую цену."
+          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "claim_id": "F-CLIENT-REPORT"
         }
       ],
-      "against": [
-        {
-          "argument": "Нельзя оценить длительность и причину расхождения.",
-          "source_id": "alternative",
-          "quote": "Время последнего обновления feed неизвестно."
-        }
-      ],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
+      "against": [],
+      "counterevidence": {
+        "status": "unavailable",
+        "reviewed_sources": [
+          "Evidence/Examples/observation.json"
+        ],
+        "limitations": "Независимая проверка клиента и административных источников недоступна."
+      },
       "probability_percent": 90
     }
   ],
@@ -61,53 +206,134 @@
   "causes": [
     {
       "id": "H-CAUSE-1",
-      "essence": "Возможная причина: feed ещё не обновился после изменения цены.",
+      "essence": "Возможная причина: источник объявлений ещё не обновился после изменения цены.",
+      "knowledge_type": "hypothesis",
+      "verification_status": "limited",
+      "scope": {
+        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "sample": [
+          "https://example.invalid/source.json"
+        ],
+        "limitations": [
+          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+        ]
+      },
+      "properties": [
+        "causality"
+      ],
+      "materiality": "significant",
+      "novelty": "new",
+      "category": "causal",
+      "derived_from": [
+        {
+          "claim_id": "F-CLIENT-REPORT",
+          "sha256": "743b7525461a19d2ce55ca8c172446145305ed49da02003814d11d12f59ec590"
+        },
+        {
+          "claim_id": "H-CONCERN-1",
+          "sha256": "4d73ee8bbf3d9af27eb05cce6820cef3b68f08168642b6bc53f17ff7ef24e947"
+        }
+      ],
+      "evidence": [],
+      "missing_checks": [
+        "Нужна отдельная проверка на первичных данных клиента."
+      ],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "impact": {
+        "severity": "unknown",
+        "basis": "Коммерческий ущерб не измерялся.",
+        "evidence_claim_ids": []
+      },
       "for": [
         {
-          "argument": "В снимках есть расхождение, совместимое с задержкой.",
-          "source_id": "observation",
-          "quote": "В учебном снимке JSON товара цена 25.97, а в учебной выгрузке feed — 24.97."
+          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "claim_id": "F-CLIENT-REPORT"
         }
       ],
       "against": [],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
-      "probability_percent": 55,
-      "addresses": [
-        "H-CONCERN-1"
-      ],
       "counterevidence": {
         "status": "unavailable",
         "reviewed_sources": [
-          "Evidence/example-source.json#/limitations"
+          "Evidence/Examples/observation.json"
         ],
-        "limitations": "Журналы и точное время обновления недоступны; расхождение не доказывает причинность. Гипотеза требует проверки."
-      }
+        "limitations": "Независимая проверка клиента и административных источников недоступна."
+      },
+      "probability_percent": 55,
+      "alternative_explanations": [
+        "Сопоставляются разные варианты товара.",
+        "Объявления используют другой источник цены."
+      ],
+      "discriminating_check": "Сопоставить один SKU и вариант, источник цены, временные метки и журнал обновлений.",
+      "addresses": [
+        "H-CONCERN-1"
+      ]
     }
   ],
   "methods": [
     {
       "id": "M-1",
-      "essence": "Сопоставить один SKU в feed и магазине, затем проверить обновление.",
+      "essence": "Сначала сопоставить один SKU, источник цены и время обновления.",
+      "knowledge_type": "recommendation",
+      "verification_status": "limited",
+      "scope": {
+        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "sample": [
+          "https://example.invalid/source.json"
+        ],
+        "limitations": [
+          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+        ]
+      },
+      "properties": [
+        "content"
+      ],
+      "materiality": "routine",
+      "novelty": "new",
+      "category": "descriptive",
+      "derived_from": [
+        {
+          "claim_id": "H-CAUSE-1",
+          "sha256": "ffd1334dae3d483c4ce23b30f1b02ce019cd44c6222de3d9e595a8b1d7023da3"
+        },
+        {
+          "claim_id": "H-CONCERN-1",
+          "sha256": "4d73ee8bbf3d9af27eb05cce6820cef3b68f08168642b6bc53f17ff7ef24e947"
+        }
+      ],
+      "evidence": [],
+      "missing_checks": [
+        "Нужна отдельная проверка на первичных данных клиента."
+      ],
+      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "impact": {
+        "severity": "unknown",
+        "basis": "Коммерческий ущерб не измерялся.",
+        "evidence_claim_ids": []
+      },
       "for": [
         {
-          "argument": "Проверка разделяет наблюдаемое расхождение и причину.",
-          "source_id": "method",
-          "quote": "Учебное условие: сначала сравнить один SKU, время обновления и источник цены."
+          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "claim_id": "H-CAUSE-1"
         }
       ],
-      "against": [
-        {
-          "argument": "Без доступа нельзя выполнить полное сопоставление.",
-          "source_id": "method_limit",
-          "quote": "Доступ к реальному feed и журналу синхронизации пока не предоставлен."
-        }
-      ],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность. Ограничения источников учитываются.",
+      "against": [],
+      "counterevidence": {
+        "status": "unavailable",
+        "reviewed_sources": [
+          "Evidence/Examples/observation.json"
+        ],
+        "limitations": "Независимая проверка клиента и административных источников недоступна."
+      },
       "score_percent": 75,
+      "criterion": "Пригодность как следующей проверки при авторизованном доступе",
       "addresses": [
         "H-CAUSE-1"
       ],
-      "criterion": "Пригодность как следующей проверки при доступе к нужным данным"
+      "applicability": [
+        "Доступны авторизованные выгрузки и время их формирования.",
+        "Сравниваются одинаковые SKU, варианты и период."
+      ],
+      "validation": "Зафиксировать совпадение или расхождение одного SKU; проверить, различают ли временные метки задержку и другой источник цены."
     }
   ],
   "notes": {

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "synthetic_fixture": true,
+  "kind": "http",
+  "url": "https://example.invalid/source.json",
+  "final_url": "https://example.invalid/source.json",
+  "method": "GET",
+  "observed_at": "2026-10-18T00:00:00+03:00",
+  "status": 200,
+  "http_status_verified": true,
+  "content_type": "application/json",
+  "charset": "utf-8",
+  "body_sha256": "be470a3a286da2925bd045d7c961fa99b71527b62eaac79455edbfeef73d8ac3",
+  "body_bytes": 1192,
+  "redirects": [],
+  "error": null,
+  "collector": "read-only-http",
+  "interaction_checked": false,
+  "conditions": {
+    "description": "Synthetic offline fixture; no request was made to example.invalid."
+  }
+}

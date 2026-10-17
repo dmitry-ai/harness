@@ -1,12 +1,40 @@
 {
   "id": "Q-SITE",
-  "question": "Каковы canonical URL и title сохранённой страницы?",
-  "impact": "Нужны для проверки идентификации, но не доказывают принадлежность сайта.",
-  "done_when": "Сохранены точные поля и наблюдение либо объяснён конкретный пробел.",
+  "question": "Явно ли источник помечает учебные данные как синтетические?",
+  "impact": "Учебные данные не должны становиться фактами реального клиента.",
+  "done_when": "До измерения сохранён план; исход сопоставлен с критерием или указан конкретный пробел.",
   "inputs": [
     "ꘖ/project.json"
   ],
   "outputs": [
     "ꘖ/KB/Evidence/site-report.json"
+  ],
+  "requirements": [
+    {
+      "id": "R-SYNTHETIC",
+      "claim": "Источник явно помечен как синтетический.",
+      "property": "content",
+      "method": "http",
+      "scope": {"objects": ["https://example.invalid/source.json"]},
+      "conditions": {
+        "session": {"mode": "unknown", "verification": "unverified"},
+        "egress": {"country": null, "verification": "unverified"}
+      },
+      "alternatives": ["Признак synthetic равен false.", "Поле отсутствует или источник недоступен."],
+      "expected": "Поле synthetic строго равно JSON true.",
+      "falsification": "Поле synthetic строго равно JSON false; отсутствие поля не считается опровержением.",
+      "discriminating_test": "Прочитать /synthetic из сырых байтов JSON и отличить true, false и отсутствие данных.",
+      "completion_criterion": "Записан фактический verified/refuted/unverified/unavailable с первичным артефактом и ограничениями.",
+      "assertions": [
+        {
+          "id": "A-SYNTHETIC",
+          "artifact_id": "response",
+          "locator": {"type": "json_pointer", "value": "/synthetic"},
+          "operator": "equals",
+          "expected": true,
+          "disconfirming": {"operator": "equals", "expected": false}
+        }
+      ]
+    }
   ]
 }

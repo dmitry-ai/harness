@@ -100,7 +100,24 @@ def project_metrics(root):
         reviews.append({'reviewer_id': review['reviewer_id'], 'independent': review.get('independent', True),
             'risk': review['risk'], 'result': report.get('result'),
             'findings': dict(Counter(f.get('status', 'unknown') for f in report.get('findings', [])))})
-    return {'collector': collector, 'questions': questions, 'reviews': reviews, 'stages': stage_statuses(root, state),
+    executors, executor_issues = [], []
+    registry = root / 'ꘖ/data/executors.json'
+    if registry.exists():
+        import hashlib
+        from .research import inside
+        try:
+            index = json.loads(registry.read_text(encoding='utf-8'))
+            for receipt in index.get('snapshots', []):
+                proof = inside(root, receipt['proof'])
+                if hashlib.sha256(proof.read_bytes()).hexdigest() != receipt['sha256']:
+                    raise ValueError('Executor metadata proof changed')
+                native = json.loads(proof.read_text(encoding='utf-8'))
+                executors.append({key: native.get(key) for key in
+                                  ('conversation_id', 'parent_id', 'role', 'surface', 'requested', 'observed', 'verification')})
+        except (OSError, ValueError, KeyError, TypeError):
+            executor_issues.append('Executor registry/snapshot is missing, invalid or changed; preserve and inspect')
+    return {'collector': collector, 'questions': questions, 'reviews': reviews, 'executors': executors,
+            'executor_issues': executor_issues, 'stages': stage_statuses(root, state),
             'semantic_quality_verified': False, 'unrecorded_activity': 'unknown'}
 
 
@@ -119,6 +136,62 @@ def verify_native_proof(root, native, package=None):
     if not isinstance(native, dict) or not native.get('surface'):
         raise ValueError('Native review proof must declare its actual surface')
     return adapter(surface=native.get('surface')).verify_native_proof(root, native, package=package)
+
+
+def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None,
+                             platform=None, backend=None, write=False):
+    """Read requested versus actual native metadata; runtime defaults are no evidence."""
+    from .platforms import adapter
+    if role not in ('primary', 'AA', 'AF'):
+        raise ValueError('Executor role must be primary, AA or AF')
+    result = adapter(platform).native_executor_metadata(root, conversation_id, role=role,
+                                                       parent_id=parent_id, backend=backend)
+    if write:
+        return _save_executor_metadata(root, result)
+    return result
+
+
+def _save_executor_metadata(root, result):
+    import hashlib
+    from .research import json_data
+    from .storage import create_bytes, locked, replace_bytes
+    root = Path(root).resolve()
+    payload = json_data(result)
+    sha = hashlib.sha256(payload).hexdigest()
+    target = root / 'ꘖ/KB/Evidence/Executors' / f'{result["conversation_id"]}-{sha}.json'
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists() and target.read_bytes() != payload:
+        raise ValueError('Immutable executor metadata changed')
+    if not target.exists(): create_bytes(target, payload)
+    receipt = {'proof': target.relative_to(root).as_posix(), 'sha256': sha,
+               'conversation_id': result['conversation_id'], 'role': result['role'],
+               'surface': result['surface'], 'verification': result['verification']}
+    index_file = root / 'ꘖ/data/executors.json'
+    with locked(index_file.with_suffix('.lock')):
+        index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {'schema_version': 1, 'snapshots': []}
+        if index.get('schema_version') != 1 or not isinstance(index.get('snapshots'), list):
+            raise ValueError('Unknown executor registry format; preserve and inspect')
+        if not any(item.get('sha256') == sha for item in index['snapshots']):
+            index['snapshots'].append(receipt)
+            replace_bytes(index_file, json_data(index))
+    return {**result, **receipt}
+
+
+def record_executor_metadata(root, conversation_id, *, role='primary', parent_id=None,
+                             platform=None, backend=None):
+    return native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id,
+                                    platform=platform, backend=backend, write=True)
+
+
+def native_tool_trace(root, request):
+    """Import selected real native tool calls/results, never caller-provided output."""
+    from .platforms import adapter
+    if not isinstance(request, dict) or not request.get('surface') or 'events' in request:
+        raise ValueError('Native trace needs a surface/session/selection; supplied events are not evidence')
+    allowed = {'surface', 'conversation_id', 'call_ids', 'step_indices', 'native_profile_home'}
+    if set(request) - allowed:
+        raise ValueError('Native trace accepts only exact native source selectors')
+    return adapter(surface=request['surface']).native_tool_trace(root, request)
 
 
 def wire_fields(data):

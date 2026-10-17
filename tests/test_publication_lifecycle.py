@@ -8,12 +8,18 @@ from unittest.mock import patch
 
 from test_analysis_workflow import ProjectCase
 from test_onboarding import claim, source
+from test_evidence_contract import v3_analysis
 from agent_tools import operations, workflow, research
 from agent_tools.analysis import analysis_issues, publish_analysis
 from agent_tools.knowledge import sync_website_card
 
 
 class PublicationLifecycleTests(ProjectCase):
+    def valid_analysis(self):
+        value = v3_analysis(self.project, super().valid_analysis())
+        self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
+        return value
+
     def test_creation_publishes_supplied_site_and_reinit_keeps_the_card(self):
         from agent_tools.upwork_project import initialize_upwork_project
         hypothesis = {**claim('H-SITE-1'), 'website_url': 'https://example.org/'}
@@ -35,6 +41,7 @@ class PublicationLifecycleTests(ProjectCase):
         value['identity'] = [claim('H-SITE-1')]
         ident = value['identity'][0]['id']
         value['websites'] = [{'url': 'https://example.org/', 'role': 'target', 'basis_id': ident}]
+        value = v3_analysis(self.project, value)
         source = self.project / 'ꘖ/KB/Analysis.json'
         source.write_text(json.dumps(value), encoding='utf-8')
         card = self.project / '.md'
@@ -68,8 +75,8 @@ class PublicationLifecycleTests(ProjectCase):
 
     def test_new_analysis_cannot_finish_with_an_unpublished_website_card(self):
         value = self.valid_analysis()
-        value['schema_version'] = 2
         value['identity'] = [claim('H-SITE-1')]
+        value = v3_analysis(self.project, value)
         path = self.project / 'ꘖ/KB/Analysis.json'
         path.write_text(json.dumps(value), encoding='utf-8')
         self.assertIn('project.website', {x['code'] for x in workflow.check_project(self.project)['issues']})
@@ -98,6 +105,7 @@ class PublicationLifecycleTests(ProjectCase):
         value['identity'] = [claim('H-SITE-1')]
         value['websites'] = [{'url': None, 'role': 'target', 'basis_id': 'H-SITE-1'}]
         value['red_flags'] = [{'id': 'RF-WEBSITE-UNIDENTIFIED', 'status': 'unresolved', 'summary': 'No established site.', 'basis_ids': ['H-SITE-1']}]
+        value = v3_analysis(self.project, value)
         path = self.project / 'ꘖ/KB/Analysis.json'
         path.write_text(json.dumps(value), encoding='utf-8')
         publish_analysis(path)

@@ -252,7 +252,8 @@ class CodexEvidenceTests(ProjectCase):
         self.parent, self.child = str(uuid.uuid4()), str(uuid.uuid4())
         self.model = 'observed-parent-model'
         self.assignment = 'gAAAAA-native-encrypted-assignment'
-        self.package = flow.prepare_review(self.project, self.parent)
+        flow.resume(self.project, 'native fixture', '  $upwork-init https://www.upwork.com/jobs/' + source()['job_id'] + '\nТочный текст.  ')
+        self.package = self.review_package(self.parent)
         self.parent_rows = [self.meta(self.parent), self.context(),
             self.message('user', '  $upwork-init https://www.upwork.com/jobs/' + source()['job_id'] + '\nТочный текст.  '),
             {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'collaboration.spawn_agent',
@@ -397,15 +398,14 @@ class CodexEvidenceTests(ProjectCase):
             codex.native_review_proof(self.project, self.parent, self.child, backend=self.home)
 
     def test_self_review_uses_codex_parent_evidence_without_requiring_antigravity(self):
-        report = {'result': 'approved', 'scope': ['identity', 'concerns', 'misconceptions', 'causes', 'methods', 'kb_consistency'],
-                  'findings': [], 'review_kind': 'self_review', 'package': self.package['package']}
+        report = self.review_report(self.package, self_review=True)
         self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
         with self.selected():
             flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=self.parent, reviewer_id=self.parent)
         self.assertFalse(flow.load(self.project)['reviews'][0]['independent'])
 
     def test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply(self):
-        value = self.valid_analysis()
+        value = self.valid_review_analysis()
         publish_owned(self.project / 'ꘖ/KB/Analysis.md', render_analysis(value))
         self.put_project('ꘖ/KB/Evidence/init.json', '{}')
         self.put_project('ꘖ/KB/Evidence/research.json', '{}')
@@ -415,17 +415,17 @@ class CodexEvidenceTests(ProjectCase):
             flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init.json'])
             flow.complete_stage(self.project, 'research', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/research.json'])
             flow.complete_stage(self.project, 'analysis', ['ꘖ/project.json'], ['ꘖ/KB/Analysis.json', 'ꘖ/KB/Analysis.md'])
-            package = flow.prepare_review(self.project, self.parent)
+            answer = 'Точный окончательный ответ.\n\nБез реконструкции.\n\nClient task'
+            package = self.review_package(self.parent, response=answer)
             self.set_review_input(package)
+            report = self.review_report(package)
+            self.child_rows[-1]['payload']['last_agent_message'] = json.dumps(report, ensure_ascii=False)
             self.write_trace(self.child, self.child_rows)
             native = metrics.native_review_proof(self.project, self.parent, self.child)
-            report = {'result': 'approved', 'scope': [*SECTIONS, 'kb_consistency'], 'findings': [],
-                      'native_evidence': native['proof'], 'package': package['package']}
             self.put_project('ꘖ/KB/Evidence/Reviews/report.json', json.dumps(report))
-            flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/report.json', parent_id=self.parent, reviewer_id=self.child)
+            flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/report.json', parent_id=self.parent, reviewer_id=self.child, native_evidence=native['proof'])
             flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/report.json'])
             flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.md'], note='Checked current KB')
-            answer = 'Точный окончательный ответ.\n\nБез реконструкции.'
             flow.record_current_answer(self.project, answer)
             flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/1 - Анализ/res/1.md'])
             self.assertTrue(all(value == 'complete' for value in flow.status(self.project)['stages'].values()))
@@ -439,7 +439,7 @@ class CodexEvidenceTests(ProjectCase):
             self.assertIn('result/EN/draft.md', [item['path'] for item in status['proposal_artifacts']])
             self.assertEqual((draft.parent / 'draft.prev.md').read_bytes(), b'User draft\r\n')
             flow.resume(self.project, 'another request', 'Новый точный запрос')
-            self.assertEqual(flow.status(self.project)['next_stage'], 'finalize')
+            self.assertEqual(flow.status(self.project)['next_stage'], 'review')
             self.put_project('ꘖ/data/registrations.json', json.dumps({'codex': {'complete': False,
                 'profiles': {'C2': {'ready': False}}, 'status': 'pending'}}))
             self.assertEqual(flow.status(self.project)['next_stage'], 'identity_init')

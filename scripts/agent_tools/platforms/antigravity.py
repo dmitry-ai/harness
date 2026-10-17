@@ -74,6 +74,183 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None,
                 'folder_id': parent, 'folder_path': ' / '.join(branch), 'folders_file': str(folders)}
 
 
+def _native_database(backend, conversation_id):
+    if not re.fullmatch(r'[a-f0-9-]{36}', conversation_id):
+        raise ValueError('Exact native conversation UUID required')
+    path = backend / 'conversations' / (conversation_id + '.db')
+    return path, sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)
+
+
+def _wire_path(blob, path):
+    values = [blob]
+    for field in path:
+        found = []
+        for value in values:
+            try: found.extend(part for number, kind, part in wire_fields(value or b'') if number == field and kind == 2)
+            except (ValueError, IndexError, TypeError): continue
+        values = found
+    result = []
+    for value in values:
+        try:
+            text = value.decode('utf-8')
+            if text.strip(): result.append(text)
+        except UnicodeError: pass
+    return result
+
+
+def _configuration(value):
+    """Split native configuration syntax, without a model-name lookup table."""
+    if not isinstance(value, str) or not value.strip(): return {'model': None, 'effort': None}
+    match = re.fullmatch(r'(.+)-(minimal|low|medium|high|xhigh|max|ultra)', value)
+    return {'model': match[1], 'effort': match[2]} if match else {'model': value, 'effort': None}
+
+
+def _model_metadata(backend, conversation_id):
+    path, connection = _native_database(backend, conversation_id)
+    history, sources = {'generations': [], 'configurations': [], 'model_ids': []}, []
+    try:
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        for table, field_path, key in (('gen_metadata', (1, 19), 'generations'), ('executor_metadata', (10, 1, 28), 'configurations')):
+            if table not in tables: continue
+            columns = {row[1] for row in connection.execute('PRAGMA table_info(' + table + ')')}
+            if not {'idx', 'data'}.issubset(columns): continue
+            for index, blob in connection.execute('SELECT idx,data FROM ' + table + ' ORDER BY idx'):
+                values = _wire_path(blob, field_path)
+                for value in values: history[key].append({'index': index, 'value': value})
+                if values:
+                    sources.append({'native_file': str(path), 'table': table, 'row': index,
+                                    'protobuf_path': list(field_path), 'sha256': hashlib.sha256(blob or b'').hexdigest()})
+        columns = {row[1] for row in connection.execute('PRAGMA table_info(steps)')}
+        if 'metadata' in columns:
+            for index, blob in connection.execute('SELECT idx,metadata FROM steps WHERE step_type=15 AND status=3 ORDER BY idx'):
+                try:
+                    history['model_ids'].extend({'step': index, 'value': value} for field, kind, value in wire_fields(blob or b'') if field == 11 and kind == 0 and value)
+                except (ValueError, IndexError): pass
+    finally: connection.close()
+    generation = history['generations'][-1]['value'] if history['generations'] else None
+    config = history['configurations'][-1]['value'] if history['configurations'] else None
+    configured = _configuration(config)
+    observed = {'model': generation, 'effort': configured['effort'], 'configuration': config,
+                'model_ids': sorted({item['value'] for item in history['model_ids']})}
+    return observed, history, sources
+
+
+def _native_invocation(backend, parent_id, conversation_id, role):
+    child_log = backend / 'brain' / conversation_id / '.system_generated/logs/transcript_full.jsonl'
+    parent_log = backend / 'brain' / parent_id / '.system_generated/logs/transcript_full.jsonl'
+    initial = next((json.loads(line).get('content', '') for line in child_log.read_text(encoding='utf-8').splitlines() if line.strip()), '')
+    connection = sqlite3.connect((backend / 'conversation_summaries.db').resolve().as_uri() + '?mode=ro', uri=True)
+    try:
+        row = connection.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (conversation_id,)).fetchone()
+    finally: connection.close()
+    expected_agent = platform_settings('antigravity')['roles'][role]['agent']
+    if row is None or row[0] != parent_id or row[1] != expected_agent:
+        raise ValueError('Native child relationship/role is not established')
+    matches = []
+    for line in parent_log.read_text(encoding='utf-8').splitlines():
+        if not line.strip(): continue
+        event = json.loads(line)
+        for call in event.get('tool_calls', []):
+            if call.get('name') != 'invoke_subagent': continue
+            args = call.get('args', {})
+            if isinstance(args, str):
+                try: args = json.loads(args)
+                except ValueError: continue
+            subs = args.get('Subagents', []) if isinstance(args, dict) else []
+            if isinstance(subs, str):
+                try: subs = json.loads(subs)
+                except ValueError: continue
+            for sub in subs if isinstance(subs, list) else []:
+                if isinstance(sub, dict) and sub.get('TypeName') == row[1] and sub.get('Prompt') and sub['Prompt'] in initial:
+                    matches.append((event.get('step_index'), sub))
+    if not matches: raise ValueError('Matching native child invocation not established')
+    index, invocation = matches[-1]
+    return invocation, {'native_file': str(parent_log), 'step': index, 'kind': 'invoke_subagent'}
+
+
+def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None):
+    if role not in ('primary', 'AA', 'AF'): raise ValueError('Unknown executor role')
+    backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
+    observed, history, sources = _model_metadata(backend, conversation_id)
+    requested = {'model': None, 'effort': None, 'selection': 'unavailable', 'source': None}
+    if role == 'primary' and observed['configuration']:
+        requested.update(_configuration(observed['configuration']), selection='native-executor-configuration',
+                         source=next((item for item in reversed(sources) if item.get('table') == 'executor_metadata'), None))
+    elif role != 'primary':
+        if not parent_id or parent_id == conversation_id: raise ValueError('Exact parent required for AA/AF metadata')
+        invocation, source = _native_invocation(backend, parent_id, conversation_id, role)
+        selection = invocation.get('Model')
+        if selection == 'inherit':
+            parent_observed, parent_history, _ = _model_metadata(backend, parent_id)
+            # Generation/config rows are not a per-step selection history. Only
+            # a single observed parent configuration establishes inheritance;
+            # mixed sessions retain their histories and remain unverified.
+            if len({item['value'] for item in parent_history['generations']}) == 1:
+                requested['model'] = parent_observed['model']
+            if len({item['value'] for item in parent_history['configurations']}) == 1:
+                requested['effort'] = parent_observed['effort']
+            requested.update(selection='inherit', source=source)
+        else:
+            requested.update(_configuration(selection), selection='explicit-parent-invocation', source=source)
+    checks = {}
+    for key in ('model', 'effort'):
+        checks[key] = ('unverified' if not requested.get(key) or not observed.get(key) else
+                       'verified' if requested[key] == observed[key] else 'mismatch')
+    if observed['configuration'] and observed['model'] and _configuration(observed['configuration'])['model'] != observed['model']:
+        checks['model'] = 'mismatch'
+    status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if set(checks.values()) == {'verified'} else 'unverified'
+    return {'schema_version': 1, 'surface': 'antigravity-ui', 'role': role, 'conversation_id': conversation_id,
+            'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history,
+            'metadata_sources': sources, 'verification': {'status': status, **checks,
+                'detail': 'Native generation model and executor configuration fields; exact API execution internals and missing modes are not inferred from runtime'}}
+
+
+def native_tool_trace(root, request):
+    backend = Path.home() / '.gemini/antigravity'
+    conversation_id = request.get('conversation_id', '')
+    database, connection = _native_database(backend, conversation_id)
+    try:
+        statuses = {index: status for index, status in connection.execute('SELECT idx,status FROM steps')}
+    finally: connection.close()
+    path = backend / 'brain' / conversation_id / '.system_generated/logs/transcript_full.jsonl'
+    raw = path.read_bytes()
+    # Only explicit tool calls and tool-result fields are retained; thinking and
+    # planner prose do not enter the evidence artifact.
+    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    selected = request.get('step_indices')
+    if not isinstance(selected, list) or not selected or any(type(x) is not int for x in selected) or len(set(selected)) != len(selected):
+        raise ValueError('Exact unique Antigravity native invocation step indices required')
+    events = []
+    for index in selected:
+        matches = [position for position, row in enumerate(rows) if row.get('step_index') == index]
+        if len(matches) != 1: raise ValueError('Native invocation step is missing/ambiguous')
+        position = matches[0]; row = rows[position]; calls = row.get('tool_calls', [])
+        if len(calls) != 1: raise ValueError('Select a native step containing exactly one tool call; multi-call results cannot be safely attributed')
+        following = []
+        for candidate in rows[position + 1:]:
+            if candidate.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT'): break
+            if candidate.get('type') == 'GENERIC': following.append(candidate)
+        # Native step status 3 establishes completion. The last successful
+        # GENERIC result in this tool interval is retained, without reasoning.
+        if not following or any(candidate.get('error') for candidate in following):
+            raise ValueError('Native tool has no attributable successful result')
+        output = following[-1]
+        if statuses.get(output.get('step_index')) != 3:
+            raise ValueError('Native database does not confirm successful tool completion')
+        call = calls[0]; arguments = call.get('args', {})
+        if isinstance(arguments, str):
+            try: arguments = json.loads(arguments)
+            except ValueError: arguments = {}
+        selected_data = {'call': call, 'output': {'step_index': output.get('step_index'), 'content': output.get('content'), 'created_at': output.get('created_at')}}
+        events.append({'id': str(index), 'step': index, 'output_step': output['step_index'], 'name': call.get('name', ''),
+                       'arguments': arguments, 'result': output.get('content', ''), 'successful': True,
+                       'created_at': row.get('created_at'), 'completed_at': output.get('created_at'),
+                       'native_event_sha256': hashlib.sha256(json_data(selected_data)).hexdigest()})
+    return {'surface': 'antigravity-ui', 'conversation_id': conversation_id, 'step_indices': selected,
+            'native_database': str(database), 'native_log': str(path),
+            'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
+
+
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True):
     """Require an actual child self conversation and its successful final native step."""
     backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
@@ -143,17 +320,28 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
     parent_models, child_models = observed_models(parent_id, invocation), observed_models(reviewer_id)
     if parent_models and child_models and not child_models.issubset(parent_models):
         raise ValueError('Observed reviewer model differs from the inherited A.A model')
+    executor_metadata = native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=backend)
+    if executor_metadata['verification']['status'] == 'mismatch':
+        raise ValueError('Native reviewer generation/configuration differs from requested inherited model/effort')
     proof = {'surface': 'antigravity-ui', 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'agent_name': 'self',
-             'status': 'completed', 'model_verification': 'same observed model IDs; exact version/High unverified' if parent_models and child_models else 'inherit requested; actual version/High unverified',
+             'status': 'completed', 'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields',
+             'executor_metadata': executor_metadata,
              'observed_model_ids': sorted(child_models), 'invocation_step': invocation,
              'native_log': str(log), 'native_log_sha256': hashlib.sha256(log.read_bytes()).hexdigest(),
              'final_step': last['step_index'], 'final_response_sha256': hashlib.sha256(last['content'].encode()).hexdigest(),
+             'final_response': last['content'],
              'parent_log': str(parent_log), 'job_id': project['job_id']}
     target = Path(root) / 'ꘖ/KB/Evidence/Reviews' / (reviewer_id + '-' + proof['native_log_sha256'][:16] + '-native.json')
+    authored = target.with_name(target.stem + '-authored.txt')
+    proof['authored_response'] = authored.relative_to(Path(root).resolve()).as_posix()
     payload = json_data(proof)
     if not write:
         return {'proof': target.relative_to(Path(root).resolve()).as_posix(), **proof}
     target.parent.mkdir(parents=True, exist_ok=True)
+    authored_bytes = last['content'].encode('utf-8')
+    if authored.exists() and authored.read_bytes() != authored_bytes:
+        raise ValueError('Immutable native authored response differs')
+    if not authored.exists(): create_bytes(authored, authored_bytes)
     if target.exists():
         if target.read_bytes() != payload:
             raise ValueError('Existing reviewer proof changed; preserve both and recheck native progress')
@@ -260,6 +448,11 @@ def verify_native_proof(root, native, package=None):
     for field in ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'):
         if native.get(field) != result.get(field):
             raise ValueError('Review proof differs from the current native trace')
+    authored = Path(root) / result['authored_response']
+    if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != result['final_response_sha256']:
+        raise ValueError('Immutable native authored reviewer response changed')
+    if 'executor_metadata' in native and native['executor_metadata'] != result['executor_metadata']:
+        raise ValueError('Native executor metadata differs from saved reviewer proof')
     if package:
         with Path(result['native_log']).open(encoding='utf-8') as stream:
             prompt = json.loads(stream.readline()).get('content', '')

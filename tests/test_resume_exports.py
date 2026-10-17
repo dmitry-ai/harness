@@ -63,10 +63,14 @@ class ResumeExportTests(ProjectCase):
     def test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate(self):
         texts = ['/upwork-init https://www.upwork.com/jobs/~021234567890', 'Продолжай анализ.\n']
         home, backend, cid = self.request_database(texts)
-        answer = 'Полный настоящий ответ.\n```text\nточно\n```\n'
+        answer = 'Полный настоящий ответ. Client task.\n```text\nточно\n```\n'
         flow.resume(self.project, 'quota')
         with patch.object(Path, 'home', return_value=home):
             flow.adopt_requests(self.project, cid)
+            package = self.review_package(cid, response=answer)
+            report = self.review_report(package, self_review=True)
+            path = self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
+            flow.record_review(self.project, path.relative_to(self.project).as_posix(), parent_id=cid, reviewer_id=cid)
             result = flow.record_current_answer(self.project, answer)
             self.assertFalse(result['delivery_verified'])
             flow.adopt_requests(self.project, cid)
@@ -110,10 +114,10 @@ class ResumeExportTests(ProjectCase):
         self.assertEqual(target.read_bytes(), b'complete')
 
     def test_analysis_commit_requires_current_hash_and_preserves_history(self):
-        value = self.valid_analysis()
+        value = self.valid_review_analysis()
         target = self.project / 'ꘖ/KB/Analysis.json'
         original = target.read_bytes(); digest = hashlib.sha256(original).hexdigest()
-        value['causes'][0]['essence'] = 'Corrected explanation'
+        value['identity'][0]['essence'] = 'Corrected wording of the attributed title'
         candidate = self.put_project('ꘖ/data/candidate.json', json.dumps(value))
         with self.assertRaises(ValueError): save_analysis(self.project, candidate)
         result = save_analysis(self.project, candidate, digest)
@@ -126,6 +130,8 @@ class ResumeExportTests(ProjectCase):
     def test_public_example_passes_structure_evidence_and_project_checks(self):
         directory = up.PRIMARY_AGENTS_DIR / 'skills/upwork-init/references'
         source = self.put_project('ꘖ/KB/Evidence/example-source.json', (directory / 'example-source.json').read_bytes())
+        self.put_project('ꘖ/KB/Evidence/Examples/response.bin', (directory / 'example-source.json').read_bytes())
+        self.put_project('ꘖ/KB/Evidence/Examples/observation.json', (directory / 'example-observation.json').read_bytes())
         value = json.loads((directory / 'analysis.example.json').read_text(encoding='utf-8'))
         self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
         self.assertEqual(analysis_issues(value), [])
@@ -212,9 +218,8 @@ class ResumeExportTests(ProjectCase):
         self.valid_analysis()
         home, backend, cid = self.request_database(['/upwork-init https://www.upwork.com/jobs/~021234567890'])
         flow.resume(self.project, 'quota')
-        package = flow.prepare_review(self.project, cid)
-        report = {'package': package['package'], 'scope': ['identity','concerns','misconceptions','causes','methods','kb_consistency'],
-                  'findings': [], 'result': 'approved', 'review_kind': 'self_review'}
+        package = self.review_package(cid)
+        report = self.review_report(package, self_review=True)
         self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
         with patch.object(Path, 'home', return_value=home):
             flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=cid, reviewer_id=cid)
@@ -233,14 +238,14 @@ class ResumeExportTests(ProjectCase):
         self.assertFalse(value['execution_checked'])
 
     def test_new_question_invalidates_completed_research_and_dependent_analysis(self):
-        self.valid_analysis()
+        self.valid_review_analysis()
         flow.resume(self.project, 'quota')
         self.put_project('ꘖ/KB/Evidence/init.json', '{}')
         self.put_project('ꘖ/KB/Evidence/research.json', '{}')
         flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init.json'])
         flow.complete_stage(self.project, 'research', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/research.json'])
         flow.complete_stage(self.project, 'analysis', ['ꘖ/project.json'], ['ꘖ/KB/Analysis.json'])
-        flow.add_question(self.project, 'Q-NEW', 'New material question', 'Could change the cause', 'Evidence or explicit gap', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/new.json'])
+        flow.add_question(self.project, 'Q-NEW', 'New material question', 'Could change the cause', 'Evidence or explicit gap', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/new.json'], requirements=[self.experiment_requirement()])
         flow.claim_question(self.project, 'Q-NEW', 'worker')
         statuses = flow.status(self.project)['stages']
         self.assertEqual(statuses['research'], 'stale')
@@ -251,14 +256,14 @@ class ResumeExportTests(ProjectCase):
     def test_review_package_pins_primary_evidence_and_unquoted_new_contradiction(self):
         self.valid_analysis()
         parent = str(uuid.uuid4())
-        package = flow.prepare_review(self.project, parent)
+        package = self.review_package(parent)
         self.assertIn('ꘖ/KB/Evidence/client.json', package['evidence_inputs'])
         current = {'kb_inputs': package['kb_inputs'], 'evidence_inputs': package['evidence_inputs']}
         self.assertTrue(flow.receipt_current(self.project, current))
         self.put_project('ꘖ/KB/Evidence/client.json', '{"concern":"The concern","alternative":"Alternative","new":"Contradictory evidence"}')
         self.assertTrue(flow.check_project(self.project)['valid'])
         self.assertFalse(flow.receipt_current(self.project, current))
-        updated = flow.prepare_review(self.project, parent)
+        updated = self.review_package(parent)
         self.assertNotEqual(package['package'], updated['package'])
         self.assertEqual(package['kb_inputs'], updated['kb_inputs'])
 

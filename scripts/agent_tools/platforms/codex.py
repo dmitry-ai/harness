@@ -184,6 +184,99 @@ def _selection(parent_rows, child_meta, invocation=None):
             'selection': 'explicit-parent-spawn' if arguments.get('model') or arguments.get('reasoning_effort') else 'inherit'}
 
 
+def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None):
+    """Native model/effort observations for every role, with explicit unknowns."""
+    if role not in ('primary', 'AA', 'AF'): raise ValueError('Unknown executor role')
+    home = _home(backend)
+    _, path, _, rows = _trace(home, conversation_id)
+    contexts = [(index, item['payload']) for index, item in rows if item.get('type') == 'turn_context']
+    history = [{'step': index, 'model': context.get('model'), 'effort': context.get('effort')}
+               for index, context in contexts]
+    observed = {key: (history[-1].get(key) if history else None) for key in ('model', 'effort')}
+    sources = [{'native_file': str(path), 'kind': 'turn_context', 'step': index,
+                'sha256': hashlib.sha256(json_data(context)).hexdigest()} for index, context in contexts]
+    requested = {'model': None, 'effort': None, 'selection': 'unavailable', 'source': None}
+    meta = rows[0][1]['payload']
+    source = meta.get('source')
+    spawn = source.get('subagent', {}).get('thread_spawn', {}) if isinstance(source, dict) else {}
+    if role != 'primary':
+        if not parent_id or spawn.get('parent_thread_id') != parent_id or parent_id == conversation_id:
+            raise ValueError('Native parent/child relationship required for AA/AF metadata')
+        _, parent_path, _, parent_rows = _trace(home, parent_id)
+        invocation = _spawn(parent_rows, meta)
+        try:
+            selection = _selection(parent_rows, meta, invocation)
+            requested = {key: selection.get(key) for key in ('model', 'effort', 'selection')}
+        except ValueError:
+            arguments = invocation[2]
+            requested.update(model=arguments.get('model'),
+                             effort=arguments.get('reasoning_effort') or arguments.get('model_reasoning_effort'),
+                             selection='explicit-parent-spawn' if arguments.get('model') else 'inherit')
+        requested['source'] = {'native_file': str(parent_path), 'kind': 'spawn_agent',
+                               'step': invocation[0], 'call_id': invocation[1]}
+    else:
+        # Session metadata sometimes carries an explicit requested model. Do not
+        # copy a runtime default or the observed context into a missing request.
+        if meta.get('model'):
+            requested.update(model=meta['model'], effort=meta.get('reasoning_effort'), selection='native-session-selection',
+                             source={'native_file': str(path), 'kind': 'session_meta', 'step': rows[0][0]})
+    checks = {}
+    for key in ('model', 'effort'):
+        checks[key] = ('unverified' if not requested.get(key) or not observed.get(key) else
+                       'verified' if requested[key] == observed[key] else 'mismatch')
+    status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if set(checks.values()) == {'verified'} else 'unverified'
+    return {'schema_version': 1, 'surface': 'codex-ui', 'role': role, 'conversation_id': conversation_id,
+            'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history,
+            'metadata_sources': sources, 'verification': {'status': status, **checks,
+                'detail': 'Native turn_context reports selected model/effort; missing fields remain unknown; server execution internals are not inferred'}}
+
+
+def native_tool_trace(root, request):
+    home = _home(request.get('native_profile_home'))
+    if request.get('native_profile_home') and home not in [Path(value).resolve() for value in platform_settings('codex')['homes'].values()]:
+        raise ValueError('Native tool trace names an unconfigured Codex profile')
+    conversation_id = request.get('conversation_id', '')
+    _, path, raw, rows = _trace(home, conversation_id)
+    ids = request.get('call_ids')
+    if not isinstance(ids, list) or not ids or not all(isinstance(x, str) and x.strip() for x in ids) or len(set(ids)) != len(ids):
+        raise ValueError('Exact unique Codex native tool call IDs required')
+    calls, outputs = {}, {}
+    for index, item in rows:
+        payload = item.get('payload', {})
+        if item.get('type') != 'response_item' or payload.get('call_id') not in ids: continue
+        call_id, kind = payload['call_id'], payload.get('type')
+        if kind in ('function_call', 'custom_tool_call'):
+            if call_id in calls: raise ValueError('Ambiguous native tool invocation')
+            calls[call_id] = (index, payload, item.get('timestamp'))
+        elif kind in ('function_call_output', 'custom_tool_call_output'):
+            if call_id in outputs: raise ValueError('Ambiguous native tool output')
+            outputs[call_id] = (index, payload, item.get('timestamp'))
+    events = []
+    for call_id in ids:
+        if call_id not in calls or call_id not in outputs or outputs[call_id][0] <= calls[call_id][0]:
+            raise ValueError('Native tool call has no matched completed output')
+        index, call, created_at = calls[call_id]
+        output_index, output, completed_at = outputs[call_id]
+        arguments = call.get('arguments', call.get('input', {}))
+        if isinstance(arguments, str):
+            try: arguments = json.loads(arguments)
+            except ValueError: arguments = {'code': arguments} if call.get('type') == 'custom_tool_call' else {}
+        result = output.get('output')
+        error = output.get('isError') is True
+        if isinstance(result, dict): error |= result.get('isError') is True
+        elif isinstance(result, str):
+            try: error |= json.loads(result).get('isError') is True
+            except (ValueError, AttributeError): pass
+        events.append({'id': call_id, 'step': index, 'output_step': output_index, 'name': call.get('name', ''),
+                       'arguments': arguments, 'result': result, 'successful': not error,
+                       'created_at': created_at, 'completed_at': completed_at,
+                       'native_event_sha256': hashlib.sha256(json_data([call, output])).hexdigest()})
+        if call.get('namespace') is not None:
+            events[-1]['namespace'] = call['namespace']
+    return {'surface': 'codex-ui', 'conversation_id': conversation_id, 'native_profile_home': str(home),
+            'call_ids': ids, 'native_log': str(path), 'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
+
+
 def _assignment_source(rows, meta, assignment):
     spawn = meta['source']['subagent']['thread_spawn']
     path = spawn['agent_path']
@@ -285,14 +378,22 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
              'native_profile_home': str(home), 'native_log': str(path), 'parent_log': str(parent_path),
              'native_log_sha256': digest, 'final_step': final_index,
              'final_response_sha256': hashlib.sha256(final['last_agent_message'].encode()).hexdigest(),
+             'final_response': final['last_agent_message'],
              'assignment_sha256': hashlib.sha256(assignment.encode()).hexdigest(),
              'assignment_source': assignment_source, 'review_inputs': review_inputs,
              'job_id': json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))['job_id'],
              'observed_model': child_model, 'model_selection': selection,
+             'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home),
              'model_verification': 'native child model/effort checked against actual parent spawn parameters'}
     target = Path(root).resolve() / 'ꘖ/KB/Evidence/Reviews' / f'{reviewer_id}-{digest[:16]}-native.json'
+    authored = target.with_name(target.stem + '-authored.txt')
+    proof['authored_response'] = authored.relative_to(Path(root).resolve()).as_posix()
     if write:
         target.parent.mkdir(parents=True, exist_ok=True)
+        authored_bytes = final['last_agent_message'].encode('utf-8')
+        if authored.exists() and authored.read_bytes() != authored_bytes:
+            raise ValueError('Immutable native authored response differs')
+        if not authored.exists(): create_bytes(authored, authored_bytes)
         payload = json_data(proof)
         if target.exists() and target.read_bytes() != payload:
             raise ValueError('Existing Codex proof differs; preserve both versions')
@@ -310,6 +411,11 @@ def verify_native_proof(root, native, package=None):
     for key in ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'):
         if result.get(key) != native.get(key):
             raise ValueError('Codex review proof differs from the actual native trace')
+    authored = Path(root) / result['authored_response']
+    if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != result['final_response_sha256']:
+        raise ValueError('Immutable native authored reviewer response changed')
+    if 'executor_metadata' in native and native['executor_metadata'] != result['executor_metadata']:
+        raise ValueError('Native executor metadata differs from saved reviewer proof')
     if package:
         if not any(Path(item['package']).name == package for item in result['review_inputs']):
             raise ValueError('Codex reviewer did not verify this immutable KB review package')

@@ -19,8 +19,8 @@ def analysis_issues(value):
         issues.append(problem(code, field, message, claim_id=ident, hint=hint))
     if not isinstance(value, dict):
         return [problem('analysis.object', '/', 'Analysis must be a JSON object')]
-    if type(value.get('schema_version', 1)) is not int or value.get('schema_version', 1) not in (1, 2):
-        add('analysis.version', '/schema_version', 'Supported versions: legacy 1 and 2')
+    if type(value.get('schema_version', 1)) is not int or value.get('schema_version', 1) not in (1, 2, 3):
+        add('analysis.version', '/schema_version', 'Supported versions: legacy 1/2 (read only), 3 (current)')
     notes = value.get('notes', {})
     if not isinstance(notes, dict):
         add('analysis.notes', '/notes', 'Analysis notes must be an object'); notes = {}
@@ -72,6 +72,12 @@ def analysis_issues(value):
                     af = f'{field}/{side}/{number}'
                     if not isinstance(arg, dict):
                         add('argument.object', af, 'Each argument must be an object', ident); continue
+                    if value.get('schema_version') == 3 and (arg.get('claim_id') or arg.get('evidence_id')):
+                        if not isinstance(arg.get('argument'), str) or not arg['argument'].strip():
+                            add('argument.required', af + '/argument', 'argument is required', ident)
+                        if arg.get('claim_id') and arg.get('evidence_id'):
+                            add('argument.source', af, 'Use one claim_id or evidence_id reference', ident)
+                        continue  # v3 references are resolved and revision-bound by claims.contract_issues.
                     for key in ('argument', 'quote'):
                         if not isinstance(arg.get(key), str) or not arg[key].strip():
                             add('argument.required', af + '/' + key, f'{key} is required', ident)
@@ -97,6 +103,8 @@ def analysis_issues(value):
     issues.extend(red_flag_issues(value, claims))
     from .knowledge import website_issues
     issues.extend(website_issues(value))
+    from .claims import contract_issues
+    issues.extend(contract_issues(value))
     return issues
 
 
@@ -124,6 +132,9 @@ def save_analysis(root, candidate, expected_sha256=None):
     root = Path(root).resolve()
     value = candidate if isinstance(candidate, dict) else json.loads(inside(root, candidate).read_text(encoding='utf-8-sig'))
     validate_analysis(value)
+    require_current_contract(value)
+    from .evidence import evidence_issues
+    require_valid(evidence_issues(root, value))
     payload = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode()
     target = root / 'ꘖ/KB/Analysis.json'
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -145,7 +156,14 @@ def save_analysis(root, candidate, expected_sha256=None):
         elif previous != payload:
             replace_bytes(target, payload)
     return {'target': str(target), 'sha256': digest(payload), 'schema_valid': True,
-            'evidence_checked': False, 'detail': 'Update dependent agent KB modules before independent review'}
+            'evidence_checked': True, 'detail': 'Primary references checked; update dependent agent KB modules before independent semantic review'}
+
+
+def require_current_contract(value):
+    """Legacy files remain readable, but cannot authorize new writes/publication."""
+    require_valid([] if isinstance(value, dict) and value.get('schema_version') == 3 else [
+        problem('analysis.current_contract', '/schema_version',
+            'New saved/published analyses require schema_version 3 and explicit provenance; preserve legacy files and reconcile a candidate')])
 
 
 def iter_arguments(value):
@@ -166,17 +184,27 @@ def render_analysis(value):
     from .red_flags import render_red_flags
     from .links import markdown_link
     lines = [render_red_flags(value)] if value.get('red_flags') else []
+    if value.get('schema_version') == 3:
+        lines.extend(['# Первичные наблюдения и вычисления', ''])
+        for fact in value['facts']:
+            lines.extend([f'## {fact["id"]}', fact['essence'], '', *_render_claim_contract(fact)])
     for number, (key, title) in enumerate(zip(SECTIONS, TITLES), 1):
         lines.extend([f'# {number}. {title}', ''])
         if not value[key]:
             lines.extend([value['notes'][key], ''])
         for item in value[key]:
             lines.extend([f'## {item["id"]}', item['essence'], ''])
+            if value.get('schema_version') == 3:
+                lines.extend(_render_claim_contract(item))
             if item.get('addresses'):
                 lines.extend(['Основания: ' + ', '.join(f'[{i}](#{i.lower()})' for i in item['addresses']) + '.', ''])
             for side, label in (('for', 'За'), ('against', 'Против')):
                 lines.append(f'### {label}')
                 for arg in item[side]:
+                    if value.get('schema_version') == 3 and (arg.get('claim_id') or arg.get('evidence_id')):
+                        target = arg.get('claim_id') or arg['evidence_id']
+                        lines.extend([arg['argument'], f'[Основание: {target}](#{target.lower()})', ''])
+                        continue
                     source = source_uri(arg, value.get('sources', {}))
                     lines.extend([arg['argument'], '> ' + arg['quote'].replace('\n', '\n> '), markdown_link('Источник', source), ''])
                     if arg.get('anchor_exception'):
@@ -195,11 +223,53 @@ def render_analysis(value):
     return '\n'.join(lines)
 
 
+def _render_claim_contract(claim):
+    from .links import markdown_link
+    lines = [f'Вид: {claim["knowledge_type"]}. Статус проверки: {claim["verification_status"]}.',
+        'Область: ' + claim['scope']['description'], '']
+    if claim['scope']['sample']:
+        lines.extend(['Проверенные объекты: ' + '; '.join(claim['scope']['sample']) + '.', ''])
+    for limitation in claim['scope']['limitations']:
+        lines.extend(['Ограничение: ' + limitation, ''])
+    for dep in claim['derived_from']:
+        lines.extend([f'Зависимость: [{dep["claim_id"]}](#{dep["claim_id"].lower()}), версия `{dep["sha256"]}`.', ''])
+    for ref in claim['evidence']:
+        lines.extend([f'### {ref["id"]}', '> ' + ref['quote'].replace('\n', '\n> '),
+            markdown_link('Первичный источник', ref['source']),
+            f'Локатор: {ref["locator"]["type"]}: {ref["locator"]["value"]}. SHA-256: `{ref["source_sha256"]}`.', ''])
+        if ref.get('anchor_exception'):
+            exception = ref['anchor_exception']
+            lines.extend(['Раздел документации: ' + exception['section'] + '.',
+                markdown_link('Сохранённая проверка отсутствия якоря', exception['observation']), ''])
+    for missing in claim['missing_checks']:
+        lines.extend(['Недостающая проверка: ' + missing, ''])
+    if claim.get('alternative_explanations'):
+        lines.extend(['Альтернативы: ' + '; '.join(claim['alternative_explanations']) + '.', claim['discriminating_check'], ''])
+    if claim.get('applicability'):
+        lines.extend(['Условия применимости: ' + '; '.join(claim['applicability']) + '.',
+            'Проверка результата: ' + claim['validation'], ''])
+    lines.extend(['Влияние: ' + claim['impact']['severity'] + '. ' + claim['impact']['basis'], ''])
+    if claim.get('calculation'):
+        calc = claim['calculation']
+        lines.extend([f'Вычисление: `{calc["formula"]}`; old={calc["operands"]["old"]["value"]} {calc["operands"]["old"]["unit"]}; '
+            f'new={calc["operands"]["new"]["value"]} {calc["operands"]["new"]["unit"]}; результат {calc["result"]}%; '
+            f'округление {calc["rounding"]} до {calc["rounding_places"]} знаков.', ''])
+    return lines
+
+
 def publish_analysis(source, target=None):
     """Render the report and synchronize its screening block in the project card."""
     from .red_flags import sync_project_red_flags
     source = Path(source).resolve()
     value = json.loads(source.read_text(encoding='utf-8-sig'))
+    require_current_contract(value)
+    # A standalone legacy report can be read with render_analysis, but publication
+    # always needs a project-owned source so its primary references can be checked.
+    if not (source.name == 'Analysis.json' and source.parent.name == 'KB' and source.parent.parent.name == 'ꘖ'):
+        raise ValueError('Publish a reconciled schema 3 candidate from its project ꘖ/KB/Analysis.json')
+    from .evidence import evidence_issues
+    validate_analysis(value)
+    require_valid(evidence_issues(source.parents[2], value))
     result = publish_owned(target or source.with_suffix('.md'), render_analysis(value), source=source)
     if result['status'] == 'conflict':
         return result

@@ -20,7 +20,8 @@ class CodexContinuationTests(ProjectCase):
         self.home = self.root / 'codex'
         self.home.mkdir()
         self.parent, self.child = str(uuid.uuid4()), str(uuid.uuid4())
-        self.package = flow.prepare_review(self.project, self.parent)
+        flow.resume(self.project, 'native fixture', '  Продолжай анализ.\nПосле сбоя.  ')
+        self.package = self.review_package(self.parent)
         self.parent_rows = [self.meta(self.parent, self.project), self.context(self.project),
             self.message('  Продолжай анализ.\nПосле сбоя.  '),
             {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'collaboration.spawn_agent',
@@ -65,8 +66,7 @@ class CodexContinuationTests(ProjectCase):
             yield
 
     def report(self):
-        return {'result': 'approved', 'scope': [*SECTIONS, 'kb_consistency'], 'findings': [],
-                'review_kind': 'self_review', 'package': self.package['package']}
+        return self.review_report(self.package, self_review=True)
 
     def test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds(self):
         requests = codex.native_requests(self.project, self.parent, backend=self.home)
@@ -74,6 +74,7 @@ class CodexContinuationTests(ProjectCase):
         self.assertEqual(requests[0]['project_binding']['kind'], 'codex-session-cwd')
         with self.selected():
             flow.adopt_requests(self.project, self.parent)
+            self.package = self.review_package(self.parent)
             self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(self.report()))
             flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=self.parent, reviewer_id=self.parent)
             proof = codex.native_review_proof(self.project, self.parent, self.child, backend=self.home, write=False)
@@ -152,7 +153,7 @@ class AntigravityContinuationTests(ProjectCase):
         self.backend = self.home / '.gemini/antigravity'
         (self.backend / 'conversations').mkdir(parents=True)
         self.parent, self.child = str(uuid.uuid4()), str(uuid.uuid4())
-        self.package = flow.prepare_review(self.project, self.parent)
+        self.package = self.review_package(self.parent)
         conn = sqlite3.connect(self.backend / 'conversation_summaries.db')
         conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT,parent_conversation_id TEXT,agent_name TEXT,workspace_uris TEXT)')
         conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?)', (self.parent, '', '', json.dumps([self.project.as_uri()])))
@@ -223,8 +224,7 @@ class AntigravityContinuationTests(ProjectCase):
     def test_explicit_root_supports_self_review_and_empty_metadata_keeps_legacy_job_id(self):
         self.workspace([])
         self.inputs([f'Продолжай анализ.\nКорень проекта: `{self.project}`'])
-        report = {'result': 'approved', 'scope': [*SECTIONS, 'kb_consistency'], 'findings': [],
-                  'review_kind': 'self_review', 'package': self.package['package']}
+        report = self.review_report(self.package, self_review=True)
         self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
         with patch.object(Path, 'home', return_value=self.home), runtime.using('antigravity'):
             flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=self.parent, reviewer_id=self.parent)
