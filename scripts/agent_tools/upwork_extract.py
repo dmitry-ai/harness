@@ -144,7 +144,7 @@ async def _extract(job_id, cdp_port, fetch_related, attachments_dir, tab_id):
     with urllib.request.urlopen(f'http://127.0.0.1:{cdp_port}/json', timeout=5) as response:
         tabs = json.loads(response.read())
     tab = select_tab(tabs, job_id, tab_id)
-    async with websockets.connect(tab['webSocketDebuggerUrl'], max_size=50_000_000, open_timeout=10) as websocket:
+    async with websockets.connect(tab['webSocketDebuggerUrl'], max_size=50_000_000, open_timeout=10, ping_interval=None) as websocket:
         rpc = RPC(websocket)
         page = await rpc.evaluate('''({nuxt:document.getElementById("__NUXT_DATA__")?.textContent||"",
             title:document.title,heading:document.querySelector("h1")?.textContent||"",
