@@ -664,12 +664,13 @@ def evidence_contract_issues(root, value):
                 ):
                     add('claim.unobserved_sample', field + '/scope/sample',
                         'Verified claim scope.sample lists page URLs that were not observed in primary evidence; collect every sampled URL or narrow scope.sample', claim)
-                if observed_paths.issubset({'/', '/sitemap.xml', '/robots.txt'}) and re.search(
+                non_sitemap_observed = {p for p in observed_paths if not p.lower().endswith(('sitemap.xml', 'robots.txt'))}
+                if len(non_sitemap_observed) <= 1 and re.search(
                     r'(?i)(?:на\s+(?:всём\s+)?сайте|полностью\s+отсутству|отсутствуют\s+схемы\s+`?(?:Product|Offer|Article)|absent\s+across\s+the\s+entire\s+site|no\s+(?:Product|Offer|Article)\s+schema\s+on\s+the\s+site)',
                     str(claim.get('essence', '')),
                 ):
                     add('claim.scope_extrapolation', field + '/scope',
-                        'Homepage/sitemap observations alone cannot verify site-wide absence of Product/Offer/Article structured data; observe representative product/article pages or keep status limited', claim)
+                        'Homepage/single-page/sitemap observations alone cannot verify site-wide absence of Product/Offer/Article structured data; observe representative product/article pages or keep status limited', claim)
         if claim.get('knowledge_type') == 'calculation' or 'calculation' in (claim.get('properties') or []):
             try:
                 _check_calculation(claim, index, refs)

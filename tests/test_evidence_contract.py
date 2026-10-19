@@ -598,6 +598,142 @@ class EvidenceContractTests(TemporaryCase):
         cause['probability_percent'] = 75
         self.assertNotIn('claim.counterevidence', self.codes(analysis_issues(value)))
 
+    def test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected(self):
+        value = v3_analysis(self.project)
+        sitemap_xml = (
+            b'<?xml version="1.0" encoding="UTF-8"?>'
+            b'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            b'<url><loc>https://example.org/blog/post-one</loc></url>'
+            b'</urlset>'
+        )
+        obs = collect(
+            self.project,
+            'https://example.org/sitemap.xml',
+            fetcher=lambda *a: Response(a[0], 200, 'application/xml', sitemap_xml),
+        )
+        fact = value['facts'][0]
+        fact['essence'] = 'The blog post is a demo post with thin content.'
+        fact['scope']['sample'] = ['https://example.org/sitemap.xml', 'https://example.org/blog/post-one']
+        fact['evidence'] = [{
+            'id': 'E-SITEMAP',
+            'kind': 'observation',
+            'source': obs['url'],
+            'observation': obs['observation'],
+            'source_sha256': obs['body_sha256'],
+            'quote': 'https://example.org/blog/post-one',
+            'locator': {'type': 'text', 'value': 'https://example.org/blog/post-one'},
+        }]
+        codes = self.codes(evidence_issues(self.project, value))
+        self.assertIn('claim.sitemap_insufficient', codes)
+        self.assertIn('claim.unobserved_sample', codes)
+
+    def test_e3_network_error_classification_and_unverified_dns_claim_rejection(self):
+        import socket
+        from agent_tools.research import classify_network_error
+        self.assertEqual(classify_network_error(socket.gaierror(11001, 'getaddrinfo failed')), ('dns_error', False))
+        self.assertEqual(classify_network_error(TimeoutError('timed out')), ('tcp_timeout', None))
+
+        def timeout_fetcher(*args):
+            raise TimeoutError('timed out')
+
+        obs = collect(self.project, 'https://timeout.example.org/', fetcher=timeout_fetcher)
+        self.assertEqual(obs['error_kind'], 'tcp_timeout')
+        self.assertIsNone(obs['dns_resolved'])
+
+        value = v3_analysis(self.project)
+        fact = value['facts'][0]
+        fact['essence'] = 'Domain timeout.example.org has no DNS record (NXDOMAIN) and is unregistered.'
+        fact['scope']['sample'] = ['https://timeout.example.org/']
+        raw_obs = json.loads((self.project / 'ꘖ/KB' / obs['observation']).read_text(encoding='utf-8'))
+        fact['evidence'][0]['observation'] = obs['observation']
+        self.assertIn('claim.unverified_dns', self.codes(evidence_issues(self.project, value)))
+        self.assertEqual(raw_obs['error_kind'], 'tcp_timeout')
+
+    def test_e4_site_wide_schema_absence_requires_multi_page_or_product_template_sample(self):
+        value = v3_analysis(self.project)
+        fact = value['facts'][0]
+        fact['essence'] = 'Product and BlogPosting Schema.org markup are absent across the entire site.'
+        fact['scope']['sample'] = ['https://example.org/source']
+        self.assertIn('claim.scope_extrapolation', self.codes(evidence_issues(self.project, value)))
+
+        obs2 = collect(
+            self.project,
+            'https://example.org/shop/product-one',
+            fetcher=lambda *a: Response(a[0], 200, 'text/html', b'<html><h1>Product One</h1></html>'),
+        )
+        fact['scope']['sample'] = ['https://example.org/source', obs2['url']]
+        fact['evidence'].append({
+            'id': 'E-PROD-ONE',
+            'kind': 'observation',
+            'source': obs2['url'],
+            'observation': obs2['observation'],
+            'source_sha256': obs2['body_sha256'],
+            'quote': 'Product One',
+            'locator': {'type': 'text', 'value': 'Product One'},
+        })
+        self.assertNotIn('claim.scope_extrapolation', self.codes(evidence_issues(self.project, value)))
+
+    def test_e5_and_e6_html_sitemap_and_site_summary_diagnostics(self):
+        from agent_tools.research import compute_site_summary, extract_observation
+        html_bytes = (
+            b'<html><head><title>' + b'Very Long Page Title ' * 4 + b'</title>'
+            b'<script type="application/ld+json">{"@type":"WebSite","name":"S P I R I T  S E A","description":"","image":"http://example.org/logo.jpg"}</script>'
+            b'</head><body><h1>First H1</h1><h1>Second H1</h1>'
+            b'<img src="/a.jpg" alt=""><iframe src="https://www.youtube.com/embed/xyz"></iframe></body></html>'
+        )
+        r1 = collect(
+            self.project,
+            'https://example.org/page-a',
+            fetcher=lambda *a: Response(a[0], 200, 'text/html', html_bytes),
+        )
+        r1.update(extract_observation(self.project, r1['observation']))
+        r2 = collect(
+            self.project,
+            'https://example.org/page-b',
+            fetcher=lambda *a: Response(a[0], 200, 'text/html', html_bytes),
+        )
+        r2.update(extract_observation(self.project, r2['observation']))
+        sitemap_bytes = (
+            b'<?xml version="1.0" encoding="UTF-8"?>'
+            b'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            b'<url><loc>https://example.org/blog-post-title-one</loc><lastmod>2020-05-05</lastmod></url>'
+            b'<url><loc>https://example.org/home</loc><lastmod>2020-05-05</lastmod></url>'
+            b'</urlset>'
+        )
+        r3 = collect(
+            self.project,
+            'https://example.org/sitemap.xml',
+            fetcher=lambda *a: Response(a[0], 200, 'application/xml', sitemap_bytes),
+        )
+        r3.update(extract_observation(self.project, r3['observation']))
+        ext = json.loads((self.project / 'ꘖ/KB' / r1['extraction']).read_text(encoding='utf-8'))
+        self.assertTrue(ext['seo_diagnostics']['multiple_h1'])
+        self.assertTrue(ext['seo_diagnostics']['overlong_title'])
+        self.assertTrue(ext['seo_diagnostics']['spaced_brand_name'])
+        self.assertTrue(ext['seo_diagnostics']['empty_json_ld_description'])
+        self.assertTrue(ext['seo_diagnostics']['insecure_or_relative_json_ld_image'])
+        self.assertEqual(ext['image_alt_summary']['empty_alt'], 1)
+        self.assertEqual(ext['embeds'], [{'tag': 'iframe', 'src': 'https://www.youtube.com/embed/xyz'}])
+
+        ext_sitemap = json.loads((self.project / 'ꘖ/KB' / r3['extraction']).read_text(encoding='utf-8'))
+        self.assertIn('https://example.org/blog-post-title-one', ext_sitemap['sitemap']['sitemap_issues']['template_slug_urls'])
+        self.assertTrue(ext_sitemap['sitemap']['sitemap_issues']['root_url_missing'])
+
+        summary = compute_site_summary(self.project, [r1, r2, r3])
+        self.assertEqual(len(summary['duplicate_titles']), 1)
+        self.assertEqual(summary['multiple_h1_urls'], ['https://example.org/page-a', 'https://example.org/page-b'])
+
+    def test_e7_contradictory_evidence_reuse_in_against_and_intake_only_counterevidence_cap(self):
+        from test_onboarding import analysis
+        value = v3_analysis(self.project, analysis())
+        cause = value['causes'][0]
+        ref = deepcopy(value['facts'][0]['evidence'][0])
+        ref['id'] = 'E-CAUSE-OWN'
+        cause['evidence'] = [ref]
+        cause['for'] = [{'argument': 'Supports the cause.', 'evidence_id': 'E-CAUSE-OWN'}]
+        cause['against'] = [{'argument': 'Same evidence reused in against.', 'evidence_id': 'E-CAUSE-OWN'}]
+        self.assertIn('argument.contradictory_reuse', self.codes(analysis_issues(value)))
+
 
 if __name__ == '__main__':
     unittest.main()

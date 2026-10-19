@@ -413,3 +413,84 @@ class ReviewContractTests(ProjectCase):
         self.assertEqual(receipt['report_contract']['claim_review_required']['outcome_options'], ['supported', 'qualified', 'unsupported'])
         self.assertEqual(receipt['report_contract']['claim_review_required']['test_alignment_required']['relationship_options'], ['direct', 'proxy', 'irrelevant'])
 
+    def test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review(self):
+        from agent_tools.claims import claim_digest
+        fact = self.value['identity'][0]
+        concern = deepcopy(fact)
+        concern.update(
+            id='C-1',
+            essence='Concern item',
+            knowledge_type='hypothesis',
+            verification_status='limited',
+            probability_percent=70,
+            evidence=[],
+            derived_from=[{'claim_id': 'F-TITLE', 'sha256': claim_digest(fact)}],
+            for_args=[{'argument': 'Stated in intake.', 'claim_id': 'F-TITLE'}],
+            missing_checks=['Check admin panel.'],
+        )
+        concern['for'] = concern.pop('for_args')
+        cause = deepcopy(fact)
+        cause.update(
+            id='H-CAUSE-1',
+            essence='Root cause explanation',
+            knowledge_type='hypothesis',
+            verification_status='limited',
+            category='descriptive',
+            materiality='routine',
+            properties=['content'],
+            probability_percent=70,
+            addresses=['C-1'],
+            evidence=[],
+            derived_from=[{'claim_id': 'F-TITLE', 'sha256': claim_digest(fact)}],
+            for_args=[{'argument': 'Stated in intake.', 'claim_id': 'F-TITLE'}],
+            missing_checks=['Check admin panel.'],
+            alternative_explanations=['Another cause is possible.'],
+            discriminating_check='Compare admin logs.',
+        )
+        cause['for'] = cause.pop('for_args')
+        self.value['concerns'] = [concern]
+        self.value['causes'] = [cause]
+        self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
+
+        # Omitting H-CAUSE-1 from manifest while requesting routine review is blocked
+        with self.assertRaisesRegex(ValueError, 'unreviewed causes/misconceptions/methods claims'):
+            self.package(risk='routine')
+
+        # Including H-CAUSE-1 in manifest forces significant review even when mislabeled descriptive/routine
+        self.answer = 'Client task\nRoot cause explanation\n'
+        self.manifest = [
+            {'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'},
+            {'claim_id': 'H-CAUSE-1', 'response_excerpt': 'Root cause explanation'},
+        ]
+        with self.assertRaisesRegex(ValueError, 'routine risk downgrade'):
+            self.review_package(self.parent, self.answer, 'routine', self.manifest)
+
+    def test_e9_e10_e11_prepare_review_rejects_empty_red_flags_finalize_notes_and_doc4_multi_sentence_lines(self):
+        self.value['red_flags'] = []
+        self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
+
+        # E9: Red Flags heading when red_flags is empty
+        with self.assertRaisesRegex(ValueError, 'Red Flags heading'):
+            self.review_package(self.parent, '# Red Flags\nNone\nClient task\n', 'routine', self.manifest)
+
+        # E10: Internal service notes / finalize placeholders
+        with self.assertRaisesRegex(ValueError, 'internal service notes'):
+            self.review_package(self.parent, 'Client task\n## 4. Артефакты проекта\nформируется на этапе finalize\n', 'routine', self.manifest)
+
+        # E11: DOC-4 multi-sentence bullet line
+        bad_doc4 = 'Client task\n- **Суть:** Первое предложение утверждения. Второе предложение на той же строке.\n'
+        with self.assertRaisesRegex(ValueError, 'DOC-4 violation'):
+            self.review_package(self.parent, bad_doc4, 'routine', self.manifest)
+
+    def test_e12_check_project_flags_unsynced_client_identity_in_kb_project_md(self):
+        claim = self.value['identity'][0]
+        claim['essence'] = 'Клиент и владелец сайта — Jean Pierre.'
+        claim['verification_status'] = 'verified'
+        self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
+        self.put_project('KB/Project.md', '# 1. Клиент\n## 1.1 Имя\nнеизвестно\n')
+        self.put_project('ꘖ/KB/Project.md', '# 1. Клиент\n## 1.1 Имя\nнеизвестно\n')
+
+        res = flow.check_project(self.project)
+        codes = {issue['code'] for issue in res['issues']}
+        self.assertIn('kb.identity_mismatch', codes)
+
