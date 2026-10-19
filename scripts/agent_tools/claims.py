@@ -265,6 +265,11 @@ def contract_issues(value):
         calculation = claim.get('calculation')
         if claim.get('knowledge_type') == 'calculation' or 'calculation' in (properties if isinstance(properties, list) else []):
             issues.extend(_calculation_structure(calculation, field + '/calculation', claim))
+        for_evidence_ids = {
+            arg.get('evidence_id')
+            for arg in (claim.get('for') if isinstance(claim.get('for'), list) else [])
+            if isinstance(arg, dict) and _text(arg.get('evidence_id'))
+        }
         for side in ('for', 'against'):
             for number, arg in enumerate(claim.get(side, []) if isinstance(claim.get(side), list) else []):
                 if not isinstance(arg, dict):
@@ -276,9 +281,12 @@ def contract_issues(value):
                         add('argument.dependency', field + f'/{side}/{number}', 'A claim argument must name a versioned derived_from dependency', claim)
                 elif not _text(arg.get('evidence_id')) or arg.get('evidence_id') not in own_evidence:
                     add('argument.primary', field + f'/{side}/{number}', 'Direct arguments must identify their own primary evidence_id, or use a versioned claim_id', claim)
+                elif side == 'against' and arg.get('evidence_id') in for_evidence_ids:
+                    add('argument.contradictory_reuse', field + f'/against/{number}',
+                        'An against argument cannot reuse the exact same evidence_id as a for argument on the same claim', claim)
                 if (arg.get('claim_id') or arg.get('evidence_id')) and any(k in arg for k in ('source', 'source_id', 'quote', 'observation')):
                     add('argument.competing_reference', field + f'/{side}/{number}', 'Resolve the referenced claim/evidence instead of supplying competing source prose', claim)
-    for ident, (field, _, claim) in seen.items():
+    for ident, (field, section, claim) in seen.items():
         dep_ids = set()
         for dep in _dependencies(claim):
             if not isinstance(dep, dict) or not _text(dep.get('claim_id')):
@@ -296,6 +304,43 @@ def contract_issues(value):
                     add('claim.stale_dependency', field + '/derived_from', 'Dependency changed; reassess the dependent claim and record its new revision', claim)
                 elif target[2].get('verification_status') == 'stale' and claim.get('verification_status') != 'stale':
                     add('claim.stale_dependency', field + '/derived_from', 'A dependent claim must be reassessed after a stale premise', claim)
+        if (claim.get('knowledge_type') == 'hypothesis' and
+                claim.get('verification_status') != 'verified' and
+                (section in ('causes', 'misconceptions') or claim.get('category') == 'causal') and
+                isinstance(claim.get('against'), list) and claim['against'] and
+                isinstance(claim.get('probability_percent'), int) and claim['probability_percent'] > 75):
+            own_ev_kind = {
+                ref.get('id'): ref.get('kind')
+                for ref in (claim.get('evidence') if isinstance(claim.get('evidence'), list) else [])
+                if isinstance(ref, dict) and _text(ref.get('id'))
+            }
+            for_ev_ids = {
+                arg.get('evidence_id')
+                for arg in (claim.get('for') if isinstance(claim.get('for'), list) else [])
+                if isinstance(arg, dict) and _text(arg.get('evidence_id'))
+            }
+            for_claim_ids = {
+                arg.get('claim_id')
+                for arg in (claim.get('for') if isinstance(claim.get('for'), list) else [])
+                if isinstance(arg, dict) and _text(arg.get('claim_id'))
+            }
+            has_counter_obs = False
+            for arg in claim['against']:
+                if not isinstance(arg, dict):
+                    continue
+                ev_id = arg.get('evidence_id')
+                c_id = arg.get('claim_id')
+                if _text(ev_id) and ev_id not in for_ev_ids and own_ev_kind.get(ev_id) in {'observation', 'experiment'}:
+                    has_counter_obs = True
+                    break
+                if _text(c_id) and c_id not in for_claim_ids and c_id in seen:
+                    target_claim = seen[c_id][2]
+                    if target_claim.get('knowledge_type') in {'observation', 'calculation'}:
+                        has_counter_obs = True
+                        break
+            if not has_counter_obs:
+                add('claim.counterevidence', field + '/probability_percent',
+                    'An unverified causal or misconception hypothesis above 75% requires genuine observation/experiment counter-evidence in against (citing only client intake or reusing for-premises does not lift the 75% cap)', claim)
         impact = claim.get('impact', {})
         for ref in impact.get('evidence_claim_ids', []) if isinstance(impact, dict) and isinstance(impact.get('evidence_claim_ids'), list) else []:
             if not _text(ref) or ref not in dep_ids:
@@ -502,6 +547,7 @@ def evidence_contract_issues(root, value):
         # or a source that gains capabilities by skipping validation.
         return structural
     issues, capabilities, refs, index = [], {}, {}, claim_index(value)
+    direct_obs_urls, direct_obs_metas = {}, {}
     def add(code, field, message, claim):
         issues.append(problem(code, field, message, claim_id=claim.get('id')))
     for field, _, claim in claim_locations(value):
@@ -510,6 +556,8 @@ def evidence_contract_issues(root, value):
             add('primary.claim_id', field + '/id', 'Primary evidence needs a valid claim ID', claim)
             continue
         capabilities[ident] = set()
+        direct_obs_urls[ident] = set()
+        direct_obs_metas[ident] = []
         for number, ref in enumerate(claim.get('evidence', []) if isinstance(claim.get('evidence'), list) else []):
             if not isinstance(ref, dict):
                 continue
@@ -517,6 +565,10 @@ def evidence_contract_issues(root, value):
                 caps, saved = _primary_capabilities(root, ref)
                 capabilities[ident].update(caps)
                 refs[ref.get('id')] = (claim, ref, saved)
+                if ref.get('kind') == 'observation':
+                    direct_obs_urls[ident].add(ref.get('source', ''))
+                    if isinstance(saved, dict) and isinstance(saved.get('meta'), dict):
+                        direct_obs_metas[ident].append(saved['meta'])
             except (OSError, ValueError, KeyError, IndexError, TypeError, UnicodeError, ImportError) as exc:
                 add('primary.unconfirmed', field + f'/evidence/{number}', str(exc), claim)
     memo = {}
@@ -533,11 +585,51 @@ def evidence_contract_issues(root, value):
                 result.update(inherited(dep['claim_id'], active))
         memo[ident] = result
         return result
+    def inherited_urls(ident, active=None):
+        active = set() if active is None else active
+        if ident in active or ident not in index:
+            return set()
+        active = active | {ident}
+        result = set(direct_obs_urls.get(ident, set()))
+        for dep in _dependencies(index[ident]):
+            if isinstance(dep, dict) and dep.get('claim_id') in index:
+                result.update(inherited_urls(dep['claim_id'], active))
+        return result
+    def inherited_metas(ident, active=None):
+        active = set() if active is None else active
+        if ident in active or ident not in index:
+            return []
+        active = active | {ident}
+        result = list(direct_obs_metas.get(ident, []))
+        for dep in _dependencies(index[ident]):
+            if isinstance(dep, dict) and dep.get('claim_id') in index:
+                result.extend(inherited_metas(dep['claim_id'], active))
+        return result
     for field, _, claim in claim_locations(value):
         if not _text(claim.get('id')):
             continue
-        caps = inherited(claim.get('id'))
+        ident = claim['id']
+        caps = inherited(ident)
+        obs_urls = inherited_urls(ident)
+        obs_metas = inherited_metas(ident)
         status = claim.get('verification_status')
+        text_blob = str(claim.get('essence', '')) + ' ' + str(claim.get('assessment_basis', ''))
+        if re.search(r'(?i)\bgetaddrinfo\b|\bnxdomain\b|не\s+резолвится(?:\s+на\s+уровне\s+dns)?|dns\s+(?:resolution\s+failed|не\s+резолв)', text_blob):
+            has_dns_err = any(m.get('error_kind') == 'dns_error' or m.get('dns_resolved') is False for m in obs_metas)
+            if not has_dns_err and root:
+                http_root = Path(root).resolve() / 'ꘖ/KB/Evidence/HTTP'
+                if http_root.is_dir():
+                    for obs_file in http_root.rglob('observation.json'):
+                        try:
+                            m = json.loads(obs_file.read_text(encoding='utf-8'))
+                            if m.get('error_kind') == 'dns_error' or m.get('dns_resolved') is False:
+                                has_dns_err = True
+                                break
+                        except (OSError, ValueError):
+                            pass
+            if not has_dns_err:
+                add('claim.unverified_dns', field + '/essence',
+                    'Claim asserts DNS non-resolution (getaddrinfo/NXDOMAIN) without a saved observation showing error_kind == dns_error; distinguish TCP timeout from DNS failure', claim)
         if status == 'verified':
             for prop in claim.get('properties', []) if isinstance(claim.get('properties'), list) else []:
                 if prop == 'calculation':
@@ -548,6 +640,36 @@ def evidence_contract_issues(root, value):
                 target = index.get(dep.get('claim_id')) if isinstance(dep, dict) and _text(dep.get('claim_id')) else None
                 if target and target.get('verification_status') != 'verified':
                     add('claim.unverified_premise', field + '/derived_from', 'A verified conclusion cannot rely on an incomplete or hypothetical premise', claim)
+            if (set(claim.get('properties', [])) & {'content', 'markup', 'dom'}) and obs_urls:
+                observed_paths = {urlsplit(urldefrag(u)[0]).path.rstrip('/') or '/' for u in obs_urls if u}
+                sample_items = (claim.get('scope') or {}).get('sample') or []
+                sample_urls = [
+                    s.strip() for s in sample_items
+                    if isinstance(s, str) and (s.strip().startswith(('http://', 'https://')) or s.strip().startswith('/'))
+                    and 'example.invalid' not in s
+                ]
+                sample_paths = {urlsplit(urldefrag(s)[0]).path.rstrip('/') or '/' for s in sample_urls}
+                if observed_paths and all(p.lower().endswith(('sitemap.xml', 'robots.txt')) for p in observed_paths):
+                    non_sitemap_samples = {p for p in sample_paths if not p.lower().endswith(('sitemap.xml', 'robots.txt'))}
+                    if non_sitemap_samples or re.search(
+                        r'(?i)(?:демо-запис|демо-страниц|шаблонн\w+\s+заглушк|пуст\w+\s+страниц|demo\s+post|placeholder\s+page|thin\s+content)',
+                        str(claim.get('essence', '')),
+                    ):
+                        add('claim.sitemap_insufficient', field + '/evidence',
+                            'A sitemap.xml/robots.txt observation only proves URL listing in XML, not the HTTP status, content or markup of target pages; collect the target page URLs or CMS JSON first', claim)
+                if sample_paths and (
+                    len(sample_paths) > len(observed_paths)
+                    or (any(p not in ('/', '/sitemap.xml', '/robots.txt') for p in sample_paths)
+                        and observed_paths.issubset({'/', '/sitemap.xml', '/robots.txt'}))
+                ):
+                    add('claim.unobserved_sample', field + '/scope/sample',
+                        'Verified claim scope.sample lists page URLs that were not observed in primary evidence; collect every sampled URL or narrow scope.sample', claim)
+                if observed_paths.issubset({'/', '/sitemap.xml', '/robots.txt'}) and re.search(
+                    r'(?i)(?:на\s+(?:всём\s+)?сайте|полностью\s+отсутству|отсутствуют\s+схемы\s+`?(?:Product|Offer|Article)|absent\s+across\s+the\s+entire\s+site|no\s+(?:Product|Offer|Article)\s+schema\s+on\s+the\s+site)',
+                    str(claim.get('essence', '')),
+                ):
+                    add('claim.scope_extrapolation', field + '/scope',
+                        'Homepage/sitemap observations alone cannot verify site-wide absence of Product/Offer/Article structured data; observe representative product/article pages or keep status limited', claim)
         if claim.get('knowledge_type') == 'calculation' or 'calculation' in (claim.get('properties') or []):
             try:
                 _check_calculation(claim, index, refs)

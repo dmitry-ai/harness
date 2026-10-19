@@ -247,12 +247,55 @@ def adopt_requests(root, conversation_id):
     return update(root, {'action': 'adopt_requests', 'conversation_id': conversation_id}, change)
 
 
+def doc4_sentence_issues(text):
+    """Detect DOC-4 single-sentence-per-line violations in bullet items and Russian prose."""
+    issues = []
+    in_fence = False
+    fence_marker = ''
+    for lineno, raw_line in enumerate((text or '').splitlines(), 1):
+        stripped = raw_line.strip()
+        m_fence = re.match(r'^(`{3,}|~{3,})', stripped)
+        if m_fence:
+            marker = m_fence.group(1)[0]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif stripped.startswith(fence_marker * 3):
+                in_fence = False
+                fence_marker = ''
+            continue
+        if in_fence or not stripped or stripped.startswith(('#', '>', '|')):
+            continue
+        cleaned = re.sub(r'`[^`]*`', 'code', stripped)
+        cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
+        cleaned = re.sub(r'«[^»]*»', '«цитата»', cleaned)
+        cleaned = re.sub(
+            r'\b(?:г|гг|т\.д|т\.п|см|им|др|пр|ул|д|кв|рис|табл|ст|п|ч|руб|тыс|млн|млрд|англ|рус|напр|ок|vs|Mr|Mrs|Ms|Dr|St|Inc|Ltd|Co|Jr|Sr|e\.g|i\.e)\.',
+            'abbr',
+            cleaned,
+        )
+        is_bold_bullet = bool(re.match(r'^[-*]\s+\*\*[^*]+\*\*', stripped))
+        if is_bold_bullet and re.search(r'[A-Za-zА-Яа-яЁё]{3,}[.!?]\s+[A-ZА-ЯЁ][a-zа-яё]{2,}\s+\S+.*[.!?]\s*$', cleaned):
+            issues.append(f'DOC-4 violation on line {lineno}: multiple sentences on a single bullet line (place each sentence on its own line or use sub-bullets)')
+        elif re.search(r'(?:[А-Яа-яЁёA-Za-z0-9«»"(),:-]+\s+){3,}[А-Яа-яЁё]{3,}[.!?]\s+[А-ЯЁ][а-яё]{2,}\s+[А-Яа-яЁёA-Za-z0-9]+\s+[А-Яа-яЁёA-Za-z0-9]+', cleaned):
+            issues.append(f'DOC-4 violation on line {lineno}: multiple sentences on a single line (place each sentence on its own line)')
+    return issues
+
+
 def record_current_answer(root, response):
     from .journal import record_answer
     from .links import readable_link_issues
     issues = readable_link_issues(response)
     if issues:
         raise ValueError('\n'.join(issues))
+    analysis_path = Path(root).resolve() / 'ꘖ/KB/Analysis.json'
+    if analysis_path.is_file():
+        try:
+            analysis_val = json.loads(analysis_path.read_text(encoding='utf-8-sig'))
+        except Exception:
+            analysis_val = None
+        if isinstance(analysis_val, dict) and analysis_val.get('red_flags') == [] and re.search(r'(?im)^\s*#{1,6}\s+Red Flags\b', response):
+            raise ValueError('Do not include a Red Flags heading in the response when Analysis.json red_flags is empty (INIT-5)')
     state = load(root)
     from .review import authorize
     approval = authorize(root, state, response=response)
@@ -372,6 +415,9 @@ def kb_issues(root):
         text = file.read_text(encoding='utf-8')
         if re.search(r'(?im)^\s*\|.*\|\s*$\n\s*\|?\s*:?-{3,}', text) or re.search(r'(?i)<a\s+[^>]*(?:name|id)\s*=', text):
             issues.append(problem('kb.format', relative, 'Markdown tables or HTML anchors conflict with DOC-4/LINK-4', file=file))
+        if file.name != 'Analysis.md':
+            for doc4_err in doc4_sentence_issues(text):
+                issues.append(problem('kb.doc4_sentence', relative, doc4_err, file=file))
     return issues
 
 
@@ -549,6 +595,27 @@ def check_project(root):
                     if website['status'] not in ('published', 'unchanged'):
                         issues.append(problem('project.website', '.md',
                             'Publish the explicit evidenced client/target website selection, or null if unidentified', file=root / '.md'))
+                    established_identity = any(
+                        isinstance(c, dict)
+                        and (c.get('verification_status') == 'verified' or (c.get('probability_percent') or 0) >= 80)
+                        and re.search(
+                            r'(?:клиент|автор|художник|владелец|заказчик|основатель)[^.]{0,40}?\b[A-ZА-ЯЁ][a-zа-яё]{1,25}\s+[A-ZА-ЯЁ][a-zа-яё]{1,25}\b',
+                            c.get('essence') or '',
+                        )
+                        for c in (value.get('identity') or [])
+                    )
+                    if established_identity:
+                        for rel_proj in ('KB/Project.md', 'ꘖ/KB/Project.md'):
+                            proj_file = root / rel_proj
+                            if proj_file.is_file():
+                                proj_txt = proj_file.read_text(encoding='utf-8')
+                                if re.search(r'#\s*1\.1\s+Имя\s*\r?\n\s*неизвестно\b', proj_txt, re.IGNORECASE):
+                                    issues.append(problem(
+                                        'kb.identity_mismatch',
+                                        rel_proj,
+                                        f'Established client identity in Analysis.json is not synced to {rel_proj} (# 1.1 Имя is still неизвестно)',
+                                        file=proj_file,
+                                    ))
         except (OSError, ValueError, TypeError) as exc:
             issues.append(problem('analysis.input', str(path), str(exc)))
     for issue in issues:

@@ -16,7 +16,7 @@
 1. `id`, `essence`, `assessment_basis`.
 1. `knowledge_type`: observation, client_report, hypothesis, recommendation или calculation.
 1. `verification_status`: verified, limited, unverified, unavailable или stale.
-1. `scope`: description, sample и limitations; выборку не расширяй словами «все» без полного охвата.
+1. `scope`: description, sample и limitations; выборку не расширяй словами «все» без полного охвата, а для подтверждённых наблюдений о содержимом или разметке страниц (`properties`: `content`/`markup`) все URL из `scope.sample` должны быть подкреплены собственными наблюдениями самих страниц (не только `sitemap.xml`/`robots.txt`), причём отрицательные утверждения «на всём сайте отсутствует...» не могут опираться только на главную страницу.
 1. `properties`: типы проверяемых свойств — content, markup, dom, interaction, currency_transition, ip_country, admin_configuration, serp, platform_capability, calculation, causality, business_impact, architecture_change, pricing_change.
 1. `materiality`: routine/significant, `novelty`: new/restatement и `category`: descriptive/causal/architecture/pricing/interaction.
 1. `derived_from`: список claim_id + sha256 канонической версии основания; revision считает `claims.claim_digest`.
@@ -25,8 +25,8 @@
 1. `impact`: severity (unknown/low/medium/high/critical), basis и evidence_claim_ids; high/critical требуют версионных оснований в derived_from.
 
 Гипотеза не может иметь verified, каким бы высоким ни был probability_percent.
-`for`/`against` ссылаются на версионный `claim_id` либо собственный `evidence_id` с текстом argument.
-Для пустого against сохраняется прежний counterevidence с unavailable/not_found, reviewed_sources и limitations; неподтверждённая гипотеза (`verification_status != verified`) с пустым `against` не может иметь `probability_percent > 75`.
+`for`/`against` ссылаются на версионный `claim_id` либо собственный `evidence_id` с текстом argument; довод в `against` обязан семантически ослаблять или ограничивать гипотезу и не может переиспользовать тот же `evidence_id`, что и `for`.
+Для пустого against сохраняется прежний counterevidence с unavailable/not_found, reviewed_sources и limitations; неподтверждённая гипотеза (`verification_status != verified`) с пустым `against` либо причинная гипотеза/гипотеза о заблуждениях (`causes`, `misconceptions`) без контрнаблюдения (`observation`/`experiment`) в `against` не может иметь `probability_percent > 75`.
 Гипотеза в `causes` или `misconceptions` содержит alternative_explanations и discriminating_check; способ — applicability и validation, а также прежние criterion/score_percent/addresses.
 В подтверждённом `observation` или `client_report` (`verification_status: verified`) каждое самостоятельное число в `essence` должно присутствовать в первичных цитатах/локаторах `evidence` либо вычисляться через `calculation`/`derived_from`.
 Пример — [analysis.example.json](analysis.example.json).
@@ -35,7 +35,7 @@
 
 Каждая ссылка evidence содержит id, kind, source, source_sha256, quote и locator с type/value.
 Локаторы: text, json_pointer, anchor или lines (включительный диапазон `<start>-<end>`).
-`kind: observation` дополнительно содержит observation — путь сохранённых метаданных HTTP/DOM; source называет захваченный HTTP(S) URL.
+`kind: observation` дополнительно содержит observation — путь сохранённых метаданных HTTP/DOM; source называет захваченный HTTP(S) URL; при сетевом сбое `observation` сохраняет `error_kind` (`dns_error`, `tcp_timeout`, `connection_refused`, `tls_error`), и тезис о неразрешимости домена в DNS требует наблюдения с `error_kind: dns_error`.
 `kind: intake`/attachment дополнительно содержит manifest — зарегистрированный снимок/квитанцию импорта, подтверждающую именно эти байты и их происхождение.
 Проверяется полная квитанция и связь зарегистрированного снимка с исходным захватом; произвольный manifest с правильным хешем собственного файла не считается импортом.
 Агентский site.json, отчёт или заметка в Evidence не являются первичным клиентским источником.

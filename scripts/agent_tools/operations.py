@@ -176,7 +176,7 @@ def execute(args):
         result = save_analysis(args.project, json.loads(payload.decode('utf-8-sig')), args.expected_sha256)
         return _consumed(args, candidate, payload, result)
     if command == 'collect':
-        from .research import collect_plan, inside, json_data
+        from .research import collect_plan, compute_site_summary, inside, json_data
         payload = _operation_input(args, args.plan)
         plan = json.loads(payload.decode('utf-8-sig'))
         result = collect_plan(args.project, plan)
@@ -196,7 +196,9 @@ def execute(args):
                             new_keys = {r.get('request_key') or (r.get('url'), r.get('observation')) for r in result['results'] if isinstance(r, dict)}
                             kept = [r for r in prev_data['results'] if isinstance(r, dict) and (r.get('request_key') or (r.get('url'), r.get('observation'))) not in new_keys]
                             if kept:
-                                result = {**result, 'results': kept + result['results'],
+                                merged_results = kept + result['results']
+                                result = {**result, 'results': merged_results,
+                                          'site_summary': compute_site_summary(args.project, merged_results),
                                           'complete': bool(prev_data.get('complete', True) and result.get('complete', True))}
                 except (OSError, ValueError):
                     pass

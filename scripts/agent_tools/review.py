@@ -87,7 +87,7 @@ def _approved_digests(root, state, *, exclude_package=None):
 
 
 def classification(root, state, spec, response, value, *, exclude_package=None):
-    from .claims import all_claims, claim_digest, standalone_numbers, grounded_numbers_for_claim
+    from .claims import all_claims, claim_digest, claim_locations, standalone_numbers, grounded_numbers_for_claim
     if not isinstance(spec, dict) or spec.get('risk') not in ('routine', 'significant'):
         raise ValueError('Explicit review spec risk routine/significant is required; no default risk')
     if not _text(spec.get('basis')) or not _text(spec.get('request_scope')):
@@ -103,6 +103,11 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
     if any(not _text(x) for x in claim_ids) or len(set(claim_ids)) != len(claim_ids):
         raise ValueError('Review claim_ids must be unique existing claim IDs')
     index = {item['id']: item for item in all_claims(value)}
+    section_by_id = {
+        claim['id']: section
+        for _, section, claim in claim_locations(value)
+        if isinstance(claim, dict) and _text(claim.get('id'))
+    }
     previously_approved = _approved_digests(root, state, exclude_package=exclude_package)
     manifest, seen, reasons, required_flags = [], set(), [], set()
     for item in spec['claims']:
@@ -113,6 +118,7 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
             raise ValueError('Response manifest needs one exact nonempty response excerpt per claim')
         seen.add(ident)
         claim = index[ident]
+        claim_section = section_by_id.get(ident)
         excerpt_nums = standalone_numbers(item['response_excerpt'])
         if excerpt_nums:
             grounded_nums = grounded_numbers_for_claim(claim, index)
@@ -126,13 +132,17 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
         restatement = novelty == 'restatement' and (ident, sha) in previously_approved
         material = (claim.get('materiality') == 'significant' or
                     claim.get('impact', {}).get('severity') in ('high', 'critical'))
-        significant_kind = (claim.get('category') in ('causal', 'architecture', 'pricing') or
+        causal_section = claim_section in ('causes', 'misconceptions')
+        significant_kind = (causal_section or
+                            claim.get('category') in ('causal', 'architecture', 'pricing') or
                             bool(set(claim.get('properties', [])) & {'causality', 'business_impact', 'admin_configuration', 'architecture_change', 'pricing_change'}))
         if not restatement and (material or significant_kind):
             reasons.append(f'{ident}: new {claim.get("category")} claim ({claim.get("materiality")})')
             properties = set(claim.get('properties', []))
             if material:
                 required_flags.add('material_analysis')
+            if causal_section:
+                required_flags.add('new_causal_analysis')
             for category, prop, flag in (('causal', 'causality', 'new_causal_analysis'),
                     ('architecture', 'architecture_change', 'architecture_change'),
                     ('pricing', 'pricing_change', 'pricing_change')):
@@ -146,6 +156,17 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
                          'verification_status': claim.get('verification_status'), 'essence': claim['essence']})
     if set(claim_ids) != seen:
         raise ValueError('Classification claim_ids must equal the response manifest claim IDs')
+    unreviewed_stage_claims = [
+        c['id'] for s in ('causes', 'misconceptions', 'methods')
+        for c in (value.get(s) or [])
+        if isinstance(c, dict) and _text(c.get('id')) and (c['id'], claim_digest(c)) not in previously_approved
+    ]
+    omitted_stage_claims = sorted(set(unreviewed_stage_claims) - seen)
+    if omitted_stage_claims and spec['risk'] == 'routine':
+        raise ValueError(
+            'Unjustified routine risk downgrade: unreviewed causes/misconceptions/methods claims in Analysis.json '
+            'cannot be omitted from the review manifest (' + ', '.join(omitted_stage_claims) + ')'
+        )
     minimum = 'significant' if reasons or flags else 'routine'
     if minimum == 'significant' and spec['risk'] == 'routine':
         raise ValueError('Unjustified routine risk downgrade: ' + '; '.join(reasons))
@@ -157,7 +178,7 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 
 
 def prepare(root, parent_id, spec, response):
-    from .workflow import load, hashes, kb_paths, evidence_paths
+    from .workflow import load, hashes, kb_paths, evidence_paths, doc4_sentence_issues
     root = Path(root).resolve()
     if not _text(parent_id) or not _text(response):
         raise ValueError('Observed parent ID and the exact nonempty candidate response are required')
@@ -166,6 +187,13 @@ def prepare(root, parent_id, spec, response):
     if not requests:
         raise ValueError('Save/import the exact current requests before preparing review')
     value = _analysis(root)
+    if isinstance(value, dict) and value.get('red_flags') == [] and re.search(r'(?im)^\s*#{1,6}\s+Red Flags\b', response):
+        raise ValueError('Do not include a Red Flags heading in the response when Analysis.json red_flags is empty (INIT-5)')
+    if re.search(r'(?im)формируется\s+на\s+этапе\s+`?finalize`?|^\s*#{1,6}\s*(?:\d+(?:\.\d+)*\.?\s*)?Артефакты\s+проекта\b', response):
+        raise ValueError('Candidate response must not contain internal service notes or uninitialized finalize placeholders (INIT-4)')
+    doc4_issues = doc4_sentence_issues(response)
+    if doc4_issues:
+        raise ValueError('\n'.join(doc4_issues))
     classified = classification(root, state, spec, response, value)
     payload = response.encode('utf-8')
     response_sha = digest(payload)

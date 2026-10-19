@@ -6,10 +6,12 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urldefrag, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 import hashlib
 import json
 import re
+import socket
+import ssl
 import time
 import uuid
 import xml.etree.ElementTree as ET
@@ -19,6 +21,22 @@ from .storage import create_bytes, locked, replace_bytes
 
 MAX_BYTES = 16 * 1024 * 1024
 PROFILES = ('html', 'shopify', 'tracking', 'document')
+
+
+def classify_network_error(exc):
+    """Distinguish DNS failure (gaierror) from TCP timeout, connection refused, or TLS error."""
+    cause = exc.reason if isinstance(exc, URLError) and getattr(exc, 'reason', None) is not None else exc
+    if isinstance(cause, socket.gaierror):
+        return 'dns_error', False
+    if isinstance(cause, (TimeoutError, socket.timeout)):
+        return 'tcp_timeout', None
+    if isinstance(cause, ConnectionRefusedError):
+        return 'connection_refused', True
+    if isinstance(cause, ssl.SSLError):
+        return 'tls_error', True
+    if isinstance(exc, ValueError):
+        return 'value_error', None
+    return 'network_error', None
 
 
 def json_data(value):
@@ -194,15 +212,17 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
         if refresh_reason is not None and not refresh_reason.strip():
             raise ValueError('Refresh needs a reason for the new measurement')
         when = datetime.now(timezone.utc).isoformat(timespec='microseconds')
-        error = None
+        error, error_kind, dns_resolved = None, None, None
         try:
             response = (fetcher or fetch)(url, headers, timeout)
             if len(response.body) > MAX_BYTES:
                 raise ValueError('Response exceeds 16 MiB')
+            dns_resolved = True if observation_kind == 'http' and (response.status or 0) > 0 else None
         except (OSError, ValueError) as exc:
             response = Response(url, 0, 'application/octet-stream', b'')
             # Do not persist exception strings that may echo request credentials.
             error = type(exc).__name__
+            error_kind, dns_resolved = classify_network_error(exc)
         folder = root / 'ꘖ/KB/Evidence/HTTP' / key[:24] / uuid.uuid4().hex
         folder.mkdir(parents=True, exist_ok=False)
         create_bytes(folder / 'response.bin', response.body)
@@ -212,7 +232,7 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
                 'http_status_verified': observation_kind == 'http' and response.status > 0,
                 'content_type': response.content_type, 'charset': response.charset, 'redirects': list(response.redirects),
                 'body_sha256': hashlib.sha256(response.body).hexdigest(), 'body_bytes': len(response.body),
-                'refresh_reason': refresh_reason, 'error': error,
+                'refresh_reason': refresh_reason, 'error': error, 'error_kind': error_kind, 'dns_resolved': dns_resolved,
                 'conditions': {'header_names': sorted(k.lower() for k in headers), 'values_fingerprint': key,
                                'reported_context': context, 'context_fingerprint': _fingerprint(context)},
                 'collector': 'read-only-http' if observation_kind == 'http' else 'read-only-dom',
@@ -243,6 +263,7 @@ class HTMLData(HTMLParser):
         self.stack, self.text, self.headings, self.anchors, self.scripts, self.json_ld = [], [], [], [], [], []
         self.title, self.meta, self.meta_all, self.canonical, self.heading, self.script = '', {}, {}, [], None, None
         self.links, self.link = [], None
+        self.images, self.embeds = [], []
         self.anchor_ranges, self.section_ranges = {}, []
         self.position = 0
 
@@ -254,6 +275,16 @@ class HTMLData(HTMLParser):
             self.anchor_ranges.setdefault(anchor, []).append({'start': self.position, 'end': None})
         if tag == 'a' and attrs.get('href'):
             self.link = {'href': attrs['href'], 'text': ''}
+        if tag == 'img':
+            self.images.append({
+                'src': attrs.get('src') or attrs.get('data-src') or '',
+                'alt': attrs.get('alt', ''),
+                'has_alt_attr': 'alt' in attrs,
+                'width': attrs.get('width'),
+                'height': attrs.get('height'),
+            })
+        if tag in ('iframe', 'video') and (attrs.get('src') or attrs.get('data-src')):
+            self.embeds.append({'tag': tag, 'src': attrs.get('src') or attrs.get('data-src')})
         if tag == 'meta':
             name = attrs.get('name') or attrs.get('property')
             if name:
@@ -319,13 +350,129 @@ class HTMLData(HTMLParser):
 
     def result(self):
         plain = ''.join(self.text)
+        clean_text = '\n'.join(x.strip() for x in plain.splitlines() if x.strip())
+        title_str = ' '.join(self.title.split())
         sections = [{**h, 'content': plain[h['start']:h['end']]} for h in self.section_ranges]
-        return {'title': ' '.join(self.title.split()), 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical,
+        word_count = len(re.findall(r'\w+', clean_text))
+        site_name = (self.meta.get('og:site_name') or '').strip()
+        total_imgs = len(self.images)
+        empty_alt = sum(1 for img in self.images if not (img.get('alt') or '').strip())
+        filename_alt = sum(
+            1 for img in self.images
+            if (img.get('alt') or '').strip()
+            and re.search(r'(?i)\.(?:jpe?g|png|gif|webp|avif|svg|bmp|tiff?)\b', (img.get('alt') or '').strip())
+        )
+        repeated_site_alt = sum(
+            1 for img in self.images
+            if site_name and (img.get('alt') or '').strip().lower() == site_name.lower()
+        )
+        descriptive_alt = max(0, total_imgs - empty_alt - filename_alt - repeated_site_alt)
+        h1_count = sum(1 for h in self.headings if h.get('level') == 1)
+        meta_desc = self.meta.get('description', '')
+        spaced_brand = bool(re.search(
+            r'\b(?:[A-Za-z]\s+){3,}[A-Za-z]\b',
+            (self.meta.get('og:site_name') or '') + ' ' + json.dumps(self.json_ld, ensure_ascii=False),
+        ))
+        json_ld_types = [item.get('@type') for item in self.json_ld if isinstance(item, dict) and item.get('@type')]
+        empty_json_ld_desc = any(
+            isinstance(item, dict) and 'description' in item and not str(item.get('description') or '').strip()
+            for item in self.json_ld
+        )
+        insecure_json_ld_img = any(
+            isinstance(item, dict) and isinstance(item.get('image'), str)
+            and (item['image'].startswith('http://') or item['image'].startswith('//') or item['image'].startswith('/'))
+            for item in self.json_ld
+        )
+        return {'title': title_str, 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical,
                 'headings': self.headings, 'anchors': sorted(set(self.anchors)), 'links': self.links, 'scripts': self.scripts,
+                'images': self.images,
+                'image_alt_summary': {
+                    'total': total_imgs,
+                    'empty_alt': empty_alt,
+                    'filename_like_alt': filename_alt,
+                    'repeated_site_name_alt': repeated_site_alt,
+                    'descriptive_alt': descriptive_alt,
+                },
+                'embeds': self.embeds,
+                'word_count': word_count,
+                'seo_diagnostics': {
+                    'h1_count': h1_count,
+                    'missing_h1': h1_count == 0,
+                    'multiple_h1': h1_count > 1,
+                    'title_length': len(title_str),
+                    'overlong_title': len(title_str) > 65,
+                    'meta_description_length': len(meta_desc),
+                    'missing_meta_description': not bool(meta_desc.strip()),
+                    'spaced_brand_name': spaced_brand,
+                    'json_ld_types': json_ld_types,
+                    'empty_json_ld_description': empty_json_ld_desc,
+                    'insecure_or_relative_json_ld_image': insecure_json_ld_img,
+                },
                 'json_ld': self.json_ld, 'sections': sections,
                 'anchor_content': {anchor: [plain[x['start']:x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()},
                 'ambiguous_anchors': sorted(anchor for anchor, ranges in self.anchor_ranges.items() if len(ranges) > 1),
-                'text': '\n'.join(x.strip() for x in plain.splitlines() if x.strip())}
+                'text': clean_text}
+
+
+def _extract_sitemap(text):
+    """Parse XML <urlset>/<sitemapindex> and compute deterministic sitemap diagnostics."""
+    stripped = text.lstrip()
+    if not (stripped.startswith('<?xml') or '<urlset' in stripped[:1500] or '<sitemapindex' in stripped[:1500]):
+        return None
+    try:
+        root_el = ET.fromstring(text.encode('utf-8'))
+    except ET.ParseError:
+        return None
+    root_name = root_el.tag.rsplit('}', 1)[-1].lower()
+    if root_name not in ('urlset', 'sitemapindex'):
+        return None
+    urls = []
+    img_to_pages = {}
+    polluted_titles = set()
+    for child in root_el:
+        tag_name = child.tag.rsplit('}', 1)[-1].lower()
+        if tag_name not in ('url', 'sitemap'):
+            continue
+        entry = {'loc': '', 'lastmod': None, 'changefreq': None, 'priority': None, 'images': []}
+        for field_el in child:
+            fname = field_el.tag.rsplit('}', 1)[-1].lower()
+            val = (field_el.text or '').strip()
+            if fname in ('loc', 'lastmod', 'changefreq', 'priority'):
+                entry[fname] = val
+            elif fname == 'image':
+                img_item = {'loc': '', 'title': None, 'caption': None}
+                for img_child in field_el:
+                    iname = img_child.tag.rsplit('}', 1)[-1].lower()
+                    if iname in ('loc', 'title', 'caption'):
+                        img_item[iname] = (img_child.text or '').strip()
+                if img_item['loc']:
+                    entry['images'].append(img_item)
+                    if img_item['title'] and 'select to expand' in img_item['title'].lower():
+                        polluted_titles.add(img_item['title'])
+        if entry['loc']:
+            urls.append(entry)
+            for img_item in entry['images']:
+                img_to_pages.setdefault(img_item['loc'], []).append(entry['loc'])
+    unescaped_spaces = [u['loc'] for u in urls if ' ' in u['loc'] or '%20' in u['loc']]
+    template_slugs = [
+        u['loc'] for u in urls
+        if re.search(r'(?i)(?:blog-post-title|new-page|sample-page|copy-of|lorem-ispum|lorem-ipsum|/home$)', u['loc'])
+    ]
+    paths = [urlsplit(u['loc']).path for u in urls]
+    root_missing = any(p.rstrip('/') == '/home' for p in paths) and not any(p in ('', '/') for p in paths)
+    duplicate_images = {k: v for k, v in sorted(img_to_pages.items()) if len(v) > 1}
+    return {
+        'type': root_name,
+        'url_count': len(urls),
+        'urls': urls,
+        'sitemap_issues': {
+            'unescaped_spaces_in_loc': unescaped_spaces,
+            'template_slug_urls': template_slugs,
+            'root_url_missing': root_missing,
+            'polluted_image_titles': sorted(polluted_titles),
+            'duplicate_image_locs': duplicate_images,
+        },
+    }
 
 
 def _summarize_json_collections(value):
@@ -431,6 +578,14 @@ def extract_bytes(body, content_type, profile, charset='utf-8'):
         return out
     parser = HTMLData(); parser.feed(text)
     result = parser.result()
+    result['tracking_summary'] = {
+        'identifiers': sorted(set(re.findall(r'\b(?:GTM-[A-Z0-9]+|G-[A-Z0-9]+|UA-\d+-\d+|AW-\d+)\b', text))),
+        'gsc_verification': bool(result['meta'].get('google-site-verification')),
+        'cms_technical_domains': sorted(set(re.findall(r'\b[a-z0-9-]+\.(?:squarespace\.com|myshopify\.com|webflow\.io|wixsite\.com|wpengine\.com)\b', text, flags=re.I))),
+    }
+    sitemap = _extract_sitemap(text)
+    if sitemap is not None:
+        result['sitemap'] = sitemap
     if profile == 'tracking':
         result['identifiers'] = sorted(set(re.findall(r'\b(?:GTM-[A-Z0-9]+|G-[A-Z0-9]+|AW-\d+)\b', text)))
         configs, parse_failures = {}, []
@@ -525,6 +680,66 @@ def capture_dom(root, url, tab_id, *, port=9222, refresh_reason=None, reader=Non
     return {**observation, **extract_observation(root, observation['observation'])}
 
 
+def compute_site_summary(root, results):
+    """Aggregate cross-page SEO, heading, word count and tracking diagnostics across HTML extractions."""
+    root = Path(root).resolve()
+    kb_dir = root / 'ꘖ/KB'
+    titles, descriptions = {}, {}
+    missing_h1, multiple_h1, overlong_titles, thin_urls = [], [], [], []
+    all_identifiers, cms_domains = set(), set()
+    html_pages = 0
+    for item in results or []:
+        if not isinstance(item, dict) or item.get('error') or not (200 <= (item.get('status') or 0) < 300):
+            continue
+        url = item.get('url') or ''
+        ext_rel = item.get('extraction')
+        if not ext_rel:
+            continue
+        path_lower = urlsplit(url).path.lower()
+        if path_lower.endswith(('.xml', '.txt', '.json')):
+            continue
+        ext_file = kb_dir / ext_rel
+        if not ext_file.is_file():
+            continue
+        try:
+            ext = json.loads(ext_file.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if ext.get('sitemap') is not None or 'headings' not in ext:
+            continue
+        html_pages += 1
+        title = (ext.get('title') or '').strip()
+        if title:
+            titles.setdefault(title, []).append(url)
+            if len(title) > 65:
+                overlong_titles.append({'url': url, 'title': title, 'length': len(title)})
+        desc = ((ext.get('meta') or {}).get('description') or '').strip()
+        if desc:
+            descriptions.setdefault(desc, []).append(url)
+        h1s = [h for h in (ext.get('headings') or []) if isinstance(h, dict) and h.get('level') == 1]
+        if len(h1s) == 0:
+            missing_h1.append(url)
+        elif len(h1s) > 1:
+            multiple_h1.append(url)
+        wc = ext.get('word_count')
+        if isinstance(wc, int) and wc < 100:
+            thin_urls.append({'url': url, 'word_count': wc})
+        ts = ext.get('tracking_summary') or {}
+        all_identifiers.update(ts.get('identifiers') or [])
+        cms_domains.update(ts.get('cms_technical_domains') or [])
+    return {
+        'inspected_html_pages': html_pages,
+        'missing_h1_urls': missing_h1,
+        'multiple_h1_urls': multiple_h1,
+        'overlong_title_urls': overlong_titles,
+        'duplicate_titles': {k: v for k, v in titles.items() if len(v) > 1},
+        'duplicate_meta_descriptions': {k: v for k, v in descriptions.items() if len(v) > 1},
+        'thin_content_urls': thin_urls,
+        'all_tracking_identifiers': sorted(all_identifiers),
+        'cms_technical_domains': sorted(cms_domains),
+    }
+
+
 def collect_plan(root, plan, *, fetcher=None):
     if not isinstance(plan, dict) or not isinstance(plan.get('requests'), list) or not plan['requests']:
         raise ValueError('Plan needs a nonempty requests list')
@@ -539,7 +754,7 @@ def collect_plan(root, plan, *, fetcher=None):
             observation = collect(root, entry['url'], headers=entry.get('headers'), scope=entry.get('scope', 'public'),
                 max_age=entry.get('max_age', 86400), refresh_reason=entry.get('refresh_reason'), fetcher=fetcher,
                 context=entry.get('context'))
-            item = {k: observation[k] for k in ('url', 'cached', 'observation', 'status', 'observed_at', 'error')}
+            item = {k: observation.get(k) for k in ('url', 'cached', 'observation', 'status', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
             if not observation['error'] and 200 <= observation['status'] < 300:
                 try:
                     item.update(extract_observation(root, observation['observation'], profile))
@@ -549,6 +764,7 @@ def collect_plan(root, plan, *, fetcher=None):
             results.append(item)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             results.append({'error': type(exc).__name__, 'detail': 'Invalid or unavailable input; check this plan entry', 'request_index': len(results)})
-    return {'results': results, 'complete': all(not x.get('error') and x.get('status', 0) > 0 for x in results),
+    return {'results': results, 'site_summary': compute_site_summary(root, results),
+            'complete': all(not x.get('error') and x.get('status', 0) > 0 for x in results),
             'content_available_for_all': all(not x.get('error') and not x.get('extraction_error') and 200 <= x.get('status', 0) < 300 for x in results),
             'detail': 'A saved HTTP 403/404 is a completed observation, not a reason to repeat the same request blindly'}
