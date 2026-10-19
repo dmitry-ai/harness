@@ -87,7 +87,7 @@ def _approved_digests(root, state, *, exclude_package=None):
 
 
 def classification(root, state, spec, response, value, *, exclude_package=None):
-    from .claims import all_claims, claim_digest
+    from .claims import all_claims, claim_digest, standalone_numbers, grounded_numbers_for_claim
     if not isinstance(spec, dict) or spec.get('risk') not in ('routine', 'significant'):
         raise ValueError('Explicit review spec risk routine/significant is required; no default risk')
     if not _text(spec.get('basis')) or not _text(spec.get('request_scope')):
@@ -113,6 +113,12 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
             raise ValueError('Response manifest needs one exact nonempty response excerpt per claim')
         seen.add(ident)
         claim = index[ident]
+        excerpt_nums = standalone_numbers(item['response_excerpt'])
+        if excerpt_nums:
+            grounded_nums = grounded_numbers_for_claim(claim, index)
+            ungrounded_nums = sorted(excerpt_nums - grounded_nums)
+            if ungrounded_nums:
+                raise ValueError(f'Response excerpt for {ident} contains numeric figures not grounded in the claim or its primary evidence: ' + ', '.join(ungrounded_nums))
         sha = claim_digest(claim)
         novelty = item.get('novelty', claim.get('novelty'))
         if novelty not in ('new', 'restatement'):
@@ -259,19 +265,53 @@ def read_package(root, package, *, state=None, require_current=True):
     return data
 
 
+REPORT_CONTRACT = {
+    'schema_version': REVIEW_SCHEMA,
+    'result_options': ['approved', 'needs_changes'],
+    'required_scope': list(SCOPES),
+    'claim_review_fields': [
+        'claim_id', 'observed', 'inferred', 'method', 'alternatives',
+        'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome',
+    ],
+    'test_alignment_fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'],
+    'relationship_options': ['direct', 'proxy', 'irrelevant'],
+    'outcome_options': ['supported', 'qualified', 'unsupported'],
+    'finding_fields': ['id', 'claim_ids', 'severity', 'description', 'status'],
+    'severity_options': ['minor', 'significant', 'critical'],
+    'claim_review_required': {
+        'fields': [
+            'claim_id', 'observed', 'inferred', 'method', 'alternatives',
+            'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome',
+        ],
+        'outcome_options': ['supported', 'qualified', 'unsupported'],
+        'test_alignment_required': {
+            'fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'],
+            'relationship_options': ['direct', 'proxy', 'irrelevant'],
+        },
+    },
+    'finding_required': {
+        'fields': ['id', 'claim_ids', 'severity', 'description', 'status'],
+        'severity_options': ['minor', 'significant', 'critical'],
+        'status_options': ['open', 'resolved', 'rejected'],
+    },
+}
+
+
 def input_receipt(root, package):
     import os
+    from .runtime import platform_name
     from .workflow import file_hash
     data = read_package(root, package)
-    reviewer = os.environ.get('CODEX_THREAD_ID')
-    if not reviewer:
+    reviewer = os.environ.get('CODEX_THREAD_ID') or os.environ.get('ANTIGRAVITY_CONVERSATION_ID')
+    if not reviewer and platform_name() == 'codex' and os.environ.get('CODEX_HOME'):
         raise ValueError('Native Codex reviewer thread ID is unavailable')
     return {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True,
             'project_root': str(Path(root).resolve()), 'job_id': data['job_id'],
             'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package,
             'package_sha256': file_hash(inside(root, package)), 'kb_inputs': data['kb_inputs'],
             'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'],
-            'response': data['response'], 'claims': data['claims'], 'risk': data['risk']}
+            'response': data['response'], 'claims': data['claims'], 'risk': data['risk'],
+            'report_contract': REPORT_CONTRACT}
 
 
 def _report_object(text):
@@ -291,6 +331,7 @@ def _report_object(text):
 
 
 def report_issues(data, package):
+    from .claims import standalone_numbers
     issues = []
     if data.get('schema_version') != REVIEW_SCHEMA:
         issues.append('Review report schema_version 2 is required')
@@ -301,6 +342,7 @@ def report_issues(data, package):
         issues.append('Review must cover five stages, KB consistency and the exact response')
     expected = {c['claim_id'] for c in package['claims']}
     targets = {c['claim_id']: c['essence'] for c in package['claims']}
+    package_claims = {c['claim_id']: c for c in package['claims']}
     covered = set()
     if not isinstance(data.get('claim_reviews'), list):
         issues.append('Per-claim review coverage is required')
@@ -334,6 +376,17 @@ def report_issues(data, package):
                 excerpt = item.get('response_qualification')
                 if not _text(excerpt):
                     issues.append(f'{ident}: qualified claim needs an exact response_qualification excerpt')
+            if ident in package_claims and item.get('outcome') == 'supported':
+                pkg_claim = package_claims[ident]
+                claim_nums = standalone_numbers(str(pkg_claim.get('essence', '')) + '\n' + str(pkg_claim.get('response_excerpt', '')))
+                if claim_nums:
+                    obs_corpus = str(item.get('observed', '')) + '\n' + str((alignment or {}).get('tested_claim', ''))
+                    obs_nums = {t.replace(',', '.') for t in re.findall(r'\d+(?:[.,]\d+)*', obs_corpus)}
+                    for token in list(obs_nums):
+                        obs_nums.update(token.split('.'))
+                    missing_nums = sorted(claim_nums - obs_nums)
+                    if missing_nums:
+                        issues.append(f'{ident}: claim/response numeric figures {missing_nums} are not confirmed in reviewer observed/tested_claim')
         if covered != expected:
             issues.append('Every response claim requires an authored evidence assessment')
     findings = data.get('findings')

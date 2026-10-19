@@ -26,14 +26,15 @@
 
 Гипотеза не может иметь verified, каким бы высоким ни был probability_percent.
 `for`/`against` ссылаются на версионный `claim_id` либо собственный `evidence_id` с текстом argument.
-Для пустого against сохраняется прежний counterevidence с unavailable/not_found, reviewed_sources и limitations.
-Причина содержит alternative_explanations и discriminating_check; способ — applicability и validation, а также прежние criterion/score_percent/addresses.
+Для пустого against сохраняется прежний counterevidence с unavailable/not_found, reviewed_sources и limitations; неподтверждённая гипотеза (`verification_status != verified`) с пустым `against` не может иметь `probability_percent > 75`.
+Гипотеза в `causes` или `misconceptions` содержит alternative_explanations и discriminating_check; способ — applicability и validation, а также прежние criterion/score_percent/addresses.
+В подтверждённом `observation` или `client_report` (`verification_status: verified`) каждое самостоятельное число в `essence` должно присутствовать в первичных цитатах/локаторах `evidence` либо вычисляться через `calculation`/`derived_from`.
 Пример — [analysis.example.json](analysis.example.json).
 
 ## Первичное происхождение
 
 Каждая ссылка evidence содержит id, kind, source, source_sha256, quote и locator с type/value.
-Локаторы: text, json_pointer, anchor или lines (включительный диапазон вроде 2-4).
+Локаторы: text, json_pointer, anchor или lines (включительный диапазон `<start>-<end>`).
 `kind: observation` дополнительно содержит observation — путь сохранённых метаданных HTTP/DOM; source называет захваченный HTTP(S) URL.
 `kind: intake`/attachment дополнительно содержит manifest — зарегистрированный снимок/квитанцию импорта, подтверждающую именно эти байты и их происхождение.
 Проверяется полная квитанция и связь зарегистрированного снимка с исходным захватом; произвольный manifest с правильным хешем собственного файла не считается импортом.
@@ -52,7 +53,7 @@ HTTP подтверждает полученный ответ; DOM — сним�
 Фиксация плана до запуска сама по себе не делает проверку содержательно достаточной.
 Сначала запиши полный target_claim и фактический tested_claim: тест может проверять более слабый индикатор.
 Проверь конкретный контрпример «target_claim ложен, тест положителен»; при таком контрпримере индикатор имеет отношение proxy, а не прямое подтверждение.
-Например, присутствие названия бренда в DOM не устанавливает официальный статус продавца; наличие чисел в выбранной строке не устанавливает максимум по всем строкам.
+Наблюдение косвенного признака в локальном состоянии или отдельной выборке не подтверждает правовой/регуляторный статус субъекта, скрытую настройку или агрегат по всей генеральной совокупности.
 Составляй опыт, различающий конкурирующие объяснения, либо сужай вывод до действительно наблюдавшегося.
 Независимый A.A проверяет эту связь по исходному тезису и фактическому коду/артефактам, а не по заявлению автора «тест пройден».
 

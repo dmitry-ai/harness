@@ -251,6 +251,64 @@ def native_tool_trace(root, request):
             'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
 
 
+def prompt_bias_issues(prompt_text):
+    """Detect reviewer prompt poisoning where positive verdicts are specified without negative alternatives."""
+    if not isinstance(prompt_text, str) or not prompt_text.strip():
+        return []
+    issues = []
+    if re.search(r'["\']approved["\']|\bresult["\']?\s*:\s*["\']?approved\b', prompt_text, re.I) and not re.search(r'\bneeds_changes\b', prompt_text, re.I):
+        issues.append('prompt specifies result="approved" without "needs_changes"')
+    if re.search(r'["\']supported["\']|\boutcome["\']?\s*:\s*["\']?supported\b', prompt_text, re.I) and not (
+            re.search(r'\bqualified\b', prompt_text, re.I) and re.search(r'\bunsupported\b', prompt_text, re.I)):
+        issues.append('prompt specifies outcome="supported" without "qualified" and "unsupported"')
+    if re.search(r'["\']direct["\']|\brelationship["\']?\s*:\s*["\']?direct\b', prompt_text, re.I) and not (
+            re.search(r'\bproxy\b', prompt_text, re.I) and re.search(r'\birrelevant\b', prompt_text, re.I)):
+        issues.append('prompt specifies relationship="direct" without "proxy" and "irrelevant"')
+    if re.search(r'["\']findings["\']\s*:\s*\[\s*\]', prompt_text) and not (
+            re.search(r'\bseverity\b', prompt_text, re.I) and re.search(r'\bremediation\b', prompt_text, re.I)):
+        issues.append('prompt hardcodes empty findings=[] without specifying finding object fields')
+    return issues
+
+
+def reviewer_isolation_issues(root, rows):
+    """Verify that an independent reviewer does not mutate files, run ad-hoc scripts, or inspect sibling projects."""
+    project_root = Path(root).resolve()
+    daily_root = next((p for p in project_root.parents if p.name == 'daily'), project_root.parent)
+    issues = []
+    for row in rows if isinstance(rows, list) else []:
+        for call in row.get('tool_calls', []) if isinstance(row, dict) else []:
+            if not isinstance(call, dict):
+                continue
+            name = call.get('name', '')
+            args = call.get('args', {})
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except ValueError:
+                    args = {}
+            if not isinstance(args, dict):
+                args = {}
+            if name in ('write_to_file', 'replace_file_content', 'multi_replace_file_content'):
+                issues.append(f'reviewer called mutating tool {name}')
+            if name == 'run_command':
+                cmd = str(args.get('CommandLine', ''))
+                if re.search(r'(?i)\b(?:Set-Content|Out-File|Add-Content)\b|\.(?:write_text|write_bytes)\b|\bgen_review', cmd):
+                    issues.append('reviewer executed a file-writing command or ad-hoc generator script')
+            for key in ('AbsolutePath', 'TargetFile', 'DirectoryPath', 'SearchPath', 'Cwd'):
+                val = args.get(key)
+                if not isinstance(val, str) or not val.strip():
+                    continue
+                try:
+                    candidate = Path(val).resolve()
+                except OSError:
+                    continue
+                if (candidate.is_relative_to(daily_root) and
+                        not candidate.is_relative_to(project_root) and
+                        not project_root.is_relative_to(candidate)):
+                    issues.append(f'reviewer accessed sibling project path {candidate}')
+    return issues
+
+
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True):
     """Require an actual child self conversation and its successful final native step."""
     backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
@@ -281,8 +339,13 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
     parent_inputs = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
     initial_prompt = rows[0].get('content', '')
     invocation = None
+    matched_prompts = [initial_prompt]
     for row in parent_inputs:
         for call in row.get('tool_calls', []):
+            if call.get('name') == 'send_message':
+                args = call.get('args', {})
+                if isinstance(args, dict) and args.get('Recipient') == reviewer_id and isinstance(args.get('Message'), str):
+                    matched_prompts.append(args['Message'])
             if call.get('name') != 'invoke_subagent':
                 continue
             subs = call.get('args', {}).get('Subagents', [])
@@ -294,8 +357,19 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
                     if sub.get('Model') != 'inherit':
                         raise ValueError('Native A.A reviewer was not requested with the inherited parent model')
                     invocation = row['step_index']
+                    matched_prompts.append(sub['Prompt'])
     if invocation is None:
         raise ValueError('Matching native self/inherit invocation is not established')
+    bias_issues = []
+    for prompt_text in matched_prompts:
+        for issue in prompt_bias_issues(prompt_text):
+            if issue not in bias_issues:
+                bias_issues.append(issue)
+    if bias_issues:
+        raise ValueError('Reviewer prompt biases verdict or omits negative schema outcomes: ' + '; '.join(bias_issues))
+    isolation_issues = reviewer_isolation_issues(root, rows)
+    if isolation_issues:
+        raise ValueError('Independent reviewer isolation violated: ' + '; '.join(isolation_issues))
     require_current_binding(root, parent_id, backend=backend,
         inputs=[(item.get('step_index', index), item['content']) for index, item in enumerate(parent_inputs)
                 if item.get('type') == 'USER_INPUT' and isinstance(item.get('content'), str)],

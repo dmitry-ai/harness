@@ -181,11 +181,25 @@ def execute(args):
         plan = json.loads(payload.decode('utf-8-sig'))
         result = collect_plan(args.project, plan)
         if args.output:
-            from .analysis import publish_owned
+            from .analysis import publish_owned, digest
             target = inside(args.project, args.output)
             if not target.is_relative_to(Path(args.project).resolve() / 'ꘖ/KB/Evidence') or '/HTTP/' in target.as_posix() or '/Reviews/' in target.as_posix():
                 raise ValueError('Collection report must be a project Evidence file outside immutable HTTP/Reviews observations')
-            from .analysis import digest
+            receipts_file = Path(args.project).resolve() / 'ꘖ/data/rendered.json'
+            if target.is_file() and receipts_file.is_file():
+                try:
+                    receipts = json.loads(receipts_file.read_text(encoding='utf-8'))
+                    raw_prev = target.read_bytes()
+                    if receipts.get(str(target), {}).get('sha256') == digest(raw_prev):
+                        prev_data = json.loads(raw_prev.decode('utf-8'))
+                        if isinstance(prev_data, dict) and isinstance(prev_data.get('results'), list) and isinstance(result.get('results'), list):
+                            new_keys = {r.get('request_key') or (r.get('url'), r.get('observation')) for r in result['results'] if isinstance(r, dict)}
+                            kept = [r for r in prev_data['results'] if isinstance(r, dict) and (r.get('request_key') or (r.get('url'), r.get('observation'))) not in new_keys]
+                            if kept:
+                                result = {**result, 'results': kept + result['results'],
+                                          'complete': bool(prev_data.get('complete', True) and result.get('complete', True))}
+                except (OSError, ValueError):
+                    pass
             result['publication'] = publish_owned(target, json_data(result), source={
                 'kind': 'collection-plan', 'sha256': digest(payload), 'plan': plan})
             if result['publication']['status'] == 'conflict':

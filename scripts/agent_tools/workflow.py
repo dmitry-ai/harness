@@ -189,7 +189,7 @@ def publish_progress(root, state):
     lines += ['- ' + markdown_link(p.name, p.name) for p in sorted((Path(root) / 'ꘖ/KB').glob('*.md')) if p.name != 'Progress.md']
     lines += ['', 'Перед новым исследованием проверь обзор и профильные модули KB.',
               'Исправления распространяются на связанные утверждения и документы; непроверенное отмечается явно.',
-              'Context.md предназначен для передачи внешнему агенту (например Gemini DeepThink), а не для внутренней работы.', '']
+              'Context.md предназначен для передачи внешнему агенту, а не для внутренней работы.', '']
     return publish_owned(Path(root) / 'ꘖ/KB/Progress.md', '\n'.join(lines), source=state_path(root), history=False)
 
 
@@ -521,6 +521,12 @@ def attachment_issues(root):
 def check_project(root):
     root = Path(root).resolve()
     issues = kb_issues(root) + attachment_issues(root)
+    for folder in (root / 'ꘖ/data', root / '.agents'):
+        if folder.is_dir():
+            for script in sorted(folder.rglob('*')):
+                if script.is_file() and script.suffix.lower() in ('.py', '.ps1', '.sh', '.bat', '.cmd'):
+                    issues.append(problem('project.one_off_script', script.relative_to(root).as_posix(),
+                        'Executable one-off scripts are prohibited in project directories (FILE-5/EXEC-1); use shared upwork_project.py commands', file=script))
     from .links import readable_link_issues
     documents = [root / '.md', *sorted((root / 'result').rglob('*'))]
     for document in documents:
@@ -606,6 +612,9 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
         if stage == 'finalize':
             from .journal import get_existing_step_ids, step_errors
             from .context import generate
+            scratch_dir = Path(root) / 'ꘖ/data/scratch'
+            if scratch_dir.is_dir() and any(p.is_file() for p in scratch_dir.rglob('*')):
+                raise ValueError('Clean or consume all temporary files in ꘖ/data/scratch before finalizing')
             journal = Path(root) / 'ꙮ/1 - Анализ'
             ids = get_existing_step_ids(journal)
             if not ids or any(step_errors(journal, ident) for ident in ids):

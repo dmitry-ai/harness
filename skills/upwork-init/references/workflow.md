@@ -103,7 +103,7 @@ URL-фрагмент относится к адресу цитаты, а не к
 `refresh_reason` создаёт отдельное измерение; прежнее не заменяется.
 Сохранённый HTTP 403/404 — полученный результат; не повторяй его вслепую.
 Признак JS/challenge — повод выбрать правильную проверку, не доказательство блокировки реального бота.
-HTML/bundle показывает исходник, не исполнение; Shopify JSON не равен реальному Merchant Center feed; текст DOCX/PDF извлекается с гиперссылками и форматированием Markdown.
+HTML/bundle показывает исходник, не исполнение (включая извлечённый массив `links` со всеми `<a href>` и видимым текстом); JSON-извлечение вычисляет детерминированную сводку `summary` по коллекциям объектов (`record_count`, `timestamp_ranges` с `min`, `max`, `by_date`, `earliest_record`, `latest_record`, `field_counts`); текст DOCX/PDF извлекается с гиперссылками и форматированием Markdown. Повторный `collect --output` в существующий отчёт `ꘖ/KB/Evidence/*.json` объединяет прежние `results` без потери наблюдений.
 Все приложенные клиентом файлы сохраняются одновременно в корневой папке `source/` и в `ꘖ/KB/Evidence/Attachments/<sha256>/`, а их полный текст, расшифровки видео (`# Видео:`, `# Ключевые моменты устного комментария (дополнения к тексту документа):`, `# Полная расшифровка аудиозаписи:` с `[MM:SS]`) и расшифровки изображений (дословный текст в `«»`, описание UI, подтверждения и противоречия словам клиента с оценками в `%`) синхронизируются в обе KB (`KB/Project.md` и `ꘖ/KB/{Project,Projects,Evidence}.md`) при `init` и через `sync-attachments`.
 
 Для DOM разрешено только чтение явно выбранной вкладки с точным URL:
@@ -122,8 +122,10 @@ DOM-наблюдение хранится отдельно и не припис�
 Новые save-analysis/render-analysis требуют v3 и первичные основания; автоматического повышения legacy-тезисов до verified нет.
 Структура, источники и ограниченные результаты — в [контракте](evidence-contract.md), проверяемый пример — [analysis.example.json](analysis.example.json).
 `for` содержит argument и версионный claim_id либо собственный evidence_id; `against` — доводы либо документированное counterevidence.
-Counterevidence: status not_found/unavailable, reviewed_sources, limitations.
+Counterevidence: status not_found/unavailable, reviewed_sources, limitations; при пустом `against` и неподтверждённой гипотезе (`verification_status != verified`) `probability_percent` не может превышать `75`.
 Заявление not_found после недоступного источника неверно; укажи unavailable.
+Гипотезы в разделах `causes` и `misconceptions` обязаны содержать `alternative_explanations` и `discriminating_check`.
+Все самостоятельные числовые показатели в `essence` подтверждённых тезисов (`observation`, `client_report` со статусом `verified`) должны присутствовать в первичных цитатах/локаторах `evidence` либо следовать из `calculation`/`derived_from`.
 Первичные source/quote/hash/locator хранятся в evidence; ссылкой на собственный Markdown источник не заменяется.
 sources/source_id остаются читаемыми в legacy; в v3 переиспользуй F и derived_from с точным claim_digest.
 JSON pointers экранирует source-ref; цитата сверяется именно с указанным фрагментом.
@@ -139,7 +141,7 @@ python <инструмент> check-project <проект>
 
 Для первого отсутствующего JSON expected-sha256 не передаётся; существующий JSON требует ожидаемый хеш.
 Сохраняются история JSON и собственных Markdown-версий; чужие изменения дают сохранённый кандидат/конфликт, а не безусловную перезапись.
-Неполные рабочие материалы храни в ꘖ/data с явным статусом; они не заменяют завершённый анализ.
+Неполные рабочие материалы храни в ꘖ/data с явным статусом; они не заменяют завершённый анализ. Разовые скрипты (`*.py`, `*.ps1`, `*.sh`, `*.bat`, `*.cmd`) в `ꘖ/data` и `.agents` проекта запрещены и блокируют `check-project`.
 Ошибки выдаются одним списком с code/field/claim_id/message/hint; исправляй конкретное и пересмотри зависимые выводы.
 Успешная формальная проверка не является доказательством истинности утверждения или завершённого предметного аудита.
 
@@ -196,18 +198,18 @@ python <инструмент> prepare-review <проект> --parent <UUID ро�
 ```
 
 Спецификация содержит risk, basis, request_scope, task_flags, claim_ids и claims; пример — [review.example.json](review.example.json).
-Каждый элемент claims указывает claim_id, точный response_excerpt и novelty new/restatement.
+Каждый элемент claims указывает claim_id, точный response_excerpt и novelty new/restatement; все самостоятельные числовые показатели в `response_excerpt` должны присутствовать в подтверждённых источниках привязанного тезиса.
 Для аналитического ответа claims и claim_ids непусты; полноту карты существенных утверждений предметно проверяет аудитор. Служебное сообщение о ходе работы записывается обычным record_step и не получает аналитический допуск через пустую карту.
 task_flags: new_causal_analysis, architecture_change, pricing_change, admin_configuration, business_impact, material_analysis; пустой список допустим для обоснованной рутинной задачи.
 Минимальная категория пересчитывается по новым типизированным тезисам; routine не обходит значимые причины, настройки, архитектурные и ценовые изменения.
 restatement требует ранее одобренной неизменившейся версии тезиса и доказательств; significant требует двух независимых A.A.
 Используй штатный инструмент делегирования по адаптеру среды: в Antigravity invoke_subagent с TypeName self/Model inherit, в Codex spawn_agent с ролью A.A и моделью/effort по выбору родителя.
 Передай точный корень и полный путь package из результата; пакет v2 связывает текущие запросы, точные байты ответа, карту тезисов, KB, первичные Evidence и ручные входы.
-В Codex аудитор сначала выполняет `review-input <проект> --package <путь> --platform codex` и выводит полный JSON инструмента; квитанция нативного выполнения связывает его с конкретным пакетом при зашифрованном назначении.
-Передай goal: проверить пять этапов, первичные доказательства, альтернативы, непротиворечивость KB и точный ответ, включая полноту карты его существенных тезисов.
-Не передавай рецензенту намеренный вывод и отчёт другого рецензента.
+В обеих средах аудитор сначала выполняет `review-input <проект> --package <путь> --platform <среда>` и получает нейтральный `report_contract` со всеми допустимыми значениями полей (`approved`/`needs_changes`, `supported`/`qualified`/`unsupported`, `direct`/`proxy`/`irrelevant`, структура `findings`); в Codex эта квитанция также связывает зашифрованное назначение с пакетом.
+Передай нейтральный goal: проверить пять этапов, первичные доказательства, альтернативы, непротиворечивость KB и точный ответ, включая полноту карты его существенных тезисов.
+Не передавай рецензенту намеренный вывод, однобокий JSON-шаблон вердикта (только с `"approved"`, `"supported"`, `"direct"` или `"findings": []`) и отчёт другого рецензента; рецензент работает строго read-only внутри корня текущего проекта, без вызова пишущих инструментов, генерации JSON внешними скриптами и чтения соседних папок `daily`.
 Независимый аудитор возвращает окончательным нативным сообщением исходный JSON schema_version 2: package, package_sha256, scope (пять этапов + kb_consistency + response), result approved/needs_changes, claim_reviews, findings.
-По каждому тезису claim_reviews содержит claim_id, observed, inferred, method, alternatives, limits, falsification, raw_vs_criteria и outcome supported/qualified/unsupported.
+По каждому тезису claim_reviews содержит claim_id, observed, inferred, method, alternatives, limits, falsification, raw_vs_criteria и outcome supported/qualified/unsupported; при `outcome: supported` все самостоятельные числа тезиса и `response_excerpt` должны быть явно подтверждены в `observed` или `test_alignment.tested_claim`.
 Обязательный test_alignment содержит target_claim (точная essence тезиса), tested_claim, relationship direct/proxy/irrelevant, rationale и counterexample.
 Proxy допускает только qualified с видимым ограничением; irrelevant требует unsupported, который не допускает approved.
 Предметно проверь саму классификацию: наличие строковых полей не доказывает, что тест проверяет весь исходный тезис.
@@ -227,7 +229,7 @@ python <инструмент> review-disposition <проект> --parent <UUID> 
 
 Нативная квитанция создаётся после окончания аудитора и передаётся отдельно: исходный вердикт не может ссылаться на будущее подтверждение своего завершения.
 Содержимое отчёта сверяется с нативным окончательным сообщением дочернего A.A; записи вердикта и обработки замечаний неизменяемы и не используют повторно перезаписываемый self-review.json.
-Proof берётся из нативных данных выбранной среды: подтверждённая связь родителя с отдельным A.A, его назначение, выбор модели и успешное завершение. Незавершённый исполнитель или работа без назначения рецензии не считаются аудитом A.A.
+Proof берётся из нативных данных выбранной среды: подтверждённая связь родителя с отдельным A.A, отсутствие однобокого внушения в промпте (`prompt_bias_issues`), соблюдение read-only изоляции рецензента (`reviewer_isolation_issues`), выбор модели и успешное завершение. Незавершённый исполнитель или работа без назначения рецензии не считаются аудитом A.A.
 Codex сверяет фактические model/effort с нативным spawn_agent родителя; Antigravity читает доступные generation/executor metadata и конфигурацию. Неизвестные version/effort остаются unverified.
 native-executor-metadata <проект> --conversation <UUID> --role primary|AA|AF [--parent <UUID>] [--save] показывает requested/observed, источники и статус; --save сохраняет неизменяемый снимок.
 Смысл рецензии и источников проверяет A.A; программная квитанция этого не доказывает.

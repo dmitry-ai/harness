@@ -372,3 +372,44 @@ class ReviewContractTests(ProjectCase):
         self.assertEqual(report['claim_reviews'], [])
         with patch('agent_tools.platforms.adapter'), self.assertRaisesRegex(ValueError, 'nonempty claim_ids'):
             flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent)
+
+    def test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report(self):
+        self.answer = 'Client task with 13 items.\n'
+        self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task with 13 items.'}]
+        with self.assertRaisesRegex(ValueError, 'numeric figures not grounded'):
+            self.package()
+        # Ground the number in a real collected observation
+        from agent_tools.research import collect, Response
+        obs = collect(self.project, 'https://example.org/count',
+                      fetcher=lambda *a: Response(a[0], 200, 'text/plain', b'Client task with 13 items.'))
+        claim = self.value['identity'][0]
+        claim.update(
+            knowledge_type='observation',
+            essence='Client task with 13 items.',
+            scope={'description': 'Captured count page.', 'sample': [obs['url']], 'limitations': []},
+            evidence=[{
+                'id': 'E-COUNT', 'kind': 'observation', 'source': obs['url'], 'observation': obs['observation'],
+                'source_sha256': obs['body_sha256'], 'quote': 'Client task with 13 items.',
+                'locator': {'type': 'text', 'value': 'Client task with 13 items.'},
+            }],
+            for_args=[{'argument': 'The page states 13 items.', 'evidence_id': 'E-COUNT'}],
+        )
+        claim['for'] = claim.pop('for_args')
+        self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
+        package = self.package()
+        report = self.review_report(package, self_review=True)
+        # If reviewer's observed/tested_claim omits the number '13', report_issues rejects it
+        report['claim_reviews'][0]['observed'] = 'Exact registered title inspected without counts.'
+        report['claim_reviews'][0]['test_alignment']['tested_claim'] = 'The registered intake contains the title.'
+        self.assertTrue(any('numeric figure' in issue for issue in review.report_issues(report, package)))
+        report['claim_reviews'][0]['observed'] = 'Exact registered title inspected: 13 items.'
+        self.assertEqual(review.report_issues(report, package), [])
+
+    def test_review_input_returns_neutral_report_contract_with_all_options(self):
+        package = self.package()
+        receipt = review.input_receipt(self.project, package['package'])
+        self.assertIn('report_contract', receipt)
+        self.assertEqual(receipt['report_contract']['result_options'], ['approved', 'needs_changes'])
+        self.assertEqual(receipt['report_contract']['claim_review_required']['outcome_options'], ['supported', 'qualified', 'unsupported'])
+        self.assertEqual(receipt['report_contract']['claim_review_required']['test_alignment_required']['relationship_options'], ['direct', 'proxy', 'irrelevant'])
+

@@ -242,6 +242,7 @@ class HTMLData(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.stack, self.text, self.headings, self.anchors, self.scripts, self.json_ld = [], [], [], [], [], []
         self.title, self.meta, self.meta_all, self.canonical, self.heading, self.script = '', {}, {}, [], None, None
+        self.links, self.link = [], None
         self.anchor_ranges, self.section_ranges = {}, []
         self.position = 0
 
@@ -251,6 +252,8 @@ class HTMLData(HTMLParser):
         if anchor:
             self.anchors.append(anchor)
             self.anchor_ranges.setdefault(anchor, []).append({'start': self.position, 'end': None})
+        if tag == 'a' and attrs.get('href'):
+            self.link = {'href': attrs['href'], 'text': ''}
         if tag == 'meta':
             name = attrs.get('name') or attrs.get('property')
             if name:
@@ -274,6 +277,10 @@ class HTMLData(HTMLParser):
             self.stack.append((tag, anchor))
 
     def handle_endtag(self, tag):
+        if tag == 'a' and self.link is not None:
+            self.link['text'] = ' '.join(self.link['text'].split())
+            self.links.append(self.link)
+            self.link = None
         if self.heading and re.fullmatch('h[1-6]', tag):
             self.heading['text'] = ' '.join(self.heading['text'].split())
             self.headings.append(self.heading); self.heading = None
@@ -304,6 +311,8 @@ class HTMLData(HTMLParser):
             self.title += value
         if self.heading:
             self.heading['text'] += value
+        if self.link is not None and not tags.intersection(('script', 'style')):
+            self.link['text'] += value
         if not tags.intersection(('script', 'style', 'head')):
             self.text.append(value)
             self.position += len(value)
@@ -312,11 +321,71 @@ class HTMLData(HTMLParser):
         plain = ''.join(self.text)
         sections = [{**h, 'content': plain[h['start']:h['end']]} for h in self.section_ranges]
         return {'title': ' '.join(self.title.split()), 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical,
-                'headings': self.headings, 'anchors': sorted(set(self.anchors)), 'scripts': self.scripts,
+                'headings': self.headings, 'anchors': sorted(set(self.anchors)), 'links': self.links, 'scripts': self.scripts,
                 'json_ld': self.json_ld, 'sections': sections,
                 'anchor_content': {anchor: [plain[x['start']:x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()},
                 'ambiguous_anchors': sorted(anchor for anchor, ranges in self.anchor_ranges.items() if len(ranges) > 1),
                 'text': '\n'.join(x.strip() for x in plain.splitlines() if x.strip())}
+
+
+def _summarize_json_collections(value):
+    """Compute deterministic counts, timestamp ranges and categorical distributions over JSON object arrays."""
+    arrays = {}
+    def walk(node, path='', depth=0):
+        if depth > 4:
+            return
+        if isinstance(node, list) and node and all(isinstance(x, dict) for x in node):
+            key = path or '/items'
+            arrays[key] = node
+            if path.startswith('/') and '/' not in path[1:]:
+                arrays[path[1:]] = node
+            return
+        if isinstance(node, dict):
+            for k, v in node.items():
+                escaped = str(k).replace('~', '~0').replace('/', '~1')
+                walk(v, f'{path}/{escaped}', depth + 1)
+    walk(value)
+    summary = {}
+    iso_re = re.compile(r'^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2})?')
+    for name, items in arrays.items():
+        ts_fields, cat_fields = {}, {}
+        for item in items:
+            label = next((str(item[k]) for k in ('title', 'name', 'handle', 'slug', 'id') if item.get(k) is not None), None)
+            for k, v in item.items():
+                if isinstance(v, str) and iso_re.match(v):
+                    ts_fields.setdefault(k, []).append((v, item.get('id'), label))
+                elif k != 'id' and isinstance(v, (str, bool)) and len(str(v)) <= 120:
+                    cat_fields.setdefault(k, {})[str(v)] = cat_fields.get(k, {}).get(str(v), 0) + 1
+                elif isinstance(v, list) and v and all(isinstance(elem, str) and len(elem) <= 80 for elem in v):
+                    for elem in v:
+                        cat_fields.setdefault(k, {})[elem] = cat_fields.get(k, {}).get(elem, 0) + 1
+        ts_summary = {}
+        for k, entries in ts_fields.items():
+            ordered = sorted(entries, key=lambda x: x[0])
+            by_date = {}
+            for val, _, _ in ordered:
+                day = val[:10]
+                by_date[day] = by_date.get(day, 0) + 1
+            earliest, latest = ordered[0], ordered[-1]
+            ts_summary[k] = {
+                'min': earliest[0],
+                'max': latest[0],
+                'count': len(ordered),
+                'by_date': dict(sorted(by_date.items())),
+                'earliest_record': {'id': earliest[1], 'label': earliest[2], k: earliest[0]},
+                'latest_record': {'id': latest[1], 'label': latest[2], k: latest[0]},
+            }
+        filtered_cats = {
+            k: dict(sorted(counts.items()))
+            for k, counts in sorted(cat_fields.items())
+            if len(counts) <= 50 and (len(items) == 1 or len(counts) < len(items) or any(c > 1 for c in counts.values()))
+        }
+        summary[name] = {
+            'record_count': len(items),
+            'timestamp_ranges': ts_summary,
+            'field_counts': filtered_cats,
+        }
+    return summary
 
 
 def extract_bytes(body, content_type, profile, charset='utf-8'):
@@ -348,9 +417,18 @@ def extract_bytes(body, content_type, profile, charset='utf-8'):
         value = json.loads(text)
         if not isinstance(value, dict) or not any(k in value for k in ('product', 'products', 'variants', 'id')):
             raise ValueError('Expected Shopify product/collection JSON')
-        return {'data': value, 'text': text, 'scope': 'public JSON response; not Merchant Center feed or admin configuration'}
+        return {'data': value, 'summary': _summarize_json_collections(value), 'text': text,
+                'scope': 'public JSON response; not Merchant Center feed or admin configuration'}
     if profile == 'document' and content_type not in ('text/html', 'application/xhtml+xml'):
-        return {'paragraphs': text.splitlines(), 'text': text, 'layout_checked': False}
+        out = {'paragraphs': text.splitlines(), 'text': text, 'layout_checked': False}
+        if content_type == 'application/json' or text.lstrip().startswith(('{', '[')):
+            try:
+                parsed = json.loads(text)
+                if isinstance(parsed, (dict, list)):
+                    out['summary'] = _summarize_json_collections(parsed)
+            except ValueError:
+                pass
+        return out
     parser = HTMLData(); parser.feed(text)
     result = parser.result()
     if profile == 'tracking':

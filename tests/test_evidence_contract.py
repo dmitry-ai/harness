@@ -555,6 +555,50 @@ class EvidenceContractTests(TemporaryCase):
         ref['anchor_exception']['section'] = 'Other'
         self.assertIn('primary.unconfirmed', self.codes(evidence_issues(self.project, value)))
 
+    def test_verified_observation_rejects_ungrounded_numbers_in_essence(self):
+        value = v3_analysis(self.project)
+        fact = value['facts'][0]
+        fact['essence'] = 'The captured page contains 13 items created on 2026-10-08.'
+        issues = analysis_issues(value)
+        self.assertIn('claim.ungrounded_number', self.codes(issues))
+        fact['evidence'][0]['quote'] = 'The concern\nAlternative\n13 items created on 2026-10-08'
+        self.assertNotIn('claim.ungrounded_number', self.codes(analysis_issues(value)))
+
+    def test_misconception_hypothesis_requires_alternatives_and_discriminating_check(self):
+        value = v3_analysis(self.project)
+        fact = value['facts'][0]
+        misconception = claim_metadata('H-MISC-1', knowledge_type='hypothesis', status='limited')
+        misconception.update(
+            essence='The client assumes the missing items were indexed previously.',
+            derived_from=[{'claim_id': fact['id'], 'sha256': claim_digest(fact)}],
+            for_args=[{'argument': 'Stated in description.', 'claim_id': fact['id']}],
+            against=[],
+            counterevidence={'status': 'not_found', 'reviewed_sources': [fact['evidence'][0]['observation']], 'limitations': 'Public only.'},
+            probability_percent=70,
+        )
+        misconception['for'] = misconception.pop('for_args')
+        value['misconceptions'] = [misconception]
+        self.assertIn('claim.causal', self.codes(analysis_issues(value)))
+        misconception['alternative_explanations'] = ['Items were created recently and never indexed.']
+        misconception['discriminating_check'] = 'Compare item creation timestamps against index snapshots.'
+        self.assertNotIn('claim.causal', self.codes(analysis_issues(value)))
+
+    def test_unverified_hypothesis_with_empty_against_caps_probability_at_75(self):
+        from test_onboarding import analysis
+        value = v3_analysis(self.project, analysis())
+        cause = value['causes'][0]
+        cause['against'] = []
+        cause['counterevidence'] = {
+            'status': 'not_found',
+            'reviewed_sources': [value['facts'][0]['evidence'][0]['observation']],
+            'limitations': 'Public source only.',
+        }
+        cause['probability_percent'] = 85
+        self.assertIn('claim.counterevidence', self.codes(analysis_issues(value)))
+        cause['probability_percent'] = 75
+        self.assertNotIn('claim.counterevidence', self.codes(analysis_issues(value)))
+
 
 if __name__ == '__main__':
     unittest.main()
+

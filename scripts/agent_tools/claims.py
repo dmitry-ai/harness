@@ -63,6 +63,69 @@ def _dependencies(claim):
     return claim.get('derived_from', []) if isinstance(claim.get('derived_from'), list) else []
 
 
+def standalone_numbers(text):
+    """Extract standalone quantitative numeric figures from prose, ignoring IDs, URLs, links and list markers."""
+    if not isinstance(text, str) or not text:
+        return set()
+    cleaned = re.sub(r'\]\([^)]*\)', ']', text)
+    cleaned = re.sub(r'https?://\S+', ' ', cleaned)
+    cleaned = re.sub(r'\b[a-f0-9]{8,64}\b', ' ', cleaned, flags=re.I)
+    cleaned = re.sub(r'\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b', ' ', cleaned)
+    cleaned = re.sub(r'(?m)^\s*#{1,6}\s+\d+(?:\.\d+)*\.?\b', ' ', cleaned)
+    cleaned = re.sub(r'(?m)^\s*\d+(?:\.\d+)*[.)]\s+', ' ', cleaned)
+    cleaned = re.sub(r'§+\s*\d+(?:\.\d+)*', ' ', cleaned)
+    tokens = re.findall(r'(?<![A-Za-z0-9_./~+-])\d+(?:[.,]\d+)*(?![A-Za-z0-9_./~+-])', cleaned)
+    return {t.replace(',', '.') for t in tokens}
+
+
+def grounded_numbers_for_claim(claim, index=None, visited=None):
+    """Collect all numeric tokens grounded in a claim, its primary evidence, calculation or dependencies."""
+    if not isinstance(claim, dict):
+        return set()
+    visited = set() if visited is None else visited
+    ident = claim.get('id')
+    if ident in visited:
+        return set()
+    if isinstance(ident, str):
+        visited = visited | {ident}
+    texts = []
+    for key in ('essence', 'assessment_basis', 'discriminating_check', 'validation', 'criterion'):
+        if isinstance(claim.get(key), str):
+            texts.append(claim[key])
+    for key in ('probability_percent', 'score_percent'):
+        if isinstance(claim.get(key), int):
+            texts.append(str(claim[key]))
+    if isinstance(claim.get('scope'), dict):
+        texts.append(str(claim['scope'].get('description', '')))
+        texts.extend(str(x) for x in (claim['scope'].get('sample') or []))
+        texts.extend(str(x) for x in (claim['scope'].get('limitations') or []))
+    if isinstance(claim.get('calculation'), dict):
+        texts.append(json.dumps(claim['calculation'], ensure_ascii=False))
+    for ref in claim.get('evidence', []) if isinstance(claim.get('evidence'), list) else []:
+        if isinstance(ref, dict):
+            texts.append(str(ref.get('quote', '')))
+            if isinstance(ref.get('locator'), dict):
+                texts.append(str(ref['locator'].get('value', '')))
+    for side in ('for', 'against'):
+        for arg in claim.get(side, []) if isinstance(claim.get(side), list) else []:
+            if isinstance(arg, dict):
+                texts.append(str(arg.get('argument', '')))
+                texts.append(str(arg.get('quote', '')))
+    corpus = '\n'.join(texts)
+    numbers = {t.replace(',', '.') for t in re.findall(r'\d+(?:[.,]\d+)*', corpus)}
+    for token in list(numbers):
+        numbers.update(token.split('.'))
+    if isinstance(index, dict):
+        for dep in _dependencies(claim):
+            dep_id = dep.get('claim_id') if isinstance(dep, dict) else None
+            if dep_id and dep_id in index:
+                numbers.update(grounded_numbers_for_claim(index[dep_id], index, visited))
+        for addr_id in claim.get('addresses', []) if isinstance(claim.get('addresses'), list) else []:
+            if isinstance(addr_id, str) and addr_id in index:
+                numbers.update(grounded_numbers_for_claim(index[addr_id], index, visited))
+    return numbers
+
+
 def contract_issues(value):
     """Read legacy contracts elsewhere; v3 defines explicit facts and claim revisions."""
     if not isinstance(value, dict) or value.get('schema_version') != 3:
@@ -165,9 +228,32 @@ def contract_issues(value):
                     add('primary.manifest', ef, 'Bind intake/attachment bytes to the saved project snapshot or intake manifest', claim)
         if claim.get('verification_status') != 'unavailable' and not evidence and not dependencies:
             add('claim.unsourced', field, 'A claim must trace to primary evidence through evidence or versioned dependencies', claim)
-        if claim.get('category') == 'causal' or section == 'causes':
+        if (claim.get('verification_status') == 'verified' and
+                _enum(claim.get('knowledge_type'), {'observation', 'client_report'}) and
+                not claim.get('calculation') and not _dependencies(claim) and
+                isinstance(evidence, list) and evidence):
+            essence_nums = standalone_numbers(claim.get('essence', ''))
+            ev_corpus = '\n'.join(
+                str(ref.get('quote', '')) + '\n' + str((ref.get('locator') or {}).get('value', ''))
+                for ref in evidence if isinstance(ref, dict)
+            )
+            ev_nums = {t.replace(',', '.') for t in re.findall(r'\d+(?:[.,]\d+)*', ev_corpus)}
+            for token in list(ev_nums):
+                ev_nums.update(token.split('.'))
+            ungrounded = sorted(essence_nums - ev_nums)
+            if ungrounded:
+                add('claim.ungrounded_number', field + '/essence',
+                    'Verified observation/client_report essence contains numeric figures absent from its primary evidence quotes: ' + ', '.join(ungrounded), claim)
+        if claim.get('category') == 'causal' or section in ('causes', 'misconceptions'):
             if not _strings(claim.get('alternative_explanations'), nonempty=True) or not _text(claim.get('discriminating_check')):
-                add('claim.causal', field, 'Causal explanations need plausible alternatives and a check that distinguishes them', claim)
+                add('claim.causal', field, 'Causal and misconception explanations need plausible alternatives and a check that distinguishes them', claim)
+        if (claim.get('knowledge_type') == 'hypothesis' and
+                claim.get('verification_status') != 'verified' and
+                (section in ('causes', 'misconceptions') or claim.get('category') == 'causal' or bool(claim.get('alternative_explanations'))) and
+                isinstance(claim.get('against'), list) and not claim['against'] and
+                isinstance(claim.get('probability_percent'), int) and claim['probability_percent'] > 75):
+            add('claim.counterevidence', field + '/probability_percent',
+                'An unverified or limited hypothesis with competing alternatives and no against arguments cannot exceed 75% probability; include counter-arguments from plausible alternatives or lower the probability', claim)
         if claim.get('knowledge_type') == 'recommendation':
             if not _strings(claim.get('applicability'), nonempty=True) or not _text(claim.get('validation')):
                 add('claim.recommendation', field, 'Recommendations need applicability conditions and an outcome validation plan', claim)
