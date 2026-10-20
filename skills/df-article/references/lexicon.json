@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "about": "Data for scripts/df_article.py lint. Each entry: id, severity (error|warning), kinds (article|proposal|response), lang (en|ru|*), where (any|start = sentence start), patterns (Python regex, case-insensitive unless case=true), why, fix, source. Severity is calibrated so that references/2725.md has zero errors. Add an entry only for a pattern observed in a real agent text or documented in WP:AISIGNS; keep the incident in source.",
+  "entries": [
+    {
+      "id": "EN-CONNECTIVE-START",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "start",
+      "patterns": ["(?:However|Furthermore|Moreover|Additionally|In addition(?!\\s+to)|Consequently|As a result(?!\\s+of)|In contrast(?!\\s+to)|Notably|Importantly|Crucially|Overall|Ultimately|Thus|Therefore|Hence|Meanwhile|Indeed|Essentially|Interestingly|At the same time|On the other hand|That said|Similarly|Likewise|Accordingly|Subsequently|To summarize|In summary|In conclusion)\\b"],
+      "why": "A sentence-initial connective replaces a reference to the premise with rhetoric; the reader cannot check which paragraph the inference rests on.",
+      "fix": "Make the premise its own numbered paragraph and write the conclusion as `**[§N](#P.N)** → conclusion`; if the sentence adds a new fact, drop the connective and keep the fact.",
+      "source": "WP:AIVOCAB (Additionally); proactivsports draft.prev.md: Consequently/Furthermore/However/In contrast/As a result; materaprima draft.md §5.2 «At the same time»"
+    },
+    {
+      "id": "EN-SUBORDINATE-CAUSE",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "start",
+      "patterns": ["(?:Because|Although|Though|Whereas|Given that|While)\\b", "Since\\b(?!\\s+\\d)"],
+      "why": "«Because X, Y» packs a premise and a conclusion into one sentence; X is then neither numbered nor proven.",
+      "fix": "Split: X becomes a numbered observation with its proof, Y becomes `**[§X]** → Y`.",
+      "source": "proactivsports draft.prev.md:258, 320, 432, 495, 636"
+    },
+    {
+      "id": "EN-PSEUDO-INFERENCE",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\bwhich means\\b", "\\bthis means(?: that)?\\b", "\\bmeaning that\\b", "\\bwhich in turn\\b", "\\bas a result\\b", "\\bconsequently\\b", "\\bthereby\\b", "\\bthus\\b", "\\bhence\\b", "\\bmaking it\\b", ",\\s+making\\b"],
+      "why": "An inline inference word hides the step instead of exposing its premises.",
+      "fix": "Express the step with `→` after explicit premise references.",
+      "source": "proactivsports draft.prev.md:101 «which means»; :408 «making `order_item` a dead-end»"
+    },
+    {
+      "id": "EN-PROCESS-NARRATION",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\b(?:inspection|analysis|examination|review|investigation|a closer look) of\\b[^.;]*\\b(?:reveals|shows|indicates|demonstrates|confirms)\\b", "\\breveals that\\b", "\\bit (?:was|is|has been) (?:found|observed|determined|noted) that\\b", "\\bupon (?:closer )?(?:inspection|examination|review)\\b"],
+      "why": "Narrating the auditor's process instead of stating the fact; the proof is the command, not the story of looking.",
+      "fix": "State the fact as the subject-verb sentence and attach the command or link that proves it.",
+      "source": "proactivsports res/4 (self-reported: «Inspection of ... shows that», «reveals that»); materaprima draft.md:390"
+    },
+    {
+      "id": "EN-AI-VOCAB",
+      "severity": "error",
+      "kinds": ["article", "proposal", "response"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\bdelv(?:e|es|ing)\\b", "\\bdeep dive\\b", "\\bcrucial(?:ly)?\\b", "\\bpivotal\\b", "\\brobust\\b", "\\bseamless(?:ly)?\\b", "\\btapestry\\b", "\\btestament\\b", "\\bunderscor(?:e|es|ed|ing)\\b", "\\bshowcas(?:e|es|ed|ing)\\b", "\\bmeticulous(?:ly)?\\b", "\\bintricac(?:y|ies)\\b", "\\bintricate\\b", "\\binterplay\\b", "\\bvibrant\\b", "\\bbolster(?:s|ed|ing)?\\b", "\\bgarner(?:s|ed|ing)?\\b", "\\bfoster(?:s|ed|ing)?\\b", "\\benduring\\b", "\\bgroundbreaking\\b", "\\brenowned\\b", "\\bboasts?\\b", "\\bvaluable insights?\\b", "\\bgame[- ]changer\\b", "\\bcutting[- ]edge\\b", "\\bever[- ]evolving\\b", "\\bholistic\\b", "\\bsynerg(?:y|ies)\\b", "\\bparamount\\b", "\\bplays? an? (?:crucial|key|vital|pivotal|important|significant) role\\b", "\\bin today'?s\\b", "\\bnavigat(?:e|ing) the (?:complexities|landscape)\\b", "\\bharness(?:es|ing)?\\b", "\\bunlock(?:s|ing)?\\b", "\\belevat(?:e|es|ing)\\b", "\\bempower(?:s|ing)?\\b", "\\brealm\\b"],
+      "why": "Words that LLMs overuse statistically; they carry no fact about this website.",
+      "fix": "Delete the word; if a fact remains, state it with the plain verb (is, has, sends, returns).",
+      "source": "WP:AIVOCAB, WP:AIPUFFERY"
+    },
+    {
+      "id": "EN-SIGNIFICANCE",
+      "severity": "error",
+      "kinds": ["article", "proposal", "response"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\bis a (?:testament|reminder)\\b", "\\ba (?:crucial|pivotal|vital|significant|key) (?:role|moment|step|factor)\\b", "\\bhighlights? the (?:importance|significance|need)\\b", "\\breflects? (?:a )?broader\\b", "\\bsetting the stage\\b", "\\b(?:evolving|digital) landscape\\b", "\\bmarks? a (?:shift|turning point)\\b", "\\bit(?: is|'s) (?:important|worth|crucial|critical) (?:to )?(?:note|noting|mention|remember|consider)\\b", "\\bworth noting\\b", "\\bit should be noted\\b", "\\bneedless to say\\b"],
+      "why": "Puffing up importance instead of stating the consequence for this client.",
+      "fix": "Name the concrete consequence and its premise, or delete the sentence.",
+      "source": "WP:AILEGACY, WP:AISIGNS «Didactic disclaimers»"
+    },
+    {
+      "id": "EN-SUMMARY",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\bin summary\\b", "\\bin conclusion\\b", "\\bto sum up\\b", "\\bkey takeaways?\\b", "^(?:summary|conclusion|overview|executive summary)$"],
+      "why": "The format has no recap sections: every conclusion already has its own numbered paragraph.",
+      "fix": "Delete the recap; reference the paragraph instead.",
+      "source": "WP:AISIGNS «Section summaries»; materaprima res/6 «## 12. Synthesis of the Five Analytical Stages»"
+    },
+    {
+      "id": "EN-PROMO",
+      "severity": "error",
+      "kinds": ["article", "proposal", "response"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\bI(?:'m| am) (?:confident|excited|passionate|thrilled)\\b", "\\brest assured\\b", "\\bpeace of mind\\b", "\\bto the next level\\b", "\\bworld[- ]class\\b", "\\btop[- ]notch\\b", "\\bhassle[- ]free\\b", "\\blook no further\\b", "\\bproven track record\\b", "\\bI hope this helps\\b", "\\blet me know\\b", "\\bfeel free\\b", "\\bdon'?t hesitate\\b", "\\bhappy to help\\b", "^(?:certainly|of course|great question|absolutely)\\b", "\\bwould you like\\b"],
+      "why": "Sales and chat-assistant phrases; the client hires for the proof, not the tone.",
+      "fix": "Delete; let the numbered evidence speak.",
+      "source": "WP:AISIGNS «Collaborative communication», WP:AIPUFFERY"
+    },
+    {
+      "id": "EN-COPULA-AVOID",
+      "severity": "warning",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\b(?:serves|serve|stands|functions|acts|operates) as\\b", "\\brepresents an? \\b"],
+      "why": "LLMs avoid plain «is/has»; the replacement verb adds nothing.",
+      "fix": "Use «is», «has», or the specific technical verb.",
+      "source": "WP:AINOCOPULA"
+    },
+    {
+      "id": "EN-SUPERFICIAL-ING",
+      "severity": "warning",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": [",\\s+(?:highlighting|underscoring|emphasizing|ensuring|reflecting|symbolizing|contributing to|fostering|encompassing|enhancing|showcasing|cultivating|leaving|creating an?)\\b"],
+      "why": "A trailing participle clause appends an unproven «analysis» to a fact.",
+      "fix": "If the consequence is real, give it its own paragraph with `→`; otherwise delete the clause.",
+      "source": "WP:SUPERFICIAL"
+    },
+    {
+      "id": "EN-NEG-PARALLEL",
+      "severity": "warning",
+      "kinds": ["article", "proposal", "response"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\bnot (?:just|only|merely)\\b[^.;]*\\bbut(?: also)?\\b", "\\bit(?:'s| is) not\\b[^.;]*,\\s*(?:it(?:'s| is)|but)\\b", "\\bno [^,.;]+, no [^,.;]+, just\\b"],
+      "why": "A rhetorical contrast against a claim nobody made.",
+      "fix": "State the positive fact once.",
+      "source": "WP:AIPARALLEL"
+    },
+    {
+      "id": "EN-INTENSIFIER",
+      "severity": "warning",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\b(?:completely|entirely|totally|fully|absolutely|extremely|highly|deeply|truly|simply|clearly|obviously|essentially|fundamentally|dramatically|drastically|massively|hugely|incredibly|literally|solely|exclusively)\\b", "\\bzero (?:visibility|tracking|insight|control)\\b"],
+      "why": "An intensifier claims more than the evidence; the number or the premise must carry the weight.",
+      "fix": "Delete it or replace it with the measured quantity.",
+      "source": "proactivsports res/4 (self-reported: completely, solely, exclusively); materaprima draft.md §5.4 «zero visibility»"
+    },
+    {
+      "id": "EN-EPITHET",
+      "severity": "warning",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\b(?:critical(?!\\s+(?:CSS|path|rendering|request|resources?|chain))|severe|serious|fatal|fragile|brittle|dead-end|spurious|catastrophic|disastrous|massive|huge|alarming|glaring|egregious|blatant|terrible|chaotic|messy)\\b"],
+      "why": "An evaluation without its premise; in 2725 an evaluation appears only as the conclusion of listed premises (§14.3).",
+      "fix": "Move the evaluation behind `→` after the premises, or replace it with the measured effect.",
+      "source": "proactivsports res/4 (Critical, Fragile, brittle, spurious, dead-end)"
+    },
+    {
+      "id": "EN-VAGUE",
+      "severity": "warning",
+      "kinds": ["article", "proposal"],
+      "lang": "en",
+      "where": "any",
+      "patterns": ["\\bpotentially\\b", "\\barguably\\b", "\\bit (?:appears|seems) that\\b", "\\bvarious\\b", "\\bindustry (?:reports|experts|standards?)\\b", "\\bexperts (?:say|argue|agree)\\b", "\\bbest practices?\\b", "\\bin (?:connection|association) with\\b", "\\bwhen it comes to\\b", "\\bin terms of\\b", "\\bin order to\\b", "\\bthe fact that\\b", "\\butiliz(?:e|es|ed|ing)\\b"],
+      "why": "Vague attribution or wordy filler where a direct statement exists.",
+      "fix": "Name the source with a link, or use the short form (to, use, that).",
+      "source": "WP:AIWEASEL, WP:AICONNECT, WP:AISIGNS «Signs of human writing»"
+    },
+    {
+      "id": "APP-ID",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "*",
+      "where": "any",
+      "case": true,
+      "patterns": ["\\b[FHM]-[A-Z0-9]+(?:-[A-Z0-9]+)*\\b", "\\b(?:SCOPE|FILE|LINK|TEXT|DOC|VERIFY|KB|REVIEW|EXEC|INIT|PUB)-\\d+\\b"],
+      "why": "Internal KB or rule identifiers mean nothing to the client.",
+      "fix": "Replace with the fact itself and its public proof.",
+      "source": "materaprima res/6 (H-*, M-*, F-SITE-CRAWL-AND-404)"
+    },
+    {
+      "id": "APP-KB",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "*",
+      "where": "any",
+      "patterns": ["ꘖ", "\\bKB/", "\\bEvidence/", "observation\\.json", "Analysis\\.(?:json|md)", "workflow\\.json", "\\bbody_(?:bytes|sha256)\\b"],
+      "why": "Paths of the agent knowledge base are not accessible to the client.",
+      "fix": "Prove the fact with a command the client can run, a public URL or a quote.",
+      "source": "materaprima res/4"
+    },
+    {
+      "id": "APP-HASH",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "*",
+      "where": "any",
+      "patterns": ["\\b[0-9a-f]{40,64}\\b", "\\bSHA-?(?:1|256)\\b"],
+      "why": "A hash in prose is verification bookkeeping, not an argument for the client.",
+      "fix": "Delete; if identity of responses is the point, show it as 2725 §3.1 does: a command and identical outputs.",
+      "source": "materaprima req/4 «С какой целью ты указываешь количество байтов и SHA-256 для HTTP 404?»"
+    },
+    {
+      "id": "APP-BYTES",
+      "severity": "warning",
+      "kinds": ["article", "proposal"],
+      "lang": "*",
+      "where": "any",
+      "patterns": ["\\b\\d[\\d  ,.]*\\s?(?:bytes|байт[а-я]*)\\b"],
+      "why": "An exact byte count is justified only when the size itself proves a conclusion (page weight).",
+      "fix": "Delete unless a paragraph concludes something from this size.",
+      "source": "materaprima req/4"
+    },
+    {
+      "id": "APP-ANALYSIS-FORM",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "*",
+      "where": "any",
+      "patterns": ["^(?:Limitations?|Caveats?|Ограничени[ея]|Оговорка)\\s*:", "\\bArguments (?:for|against)\\b", "\\bДоводы (?:за|против)\\b", "\\bMethod Evaluation\\b", "\\b(?:plausibility|likelihood|confidence)\\b[^.]*\\d+\\s?%", "\\d+\\s?%\\s*(?:plausib|confidence|likel)", "\\bexpert (?:estimate|assessment|plausibility)\\b", "\\bdoes not by itself (?:establish|prove)\\b"],
+      "why": "The F/H/M analysis template (DOC-2/DOC-3) is an internal working form; the article states only proven facts and conclusions.",
+      "fix": "Keep a hypothesis only if the client must act on it; phrase it once as «probable» with its premise (2725 §24.3).",
+      "source": "materaprima res/6 «Synthesis… Arguments for / Arguments against / Limitation»"
+    },
+    {
+      "id": "RU-CONNECTIVE-START",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "ru",
+      "where": "start",
+      "patterns": ["(?:Кроме того|Более того|Помимо этого|Таким образом|Следовательно|Поэтому|В итоге|В заключение|Итак|Однако|При этом|Вместе с тем|В свою очередь|Важно отметить|Стоит отметить|Следует отметить|Необходимо отметить|Тем не менее)\\b"],
+      "why": "Связка вместо ссылки на посылку.",
+      "fix": "Посылка — отдельный пункт, вывод — `**[§N](#P.N)** → вывод`.",
+      "source": "WP:AIVOCAB (аналог для русского)"
+    },
+    {
+      "id": "RU-CONNECTIVE-START",
+      "severity": "warning",
+      "kinds": ["response"],
+      "lang": "ru",
+      "where": "start",
+      "patterns": ["(?:Кроме того|Более того|Помимо этого|Таким образом|В итоге|В заключение|Итак|Важно отметить|Стоит отметить|Следует отметить|Необходимо отметить)\\b"],
+      "why": "Связка-заполнитель.",
+      "fix": "Удали связку, оставь факт.",
+      "source": "WP:AIVOCAB"
+    },
+    {
+      "id": "RU-PSEUDO-INFERENCE",
+      "severity": "error",
+      "kinds": ["article", "proposal"],
+      "lang": "ru",
+      "where": "any",
+      "patterns": ["\\bчто означает\\b", "\\bэто означает\\b", "\\bчто приводит к\\b", "\\bв результате чего\\b", "\\bблагодаря чему\\b", "\\bиз-за чего\\b"],
+      "why": "Скрытый шаг вывода.",
+      "fix": "Вырази шаг через `→` после ссылок на посылки.",
+      "source": "proactivsports res/4 («which means»)"
+    },
+    {
+      "id": "RU-AI-VOCAB",
+      "severity": "warning",
+      "kinds": ["article", "proposal", "response"],
+      "lang": "ru",
+      "where": "any",
+      "patterns": ["\\bиграет (?:ключевую|важную|решающую|критическую) роль\\b", "\\bявляется (?:свидетельством|залогом)\\b", "\\bподчёркивает (?:важность|значимость)\\b", "\\bв современном мире\\b", "\\bкомплексн(?:ый|ая|ое|ые|ого|ую)\\b", "\\bвсесторонн(?:ий|яя|ее|ие|его)\\b", "\\bбесшовн(?:ый|ая|ое|ые)\\b", "\\bкритически важн(?:ый|ая|ое|ые)\\b"],
+      "why": "Пустая значимость.",
+      "fix": "Назови конкретное следствие или удали.",
+      "source": "WP:AILEGACY (аналог)"
+    },
+    {
+      "id": "RU-INTENSIFIER",
+      "severity": "warning",
+      "kinds": ["article", "proposal"],
+      "lang": "ru",
+      "where": "any",
+      "patterns": ["\\b(?:полностью|абсолютно|совершенно|исключительно|крайне|чрезвычайно|кардинально|критическ(?:ий|ая|ое|ие|ую|ого))\\b"],
+      "why": "Усилитель вместо меры.",
+      "fix": "Удали или замени измеренной величиной.",
+      "source": "materaprima res/6 («критическая перезапись», «полное отсутствие»)"
+    },
+    {
+      "id": "RESP-PROCEDURAL",
+      "severity": "warning",
+      "kinds": ["response"],
+      "lang": "*",
+      "where": "any",
+      "patterns": ["\\bпобайтово\\b", "\\bстраховочн", "\\bне изменял(?:ся|ась|ись|ось)\\b", "\\b(?:в соответствии с|согласно) правил", "\\b(?:SCOPE|FILE|LINK|TEXT|DOC|VERIFY|KB|REVIEW|EXEC|INIT|PUB)-\\d+\\b", "^Ограничение\\s*:", "\\b(?:preserved|retained|ensured|avoided)\\b"],
+      "why": "Процедурный отчёт о том, что агент сохранил или не трогал, вместо результата; пользователю не нужна ссылка на номер правила.",
+      "fix": "Сообщи результат и непроверенное; служебную квитанцию оставь в `ꘖ/data`.",
+      "source": "WP:AISIGNS «Specific mentions of preserved/retained information»; materaprima res/4 (SCOPE-2, «страховочный снимок»), res/4–6 «Ограничение:»"
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 
 Общий источник — этот каталог: Python-ядро, правила, навык и описание ответственности исполнителей.
 Адаптеры `platforms/` и `scripts/agent_tools/platforms/` содержат различия сред: регистрацию, точные сообщения и происхождение рецензий.
-Antigravity подключает все десять `always_on` правил через `.agents/{rules,skills,agents}.json`.
+Antigravity подключает все одиннадцать `always_on` правил через `.agents/{rules,skills,agents}.json`.
 Codex получает короткий загрузчик в `developer_instructions` файла `.codex/config.toml`, обнаруживаемый `.agents/skills/upwork-init/SKILL.md` и `.codex/agents/*.toml`. Загрузчик требует читать канонические правила и адаптер; их полные тексты по проектам не копируются. Корневые `CODEX.md` больше не создаются.
 `python scripts/upwork_project.py build-native` обновляет эти представления; `build-native --check` обнаруживает расхождение. Ручные изменения управляемых документов сохраняются с диагностикой.
 Среды, пути, модели по умолчанию и политика выбора — только [runtime.json](runtime.json); этот инструмент не запускает LLM.
@@ -33,7 +33,9 @@ Codex регистрирует проекты через существующи�
 Эксперимент хранит отдельно план, сырые артефакты и интерпретацию; рецензия v2 связывает авторский вердикт с точными запросами, ответом и KB/Evidence.
 Точные версии моделей/effort требуют фактических метаданных; Codex проверяет дочерний turn_context относительно нативного вызова родителя, Antigravity читает доступные generation/executor metadata. Неизвестное остаётся неизвестным.
 
-[Процедура](skills/upwork-init/SKILL.md) · [Контракт доказательств](skills/upwork-init/references/evidence-contract.md) · [Протокол продолжения и исследования](skills/upwork-init/references/workflow.md) · [Инструменты и схема](scripts/README-agent-tools.md).
+[Процедура](skills/upwork-init/SKILL.md) · [Контракт доказательств](skills/upwork-init/references/evidence-contract.md) · [Протокол продолжения и исследования](skills/upwork-init/references/workflow.md) · [Инструменты и схема](scripts/README-agent-tools.md) · [Клиентский текст](skills/df-article/SKILL.md).
+
+Статья, proposal и письмо клиенту пишутся по навыку `/df-article` (правило PUB): формат df.tips/t/2725, ключевой исходник с автонумерацией, `df_article.py lint`, рецензия свежим контекстом и проверка отчёта пользователю по файлу.
 
 После первоначального анализа status по-прежнему описывает его этапы, отдельно перечисляя фактические proposal-файлы.
 Полуручная работа использует KB, точный журнал, существующий result/draft/final и текущий шаг в ꘖ/data/continuation.md; исходный draft защищён снимком FILE-2.

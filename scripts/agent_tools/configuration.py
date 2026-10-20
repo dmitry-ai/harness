@@ -292,6 +292,19 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
     return result
 
 
+def _frontmatter(path):
+    """Plain `key: value` pairs of a SKILL.md frontmatter (the shared skills use no nested YAML)."""
+    text = path.read_text(encoding='utf-8-sig')
+    match = re.match(r'^---\r?\n(.*?)\r?\n---\r?\n', text, re.S)
+    values = {}
+    for line in (match.group(1).splitlines() if match else []):
+        key, sep, value = line.partition(':')
+        if sep and key.strip() and not key.startswith(' '):
+            value = value.strip()
+            values[key.strip()] = json.loads(value) if value.startswith('"') else value
+    return values
+
+
 def build_native(root=None, *, primary=PRIMARY, check=False):
     config = settings()
     root = Path(root or config['workspace_root']).resolve()
@@ -316,6 +329,17 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
             '---\nname: upwork-cleanup\ndescription: Очищает пустые проекты Upwork старше трёх суток в Antigravity и Codex, сохраняя историю на диске.\n---\n'
             f'Прочитай и выполни общий навык [{cleanup_source.name}](<{cleanup_source.as_posix()}>).\n'
             'Определи текущую UI-среду по беседе; обычный запуск выполняет очистку в обеих системах.\n')
+    for other in sorted((primary / 'skills').glob('*/SKILL.md')):
+        name = other.parent.name
+        if name in ('upwork-init', 'upwork-cleanup'):
+            continue
+        description = _frontmatter(other).get('description', '')
+        if not description:
+            return {'valid': False, 'issues': [{'file': str(other), 'message': 'Shared skill needs a frontmatter description'}], 'written': []}
+        description = json.dumps(description, ensure_ascii=False) if re.search(r':\s|\s#|^[\'"\[{>|*&!%@`]', description) else description
+        outputs[root / f'.agents/skills/{name}/SKILL.md'] = (
+            f'---\nname: {name}\ndescription: {description}\n---\n'
+            f'Прочитай и выполни общий навык [{other.name}](<{other.as_posix()}>).\n')
     for role in ('AA', 'AF'):
         value = role_settings('codex', role)
         name = value['agent']

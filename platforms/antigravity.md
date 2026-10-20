@@ -13,6 +13,7 @@ Tier не доказывает точную модель/effort; проверя�
 Не запускай модели скрытыми CLI-сеансами.
 Общие правила и навыки подключаются существующими `.agents/{rules,skills,agents}.json`.
 `/upwork-cleanup` выполняет общий навык `skills/upwork-cleanup/SKILL.md`: очищает обе системы от пустых проектов старше 72 часов, сохраняя весь `proposals/daily`.
+`/df-article` выполняет общий навык `skills/df-article/SKILL.md`; его рецензент A.A — `self` с `Model: inherit` по `references/review.md`.
 Обычные init/register запрашивают регистрацию того же каталога в обеих системах; --platform указывает выполняющую среду, --target у register исправляет одну регистрацию.
 В Antigravity сохраняются штатные ID и настройки и назначается ветка Folders; Codex использует отдельный адаптер Shared-Projects.
 Вторичная ошибка/ожидание не блокирует активную регистрацию; сверяй отдельные квитанции, complete и all_registered.
