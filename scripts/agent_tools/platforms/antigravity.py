@@ -161,6 +161,8 @@ def _native_invocation(backend, parent_id, conversation_id, role):
             if isinstance(subs, str):
                 try: subs = json.loads(subs)
                 except ValueError: continue
+            if not subs and isinstance(args, dict):
+                subs = [args]
             for sub in subs if isinstance(subs, list) else []:
                 if isinstance(sub, dict) and sub.get('TypeName') == row[1] and sub.get('Prompt') and sub['Prompt'] in initial:
                     matches.append((event.get('step_index'), sub))
@@ -352,6 +354,8 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
             if isinstance(subs, str):
                 try: subs = json.loads(subs)
                 except ValueError: subs = []
+            if not subs and isinstance(call.get('args'), dict):
+                subs = [call['args']]
             for sub in subs if isinstance(subs, list) else []:
                 if isinstance(sub, dict) and sub.get('TypeName') == 'self' and sub.get('Prompt') and sub['Prompt'] in initial_prompt:
                     if sub.get('Model') != 'inherit':
