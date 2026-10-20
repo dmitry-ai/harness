@@ -216,6 +216,9 @@ def prepare(root, parent_id, spec, response):
 
 def subject_digest(package):
     """Changing labels or parent provenance cannot hide a verdict on the same answer."""
+    if package.get('kind') == 'client_text':
+        return digest(json_data({k: package[k] for k in ('project_root', 'job_id', 'requests', 'target', 'kb_inputs', 'evidence_inputs')} |
+            {'response_sha256': package['response']['sha256'], 'baseline_sha256': package['baseline']['sha256']}))
     return digest(json_data({k: package[k] for k in ('project_root', 'job_id', 'requests',
                         'response', 'kb_inputs', 'evidence_inputs')}))
 
@@ -264,6 +267,9 @@ def read_package(root, package, *, state=None, require_current=True):
     path = inside(root, package)
     payload = path.read_bytes()
     data = json.loads(payload.decode('utf-8'))
+    if isinstance(data, dict) and data.get('kind') == 'client_text':
+        from .text_review import read_package as read_text_package
+        return read_text_package(root, package, require_current=require_current)
     if not isinstance(data, dict) or data.get('schema_version') != REVIEW_SCHEMA or path.name != digest(payload) + '-inputs.json':
         raise ValueError('Immutable answer-bound review package schema 2 is required')
     state = state or load(root)
@@ -333,13 +339,19 @@ def input_receipt(root, package):
     reviewer = os.environ.get('CODEX_THREAD_ID') or os.environ.get('ANTIGRAVITY_CONVERSATION_ID')
     if not reviewer and platform_name() == 'codex' and os.environ.get('CODEX_HOME'):
         raise ValueError('Native Codex reviewer thread ID is unavailable')
+    contract = dict(REPORT_CONTRACT)
+    if data.get('kind') == 'client_text':
+        from .text_review import report_contract
+        contract = report_contract()
     return {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True,
             'project_root': str(Path(root).resolve()), 'job_id': data['job_id'],
+            **{k: data[k] for k in ('project_id', 'project_kind') if k in data},
             'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package,
             'package_sha256': file_hash(inside(root, package)), 'kb_inputs': data['kb_inputs'],
             'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'],
             'response': data['response'], 'claims': data['claims'], 'risk': data['risk'],
-            'report_contract': REPORT_CONTRACT}
+            'report_contract': contract,
+            **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks') if k in data}}
 
 
 def _report_object(text):
@@ -365,9 +377,10 @@ def report_issues(data, package):
         issues.append('Review report schema_version 2 is required')
     if data.get('result') not in ('approved', 'needs_changes'):
         issues.append('Review result must be approved or needs_changes')
+    required_scope = package.get('scope', list(SCOPES)) if package.get('kind') == 'client_text' else SCOPES
     if (not isinstance(data.get('scope'), list) or not all(_text(x) for x in data['scope']) or
-            not set(SCOPES).issubset(data['scope'])):
-        issues.append('Review must cover five stages, KB consistency and the exact response')
+            not set(required_scope).issubset(data['scope'])):
+        issues.append('Review must cover the required subject scope: ' + ', '.join(required_scope))
     expected = {c['claim_id'] for c in package['claims']}
     targets = {c['claim_id']: c['essence'] for c in package['claims']}
     package_claims = {c['claim_id']: c for c in package['claims']}
@@ -445,6 +458,38 @@ def report_issues(data, package):
     return issues
 
 
+def authenticate_report(root, package, package_path, data, source_payload, *, parent_id,
+                        reviewer_id, native_evidence=None, allow_self=True):
+    """One native-authorship check for analysis and standalone client text."""
+    independent = reviewer_id != parent_id
+    proof_paths = [package_path, package['response']['file']]
+    if independent:
+        if not _text(native_evidence):
+            raise ValueError('Independent report requires separate native_evidence proof')
+        native = json.loads(inside(root, native_evidence).read_text(encoding='utf-8'))
+        if native.get('parent_id') != parent_id or native.get('reviewer_id') != reviewer_id or native.get('status') != 'completed':
+            raise ValueError('Saved native reviewer identity/status differs')
+        from .metrics import verify_native_proof
+        observed = verify_native_proof(root, native, package=Path(package_path).name)
+        final_response = observed.get('final_response')
+        if not _text(final_response) or digest(final_response.encode('utf-8')) != observed.get('final_response_sha256'):
+            raise ValueError('Native adapter must provide the actual authored final response and verified hash')
+        if _report_object(final_response) != data:
+            raise ValueError('Submitted report differs from the actual native reviewer verdict')
+        raw_payload = final_response.encode('utf-8')
+        proof_paths.append(native_evidence)
+    else:
+        if package['risk'] != 'routine':
+            raise ValueError('Significant claims require two independent reviewers')
+        if not allow_self or package['risk'] != 'routine' or data.get('review_kind') != 'self_review':
+            raise ValueError('This subject requires an independent reviewer; only explicit routine analysis self_review is allowed')
+        from .platforms import adapter
+        adapter().require_current_binding(root, parent_id)
+        native = {'model_verification': 'parent self-review; see observed execution metadata'}
+        raw_payload = source_payload
+    return independent, proof_paths, native, raw_payload
+
+
 def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=None, risk=None):
     from .workflow import hashes, update, now, file_hash
     root = Path(root).resolve()
@@ -468,31 +513,9 @@ def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=N
             issues.append('Claim qualification must occur verbatim in the exact response')
     if issues:
         raise ValueError('\n'.join(issues))
-    independent = reviewer_id != parent_id
-    proof_paths = [package_path, package['response']['file']]
-    if independent:
-        if not _text(native_evidence):
-            raise ValueError('Independent report requires separate native_evidence proof')
-        native_path = inside(root, native_evidence)
-        native = json.loads(native_path.read_text(encoding='utf-8'))
-        if native.get('parent_id') != parent_id or native.get('reviewer_id') != reviewer_id or native.get('status') != 'completed':
-            raise ValueError('Saved native reviewer identity/status differs')
-        from .metrics import verify_native_proof
-        observed = verify_native_proof(root, native, package=Path(package_path).name)
-        final_response = observed.get('final_response')
-        if not _text(final_response) or digest(final_response.encode('utf-8')) != observed.get('final_response_sha256'):
-            raise ValueError('Native adapter must provide the actual authored final response and verified hash')
-        if _report_object(final_response) != data:
-            raise ValueError('Submitted report differs from the actual native reviewer verdict')
-        raw_payload = final_response.encode('utf-8')
-        proof_paths.append(native_evidence)
-    else:
-        if package['risk'] != 'routine' or data.get('review_kind') != 'self_review':
-            raise ValueError('Only explicit routine self_review is allowed; significant risk needs two independent A.A')
-        from .platforms import adapter
-        adapter().require_current_binding(root, parent_id)
-        native = {'model_verification': 'parent self-review; see observed execution metadata'}
-        raw_payload = source_payload
+    independent, proof_paths, native, raw_payload = authenticate_report(
+        root, package, package_path, data, source_payload, parent_id=parent_id,
+        reviewer_id=reviewer_id, native_evidence=native_evidence)
     # Preserve original authorship separately from parent handling. The source may be scratch.
     report_payload = json_data(data)
     review_id = digest((package_sha + '\0' + reviewer_id + '\0' + digest(raw_payload)).encode())

@@ -63,6 +63,8 @@ def record_step(journal_dir: Path, req_content: str, res_content: str,
     if target_step is not None and (type(target_step) is not int or target_step < 1):
         raise ValueError('Step must be a positive integer')
     directory = Path(journal_dir).resolve()
+    from .text_workflow import gate_requests
+    gate_requests([directory], [req_content], res_content)
     journal_state = state_dir(directory)
     for folder in (directory / 'req', directory / 'res', journal_state):
         folder.mkdir(parents=True, exist_ok=True)
@@ -139,6 +141,8 @@ def record_answer(directory, requests, response, turn, request_ids=None):
     if request_ids is not None and (len(request_ids) != len(requests) or any(not isinstance(x, str) or not x for x in request_ids)):
         raise ValueError('Request IDs must match the exact request list')
     directory = Path(directory).resolve()
+    from .text_workflow import gate_requests
+    gate_requests([directory], requests, response)
     journal_state = state_dir(directory)
     groups = journal_state / 'answer-groups'
     for path in (directory / 'req', directory / 'res', groups):

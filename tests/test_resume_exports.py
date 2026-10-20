@@ -175,8 +175,9 @@ class ResumeExportTests(ProjectCase):
         tabs = [{'id': 'a', 'type': 'page', 'url': 'https://example.invalid/a'}]
         self.assertEqual(select_dom_tab(tabs, 'https://example.invalid/a#part', 'a'), tabs[0])
         with self.assertRaises(ValueError): select_dom_tab(tabs, 'https://example.invalid/b', 'a')
-        result = capture_dom(self.project, 'https://example.invalid/a', 'a',
-            reader=lambda url, tab, port: {'url': url, 'html': '<h1 id="a">Saved DOM</h1>'})
+        from test_text_browser import dom_fixture
+        guard, _ = dom_fixture(self.project, 'https://example.invalid/a', 'a', '<h1 id="a">Saved DOM</h1>')
+        result = capture_dom(self.project, 'https://example.invalid/a', 'a', session_id='offline-dom', guard=guard)
         self.assertIsNone(result['status'])
         self.assertFalse(result['http_status_verified'])
         self.assertEqual(result['kind'], 'dom')

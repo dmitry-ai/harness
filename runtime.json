@@ -3,34 +3,74 @@
   "workspace_root": "C:/work/upwork/code",
   "timezone": "Europe/Istanbul",
   "daily_root": "proposals/daily",
-  "registration": {"targets": ["antigravity", "codex"]},
+  "registration": {
+    "targets": [
+      "antigravity",
+      "codex"
+    ]
+  },
   "platforms": {
     "antigravity": {
       "surface": "antigravity-ui",
       "roles": {
-        "AA": {"selection": "inherit", "agent": "self"},
-        "AF": {"model": "gemini-3.8-flash-high", "effort": "high", "agent": "af-worker", "tier": "flash"}
+        "AA": {
+          "selection": "inherit",
+          "agent": "self"
+        },
+        "AF": {
+          "model": "gemini-3.8-flash-high",
+          "effort": "high",
+          "agent": "af-worker",
+          "tier": "flash"
+        }
       },
-      "delegation": {"tool": "invoke_subagent", "complex_agent": "self", "simple_agent": "af-worker"},
+      "delegation": {
+        "tool": "invoke_subagent",
+        "complex_agent": "self",
+        "simple_agent": "af-worker"
+      },
       "folders_json": "C:/work/research/provision/code/Software/Google/AI/Antigravity/primary/tools/Folders/code/folders.json",
-      "browser": {"cdp_port": 9222, "owned_window_bounds": null}
+      "browser": {
+        "cdp_port": 9222,
+        "owned_window_bounds": null
+      }
     },
     "codex": {
       "surface": "codex-ui",
       "registration_profile": "C2",
-      "subagents": {"selection": "parent", "fallback": "inherit", "record_decision": true},
-      "roles": {
-        "AA": {"selection": "parent", "agent": "upwork-aa"},
-        "AF": {"selection": "parent", "agent": "upwork-af"}
+      "subagents": {
+        "selection": "parent",
+        "fallback": "inherit",
+        "record_decision": true
       },
-      "delegation": {"tool": "collaboration.spawn_agent", "complex_agent": "upwork-aa", "simple_agent": "upwork-af"},
+      "roles": {
+        "AA": {
+          "selection": "parent",
+          "agent": "upwork-aa"
+        },
+        "AF": {
+          "selection": "parent",
+          "agent": "upwork-af"
+        }
+      },
+      "delegation": {
+        "tool": "collaboration.spawn_agent",
+        "complex_agent": "upwork-aa",
+        "simple_agent": "upwork-af"
+      },
       "homes": {
         "C1": "C:/Users/dfedi/.codex",
         "C2": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2"
       },
       "node": "C:/tools/nodejs/node.exe",
       "ui_manage": "C:/work/research/provision/code/Software/OpenAI/Codex/primary/tools/UI/code/manage.mjs",
-      "browser": {"cdp_port": 9222, "owned_window_bounds": null}
+      "browser": {
+        "cdp_port": 9222,
+        "owned_window_bounds": null
+      }
     }
+  },
+  "client_text": {
+    "bash": "C:/tools/cygwin/bin/bash.exe"
   }
 }

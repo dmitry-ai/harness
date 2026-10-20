@@ -23,7 +23,7 @@ ID = re.compile(r'^[A-Z][A-Z0-9-]*$')
 def claim_locations(value):
     if not isinstance(value, dict):
         return
-    for section in ('facts', *SECTIONS):
+    for section in ('facts', 'claims', *SECTIONS):
         for number, claim in enumerate(value.get(section, []) if isinstance(value.get(section), list) else []):
             if isinstance(claim, dict):
                 yield f'/{section}/{number}', section, claim

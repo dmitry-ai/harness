@@ -645,39 +645,61 @@ def select_dom_tab(tabs, url, tab_id):
     return matches[0]
 
 
-def capture_dom(root, url, tab_id, *, port=9222, refresh_reason=None, reader=None, context=None):
-    if not tab_id or type(port) is not int or not 1 <= port <= 65535:
-        raise ValueError('Explicit local CDP port and exact tab ID required')
+def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, context=None,
+                config=None, guard=None):
+    """Read one exact live DOM through an authorized CDP session, without navigation.
+
+    An injected guard is a trusted adapter/test seam, never caller JSON evidence.
+    The normal path checks runtime profile, optional account, current target and
+    permissions before inspecting DOM. A port alone cannot authorize a profile.
+    """
+    from .text_browser import GuardedCDP
+    if not isinstance(session_id, str) or not session_id or not isinstance(tab_id, str) or not tab_id:
+        raise ValueError('Explicit authorized CDP session_id and exact tab ID required')
+    if guard is None:
+        guard = GuardedCDP(root, {'session_id': session_id, 'target_id': tab_id}, config=config)
+    elif not isinstance(guard, GuardedCDP) or guard.root != Path(root).resolve():
+        raise ValueError('DOM reader needs a GuardedCDP instance for this exact project')
+    if guard.spec.get('session_id') != session_id or guard.spec.get('target_id') != tab_id:
+        raise ValueError('DOM session/target differs from the explicitly selected guard')
+    identity = guard.inspect()
+    if urldefrag(identity['target'].get('url', ''))[0] != urldefrag(url)[0]:
+        raise ValueError('Explicit tab ID must match the requested URL; no navigation or account fallback')
+    observed_identity = {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'),
+        'session_id': session_id, 'target_id': tab_id,
+        'browser_websocket': identity['browser']['websocket_url'],
+        'profile': identity['profile'], 'account': identity['account']}
+    identity_bytes = json_data(observed_identity)
+    identity_hash = hashlib.sha256(identity_bytes).hexdigest()
+    identity_path = Path(root).resolve() / 'ꘖ/KB/Evidence/CDPSessions' / f'{identity_hash}.json'
+    identity_path.parent.mkdir(parents=True, exist_ok=True)
+    if not identity_path.exists():
+        create_bytes(identity_path, identity_bytes)
+    identity_ref = identity_path.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix()
+    observed_context = dict(context or {})
+    observed_context.setdefault('session_id', session_id)
     def read_dom(target, headers, timeout):
-        if reader:
-            data = reader(target, tab_id, port)
-        else:
-            import asyncio
-            import websockets
-            from urllib.request import urlopen
-            from .upwork_extract import RPC
-            async def read():
-                with urlopen(f'http://127.0.0.1:{port}/json', timeout=5) as response:
-                    tabs = json.loads(response.read(MAX_BYTES))
-                tab = select_dom_tab(tabs, target, tab_id)
-                ws_url = tab.get('webSocketDebuggerUrl', '')
-                parsed = urlsplit(ws_url)
-                if parsed.scheme not in ('ws', 'wss') or parsed.hostname not in ('127.0.0.1', 'localhost') or parsed.port != port:
-                    raise ValueError('Browser debugger must be the explicitly selected local endpoint')
-                async with websockets.connect(ws_url, max_size=MAX_BYTES, open_timeout=10) as socket:
-                    rpc = RPC(socket, timeout=timeout)
-                    return await rpc.evaluate('({url:location.href,html:document.documentElement.outerHTML})')
-            data = asyncio.run(read())
+        native, actual_identity = guard.call('Runtime.evaluate', {'expression':
+            '({url:location.href,html:document.documentElement.outerHTML})',
+            'throwOnSideEffect': True, 'returnByValue': True}, include_identity=True)
+        if (actual_identity['browser']['websocket_url'] != identity['browser']['websocket_url'] or
+                actual_identity['profile'] != identity['profile'] or actual_identity['account'] != identity['account'] or
+                actual_identity['target']['id'] != tab_id):
+            raise ValueError('CDP identity changed during DOM capture; no content proof is issued')
+        if not isinstance(native, dict) or native.get('exceptionDetails'):
+            raise ValueError('Native DOM evaluation did not complete without side effects')
+        data = native.get('result', {}).get('value')
         if not isinstance(data, dict) or not isinstance(data.get('html'), str) or urldefrag(data.get('url', ''))[0] != urldefrag(target)[0]:
             raise ValueError('Tab navigated or DOM capture does not match the intended resource')
         return Response(data['url'], 0, 'text/html', data['html'].encode('utf-8'))
     # The tab may keep its URL while currency, cookies or selected country change.
     # A new DOM scenario is therefore fresh even when a caller omits context.
-    observation = collect(root, url, scope=f'CDP:{port}:tab:{tab_id}', max_age=0,
-        refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom', context=context)
+    observation = collect(root, url, scope=f'CDP-session:{session_id}:tab:{tab_id}:identity:{identity_ref}', max_age=0,
+        refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom', context=observed_context)
     if observation['error']:
-        return observation
-    return {**observation, **extract_observation(root, observation['observation'])}
+        return {**observation, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
+    return {**observation, **extract_observation(root, observation['observation']),
+            'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
 
 
 def compute_site_summary(root, results):

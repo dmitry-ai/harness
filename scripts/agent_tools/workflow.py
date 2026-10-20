@@ -300,6 +300,8 @@ def record_current_answer(root, response):
     from .review import authorize
     approval = authorize(root, state, response=response)
     unanswered = [x for x in state['requests'] if not x.get('response_prepared')]
+    from .text_workflow import gate_requests
+    gate_requests([root], [x['text'] for x in unanswered], response)
     if not unanswered:
         raise ValueError('No unrecorded current requests; import exact native inputs or save the current request first')
     turn = unanswered[-1]['id']
@@ -678,6 +680,8 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
             raise ValueError('Record the result of the semantic KB consistency review')
         if stage == 'finalize':
             from .journal import get_existing_step_ids, step_errors
+            from .text_workflow import gate_paths
+            gate_paths([Path(root) / name for name in outputs])
             from .context import generate
             scratch_dir = Path(root) / 'ꘖ/data/scratch'
             if scratch_dir.is_dir() and any(p.is_file() for p in scratch_dir.rglob('*')):

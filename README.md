@@ -35,7 +35,9 @@ Codex регистрирует проекты через существующи�
 
 [Процедура](skills/upwork-init/SKILL.md) · [Контракт доказательств](skills/upwork-init/references/evidence-contract.md) · [Протокол продолжения и исследования](skills/upwork-init/references/workflow.md) · [Инструменты и схема](scripts/README-agent-tools.md) · [Клиентский текст](skills/df-article/SKILL.md).
 
-Статья, proposal и письмо клиенту пишутся по навыку `/df-article` (правило PUB): формат df.tips/t/2725, ключевой исходник с автонумерацией, `df_article.py lint`, рецензия свежим контекстом и проверка отчёта пользователю по файлу.
+Статья пишется по [df-article](skills/df-article/SKILL.md), Upwork proposal — по отдельному [df-proposal](skills/df-proposal/SKILL.md).
+[Общая процедура](references/client-text/workflow.md) связывает границы правок, доказательства, карту абзацев, независимую рецензию, проверку версии при записи и точный журнал; письмо использует её с `kind=letter`.
+Форматные движки различаются, общий код и словарь едины. [Команды и схемы](references/client-text/operations.md) доступны через `df_text.py`, `df_article.py` и `df_proposal.py`.
 
 После первоначального анализа status по-прежнему описывает его этапы, отдельно перечисляя фактические proposal-файлы.
 Полуручная работа использует KB, точный журнал, существующий result/draft/final и текущий шаг в ꘖ/data/continuation.md; исходный draft защищён снимком FILE-2.

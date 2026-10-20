@@ -140,11 +140,11 @@ class ExperimentTests(unittest.TestCase):
                          research.request_key('https://example.invalid/de-de', headers, 'public', dict(reversed(list(base.items()))))[1])
 
     def test_dom_is_fresh_and_never_proves_click(self):
-        reads = []
-        def read(url, *args): reads.append(url); return {'url': url, 'html': '<p>EUR</p>'}
-        first = research.capture_dom(self.root, 'https://example.invalid/de-de', 'tab-A', reader=read)
-        second = research.capture_dom(self.root, 'https://example.invalid/de-de', 'tab-A', reader=read)
-        self.assertEqual(len(reads), 2)
+        from test_text_browser import dom_fixture
+        guard, native = dom_fixture(self.root, 'https://example.invalid/de-de', 'tab-A', '<p>EUR</p>')
+        first = research.capture_dom(self.root, 'https://example.invalid/de-de', 'tab-A', session_id='offline-dom', guard=guard)
+        second = research.capture_dom(self.root, 'https://example.invalid/de-de', 'tab-A', session_id='offline-dom', guard=guard)
+        self.assertEqual(len([call for call in native.calls if call[1] == 'Runtime.evaluate']), 2)
         self.assertNotEqual(first['observation'], second['observation'])
         self.assertNotIn('interaction', research.observation_capabilities(first))
 

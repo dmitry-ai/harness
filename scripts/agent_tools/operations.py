@@ -47,7 +47,7 @@ def add_parsers(sub):
         elif command == 'capture-dom':
             parser.add_argument('--url', required=True)
             parser.add_argument('--tab-id', required=True)
-            parser.add_argument('--cdp-port', type=int)
+            parser.add_argument('--session-id', required=True, help='Explicit authorized runtime text.browser.sessions entry')
             parser.add_argument('--refresh-reason')
         elif command in ('extract', 'extract-file'):
             parser.add_argument('source')
@@ -213,9 +213,7 @@ def execute(args):
         return extract_observation(args.project, args.source, args.profile)
     if command == 'capture-dom':
         from .research import capture_dom
-        from .runtime import platform_settings
-        port = args.cdp_port or platform_settings()['browser']['cdp_port']
-        return capture_dom(args.project, args.url, args.tab_id, port=port, refresh_reason=args.refresh_reason)
+        return capture_dom(args.project, args.url, args.tab_id, session_id=args.session_id, refresh_reason=args.refresh_reason)
     if command == 'extract-file':
         from .research import extract_file
         return extract_file(args.project, args.source, args.profile)

@@ -12,6 +12,7 @@ from ..runtime import platform_settings, request_day
 from ..research import json_data
 from ..knowledge import json_bytes
 from ..storage import create_bytes, replace_bytes, locked
+from .request_binding import native_project_fields
 
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
 ANTIGRAVITY_FOLDERS_JSON = Path(platform_settings('antigravity')['folders_json'])
@@ -335,7 +336,6 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
     if not final or final[0] != last['step_index'] or final[1] != 15 or final[2] != 3:
         raise ValueError('Native database reports an unfinished/failed later reviewer step')
     parent_log = backend / 'brain' / parent_id / '.system_generated/logs/transcript_full.jsonl'
-    project = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))
     parent_inputs = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
     initial_prompt = rows[0].get('content', '')
     invocation = None
@@ -404,7 +404,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
              'native_log': str(log), 'native_log_sha256': hashlib.sha256(log.read_bytes()).hexdigest(),
              'final_step': last['step_index'], 'final_response_sha256': hashlib.sha256(last['content'].encode()).hexdigest(),
              'final_response': last['content'],
-             'parent_log': str(parent_log), 'job_id': project['job_id']}
+             'parent_log': str(parent_log), **native_project_fields(root)}
     target = Path(root) / 'ꘖ/KB/Evidence/Reviews' / (reviewer_id + '-' + proof['native_log_sha256'][:16] + '-native.json')
     authored = target.with_name(target.stem + '-authored.txt')
     proof['authored_response'] = authored.relative_to(Path(root).resolve()).as_posix()
@@ -491,8 +491,8 @@ def _workspace_context(backend, conversation_id):
 
 
 def _request_scope(root, conversation_id, backend, *, inputs=None, until=None):
-    from .request_binding import scoped_inputs
-    job_id = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))['job_id']
+    from .request_binding import native_project_id, scoped_inputs
+    job_id = native_project_id(root)
     inputs = _native_inputs(backend, conversation_id) if inputs is None else inputs
     return scoped_inputs(root, job_id, inputs, _workspace_context(backend, conversation_id), until=until)
 
@@ -522,6 +522,10 @@ def verify_native_proof(root, native, package=None):
     for field in ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'):
         if native.get(field) != result.get(field):
             raise ValueError('Review proof differs from the current native trace')
+    if result['project_kind'] == 'client_text_workspace' or any(key in native for key in ('project_id', 'project_kind')):
+        for key in ('project_id', 'project_kind'):
+            if native.get(key) != result.get(key):
+                raise ValueError('Review proof has a different explicit project identity')
     authored = Path(root) / result['authored_response']
     if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != result['final_response_sha256']:
         raise ValueError('Immutable native authored reviewer response changed')

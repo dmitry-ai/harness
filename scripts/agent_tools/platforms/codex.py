@@ -10,6 +10,7 @@ import subprocess
 from ..runtime import platform_settings, profile_name
 from ..research import json_data
 from ..storage import create_bytes
+from .request_binding import native_project_fields
 
 
 def _local_path(value):
@@ -99,8 +100,8 @@ def _actual_user_input(text, payload):
 
 
 def _request_scope(root, rows, *, until=None):
-    from .request_binding import scoped_inputs
-    job_id = json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))['job_id']
+    from .request_binding import native_project_id, scoped_inputs
+    job_id = native_project_id(root)
     visible = [(index, item) for index, item in rows if until is None or index <= until]
     contexts = [(index, item['payload']) for index, item in visible if item.get('type') == 'turn_context' and item['payload'].get('cwd')]
     roots = []
@@ -381,7 +382,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
              'final_response': final['last_agent_message'],
              'assignment_sha256': hashlib.sha256(assignment.encode()).hexdigest(),
              'assignment_source': assignment_source, 'review_inputs': review_inputs,
-             'job_id': json.loads((Path(root) / 'ꘖ/project.json').read_text(encoding='utf-8'))['job_id'],
+             **native_project_fields(root),
              'observed_model': child_model, 'model_selection': selection,
              'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home),
              'model_verification': 'native child model/effort checked against actual parent spawn parameters'}
@@ -411,6 +412,10 @@ def verify_native_proof(root, native, package=None):
     for key in ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'):
         if result.get(key) != native.get(key):
             raise ValueError('Codex review proof differs from the actual native trace')
+    if result['project_kind'] == 'client_text_workspace' or any(key in native for key in ('project_id', 'project_kind')):
+        for key in ('project_id', 'project_kind'):
+            if result.get(key) != native.get(key):
+                raise ValueError('Codex review proof has a different explicit project identity')
     authored = Path(root) / result['authored_response']
     if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != result['final_response_sha256']:
         raise ValueError('Immutable native authored reviewer response changed')

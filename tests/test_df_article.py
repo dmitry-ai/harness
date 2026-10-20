@@ -26,6 +26,14 @@ def wrap(*analysis, recommendations=('Fix it (**[§I.1](#I.1)**).',)):
 
 
 class ReferenceArticleTests(TemporaryCase):
+    def test_external_document_spacing_preserves_its_number_and_literal_examples(self):
+        text = wrap('The rule is 11 CCR § 7025.\nThe exact quotation is «11 CCR § 7025».\n`11 CCR § 7025`')
+        value, report, findings = article.render(article.to_source(text), text)
+        self.assertFalse(any(f.severity=='error' for f in findings))
+        self.assertEqual(value, text.replace('The rule is 11 CCR § 7025.', 'The rule is 11 CCR §7025.'))
+        self.assertEqual(report['external_references_normalized'][0]['document'], '11 CCR')
+        self.assertEqual(report['external_references_normalized'][0]['after'], '§7025')
+
     def test_reference_article_has_no_errors_and_only_known_warnings(self):
         findings = article.lint_text(GOLD.read_text(encoding='utf-8'), path=GOLD)
         self.assertEqual(rules(findings, 'error'), set(), [f.format() for f in findings if f.severity == 'error'])
@@ -163,10 +171,12 @@ class SlopDetectionTests(TemporaryCase):
 
 
 class ResponseTests(TemporaryCase):
-    def test_repeated_answer_is_an_error_only_for_the_later_answer(self):
+    def test_repeated_answer_is_a_signal_only_for_the_later_answer(self):
         self.put('j/res/4.md', 'Ответ про семантику стрелки.\n')
         later = self.put('j/res/5.md', 'Ответ про семантику стрелки.\n')
-        self.assertIn('RESP-DUP', rules(article.check_response(later), 'error'))
+        self.assertIn('RESP-DUP', rules(article.check_response(later), 'warning'))
+        self.assertNotIn('RESP-DUP', rules(article.check_response(later), 'error'))
+        self.assertNotIn('means the new request was not executed', str(article.check_response(later)))
         self.assertNotIn('RESP-DUP', rules(article.check_response(self.root / 'j/res/4.md')))
         candidate = self.put('scratch/answer.md', 'Ответ про семантику стрелки.\n')
         self.assertIn('RESP-DUP', rules(article.check_response(candidate, journal=self.root / 'j')))
@@ -188,7 +198,7 @@ class LexiconAndProjectionTests(TemporaryCase):
         for entry in article.load_lexicon():
             self.assertTrue({'id', 'severity', 'kinds', 'lang', 'where', 'patterns', 'why', 'fix', 'source'} <= set(entry), entry.get('id'))
             self.assertIn(entry['severity'], ('error', 'warning'))
-            self.assertTrue(set(entry['kinds']) <= {'article', 'proposal', 'response'})
+            self.assertTrue(set(entry['kinds']) <= {'article', 'proposal', 'letter', 'response'})
             for pattern in entry['patterns']:
                 re.compile(pattern)
 

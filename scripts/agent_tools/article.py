@@ -1,6 +1,6 @@
-"""df.tips article and proposal tooling (skill /df-article).
+"""df.tips article tooling (skill /df-article).
 
-lint      — deterministic checks for the 2725 format and for LLM slop (data: skills/df-article/references/lexicon.json);
+lint      — deterministic checks for the 2725 format and shared client-text lexicon;
 source    — numbered Markdown → keyed editing view (`## @I.12.1`, `§@I.4.1`), lossless for the format;
 render    — keyed view → numbered Markdown with anchors and recomputed § references, plus a factual change report;
 replay    — reruns fenced bash commands and compares their output with the quoted output;
@@ -10,62 +10,23 @@ response  — checks a chat/journal answer: duplicate of an earlier answer, proc
 
 from __future__ import annotations
 
-import argparse
-from dataclasses import dataclass, field, asdict
-import difflib
+from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import re
-import shutil
-import subprocess
-import sys
 
-from .runtime import PRIMARY
+from .text_core import (ABBREVIATIONS, ANCHOR, ARROW_CONNECTIVE, BANS, BOLD_LEADIN, FENCE, Finding, HEADING, KEPT, LEXICON, LIST_MARK, Line, REMOVAL, REPLACED, THRESHOLDS, _excerpt, _plain, bold_spans, check_code, check_prose, check_response, clean, default_shell, detect_language, find_bans, load_lexicon, normalized, replay, scan, sentences)
+from .text_core import author_text, transform_prose, command_blocks, changed_command_lines, check_markdown_lists, INLINE_LITERAL, external_section_ref, normalize_external_refs
 
-LEXICON = PRIMARY / 'skills/df-article/references/lexicon.json'
-BANS = Path('ꘖ/data/article-bans.json')
 
-FENCE = re.compile(r'^\s*(```|~~~)')
-HEADING = re.compile(r'^(#{1,6})\s+(.*?)\s*$')
-ANCHOR = re.compile(r"""^\s*<a\s+name=['"]([^'"]+)['"]\s*>\s*</a>\s*$""")
 PART = re.compile(r'^([IVXLC]+)\.\s+\S')
 NUMBERED = re.compile(r'^(\d+(?:\.\d+)*)\.?(?:\s+(.*))?$')
 KEYED = re.compile(r'^@([\w.\-]+)(?:\s+(.*))?$')
-LIST_MARK = re.compile(r'^\s*(?:[-*+]|\d+(?:\.\d+)*[.)])\s+')
 ANCHOR_LINK = re.compile(r'\[([^\]\n]*)\]\(#([^)\s]+)\)')
 SECTION_LABEL = re.compile(r'^§{1,2}\s*(?:([IVXLC]+)\.)?(\d+(?:\.\d+)*)(?:\s*[-–]\s*(?:([IVXLC]+)\.)?(\d+(?:\.\d+)*))?$')
 SOURCE_REF = re.compile(r'(§§?)@([\w.\-]+?)(?:-@([\w.\-]+))?(?=[^\w.\-]|\.(?:\s|$)|$)')
-ARROW_CONNECTIVE = re.compile(
-    r'^\s*(?:because|since|as|although|though|while|so|thus|therefore|hence|which|this means|consequently|'
-    r'as a result|потому что|так как|поскольку|хотя|следовательно|поэтому|что означает)\b', re.I)
-BOLD_LEADIN = re.compile(r'^\*\*(?!\{?\[§)(?!§)([^*\n]{2,90})\*\*\s*[:—–]')
-REMOVAL = re.compile(r'(?i)\b(?:удал[её]н\w*|удалил\w*|убран\w*|убрал\w*|устран[её]н\w*|устранил\w*|вычищен\w*|вычистил\w*|'
-                     r'вырезан\w*|исключ[её]н\w*|исключил\w*|removed|deleted|eliminated|stripped|dropped)\b')
-REPLACED = re.compile(r'(?i)\b(?:заменен\w*|заменён\w*|заменил\w*|replaced)\b')
-KEPT = re.compile(r'(?i)\b(?:оставлен\w*|оставил\w*|кроме|за исключением|except|kept|retained)\b')
-ABBREVIATIONS = {'e.g', 'i.e', 'vs', 'etc', 'inc', 'ltd', 'co', 'no', 'mr', 'mrs', 'dr', 'st', 'fig', 'approx', 'т.е', 'т.д', 'т.п', 'др', 'см', 'г', 'гг'}
-THRESHOLDS = {'sentence_words': 60, 'code_spans': 8, 'parentheses': 3, 'bold_spans': 3, 'heading_words': 8, 'grep_literal': 100}
-
-
-@dataclass
-class Finding:
-    severity: str
-    rule: str
-    line: int
-    message: str
-    excerpt: str = ''
-
-    def format(self, path='') -> str:
-        where = f'{path}:{self.line}' if path else f'{self.line}'
-        tail = f' | {self.excerpt}' if self.excerpt else ''
-        return f'{where}: [{self.severity}] {self.rule}: {self.message}{tail}'
-
-
-@dataclass
-class Line:
-    no: int
-    raw: str
-    kind: str  # blank, fence, code, heading, anchor, quote, hr, prose
+BARE_REF = re.compile(r'(?<![\w@])(§{1,2})\s*(?:([IVXLC]+)\.)?(\d+(?:\.\d+)*)(?:\s*[-–]\s*(?:([IVXLC]+)\.)?(\d+(?:\.\d+)*))?(?!\w)')
+SOURCE_META = re.compile(r'^\s*<!-- df-article: (\{.*\}) -->\s*$')
 
 
 @dataclass
@@ -103,70 +64,11 @@ class Section:
 
 # ---------------------------------------------------------------- scanning
 
-def scan(text: str) -> list[Line]:
-    lines, fenced = [], False
-    for no, raw in enumerate(text.splitlines(), 1):
-        if FENCE.match(raw):
-            lines.append(Line(no, raw, 'fence'))
-            fenced = not fenced
-        elif fenced:
-            lines.append(Line(no, raw, 'code'))
-        elif not raw.strip():
-            lines.append(Line(no, raw, 'blank'))
-        elif ANCHOR.match(raw):
-            lines.append(Line(no, raw, 'anchor'))
-        elif HEADING.match(raw):
-            lines.append(Line(no, raw, 'heading'))
-        elif raw.lstrip().startswith('>'):
-            lines.append(Line(no, raw, 'quote'))
-        elif re.match(r'^\s*(?:-{3,}|\*{3,}|_{3,})\s*$', raw):
-            lines.append(Line(no, raw, 'hr'))
-        else:
-            lines.append(Line(no, raw, 'prose'))
-    return lines
-
-
-def clean(raw: str) -> str:
-    """Prose without code, URLs, verbatim quotes and markup: what the lexicon must judge."""
-    s = LIST_MARK.sub('', raw)
-    s = re.sub(r'`[^`]*`', ' CODE ', s)
-    s = re.sub(r'\[§[^\]]*\]\([^)]*\)', ' REF ', s)
-    s = re.sub(r'§§?@[\w.\-]+(?:-@[\w.\-]+)?', ' REF ', s)
-    s = re.sub(r'!?\[([^\]]*)\]\((?:<[^>]*>|[^)\s]*)\)',
-               lambda m: ' URL ' if not re.search(r'\s', m.group(1).replace('**', '')) else m.group(1), s)
-    s = re.sub(r'<https?://[^>]+>|https?://\S+', ' URL ', s)
-    s = re.sub(r'«[^»]*»|“[^”]*”', ' QUOTE ', s)
-    s = s.replace('**', '').replace('__', '')
-    s = re.sub(r'(?<![\w*])\*(?!\s)([^*\n]+?)\*(?!\w)', r'\1', s)
-    s = re.sub(r'<[^>\n]+>', ' ', s)
-    return re.sub(r'\s+', ' ', s).strip()
-
-
-def sentences(cleaned: str) -> list[str]:
-    parts, start = [], 0
-    for match in re.finditer(r'[.!?](?=\s+[A-ZА-ЯЁ«"(\[])', cleaned):
-        word = re.findall(r'[\w.]+$', cleaned[start:match.start()])
-        token = (word[-1] if word else '').lower().rstrip('.')
-        if token in ABBREVIATIONS or (len(token) == 1 and token.isalpha()):
-            continue
-        parts.append(cleaned[start:match.end()].strip())
-        start = match.end()
-    tail = cleaned[start:].strip()
-    return parts + ([tail] if tail else [])
-
-
-def detect_language(text: str) -> str:
-    letters = re.findall(r'[A-Za-zА-Яа-яЁё]', clean(text))
-    cyrillic = sum(1 for ch in letters if re.match(r'[А-Яа-яЁё]', ch))
-    return 'ru' if letters and cyrillic / len(letters) > 0.3 else 'en'
-
 
 def detect_kind(path: Path | None, text: str) -> str:
     if path is not None and path.parent.name == 'res':
         return 'response'
-    if ANCHOR.search(text) or re.search(r'(?m)^#\s+[IVXLC]+\.\s', text) or re.search(r'(?m)^#{2,6}\s+(?:\d|@)', text):
-        return 'article'
-    return 'proposal'
+    return 'article'
 
 
 # ---------------------------------------------------------------- structure
@@ -270,12 +172,22 @@ def part_at(lines, line_no):
     return part
 
 
-def bold_spans(raw: str):
-    marks = [m.start() for m in re.finditer(r'\*\*', raw)]
-    return [(marks[i], marks[i + 1]) for i in range(0, len(marks) - 1, 2)]
-
-
 def check_structure(lines, sections, findings):
+    part_headings = [(line, PART.match(HEADING.match(line.raw).group(2)))
+                     for line in lines if line.kind == 'heading' and HEADING.match(line.raw).group(1) == '#']
+    parts = [match.group(1) for _, match in part_headings if match]
+    if parts != ['I', 'II']:
+        findings.append(Finding('error', 'STRUCT-PARTS', 1,
+                                'article requires exactly two ordered parts: # I. Analysis and # II. Recommendations'))
+    if not sections:
+        findings.append(Finding('error', 'STRUCT-EMPTY', 1, 'article has no addressed numbered sections'))
+    for line in lines:
+        if line.kind not in ('prose', 'quote', 'fence', 'code'):
+            continue
+        section = section_at(sections, line.no)
+        if section is None or section.part != part_at(lines, line.no):
+            findings.append(Finding('error', 'STRUCT-UNADDRESSED', line.no,
+                                    'article content must belong to a numbered section', line.raw[:80]))
     anchors = {}
     for line in lines:
         if line.kind == 'anchor':
@@ -286,7 +198,7 @@ def check_structure(lines, sections, findings):
     for section in sections:
         if section.anchor is None:
             findings.append(Finding('error', 'ANCHOR-MISSING', section.line, f"expected <a name='{section.key}'></a> right after the heading"))
-        elif section.anchor != section.key:
+        elif section.anchor not in (section.key, '§' + section.key):
             findings.append(Finding('error', 'ANCHOR-MISMATCH', section.line, f'anchor {section.anchor} does not match section {section.key}'))
         title = section.title
         if title:
@@ -301,11 +213,15 @@ def check_structure(lines, sections, findings):
             long_words = [w for w in words[1:] if len(w) > 3]
             if len(capital) >= 2 and len(capital) * 2 > len(long_words):
                 findings.append(Finding('warning', 'HEADING-TITLECASE', section.line, 'Title Case heading (WP:AITITLECASE)', title))
+    by_key = {section.key: section for section in sections}
     for line in lines:
-        if line.kind not in ('prose', 'quote', 'heading'):
+        if line.kind not in ('prose', 'heading'):
             continue
         spans = bold_spans(line.raw)
-        for match in ANCHOR_LINK.finditer(line.raw):
+        visible = author_text(line.raw)
+        linked_spans = []
+        for match in ANCHOR_LINK.finditer(visible):
+            linked_spans.append(match.span())
             label, target = match.groups()
             if target not in anchors:
                 findings.append(Finding('error', 'REF-DANGLING', line.no, f'#{target} does not exist', match.group(0)))
@@ -318,10 +234,47 @@ def check_structure(lines, sections, findings):
                 current = part_at(lines, line.no)
                 label_part = parsed.group(1) or current
                 expected = f'{label_part}.{parsed.group(2)}' if label_part else parsed.group(2)
-                if expected != target:
+                if expected != target.removeprefix('§'):
                     findings.append(Finding('error', 'REF-LABEL', line.no, f'label points to {expected}, link goes to #{target}', match.group(0)))
+                if parsed.group(4):
+                    end_part = parsed.group(3) or label_part
+                    endpoint = f'{end_part}.{parsed.group(4)}' if end_part else parsed.group(4)
+                    if endpoint not in by_key:
+                        findings.append(Finding('error', 'REF-DANGLING', line.no,
+                                                f'range endpoint §{endpoint} does not exist', match.group(0)))
+                    elif expected in by_key and by_key[expected].line > by_key[endpoint].line:
+                        findings.append(Finding('error', 'REF-RANGE', line.no,
+                                                'range endpoints are in reverse document order', match.group(0)))
                 if line.kind != 'heading' and not any(a < match.start() < b for a, b in spans):
                     findings.append(Finding('warning', 'REF-BOLD', line.no, 'section reference is not bold: **[§N](#P.N)**', match.group(0)))
+        for match in BARE_REF.finditer(visible):
+            if not external_section_ref(visible, match) and not any(start <= match.start() < end for start, end in linked_spans):
+                findings.append(Finding('error', 'REF-BARE', line.no,
+                                        'article section reference needs a working anchor link', match.group(0)))
+        if re.search(r'§§?@|\]\(#@', visible):
+            findings.append(Finding('error', 'KEY-UNRENDERED', line.no,
+                                    'unrendered keyed reference remains in the numbered article', line.raw[:80]))
+    check_group_counts(lines, sections, findings)
+
+
+def check_group_counts(lines, sections, findings):
+    """Check explicit counts only where the displayed objects are countable."""
+    for section in sections:
+        match = re.search(r'\((\d+)(?:\s+[^()]*)?\)\s*$', section.title or '')
+        if not match:
+            continue
+        expected = int(match.group(1))
+        own = [line for line in lines if section.line < line.no <= section.end]
+        items = [line for line in own if line.kind in ('prose', 'quote') and
+                 LIST_MARK.match(re.sub(r'^\s*>\s?', '', line.raw))]
+        actual = len(items) if items else None
+        if actual is None and section.children:
+            child_counts = [re.search(r'\((\d+)(?:\s+[^()]*)?\)\s*$', child.title or '') for child in section.children]
+            if all(child_counts):
+                actual = sum(int(child.group(1)) for child in child_counts)
+        if actual is not None and actual != expected:
+            findings.append(Finding('error', 'GROUP-COUNT', section.line,
+                                    f'heading declares {expected} objects, displayed group contains {actual}', section.title or ''))
 
 
 def check_graph(lines, sections, findings):
@@ -331,30 +284,46 @@ def check_graph(lines, sections, findings):
     by_key = {s.key: s for s in sections}
     refs = {s.key: set() for s in sections}
     external = {s.key: False for s in sections}
+    primary = {s.key: False for s in sections}
     for line in lines:
         section = section_at(sections, line.no)
         if section is None or line.kind in ('heading', 'anchor'):
             continue
-        if line.kind in ('prose', 'quote'):
-            for match in ANCHOR_LINK.finditer(line.raw):
-                if match.group(2) in by_key:
-                    refs[section.key].add(match.group(2))
+        if line.kind in ('code', 'quote'):
+            primary[section.key] = True
+        if line.kind == 'prose':
+            visible = author_text(line.raw)
+            for match in ANCHOR_LINK.finditer(visible):
+                target = match.group(2).removeprefix('§')
+                if target in by_key:
+                    refs[section.key].add(target)
+                parsed = SECTION_LABEL.match(match.group(1).replace('**', '').strip())
+                if parsed and parsed.group(4) and target in by_key:
+                    end_part = parsed.group(3) or parsed.group(1) or section.part
+                    endpoint = f'{end_part}.{parsed.group(4)}' if end_part else parsed.group(4)
+                    if endpoint in by_key:
+                        refs[section.key].update(s.key for s in sections if by_key[target].line <= s.line <= by_key[endpoint].line)
             if re.search(r'\]\(<?https?://|https?://', line.raw):
                 external[section.key] = True
+                primary[section.key] = True
     # GRAPH-ORPHAN: analysis paragraphs that no recommendation needs, directly or through premises.
-    used, queue = set(), [s.key for s in sections if s.part == 'II']
+    used, expanded = set(), set()
+    queue = [(s.key, False) for s in sections if s.part == 'II']
     while queue:
-        key = queue.pop()
-        if key in used:
-            continue
+        key, expand = queue.pop()
         node = by_key[key]
-        family = list(node.lineage()) + list(node.descendants())
-        for member in family:
+        # A referenced group includes its objects. Walking upward from a
+        # referenced leaf includes its context, never its unrelated siblings.
+        if expand and key not in expanded:
+            expanded.add(key)
+            queue.extend((child.key, True) for child in node.children)
+        for member in node.lineage():
             if member.key not in used:
                 used.add(member.key)
-                queue.extend(refs[member.key])
+                queue.extend((target, True) for target in refs[member.key])
     for section in sections:
-        if section.part == 'I' and section.parent is None and section.key not in used:
+        own_body = [line for line in lines if section.line < line.no <= section.end and line.kind in ('prose', 'quote', 'code')]
+        if section.part == 'I' and section.key not in used and (own_body or not section.children):
             findings.append(Finding('note', 'GRAPH-ORPHAN', section.line,
                                     f'§{section.key} is not a premise of any recommendation (directly or transitively): keep it only if it serves the goal of the text'))
     # GRAPH-BASELESS: recommendations without an analysis premise or a documentation link.
@@ -381,143 +350,75 @@ def check_graph(lines, sections, findings):
             or (section.parent and any(l.kind in ('code', 'fence') for l in lines if section.parent.line < l.no < section.line))
         if not has_proof:
             findings.append(Finding('note', 'PROOF-MISSING', section.line, f'§{section.key} states a fact without a command, quote, link or premise'))
+    # A citation cycle cannot manufacture evidence. Diagnose strongly connected
+    # components only when no member reaches a primary observation/source.
+    grounded = {s.key for s in sections if any(primary[a.key] for a in s.lineage())}
+    changed = True
+    while changed:
+        additions = {key for key, targets in refs.items() if targets and targets <= grounded}
+        additions.update(s.key for s in sections if s.children and all(child.key in grounded for child in s.children))
+        changed = not additions <= grounded
+        grounded.update(additions)
+    counter, stack, on_stack, indexes, low = 0, [], set(), {}, {}
 
-
-def check_code(lines, findings):
-    index = 0
-    while index < len(lines):
-        if lines[index].kind != 'fence':
-            index += 1
-            continue
-        start = index
-        index += 1
-        body = []
-        while index < len(lines) and lines[index].kind == 'code':
-            body.append(lines[index])
-            index += 1
-        index += 1
-        commands = sum(1 for l in body if l.raw.strip() and not l.raw.rstrip().endswith('\\') and not l.raw.strip().startswith('#'))
-        for line in body:
-            for literal in re.findall(r"'([^']*)'|\"([^\"]*)\"", line.raw):
-                literal = literal[0] or literal[1]
-                if len(literal) > THRESHOLDS['grep_literal']:
-                    findings.append(Finding('warning', 'CODE-UNREADABLE', line.no,
-                                            f'{len(literal)}-character literal: a reader cannot check it; publish a small script and run it as 2725 §11–§12 do', literal[:60] + '…'))
-        cursor = index
-        while cursor < len(lines) and lines[cursor].kind == 'blank':
-            cursor += 1
-        output = []
-        while cursor < len(lines) and lines[cursor].kind == 'quote':
-            output.append(lines[cursor])
-            cursor += 1
-        values = [re.sub(r'^\s*>\s?', '', l.raw).rstrip() for l in output]
-        for value in set(values):
-            if value and values.count(value) > max(commands, 1):
-                first = output[values.index(value)]
-                findings.append(Finding('warning', 'CODE-DUP-OUTPUT', first.no,
-                                        f'line repeated {values.count(value)}× for {commands} command(s): add sort -u / -m1 or show why the repetition matters', value[:80]))
-        _ = start
-
-
-def check_prose(lines, kind, lang, findings, lexicon, bans):
-    entries = [e for e in lexicon if kind in e['kinds'] and e['lang'] in ('*', lang)]
-    compiled = [(e, [re.compile(p, 0 if e.get('case') else re.I) for p in e['patterns']]) for e in entries]
-    ban_patterns = [(b, re.compile(b['pattern'], 0 if b.get('case') else re.I)) for b in bans]
-    for line in lines:
-        if line.kind not in ('prose', 'heading'):
-            continue
-        raw = line.raw
-        text = clean(HEADING.match(raw).group(2) if line.kind == 'heading' else raw)
-        if not text:
-            continue
-        stripped = LIST_MARK.sub('', raw).strip()
-        if line.kind == 'prose' and BOLD_LEADIN.match(stripped):
-            findings.append(Finding('error' if kind != 'response' else 'warning', 'BOLD-LEADIN', line.no,
-                                    'inline bold label before a colon (WP:AILIST); state the claim itself', stripped[:80]))
-        for entry, patterns in compiled:
-            targets = sentences(text) if entry['where'] == 'start' else [text]
-            for target in targets:
-                for pattern in patterns:
-                    match = pattern.match(target) if entry['where'] == 'start' else pattern.search(target)
-                    if match:
-                        findings.append(Finding(entry['severity'], entry['id'], line.no, entry['fix'], _excerpt(target, match)))
-                        break
-                else:
-                    continue
+    def visit(key):
+        nonlocal counter
+        indexes[key] = low[key] = counter
+        counter += 1
+        stack.append(key)
+        on_stack.add(key)
+        for target in sorted(refs[key]):
+            if target not in indexes:
+                visit(target)
+                low[key] = min(low[key], low[target])
+            elif target in on_stack:
+                low[key] = min(low[key], indexes[target])
+        if low[key] != indexes[key]:
+            return
+        component = []
+        while True:
+            member = stack.pop()
+            on_stack.remove(member)
+            component.append(member)
+            if member == key:
                 break
-        for ban, pattern in ban_patterns:
-            match = pattern.search(raw)
-            if match:
-                findings.append(Finding(ban.get('severity', 'error'), 'BAN', line.no, ban.get('why', 'project ban'), _excerpt(raw, match)))
-        if line.kind != 'prose':
-            continue
-        for arrow in re.finditer(r'→', text):
-            if ARROW_CONNECTIVE.match(text[arrow.end():]):
-                findings.append(Finding('error', 'ARROW-CONNECTIVE', line.no,
-                                        '`→` already means «follows from the premises»; a connective after it restates or re-argues the premise', _excerpt(text, arrow)))
-        if kind == 'response':
-            continue
-        found = sentences(text)
-        lead = kind == 'proposal' and line.no == next((l.no for l in lines if l.kind == 'prose'), 0)
-        if len(found) > 1 and not lead:
-            findings.append(Finding('error', 'SENT-SPLIT', line.no, f'{len(found)} sentences on one line (DOC-4): one sentence — one line', found[1][:60]))
-        for sentence in found:
-            words = re.findall(r"[A-Za-zА-Яа-яЁё0-9][\w'’-]*", sentence)
-            if len(words) > THRESHOLDS['sentence_words']:
-                findings.append(Finding('warning', 'SENT-LONG', line.no, f'{len(words)} words in one sentence', sentence[:60] + '…'))
-            if sentence.count('(') > THRESHOLDS['parentheses']:
-                findings.append(Finding('warning', 'SENT-PARENS', line.no, f'{sentence.count("(")} parenthetical groups: move details into their own paragraphs or drop them', sentence[:60] + '…'))
-        spans = len(re.findall(r'`[^`]+`', raw))
-        if spans > THRESHOLDS['code_spans']:
-            findings.append(Finding('warning', 'SENT-IDENTIFIERS', line.no, f'{spans} code identifiers on one line: keep only those the claim needs', raw[:60] + '…'))
-        bold = [s for s in re.findall(r'\*\*(.+?)\*\*', raw) if '§' not in s]
-        if len(bold) > THRESHOLDS['bold_spans']:
-            findings.append(Finding('warning', 'BOLD-DENSITY', line.no, f'{len(bold)} bold fragments on one line (WP:AIBOLD)', raw[:60] + '…'))
-        if kind in ('article', 'proposal') and re.search(r'\]\((?!<?https?://|#|mailto:)', raw):
-            findings.append(Finding('error', 'LINK-LOCAL', line.no, 'link to a local file: the client cannot open it', raw[:80]))
+        if (len(component) > 1 or key in refs[key]) and not any(member in grounded for member in component):
+            first = min((by_key[member] for member in component), key=lambda node: node.line)
+            findings.append(Finding('error', 'GRAPH-CYCLE', first.line,
+                                    'circular premises without primary evidence: ' + ', '.join('§' + member for member in sorted(component))))
 
-
-def _excerpt(text, match, width=40):
-    start, end = max(match.start() - width, 0), min(match.end() + width, len(text))
-    return ('…' if start else '') + text[start:end] + ('…' if end < len(text) else '')
+    for key in refs:
+        if key not in indexes:
+            visit(key)
 
 
 def check_proposal(lines, findings):
-    """Upwork plain text: the lead paragraph is §1, then `2.`, `2.1.` …; references are bare `§N`."""
-    numbers = {'1'}
+    """Compatibility entry point; the proposal profile owns its grammar."""
+    from . import proposal
+    findings.extend(proposal.lint_text('\n'.join(line.raw for line in lines), lexicon=[], bans=[]))
+
+
+def check_link_style(lines, findings, link_style):
+    if link_style != 'formatted':
+        return
     for line in lines:
-        if line.kind == 'prose':
-            match = re.match(r'^\s*(\d+(?:\.\d+)*)\.?\s', line.raw)
-            if match:
-                numbers.add(match.group(1))
-    top = max(int(n.split('.')[0]) for n in numbers)
-    for line in lines:
-        if line.kind in ('prose', 'quote'):
-            for ref in re.findall(r'§§?\s*(\d+(?:\.\d+)*)', line.raw):
-                if ref not in numbers and int(ref.split('.')[0]) <= top + 3:
-                    findings.append(Finding('error', 'REF-DANGLING', line.no, f'§{ref} does not exist in this text', line.raw[:80]))
-            if re.search(r'\[[^\]]+\]\(https?://', line.raw):
-                findings.append(Finding('warning', 'PROPOSAL-MARKDOWN-LINK', line.no, 'Upwork shows proposal text as plain text: put the bare URL', line.raw[:80]))
-
-
-def load_lexicon(path=None):
-    return json.loads(Path(path or LEXICON).read_text(encoding='utf-8'))['entries']
-
-
-def find_bans(path: Path | None):
-    if path is None:
-        return []
-    for folder in [path.resolve().parent, *path.resolve().parents]:
-        candidate = folder / BANS
-        if candidate.is_file():
-            data = json.loads(candidate.read_text(encoding='utf-8'))
-            return data.get('bans', data) if isinstance(data, dict) else data
-    return []
+        if line.kind not in ('prose', 'heading'):
+            continue
+        protected = [match.span() for match in INLINE_LITERAL.finditer(line.raw)]
+        protected.extend(match.span() for match in re.finditer(r'(?<!\w)"[^"\n]+"', line.raw))
+        protected.extend(match.span() for match in re.finditer(r'!?\[[^\]\n]*\]\((?:<?https?://[^\s>)]*>?)\)|<https?://[^>\n]+>', line.raw))
+        for match in re.finditer(r'https?://[^\s<>]+', line.raw):
+            if not any(start <= match.start() < end for start, end in protected):
+                findings.append(Finding('error', 'LINK-BARE', line.no,
+                                        'the selected article profile requires formatted external links', match.group(0)))
 
 
 def lint_text(text: str, *, kind: str | None = None, lang: str | None = None, path: Path | None = None,
-              lexicon=None, bans=None) -> list[Finding]:
+              lexicon=None, bans=None, link_style=None) -> list[Finding]:
     kind = kind or detect_kind(path, text)
+    if kind == 'proposal':
+        from . import proposal
+        return proposal.lint_text(text, lang=lang, path=path, lexicon=lexicon, bans=bans)
     lang = lang or detect_language(text)
     lexicon = load_lexicon() if lexicon is None else lexicon
     bans = find_bans(path) if bans is None else bans
@@ -528,79 +429,33 @@ def lint_text(text: str, *, kind: str | None = None, lang: str | None = None, pa
         check_structure(lines, sections, findings)
         check_graph(lines, sections, findings)
         check_code(lines, findings)
-    elif kind == 'proposal':
-        check_proposal(lines, findings)
-        check_code(lines, findings)
+        check_markdown_lists(lines, findings)
+        check_link_style(lines, findings, link_style)
     check_prose(lines, kind, lang, findings, lexicon, bans)
     return sorted(findings, key=lambda f: (f.line, f.severity != 'error', f.rule))
 
 
 # ---------------------------------------------------------------- responses
 
-def normalized(text: str) -> str:
-    return re.sub(r'\s+', ' ', text).strip()
-
-
-def check_response(path: Path, text: str | None = None, against=(), lexicon=None, journal: Path | None = None) -> list[Finding]:
-    """`journal` is the journal folder (with `res/`); without it a file inside `res/` is compared with its siblings."""
-    text = path.read_bytes().decode('utf-8') if text is None else text
-    findings = lint_text(text, kind='response', path=path, lexicon=lexicon, bans=[])
-    folder = Path(journal) / 'res' if journal else (path.parent if path.parent.name == 'res' else None)
-    if folder is not None and folder.is_dir():
-        mine = normalized(text)
-        for other in sorted(folder.glob('*.md')):
-            if other.resolve() == path.resolve():
-                continue
-            if path.stem.isdigit() and other.stem.isdigit() and int(other.stem) > int(path.stem):
-                continue  # only earlier answers can be repeated
-            theirs = normalized(other.read_bytes().decode('utf-8', errors='replace'))
-            if not theirs or not mine or min(len(mine), len(theirs)) < 0.8 * max(len(mine), len(theirs)):
-                continue
-            if theirs == mine:
-                ratio = 1.0
-            else:
-                matcher = difflib.SequenceMatcher(None, mine.split(' '), theirs.split(' '))
-                ratio = matcher.ratio() if matcher.quick_ratio() >= 0.9 else 0.0
-            if ratio >= 0.9:
-                findings.append(Finding('error', 'RESP-DUP', 1, f'{ratio:.0%} identical to {other.name}: a repeated answer means the new request was not executed'))
-    for target in against:
-        target = Path(target)
-        body = target.read_bytes().decode('utf-8')
-        target_lines = body.splitlines()
-        for no, raw in enumerate(text.splitlines(), 1):
-            for sentence in re.split(r'(?<=[.!?])\s+', raw):
-                removal, replaced = REMOVAL.search(sentence), REPLACED.search(sentence)
-                if not removal and not replaced:
-                    continue
-                stop = len(sentence)
-                if replaced and not removal:
-                    stop = replaced.start()
-                kept = KEPT.search(sentence)
-                if kept:
-                    stop = min(stop, kept.start())
-                for token in re.findall(r'`([^`]+)`', sentence[:stop]):
-                    token = token.replace('...', '').replace('…', '').strip()
-                    if len(token) < 3 or token.startswith('§'):
-                        continue
-                    needle = re.compile(r'(?<![\w-])' + re.escape(token) + r'(?!\w)', re.I)
-                    hits = [i for i, l in enumerate(target_lines, 1) if needle.search(l)]
-                    if hits:
-                        findings.append(Finding('warning', 'RESP-CLAIM', no,
-                                                f'claimed removed/replaced, but `{token}` remains in {target.name} at lines {", ".join(map(str, hits[:8]))}{" …" if len(hits) > 8 else ""}',
-                                                sentence[:100]))
-    return sorted(findings, key=lambda f: (f.line, f.rule))
-
 
 # ---------------------------------------------------------------- source ⇄ render
 
 def to_source(text: str) -> str:
-    """Numbered Markdown → keyed view; keys are the current anchors, so the conversion is lossless."""
+    """Numbered Markdown → keyed view, preserving anchor style and literals."""
     lines = scan(text)
     findings = []
     sections = parse_sections(lines, findings)
     by_line = {s.line: s for s in sections}
+    aliases = {s.anchor or s.key: s.key for s in sections}
+    standalone = {ANCHOR.match(line.raw).group(1) for line in lines if line.kind == 'anchor'} - set(aliases)
     anchor_lines = {next((x.no for x in lines if x.no > s.line and x.kind != 'blank'), None) for s in sections if s.anchor}
-    out = []
+    prefixes = {s.key: '§' if (s.anchor or '').startswith('§') else '' for s in sections}
+    default = '§' if prefixes and all(prefixes.values()) else ''
+    overrides = {key: prefix for key, prefix in prefixes.items() if prefix != default}
+    metadata = {'anchor_prefix': default}
+    if overrides:
+        metadata['anchor_prefixes'] = overrides
+    out = ['<!-- df-article: ' + json.dumps(metadata, ensure_ascii=False, separators=(',', ':')) + ' -->']
     for line in lines:
         if line.no in by_line:
             section = by_line[line.no]
@@ -608,20 +463,37 @@ def to_source(text: str) -> str:
             out.append('#' * (len(section.number) + 1) + f' @{section.key}{title}')
         elif line.no in anchor_lines and line.kind == 'anchor':
             continue
-        elif line.kind in ('prose', 'quote', 'heading'):
+        elif line.kind in ('prose', 'heading'):
             current = part_at(lines, line.no)
 
             def replace(match):
                 label, target = match.groups()
+                key = aliases.get(target, target.removeprefix('§'))
                 parsed = SECTION_LABEL.match(label.replace('**', '').strip())
                 if not parsed or not label.strip().startswith('§'):
-                    return f'[{label}](#@{target})'
+                    return match.group(0) if target in standalone else f'[{label}](#@{key})'
                 marks = '§§' if label.strip().startswith('§§') else '§'
                 if parsed.group(4):
                     end_part = parsed.group(3) or parsed.group(1) or current
-                    return f'{marks}@{target}-@{end_part}.{parsed.group(4)}' if end_part else f'{marks}@{target}-@{parsed.group(4)}'
-                return f'{marks}@{target}'
-            out.append(ANCHOR_LINK.sub(replace, line.raw))
+                    endpoint = f'{end_part}.{parsed.group(4)}' if end_part else parsed.group(4)
+                    return f'{marks}@{key}-@{endpoint}'
+                return f'{marks}@{key}'
+
+            def bare(match):
+                if external_section_ref(match.string, match):
+                    return match.group(0)
+                marks, start_part, start_number, end_part, end_number = match.groups()
+                start_part = start_part or current
+                start = f'{start_part}.{start_number}' if start_part else start_number
+                if end_number:
+                    end_part = end_part or start_part
+                    endpoint = f'{end_part}.{end_number}' if end_part else end_number
+                    return f'{marks}@{start}-@{endpoint}'
+                return f'{marks}@{start}'
+
+            def convert(value):
+                return BARE_REF.sub(bare, ANCHOR_LINK.sub(replace, value))
+            out.append(transform_prose(line.raw, convert))
         else:
             out.append(line.raw)
     return '\n'.join(out) + ('\n' if text.endswith('\n') else '')
@@ -631,6 +503,18 @@ def render(source: str, previous: str | None = None):
     """Keyed view → numbered Markdown. Returns (markdown, report, findings)."""
     lines = scan(source)
     findings: list[Finding] = []
+    external_changes = []
+    metadata = {}
+    for line in lines:
+        match = SOURCE_META.match(line.raw) if line.kind == 'comment' else None
+        if match:
+            try:
+                value = json.loads(match.group(1))
+                if not isinstance(value, dict) or value.get('anchor_prefix', '') not in ('', '§') or any(prefix not in ('', '§') for prefix in value.get('anchor_prefixes', {}).values()):
+                    raise ValueError('anchor prefix must be empty or §')
+                metadata.update(value)
+            except (ValueError, TypeError, AttributeError) as exc:
+                findings.append(Finding('error', 'KEY-METADATA', line.no, str(exc)))
     sections, roots = parse_keyed(lines, findings)
     numbers, mapping = {}, {}
 
@@ -645,17 +529,24 @@ def render(source: str, previous: str | None = None):
 
     for nodes in roots.values():
         assign(nodes, ())
+    if not sections:
+        findings.append(Finding('error', 'KEY-EMPTY', 1, 'keyed source has no addressed sections'))
+    old_sections = parse_sections(scan(previous)) if previous is not None else []
+    old_prefixes = {s.key: '§' if (s.anchor or '').startswith('§') else '' for s in old_sections}
+    default_prefix = metadata.get('anchor_prefix', '§' if old_prefixes and all(old_prefixes.values()) else '')
+    prefixes = metadata.get('anchor_prefixes', {})
+    anchors = {key: prefixes.get(key, old_prefixes.get(key, default_prefix)) + number for key, number in mapping.items()}
     out = []
     for line in lines:
+        if line.kind == 'comment' and SOURCE_META.match(line.raw):
+            continue
         if line.no in numbers:
             node = numbers[line.no]
             title = (' ' if node.title.startswith('(') else '. ') + node.title if node.title else ''
             out.append('#' * (len(node.number) + 1) + f' {node.dotted}{title}')
-            out.append(f"<a name='{node.key}'></a>")
+            out.append(f"<a name='{anchors[node.name]}'></a>")
             continue
-        if line.kind == 'anchor':
-            continue  # anchors are regenerated from the keys
-        if line.kind not in ('prose', 'quote', 'heading'):
+        if line.kind not in ('prose', 'heading'):
             out.append(line.raw)
             continue
         current = part_at(lines, line.no)
@@ -666,6 +557,9 @@ def render(source: str, previous: str | None = None):
 
         def replace(match):
             marks, start, end = match.groups()
+            suffix = ''
+            if end and end.endswith('.') and end not in mapping and end[:-1] in mapping:
+                end, suffix = end[:-1], '.'
             if start not in mapping:
                 findings.append(Finding('error', 'KEY-DANGLING', line.no, f'§@{start} does not exist (deleted premise: delete or re-ground the dependent claim)', line.raw[:80]))
                 return match.group(0)
@@ -673,169 +567,56 @@ def render(source: str, previous: str | None = None):
                 if end not in mapping:
                     findings.append(Finding('error', 'KEY-DANGLING', line.no, f'§@{end} does not exist', line.raw[:80]))
                     return match.group(0)
-                return f'[{marks}{label(mapping[start])}-{label(mapping[end])}](#{mapping[start]})'
-            return f'[{marks}{label(mapping[start])}](#{mapping[start]})'
-
-        value = SOURCE_REF.sub(replace, line.raw)
+                return f'[{marks}{label(mapping[start])}-{label(mapping[end])}](#{anchors[start]})' + suffix
+            return f'[{marks}{label(mapping[start])}](#{anchors[start]})'
 
         def anchor_ref(match):
             key = match.group(1)
             if key not in mapping:
                 findings.append(Finding('error', 'KEY-DANGLING', line.no, f'#@{key} does not exist', line.raw[:80]))
                 return match.group(0)
-            return f'(#{mapping[key]})'
-        out.append(re.sub(r'\(#@([\w.\-]+)\)', anchor_ref, value))
+            return f'(#{anchors[key]})'
+
+        def convert(value):
+            result = re.sub(r'\(#@([\w.\-]+)\)', anchor_ref, SOURCE_REF.sub(replace, value))
+            result = normalize_external_refs(result, changes=external_changes, line=line.no)
+            if re.search(r'§§?@|\(#@', result) and not any(f.line == line.no and f.rule == 'KEY-DANGLING' for f in findings):
+                findings.append(Finding('error', 'KEY-SYNTAX', line.no, 'unparseable or unresolved keyed reference', result[:80]))
+            return result
+        out.append(transform_prose(line.raw, convert))
     markdown = '\n'.join(out) + ('\n' if source.endswith('\n') else '')
     report = {'renumbered': [[k, v] for k, v in mapping.items() if k != v and re.match(r'^(?:[IVXLC]+\.)?\d', k)],
               'added': [k for k in mapping if not re.match(r'^(?:[IVXLC]+\.)?\d+(?:\.\d+)*$', k)]}
+    if external_changes:
+        report['external_references_normalized'] = external_changes
     if previous is not None:
-        old = [s.key for s in parse_sections(scan(previous))]
+        old = [s.key for s in old_sections]
         report['removed'] = [key for key in old if key not in mapping]
+    reference_findings = []
+    check_structure(scan(markdown), parse_sections(scan(markdown)), reference_findings)
+    findings.extend(f for f in reference_findings if f.rule in ('REF-DANGLING', 'REF-LABEL', 'REF-RANGE', 'REF-BARE', 'KEY-UNRENDERED', 'ANCHOR-DUP'))
     return markdown, report, findings
+
+
+def render_map(source: str, markdown: str | None = None):
+    """Stable source keys and exact body/subtree spans for the workflow sidecar."""
+    source_sections, _ = parse_keyed(scan(source), [])
+    if markdown is None:
+        markdown, _, _ = render(source)
+    rendered = parse_sections(scan(markdown))
+    def span(node):
+        return {'start': node.line, 'end': node.end,
+                'subtree_end': max([node.end] + [child.end for child in node.descendants()])}
+    return [{'key': original.name, 'number': current.key, 'part': current.part, 'anchor': current.anchor,
+             'source': span(original), 'rendered': span(current)}
+            for original, current in zip(source_sections, rendered)]
 
 
 # ---------------------------------------------------------------- replay
 
-def default_shell():
-    git = shutil.which('git')
-    if git:
-        for candidate in (Path(git).resolve().parents[1] / 'bin/bash.exe', Path(git).resolve().parents[1] / 'usr/bin/bash.exe'):
-            if candidate.is_file():
-                return str(candidate)
-    return shutil.which('bash') or 'bash'
-
-
-def _plain(value: str) -> str:
-    value = re.sub(r'^\s*>\s?', '', value).rstrip()
-    value = value.strip('`')
-    return '' if value == '<empty response>' else value
-
-
-def replay(text: str, *, shell=None, timeout=60, only=None):
-    lines = scan(text)
-    results, index = [], 0
-    shell = shell or default_shell()
-    while index < len(lines):
-        if lines[index].kind != 'fence' or not re.match(r'^\s*```\s*(bash|sh|shell)\s*$', lines[index].raw):
-            index += 1
-            continue
-        first = lines[index].no
-        index += 1
-        body = []
-        while index < len(lines) and lines[index].kind == 'code':
-            body.append(lines[index].raw)
-            index += 1
-        index += 1
-        cursor = index
-        while cursor < len(lines) and lines[cursor].kind == 'blank':
-            cursor += 1
-        expected = []
-        while cursor < len(lines) and lines[cursor].kind == 'quote':
-            expected.append(_plain(lines[cursor].raw))
-            cursor += 1
-        if only and not any(first <= wanted <= cursor for wanted in only):
-            continue
-        if not expected:
-            results.append({'line': first, 'status': 'no-quoted-output'})
-            continue
-        try:
-            done = subprocess.run([shell, '-c', '\n'.join(body)], capture_output=True, timeout=timeout,
-                                  encoding='utf-8', errors='replace')
-            actual = [x.rstrip() for x in done.stdout.splitlines()]
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            results.append({'line': first, 'status': 'error', 'error': str(exc)})
-            continue
-        want = [x for x in expected if x]
-        status = 'match' if want == [x for x in actual if x] else 'mismatch'
-        results.append({'line': first, 'status': status, 'expected': want, 'actual': actual[:50], 'stderr': done.stderr[-500:]})
-    return results
-
 
 # ---------------------------------------------------------------- CLI
 
-def _print_findings(findings, path, as_json):
-    if as_json:
-        print(json.dumps([asdict(f) for f in findings], ensure_ascii=False, indent=1))
-    else:
-        for finding in findings:
-            print(finding.format(str(path)))
-        count = {level: sum(f.severity == level for f in findings) for level in ('error', 'warning', 'note')}
-        print(f"{path}: {count['error']} error(s), {count['warning']} warning(s), {count['note']} note(s)")
-    return 1 if any(f.severity == 'error' for f in findings) else 0
-
-
 def main(argv=None) -> int:
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
-    parser = argparse.ArgumentParser(prog='df_article.py', description=__doc__.split('\n\n')[0])
-    sub = parser.add_subparsers(dest='command', required=True)
-    lint = sub.add_parser('lint', help='format and slop checks; exit 1 on errors')
-    lint.add_argument('targets', nargs='+', type=Path)
-    lint.add_argument('--kind', choices=['article', 'proposal', 'response'])
-    lint.add_argument('--lang', choices=['en', 'ru'])
-    lint.add_argument('--bans', type=Path, help='explicit project bans JSON (default: nearest ꘖ/data/article-bans.json)')
-    lint.add_argument('--errors-only', action='store_true')
-    lint.add_argument('--json', action='store_true')
-    source = sub.add_parser('source', help='numbered Markdown → keyed editing view')
-    source.add_argument('target', type=Path)
-    source.add_argument('-o', '--output', type=Path)
-    rend = sub.add_parser('render', help='keyed view → numbered Markdown')
-    rend.add_argument('source', type=Path)
-    rend.add_argument('-o', '--output', type=Path, required=True)
-    rend.add_argument('--previous', type=Path, help='previous numbered version, for the removed-sections report')
-    rend.add_argument('--force', action='store_true', help='write even with dangling keys')
-    rep = sub.add_parser('replay', help='rerun ```bash blocks and compare with quoted output')
-    rep.add_argument('target', type=Path)
-    rep.add_argument('--shell')
-    rep.add_argument('--timeout', type=float, default=60)
-    rep.add_argument('--line', type=int, action='append', help='only the block that starts at this line')
-    resp = sub.add_parser('response', help='check a journal/chat answer')
-    resp.add_argument('target', type=Path)
-    resp.add_argument('--against', type=Path, action='append', default=[], help='file whose edits the answer reports')
-    resp.add_argument('--journal', type=Path, help='journal folder with res/ (when the answer is still a candidate outside it)')
-    resp.add_argument('--json', action='store_true')
-    args = parser.parse_args(argv)
-    try:
-        if args.command == 'lint':
-            status = 0
-            for target in args.targets:
-                text = target.read_bytes().decode('utf-8')
-                bans = json.loads(args.bans.read_text(encoding='utf-8')) if args.bans else None
-                if isinstance(bans, dict):
-                    bans = bans.get('bans', [])
-                findings = lint_text(text, kind=args.kind, lang=args.lang, path=target, bans=bans)
-                if args.errors_only:
-                    findings = [f for f in findings if f.severity == 'error']
-                status |= _print_findings(findings, target, args.json)
-            return status
-        if args.command == 'source':
-            value = to_source(args.target.read_bytes().decode('utf-8'))
-            if args.output:
-                args.output.parent.mkdir(parents=True, exist_ok=True)
-                args.output.write_bytes(value.encode('utf-8'))
-                print(f'{args.output}: keyed view written')
-            else:
-                sys.stdout.write(value)
-            return 0
-        if args.command == 'render':
-            previous = args.previous.read_bytes().decode('utf-8') if args.previous else None
-            markdown, report, findings = render(args.source.read_bytes().decode('utf-8'), previous)
-            for finding in findings:
-                print(finding.format(str(args.source)))
-            if any(f.severity == 'error' for f in findings) and not args.force:
-                print('not written: fix the errors above')
-                return 1
-            args.output.write_bytes(markdown.encode('utf-8'))
-            print(json.dumps(report, ensure_ascii=False, indent=1))
-            return 0
-        if args.command == 'replay':
-            results = replay(args.target.read_bytes().decode('utf-8'), shell=args.shell, timeout=args.timeout, only=args.line)
-            print(json.dumps(results, ensure_ascii=False, indent=1))
-            return 1 if any(r['status'] in ('mismatch', 'error') for r in results) else 0
-        if args.command == 'response':
-            findings = check_response(args.target, against=args.against, journal=args.journal)
-            return _print_findings(findings, args.target, args.json)
-    except (OSError, ValueError, json.JSONDecodeError, re.error) as exc:
-        print(f'ERROR: {exc}', file=sys.stderr)
-        return 2
-    return 0
+    from .text_cli import main as common_main
+    return common_main(argv, default_kind='article')

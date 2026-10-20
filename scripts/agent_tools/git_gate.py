@@ -44,6 +44,8 @@ def check_commit(root: Path, paths: list[str]) -> list[str]:
             if errors:
                 raise ValueError('\n'.join(errors))
     git(root, 'diff', '--cached', '--check')
+    from .text_workflow import gate_paths
+    gate_paths([root / name for name in relative])
     return relative
 
 
