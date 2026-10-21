@@ -648,6 +648,7 @@ def record_review_disposition(root, review_id, finding_id, status, basis, eviden
     return disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 
 def complete_stage(root, stage, inputs, outputs, *, note=None):
+    root = Path(root).resolve()
     if stage not in STAGES or not inputs or not outputs:
         raise ValueError('Known stage and explicit nonempty input/output artifacts required')
     in_hashes, out_hashes = hashes(root, inputs), hashes(root, outputs)

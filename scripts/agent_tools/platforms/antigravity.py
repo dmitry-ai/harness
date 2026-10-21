@@ -314,6 +314,7 @@ def reviewer_isolation_issues(root, rows):
 
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True):
     """Require an actual child self conversation and its successful final native step."""
+    root = Path(root).resolve()
     backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
     if not all(re.fullmatch(r'[a-f0-9-]{36}', x) for x in (parent_id, reviewer_id)):
         raise ValueError('Native parent/reviewer UUIDs required')
