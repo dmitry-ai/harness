@@ -531,6 +531,21 @@
       "source": "materaprima res/6 («критическая перезапись», «полное отсутствие»)"
     },
     {
+      "id": "REC-TRAILING-CONDITION",
+      "severity": "error",
+      "kinds": [
+        "article"
+      ],
+      "lang": "*",
+      "where": "any",
+      "patterns": [
+        "→\\s*[^.!?\\n]+?\\s+\\b(?:if|provided that|assuming|in case|если|при условии|в случае если)\\b"
+      ],
+      "why": "A conditional clause placed after the imperative action disguises hesitation and hedges against facts; recommendations must be direct or use the canonical prefix form «If X → do Y» branching from an audit step (§II.12.2).",
+      "fix": "Verify the condition against evidence; remove the trailing condition for verified facts, or structure as an explicit branch following a diagnostic step.",
+      "source": "shakhshop req/4 draft.md §II.1.2: Submit an appeal in Meta Business Support Home if the catalog products do not constitute religious practices"
+    },
+    {
       "id": "RESP-PROCEDURAL",
       "severity": "warning",
       "kinds": [
@@ -552,4 +567,4 @@
       "source": "WP:AISIGNS «Specific mentions of preserved/retained information»; materaprima res/4 (SCOPE-2, «страховочный снимок»), res/4–6 «Ограничение:»"
     }
   ]
-}
+}

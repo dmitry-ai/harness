@@ -341,6 +341,31 @@ def check_graph(lines, sections, findings):
     for section in sections:
         if section.part == 'II' and not section.children and not grounded.get(section.key):
             findings.append(Finding('warning', 'GRAPH-BASELESS', section.line, f'recommendation §{section.key} has no premise in part I and no documentation link'))
+    # GRAPH-CONDITIONAL-STEP: a conditional recommendation must branch from an earlier Part II diagnostic step.
+    for section in sections:
+        if section.part != 'II':
+            continue
+        body_prose = [l for l in lines if section.line < l.no <= section.end and l.kind == 'prose']
+        for line in body_prose:
+            visible = author_text(line.raw).strip()
+            if re.match(r'^(?:If|Если|В случае если)\b', visible, re.I):
+                prefix = visible.split('→', 1)[0]
+                has_part2_branch = False
+                has_part1_cond = False
+                for match in ANCHOR_LINK.finditer(prefix):
+                    target = match.group(2).removeprefix('§')
+                    if target.startswith('II.') or (target in by_key and by_key[target].part == 'II'):
+                        has_part2_branch = True
+                    elif target.startswith('I.') or (target in by_key and by_key[target].part == 'I'):
+                        has_part1_cond = True
+                if has_part1_cond and not has_part2_branch:
+                    findings.append(Finding('error', 'GRAPH-CONDITIONAL-STEP', line.no,
+                                            f'conditional recommendation §{section.key} conditions on an established Part I fact; it must branch from a Part II diagnostic step (like §II.12.2 from §II.12.1 in 2725.md)',
+                                            line.raw[:100]))
+                elif not has_part2_branch:
+                    findings.append(Finding('warning', 'GRAPH-CONDITIONAL-STEP', line.no,
+                                            f'conditional recommendation §{section.key} has no Part II diagnostic premise; branch from an explicit measurement step',
+                                            line.raw[:100]))
     # PROOF-MISSING: analysis leaves with neither proof nor premise.
     for section in sections:
         if section.part != 'I' or section.children:

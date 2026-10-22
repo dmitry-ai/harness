@@ -70,6 +70,25 @@ class TextMapTests(TextWorkspaceCase):
         self.assertEqual(result['claim_versions'].keys(), {'F-PRIMARY-1'})
         self.assertEqual(target.read_text(encoding='utf-8'), candidate)
 
+    def test_limited_claim_rejects_lazy_conditional_qualification(self):
+        captured = v3_analysis(self.project)
+        captured['facts'][0]['verification_status'] = 'limited'
+        captured['facts'][0]['missing_checks'] = ['Verify on mobile viewport.']
+        self.registry({'schema_version': 3, 'facts': captured['facts']})
+        candidate = '1. The captured page contains the concern if valid.\n'
+        target, op = self.start()
+        manifest = self.manifest(candidate)
+        manifest['blocks'][0]['qualification'] = 'if'
+        result = text_workflow.check(self.project, op['id'], candidate, manifest)
+        self.assertFalse(result['valid'])
+        self.assertIn('text.qualification_lazy', codes(result))
+
+        candidate_ok = '1. The captured page contains the concern for desktop-only.\n'
+        manifest_ok = self.manifest(candidate_ok)
+        manifest_ok['blocks'][0]['qualification'] = 'desktop-only'
+        result_ok = text_workflow.check(self.project, op['id'], candidate_ok, manifest_ok)
+        self.assertTrue(result_ok['valid'], result_ok['issues'])
+
     def test_map_includes_proposal_continuations_and_literal_evidence(self):
         candidate = ('1. The captured page contains the concern.\n'
                      'The captured page also contains Alternative.\n'

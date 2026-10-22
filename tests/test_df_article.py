@@ -202,6 +202,26 @@ class LexiconAndProjectionTests(TemporaryCase):
             for pattern in entry['patterns']:
                 re.compile(pattern)
 
+    def test_trailing_conditional_recommendation_is_flagged(self):
+        text = wrap('Storefront has religious products: `curl`\n> mihrab clock',
+                    recommendations=('**[§I.1](#I.1)** → Submit an appeal in Meta Support if catalog products do not constitute religious practices.',))
+        findings = article.lint_text(text)
+        self.assertIn('REC-TRAILING-CONDITION', rules(findings, 'error'))
+
+    def test_conditional_recommendation_must_branch_from_part_two_diagnostic_step(self):
+        # Conditioning on Part I fact directly is rejected
+        text_bad = wrap('Storefront has religious products: `curl`\n> mihrab clock',
+                        recommendations=('If the catalog of **[§I.1](#I.1)** is decorative → Submit an appeal.',))
+        findings_bad = article.lint_text(text_bad)
+        self.assertIn('GRAPH-CONDITIONAL-STEP', rules(findings_bad, 'error'))
+
+        # Branching from Part II measurement step is valid (as in 2725.md)
+        text_good = wrap('Storefront bottleneck: `curl`\n> slow',
+                         recommendations=('Profile interactions with DevTools (**[§I.1](#I.1)**).',
+                                          'If the bottleneck of **[§II.1](#II.1)** turns out to be script execution → split bundle.'))
+        findings_good = article.lint_text(text_good)
+        self.assertNotIn('GRAPH-CONDITIONAL-STEP', rules(findings_good, 'error'))
+
     def test_build_native_projects_every_shared_skill(self):
         primary = self.root / 'canonical'
         for relative in ('rules', 'platforms', 'skills/upwork-init', 'agents'):

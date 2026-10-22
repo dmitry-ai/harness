@@ -212,8 +212,12 @@ def validate_map(root, text, kind, manifest):
                 status = claim.get('verification_status')
                 if status in ('unverified', 'unavailable', 'stale'):
                     issues.append(_issue('text.unverified', 'An unresolved/stale claim cannot support client prose', key=item['key'], claim_id=ident))
-                if status == 'limited' and (not _nonempty(item.get('qualification')) or item['qualification'] not in block['prose']):
-                    issues.append(_issue('text.qualification', 'A limited claim needs its exact visible qualification', key=item['key'], claim_id=ident))
+                if status == 'limited':
+                    qualification = item.get('qualification')
+                    if not _nonempty(qualification) or qualification not in block['prose']:
+                        issues.append(_issue('text.qualification', 'A limited claim needs its exact visible qualification', key=item['key'], claim_id=ident))
+                    elif re.search(r'^(?:if|whether|when|unless|если|при условии|в случае)\b', qualification.strip(), re.I):
+                        issues.append(_issue('text.qualification_lazy', 'A conditional conjunction is not a valid claim qualification; name the technical boundary or operational access restriction', key=item['key'], claim_id=ident))
                 nums.update(primary_numbers(claim, index))
                 if ident in used and item.get('role') != 'inference':
                     if not _nonempty(item.get('reuse_basis')):
