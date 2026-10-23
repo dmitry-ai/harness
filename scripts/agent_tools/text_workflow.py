@@ -335,6 +335,9 @@ def check(root, ident, candidate, manifest=None, *, run_replay=False, replay_rec
     if not mechanical and op['mode'] != 'inspect':
         mapped = validate_map(root, candidate, op['kind'], manifest)
         issues.extend(mapped['issues'])
+    from .text_sources import validate_source_checks
+    sources = validate_source_checks(root, candidate, (manifest or {}).get('source_checks', []))
+    issues.extend(sources['issues'])
     changed = changed_command_lines(candidate, base.decode('utf-8'))
     replay_data = []
     if changed:
@@ -356,7 +359,8 @@ def check(root, ident, candidate, manifest=None, *, run_replay=False, replay_rec
     result = {'schema_version': 1, 'operation': ident, 'root': str(root), 'target': op['target'], 'kind': op['kind'],
               'base_sha256': op['base_sha256'], 'candidate_sha256': digest(candidate.encode()),
               'valid': not issues, 'issues': issues, 'coverage': 'mechanical' if mechanical else 'semantic',
-              'inputs': mapped['inputs'], 'claims': mapped['claims'], 'claim_versions': mapped['claim_versions'],
+              'inputs': {**mapped['inputs'], **sources['inputs']}, 'claims': mapped['claims'], 'claim_versions': mapped['claim_versions'],
+              'source_checks': sources['checks'],
               'manifest': manifest, 'replay_record': replay_record, 'warning_dispositions': warning_dispositions,
               'diff': ''.join(difflib.unified_diff(base.decode('utf-8').splitlines(True), candidate.splitlines(True), fromfile='before/'+op['target'], tofile='after/'+op['target']))}
     folder = _folder(root) / 'operations' / ident
@@ -408,7 +412,7 @@ def apply(root, reference):
             replace_bytes(target, payload)
         if target.read_bytes() != payload:
             raise OSError('Applied text read-back differs')
-        receipt = {k: checked[k] for k in ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest')}
+        receipt = {k: checked[k] for k in ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks')}
         receipt.update(schema_version=1, check=reference, approval=approval, status='applied')
         raw = json_data(receipt)
         path = _immutable(_folder(root) / 'operations' / op['id'] / (digest(raw) + '-applied.json'), raw)
@@ -438,6 +442,9 @@ def gate(root, *, targets=None, response=None, publication=False):
         saved = _read(file)
         if file.name != digest(file.read_bytes()) + '-applied.json' or saved.get('candidate_sha256') != entry['sha256']:
             issues.append('Applied receipt changed: ' + name); continue
+        from .text_sources import validate_source_checks
+        sources = validate_source_checks(root, target.read_bytes().decode('utf-8'), saved.get('source_checks', []))
+        issues.extend(item['message'] for item in sources['issues'])
         for path, expected in saved['inputs'].items():
             if not inside(root, path).is_file() or digest(inside(root, path).read_bytes()) != expected:
                 issues.append('Text evidence/registry changed; recheck dependent text: ' + name)

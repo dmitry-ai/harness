@@ -426,9 +426,27 @@ def check_proposal(lines, findings):
 def check_link_style(lines, findings, link_style):
     if link_style != 'formatted':
         return
+    from .markdown_links import parser, inline_links, display_address
+    engine, environment = parser(), {}
+    engine.parse('\n'.join(line.raw for line in lines), environment)
+    definitions = {index for item in environment.get('references', {}).values()
+                   for index in range(*item.get('map', (0, 0)))}
     for line in lines:
-        if line.kind not in ('prose', 'heading'):
+        if line.kind not in ('prose', 'heading') or line.no - 1 in definitions:
             continue
+        # Keep literal quotes/code outside the author's formatting contract.
+        authored = INLINE_LITERAL.sub('', line.raw)
+        tokens = engine.parseInline(authored, environment)[0].children or []
+        for href, label in inline_links(tokens):
+            if href.startswith(('https://', 'http://')):
+                try:
+                    actual = display_address(label if '://' in label else 'https://' + label)
+                    expected = display_address(href)
+                except ValueError:
+                    actual, expected = None, href
+                if actual != expected:
+                    findings.append(Finding('error', 'LINK-LABEL', line.no,
+                        'formatted label must preserve the destination domain, path, query and fragment', label))
         protected = [match.span() for match in INLINE_LITERAL.finditer(line.raw)]
         protected.extend(match.span() for match in re.finditer(r'(?<!\w)"[^"\n]+"', line.raw))
         protected.extend(match.span() for match in re.finditer(r'!?\[[^\]\n]*\]\((?:<?https?://[^\s>)]*>?)\)|<https?://[^>\n]+>', line.raw))

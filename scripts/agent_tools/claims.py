@@ -67,7 +67,8 @@ def standalone_numbers(text):
     """Extract standalone quantitative numeric figures from prose, ignoring IDs, URLs, links and list markers."""
     if not isinstance(text, str) or not text:
         return set()
-    cleaned = re.sub(r'\]\([^)]*\)', ']', text)
+    from .markdown_links import numeric_text
+    cleaned = numeric_text(text)
     cleaned = re.sub(r'https?://\S+', ' ', cleaned)
     cleaned = re.sub(r'\b[a-f0-9]{8,64}\b', ' ', cleaned, flags=re.I)
     cleaned = re.sub(r'\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b', ' ', cleaned)

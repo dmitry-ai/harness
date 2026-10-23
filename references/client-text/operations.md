@@ -11,7 +11,7 @@ python <scripts>/df_text.py diagnose <root> --platform codex --profile C1
 python <scripts>/df_article.py lint <file> --kind article --json
 python <scripts>/df_proposal.py lint <file> --profile <profile.json>
 python <scripts>/df_text.py lint <letter> --kind letter
-python <scripts>/df_article.py lint <file> --network
+python <scripts>/df_article.py lint <file> --network --project <root>
 python <scripts>/df_article.py source <file> -o <separate-source>
 python <scripts>/df_article.py render <source> --previous <file> --diff
 python <scripts>/df_proposal.py render <source> -o <separate-candidate>
@@ -21,6 +21,7 @@ python <scripts>/df_proposal.py fields --fields <fields.json> --limits <limits.j
 Профиль proposal: `numbering: nested|flat`, `voice: technical|offer`; дополнительные параметры не заменяют требования текущего задания.
 `fields.json` сопоставляет точные названия полей с отправляемым текстом, `limits.json` — с подтверждёнными лимитами каждого поля. По умолчанию длина считается как UTF-16 в браузере; `--count-mode unicode` нужен только при подтверждённом другом счётчике.
 Статья допускает профиль `link_style: markdown` для явной проверки голых URL.
+Профиль `formatted` проверяет совпадение домена, пути, query и fragment в видимой подписи и адресе перехода; технический URL в подписи не создаёт самостоятельных числовых тезисов. [Контракт ссылок](sources.md#подписи-ссылок-и-числа).
 Внешняя ссылка определяется по явно названному документу: `11 CCR §7025`, `RFC 9110 §15.4.3`, `ISO 27001:2022 §5.1`. Общий разбор поддерживает RFC/ISO/IEC/IEEE/EN и числовые CCR/CFR/USC; внутренние ссылки разрешаются по карте пунктов.
 Рендер сохраняет номер внешнего параграфа, убирает пробел после `§` в авторской прозе и фиксирует коррекцию в `external_references_normalized`; код и буквальные цитаты сохраняются.
 `source/render -o` создают отдельный кандидат. Для существующего выходного файла необходим его текущий `--expected-sha256`; предыдущие байты сохраняются в истории. Эти команды не перезаписывают зарегистрированный целевой или защищённый документ.
@@ -55,6 +56,7 @@ python <scripts>/df_proposal.py fields --fields <fields.json> --limits <limits.j
 python <scripts>/df_text.py claims-save <root> --candidate <registry.json>
 python <scripts>/df_text.py claims-save <root> --candidate <revision.json> --expected-sha256 <current-registry-hash>
 python <scripts>/df_text.py sources <root> --claim <claim-id> --claim <other-id>
+python <scripts>/df_text.py source-check <root> --candidate <candidate> --spec <source.json>
 ```
 
 Реестр по умолчанию — `ꘖ/KB/TextClaims.json`. `--registry` выбирает другой явный JSON в агентской KB.
@@ -62,6 +64,7 @@ python <scripts>/df_text.py sources <root> --claim <claim-id> --claim <other-id>
 Самостоятельному тексту достаточно `{"schema_version":3,"facts":[…]}`; гипотезы и рекомендации располагаются в предусмотренных контрактом разделах, если они нужны.
 Требуемые ссылки/цитаты получают наблюдения через общий сборщик `upwork_project.py collect`, `capture-dom`, зарегистрированный intake либо контракт эксперимента. Нельзя заполнять observation выдуманным отчётом.
 `sources` проверяет ровно замыкание перечисленных тезисов; неверная цитата, хеш или локатор дают отказ. Семантическую применимость проверяет A.A.
+Для внешних URL кандидата `source-check` сохраняет отдельные обязательные квитанции; их пути перечисляются в `manifest.source_checks`. Схема спецификации, срок действия, DOM, неудачные запросы и замена источника описаны в [контракте источников](sources.md#наблюдение-и-квитанция).
 
 Карта кандидата имеет схему1:
 
@@ -103,11 +106,11 @@ python <scripts>/df_text.py apply <root> --check <check-path>
 Пути check/package/proof относительны корню и берутся из реальных результатов команд.
 `risk.json`: `risk: routine|significant`, предметное `basis`, `task_flags` текущего поручения; фактический существенный тезис повышает риск независимо от подписи routine.
 Нативная рецензия запускается штатным субагентом текущей системы. В родительском вызове укажи путь пакета; дочерний агент сначала выполняет `review-input`, затем возвращает авторский JSON окончательным сообщением.
-Точные поля отчёта, включая `claim_reviews[].test_alignment` и `text_checks`, команда `review-input` отдаёт в `report_contract`; не переписывай этот контракт в другой схеме.
+Точные поля отчёта, включая `claim_reviews[].test_alignment`, `text_checks` и `source_reviews`, команда `review-input` отдаёт в `report_contract`; не переписывай этот контракт в другой схеме.
 Родитель фиксирует отдельную нативную квитанцию и передаёт отчёт через `review-record`. Подделанные/self отчёты не дают допуск тексту.
 Для Antigravity передай `--platform antigravity`; Codex C1/C2 определяется по текущему `CODEX_HOME` или явному `--codex-profile` общего инструмента. Историю другого профиля можно читать только при наличии соответствующего поручения пользователя.
 
-Для механической правки корректный `check` не требует карты или нового содержательного одобрения. Она не получает статус семантической готовности к отправке.
+Для механической правки корректный `check` не требует карты блоков или нового содержательного одобрения; проверки внешних источников обязательны. Она не получает статус семантической готовности к отправке.
 `--warnings` принимает JSON `{"RULE:line":"Предметное решение предупреждения"}`.
 При повторной проверке используется сохранённый неизменяемый replay из `--replay-record`; подстановка квитанции от другого кандидата запрещена.
 `propose` и `inspect` не допускают `apply`.

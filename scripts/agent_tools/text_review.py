@@ -27,6 +27,9 @@ def report_contract():
     value['required_scope'] = list(SCOPES)
     value['claim_review_fields'].append('text_checks')
     value['text_checks'] = {key: 'Authored assessment with concrete evidence and limits.' for key in TEXT_CHECKS}
+    value['source_reviews'] = {'required_when': 'The package has external source_checks',
+        'fields': ['url', 'receipt', 'assessment', 'outcome'], 'outcome': ['supported', 'unsupported'],
+        'instruction': 'Assess every cited external URL against a verified source receipt and its exact quote/anchor/edition; a reviewer may supply its own candidate-bound receipt.'}
     value['instruction'] = ('Review the exact request, baseline, diff and candidate. Check every substantive statement, '
         'including those labelled nonfactual. Test the actual claim, quantifier and scope; give a counterexample. '
         'Distinguish product documentation from this site, historical from current measurements, purpose from motive. '
@@ -70,7 +73,7 @@ def prepare(root, check, parent_id, spec=None):
         'diff': checked['diff'], 'manifest': checked['manifest'], 'claims': checked['claims'],
         'claim_versions': checked['claim_versions'], 'kb_inputs': {p: s for p, s in inputs.items() if p.endswith('.json') and '/Evidence/' not in p},
         'evidence_inputs': {p: s for p, s in inputs.items() if not (p.endswith('.json') and '/Evidence/' not in p)},
-        'source_checks': (checked['manifest'] or {}).get('source_checks', []),
+        'source_checks': checked['source_checks'],
         'risk': risk, 'risk_basis': spec.get('basis', 'Computed from the actual referenced claim types and current task flags.'),
         'task_flags': flags}
     value['subject_sha256'] = subject_digest(value)
@@ -110,7 +113,30 @@ def read_package(root, reference, *, require_current=True, applied=False):
     return value
 
 
-def _issues(data, package, candidate):
+def _source_reviews(root, data, package, candidate):
+    from .text_sources import read_source_check
+    required = {read_source_check(root, candidate, ref)['url'] for ref in package.get('source_checks', [])}
+    values = data.get('source_reviews', [])
+    if not isinstance(values, list):
+        raise ValueError('source_reviews must be an authored list')
+    seen, inputs = set(), {}
+    for item in values:
+        if (not isinstance(item, dict) or item.get('url') not in required or item['url'] in seen or
+                not _text(item.get('assessment')) or item.get('outcome') not in ('supported', 'unsupported')):
+            raise ValueError('Assess each exact source URL once with receipt, basis and an explicit outcome')
+        observed = read_source_check(root, candidate, item['receipt'])
+        if observed['url'] != item['url']:
+            raise ValueError('Reviewer source receipt belongs to another URL')
+        if data.get('result') == 'approved' and item['outcome'] != 'supported':
+            raise ValueError('An unsupported cited source cannot receive publication approval')
+        seen.add(item['url'])
+        inputs.update(observed['inputs'])
+    if data.get('result') == 'approved' and required != seen:
+        raise ValueError('Approval needs a receipt-bound assessment of every external source')
+    return inputs
+
+
+def _issues(data, package, candidate, *, root=None):
     issues = report_issues(data, package)
     for item in data.get('claim_reviews', []):
         if not isinstance(item, dict):
@@ -120,6 +146,11 @@ def _issues(data, package, candidate):
             issues.append(str(item.get('claim_id'))+': assess source applicability, scope, role, relevance, deduplication and numerical provenance')
         if item.get('outcome') == 'qualified' and item.get('response_qualification', '') not in candidate:
             issues.append('A qualification must occur verbatim in the reviewed document')
+    if root is not None:
+        try:
+            _source_reviews(root, data, package, candidate)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            issues.append(str(exc))
     return issues
 
 
@@ -134,7 +165,7 @@ def record(root, report, *, parent_id, reviewer_id, native_evidence):
     if data.get('package_sha256') != package_sha or package['parent_id'] != parent_id:
         raise ValueError('Report package hash or observed parent differs')
     candidate = inside(root, package['response']['file']).read_text(encoding='utf-8')
-    issues = _issues(data, package, candidate)
+    issues = _issues(data, package, candidate, root=root)
     if issues:
         raise ValueError('\n'.join(issues))
     independent, proof_paths, native, raw = authenticate_report(root, package, reference, data, source,
@@ -144,6 +175,7 @@ def record(root, report, *, parent_id, reviewer_id, native_evidence):
     authored = _immutable(folder/(ident+'-authored.txt'), raw)
     report_path = _immutable(folder/(ident+'-report.json'), json_data(data))
     proof_paths += [authored.relative_to(root).as_posix(), report_path.relative_to(root).as_posix()]
+    proof_paths += list(_source_reviews(root, data, package, candidate))
     for finding in data['findings']:
         if finding.get('status') in ('resolved', 'rejected'):
             evidence = finding['evidence'] if isinstance(finding['evidence'], list) else [finding['evidence']]
@@ -191,7 +223,7 @@ def authorize(root, check, *, applied=False):
             if not receipt_current(root, {'inputs': entry['proof']}) or not entry.get('independent'):
                 raise ValueError('Independent native review proof changed or is missing')
             data = _report_object(inside(root, entry['report']).read_text(encoding='utf-8'))
-            if _issues(data, package, inside(root, package['response']['file']).read_text(encoding='utf-8')):
+            if _issues(data, package, inside(root, package['response']['file']).read_text(encoding='utf-8'), root=root):
                 raise ValueError('Reviewer assessment is incomplete')
             native = json.loads(inside(root, entry['native_evidence']).read_text(encoding='utf-8'))
             observed = verify_native_proof(root, native, package=Path(entry['package']).name)

@@ -46,6 +46,7 @@ def main(argv=None, *, default_kind='article'):
             p.add_argument('--profile', type=Path)
             p.add_argument('--errors-only', action='store_true')
             p.add_argument('--network', action='store_true', help='Also fetch HTTP links and check source anchors; unavailable is not verified')
+            p.add_argument('--project', type=Path, help='Exact evidence root; required for --network')
         elif command in ('source', 'render'):
             p.add_argument('-o', '--output', type=Path)
             p.add_argument('--expected-sha256')
@@ -76,6 +77,7 @@ def main(argv=None, *, default_kind='article'):
         'apply': (('check', True),),
         'claims-save': (('candidate', True), ('registry', False), ('expected-sha256', False)),
         'sources': (('registry', False),),
+        'source-check': (('candidate', True), ('spec', True)),
         'review-prepare': (('check', True), ('parent', True), ('spec', False)),
         'review-input': (('package', True),),
         'review-record': (('report', True), ('parent', True), ('reviewer', True), ('native-evidence', True)),
@@ -102,19 +104,22 @@ def main(argv=None, *, default_kind='article'):
         if command == 'lint':
             status = 0
             for target in args.targets:
+                text = read(target)
                 bans = data(args.bans)
                 bans = bans.get('bans', []) if isinstance(bans, dict) else bans
                 profile = data(args.profile)
                 if args.kind == 'proposal':
                     from .proposal import lint_text
-                    findings = lint_text(read(target), path=target, lang=args.lang, bans=bans, profile=profile)
+                    findings = lint_text(text, path=target, lang=args.lang, bans=bans, profile=profile)
                 else:
                     from .article import lint_text
-                    findings = lint_text(read(target), kind=args.kind, path=target, lang=args.lang, bans=bans,
+                    findings = lint_text(text, kind=args.kind, path=target, lang=args.lang, bans=bans,
                         **({'link_style': profile['link_style']} if (profile or {}).get('link_style') else {}))
                 if args.network:
-                    from .text_sources import check_links
-                    findings.extend(check_links(read(target)))
+                    from .text_sources import probe_links
+                    if args.project is None or not target.resolve().is_relative_to(args.project.resolve()):
+                        raise ValueError('--network requires the exact --project containing this candidate')
+                    findings.extend(probe_links(args.project, text)['findings'])
                 status |= findings_output([f for f in findings if not args.errors_only or f.severity == 'error'], target, args.json)
             return status
         if command in ('source', 'render'):
@@ -173,6 +178,9 @@ def main(argv=None, *, default_kind='article'):
         elif command == 'sources':
             from .text_sources import check_claim_sources
             result = check_claim_sources(args.project, args.claim, reference=args.registry or 'ꘖ/KB/TextClaims.json')
+        elif command == 'source-check':
+            from .text_sources import save_source_check
+            result = save_source_check(args.project, read(args.candidate), data(args.spec))
         elif command == 'review-input':
             from .review import input_receipt
             result = input_receipt(args.project, args.package)
