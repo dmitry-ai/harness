@@ -10,10 +10,11 @@ import json
 import os
 from pathlib import Path
 import re
+import sqlite3
 
 from . import journal
 from .platforms import adapter
-from .runtime import PRIMARY, platform_name
+from .runtime import PRIMARY, platform_name, settings
 from .storage import create_bytes, locked, replace_bytes
 
 
@@ -36,7 +37,10 @@ def _json(value):
 
 
 def _read(path):
-    return json.loads(path.read_bytes().decode('utf-8'))
+    value = json.loads(path.read_bytes().decode('utf-8'))
+    if not isinstance(value, dict):
+        raise ValueError('Completion metadata must be a JSON object: ' + str(path))
+    return value
 
 
 def _folder(root):
@@ -66,12 +70,48 @@ def _policy():
             for ident, (relative, anchor) in RULES.items()}
 
 
+def _instruction_snapshot(root, native, *, stage):
+    """Inventory configured sources without claiming they reached the model."""
+    from .configuration import _project_rule_paths
+    root = Path(root).resolve()
+    sources = {path: 'canonical' for path in sorted((PRIMARY / 'rules').glob('*.md'))}
+    sources.update({PRIMARY / 'runtime.json': 'runtime', PRIMARY / 'platforms' / (native['platform'] + '.md'): 'adapter'})
+    errors = []
+    manifest = root / '.agents/rules.json'
+    if manifest.exists():
+        sources[manifest] = 'project-registration'
+    try:
+        sources.update({path: 'project-rule' for path in _project_rule_paths(root, PRIMARY)})
+    except (OSError, ValueError) as exc:
+        errors.append(str(exc))
+    if native['platform'] == 'codex':
+        workspace = Path(settings()['workspace_root']).resolve()
+        folders = [root]
+        if root.is_relative_to(workspace):
+            folders += [parent for parent in root.parents if parent == workspace or parent.is_relative_to(workspace)]
+        folders.append(Path(native['native_backend']))
+        for folder in folders:
+            for name in ('AGENTS.md', 'AGENTS.override.md'):
+                path = folder / name
+                if path.is_file():
+                    sources[path] = 'native-guidance-candidate'
+    files = []
+    for path, kind in sorted(sources.items(), key=lambda item: str(item[0])):
+        try:
+            files.append({'path': str(path.resolve()), 'kind': kind, 'sha256': _hash(path.read_bytes())})
+        except OSError as exc:
+            errors.append(str(exc))
+    return {'captured_at': _now(), 'capture_stage': stage, 'sources': files, 'errors': errors,
+            'selection_verified': False, 'delivery_to_model_verified': False}
+
+
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
     return {'schema_version': 1, 'key': _key(native, turn), 'project_root': str(Path(root).resolve()),
             'platform': native['platform'], 'native_backend': native['native_backend'],
             'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'],
             'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary',
             'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(),
+            'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'),
             'format_independent': True, 'rule_comprehension_verified': False,
             'required_completion': ['answer-prepare', 'native-delivery-check'],
             'status': 'open', 'prepared': None, 'delivery': None,
@@ -81,6 +121,8 @@ def _new(root, native, turn, *, recovered=False, journal_directory=None):
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
     path = _folder(root) / (_key(native, turn) + '.json')
     value = _read(path) if path.exists() else _new(root, native, turn, recovered=recovered, journal_directory=journal_directory)
+    if 'instruction_snapshot' not in value:
+        value['instruction_snapshot'] = _instruction_snapshot(root, native, stage='existing-state-upgrade')
     saved_directory = _directory(root, value['journal'])
     if strict_journal and journal_directory is not None and saved_directory != _directory(root, journal_directory):
         raise ValueError('The native turn already has a different journal; preserve its original binding')
@@ -127,6 +169,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=True, w
         _persist(path, value)
     result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix(),
               'role': 'primary', 'journal_required': True, 'status': value['status'],
+              'native_requests_sha256': _hash(_json(turn['requests'])),
               'applicable_rules': value['applicable_rules'], 'rule_comprehension_verified': False,
               'required_completion': value['required_completion']}
     if watch:
@@ -162,13 +205,24 @@ def _group(root, native, turn, response, directory):
     return key, native_ids
 
 
-def _record(root, native, turn, response, directory):
+def _recorded(value):
+    """Keep the last journal receipt even when delivery becomes a conflict."""
+    return next((receipt for receipt in (value.get('prepared'), value.get('journal_record'), value.get('delivery'))
+                 if isinstance(receipt, dict) and 'journal_steps' in receipt), None)
+
+
+def _record(root, native, turn, response, directory, *, existing=None):
     directory = _directory(root, directory)
     from .text_workflow import gate_requests
     gate_requests([root, directory], [r['text'] for r in turn['requests']], response)
     token, request_ids = _group(root, native, turn, response, directory)
     group_file = journal.state_dir(directory) / 'answer-groups' / (token + '.json')
     already_complete = group_file.exists() and _read(group_file).get('status') == 'complete'
+    if existing:
+        if not already_complete:
+            raise ValueError('Recorded answer-group receipt is missing or incomplete; preserve journal history')
+        if _read(group_file).get('steps') != existing['journal_steps']:
+            raise ValueError('Recorded answer-group steps changed; preserve journal history')
     steps = journal.record_answer(directory, [r['text'] for r in turn['requests']],
                                   response, token, request_ids)
     for step, request in zip(steps, turn['requests']):
@@ -178,7 +232,16 @@ def _record(root, native, turn, response, directory):
             raise ValueError('Recorded response read-back differs from prepared text')
     return {'journal_steps': steps, 'response_sha256': _hash(response.encode('utf-8')),
             'response_file': str(directory / 'res' / f'{steps[0]}.md'), 'recorded_at': _now(),
+            'group_file': str(group_file),
             'reused_complete_journal_group': already_complete}
+
+
+def _unchanged(root, native, turn):
+    """Pin ownership and the full request snapshot across waits and journal writes."""
+    latest = _native(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'])
+    current = _active(latest)
+    if current is None or _key(latest, current) != _key(native, turn) or current['requests'] != turn['requests']:
+        raise ValueError('The active native turn or requests changed during preparation; readiness was not granted')
 
 
 def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=True, watch_dir=None, journal_directory=None):
@@ -196,9 +259,11 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
     root = Path(root).resolve()
     native = _native(root, conversation, platform=platform, backend=backend)
     turn = _active(native)
-    if turn is None or _key(native, turn) != result['turn_key']:
+    if (turn is None or _key(native, turn) != result['turn_key']
+            or _hash(_json(turn['requests'])) != result['native_requests_sha256']):
         raise ValueError('The active native turn changed during preparation; no answer was recorded')
     with locked(_folder(root) / 'writer.lock'):
+        _unchanged(root, native, turn)
         path, value = _state(root, native, turn)
         sha = _hash(response.encode('utf-8'))
         if value['prepared'] and value['prepared']['response_sha256'] != sha:
@@ -226,13 +291,21 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
                     record_current_answer(root, response, journal_directory=value['journal'])
                 elif any(r['response_prepared']['sha256'] != sha for r in state['requests'] if r['id'] in identifiers):
                     raise ValueError('Tracked analysis requests already have different prepared response bytes')
-        value['prepared'] = _record(root, native, turn, response, value['journal'])
+        value['prepared'] = _record(root, native, turn, response, value['journal'], existing=_recorded(value))
+        try:
+            _unchanged(root, native, turn)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            value['status'] = 'preparation_unverified'
+            value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
+            _persist(path, value)
+            raise
         value['status'] = 'prepared'
+        value['readiness_check'] = {'verified': True, 'checked_at': _now()}
         _persist(path, value)
     return {**result, **value['prepared'], 'ready': True, 'status': 'prepared', 'delivery_verified': False}
 
 
-def _conflict(root, path, value, native, turn, response, detail):
+def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
     payload = response.encode('utf-8')
     evidence = _folder(root) / 'conflicts' / (value['key'] + '-' + _hash(payload) + '.txt')
     evidence.parent.mkdir(parents=True, exist_ok=True)
@@ -240,14 +313,17 @@ def _conflict(root, path, value, native, turn, response, detail):
         raise ValueError('Immutable native conflict evidence changed')
     if not evidence.exists():
         create_bytes(evidence, payload)
+    if _recorded(value):
+        value['journal_record'] = _recorded(value)
     value['status'] = 'conflict'
     value['delivery'] = {'verified': False, 'native_response_sha256': _hash(payload),
                          'source_file': native['source_file'], 'final_step': turn['final_step'],
                          'native_requests': turn['requests'],
-                         'conflict_evidence': evidence.relative_to(root).as_posix(), 'detail': detail}
+                         'conflict_evidence': evidence.relative_to(root).as_posix(), 'detail': detail,
+                         'retryable': retryable}
     _persist(path, value)
     return {'turn_key': value['key'], 'status': 'conflict', 'detail': detail,
-            'evidence': evidence.relative_to(root).as_posix()}
+            'evidence': evidence.relative_to(root).as_posix(), 'retryable': retryable}
 
 
 def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None):
@@ -278,27 +354,30 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
                 results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
                 continue
             try:
-                recorded = _record(root, native, turn, response, value['journal'])
+                recorded = _record(root, native, turn, response, value['journal'], existing=_recorded(value))
             except (OSError, ValueError) as exc:
-                results.append(_conflict(root, path, value, native, turn, response, str(exc)))
+                results.append(_conflict(root, path, value, native, turn, response, str(exc),
+                                         retryable=isinstance(exc, OSError) and not isinstance(exc, FileNotFoundError)))
                 continue
-            previous = value.get('delivery') or {}
-            if not previous.get('completion_provenance'):
+            if not _recorded(value):
                 value['recovered_after_delivery'] = not bool(value['prepared']) and not recorded['reused_complete_journal_group']
             provenance = ('prepared' if value['prepared'] else
                           'recovered_native' if value['recovered_after_delivery'] else 'existing_journal')
+            preparation_verified = bool(value['prepared']) and value.get('readiness_check', {}).get('verified', True)
+            value['journal_record'] = recorded
             value['delivery'] = {**recorded, 'verified': True, 'source_file': native['source_file'],
                                  'final_step': turn['final_step'], 'completion_step': turn['completion_step'],
                                  'native_response_sha256': sha, 'verified_at': _now(),
-                                 'completion_provenance': provenance, 'preparation_verified': bool(value['prepared'])}
+                                 'completion_provenance': provenance, 'preparation_verified': preparation_verified}
             value['status'] = 'delivered'
             _persist(path, value)
             results.append({'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True,
                             'journal_steps': recorded['journal_steps'],
-                            'completion_provenance': provenance, 'preparation_verified': bool(value['prepared']),
+                            'completion_provenance': provenance, 'preparation_verified': preparation_verified,
                             'recovered_after_delivery': value['recovered_after_delivery']})
     return {'valid': not any(r['status'] == 'conflict' for r in results), 'conversation_id': native['conversation_id'],
             'source_file': native['source_file'], 'turns': results,
+            'retryable': any(r.get('retryable') for r in results),
             'pending_native_turn': native['active_turn_id'], 'private_reasoning_retained': False}
 
 

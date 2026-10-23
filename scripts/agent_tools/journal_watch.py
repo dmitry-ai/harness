@@ -20,6 +20,9 @@ from .runtime import PRIMARY
 from .storage import locked, replace_bytes
 
 
+INTEGRITY_INTERVAL_SECONDS = 60
+
+
 def _folder(state_dir=None):
     return Path(state_dir).resolve() if state_dir is not None else PRIMARY.parent.parent / 'ꘖ/data/journal-watch'
 
@@ -49,7 +52,7 @@ def register(root, native, from_step, *, state_dir=None, journal_directory=None)
                  'from_step': min(from_step, previous.get('from_step', from_step)), 'registered_at': _now()}
         if journal_directory is not None:
             value['journal_directory'] = str((Path(root).resolve() / journal_directory).resolve())
-        if value['from_step'] != previous.get('from_step'):
+        if any(value.get(name) != previous.get(name) for name in ('from_step', 'source_file', 'journal_directory')):
             value.pop('last_signature', None)
         _save(path, value)
     return {'binding': str(path), 'from_step': value['from_step']}
@@ -143,6 +146,35 @@ def _signature(binding):
     return result
 
 
+def _validate_binding(value):
+    if not isinstance(value, dict):
+        raise ValueError('Watcher binding must be a JSON object')
+    for name in ('project_root', 'platform', 'native_backend', 'conversation_id', 'source_file'):
+        if not isinstance(value.get(name), str) or not value[name].strip():
+            raise ValueError('Watcher binding needs a nonempty string: ' + name)
+    if value['platform'] not in ('codex', 'antigravity'):
+        raise ValueError('Watcher binding has an unknown platform')
+    if str(uuid.UUID(value['conversation_id'])) != value['conversation_id'].lower():
+        raise ValueError('Watcher binding needs a native conversation UUID')
+    if type(value.get('from_step')) is not int or value['from_step'] < 0:
+        raise ValueError('Watcher binding needs a nonnegative integer from_step')
+    for name in ('project_root', 'native_backend', 'source_file', 'journal_directory'):
+        if name in value and (not isinstance(value[name], str) or not value[name].strip()
+                              or not Path(value[name]).is_absolute()):
+            raise ValueError('Watcher binding needs an absolute path: ' + name)
+    if 'last_result' in value and not isinstance(value['last_result'], dict):
+        raise ValueError('Watcher binding last_result must be a JSON object')
+
+
+def _integrity_due(binding):
+    """Native idleness must not indefinitely cache a once-correct journal."""
+    try:
+        elapsed = (datetime.fromisoformat(_now()) - datetime.fromisoformat(binding['last_checked_at'])).total_seconds()
+        return elapsed < 0 or elapsed >= INTEGRITY_INTERVAL_SECONDS
+    except (KeyError, TypeError, ValueError):
+        return True
+
+
 def once(*, state_dir=None):
     from .completion import sync
     directory = _folder(state_dir)
@@ -151,18 +183,14 @@ def once(*, state_dir=None):
         for path in sorted((directory / 'bindings').glob('*.json')):
             try:
                 value = _read(path)
-                if not isinstance(value, dict):
-                    raise ValueError('Watcher binding must be a JSON object')
-                for name in ('project_root', 'platform', 'native_backend', 'conversation_id', 'source_file', 'from_step'):
-                    if name not in value:
-                        raise ValueError('Watcher binding lacks ' + name)
+                _validate_binding(value)
                 signature = _signature(value)
             except (OSError, ValueError, TypeError) as exc:
                 # A corrupt binding remains evidence; it must not disable the
                 # other conversations or be silently rewritten as valid.
                 results.append({'binding': str(path), 'valid': False, 'error': str(exc)})
                 continue
-            if value.get('last_signature') == signature:
+            if value.get('last_signature') == signature and not _integrity_due(value):
                 if value.get('last_result', {}).get('valid') is False:
                     results.append({'conversation_id': value['conversation_id'], **value['last_result'], 'unchanged': True})
                 continue
@@ -171,16 +199,25 @@ def once(*, state_dir=None):
                               backend=value['native_backend'], from_step=value['from_step'],
                               journal_directory=value.get('journal_directory'))
                 update = {'last_result': result, 'last_error': None, 'last_checked_at': _now(),
-                          'last_signature': signature}
-            except (OSError, ValueError, TimeoutError, sqlite3.Error) as exc:
+                          'last_signature': None if result.get('retryable') else signature}
+            except (OSError, ValueError, TypeError, KeyError, AttributeError, IndexError, TimeoutError, sqlite3.Error) as exc:
                 # A partial native line/temporary SQLite lock is retried, not called success.
-                update = {'last_error': str(exc), 'last_checked_at': _now()}
                 result = {'valid': False, 'error': str(exc)}
-            with locked(directory / 'bindings.lock'):
-                latest = _read(path)
-                if latest['from_step'] != value['from_step']:
-                    update.pop('last_signature', None)
-                _save(path, {**latest, **update})
+                update = {'last_result': result, 'last_error': str(exc), 'last_checked_at': _now(),
+                          'last_signature': None}
+            try:
+                with locked(directory / 'bindings.lock'):
+                    latest = _read(path)
+                    _validate_binding(latest)
+                    if any(latest[name] != value[name] for name in ('project_root', 'platform', 'native_backend', 'conversation_id')):
+                        raise ValueError('Watcher binding owner changed during reconciliation; preserved')
+                    if any(latest.get(name) != value.get(name) for name in ('from_step', 'source_file', 'journal_directory')):
+                        update['last_signature'] = None
+                    _save(path, {**latest, **update})
+            except (OSError, ValueError, TypeError, KeyError, TimeoutError) as exc:
+                # Re-registration or external damage after the first read must
+                # not overwrite another owner or stop the remaining bindings.
+                result = {'valid': False, 'error': str(exc), 'binding': str(path)}
             results.append({'conversation_id': value['conversation_id'], **result})
     return {'valid': all(r.get('valid') is not False for r in results),
             'bindings_checked': len(results), 'results': results}
