@@ -116,12 +116,14 @@ python <scripts>/df_text.py apply <root> --check <check-path>
 
 ```text
 python <scripts>/df_text.py response <answer> --against <target> --journal <journal>
-python <scripts>/df_text.py record-answer <root> --journal <journal> --request-file <request> --response-file <answer> --turn <stable-turn-id>
+python <scripts>/upwork_project.py answer-prepare <root> --response-file <answer> --platform codex
 python <scripts>/df_text.py finalize <root>
 python <scripts>/df_text.py finalize <root> --publication
 ```
 
-Несколько `--request-file` связывают точные запросы с одним реальным ответом. Повтор с тем же turn идемпотентен только при тех же байтах.
+`answer-prepare` получает точные запросы из текущего нативного хода, сохраняет ответ и проверяет связанные допуски; Antigravity передаёт `--platform antigravity --conversation <native-uuid>`.
+Начало хода и независимая проверка доставки описаны в [общем контракте](../turn-completion.md#нативная-сверка).
+Низкоуровневый `df_text.py record-answer <root> --journal <journal> --request-file <request> --response-file <answer> --turn <stable-turn-id>` остаётся для совместимости и восстановления; несколько `--request-file` связывают запросы с одним ответом, повтор допускается только при тех же байтах.
 Штатные `record_step`, `record-answer`, finalize анализа и `safe_commit` обращаются к тем же проверкам для связанных текущим поручением/явным списком целевых файлов.
 `finalize` проверяет зарегистрированные документы явно выбранного текстового корня; `--publication` дополнительно требует действующий содержательный допуск. Это проверка, а не отправка.
 Состояние хранится в `ꘖ/data/texts`: immutable baseline, operation, candidate, check/replay/apply receipts, версии review и index. Исходные доказательства остаются в KB/Evidence; временные вводы можно удалить после сохранения устойчивых квитанций.

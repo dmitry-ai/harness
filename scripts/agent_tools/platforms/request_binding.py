@@ -46,6 +46,20 @@ def native_project_fields(root):
             'job_id': None if is_text else identifier}
 
 
+def completion_project_id(root):
+    """Ordinary agent work needs no fabricated Upwork intake or client-text project.
+
+    An existing identity must remain valid. Otherwise only exact native roots (or
+    an explicit user root) can bind the generic task; legacy job-ID matching is off.
+    """
+    root = Path(root).resolve()
+    if not root.is_dir():
+        raise ValueError('Completion needs an exact existing project directory')
+    if (root / 'ꘖ/project.json').exists() or (root / 'ꘖ/data/text-project.json').exists():
+        return native_project_id(root)
+    return text_project_id(root)
+
+
 def _same_root(value, root):
     if not isinstance(value, str) or not value.strip() or not Path(value).is_absolute():
         return False

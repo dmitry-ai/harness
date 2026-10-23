@@ -211,7 +211,10 @@ def _loader(primary, local=(), *, restore_global=True):
     lines.extend(f'- {path.as_posix()}' for path in dict.fromkeys(paths))
     lines.extend(['Затем в точном корне проекта текущего чата прочитай локальные .agents/rules/*.md и .agents/rules.json.',
                   'Прочитай все дополнительные path-источники из rules.json, соблюдая trigger; общий каталог правил повторно читать не нужно.',
-                  'Не выбирай соседний проект. Если корень текущей задачи неизвестен, определи его по явной привязке чата.'])
+                  'Не выбирай соседний проект. Если корень текущей задачи неизвестен, определи его по явной привязке чата.',
+                  f'Для установленного корня каждого хода выполни Python-инструмент "{(primary / "scripts/upwork_project.py").as_posix()}" turn-begin "<точный корень текущего чата>" --platform codex; UUID берётся из CODEX_THREAD_ID, профиль — из CODEX_HOME.',
+                  'FILE-3 и EXEC-5 действуют также для обычного аналитического ответа и исследования .agents; профиль статьи/proposal не задаёт их область.',
+                  'Основной агент перед окончательным ответом выполняет answer-prepare с точными UTF-8-байтами по references/turn-completion.md; дочерний агент не ведёт пользовательский журнал.'])
     return '\n'.join(lines)
 
 
@@ -322,7 +325,11 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
     skill = ('---\nname: upwork-init\ndescription: Создаёт проект и выполняет полный анализ вакансии Upwork; продолжает его после прерывания.\n---\n'
              f'Прочитай и выполни общий навык [{skill_source.name}](<{skill_source.as_posix()}>).\n'
              'Определи текущую UI-среду по беседе и используй соответствующий платформенный адаптер общего навыка.\n')
-    outputs = {root / '.agents/skills/upwork-init/SKILL.md': skill}
+    guidance = ('# Codex: Upwork\n\n'
+                f'<!-- Generated from {primary.as_posix()}; run upwork_project.py build-native to update. -->\n\n'
+                + instructions + '\n')
+    outputs = {root / 'AGENTS.md': guidance,
+               root / '.agents/skills/upwork-init/SKILL.md': skill}
     cleanup_source = primary / 'skills/upwork-cleanup/SKILL.md'
     if cleanup_source.is_file():
         outputs[root / '.agents/skills/upwork-cleanup/SKILL.md'] = (

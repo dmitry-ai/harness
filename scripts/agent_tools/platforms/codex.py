@@ -99,9 +99,9 @@ def _actual_user_input(text, payload):
             and not (text.lstrip().startswith('# AGENTS.md instructions') and '<INSTRUCTIONS>' in text))
 
 
-def _request_scope(root, rows, *, until=None):
+def _request_scope(root, rows, *, until=None, identifier=None):
     from .request_binding import native_project_id, scoped_inputs
-    job_id = native_project_id(root)
+    job_id = identifier if identifier is not None else native_project_id(root)
     visible = [(index, item) for index, item in rows if until is None or index <= until]
     contexts = [(index, item['payload']) for index, item in visible if item.get('type') == 'turn_context' and item['payload'].get('cwd')]
     roots = []
@@ -141,6 +141,63 @@ def require_current_binding(root, conversation_id, *, backend=None, rows=None, u
     if not selected or not active:
         raise ValueError('Native Codex conversation is currently bound to another project or no exact project root')
     return binding
+
+
+def native_answers(root, conversation_id, *, backend=None):
+    """Public turn boundaries and exact final messages; no reasoning is exported."""
+    from .request_binding import completion_project_id
+    home = _home(backend)
+    _, path, _, rows = _trace(home, conversation_id)
+    meta = rows[0][1]['payload']
+    child = isinstance(meta.get('source'), dict) and bool(meta['source'].get('subagent'))
+    selected, _, _ = _request_scope(root, rows, identifier=completion_project_id(root))
+    requests = {index: {'id': f'codex:{conversation_id}:{index}', 'text': text,
+                        'native_step': index, 'project_binding': binding}
+                for index, text, binding in selected}
+    turns, current = [], None
+    for index, item in rows:
+        payload = item.get('payload', {})
+        kind = item.get('type')
+        if kind == 'event_msg' and payload.get('type') == 'task_started':
+            ident = payload.get('turn_id')
+            if not isinstance(ident, str) or not ident:
+                raise ValueError('Native Codex task_started has no turn ID')
+            current = {'turn_id': ident, 'requests': [], 'completed': False,
+                       'response': None, 'start_step': index, 'final_step': None,
+                       'completion_step': None, 'aborted': False}
+            turns.append(current)
+        elif current is not None and kind == 'response_item' and payload.get('type') == 'message':
+            if payload.get('role') == 'user':
+                text = ''.join(p.get('text', '') for p in payload.get('content', [])
+                               if p.get('type') in ('input_text', 'output_text'))
+                if _actual_user_input(text, payload):
+                    # A foreign user turn must never journal an earlier owned request.
+                    current.setdefault('all_request_steps', []).append(index)
+                    if index in requests:
+                        current['requests'].append(requests[index])
+            elif payload.get('role') == 'assistant' and (payload.get('phase') == 'final_answer' or payload.get('channel') == 'final'):
+                if payload.get('status') not in (None, 'completed'):
+                    continue
+                text = ''.join(p.get('text', '') for p in payload.get('content', [])
+                               if p.get('type') == 'output_text')
+                if text.strip():
+                    current['response'], current['final_step'] = text, index
+        elif current is not None and kind == 'event_msg' and payload.get('type') in ('task_complete', 'turn_aborted'):
+            if payload.get('turn_id') != current['turn_id']:
+                continue
+            current['completion_step'] = index
+            current['aborted'] = payload['type'] == 'turn_aborted'
+            if not current['aborted']:
+                native_final = payload.get('last_agent_message')
+                if current['response'] is not None and isinstance(native_final, str) and native_final != current['response']:
+                    raise ValueError('Native Codex final message and completion event disagree')
+                current['completed'] = bool(current['response'] and current['final_step'] is not None)
+    for turn in turns:
+        turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(turn.get('all_request_steps', []))
+        turn.pop('all_request_steps', None)
+    return {'platform': 'codex', 'conversation_id': conversation_id, 'native_backend': str(home),
+            'source_file': str(path), 'primary': not child, 'turns': turns,
+            'active_turn_id': current['turn_id'] if current and not current['completion_step'] else None}
 
 
 def _model(rows, before=None):

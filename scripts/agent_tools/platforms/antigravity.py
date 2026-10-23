@@ -495,9 +495,9 @@ def _workspace_context(backend, conversation_id):
     return [(-1, root, 'antigravity-workspace-uris')]
 
 
-def _request_scope(root, conversation_id, backend, *, inputs=None, until=None):
+def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None):
     from .request_binding import native_project_id, scoped_inputs
-    job_id = native_project_id(root)
+    job_id = identifier if identifier is not None else native_project_id(root)
     inputs = _native_inputs(backend, conversation_id) if inputs is None else inputs
     return scoped_inputs(root, job_id, inputs, _workspace_context(backend, conversation_id), until=until)
 
@@ -520,6 +520,79 @@ def require_current_binding(root, conversation_id, *, backend=None, inputs=None,
     if not selected or not active:
         raise ValueError('Native Antigravity conversation is currently bound to another project or no exact project root')
     return binding
+
+
+def native_answers(root, conversation_id, *, backend=None):
+    """Read public final planner steps, checking idle state for the live tail."""
+    from .request_binding import completion_project_id
+    backend = Path(backend).resolve() if backend else Path.home() / '.gemini/antigravity'
+    if not re.fullmatch(r'[a-f0-9-]{36}', conversation_id):
+        raise ValueError('Exact native Antigravity conversation UUID required')
+    connection = sqlite3.connect((backend / 'conversation_summaries.db').as_uri() + '?mode=ro', uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        summary = connection.execute('SELECT * FROM conversation_summaries WHERE conversation_id=?', (conversation_id,)).fetchone()
+        summary = dict(summary) if summary is not None else None
+    finally:
+        connection.close()
+    if summary is None or 'parent_conversation_id' not in summary:
+        raise ValueError('Native Antigravity primary/child identity is unavailable')
+    path = backend / 'brain' / conversation_id / '.system_generated/logs/transcript_full.jsonl'
+    try:
+        rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+    except ValueError as exc:
+        raise ValueError('Native Antigravity trace has a partial record; retry after flush') from exc
+    inputs = _native_inputs(backend, conversation_id)
+    selected, _, _ = _request_scope(root, conversation_id, backend, inputs=inputs,
+                                    identifier=completion_project_id(root))
+    requests = {index: {'id': f'{conversation_id}-{index}', 'text': text,
+                        'native_step': index, 'project_binding': binding}
+                for index, text, binding in selected}
+    connection = sqlite3.connect((backend / 'conversations' / (conversation_id + '.db')).as_uri() + '?mode=ro', uri=True)
+    try:
+        statuses = {index: (kind, status) for index, kind, status in connection.execute('SELECT idx,step_type,status FROM steps')}
+    finally:
+        connection.close()
+    boundaries = sorted(index for index, _ in inputs)
+    turns = []
+    for position, start in enumerate(boundaries):
+        end = boundaries[position + 1] if position + 1 < len(boundaries) else None
+        segment = [row for row in rows if row.get('step_index', -1) > start and (end is None or row.get('step_index', -1) < end)]
+        last = segment[-1] if segment else {}
+        final_step = last.get('step_index')
+        final = last.get('type') == 'PLANNER_RESPONSE' and not last.get('tool_calls') and bool(last.get('content', '').strip())
+        final = final and statuses.get(final_step) == (15, 3)
+        idle = (summary.get('status') == 'CASCADE_RUN_STATUS_IDLE' and summary.get('not_fully_idle') == 0
+                and not summary.get('killed') and summary.get('last_user_input_step_index') == start
+                and final_step == max(statuses, default=-1))
+        completed = bool(final and (end is not None or idle))
+        turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [],
+                      'owned': start in requests, 'completed': completed, 'aborted': False,
+                      'response': last['content'] if completed else None, 'start_step': start,
+                      'final_step': final_step if completed else None, 'completion_step': final_step if completed else None})
+    # Several human messages can steer one running answer. Do not manufacture
+    # empty intermediate answers or lose the earlier unanswered native inputs.
+    grouped, pending = [], []
+    for turn in turns:
+        if pending and pending[-1]['owned'] != turn['owned']:
+            pending = []  # A different explicit project cannot inherit these inputs.
+        pending.append(turn)
+        if turn['completed']:
+            first = pending[0]
+            grouped.append({**turn, 'turn_id': first['turn_id'], 'start_step': first['start_step'],
+                            'requests': [r for item in pending for r in item['requests']],
+                            'owned': all(item['owned'] for item in pending)})
+            pending = []
+    if pending:
+        first, last = pending[0], pending[-1]
+        grouped.append({**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'],
+                        'requests': [r for item in pending for r in item['requests']],
+                        'owned': all(item['owned'] for item in pending)})
+    turns = grouped
+    active = turns[-1] if turns and not turns[-1]['completed'] else None
+    return {'platform': 'antigravity', 'conversation_id': conversation_id, 'native_backend': str(backend),
+            'source_file': str(path), 'primary': not bool(summary['parent_conversation_id']), 'turns': turns,
+            'active_turn_id': active['turn_id'] if active else None}
 
 
 def verify_native_proof(root, native, package=None):

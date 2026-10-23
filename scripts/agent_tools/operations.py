@@ -4,9 +4,11 @@ from pathlib import Path
 import json
 import sys
 
+from .completion import COMMANDS as COMPLETION_COMMANDS
+
 COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage',
             'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search',
-            'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis')
+            'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', *COMPLETION_COMMANDS)
 
 
 def add_parsers(sub):
@@ -19,6 +21,10 @@ def add_parsers(sub):
             'check-project': 'All saved-source and local KB diagnostics; no network calls',
             'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits'
         }.get(command, 'Internal ' + command + ' operation'))
+        if command in COMPLETION_COMMANDS:
+            from .completion import add_parser_arguments
+            add_parser_arguments(parser, command)
+            continue
         if command == 'metrics':
             parser.add_argument('traces', nargs='+', type=Path)
             parser.add_argument('--bindings', type=Path, help='conversation ID -> stage/first_step/last_step intervals')
@@ -155,6 +161,9 @@ def _operation_input(args, path):
 def execute(args):
     from . import workflow as flow
     command = args.command
+    if command in COMPLETION_COMMANDS:
+        from .completion import execute as complete
+        return complete(args)
     if command == 'status':
         return flow.status(args.project)
     if command == 'resume':

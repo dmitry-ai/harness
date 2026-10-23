@@ -282,7 +282,7 @@ def doc4_sentence_issues(text):
     return issues
 
 
-def record_current_answer(root, response):
+def record_current_answer(root, response, *, journal_directory=None):
     from .journal import record_answer
     from .links import readable_link_issues
     issues = readable_link_issues(response)
@@ -309,13 +309,15 @@ def record_current_answer(root, response):
     # Keep the original IDs in the receipt and use a stable filename-safe turn key.
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}', turn):
         turn = 'native-' + hashlib.sha256(turn.encode('utf-8')).hexdigest()
-    steps = record_answer(Path(root) / 'ꙮ/1 - Анализ', [x['text'] for x in unanswered], response, turn, [x['id'] for x in unanswered])
+    directory = (Path(root).resolve() / (journal_directory or 'ꙮ/1 - Анализ')).resolve()
+    steps = record_answer(directory, [x['text'] for x in unanswered], response, turn, [x['id'] for x in unanswered])
     ids = {x['id'] for x in unanswered}
     def change(state):
         authorize(root, state, response=response, package_path=approval['package'])
         for request in state['requests']:
             if request['id'] in ids:
-                request['response_prepared'] = {'turn': turn, 'steps': steps, 'sha256': hashlib.sha256(response.encode()).hexdigest(), 'review_approval': approval}
+                request['response_prepared'] = {'turn': turn, 'steps': steps, 'journal': str(directory),
+                                                'sha256': hashlib.sha256(response.encode()).hexdigest(), 'review_approval': approval}
     result = update(root, {'action': 'reply_prepared', 'turn': turn, 'steps': steps}, change)
     return {**result, 'journal_steps': steps, 'delivery_verified': False}
 
@@ -687,7 +689,8 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
             scratch_dir = Path(root) / 'ꘖ/data/scratch'
             if scratch_dir.is_dir() and any(p.is_file() for p in scratch_dir.rglob('*')):
                 raise ValueError('Clean or consume all temporary files in ꘖ/data/scratch before finalizing')
-            journal = Path(root) / 'ꙮ/1 - Анализ'
+            prepared = state['requests'][-1].get('response_prepared', {}) if state['requests'] else {}
+            journal = Path(root) / prepared.get('journal', 'ꙮ/1 - Анализ')
             ids = get_existing_step_ids(journal)
             if not ids or any(step_errors(journal, ident) for ident in ids):
                 raise ValueError('Complete exact req/res journal pairs before external export')
