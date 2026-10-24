@@ -8,6 +8,10 @@ import os
 from pathlib import Path
 
 PRIMARY = Path(__file__).resolve().parents[2]
+os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
+_SHIM_DIR = str((PRIMARY / 'scripts/shim').resolve())
+if _SHIM_DIR not in os.environ.get('PATH', '').split(os.pathsep):
+    os.environ['PATH'] = _SHIM_DIR + os.pathsep + os.environ.get('PATH', '')
 _platform = ContextVar('upwork_platform', default=None)
 _profile = ContextVar('upwork_profile', default=None)
 

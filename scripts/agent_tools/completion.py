@@ -22,6 +22,11 @@ COMMANDS = ('turn-begin', 'answer-prepare', 'journal-sync', 'journal-watch', 'jo
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'),
          'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'),
          'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
+RULE_REQUIREMENTS = {
+    'FILE-3': 'Основной агент до публикации сохраняет точный запрос и полный окончательный ответ через answer-prepare.',
+    'EXEC-5': 'Проверки чтения Git запускай с `--no-optional-locks`, чтобы не обновлять индекс побочным действием.',
+    'DOC-2': 'Любое неизвестное или недоказанное объяснение оформляй гипотезой с доводами за/против и экспертной оценкой в %.',
+}
 
 
 def _now():
@@ -66,8 +71,14 @@ def _native(root, conversation=None, *, platform=None, backend=None):
 
 def _policy():
     return {ident: {'source': relative, 'anchor': anchor,
-                    'sha256': _hash((PRIMARY / relative).read_bytes())}
+                    'sha256': _hash((PRIMARY / relative).read_bytes()),
+                    'requirement': RULE_REQUIREMENTS[ident]}
             for ident, (relative, anchor) in RULES.items()}
+
+
+def _exec5_status(turn):
+    violations = list(turn.get('exec5_violations') or [])
+    return {'verified': not violations, 'violations': violations}
 
 
 def _instruction_snapshot(root, native, *, stage):
@@ -111,6 +122,8 @@ def _new(root, native, turn, *, recovered=False, journal_directory=None):
             'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'],
             'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary',
             'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(),
+            'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'),
+            'exec5_check': _exec5_status(turn),
             'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'),
             'format_independent': True, 'rule_comprehension_verified': False,
             'required_completion': ['answer-prepare', 'native-delivery-check'],
@@ -123,6 +136,9 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
     value = _read(path) if path.exists() else _new(root, native, turn, recovered=recovered, journal_directory=journal_directory)
     if 'instruction_snapshot' not in value:
         value['instruction_snapshot'] = _instruction_snapshot(root, native, stage='existing-state-upgrade')
+    value['applicable_rules'] = _policy()
+    value['git_optional_locks_env'] = os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
+    value['exec5_check'] = _exec5_status(turn)
     saved_directory = _directory(root, value['journal'])
     if strict_journal and journal_directory is not None and saved_directory != _directory(root, journal_directory):
         raise ValueError('The native turn already has a different journal; preserve its original binding')
@@ -170,7 +186,10 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=True, w
     result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix(),
               'role': 'primary', 'journal_required': True, 'status': value['status'],
               'native_requests_sha256': _hash(_json(turn['requests'])),
-              'applicable_rules': value['applicable_rules'], 'rule_comprehension_verified': False,
+              'applicable_rules': value['applicable_rules'],
+              'git_optional_locks_env': value['git_optional_locks_env'],
+              'exec5_check': value['exec5_check'],
+              'rule_comprehension_verified': False,
               'required_completion': value['required_completion']}
     if watch:
         from .journal_watch import register, start
@@ -265,6 +284,12 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
     with locked(_folder(root) / 'writer.lock'):
         _unchanged(root, native, turn)
         path, value = _state(root, native, turn)
+        if not value['exec5_check']['verified']:
+            commands = [cmd for item in value['exec5_check']['violations'] for cmd in item.get('commands', [])]
+            detail = 'EXEC-5 violation in active turn (git read command without --no-optional-locks): ' + '; '.join(commands)
+            value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+            _persist(path, value)
+            raise ValueError(detail)
         sha = _hash(response.encode('utf-8'))
         if value['prepared'] and value['prepared']['response_sha256'] != sha:
             raise ValueError('Prepared response bytes are immutable; preserve the earlier version and reconcile before a corrective turn')
@@ -368,13 +393,15 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
             value['delivery'] = {**recorded, 'verified': True, 'source_file': native['source_file'],
                                  'final_step': turn['final_step'], 'completion_step': turn['completion_step'],
                                  'native_response_sha256': sha, 'verified_at': _now(),
-                                 'completion_provenance': provenance, 'preparation_verified': preparation_verified}
+                                 'completion_provenance': provenance, 'preparation_verified': preparation_verified,
+                                 'exec5_check': value['exec5_check']}
             value['status'] = 'delivered'
             _persist(path, value)
             results.append({'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True,
                             'journal_steps': recorded['journal_steps'],
                             'completion_provenance': provenance, 'preparation_verified': preparation_verified,
-                            'recovered_after_delivery': value['recovered_after_delivery']})
+                            'recovered_after_delivery': value['recovered_after_delivery'],
+                            'exec5_check': value['exec5_check']})
     return {'valid': not any(r['status'] == 'conflict' for r in results), 'conversation_id': native['conversation_id'],
             'source_file': native['source_file'], 'turns': results,
             'retryable': any(r.get('retryable') for r in results),

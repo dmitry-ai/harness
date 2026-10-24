@@ -164,8 +164,18 @@ def native_answers(root, conversation_id, *, backend=None):
                 raise ValueError('Native Codex task_started has no turn ID')
             current = {'turn_id': ident, 'requests': [], 'completed': False,
                        'response': None, 'start_step': index, 'final_step': None,
-                       'completion_step': None, 'aborted': False}
+                       'completion_step': None, 'aborted': False, 'exec5_violations': []}
             turns.append(current)
+        elif current is not None and kind == 'response_item' and payload.get('type') in ('function_call', 'custom_tool_call'):
+            name = payload.get('name', '')
+            if name == 'exec' or name.endswith(('exec_command', 'run_command')):
+                from ..git_gate import unflagged_git_read_commands
+                raw_cmd = payload.get('input', payload.get('arguments', ''))
+                if not isinstance(raw_cmd, str):
+                    raw_cmd = json.dumps(raw_cmd, ensure_ascii=False)
+                bad = unflagged_git_read_commands(raw_cmd)
+                if bad:
+                    current['exec5_violations'].append({'step': index, 'call_id': payload.get('call_id'), 'commands': bad})
         elif current is not None and kind == 'response_item' and payload.get('type') == 'message':
             if payload.get('role') == 'user':
                 text = ''.join(p.get('text', '') for p in payload.get('content', [])

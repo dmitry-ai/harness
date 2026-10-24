@@ -43,11 +43,14 @@ class AgentsLoaderTests(TemporaryCase):
         self.assertIn('.agents/rules.json', text)
         self.assertIn('turn-begin', text)
         self.assertIn('answer-prepare', text)
+        self.assertIn('--no-optional-locks', text)
+        self.assertIn('git-read', text)
         self.assertNotIn('CANONICAL BODY MUST STAY IN ITS SOURCE', text)
         native = tomllib.loads((self.output / '.codex/config.toml').read_text(encoding='utf-8'))
         loader = native['developer_instructions'].split(configuration.START, 1)[1]
         loader = loader.split(configuration.END, 1)[0].strip()
         self.assertIn(loader, text)
+        self.assertIn('--no-optional-locks', loader)
         receipt = json.loads((self.output / 'ꘖ/data/native-config.json').read_text(encoding='utf-8'))
         self.assertEqual(receipt[str(guidance.resolve())], configuration._digest(guidance.read_bytes()))
 
@@ -99,3 +102,28 @@ class AgentsLoaderTests(TemporaryCase):
         native = tomllib.loads((self.output / '.codex/config.toml').read_text(encoding='utf-8'))
         self.assertIn(rule.as_posix(), native['developer_instructions'])
         self.assertTrue(self.build(check=True)['valid'])
+
+    def test_read_git_and_git_shim_and_unflagged_detector(self):
+        from agent_tools import git_gate
+        import git_shim
+        import subprocess
+        repo = self.root / 'repo'
+        repo.mkdir()
+        subprocess.run(['git', 'init'], cwd=repo, check=True, capture_output=True)
+        (repo / 'README.md').write_text('hello\n', encoding='utf-8')
+        res = git_gate.read_git(repo, 'status', ['--short'])
+        self.assertTrue(res['valid'], res)
+        self.assertEqual(res['command'][:3], ['git', '--no-optional-locks', '-C'])
+        self.assertEqual(res['git_optional_locks'], '0')
+        with self.assertRaises(ValueError):
+            git_gate.read_git(repo, 'commit', ['-m', 'x'])
+        self.assertEqual(git_shim.prepare_git_invocation(['status', '--short'], mode='inject')[0],
+                         ['--no-optional-locks', 'status', '--short'])
+        with self.assertRaises(ValueError):
+            git_shim.prepare_git_invocation(['status', '--short'], mode='reject')
+        violations = git_gate.unflagged_git_read_commands(
+            'git status --short && git --no-optional-locks diff --stat && git -C "C:/repo" log -1')
+        self.assertEqual(len(violations), 2)
+        self.assertIn('git status --short', violations[0])
+        self.assertIn('git -C "C:/repo" log -1', violations[1])
+

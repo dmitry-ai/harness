@@ -8,7 +8,7 @@ from .completion import COMMANDS as COMPLETION_COMMANDS
 
 COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage',
             'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search',
-            'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', *COMPLETION_COMMANDS)
+            'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
 
 
 def add_parsers(sub):
@@ -33,6 +33,15 @@ def add_parsers(sub):
         if command == 'render-analysis':
             parser.add_argument('input', type=Path)
             parser.add_argument('--output', type=Path)
+            continue
+        if command == 'git-read':
+            from .runtime import settings
+            parser.add_argument('project', nargs='?', type=Path, default=Path(settings()['workspace_root']).resolve())
+            parser.add_argument('git_subcommand', choices=('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files'), nargs='?', default='status')
+            parser.add_argument('--short', action='store_true')
+            parser.add_argument('--stat', action='store_true')
+            parser.add_argument('--check', action='store_true')
+            parser.add_argument('--arg', dest='git_args', action='append', default=[])
             continue
         parser.add_argument('project', type=Path, help='Exact existing project root from the current chat')
         if command in ('record-answer', 'save-analysis', 'collect', 'question-add', 'sync-attachments', 'prepare-review', 'record-review', 'prepare-experiment', 'record-experiment'):
@@ -297,4 +306,8 @@ def execute(args):
     if command == 'render-analysis':
         from .analysis import publish_analysis
         return publish_analysis(args.input, args.output)
+    if command == 'git-read':
+        from .git_gate import read_git
+        extra = [f'--{flag}' for flag in ('short', 'stat', 'check') if getattr(args, flag, False)] + list(args.git_args)
+        return read_git(args.project, args.git_subcommand, extra)
     raise ValueError('Unknown workflow command')

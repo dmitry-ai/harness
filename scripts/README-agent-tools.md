@@ -172,7 +172,8 @@ Context.md предназначен для ручной передачи вне�
 `check-project`, `record-answer`, finalize и общие функции публикации проверяют авторский текст; точные цитаты, код, первичные источники и журнал сохраняют исходные байты.
 `validate_anchors.py <файлы> --include-code` проверяет исходный HTML по HTTP; это не доказательство DOM, авторизации или смысла.
 Эти standalone link tools: 0 — проверки прошли; 1 — вход/локальная ошибка; 2 — сетевой результат не подтверждён.
-`safe_commit.py --repo <корень> --file <путь> -m <текст> [--execute]` сверяет точный индекс, unstaged/conflicts/Markdown, не делает add/push.
+`safe_commit.py --repo <корень> --file <путь> -m <текст> [--execute]` сверяет точный индекс, unstaged/conflicts/Markdown, не делает add/push.  
+`upwork_project.py git-read [корень] [status|diff|log|rev-parse|show|ls-files] [--short] [--stat] [--check] [--arg <аргумент>]` выполняет чтение Git строго с `--no-optional-locks` и `GIT_OPTIONAL_LOCKS=0`; враппер `git_shim.py` (`shim/git.cmd`) перехватывает вызовы чтения `git` в `PATH` и подставляет `--no-optional-locks`.
 `validate_statements.py <каталог>` проверяет непустые .md и Test.md числовых папок; не доказывает истинность.
 `metrics <trace.jsonl> ... [--bindings <JSON>] [--project <проект>]` считает новый ввод/cache/output и инструменты по наблюдаемым данным, игнорирует дубликаты шагов, неизвестное не заменяет нулём.
 

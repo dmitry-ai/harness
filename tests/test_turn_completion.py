@@ -108,9 +108,28 @@ class CompletionCase(unittest.TestCase):
         state = json.loads((self.project / result['state']).read_text(encoding='utf-8'))
         self.assertTrue(result['journal_required'])
         self.assertEqual(set(state['applicable_rules']), {'FILE-3', 'EXEC-5', 'DOC-2'})
+        self.assertIn('--no-optional-locks', state['applicable_rules']['EXEC-5']['requirement'])
+        self.assertEqual(state['git_optional_locks_env'], '0')
+        self.assertTrue(state['exec5_check']['verified'])
         self.assertFalse(state['rule_comprehension_verified'])
         self.assertFalse((self.project / 'ꘖ/project.json').exists())
         self.assertFalse((self.project / 'ꘖ/data/text-project.json').exists())
+
+    def test_unflagged_git_read_in_active_turn_blocks_answer_prepare(self):
+        self.rows.append({'type': 'response_item', 'payload': {'type': 'custom_tool_call',
+            'call_id': 'bad-git', 'name': 'exec',
+            'input': "await Promise.allSettled([exec_command({ cmd: 'git status --short' })]);"}})
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'EXEC-5 violation'):
+            self.prepare('Blocked response')
+        state = json.loads(next((self.project / 'ꘖ/data/turns').glob('*.json')).read_text(encoding='utf-8'))
+        self.assertFalse(state['exec5_check']['verified'])
+        self.assertFalse(state['readiness_check']['verified'])
+        self.rows[-1]['payload']['input'] = "await Promise.allSettled([exec_command({ cmd: 'git --no-optional-locks status --short' })]);"
+        self.write()
+        result = self.prepare('Allowed response')
+        self.assertTrue(result['ready'])
+        self.assertTrue(result['exec5_check']['verified'])
 
     def test_instruction_snapshot_inventories_sources_without_claiming_model_delivery(self):
         local = self.project / '.agents/rules/local.md'

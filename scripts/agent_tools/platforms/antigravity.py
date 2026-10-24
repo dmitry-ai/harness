@@ -553,11 +553,24 @@ def native_answers(root, conversation_id, *, backend=None):
         statuses = {index: (kind, status) for index, kind, status in connection.execute('SELECT idx,step_type,status FROM steps')}
     finally:
         connection.close()
+    from ..git_gate import unflagged_git_read_commands
     boundaries = sorted(index for index, _ in inputs)
     turns = []
     for position, start in enumerate(boundaries):
         end = boundaries[position + 1] if position + 1 < len(boundaries) else None
         segment = [row for row in rows if row.get('step_index', -1) > start and (end is None or row.get('step_index', -1) < end)]
+        violations = []
+        for row in segment:
+            for call in row.get('tool_calls', []) if isinstance(row, dict) else []:
+                if isinstance(call, dict) and call.get('name') == 'run_command':
+                    args = call.get('args', {})
+                    if isinstance(args, str):
+                        try: args = json.loads(args)
+                        except ValueError: args = {}
+                    cmd = args.get('CommandLine', '') if isinstance(args, dict) else ''
+                    bad = unflagged_git_read_commands(cmd)
+                    if bad:
+                        violations.append({'step': row.get('step_index'), 'commands': bad})
         last = segment[-1] if segment else {}
         final_step = last.get('step_index')
         final = last.get('type') == 'PLANNER_RESPONSE' and not last.get('tool_calls') and bool(last.get('content', '').strip())
@@ -569,7 +582,8 @@ def native_answers(root, conversation_id, *, backend=None):
         turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [],
                       'owned': start in requests, 'completed': completed, 'aborted': False,
                       'response': last['content'] if completed else None, 'start_step': start,
-                      'final_step': final_step if completed else None, 'completion_step': final_step if completed else None})
+                      'final_step': final_step if completed else None, 'completion_step': final_step if completed else None,
+                      'exec5_violations': violations})
     # Several human messages can steer one running answer. Do not manufacture
     # empty intermediate answers or lose the earlier unanswered native inputs.
     grouped, pending = [], []
@@ -581,13 +595,15 @@ def native_answers(root, conversation_id, *, backend=None):
             first = pending[0]
             grouped.append({**turn, 'turn_id': first['turn_id'], 'start_step': first['start_step'],
                             'requests': [r for item in pending for r in item['requests']],
-                            'owned': all(item['owned'] for item in pending)})
+                            'owned': all(item['owned'] for item in pending),
+                            'exec5_violations': [v for item in pending for v in item.get('exec5_violations', [])]})
             pending = []
     if pending:
         first, last = pending[0], pending[-1]
         grouped.append({**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'],
                         'requests': [r for item in pending for r in item['requests']],
-                        'owned': all(item['owned'] for item in pending)})
+                        'owned': all(item['owned'] for item in pending),
+                        'exec5_violations': [v for item in pending for v in item.get('exec5_violations', [])]})
     turns = grouped
     active = turns[-1] if turns and not turns[-1]['completed'] else None
     return {'platform': 'antigravity', 'conversation_id': conversation_id, 'native_backend': str(backend),
