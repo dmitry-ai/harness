@@ -109,19 +109,43 @@ def receipt_current(root, receipt):
             and ('evidence_inputs' not in receipt or receipt['evidence_inputs'] == hashes(root, evidence_paths(root))))
 
 
+def _target_complete(target, item):
+    import os
+    from .runtime import profile_name, registration_profile_name
+    if not isinstance(item, dict):
+        return False
+    if isinstance(item.get('profiles'), dict):
+        prof = profile_name() if target == 'codex' and 'CODEX_HOME' in os.environ else (
+            item.get('profile') or registration_profile_name())
+        return bool(item['profiles'].get(prof, {}).get('ready'))
+    return bool(item.get('complete', item.get('project_id') and item.get('folder_id')))
+
+
 def registration_status(root):
-    from .runtime import settings, platform_name, profile_name
+    from .runtime import settings, platform_name
     root = Path(root).resolve()
     config, platform = settings(), platform_name()
     path = root / 'ꘖ/data/registrations.json'
     required = path.exists() or root.is_relative_to(Path(config['workspace_root']) / config['daily_root'])
-    receipt = json.loads(path.read_text(encoding='utf-8')).get(platform) if path.exists() else None
-    complete = not required
-    if receipt:
-        complete = receipt.get('complete', bool(receipt.get('project_id') and receipt.get('folder_id')))
-        if receipt.get('profiles'):
-            complete = bool(receipt['profiles'].get(profile_name(), {}).get('ready'))
-    return {'platform': platform, 'required': required, 'complete': complete, 'receipt': receipt}
+    data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+    receipt = data.get(platform) if isinstance(data, dict) else None
+    targets = list(dict.fromkeys((config.get('registration') or {}).get('targets') or [platform]))
+    if platform not in targets:
+        targets.insert(0, platform)
+    targets_status = {}
+    for target in targets:
+        item = data.get(target) if isinstance(data, dict) else None
+        done = (not required) or _target_complete(target, item)
+        targets_status[target] = {
+            'complete': done,
+            'status': (item.get('status') if isinstance(item, dict) else None) or ('registered' if done else 'pending'),
+            'attempts': item.get('attempts', 0) if isinstance(item, dict) else 0,
+        }
+    complete = targets_status[platform]['complete']
+    pending_targets = [target for target, info in targets_status.items() if not info['complete']]
+    return {'platform': platform, 'required': required, 'complete': complete,
+            'all_registered': not pending_targets, 'targets': targets_status,
+            'pending_targets': pending_targets, 'receipt': receipt}
 
 
 def stage_statuses(root, state):
@@ -653,6 +677,11 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
     root = Path(root).resolve()
     if stage not in STAGES or not inputs or not outputs:
         raise ValueError('Known stage and explicit nonempty input/output artifacts required')
+    if stage in ('identity_init', 'finalize'):
+        reg = registration_status(root)
+        if reg['required'] and not reg['all_registered']:
+            from .registration import register_projects
+            register_projects(root, platform=reg['platform'], targets=[reg['platform'], *reg['pending_targets']])
     in_hashes, out_hashes = hashes(root, inputs), hashes(root, outputs)
     if set((*in_hashes, *out_hashes)) & {'ꘖ/data/workflow.json', 'ꘖ/data/rendered.json', 'ꘖ/KB/Progress.md'}:
         raise ValueError('Generated workflow/navigation state cannot serve as its own stage proof')

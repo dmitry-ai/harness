@@ -520,6 +520,18 @@ def register(project_dir, domain_or_topic, date_str=None):
                            'rootPaths': [str(Path(project_dir).resolve())],
                            'folderPath': ['Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}']}}
     receipt = shared_control(request)
+    if not receipt.get('complete') and receipt.get('shared_id'):
+        accounts = receipt.get('accounts') or {}
+        if any(isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in accounts.values()):
+            import time
+            for _ in range(8):
+                time.sleep(0.4)
+                receipt = shared_control({'command': 'shared-registration', 'sharedId': receipt['shared_id'], 'profile': profile})
+                if receipt.get('complete'):
+                    break
+                accounts = receipt.get('accounts') or {}
+                if not any(isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in accounts.values()):
+                    break
     return validate_registration(project_dir, domain_or_topic, day.isoformat(), 'codex',
                                  {**receipt, 'surface': 'codex-ui', 'profile': profile})
 

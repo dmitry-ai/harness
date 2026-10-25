@@ -53,7 +53,7 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None,
         for path in projects.glob('*.json'):
             item = json.loads(path.read_text(encoding='utf-8-sig'))
             resources = (item.get('projectResources') or {}).get('resources') or []
-            if any(folder_path(res.get('folderUri', '')) == root for res in resources):
+            if any(res.get('folderUri') and folder_path(res['folderUri']) == root for res in resources):
                 ident, payload, destination = item.get('id') or path.stem, item, path
                 break
         if ident is None:

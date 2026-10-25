@@ -214,6 +214,38 @@ class RegistrationTests(TemporaryCase):
         self.assertEqual(saved['attempts'], 2)
         self.assertEqual(len(saved['attempt_history']), 2)
 
+    def test_git_only_resource_does_not_collide_when_cwd_equals_project_root(self):
+        self.native_projects.mkdir(parents=True, exist_ok=True)
+        (self.native_projects / 'git-only.json').write_text(json.dumps({
+            'id': 'git-only', 'name': 'U.I.2026.10.22',
+            'projectResources': {'resources': [{'gitFolder': {'folderUri': 'file:///c:/other'}}]}
+        }), encoding='utf-8')
+        previous_cwd = Path.cwd()
+        os.chdir(self.project)
+        try:
+            result = self.run_registration('antigravity')
+        finally:
+            os.chdir(previous_cwd)
+        self.assertTrue(result['complete'])
+        self.assertNotEqual(result['project_id'], 'git-only')
+
+    def test_workflow_registration_status_exposes_all_targets_and_pending_targets(self):
+        from agent_tools import workflow
+        def pending(*args):
+            res = self.cx(*args)
+            res['complete'] = False
+            res['profiles']['C2']['ready'] = False
+            return res
+        registration.register_projects(self.project, platform='antigravity',
+            registrars={'antigravity': self.ag, 'codex': pending})
+        with patch.object(runtime, 'settings', return_value=self.config):
+            status = workflow.registration_status(self.project)
+        self.assertTrue(status['complete'])
+        self.assertFalse(status['all_registered'])
+        self.assertEqual(status['pending_targets'], ['codex'])
+        self.assertTrue(status['targets']['antigravity']['complete'])
+        self.assertFalse(status['targets']['codex']['complete'])
+
 
 class RegistrationProfileTests(TemporaryCase):
     def setUp(self):
@@ -274,6 +306,20 @@ class RegistrationProfileTests(TemporaryCase):
             with self.assertRaises(registration.RegistrationConflict):
                 codex.register(self.root, 'Topic', '2026-10-15')
             self.assertEqual(invoke.call_count, 1)
+        pending_receipt = {**expected, 'shared_id': 'shared', 'folder_id': 'folder', 'complete': False,
+                           'accounts': {'C2': {'state': 'connected'}},
+                           'profiles': {'C2': {'project_id': 'c2', 'ready': False}}}
+        ready_receipt = {**pending_receipt, 'complete': True,
+                         'profiles': {'C2': {'project_id': 'c2', 'ready': True}}}
+        with patch.object(codex.subprocess, 'run', side_effect=[
+            SimpleNamespace(returncode=0, stdout=json.dumps(pending_receipt), stderr=''),
+            SimpleNamespace(returncode=0, stdout=json.dumps(ready_receipt), stderr=''),
+        ]) as invoke:
+            polled = codex.register(self.root, 'Topic', '2026-10-15')
+            self.assertTrue(polled['complete'])
+            self.assertEqual(invoke.call_count, 2)
+            second_req = json.loads(invoke.call_args_list[1].kwargs['input'])
+            self.assertEqual(second_req['command'], 'shared-registration')
 
 
 if __name__ == '__main__':
