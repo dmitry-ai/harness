@@ -58,6 +58,24 @@ def _unquote(token: str) -> str:
     return token
 
 
+def _split_shell_segments(cmd: str) -> list[str]:
+    segments = []
+    curr = []
+    for m in re.finditer(r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|&&|\|\||[;\|\r\n]|[^"\'\s;\|\&]+|\s+)', cmd):
+        tok = m.group(0)
+        if tok in (';', '\r', '\n', '&&', '||', '|'):
+            seg = ''.join(curr).strip()
+            if seg:
+                segments.append(seg)
+            curr = []
+        else:
+            curr.append(tok)
+    seg = ''.join(curr).strip()
+    if seg:
+        segments.append(seg)
+    return segments
+
+
 def unflagged_git_read_commands(text: str) -> list[str]:
     """Detect shell or Python subprocess git read commands missing --no-optional-locks."""
     if not isinstance(text, str) or 'git' not in text:
@@ -89,7 +107,7 @@ def unflagged_git_read_commands(text: str) -> list[str]:
         # Strip PowerShell here-strings and inline python -c "..." / '...' code payloads
         cleaned = re.sub(r"@'[\s\S]*?'@|@\"[\s\S]*?\"@", '""', candidate)
         cleaned = re.sub(r'(\bpython(?:3)?(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-c\s+)(?:"(?:\\.|[^"\\])*"|\'(?:\'\'|[^\'])*\')', r'\1""', cleaned)
-        for segment in re.split(r'\r?\n|;|\|\||&&|\|', cleaned):
+        for segment in _split_shell_segments(cleaned):
             m = re.match(r'^\s*(?:&\s*)?(?:["\']?[A-Za-z]:[\\/][^"\'\s]*[\\/])?git(?:\.exe)?(?:\s+|$)(?P<rest>.*)$', segment)
             if not m:
                 continue
