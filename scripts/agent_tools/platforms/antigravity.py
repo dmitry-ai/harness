@@ -554,6 +554,19 @@ def native_answers(root, conversation_id, *, backend=None):
     finally:
         connection.close()
     from ..git_gate import unflagged_git_read_commands
+    from ..journal import state_dir
+    jdir = (Path(root).resolve() / 'ꙮ/1 - Анализ').resolve()
+    sdir = state_dir(jdir)
+    journal_groups = {}
+    if (sdir / 'answer-groups').is_dir():
+        for gpath in (sdir / 'answer-groups').glob('*.json'):
+            try:
+                g = json.loads(gpath.read_text(encoding='utf-8'))
+                if g.get('status') == 'complete' and g.get('request_ids'):
+                    for rid, st in zip(g['request_ids'], g.get('steps', [])):
+                        journal_groups[rid] = (g, st)
+            except Exception:
+                pass
     boundaries = sorted(index for index, _ in inputs)
     turns = []
     for position, start in enumerate(boundaries):
@@ -578,10 +591,17 @@ def native_answers(root, conversation_id, *, backend=None):
         idle = (summary.get('status') == 'CASCADE_RUN_STATUS_IDLE' and summary.get('not_fully_idle') == 0
                 and not summary.get('killed') and summary.get('last_user_input_step_index') == start
                 and final_step == max(statuses, default=-1))
-        completed = bool(final and (end is not None or idle))
+        req_id = f'{conversation_id}-{start}'
+        j_entry = journal_groups.get(req_id)
+        if not final and end is not None and j_entry is not None:
+            completed = (req_id == j_entry[0]['request_ids'][-1])
+            resp_text = (jdir / 'res' / f'{j_entry[1]}.md').read_text(encoding='utf-8') if completed else None
+        else:
+            completed = bool(final and (end is not None or idle))
+            resp_text = last.get('content') if completed else None
         turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [],
                       'owned': start in requests, 'completed': completed, 'aborted': False,
-                      'response': last['content'] if completed else None, 'start_step': start,
+                      'response': resp_text, 'start_step': start,
                       'final_step': final_step if completed else None, 'completion_step': final_step if completed else None,
                       'exec5_violations': violations})
     # Several human messages can steer one running answer. Do not manufacture
