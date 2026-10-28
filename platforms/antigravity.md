@@ -13,7 +13,7 @@ Tier не доказывает точную модель/effort; проверя�
 Не запускай модели скрытыми CLI-сеансами.
 Общие правила и навыки подключаются существующими `.agents/{rules,skills,agents}.json`.
 После определения корня основной беседы выполни `turn-begin <root> --conversation <native-uuid> --platform antigravity`; обычный анализ правил также использует [контракт хода](../references/turn-completion.md#начало-хода).
-Перед окончательным ответом используй `answer-prepare` с тем же UUID и [публикуй сохранённые байты](../references/turn-completion.md#подготовка-ответа).
+Перед окончательным ответом запиши UTF-8 текст ответа через `write_file` в `<root>/ꘖ/data/scratch/answer.md`, вызови `answer-prepare <root> --response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input --conversation <native-uuid> --platform antigravity` (не передавай кириллицу и `ꘖ`/`ꙮ` через конвейер PowerShell `| python` без `[System.Text.UTF8Encoding]::new($false)`) и [публикуй сохранённые байты](../references/turn-completion.md#подготовка-ответа).
 `/upwork-cleanup` выполняет общий навык `skills/upwork-cleanup/SKILL.md`: очищает обе системы от пустых проектов старше 72 часов, сохраняя весь `proposals/daily`.
 `/df-article` выполняет профиль статьи, `/df-proposal` — профиль Upwork proposal. Общая процедура и рецензия — `references/client-text/`; A.A — `self` с `Model: inherit`.
 Обычные init/register запрашивают регистрацию того же каталога в обеих системах; --platform указывает выполняющую среду, --target у register исправляет одну регистрацию.

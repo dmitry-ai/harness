@@ -33,10 +33,22 @@ def get_existing_step_ids(directory: Path) -> set[int]:
 
 
 def _payload(request: str, response: str):
+    import re
     for label, text in [('request', request), ('response', response)]:
         if not isinstance(text, str) or not text.strip():
             raise ValueError(f'Empty {label}')
         text.encode('utf-8')
+        if ('\ufffd' in text
+                or '/?/KB/' in text
+                or '/?/data/' in text
+                or '\\?\\KB\\' in text
+                or '\\?\\data\\' in text
+                or re.search(r'(?:^|[\s*#(])(?:\?{2,}\s+){2,}\?{2,}', text)):
+            raise ValueError(
+                f'Corrupted UTF-8 {label} detected (PowerShell pipe OEM/ASCII "?" substitution or U+FFFD); '
+                'write UTF-8 directly to ꘖ/data/scratch/answer.md via write_file or UTF8Encoding($false) '
+                'and pass --response-file <path> --consume-input'
+            )
 
 
 def _publish(directory: Path, step: int, state: dict, *, recovering=False):

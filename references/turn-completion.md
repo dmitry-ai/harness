@@ -31,11 +31,16 @@ Antigravity требует действительный UUID текущей бе
 ## Подготовка ответа
 
 ```text
-python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file - --platform codex
-python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.txt --consume-input --conversation <native-uuid> --platform antigravity
+python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --platform codex
+python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --conversation <native-uuid> --platform antigravity
 ```
 
-Операция повторно проверяет активный нативный ход, сохраняет точные запросы и ответ существующим механизмом `record_answer`, проверяет прочитанные байты и возвращает `response_file`, SHA256, номера пар и `ready: true`.  
+**Обязательное правило кодировки UTF-8 в Windows PowerShell:**
+1. В Windows PowerShell 5.1 передача текста через конвейер (`@' ... '@ | python ...` или `"..." | python ... --response-file -`) по умолчанию использует однобайтовую кодировку `[Console]::OutputEncoding` (OEM/ASCII), безвозвратно заменяя кириллицу и символы `ꘖ` (`\ua616`) / `ꙮ` (`\ua66e`) знаками вопроса `?` (`0x3F`).
+2. Поэтому перед вызовом `answer-prepare` (а также `record-answer`, `prepare-review`, `record-review`, `save-analysis`) **всегда записывай текст ответа в UTF-8 без BOM в `<root>/ꘖ/data/scratch/answer.md`** штатным файловым инструментом (`write_file` в Antigravity либо `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))` в PowerShell) и передавай путь через `--response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input`.
+3. Если в PowerShell запускается однострочник `python -` через конвейер `|`, в начале команды обязательно выставляй `[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, а для путей к `ꘖ` и `ꙮ` в Python-коде используй Unicode-последовательности `\ua616` и `\ua66e`.
+
+Операция повторно проверяет активный нативный ход, сохраняет точные запросы и ответ существующим механизмом `record_answer`, проверяет прочитанные байты (отклоняя повреждённый OEM/ASCII-вывод с заменой слов на `???`) и возвращает `response_file`, SHA256, номера пар и `ready: true`.  
 Операция также проверяет публичные вызовы инструментов активного хода на соблюдение `EXEC-5` (отсутствие вызовов чтения Git без `--no-optional-locks`), сохраняя результат в `exec5_check`.
 Сверка включает полный снимок запросов после `turn-begin`, после ожидания блокировки и после записи журнала.
 Если новый запрос или смена хода обнаружены после записи, история сохраняется, состояние получает `preparation_unverified` и отрицательный `readiness_check`; готовность не выдаётся.

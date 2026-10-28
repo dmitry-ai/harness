@@ -465,7 +465,21 @@ def _native_inputs(backend, conversation_id):
             raise ValueError('Native request format is unsupported; save exact requests from the current chat, without reconstruction')
         try:
             message = next(value for field, kind, value in wire_fields(payload) if field == 19 and kind == 2)
-            text = next(value.decode('utf-8') for field, kind, value in wire_fields(message) if field == 2 and kind == 2)
+            msg_fields = list(wire_fields(message))
+            texts = [value.decode('utf-8') for field, kind, value in msg_fields if field == 2 and kind == 2 and value.decode('utf-8').strip()]
+            if texts:
+                text = texts[0]
+            else:
+                medias = []
+                for field, kind, value in msg_fields:
+                    if field == 9 and kind == 2:
+                        m_fields = {mf: mv.decode('utf-8', 'replace') for mf, mk, mv in wire_fields(value) if mk == 2 and mf in (1, 4, 5)}
+                        uri = m_fields.get(5) or m_fields.get(4) or m_fields.get(1)
+                        if uri:
+                            medias.append(f'[Image: {uri}]')
+                if not medias:
+                    raise StopIteration('No text or media in user message')
+                text = '\n'.join(medias)
         except (IndexError, StopIteration, UnicodeError) as exc:
             raise ValueError('Exact native user text is unavailable; do not reconstruct it from summaries') from exc
         inputs.append((index, text))
@@ -539,7 +553,7 @@ def native_answers(root, conversation_id, *, backend=None):
         raise ValueError('Native Antigravity primary/child identity is unavailable')
     path = backend / 'brain' / conversation_id / '.system_generated/logs/transcript_full.jsonl'
     try:
-        rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+        rows = [json.loads(line) for line in path.read_text(encoding='utf-8').split('\n') if line.strip()]
     except ValueError as exc:
         raise ValueError('Native Antigravity trace has a partial record; retry after flush') from exc
     inputs = _native_inputs(backend, conversation_id)
