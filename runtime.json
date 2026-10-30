@@ -63,7 +63,7 @@
         "C2": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2"
       },
       "node": "C:/tools/nodejs/node.exe",
-      "ui_manage": "C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons/code/UI/code/manage.mjs",
+      "ui_manage": "C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons/code/UI/manage.mjs",
       "browser": {
         "cdp_port": 9222,
         "owned_window_bounds": null
