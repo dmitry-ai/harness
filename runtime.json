@@ -29,7 +29,7 @@
         "complex_agent": "self",
         "simple_agent": "af-worker"
       },
-      "folders_json": "C:/work/research/provision/code/Software/Google/AI/Antigravity/primary/tools/Folders/code/folders.json",
+      "folders_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Folders/folders.json",
       "browser": {
         "cdp_port": 9222,
         "owned_window_bounds": null
