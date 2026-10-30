@@ -148,9 +148,8 @@ def _native_invocation(backend, parent_id, conversation_id, role):
     if row is None or row[0] != parent_id or row[1] != expected_agent:
         raise ValueError('Native child relationship/role is not established')
     matches = []
-    for line in parent_log.read_text(encoding='utf-8').splitlines():
-        if not line.strip(): continue
-        event = json.loads(line)
+    lines = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
+    for i, event in enumerate(lines):
         for call in event.get('tool_calls', []):
             if call.get('name') != 'invoke_subagent': continue
             args = call.get('args', {})
@@ -165,9 +164,11 @@ def _native_invocation(backend, parent_id, conversation_id, role):
                 subs = [args]
             for sub in subs if isinstance(subs, list) else []:
                 if isinstance(sub, dict) and sub.get('TypeName') == row[1] and sub.get('Prompt') and sub['Prompt'] in initial:
-                    matches.append((event.get('step_index'), sub))
+                    exact = i + 1 < len(lines) and conversation_id in lines[i + 1].get('content', '')
+                    matches.append((event.get('step_index'), sub, exact))
     if not matches: raise ValueError('Matching native child invocation not established')
-    index, invocation = matches[-1]
+    exact_matches = [m for m in matches if m[2]]
+    index, invocation = (exact_matches[-1][:2] if exact_matches else matches[-1][:2])
     return invocation, {'native_file': str(parent_log), 'step': index, 'kind': 'invoke_subagent'}
 
 
@@ -342,8 +343,9 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
     parent_inputs = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
     initial_prompt = rows[0].get('content', '')
     invocation = None
+    exact_invocation = None
     matched_prompts = [initial_prompt]
-    for row in parent_inputs:
+    for p_idx, row in enumerate(parent_inputs):
         for call in row.get('tool_calls', []):
             if call.get('name') == 'send_message':
                 args = call.get('args', {})
@@ -361,8 +363,14 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
                 if isinstance(sub, dict) and sub.get('TypeName') == 'self' and sub.get('Prompt') and sub['Prompt'] in initial_prompt:
                     if sub.get('Model') != 'inherit':
                         raise ValueError('Native A.A reviewer was not requested with the inherited parent model')
-                    invocation = row['step_index']
+                    is_exact = p_idx + 1 < len(parent_inputs) and reviewer_id in parent_inputs[p_idx + 1].get('content', '')
+                    if is_exact:
+                        exact_invocation = row['step_index']
+                    elif invocation is None:
+                        invocation = row['step_index']
                     matched_prompts.append(sub['Prompt'])
+    if exact_invocation is not None:
+        invocation = exact_invocation
     if invocation is None:
         raise ValueError('Matching native self/inherit invocation is not established')
     bias_issues = []
