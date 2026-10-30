@@ -69,6 +69,8 @@ def _trace(home, conversation_id):
         payload = value.get('payload', {})
         if kind in ('session_meta', 'turn_context') or kind == 'response_item' and payload.get('type') != 'reasoning' or kind == 'event_msg' and payload.get('type') in ('task_started', 'task_complete', 'turn_aborted'):
             rows.append((index, value))
+        elif kind in ('compacted', 'context_compacted', 'checkpoint') or (kind == 'event_msg' and payload.get('type') in ('context_compacted', 'compacted', 'checkpoint')):
+            rows.append((index, {'type': 'event_msg', 'payload': {'type': 'context_compacted', 'turn_id': payload.get('turn_id')}}))
     if not rows or rows[0][1].get('type') != 'session_meta' or rows[0][1]['payload'].get('id') != conversation_id:
         raise ValueError('Codex trace identity differs from native database')
     return row, path, raw, rows
@@ -154,6 +156,7 @@ def native_answers(root, conversation_id, *, backend=None):
     requests = {index: {'id': f'codex:{conversation_id}:{index}', 'text': text,
                         'native_step': index, 'project_binding': binding}
                 for index, text, binding in selected}
+    from ..git_gate import unflagged_git_read_commands, unpersisted_http_fetch_commands
     turns, current = [], None
     for index, item in rows:
         payload = item.get('payload', {})
@@ -164,18 +167,49 @@ def native_answers(root, conversation_id, *, backend=None):
                 raise ValueError('Native Codex task_started has no turn ID')
             current = {'turn_id': ident, 'requests': [], 'completed': False,
                        'response': None, 'start_step': index, 'final_step': None,
-                       'completion_step': None, 'aborted': False, 'exec5_violations': []}
+                       'completion_step': None, 'aborted': False,
+                       'exec5_violations': [], 'http_fetch_violations': [],
+                       'checkpoint_steps': [], 'tool_steps': [],
+                       'subagent_steps': [], 'kb_persistence_steps': [],
+                       'transcript_read_steps': [], 'tool_records': [],
+                       '_pending_calls': {}}
             turns.append(current)
+        elif current is not None and (
+                kind in ('compacted', 'context_compacted', 'checkpoint')
+                or (kind in ('event_msg', 'response_item') and payload.get('type') in ('context_compacted', 'compacted', 'checkpoint'))):
+            current['checkpoint_steps'].append(index)
         elif current is not None and kind == 'response_item' and payload.get('type') in ('function_call', 'custom_tool_call'):
             name = payload.get('name', '')
+            raw_cmd = payload.get('input', payload.get('arguments', ''))
+            if not isinstance(raw_cmd, str):
+                raw_cmd = json.dumps(raw_cmd, ensure_ascii=False)
+            current['tool_steps'].append(index)
+            rec = {'step': index, 'tools': [name], 'outputs': []}
+            current['tool_records'].append(rec)
+            if payload.get('call_id'):
+                current['_pending_calls'][payload['call_id']] = rec
             if name == 'exec' or name.endswith(('exec_command', 'run_command')):
-                from ..git_gate import unflagged_git_read_commands
-                raw_cmd = payload.get('input', payload.get('arguments', ''))
-                if not isinstance(raw_cmd, str):
-                    raw_cmd = json.dumps(raw_cmd, ensure_ascii=False)
                 bad = unflagged_git_read_commands(raw_cmd)
                 if bad:
                     current['exec5_violations'].append({'step': index, 'call_id': payload.get('call_id'), 'commands': bad})
+                bad_http = unpersisted_http_fetch_commands(raw_cmd)
+                if bad_http:
+                    current['http_fetch_violations'].append({'step': index, 'call_id': payload.get('call_id'), 'commands': bad_http})
+            if any(tok in raw_cmd for tok in ('recover-checkpoint', str(path.name), 'transcript_full.jsonl')):
+                if index not in current['transcript_read_steps']:
+                    current['transcript_read_steps'].append(index)
+            if name.endswith(('spawn_agent', 'send_input')) or 'spawn_agent' in raw_cmd:
+                if index not in current['subagent_steps']:
+                    current['subagent_steps'].append(index)
+            if (any(tok in raw_cmd for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB'))
+                    or re.search(r'\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\b', raw_cmd)):
+                if index not in current['kb_persistence_steps']:
+                    current['kb_persistence_steps'].append(index)
+        elif current is not None and kind == 'response_item' and payload.get('type') in ('function_call_output', 'custom_tool_call_output'):
+            rec = current['_pending_calls'].get(payload.get('call_id'))
+            if rec is not None and payload.get('output') is not None:
+                out = payload.get('output')
+                rec['outputs'].append((out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000])
         elif current is not None and kind == 'response_item' and payload.get('type') == 'message':
             if payload.get('role') == 'user':
                 text = ''.join(p.get('text', '') for p in payload.get('content', [])
@@ -205,6 +239,31 @@ def native_answers(root, conversation_id, *, backend=None):
     for turn in turns:
         turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(turn.get('all_request_steps', []))
         turn.pop('all_request_steps', None)
+        cp_steps = turn.pop('checkpoint_steps', [])
+        t_steps = turn.pop('tool_steps', [])
+        sub_steps = turn.pop('subagent_steps', [])
+        kb_steps = turn.pop('kb_persistence_steps', [])
+        tr_steps = turn.pop('transcript_read_steps', [])
+        records = turn.pop('tool_records', [])
+        turn.pop('_pending_calls', None)
+        last_cp = max(cp_steps) if cp_steps else None
+        pre_cp_steps = [s for s in t_steps if last_cp is not None and s < last_cp]
+        post_cp_rec = [s for s in tr_steps if last_cp is not None and s > last_cp]
+        pre_cp_records = [r for r in records if last_cp is not None and r['step'] < last_cp]
+        turn['compaction'] = {
+            'occurred': bool(cp_steps),
+            'checkpoint_steps': cp_steps,
+            'last_checkpoint_step': last_cp,
+            'pre_checkpoint_tool_steps': pre_cp_steps,
+            'post_checkpoint_recovery_steps': post_cp_rec,
+            'recovered_in_trace': (not cp_steps or not pre_cp_steps or bool(post_cp_rec)),
+            'pre_checkpoint_records': pre_cp_records,
+        }
+        turn['delegation'] = {
+            'tool_step_count': len(t_steps),
+            'subagent_step_count': len(sub_steps),
+            'kb_persistence_step_count': len(kb_steps),
+        }
     return {'platform': 'codex', 'conversation_id': conversation_id, 'native_backend': str(home),
             'source_file': str(path), 'primary': not child, 'turns': turns,
             'active_turn_id': current['turn_id'] if current and not current['completion_step'] else None}

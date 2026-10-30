@@ -6,7 +6,7 @@ import sys
 
 from .completion import COMMANDS as COMPLETION_COMMANDS
 
-COMMANDS = ('status', 'resume', 'collect', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage',
+COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage',
             'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search',
             'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
 
@@ -17,6 +17,7 @@ def add_parsers(sub):
             'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init',
             'status': 'Read-only current stage and agent KB navigation',
             'collect': 'Batch GET observations and extraction with persistent project cache',
+            'collect-http': 'Single-URL GET observation and extraction with persistent Evidence cache',
             'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions',
             'check-project': 'All saved-source and local KB diagnostics; no network calls',
             'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits'
@@ -59,6 +60,11 @@ def add_parsers(sub):
         elif command == 'collect':
             parser.add_argument('--plan', required=True, type=Path)
             parser.add_argument('--output', help='Optional project-owned result JSON')
+        elif command == 'collect-http':
+            parser.add_argument('--url', required=True, help='Single HTTP(S) URL to fetch and persist in ꘖ/KB/Evidence/HTTP')
+            parser.add_argument('--profile', choices=('html', 'shopify', 'tracking', 'document', 'auto'), default='auto')
+            parser.add_argument('--scope', default='public')
+            parser.add_argument('--refresh-reason')
         elif command == 'capture-dom':
             parser.add_argument('--url', required=True)
             parser.add_argument('--tab-id', required=True)
@@ -226,6 +232,9 @@ def execute(args):
                 return result
             return _consumed(args, args.plan, payload, result)
         return result
+    if command == 'collect-http':
+        from .research import collect_http
+        return collect_http(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason)
     if command == 'extract':
         from .research import extract_observation
         return extract_observation(args.project, args.source, args.profile)

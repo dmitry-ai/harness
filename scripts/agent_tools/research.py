@@ -762,6 +762,28 @@ def compute_site_summary(root, results):
     }
 
 
+def collect_http(root, url, *, profile='html', scope='public', refresh_reason=None, max_age=86400,
+                 headers=None, context=None, fetcher=None):
+    """Collect a single HTTP(S) URL into ꘖ/KB/Evidence/HTTP and extract structured content."""
+    effective_profile = 'document' if profile == 'auto' else profile
+    if effective_profile not in PROFILES:
+        raise ValueError(f'Unknown extraction profile: {profile}')
+    observation = collect(root, url, headers=headers, scope=scope, max_age=max_age,
+                          refresh_reason=refresh_reason, fetcher=fetcher, context=context)
+    item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status',
+                                            'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
+    if not observation.get('error') and 200 <= (observation.get('status') or 0) < 300:
+        chosen = ('document'
+                  if profile in ('html', 'auto') and (observation.get('content_type') or '').lower() == 'application/json'
+                  else effective_profile)
+        try:
+            item.update(extract_observation(root, observation['observation'], chosen))
+        except (OSError, ValueError, KeyError, TypeError, LookupError) as exc:
+            item['extraction_error'] = type(exc).__name__
+            item['detail'] = 'Response saved; inspect the source or choose another extraction profile, without fetching it again'
+    return item
+
+
 def collect_plan(root, plan, *, fetcher=None):
     if not isinstance(plan, dict) or not isinstance(plan.get('requests'), list) or not plan['requests']:
         raise ValueError('Plan needs a nonempty requests list')

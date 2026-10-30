@@ -575,7 +575,7 @@ def native_answers(root, conversation_id, *, backend=None):
         statuses = {index: (kind, status) for index, kind, status in connection.execute('SELECT idx,step_type,status FROM steps')}
     finally:
         connection.close()
-    from ..git_gate import unflagged_git_read_commands
+    from ..git_gate import unflagged_git_read_commands, unpersisted_http_fetch_commands
     from ..journal import state_dir
     jdir = (Path(root).resolve() / 'ꙮ/1 - Анализ').resolve()
     sdir = state_dir(jdir)
@@ -595,17 +595,61 @@ def native_answers(root, conversation_id, *, backend=None):
         end = boundaries[position + 1] if position + 1 < len(boundaries) else None
         segment = [row for row in rows if row.get('step_index', -1) > start and (end is None or row.get('step_index', -1) < end)]
         violations = []
-        for row in segment:
-            for call in row.get('tool_calls', []) if isinstance(row, dict) else []:
-                if isinstance(call, dict) and call.get('name') == 'run_command':
+        http_violations = []
+        checkpoint_steps = []
+        tool_steps = []
+        subagent_steps = []
+        kb_persistence_steps = []
+        transcript_read_steps = []
+        tool_records = []
+        for pos, row in enumerate(segment):
+            if not isinstance(row, dict):
+                continue
+            step_idx = row.get('step_index')
+            if row.get('type') == 'CHECKPOINT' and isinstance(step_idx, int):
+                checkpoint_steps.append(step_idx)
+            calls = [c for c in (row.get('tool_calls') or []) if isinstance(c, dict)]
+            if calls and isinstance(step_idx, int):
+                tool_steps.append(step_idx)
+                outputs = []
+                for cand in segment[pos + 1:]:
+                    if not isinstance(cand, dict):
+                        continue
+                    if cand.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
+                        break
+                    if cand.get('type') == 'GENERIC' and cand.get('content'):
+                        outputs.append(str(cand.get('content'))[:4000])
+                tool_records.append({
+                    'step': step_idx,
+                    'tools': [c.get('name', '') for c in calls],
+                    'outputs': outputs,
+                })
+                for call in calls:
+                    name = call.get('name', '')
                     args = call.get('args', {})
                     if isinstance(args, str):
                         try: args = json.loads(args)
                         except ValueError: args = {}
-                    cmd = args.get('CommandLine', '') if isinstance(args, dict) else ''
-                    bad = unflagged_git_read_commands(cmd)
-                    if bad:
-                        violations.append({'step': row.get('step_index'), 'commands': bad})
+                    args_text = json.dumps(args, ensure_ascii=False) if isinstance(args, dict) else str(args)
+                    if name == 'run_command':
+                        cmd = args.get('CommandLine', '') if isinstance(args, dict) else ''
+                        bad = unflagged_git_read_commands(cmd)
+                        if bad:
+                            violations.append({'step': step_idx, 'commands': bad})
+                        bad_http = unpersisted_http_fetch_commands(cmd)
+                        if bad_http:
+                            http_violations.append({'step': step_idx, 'commands': bad_http})
+                    if any(tok in args_text for tok in ('transcript_full.jsonl', 'transcript.jsonl', 'recover-checkpoint')):
+                        if step_idx not in transcript_read_steps:
+                            transcript_read_steps.append(step_idx)
+                    if name in ('invoke_subagent', 'send_message'):
+                        if step_idx not in subagent_steps:
+                            subagent_steps.append(step_idx)
+                    if ((name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content')
+                            and any(tok in args_text for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB')))
+                            or (name == 'run_command' and re.search(r'\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\b', args_text))):
+                        if step_idx not in kb_persistence_steps:
+                            kb_persistence_steps.append(step_idx)
         last = segment[-1] if segment else {}
         final_step = last.get('step_index')
         final = last.get('type') == 'PLANNER_RESPONSE' and not last.get('tool_calls') and bool(last.get('content', '').strip())
@@ -625,27 +669,61 @@ def native_answers(root, conversation_id, *, backend=None):
                       'owned': start in requests, 'completed': completed, 'aborted': False,
                       'response': resp_text, 'start_step': start,
                       'final_step': final_step if completed else None, 'completion_step': final_step if completed else None,
-                      'exec5_violations': violations})
+                      'exec5_violations': violations, 'http_fetch_violations': http_violations,
+                      'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps,
+                      'subagent_steps': subagent_steps, 'kb_persistence_steps': kb_persistence_steps,
+                      'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records})
     # Several human messages can steer one running answer. Do not manufacture
     # empty intermediate answers or lose the earlier unanswered native inputs.
+    def _merge_pending(items):
+        first, last = items[0], items[-1]
+        cp_steps = [s for item in items for s in item.get('checkpoint_steps', [])]
+        t_steps = [s for item in items for s in item.get('tool_steps', [])]
+        sub_steps = [s for item in items for s in item.get('subagent_steps', [])]
+        kb_steps = [s for item in items for s in item.get('kb_persistence_steps', [])]
+        tr_steps = [s for item in items for s in item.get('transcript_read_steps', [])]
+        records = [r for item in items for r in item.get('tool_records', [])]
+        last_cp = max(cp_steps) if cp_steps else None
+        pre_cp_steps = [s for s in t_steps if last_cp is not None and s < last_cp]
+        post_cp_rec = [s for s in tr_steps if last_cp is not None and s > last_cp]
+        pre_cp_records = [r for r in records if last_cp is not None and r['step'] < last_cp]
+        merged = {
+            **last,
+            'turn_id': first['turn_id'],
+            'start_step': first['start_step'],
+            'requests': [r for item in items for r in item['requests']],
+            'owned': all(item['owned'] for item in items),
+            'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])],
+            'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])],
+            'compaction': {
+                'occurred': bool(cp_steps),
+                'checkpoint_steps': cp_steps,
+                'last_checkpoint_step': last_cp,
+                'pre_checkpoint_tool_steps': pre_cp_steps,
+                'post_checkpoint_recovery_steps': post_cp_rec,
+                'recovered_in_trace': (not cp_steps or not pre_cp_steps or bool(post_cp_rec)),
+                'pre_checkpoint_records': pre_cp_records,
+            },
+            'delegation': {
+                'tool_step_count': len(t_steps),
+                'subagent_step_count': len(sub_steps),
+                'kb_persistence_step_count': len(kb_steps),
+            },
+        }
+        for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'kb_persistence_steps', 'transcript_read_steps', 'tool_records'):
+            merged.pop(k, None)
+        return merged
+
     grouped, pending = [], []
     for turn in turns:
         if pending and pending[-1]['owned'] != turn['owned']:
             pending = []  # A different explicit project cannot inherit these inputs.
         pending.append(turn)
         if turn['completed']:
-            first = pending[0]
-            grouped.append({**turn, 'turn_id': first['turn_id'], 'start_step': first['start_step'],
-                            'requests': [r for item in pending for r in item['requests']],
-                            'owned': all(item['owned'] for item in pending),
-                            'exec5_violations': [v for item in pending for v in item.get('exec5_violations', [])]})
+            grouped.append(_merge_pending(pending))
             pending = []
     if pending:
-        first, last = pending[0], pending[-1]
-        grouped.append({**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'],
-                        'requests': [r for item in pending for r in item['requests']],
-                        'owned': all(item['owned'] for item in pending),
-                        'exec5_violations': [v for item in pending for v in item.get('exec5_violations', [])]})
+        grouped.append(_merge_pending(pending))
     turns = grouped
     active = turns[-1] if turns and not turns[-1]['completed'] else None
     return {'platform': 'antigravity', 'conversation_id': conversation_id, 'native_backend': str(backend),

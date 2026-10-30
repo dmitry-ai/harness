@@ -131,6 +131,25 @@ class CompletionCase(unittest.TestCase):
         self.assertTrue(result['ready'])
         self.assertTrue(result['exec5_check']['verified'])
 
+    def test_codex_compaction_and_adhoc_http_fetch_gates(self):
+        self.rows.append({'type': 'response_item', 'payload': {
+            'type': 'custom_tool_call', 'call_id': 'c-http', 'name': 'exec',
+            'input': "exec_command({ cmd: 'curl.exe https://df.tips/t/2722' })"}})
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'KB-3 / EXEC-1 violation'):
+            self.prepare('Blocked HTTP fetch')
+        self.rows[-1]['payload']['input'] = "exec_command({ cmd: 'echo safe' })"
+        self.rows.append({'type': 'response_item', 'payload': {
+            'type': 'custom_tool_call_output', 'call_id': 'c-http', 'output': '2722: Real title'}})
+        self.rows.append({'type': 'event_msg', 'payload': {'type': 'context_compacted', 'turn_id': self.turn}})
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'COMPACT-1 / KB-3 violation'):
+            self.prepare('Blocked after compaction')
+        recovered = completion.recover_checkpoint(self.project, self.cid, platform='codex', backend=self.home)
+        self.assertTrue(recovered['compaction_check']['verified'])
+        self.assertIn('2722: Real title', recovered['pre_checkpoint_records'][0]['outputs'][0])
+        self.assertTrue(self.prepare('Allowed after recover-checkpoint')['ready'])
+
     def test_instruction_snapshot_inventories_sources_without_claiming_model_delivery(self):
         local = self.project / '.agents/rules/local.md'
         local.parent.mkdir(parents=True)
@@ -668,7 +687,8 @@ class CompletionCase(unittest.TestCase):
         with running_watcher(directory):
             deadline = time.monotonic() + 8
             response = other.project / 'ꙮ/1 - Анализ/res/1.md'
-            while not response.exists() and time.monotonic() < deadline:
+            while (not response.exists()
+                   or json.loads(binding.read_text(encoding='utf-8')).get('last_checked_at') == '2000-01-01T00:00:00+00:00') and time.monotonic() < deadline:
                 time.sleep(0.05)
             self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'running')
             self.assertEqual(response.read_bytes(), b'Healthy conversation remains observed')
@@ -741,6 +761,108 @@ class AntigravityCompletionTests(unittest.TestCase):
         c.execute('UPDATE steps SET status=3 WHERE idx=1')
         c.commit(); c.close()
         self.assertTrue(journal_watch.once(state_dir=directory)['results'][0]['turns'][0]['delivery_verified'])
+
+    def test_mid_turn_checkpoint_blocks_until_recover_checkpoint(self):
+        self.rows += [
+            {'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '',
+             'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'echo ok'}}]},
+            {'step_index': 2, 'type': 'GENERIC', 'content': '2722: Resolving Next.js interference'},
+            {'step_index': 3, 'type': 'CHECKPOINT', 'content': 'Compacted summary omitting 2722'},
+        ]
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'COMPACT-1 / KB-3 violation'):
+            completion.prepare(self.project, 'Response after compaction.', self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+        recovered = completion.recover_checkpoint(self.project, self.cid,
+                                                  platform='antigravity', backend=self.backend)
+        self.assertTrue(recovered['compaction_check']['verified'])
+        self.assertIn('2722: Resolving Next.js interference',
+                      recovered['pre_checkpoint_records'][0]['outputs'][0])
+        prepared = completion.prepare(self.project, 'Response after compaction.', self.cid,
+                                      platform='antigravity', backend=self.backend, watch=False)
+        self.assertTrue(prepared['ready'])
+
+    def test_adhoc_http_fetch_in_shell_blocks_and_collect_http_persists(self):
+        from agent_tools import research
+        self.rows += [
+            {'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '',
+             'tool_calls': [{'id': 'c1', 'name': 'run_command',
+                             'args': {'CommandLine': "python -c \"import urllib.request; urllib.request.urlopen('https://df.tips/tag/google-analytics.json')\""}}]},
+        ]
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'KB-3 / EXEC-1 violation'):
+            completion.prepare(self.project, 'Blocked ad-hoc HTTP.', self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+        fake_html = b'<html><head><title>Resolving Next.js interference</title></head><body><h1>Resolving Next.js interference</h1></body></html>'
+        obs = research.collect_http(
+            self.project, 'https://df.tips/t/2722',
+            fetcher=lambda u, h, t: research.Response(u, 200, 'text/html', fake_html),
+        )
+        self.assertEqual(obs['status'], 200)
+        self.assertTrue((self.project / 'ꘖ/data/http-index.json').is_file())
+
+    def test_external_article_link_requires_kb_grounding_and_matching_observed_title(self):
+        marker = self.project / 'ꘖ/project.json'
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(json.dumps({'job_id': '~123456'}), encoding='utf-8')
+        kb_dir = self.project / 'ꘖ/KB'
+        kb_dir.mkdir(parents=True, exist_ok=True)
+        bad_resp = 'См. [How to set up client-side events for Google Analytics in Google Tag Manager for Magento?](https://df.tips/t/2722).'
+        with self.assertRaisesRegex(ValueError, 'KB-1 / KB-3: External URL in response is missing from ꘖ/KB'):
+            completion.prepare(self.project, bad_resp, self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+        (kb_dir / 'GA4-Audit.md').write_text('Источник: https://df.tips/t/2722\n', encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'VERIFY-1 / KB-3: External article link .* has no saved observation'):
+            completion.prepare(self.project, bad_resp, self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+        ev_dir = kb_dir / 'Evidence'
+        ev_dir.mkdir(parents=True, exist_ok=True)
+        (ev_dir / 'df-tips.json').write_text(json.dumps({
+            'url': 'https://df.tips/tag/google-analytics.json',
+            'topic_list': {'topics': [
+                {'id': 2722, 'title': "Resolving Next.js interference with the Google tag's cross-domain measurement linker",
+                 'slug': 'resolving-next-js-interference'}
+            ]}
+        }), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'VERIFY-1 / LINK-1: Link title .* contradicts saved observation title'):
+            completion.prepare(self.project, bad_resp, self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+        good_resp = "См. [Resolving Next.js interference with the Google tag's cross-domain measurement linker](https://df.tips/t/2722)."
+        prepared = completion.prepare(self.project, good_resp, self.cid,
+                                      platform='antigravity', backend=self.backend, watch=False)
+        self.assertTrue(prepared['ready'])
+
+    def test_unadopted_substantive_followup_in_tracked_project_cannot_bypass_review(self):
+        marker = self.project / 'ꘖ/project.json'
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(json.dumps({'job_id': '~123456'}), encoding='utf-8')
+        state = workflow.load(self.project)
+        state['requests'] = [{'id': 'old-turn-0', 'text': 'Old request'}]
+        state.setdefault('stages', {}).setdefault('finalize', {})['status'] = 'complete'
+        wpath = workflow.state_path(self.project)
+        wpath.parent.mkdir(parents=True, exist_ok=True)
+        wpath.write_text(json.dumps(state), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'REVIEW-3 / REVIEW-4: Adopt current requests'):
+            completion.prepare(self.project, 'Гипотеза H-1: оценка 85%.', self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+
+    def test_excessive_unpersisted_tool_steps_without_subagent_or_kb_write_blocks(self):
+        marker = self.project / 'ꘖ/project.json'
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(json.dumps({'job_id': '~123456'}), encoding='utf-8')
+        for idx in range(1, 43):
+            self.rows.append({'step_index': idx, 'type': 'PLANNER_RESPONSE', 'content': '',
+                              'tool_calls': [{'id': f'c{idx}', 'name': 'read_file', 'args': {'Path': 'README.md'}}]})
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research'):
+            completion.prepare(self.project, 'Simple reply.', self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+        self.rows.append({'step_index': 43, 'type': 'PLANNER_RESPONSE', 'content': '',
+                          'tool_calls': [{'id': 'c43', 'name': 'invoke_subagent', 'args': {'TypeName': 'af-worker'}}]})
+        self.write()
+        prepared = completion.prepare(self.project, 'Simple reply.', self.cid,
+                                      platform='antigravity', backend=self.backend, watch=False)
+        self.assertTrue(prepared['ready'])
 
 
 class CausalBasisTests(unittest.TestCase):

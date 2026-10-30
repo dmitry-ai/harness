@@ -18,7 +18,7 @@ from .runtime import PRIMARY, platform_name, settings
 from .storage import create_bytes, locked, replace_bytes
 
 
-COMMANDS = ('turn-begin', 'answer-prepare', 'journal-sync', 'journal-watch', 'journal-unwatch')
+COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'journal-sync', 'journal-watch', 'journal-unwatch')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'),
          'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'),
          'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
@@ -81,6 +81,332 @@ def _exec5_status(turn):
     return {'verified': not violations, 'violations': violations}
 
 
+def _http_fetch_status(turn):
+    violations = list(turn.get('http_fetch_violations') or [])
+    return {'verified': not violations, 'violations': violations}
+
+
+def _compaction_status(root, key, turn):
+    comp = dict(turn.get('compaction') or {})
+    occurred = bool(comp.get('occurred'))
+    last_cp = comp.get('last_checkpoint_step')
+    pre_steps = list(comp.get('pre_checkpoint_tool_steps') or [])
+    post_rec = list(comp.get('post_checkpoint_recovery_steps') or [])
+    recovered_in_trace = bool(comp.get('recovered_in_trace', True))
+    receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
+    recovered_via_receipt = False
+    if receipt_path.is_file():
+        try:
+            rec_data = _read(receipt_path)
+            cov = rec_data.get('covered_checkpoint_step')
+            if last_cp is None or (isinstance(cov, int) and cov >= last_cp):
+                recovered_via_receipt = True
+        except (OSError, ValueError):
+            pass
+    verified = bool(not occurred or not pre_steps or recovered_in_trace or recovered_via_receipt)
+    return {
+        'verified': verified,
+        'occurred': occurred,
+        'checkpoint_steps': list(comp.get('checkpoint_steps') or []),
+        'last_checkpoint_step': last_cp,
+        'pre_checkpoint_tool_steps': pre_steps,
+        'post_checkpoint_recovery_steps': post_rec,
+        'recovered_in_trace': recovered_in_trace,
+        'recovered_via_receipt': recovered_via_receipt,
+    }
+
+
+DEL_MAX_UNPERSISTED_STEPS = 40
+
+
+def _delegation_status(root, turn):
+    del_info = dict(turn.get('delegation') or {})
+    tool_steps = int(del_info.get('tool_step_count') or 0)
+    sub_steps = int(del_info.get('subagent_step_count') or 0)
+    kb_steps = int(del_info.get('kb_persistence_step_count') or 0)
+    is_upwork_project = (Path(root).resolve() / 'ꘖ/project.json').is_file()
+    unpersisted_bulk = bool(is_upwork_project and tool_steps > DEL_MAX_UNPERSISTED_STEPS and sub_steps == 0 and kb_steps == 0)
+    return {
+        'verified': not unpersisted_bulk,
+        'tool_step_count': tool_steps,
+        'subagent_step_count': sub_steps,
+        'kb_persistence_step_count': kb_steps,
+        'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS,
+    }
+
+
+def _norm_url(url: str) -> str:
+    from urllib.parse import urldefrag
+    return urldefrag(url.strip())[0].rstrip('/')
+
+
+def _discourse_topic_key(url: str):
+    m = re.match(r'^https?://([^/:?#]+)/t/(?:[^/?#]+/)?(\d+)(?:$|[/?#])', url.strip(), re.I)
+    return (m.group(1).lower(), m.group(2)) if m else None
+
+
+def _is_descriptive_title_label(label: str, href: str) -> bool:
+    from urllib.parse import urlsplit
+    text = (label or '').strip()
+    if not text or text.lower().startswith(('http://', 'https://', 'file:')):
+        return False
+    host = (urlsplit(href).hostname or '').lower()
+    if text.lower() in (host, f'www.{host}'):
+        return False
+    words = re.findall(r'[A-Za-zА-Яа-яЁё0-9]{2,}', text)
+    if len(words) < 3 or len(text) < 15:
+        return False
+    return True
+
+
+def _titles_compatible(claimed: str, observed: str) -> bool:
+    c_tokens = [w for w in re.findall(r'[a-zа-яё0-9]+', claimed.lower()) if len(w) >= 3]
+    o_tokens = [w for w in re.findall(r'[a-zа-яё0-9]+', observed.lower()) if len(w) >= 3]
+    if not c_tokens or not o_tokens:
+        return True
+    c_str = ' '.join(c_tokens)
+    o_str = ' '.join(o_tokens)
+    if c_str in o_str or o_str in c_str:
+        return True
+    c_set, o_set = set(c_tokens), set(o_tokens)
+    overlap = len(c_set & o_set) / max(1, len(c_set))
+    return overlap >= 0.6
+
+
+def _ingest_json_observations(parsed, default_host, observed_urls, observed_topics, observed_titles, observed_topic_titles):
+    from urllib.parse import urlsplit
+    if not isinstance(parsed, dict):
+        return
+    if isinstance(parsed.get('title'), str) and parsed['title'].strip():
+        t = ' '.join(parsed['title'].split())
+        u = parsed.get('url')
+        if isinstance(u, str) and u.startswith(('http://', 'https://')):
+            nu = _norm_url(u)
+            observed_urls.add(nu)
+            observed_titles.setdefault(nu, t)
+        if default_host and isinstance(parsed.get('id'), int):
+            tk = (default_host.lower(), str(parsed['id']))
+            observed_topics.add(tk)
+            observed_topic_titles.setdefault(tk, t)
+    topics = []
+    if isinstance(parsed.get('topic_list'), dict) and isinstance(parsed['topic_list'].get('topics'), list):
+        topics.extend(parsed['topic_list']['topics'])
+    if isinstance(parsed.get('topics'), list):
+        topics.extend(parsed['topics'])
+    for topic in topics:
+        if not isinstance(topic, dict) or not isinstance(topic.get('id'), int) or not isinstance(topic.get('title'), str):
+            continue
+        t = ' '.join(topic['title'].split())
+        tid = str(topic['id'])
+        host = default_host
+        u = topic.get('url')
+        if isinstance(u, str) and u.startswith(('http://', 'https://')):
+            nu = _norm_url(u)
+            observed_urls.add(nu)
+            observed_titles.setdefault(nu, t)
+            host = host or (urlsplit(nu).hostname or '')
+        if host:
+            tk = (host.lower(), tid)
+            observed_topics.add(tk)
+            observed_topic_titles.setdefault(tk, t)
+            short_u = f'https://{host.lower()}/t/{tid}'
+            observed_urls.add(short_u)
+            observed_titles.setdefault(short_u, t)
+            slug = topic.get('slug')
+            if isinstance(slug, str) and slug:
+                slug_u = f'https://{host.lower()}/t/{slug}/{tid}'
+                observed_urls.add(slug_u)
+                observed_titles.setdefault(slug_u, t)
+
+
+def response_source_and_kb_issues(root: Path, response: str, requests: list[dict]) -> list[str]:
+    """Validate LINK-5 readability, external article title accuracy against saved Evidence, and KB-1/KB-3 URL grounding."""
+    from urllib.parse import urlsplit
+    from markdown_it import MarkdownIt
+    from .links import readable_link_issues, _bare_urls
+    root = Path(root).resolve()
+    errors = list(readable_link_issues(response))
+    parser = MarkdownIt('commonmark', {'html': True})
+    parser.normalizeLink = lambda value: value
+    parser.validateLink = lambda value: True
+    authored_links = []
+    authored_urls = []
+    quote_depth = 0
+    for block in parser.parse(response):
+        if block.type == 'blockquote_open':
+            quote_depth += 1
+        elif block.type == 'blockquote_close':
+            quote_depth -= 1
+        if quote_depth or block.type in ('fence', 'code_block'):
+            continue
+        children = block.children or []
+        idx = 0
+        while idx < len(children):
+            token = children[idx]
+            if token.type == 'link_open':
+                href = token.attrGet('href') or ''
+                label_parts = []
+                idx += 1
+                depth = 1
+                while idx < len(children) and depth > 0:
+                    inner = children[idx]
+                    if inner.type == 'link_open':
+                        depth += 1
+                    elif inner.type == 'link_close':
+                        depth -= 1
+                    elif depth > 0 and inner.type in ('text', 'code_inline'):
+                        label_parts.append(inner.content)
+                    idx += 1
+                label = ' '.join(''.join(label_parts).split())
+                if href.startswith(('http://', 'https://')):
+                    authored_links.append((label, href))
+                    authored_urls.append(href)
+                continue
+            elif token.type == 'text':
+                for u in _bare_urls(token.content):
+                    if u.startswith(('http://', 'https://')):
+                        authored_urls.append(u)
+            idx += 1
+    if not authored_urls:
+        return errors
+
+    observed_urls = set()
+    observed_topics = set()
+    observed_titles = {}
+    observed_topic_titles = {}
+    ev_dir = root / 'ꘖ/KB/Evidence'
+    if ev_dir.is_dir():
+        for jfile in ev_dir.rglob('*.json'):
+            try:
+                if jfile.stat().st_size > 4 * 1024 * 1024:
+                    continue
+                data = json.loads(jfile.read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                continue
+            if jfile.name == 'observation.json' and isinstance(data, dict):
+                urls_here = [u for u in (data.get('url'), data.get('final_url')) if isinstance(u, str) and u.startswith(('http://', 'https://'))]
+                host = (urlsplit(urls_here[0]).hostname or '').lower() if urls_here else ''
+                for u in urls_here:
+                    nu = _norm_url(u)
+                    observed_urls.add(nu)
+                    tk = _discourse_topic_key(nu)
+                    if tk:
+                        observed_topics.add(tk)
+                for ext_file in jfile.parent.glob('extracted-*.json'):
+                    try:
+                        ext = json.loads(ext_file.read_text(encoding='utf-8'))
+                    except (OSError, ValueError):
+                        continue
+                    t = (ext.get('title') or '').strip() if isinstance(ext, dict) else ''
+                    if not t and isinstance(ext, dict) and isinstance(ext.get('headings'), list):
+                        h1s = [h.get('text', '').strip() for h in ext['headings'] if isinstance(h, dict) and h.get('level') == 1 and h.get('text')]
+                        if h1s:
+                            t = h1s[0]
+                    if t:
+                        for u in urls_here:
+                            nu = _norm_url(u)
+                            observed_titles.setdefault(nu, t)
+                            tk = _discourse_topic_key(nu)
+                            if tk:
+                                observed_topic_titles.setdefault(tk, t)
+                resp_bin = jfile.parent / 'response.bin'
+                if resp_bin.is_file():
+                    try:
+                        if resp_bin.stat().st_size <= 2 * 1024 * 1024:
+                            raw_text = resp_bin.read_bytes().decode(data.get('charset') or 'utf-8', errors='replace')
+                            ctype = (data.get('content_type') or '').lower()
+                            if 'html' in ctype or '<title' in raw_text[:4000].lower():
+                                m_t = re.search(r'<title[^>]*>(.*?)</title>', raw_text[:16000], re.I | re.S)
+                                if m_t:
+                                    t = ' '.join(m_t.group(1).split())
+                                    if t:
+                                        for u in urls_here:
+                                            nu = _norm_url(u)
+                                            observed_titles.setdefault(nu, t)
+                                            tk = _discourse_topic_key(nu)
+                                            if tk:
+                                                observed_topic_titles.setdefault(tk, t)
+                            if 'json' in ctype or raw_text.lstrip().startswith('{'):
+                                _ingest_json_observations(json.loads(raw_text), host, observed_urls, observed_topics, observed_titles, observed_topic_titles)
+                    except (OSError, ValueError):
+                        pass
+            elif isinstance(data, dict):
+                src_u = data.get('url') or data.get('source') or ''
+                host = (urlsplit(src_u).hostname or '').lower() if isinstance(src_u, str) and src_u.startswith(('http://', 'https://')) else ''
+                _ingest_json_observations(data, host, observed_urls, observed_topics, observed_titles, observed_topic_titles)
+
+    # Check title consistency against saved observations (Способ 3)
+    for label, href in authored_links:
+        if not _is_descriptive_title_label(label, href):
+            continue
+        nu = _norm_url(href)
+        tk = _discourse_topic_key(nu)
+        obs_title = observed_titles.get(nu) or (observed_topic_titles.get(tk) if tk else None)
+        if obs_title and not _titles_compatible(label, obs_title):
+            errors.append(f'VERIFY-1 / LINK-1: Link title "{label}" for {href} contradicts saved observation title "{obs_title}"')
+
+    # Check KB-1 / KB-3 URL grounding & Evidence presence in Upwork projects (Способ 3 & Способ 6)
+    is_upwork_project = (root / 'ꘖ/project.json').is_file() and (root / 'ꘖ/KB').is_dir()
+    if is_upwork_project:
+        kb_urls = set()
+        kb_topics = set()
+        client_urls = set()
+        for req in requests or []:
+            for u in _bare_urls(req.get('text', '') if isinstance(req, dict) else str(req)):
+                nu = _norm_url(u)
+                kb_urls.add(nu)
+                client_urls.add(nu)
+        for pfile in (root / 'ꘖ/project.json', root / 'KB/Project.md', root / 'ꘖ/KB/Project.md'):
+            if pfile.is_file():
+                try:
+                    txt = pfile.read_text(encoding='utf-8')
+                    for u in _bare_urls(txt):
+                        nu = _norm_url(u)
+                        kb_urls.add(nu)
+                        client_urls.add(nu)
+                except OSError:
+                    pass
+        for kb_file in list((root / 'ꘖ/KB').rglob('*.md')) + (list((root / 'KB').rglob('*.md')) if (root / 'KB').is_dir() else []):
+            try:
+                txt = kb_file.read_text(encoding='utf-8')
+            except OSError:
+                continue
+            for u in _bare_urls(txt):
+                nu = _norm_url(u)
+                kb_urls.add(nu)
+                tk = _discourse_topic_key(nu)
+                if tk:
+                    kb_topics.add(tk)
+        analysis_file = root / 'ꘖ/KB/Analysis.json'
+        if analysis_file.is_file():
+            try:
+                txt = analysis_file.read_text(encoding='utf-8')
+                for u in _bare_urls(txt):
+                    nu = _norm_url(u)
+                    kb_urls.add(nu)
+                    tk = _discourse_topic_key(nu)
+                    if tk:
+                        kb_topics.add(tk)
+            except OSError:
+                pass
+        for u in dict.fromkeys(authored_urls):
+            nu = _norm_url(u)
+            tk = _discourse_topic_key(nu)
+            if nu not in kb_urls and (not tk or tk not in kb_topics):
+                errors.append(f'KB-1 / KB-3: External URL in response is missing from ꘖ/KB modules/Analysis.json (record verified sources in ꘖ/KB before answer-prepare): {u}')
+        for label, href in authored_links:
+            if not _is_descriptive_title_label(label, href):
+                continue
+            nu = _norm_url(href)
+            tk = _discourse_topic_key(nu)
+            if nu in client_urls:
+                continue
+            if nu not in observed_urls and (not tk or tk not in observed_topics):
+                errors.append(f'VERIFY-1 / KB-3: External article link [{label}]({href}) has no saved observation in ꘖ/KB/Evidence/HTTP or ꘖ/KB/Evidence')
+    return errors
+
+
+
 def _instruction_snapshot(root, native, *, stage):
     """Inventory configured sources without claiming they reached the model."""
     from .configuration import _project_rule_paths
@@ -117,13 +443,17 @@ def _instruction_snapshot(root, native, *, stage):
 
 
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
-    return {'schema_version': 1, 'key': _key(native, turn), 'project_root': str(Path(root).resolve()),
+    key = _key(native, turn)
+    return {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()),
             'platform': native['platform'], 'native_backend': native['native_backend'],
             'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'],
             'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary',
             'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(),
             'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'),
             'exec5_check': _exec5_status(turn),
+            'http_fetch_check': _http_fetch_status(turn),
+            'compaction_check': _compaction_status(root, key, turn),
+            'delegation_check': _delegation_status(root, turn),
             'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'),
             'format_independent': True, 'rule_comprehension_verified': False,
             'required_completion': ['answer-prepare', 'native-delivery-check'],
@@ -132,13 +462,17 @@ def _new(root, native, turn, *, recovered=False, journal_directory=None):
 
 
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
-    path = _folder(root) / (_key(native, turn) + '.json')
+    key = _key(native, turn)
+    path = _folder(root) / (key + '.json')
     value = _read(path) if path.exists() else _new(root, native, turn, recovered=recovered, journal_directory=journal_directory)
     if 'instruction_snapshot' not in value:
         value['instruction_snapshot'] = _instruction_snapshot(root, native, stage='existing-state-upgrade')
     value['applicable_rules'] = _policy()
     value['git_optional_locks_env'] = os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
     value['exec5_check'] = _exec5_status(turn)
+    value['http_fetch_check'] = _http_fetch_status(turn)
+    value['compaction_check'] = _compaction_status(root, key, turn)
+    value['delegation_check'] = _delegation_status(root, turn)
     saved_directory = _directory(root, value['journal'])
     if strict_journal and journal_directory is not None and saved_directory != _directory(root, journal_directory):
         raise ValueError('The native turn already has a different journal; preserve its original binding')
@@ -189,6 +523,9 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=True, w
               'applicable_rules': value['applicable_rules'],
               'git_optional_locks_env': value['git_optional_locks_env'],
               'exec5_check': value['exec5_check'],
+              'http_fetch_check': value['http_fetch_check'],
+              'compaction_check': value['compaction_check'],
+              'delegation_check': value['delegation_check'],
               'rule_comprehension_verified': False,
               'required_completion': value['required_completion']}
     if watch:
@@ -196,6 +533,35 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=True, w
         register(root, native, turn['start_step'], state_dir=watch_dir, journal_directory=value['journal'])
         result['watcher'] = start(state_dir=watch_dir)
     return result
+
+
+def recover_checkpoint(root, conversation=None, *, platform=None, backend=None):
+    """Restore pre-compaction tool invocations and outputs from the native trace into a persistent receipt."""
+    root = Path(root).resolve()
+    native = _native(root, conversation, platform=platform, backend=backend)
+    turn = _active(native)
+    if turn is None:
+        raise ValueError('No active primary native turn to recover')
+    key = _key(native, turn)
+    comp = dict(turn.get('compaction') or {})
+    receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
+    receipt = {
+        'turn_key': key,
+        'recovered_at': _now(),
+        'covered_checkpoint_step': comp.get('last_checkpoint_step'),
+        'checkpoint_steps': list(comp.get('checkpoint_steps') or []),
+        'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []),
+        'pre_checkpoint_records': list(comp.get('pre_checkpoint_records') or []),
+    }
+    with locked(_folder(root) / 'writer.lock'):
+        replace_bytes(receipt_path, _json(receipt))
+        path, value = _state(root, native, turn)
+        _persist(path, value)
+    return {
+        **receipt,
+        'recovery_file': receipt_path.relative_to(root).as_posix(),
+        'compaction_check': value['compaction_check'],
+    }
 
 
 def _group(root, native, turn, response, directory):
@@ -290,6 +656,29 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
             value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
             _persist(path, value)
             raise ValueError(detail)
+        if not value['http_fetch_check']['verified']:
+            commands = [cmd for item in value['http_fetch_check']['violations'] for cmd in item.get('commands', [])]
+            detail = 'KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection; use collect or collect-http): ' + '; '.join(commands)
+            value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+            _persist(path, value)
+            raise ValueError(detail)
+        if not value['compaction_check']['verified']:
+            detail = 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
+            value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+            _persist(path, value)
+            raise ValueError(detail)
+        if not value['delegation_check']['verified']:
+            detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research ({value['delegation_check']['tool_step_count']} tool steps > {value['delegation_check']['max_unpersisted_steps']}) executed without A.F/A.A subagent delegation or incremental ꘖ/KB persistence"
+            value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+            _persist(path, value)
+            raise ValueError(detail)
+        source_issues = response_source_and_kb_issues(root, response, turn['requests'])
+        value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
+        if source_issues:
+            detail = '; '.join(source_issues)
+            value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+            _persist(path, value)
+            raise ValueError(detail)
         sha = _hash(response.encode('utf-8'))
         if value['prepared'] and value['prepared']['response_sha256'] != sha:
             raise ValueError('Prepared response bytes are immutable; preserve the earlier version and reconcile before a corrective turn')
@@ -316,6 +705,14 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
                     record_current_answer(root, response, journal_directory=value['journal'])
                 elif any(r['response_prepared']['sha256'] != sha for r in state['requests'] if r['id'] in identifiers):
                     raise ValueError('Tracked analysis requests already have different prepared response bytes')
+            elif (root / 'ꘖ/project.json').is_file() and (
+                    state.get('stages', {}).get('finalize', {}).get('status') != 'complete'
+                    or value['delegation_check'].get('kb_persistence_step_count', 0) > 0
+                    or bool(re.search(r'https?://|\b(?:H|M)-\d+\b|\b\d{1,3}%', response))):
+                detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
+                value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+                _persist(path, value)
+                raise ValueError(detail)
         value['prepared'] = _record(root, native, turn, response, value['journal'], existing=_recorded(value))
         try:
             _unchanged(root, native, turn)
@@ -417,7 +814,7 @@ def add_parser_arguments(parser, command):
         return
     parser.add_argument('project', type=Path)
     parser.add_argument('--conversation', help='Actual current native conversation UUID; Codex can use CODEX_THREAD_ID')
-    if command != 'journal-unwatch':
+    if command not in ('journal-unwatch', 'recover-checkpoint'):
         parser.add_argument('--journal', type=Path, help='User-selected journal; otherwise preserve the turn binding or use ꙮ/1 - Анализ')
     if command in ('turn-begin', 'answer-prepare'):
         parser.add_argument('--no-watch', action='store_true', help='Explicit foreground-only mode; no independent recovery')
@@ -431,6 +828,8 @@ def add_parser_arguments(parser, command):
 def execute(args):
     if args.command == 'turn-begin':
         return begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal)
+    if args.command == 'recover-checkpoint':
+        return recover_checkpoint(args.project, args.conversation)
     if args.command == 'answer-prepare':
         from .operations import _operation_input, _consumed
         payload = _operation_input(args, args.response_file)

@@ -121,6 +121,34 @@ def unflagged_git_read_commands(text: str) -> list[str]:
     return violations
 
 
+_EXTERNAL_URL_RE = re.compile(
+    r'https?://(?!(?:localhost|127\.0\.0\.1|\[::1\])\b)[A-Za-z0-9.-]+',
+    re.I,
+)
+_ADHOC_HTTP_CLIENT_RE = re.compile(
+    r'(?:\burllib\.request\b|\burlopen\s*\(|\brequests\.(?:get|post|head|request|Session)\b'
+    r'|\bhttpx\.(?:get|post|Client)\b|\bInvoke-(?:WebRequest|RestMethod)\b'
+    r'|\b(?:iwr|irm|curl(?:\.exe)?|wget(?:\.exe)?)\s+)',
+    re.I,
+)
+_SANCTIONED_HTTP_RUNNER_RE = re.compile(
+    r'(?:upwork_project\.py|validate_links\.py|df_github_issue\.py|\bunittest\b|\bpytest\b)',
+    re.I,
+)
+
+
+def unpersisted_http_fetch_commands(text: str) -> list[str]:
+    """Detect ad-hoc external HTTP(S) fetches in shell/Python one-liners that bypass Evidence storage."""
+    if not isinstance(text, str) or not text.strip():
+        return []
+    if _SANCTIONED_HTTP_RUNNER_RE.search(text):
+        return []
+    if _EXTERNAL_URL_RE.search(text) and _ADHOC_HTTP_CLIENT_RE.search(text):
+        return [' '.join(text.strip().split())[:240]]
+    return []
+
+
+
 def check_commit(root: Path, paths: list[str]) -> list[str]:
     root = Path(root).resolve(strict=True)
     actual = Path(git(root, 'rev-parse', '--show-toplevel').decode('utf-8').strip()).resolve()
