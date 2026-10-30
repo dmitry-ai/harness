@@ -199,16 +199,24 @@ def record_answer(directory, requests, response, turn, request_ids=None):
     return group['steps']
 
 
-def answer_groups(directory):
+def answer_groups(directory, *, request_ids=None):
     """Read grouped-answer provenance; pending groups block external export."""
     directory = Path(directory).resolve()
+    filter_ids = set(request_ids) if request_ids is not None else None
     groups = []
     for path in sorted((state_dir(directory) / 'answer-groups').glob('*.json')):
         group = json.loads(path.read_text(encoding='utf-8'))
+        if filter_ids is not None and not (set(group.get('request_ids') or []) & filter_ids):
+            continue
         if group.get('journal') != str(directory) or group.get('status') != 'complete':
             raise ValueError('Incomplete or mismatched answer group; recover it before context export')
         for step, request in zip(group['steps'], group['requests']):
-            if (directory / 'req' / f'{step}.md').read_bytes() != request.encode() or digest((directory / 'res' / f'{step}.md').read_bytes()) != group['response_sha256']:
+            req_path = directory / 'req' / f'{step}.md'
+            res_path = directory / 'res' / f'{step}.md'
+            if not req_path.is_file() or not res_path.is_file() or req_path.read_bytes() != request.encode() or digest(res_path.read_bytes()) != group['response_sha256']:
+                if filter_ids is not None:
+                    break
                 raise ValueError('Answer group source bytes changed; preserve context')
-        groups.append(group)
+        else:
+            groups.append(group)
     return groups

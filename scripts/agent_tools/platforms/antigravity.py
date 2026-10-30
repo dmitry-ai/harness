@@ -645,8 +645,9 @@ def native_answers(root, conversation_id, *, backend=None):
                     if name in ('invoke_subagent', 'send_message'):
                         if step_idx not in subagent_steps:
                             subagent_steps.append(step_idx)
+                    target_path = str((args.get('Path') or args.get('TargetFile') or args.get('path') or '') if isinstance(args, dict) else '')
                     if ((name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content')
-                            and any(tok in args_text for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB')))
+                            and any(tok in target_path for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB')))
                             or (name == 'run_command' and re.search(r'\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\b', args_text))):
                         if step_idx not in kb_persistence_steps:
                             kb_persistence_steps.append(step_idx)
@@ -654,8 +655,12 @@ def native_answers(root, conversation_id, *, backend=None):
         final_step = last.get('step_index')
         final = last.get('type') == 'PLANNER_RESPONSE' and not last.get('tool_calls') and bool(last.get('content', '').strip())
         final = final and statuses.get(final_step) == (15, 3)
+        last_user_idx = summary.get('last_user_input_step_index')
+        last_db_user = max((idx for idx, (stype, _) in statuses.items() if stype == 14), default=start)
         idle = (summary.get('status') == 'CASCADE_RUN_STATUS_IDLE' and summary.get('not_fully_idle') == 0
-                and not summary.get('killed') and summary.get('last_user_input_step_index') == start
+                and not summary.get('killed')
+                and (last_user_idx == start or (start == 0 and last_user_idx == -1))
+                and last_db_user == start
                 and final_step == max(statuses, default=-1))
         req_id = f'{conversation_id}-{start}'
         j_entry = journal_groups.get(req_id)

@@ -28,7 +28,13 @@ def _folder(state_dir=None):
 
 
 def _read(path, default=None):
-    return json.loads(path.read_text(encoding='utf-8')) if path.exists() else default
+    for attempt in range(10):
+        try:
+            return json.loads(path.read_text(encoding='utf-8')) if path.exists() else default
+        except PermissionError:
+            if attempt == 9:
+                raise
+            time.sleep(0.025)
 
 
 def _save(path, value):
@@ -100,11 +106,18 @@ def start(*, state_dir=None):
                 '--action', 'run', '--state-dir', str(directory), '--token', token]
         options = {'cwd': str(PRIMARY.parent.parent), 'stdin': subprocess.DEVNULL}
         if os.name == 'nt':
-            options['creationflags'] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+            base_flags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+            options['creationflags'] = base_flags | getattr(subprocess, 'CREATE_BREAKAWAY_FROM_JOB', 0)
         else:
             options['start_new_session'] = True
         with (directory / 'daemon.log').open('ab') as output:
-            process = subprocess.Popen(args, stdout=output, stderr=output, **options)
+            try:
+                process = subprocess.Popen(args, stdout=output, stderr=output, **options)
+            except OSError:
+                if os.name != 'nt':
+                    raise
+                options['creationflags'] = base_flags
+                process = subprocess.Popen(args, stdout=output, stderr=output, **options)
         # Reap owned helpers when this caller stays alive (tests/library users).
         # The CLI may exit immediately; the daemon does not depend on this thread.
         Thread(target=process.wait, daemon=True).start()

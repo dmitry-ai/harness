@@ -201,7 +201,9 @@ def native_answers(root, conversation_id, *, backend=None):
             if name.endswith(('spawn_agent', 'send_input')) or 'spawn_agent' in raw_cmd:
                 if index not in current['subagent_steps']:
                     current['subagent_steps'].append(index)
-            if (any(tok in raw_cmd for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB'))
+            patch_targets = '\n'.join(re.findall(r'^\*\*\* (?:Add|Update|Delete) File:\s*(.+)$', raw_cmd, flags=re.M)) if 'apply_patch' in name else ''
+            kb_target_text = patch_targets if 'apply_patch' in name else ('' if 'answer-prepare' in raw_cmd else raw_cmd)
+            if (any(tok in kb_target_text for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB'))
                     or re.search(r'\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\b', raw_cmd)):
                 if index not in current['kb_persistence_steps']:
                     current['kb_persistence_steps'].append(index)

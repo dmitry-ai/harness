@@ -254,8 +254,9 @@ def adopt_requests(root, conversation_id):
     from .metrics import native_requests
     from .journal import answer_groups
     requests = native_requests(root, conversation_id)
+    req_ids = {x['id'] for x in requests}
     saved_answers = {}
-    for group in answer_groups(Path(root) / 'ꙮ/1 - Анализ'):
+    for group in answer_groups(Path(root) / 'ꙮ/1 - Анализ', request_ids=req_ids):
         for ident in group.get('request_ids') or []:
             saved_answers[ident] = {'turn': group['turn'], 'steps': group['steps'], 'sha256': group['response_sha256']}
     def change(state):
@@ -306,10 +307,10 @@ def doc4_sentence_issues(text):
     return issues
 
 
-def record_current_answer(root, response, *, journal_directory=None):
+def record_current_answer(root, response, *, journal_directory=None, request_ids=None):
     from .journal import record_answer
     from .links import readable_link_issues
-    issues = readable_link_issues(response)
+    issues = readable_link_issues(response, allow_unencoded_file_uri=True)
     if issues:
         raise ValueError('\n'.join(issues))
     analysis_path = Path(root).resolve() / 'ꘖ/KB/Analysis.json'
@@ -323,7 +324,8 @@ def record_current_answer(root, response, *, journal_directory=None):
     state = load(root)
     from .review import authorize
     approval = authorize(root, state, response=response)
-    unanswered = [x for x in state['requests'] if not x.get('response_prepared')]
+    filter_ids = set(request_ids) if request_ids is not None else None
+    unanswered = [x for x in state['requests'] if not x.get('response_prepared') and (filter_ids is None or x['id'] in filter_ids)]
     from .text_workflow import gate_requests
     gate_requests([root], [x['text'] for x in unanswered], response)
     if not unanswered:

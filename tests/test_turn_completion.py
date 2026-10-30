@@ -720,8 +720,8 @@ class AntigravityCompletionTests(unittest.TestCase):
     def write(self):
         self.path.write_text(''.join(json.dumps(row) + '\n' for row in self.rows), encoding='utf-8')
 
-    def finish(self, *, idle=True, partial=False):
-        self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': 'Final ꘖ'}]
+    def finish(self, content='Final ꘖ', *, idle=True, partial=False):
+        self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': content}]
         c = sqlite3.connect(self.backend / 'conversations' / (self.cid + '.db'))
         c.execute('INSERT INTO steps VALUES(1,15,?,0,NULL)', (1 if partial else 3,))
         c.commit(); c.close()
@@ -845,6 +845,60 @@ class AntigravityCompletionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'REVIEW-3 / REVIEW-4: Adopt current requests'):
             completion.prepare(self.project, 'Гипотеза H-1: оценка 85%.', self.cid,
                                platform='antigravity', backend=self.backend, watch=False)
+        prepared_ordinary = completion.prepare(
+            self.project, 'Обычный ответ после завершения анализа (90.77%) с упоминанием ꘖ/KB.', self.cid,
+            platform='antigravity', backend=self.backend, watch=False)
+        self.assertTrue(prepared_ordinary['ready'])
+
+    def test_kb_persistence_checks_target_path_not_scratch_content(self):
+        self.rows.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '',
+                          'tool_calls': [{'id': 'c1', 'name': 'write_file',
+                                          'args': {'Path': 'ꘖ/data/scratch/answer.md', 'Content': 'Упоминает ꘖ/KB и ꘖ\\KB.'}}]})
+        self.write()
+        res1 = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
+        self.assertEqual(res1['delegation_check']['kb_persistence_step_count'], 0)
+        self.rows.append({'step_index': 2, 'type': 'PLANNER_RESPONSE', 'content': '',
+                          'tool_calls': [{'id': 'c2', 'name': 'write_file',
+                                          'args': {'Path': 'ꘖ/KB/Module.md', 'Content': 'New KB content'}}]})
+        self.write()
+        res2 = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
+        self.assertEqual(res2['delegation_check']['kb_persistence_step_count'], 1)
+
+    def test_adopt_requests_isolates_foreign_answer_group_mismatch(self):
+        jdir = self.project / 'ꙮ/1 - Анализ'
+        (jdir / 'req').mkdir(parents=True, exist_ok=True)
+        (jdir / 'res').mkdir(parents=True, exist_ok=True)
+        (jdir / 'req/99.md').write_text('Edited foreign req', encoding='utf-8')
+        (jdir / 'res/99.md').write_text('Foreign res', encoding='utf-8')
+        gdir = journal.state_dir(jdir) / 'answer-groups'
+        gdir.mkdir(parents=True, exist_ok=True)
+        (gdir / 'native-foreign.json').write_text(json.dumps({
+            'turn': 'native-foreign', 'journal': str(jdir.resolve()), 'status': 'complete',
+            'steps': [99], 'requests': ['Original foreign req'], 'request_ids': ['foreign-cid-0'],
+            'response_sha256': '00' * 32
+        }), encoding='utf-8')
+        self.assertEqual(journal.answer_groups(jdir, request_ids={f'{self.cid}-0'}), [])
+
+    def test_unencoded_file_uri_accepted_in_prepare_and_reconciled_in_sync(self):
+        with self.assertRaisesRegex(ValueError, 'LINK-5'):
+            completion.prepare(self.project, 'См. [Файл](file:///C:/work/with%20space.md).', self.cid,
+                               platform='antigravity', backend=self.backend, watch=False)
+        prepared = completion.prepare(self.project, 'См. [Файл](C:/work/test.md).', self.cid,
+                                      platform='antigravity', backend=self.backend, watch=False)
+        self.assertTrue(prepared['ready'])
+        self.finish('См. [Файл](file:///C:/work/test.md).')
+        synced = self.sync()['turns'][0]
+        self.assertEqual(synced['status'], 'delivered')
+        self.assertTrue(synced['delivery_verified'])
+
+    def test_single_turn_conversation_with_minus_one_last_user_index_syncs(self):
+        c = sqlite3.connect(self.backend / 'conversation_summaries.db')
+        c.execute('UPDATE conversation_summaries SET last_user_input_step_index=-1')
+        c.commit(); c.close()
+        self.finish('Single turn reply.')
+        synced = self.sync()['turns'][0]
+        self.assertEqual(synced['status'], 'delivered')
+        self.assertTrue(synced['delivery_verified'])
 
     def test_excessive_unpersisted_tool_steps_without_subagent_or_kb_write_blocks(self):
         marker = self.project / 'ꘖ/project.json'

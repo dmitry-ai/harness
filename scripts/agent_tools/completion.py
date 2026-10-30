@@ -225,7 +225,7 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
     from markdown_it import MarkdownIt
     from .links import readable_link_issues, _bare_urls
     root = Path(root).resolve()
-    errors = list(readable_link_issues(response))
+    errors = list(readable_link_issues(response, allow_unencoded_file_uri=True))
     parser = MarkdownIt('commonmark', {'html': True})
     parser.normalizeLink = lambda value: value
     parser.validateLink = lambda value: True
@@ -532,6 +532,13 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=True, w
         from .journal_watch import register, start
         register(root, native, turn['start_step'], state_dir=watch_dir, journal_directory=value['journal'])
         result['watcher'] = start(state_dir=watch_dir)
+        if any(t.get('owned') and t.get('completed') and not t.get('aborted') and t.get('start_step', 0) < turn['start_step']
+               for t in native.get('turns', [])):
+            try:
+                sync(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'],
+                     journal_directory=value['journal'])
+            except Exception:
+                pass
     return result
 
 
@@ -695,20 +702,21 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
                     raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
                 from .review import authorize
                 authorize(root, state, response=response)
-                pending = {r['id'] for r in state['requests'] if not r.get('response_prepared')}
+                pending = {r['id'] for r in state['requests'] if not r.get('response_prepared')
+                           and (r.get('native_conversation_id') in (None, native['conversation_id']) or r['id'] in identifiers)}
                 if pending:
                     if pending != identifiers:
                         raise ValueError('Align unanswered tracked requests with the exact current native turn before preparation')
                     # Keep the analysis finalizer's answer-bound approval and
                     # response_prepared receipts; _record reuses this ID group.
                     from .workflow import record_current_answer
-                    record_current_answer(root, response, journal_directory=value['journal'])
+                    record_current_answer(root, response, journal_directory=value['journal'], request_ids=identifiers)
                 elif any(r['response_prepared']['sha256'] != sha for r in state['requests'] if r['id'] in identifiers):
                     raise ValueError('Tracked analysis requests already have different prepared response bytes')
-            elif (root / 'ꘖ/project.json').is_file() and (
+            elif (root / 'ꘖ/project.json').is_file() and not any(re.search(r'(?:^|\s)/df-(?:article|proposal)\b', r.get('text', '')) for r in turn['requests']) and (
                     state.get('stages', {}).get('finalize', {}).get('status') != 'complete'
-                    or value['delegation_check'].get('kb_persistence_step_count', 0) > 0
-                    or bool(re.search(r'https?://|\b(?:H|M)-\d+\b|\b\d{1,3}%', response))):
+                    or (bool(re.search(r'\b(?:H|M)-\d+\b', response))
+                        and value['delegation_check'].get('subagent_step_count', 0) == 0)):
                 detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
                 value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
                 _persist(path, value)
@@ -748,6 +756,10 @@ def _conflict(root, path, value, native, turn, response, detail, *, retryable=Fa
             'evidence': evidence.relative_to(root).as_posix(), 'retryable': retryable}
 
 
+def _strip_local_file_scheme(text: str) -> str:
+    return re.sub(r'file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')
+
+
 def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None):
     """Import only observed completed public answers, or verify prepared ones."""
     if type(from_step) is not int or from_step < 0:
@@ -772,11 +784,17 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
             if value.get('uncovered_requests'):
                 results.append(_conflict(root, path, value, native, turn, response, 'Prepared answer does not cover newly received native requests'))
                 continue
+            effective_response = response
             if value['prepared'] and value['prepared']['response_sha256'] != sha:
-                results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
-                continue
+                prep_file = Path(value['prepared'].get('response_file') or '')
+                prep_text = prep_file.read_text(encoding='utf-8') if prep_file.is_file() else ''
+                if prep_text and _strip_local_file_scheme(prep_text) == _strip_local_file_scheme(response):
+                    effective_response = prep_text
+                else:
+                    results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
+                    continue
             try:
-                recorded = _record(root, native, turn, response, value['journal'], existing=_recorded(value))
+                recorded = _record(root, native, turn, effective_response, value['journal'], existing=_recorded(value))
             except (OSError, ValueError) as exc:
                 results.append(_conflict(root, path, value, native, turn, response, str(exc),
                                          retryable=isinstance(exc, OSError) and not isinstance(exc, FileNotFoundError)))

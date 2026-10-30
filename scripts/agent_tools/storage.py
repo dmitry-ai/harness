@@ -87,6 +87,13 @@ def replace_bytes(path: Path, data: bytes):
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temp, path)
+        for attempt in range(10):
+            try:
+                os.replace(temp, path)
+                break
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.025)
     finally:
         temp.unlink(missing_ok=True)

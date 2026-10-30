@@ -55,7 +55,7 @@ def markdown_link(label: str | None, target: str | Path) -> str:
     return f'[{text}]({destination})'
 
 
-def readable_link_issues(content: str) -> list[str]:
+def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool = False) -> list[str]:
     """Inspect original authored references, not a renderer's encoded href output."""
     from markdown_it import MarkdownIt
     parser = MarkdownIt('commonmark', {'html': True})
@@ -83,6 +83,10 @@ def readable_link_issues(content: str) -> list[str]:
                 targets.extend(_document_urls(token.content))
     errors = []
     for target in dict.fromkeys(targets + html.links):
+        if allow_unencoded_file_uri and target.lower().startswith('file:///') and '%' not in target:
+            target_check = re.sub(r'^file:///+(?=[A-Za-z]:/)', '', target, flags=re.IGNORECASE)
+            if readable_reference(target_check) == target_check:
+                continue
         readable = readable_reference(target)
         if target != readable:
             errors.append(f'LINK-5: Use a readable document link: {readable} (instead of {target})')
