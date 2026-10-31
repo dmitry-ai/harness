@@ -1,75 +1,109 @@
-# Общая процедура клиентского текста
+# Shared Client Text Procedure
 
-Эта процедура общая для `/df-article`, `/df-proposal` и письма. Форму задаёт соответствующий навык; отдельный анализ из пяти этапов и предварительная статья для proposal не требуются.
-Инструмент `python <agents>/scripts/df_text.py` выполняет общие операции; `df_article.py` и `df_proposal.py` используют тот же CLI с выбранным форматом.
-Схемы и команды — в [operations.md](operations.md), содержательная проверка — в [review.md](review.md), признаки стиля — в [slop.md](slop.md).
-Общий [контракт хода](../turn-completion.md#начало-хода) действует и без клиентского документа; текстовая операция `begin` уточняет границы документа и не заменяет `turn-begin`.
+This procedure is shared across `/df-article`, `/df-proposal`, and client letters.  
+The respective skill defines document form; a separate five-stage analysis or prior article is not required to write a proposal.  
+`python <agents>/scripts/df_text.py` executes shared operations; `df_article.py` and `df_proposal.py` invoke the same CLI with their format preset.  
+Schemas and commands are in [operations.md](operations.md), substantive review rules in [review.md](review.md), and style diagnostics in [slop.md](slop.md).  
+The shared [turn completion contract](../turn-completion.md#turn-begin) applies even when no client document is modified; the text operation `begin` scopes document edits and does not replace `turn-begin`.  
 
-## Границы текущего поручения
+## Scope of the Current Instruction
 
-1. Установи точный корень, документ, язык, цель, режим `edit|propose|inspect` и разрешённый вид изменений `prose|links|renumber`.
-Сохрани дословные текущие запросы, разрешённые пункты и защищённые файлы через `begin` до подготовки редакции.
-Просьба предложить редакцию означает `propose`; она не разрешает применить предложение к исходнику.
-1. Прочитай текущий файл с диска. Базовая версия — его реальные байты перед операцией, включая незакоммиченные правки пользователя; `git HEAD` и прежний ответ не заменяют её.
-`begin` сохраняет эти байты и для существующего `draft.md` создаёт штатный снимок. Не делай `checkout`, `restore` или удаление ради «защиты» авторского файла.
-1. Используй `diagnose` для конкретного корня и среды, когда связь инструкций неизвестна или обнаружен конфликт.
-Наличие конфигурации и хешей не устанавливает, что модель прочитала инструкции. Не мигрируй все клиентские проекты по отсутствию одного манифеста.
-1. Если файл изменён пользователем во время работы, сохрани подготовленный кандидат отдельно, прочитай новую версию и согласуй изменения с ней новой операцией.
-`apply` отказывает при несовпадении baseline; для уже зарегистрированного документа новая операция принимает текущий хеш через `reconcile_sha256` только после чтения и согласования авторских правок.
-Защищённый источник другого редактора не меняется при переносе его изменений в целевой документ.
+1. Establish the exact project root, target document, language, goal, mode (`edit|propose|inspect`), and permitted change kind (`prose|links|renumber`).  
+Record the verbatim current requests, permitted sections, and protected files via `begin` before drafting any revision.  
+A request to suggest or propose an edit means `propose`; it does not authorize applying the change to the target file.  
+1. Read the current target file from disk.  
+The baseline is its exact bytes prior to the operation, including uncommitted user edits; `git HEAD` or a prior chat reply never substitutes for the on-disk file.  
+`begin` records those bytes and creates the mandatory FILE-2 snapshot when `draft.md` exists.  
+Never run `git checkout`, `git restore`, or file deletion to "protect" an authored file.  
+1. Run `diagnose` for the specific root and platform whenever instruction bindings are uncertain or a conflict is reported.  
+The presence of configuration files and hashes does not prove that a model read the instructions.  
+Do not batch-migrate unrelated client projects because a single manifest is missing.  
+1. If the user edits the target file while work is in progress, save your prepared candidate separately, read the new on-disk version, and reconcile changes in a new operation.  
+`apply` refuses on any baseline mismatch; for an already registered document, a new operation accepts the current hash via `reconcile_sha256` only after reading and reconciling the user's edits.  
+A protected source file from another editor is never modified when porting its changes into the target document.  
 
-## Содержание и доказательства
+## Substance and Evidence
 
-1. Отбирай материал под решение читателя. Абзац должен добавлять наблюдение, обоснованный вывод, ответ или нужное действие.
-Один факт вводится один раз; дальнейшая ссылка на него не заменяет проверки вывода. Словесное сходство само по себе не устанавливает смысловой повтор.
-1. Анализируй систему клиента: `the website`, домен или точный компонент. Авторское `your` в описании системы не используется; код и дословные цитаты сохраняются.
-Не пересказывай клиенту его бриф как своё открытие. Не приписывай пользователю опыт и результаты из чужого образца.
-1. Новый фактический тезис сначала внеси в агентскую KB с первичным основанием по [контракту доказательств v3](../../skills/upwork-init/references/evidence-contract.md).
-В существующем анализе можно использовать его реестр. Для отдельного текста `claims-save` ведёт `ꘖ/KB/TextClaims.json`; искусственно создавать пять этапов не нужно.
-Старый черновик, мнение агента и согласие клиента не становятся первичным доказательством после импорта.
-1. Сохраняй различия: наблюдение и объяснение; возможность продукта и настройка сайта; клиентский отчёт и измерение; сырой HTTP и DOM после исполнения; историческое и текущее состояние.
-Для точного тезиса задай метод, фактически проверяемое свойство и контрпример с тем же результатом при ложном тезисе. Косвенная совместимость оставляет тезис ограниченным или недоказанным.
-1. Сохраняй модальность, квантор и область действия. «Часто» не превращается в «никогда», один URL — во все маршруты, отсутствие следа — в физическую невозможность.
-Замена «вероятно» на уверенное утверждение требует новых оснований. Полезность рекомендации, ущерб и намерение разработчика проверяются отдельно от наличия технического свойства.
-1. Проверяй ссылку по её роли: страницу, точный якорь, цитату с контекстом, продукт, версию и применимость.
-`sources` проверяет сохранённые первичные байты и локаторы тезисов; `source-check` связывает цитату и точный адрес с кандидатом. Квитанции обязательны для `check`, `apply` и проверки готовности даже при механической правке. [Контракт источников](sources.md#обязательный-допуск-источника).
-`lint --network --project <root>` сохраняет HTTP-ответы и проверяет конечный адрес и якорь; положительный сетевой результат не заменяет цитату. Более поздняя ошибка не позволяет использовать старое успешное наблюдение того же URL.
-Не найденный в HTML якорь может требовать DOM; редирект на login с HTTP200 не подтверждает нужный отчёт. Недоступность не даёт статус verified.
-Совпадение термина со страницей не доказывает тезис о сайте.
-Замена недоступного источника требует собственной проверки URL, цитаты, редакции и применимости; при недостаточном основании фиксируй неподтверждённость, не присваивая положительный допуск. [Порядок замены](sources.md#недоступность-и-замена).
-1. У числа сохраняй первичные операнды, единицы, формулу и округление. У отчёта — ресурс, точный адрес, фильтры, период, метрику, знаменатель и пагинацию.
-Поддерживаемый расчёт проверяется контрактом, прочие расчёты требуют воспроизводимого первичного артефакта. Подпись числа в essence не является его происхождением.
-1. `claims-save` сохраняет историю и помечает зависимые выводы устаревшими при изменении основания; новая запись родительского пояснения не восстанавливает их статус.
-Найди зависимые KB-выводы и абзацы. Исправь разрешённые артефакты; для остальных сохрани факт устаревания и необходимое действие, не переписывай их без поручения.
-1. Каждому содержательному блоку сопоставь устойчивый ключ, точную версию текста, роль, вклад в цель, новое содержание и версии KB-тезисов.
-Приветствие, предложение услуги или вопрос может быть `nonfactual` с конкретным основанием. Эта метка не освобождает скрытые фактические утверждения от независимой проверки.
-Служебная карта остаётся вне клиентского текста.
+1. Select material that serves the reader's decision.  
+Every paragraph must contribute an observation, justified inference, direct answer, or actionable step.  
+Introduce each fact once; referencing it later does not replace verifying the downstream inference.  
+Lexical similarity alone does not prove semantic repetition.  
+1. Analyze the client's system using objective subjects: `the website`, the domain name, or the exact component.  
+Do not use authored `your` when describing the system; code blocks and verbatim quotes remain untouched.  
+Do not repeat the client's brief back as your own discovery.  
+Do not attribute the user's portfolio history or results from a sample project to the current client.  
+1. Record any new factual claim in the agent KB with primary grounds per [evidence contract v3](../../skills/upwork-init/references/evidence-contract.md) first.  
+An existing project analysis registry may be reused directly.  
+For standalone texts, `claims-save` maintains `ꘖ/KB/TextClaims.json`; there is no need to fabricate five analysis stages.  
+An old draft, agent opinion, or client agreement does not become primary evidence upon import.  
+1. Preserve essential distinctions: observation vs. explanation; platform capability vs. site configuration; client report vs. direct measurement; raw HTTP vs. post-execution DOM; historical capture vs. current state.  
+For every specific claim, define the method, the property actually tested, and a counterexample that yields the same test output when the claim is false.  
+Indirect compatibility leaves a claim qualified or unverified.  
+1. Preserve modality, quantifiers, and scope.  
+`"Often"` does not become `"never"`, a single URL does not become all routes, and absence of a trace does not become physical impossibility.  
+Upgrading `"probably"` to an unqualified assertion requires new primary evidence.  
+The utility of a recommendation, business harm, and developer intent must be verified separately from the presence of a technical property.  
+1. Validate every link according to its role: target page, exact anchor, quote in context, product, version, and applicability.  
+`sources` validates saved primary bytes and claim locators; `source-check` binds the quote and exact URL to the candidate bytes.  
+Source receipts are mandatory for `check`, `apply`, and readiness verification even on mechanical edits.  
+See the [source contract](sources.md#mandatory-source-clearance).  
+`lint --network --project <root>` saves HTTP responses and checks the final URL and anchor, but a passing network probe does not replace a verified quote.  
+A later failed probe blocks reuse of an older passing observation for the same URL.  
+An anchor absent from raw HTML may require a DOM capture; an HTTP 200 redirect to a login page does not confirm a private report.  
+Unavailability never grants `verified` status.  
+Matching a keyword on a documentation page does not prove a claim about the client's site.  
+Replacing an unavailable source requires independent verification of the new URL, quote, edition, and applicability; if grounds remain insufficient, report the claim as unverified rather than granting clearance.  
+See the [replacement procedure](sources.md#unavailability-and-replacement).  
+1. For every number, record the primary operands, units, formula, and rounding rule.  
+For every console report, record the property, exact URL, filters, date range, metric, denominator, and pagination.  
+Supported calculations are verified deterministically by the contract; other calculations require a reproducible primary artifact.  
+Mentioning a number inside `essence` does not establish its provenance.  
+1. `claims-save` preserves version history and marks dependent conclusions `stale` whenever a ground changes; adding a parent note does not restore their status.  
+Locate all dependent KB conclusions and text blocks.  
+Update permitted artifacts; for out-of-scope files, record the staleness and required follow-up without editing them uninvited.  
+1. Map every substantive block to a stable key, exact text digest, role, contribution to the goal, new substance, and KB claim digests.  
+A greeting, service offer, or clarifying question may use `nonfactual` with a concrete basis.  
+That label never exempts embedded factual assertions from independent verification.  
+Keep the block map in service storage outside the client text.  
 
-## Подготовка, проверка и запись
+## Preparation, Validation, and Writing
 
-1. Пиши кандидат в служебном каталоге. `source` и `render` перестраивают нумерацию, сохраняя код, URL и цитаты; удалённая посылка с оставшейся ссылкой — ошибка.
-Рендер печатает diff через `--diff`; зарегистрированный авторский документ он не перезаписывает. Итоговый документ пишет `apply` после проверки точной версии.
-1. Запусти `lint` нужного формата; исправь ошибки. Оставленные предупреждения получают предметное решение в `warning_dispositions`, заметки о нужности абзаца оцениваются по цели.
-Претензии конкретного проекта хранятся в `ꘖ/data/text-bans.json`; прежний `article-bans.json` читается для совместимости. Частные имена и фразы не превращаются в глобальные правила.
-1. Новые или изменённые команды запускай через `check --run-replay`, сохраняя сырой stdout, stderr, код выхода и используемый Bash.
-На Windows по умолчанию выбирается установленный Cygwin; настройка `client_text.bash`, `DF_TEXT_BASH` или `--shell` задаёт явный путь.
-Проверка требует покрытия выбранных блоков и сравнения вывода; отсутствие цитируемого вывода — не успех. Оформление вывода для читателя сравнивается отдельно от сырых байтов.
-Короткие команды оформляй по `C:/work/research/provision/code/AI/apps/Programming/implementation/Форматирование/P.Bash.md`; отступ — четыре пробела, массив аргументов нужен при трёх и более параметрах.
-Длинное извлечение выноси в клиентский скрипт по закреплённой версии только в пределах поручения; разрешение писать текст не означает разрешения публиковать код.
-1. `check` связывает кандидат, scope, карту, KB, доказательства, `source_checks` и replay. Механическая правка проверяет сохранность остальной прозы, литералов и переводов строк, а также внешние источники.
-`propose` сохраняет кандидат и diff, но `apply` для него запрещён. Содержательная правка требует независимой рецензии [конкретной версии](review.md).
-1. После одобрения выполни `apply`. При отказе ничего не восстанавливай из Git поверх пользовательского текста; устрани причину, сохраняя текущие байты.
-Штатная запись ответа проверяет только документы, связанные с точными текущими запросами операции. Коммит проверяет зарегистрированные целевые файлы из явного списка; ошибка постороннего черновика не разрешает его менять.
-1. Ответ первой строкой сообщает результат текущего поручения. Бери изменения и числа из сохранённого diff и фактических файлов; проверь утверждения об удалении через `response --against`.
-Выполни [answer-prepare](../turn-completion.md#подготовка-ответа) с точным окончательным ответом и публикуй возвращённый `response_file`; не отвечай прежним отчётом на новый вопрос.
-Сходство ответов — повод проверить исполнение, а не доказательство неисполнения.
+1. Write the candidate inside the service directory.  
+`source` and `render` rebuild numbering while preserving code, URLs, and quotes; a reference to a deleted key fails rendering.  
+`render --diff` prints the diff without overwriting a registered authored document.  
+`apply` writes the target file only after verifying the exact baseline digest.  
+1. Run the format-specific `lint` and fix all errors.  
+Any retained warnings require a substantive disposition in `warning_dispositions`, and paragraph-necessity notes are evaluated against the document goal.  
+Project-specific phrase bans live in `ꘖ/data/text-bans.json` (legacy `article-bans.json` remains readable for compatibility).  
+Do not turn project-specific names or phrases into global rules.  
+1. Execute new or modified commands via `check --run-replay`, capturing raw stdout, stderr, exit code, and the Bash binary used.  
+On Windows, an installed Cygwin Bash is selected by default; `client_text.bash`, `DF_TEXT_BASH`, or `--shell` sets an explicit path.  
+Validation requires coverage of the selected blocks and output comparison; missing quoted output is not a pass.  
+Reader-facing output formatting is compared separately from raw capture bytes.  
+Format short commands per `P.Bash.md`; use a four-space indent and an argument array when passing three or more parameters.  
+Extract long parsing logic into a version-pinned helper script only within the scope of the instruction; permission to draft text does not authorize publishing code.  
+1. `check` binds the candidate, scope, block map, KB, evidence, `source_checks`, and command replay.  
+A mechanical edit verifies preservation of all other prose, literals, and line endings alongside external source checks.  
+`propose` saves the candidate and diff while forbidding `apply`.  
+A substantive edit requires independent review of the [specific version](review.md).  
+1. Once approved, run `apply`.  
+If `apply` refuses, never overwrite user text from Git; resolve the cause while preserving the current on-disk bytes.  
+Standard response recording checks only documents linked to the exact current requests of the operation.  
+Commit validation checks registered target files in the explicit commit list; an error in an unrelated draft does not authorize editing it.  
+1. Lead your response with the result of the current instruction on the first line.  
+Take changes and counts from the saved diff and actual files; verify any claims about removed text via `response --against`.  
+Run [answer-prepare](../turn-completion.md#answer-preparation) with the exact final response and publish the returned `response_file`; never reply to a new question by pasting a stale report.  
+Similarity between responses is a prompt to verify execution, not proof of non-execution.  
 
-## Браузер и пределы инструмента
+## Browser and Tool Limits
 
-Для исследования Codex/Antigravity используй CDP по постоянным указаниям пользователя. Снимок — `Page.captureScreenshot`.
-Для клиентского браузера явно выбери разрешённую сессию, профиль, текущий target и при необходимости аккаунт. `browser-check` не определяет профиль по одному порту и не принимает самодельный JSON за нативное доказательство.
-`GuardedCDP` повторяет проверку перед действиями и сериализует собственных исполнителей; действующие пользовательские страницы доступны для чтения. Не перезапускай Antigravity и не закрывай последнее или чужое окно.
-Недоступность доказательства профиля оставляет этот адаптер неприменимым; обычный HTTP-поиск и независимая проверка первоисточников продолжаются.
+When inspecting Codex or Antigravity via CDP, follow the user's standing settings and use `Page.captureScreenshot` for visual captures.  
+For a client browser, explicitly select a permitted session, profile, current target, and account when applicable.  
+`browser-check` never infers a profile from a port number alone and never accepts hand-crafted JSON as native proof.  
+`GuardedCDP` re-verifies the target before actions and serializes its own workers; active user tabs remain read-only.  
+Never restart Antigravity or close the last or user-owned browser window.  
+If profile proof is unavailable, this adapter remains inapplicable while standard HTTP collection and independent primary-source verification continue.  
 
-Это проверяемый путь подготовки результата. Он не изолирует произвольный shell и не гарантирует, что платформа запретит прямую запись мимо инструментов.
-`finalize --publication` утверждает готовность только зарегистрированных текстов с текущим содержательным допуском; команда не публикует и не отправляет текст клиенту.
+This workflow provides an auditable preparation path.  
+It does not sandbox an arbitrary shell and does not guarantee that the host OS prevents direct file writes outside the tools.  
+`finalize --publication` certifies readiness only for registered texts holding a current substantive clearance; the command neither publishes nor sends text to a client.  

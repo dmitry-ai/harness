@@ -1,48 +1,60 @@
-# Автоматизация Upwork
+# Upwork Automation
 
-Новый анализ в Antigravity 2.0 UI и Codex начинается командой `/upwork-init <URL>`; Codex также принимает `$upwork-init <URL>`.
-После квоты, отключения питания или зависания Windows пользователь пишет в том же чате «Продолжай анализ…»; агент сверяет сохранённые результаты и продолжает существующий проект.
-Тот же каталог можно продолжать в новом чате другой системы, вплоть до полуручной подготовки proposal по конкретному поручению пользователя.
+A new analysis in Antigravity 2.0 UI and Codex starts with the `/upwork-init <URL>` command; Codex also accepts `$upwork-init <URL>`.  
+After a quota limit, power outage, or Windows freeze, the user writes `"Continue analysis…"` in the same chat; the agent verifies saved results and resumes the existing project.  
+The same directory can be continued in a new chat of the other system, up to semi-manual proposal preparation under a specific user instruction.  
 
-Общий источник — этот каталог: Python-ядро, правила, навык и описание ответственности исполнителей.
-Адаптеры `platforms/` и `scripts/agent_tools/platforms/` содержат различия сред: регистрацию, точные сообщения и происхождение рецензий.
-Antigravity подключает все одиннадцать `always_on` правил через `.agents/{rules,skills,agents}.json`.
-Доступ к авторизованным порталам задают [EXEC-3/EXEC-6](rules/08-execution-and-tools.md#exec-6) и [общая процедура](skills/upwork-init/references/authenticated-access.md).  
-Агент сам открывает нужные страницы в подтверждённом профиле и целево использует его авторизацию, включая необходимые токены, без экспорта секретов в ответы и журналы.  
-Codex получает короткий загрузчик через корневой `AGENTS.md`; тот же текст сохраняется в `developer_instructions` файла `.codex/config.toml` для совместимости. Навык обнаруживается из `.agents/skills/upwork-init/SKILL.md`, роли — из `.codex/agents/*.toml`. Загрузчик требует читать канонические правила и адаптер; их полные тексты по проектам не копируются. Корневые `CODEX.md` больше не создаются.
-`python scripts/upwork_project.py build-native` обновляет эти представления; `build-native --check` обнаруживает расхождение. Ручные изменения управляемых документов сохраняются с диагностикой.
-Для любого основного хода, включая обычный анализ `.agents`, действует [завершение хода](references/turn-completion.md#начало-хода): `turn-begin`, затем `answer-prepare` перед публикацией и независимая нативная сверка после доставки.
-Этот контракт не зависит от формата клиентского текста; подготовленная запись и подтверждённая доставка имеют разные состояния.
-Среды, пути, модели по умолчанию и политика выбора — только [runtime.json](runtime.json); этот инструмент не запускает LLM.
-Симлинки и копирование общих модулей в новые проекты не используются.
-Проектная `.agents` содержит подключения Antigravity и локальные источники правил; workspace-loader читает их из текущего проекта. `configure` сохраняет наследование родительских инструкций и пользовательские TOML-настройки; пустые прежние служебные конфиги удаляются. Старый `CODEX.md` удаляется только при совпадении с квитанцией владения; ручной файл сохраняется с conflict.
-configure --check проверяет подключения обеих сред и актуальность проектной проекции.
-Одноимённый навык не дублируется по подпроектам: Codex обнаруживает корневую .agents/skills по цепочке репозитория.
+This directory is the shared single source: Python core, rules, skills, and worker responsibility definitions.  
+Adapters in `platforms/` and `scripts/agent_tools/platforms/` contain environment differences: registration, exact messages, and review provenance.  
+Antigravity connects all eleven `always_on` rules via `.agents/{rules,skills,agents}.json`.  
+Access to authenticated portals is governed by [EXEC-3/EXEC-6](rules/08-execution-and-tools.md#exec-6) and the [shared procedure](skills/upwork-init/references/authenticated-access.md).  
+The agent opens required pages itself in the verified profile and uses its authentication in a targeted manner, including required tokens, without exporting secrets into responses or journals.  
+Codex receives a short loader through the root `AGENTS.md`; the same text is preserved in `developer_instructions` of `.codex/config.toml` for compatibility.  
+The skill is discovered from `.agents/skills/upwork-init/SKILL.md`, and roles from `.codex/agents/*.toml`.  
+The loader requires reading the canonical rules and adapter; their full texts are not copied across projects.  
+Root `CODEX.md` files are no longer created.  
+`python scripts/upwork_project.py build-native` updates these projections; `build-native --check` detects drift.  
+Manual edits to managed documents are preserved with diagnostics.  
+For any primary turn, including routine `.agents` analysis, [turn completion](references/turn-completion.md#turn-begin) applies: `turn-begin`, then `answer-prepare` before publication, and independent native verification after delivery.  
+This contract is independent of the client text format; a prepared record and verified delivery have distinct states.  
+Environments, paths, default models, and selection policy reside solely in [runtime.json](runtime.json); this tool does not launch LLMs.  
+Symlinks and copying of shared modules into new projects are not used.  
+The project-level `.agents` contains Antigravity bindings and local rule sources; the workspace loader reads them from the current project.  
+`configure` preserves parent instruction inheritance and user TOML settings; empty legacy service configs are removed.  
+An old `CODEX.md` is removed only when it matches the ownership receipt; a manual file is preserved with a conflict.  
+`configure --check` verifies bindings for both environments and the currency of the project projection.  
+A same-named skill is not duplicated across subprojects: Codex discovers the root `.agents/skills` up the repository chain.  
 
-Внутренние агенты работают с собственной актуальной непротиворечивой `ꘖ/KB`, первичными доказательствами и состоянием `ꘖ/data`.
-Ручная `KB/Project.md` создаётся один раз и первоначально полностью переносится в агентскую KB.
-`ꙮ/0/Context.md` — полный внешний экспорт документов и точного журнала, прежде всего для ручной передачи Gemini DeepThink через gemini.google.com.
+Internal agents work with their own current, consistent `ꘖ/KB`, primary evidence, and `ꘖ/data` state.  
+Manual `KB/Project.md` is created once and initially ported in full into the agent KB.  
+`ꙮ/0/Context.md` is a complete external export of documents and the exact journal, primarily for manual submission to Gemini DeepThink via gemini.google.com.  
 
-Вызовы A.A/A.F остаются видимыми в UI. Antigravity использует `self`/`af-worker` со своими параметрами.
-В Codex модель и effort каждого исполнителя выбирает родитель по контексту и доступным вариантам; резерв — наследование текущей сессии. TOML ролей не фиксирует модель поверх выбора родителя.
-Модель основного чата выбирается в интерфейсе приложения. Роль A.A сама по себе не переключает модель; runtime хранит правила выбора дочерних исполнителей и явно настроенный пресет A.F Antigravity.
-Codex регистрирует проекты через существующий Shared-Projects: общий каталог и ветка `Upwork / Proposals / YYYY / MM / DD`, отдельные штатные ID профилей.
-Незавершённое штатное подтверждение отражается `complete: false`; его нельзя выдавать за успешную регистрацию. Повторный register идемпотентен.
-Обычные init/register запрашивают обе системы по registration.targets; complete относится к выполняющей среде, all_registered — к обеим.
-Намерения, попытки, ошибки и последние успешные ID сохраняются в ꘖ/data/registrations.json; вторичная недоступность не мешает работе в активной системе.
-Название и дата берутся из существующего проекта; ручное несовпадающее имя сохраняется и диагностируется, без молчаливого переименования.
-Механические проверки выполняет Python; предметные выводы и непротиворечивость оценивает A.A.
-Новая публикация использует контракт анализа v3: первичные основания, тип/статус тезиса, область наблюдения и версии зависимостей; старые файлы читаются без автоматического присвоения verified.
-Проверка достаточности сопоставляет исходный тезис с реально проверенным утверждением и контрпримером: положительный косвенный индикатор не является полным подтверждением.
-Эксперимент хранит отдельно план, сырые артефакты и интерпретацию; рецензия v2 связывает авторский вердикт с точными запросами, ответом и KB/Evidence.
-Точные версии моделей/effort требуют фактических метаданных; Codex проверяет дочерний turn_context относительно нативного вызова родителя, Antigravity читает доступные generation/executor metadata. Неизвестное остаётся неизвестным.
+Invocations of A.A/A.F remain visible in the UI.  
+Antigravity uses `self`/`af-worker` with their respective parameters.  
+In Codex, the parent selects the model and effort of each worker based on context and available options; the fallback is inheriting the current session.  
+Role TOML files do not lock a model on top of the parent's choice.  
+The primary chat model is selected in the application UI.  
+The A.A role does not switch the model by itself; runtime stores selection rules for child workers and the explicitly configured Antigravity A.F preset.  
+Codex registers projects through the existing Shared-Projects helper: a shared catalog and branch `Upwork / Proposals / YYYY / MM / DD`, with separate native profile IDs.  
+Pending native confirmation is reflected as `complete: false`; it must not be reported as a completed registration.  
+Repeated `register` is idempotent.  
+Standard `init`/`register` request both systems according to `registration.targets`; `complete` refers to the executing environment, while `all_registered` refers to both.  
+Intents, attempts, errors, and last successful IDs are saved in `ꘖ/data/registrations.json`; secondary unavailability does not block work in the active system.  
+The title and date come from the existing project; a manual mismatched name is preserved and diagnosed without silent renaming.  
+Python performs mechanical checks; A.A evaluates substantive conclusions and consistency.  
+New publications use analysis contract v3: primary grounds, claim type/status, observation scope, and dependency versions; legacy files remain readable without automatic promotion to `verified`.  
+Sufficiency verification compares the target claim against the actually tested statement and a counterexample: a positive proxy indicator is not full confirmation.  
+An experiment stores the plan, raw artifacts, and interpretation separately; review v2 binds the authored verdict to exact requests, the response, and KB/Evidence.  
+Exact model/effort versions require actual metadata; Codex verifies the child `turn_context` against the parent's native call, while Antigravity reads available generation/executor metadata.  
+The unknown remains unknown.  
 
-[Процедура](skills/upwork-init/SKILL.md) · [Контракт доказательств](skills/upwork-init/references/evidence-contract.md) · [Протокол продолжения и исследования](skills/upwork-init/references/workflow.md) · [Инструменты и схема](scripts/README-agent-tools.md) · [Клиентский текст](skills/df-article/SKILL.md).
+[Procedure](skills/upwork-init/SKILL.md) · [Evidence Contract](skills/upwork-init/references/evidence-contract.md) · [Continuation and Research Protocol](skills/upwork-init/references/workflow.md) · [Tools and Schema](scripts/README-agent-tools.md) · [Client Text](skills/df-article/SKILL.md).  
 
-Статья пишется по [df-article](skills/df-article/SKILL.md), Upwork proposal — по отдельному [df-proposal](skills/df-proposal/SKILL.md).
-[Общая процедура](references/client-text/workflow.md) связывает границы правок, доказательства, карту абзацев, независимую рецензию, проверку версии при записи и точный журнал; письмо использует её с `kind=letter`.
-Форматные движки различаются, общий код и словарь едины. [Команды и схемы](references/client-text/operations.md) доступны через `df_text.py`, `df_article.py` и `df_proposal.py`.
+Articles are written via [df-article](skills/df-article/SKILL.md), and Upwork proposals via the separate [df-proposal](skills/df-proposal/SKILL.md).  
+The [shared procedure](references/client-text/workflow.md) binds edit boundaries, evidence, the paragraph map, independent review, version verification on write, and the exact journal; letters use it with `kind=letter`.  
+Formatting engines differ, while the shared core and lexicon are unified.  
+[Commands and schemas](references/client-text/operations.md) are available through `df_text.py`, `df_article.py`, and `df_proposal.py`.  
 
-После первоначального анализа status по-прежнему описывает его этапы, отдельно перечисляя фактические proposal-файлы.
-Полуручная работа использует KB, точный журнал, существующий result/draft/final и текущий шаг в ꘖ/data/continuation.md; исходный draft защищён снимком FILE-2.
-Новые стадии автоматического proposal workflow не добавлены; передача файлов между системами не требует переноса истории UI или нового init.
+After initial analysis, `status` continues to describe its stages while listing actual proposal files separately.  
+Semi-manual work uses the KB, exact journal, existing `result/draft/final`, and the current step in `ꘖ/data/continuation.md`; the original draft is protected by a FILE-2 snapshot.  
+No new automatic proposal workflow stages are added; transferring files between systems does not require migrating UI history or running `init` again.  

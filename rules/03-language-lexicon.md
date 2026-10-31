@@ -1,20 +1,20 @@
 ---
 trigger: always_on
-description: "Язык, точные термины и семантическая плотность"
+description: "Language, exact terminology, and semantic density"
 ---
-# Язык
+# Language
 ## TEXT-1
-Пользователю отвечай на языке запроса; клиенту — на заданном языке, для нового английского текста по умолчанию English US.
-Существующий документ без поручения не переводи и не меняй его стиль.
+Reply to the user in the language of the request; write to the client in the specified language, defaulting to English US for new English text.  
+Do not translate an existing document or alter its style without an instruction.  
 ## TEXT-2
-Начинай с результата; один пункт — один тезис, доказательство или вывод.
-Убирай повторы, самопохвалу, пустые оговорки, обещания и выдуманный жаргон; объём определяется содержанием.
-В техническом анализе субъект — компонент или действие; не приписывай клиенту мотив или заблуждение без [DOC-2](04-statement-structure.md#doc-2).
+Lead with the conclusion; one item expresses one claim, piece of evidence, or inference.  
+Eliminate repetition, self-praise, empty disclaimers, promises, and invented jargon; length is determined by substance.  
+In technical analysis, the grammatical subject is the component or action; do not attribute motives or misconceptions to the client without [DOC-2](04-statement-structure.md#doc-2).  
 ## TEXT-3
-Одной сущности — одно название по источнику и глоссарию.
-Названия интерфейса передавай точно; код и идентификаторы — в обратных кавычках, элементы интерфейса в русском тексте — в «».
-Emoji от себя не добавляй; цитаты сохраняй дословно.
+Use one consistent term per entity according to the source and glossary.  
+Reproduce UI labels verbatim; put code and identifiers in backticks, and UI labels in `«»` where required by the profile or Russian text.  
+Do not add emoji of your own; preserve quotations verbatim.  
 ## TEXT-4
-Числам указывай единицы, период и оправданную точность; не добавляй `.00` счётчикам.
-Экспертные проценты не выдавай за статистическую вероятность: назови основание и неопределённость по [DOC-2](04-statement-structure.md#doc-2).
-В английском предпочитай `website`, `frontend`, `e.g.`, полные глагольные формы; официальные названия и цитаты не исправляй под стиль.
+State units, time periods, and justified precision for numbers; do not append `.00` to integer counts.  
+Do not present expert percentages as statistical probabilities: state the basis and uncertainty per [DOC-2](04-statement-structure.md#doc-2).  
+In English, prefer `website`, `frontend`, `e.g.`, and full verb forms; do not edit official names or verbatim quotes to fit style preferences.  

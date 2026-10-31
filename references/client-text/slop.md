@@ -1,18 +1,23 @@
-# Содержательная ошибка и её внешние признаки
+# Substantive Defects and Their Surface Signals
 
-Словарь [lexicon.json](lexicon.json) один для статьи, proposal, письма и ответа; у признака есть причина, исправление и источник.
-`text_core.py` проверяет общую прозу, команды и ответ; `article.py` — части, якоря и граф статьи, `proposal.py` — обычные пункты и поля Upwork.
-Не исправляй дефект простой заменой связки или удалением оговорки: неподтверждённый тезис от этого не становится фактом.
+The lexicon in [lexicon.json](lexicon.json) is shared across articles, proposals, letters, and chat responses; each pattern records its underlying cause, remedy, and source.  
+`text_core.py` checks shared prose, commands, and responses; `article.py` checks article parts, anchors, and premise graphs; `proposal.py` checks flat/nested items and Upwork submission fields.  
+Do not "fix" a finding merely by swapping a connective or deleting a hedge: an unverified claim does not become a fact by removing a qualifier.  
 
-В [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) перечислены наблюдаемые признаки, а не доказательство происхождения текста или набор универсальных запретов.
-Для этого проекта словарный lint — вспомогательный контроль. Достаточность основания, нужность абзаца и точность вывода проверяются картой и [рецензией](review.md).
+[Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) catalogs observable stylistic patterns rather than proof of authorship or a list of universal bans.  
+In this project, lexicon linting is an auxiliary check.  
+Sufficiency of evidence, paragraph necessity, and accuracy of conclusions are verified through the block map and [independent review](review.md).  
 
-1. `ARROW-CONNECTIVE`, `EN-*/RU-*`, `BOLD-LEADIN`, `APP-*`, `SENT-*` отмечают дублирующие связки, оценочные ярлыки, внутренний аппарат анализа и перегруженную прозу.
-1. `TEXT-OWNER` отмечает авторское `your`; буквальные цитаты и код сохраняются. Предмет анализа задаётся фактической системой клиента.
-1. `STRUCT-*`, `ANCHOR-*`, `REF-*`, `KEY-*` проверяют адресацию; `GRAPH-*` — опоры и круги статьи. Осиротевший пункт может быть нужен цели напрямую; это требует предметного решения.
-1. `CODE-VOLATILE`, `CODE-UNREADABLE`, `CODE-DUP-OUTPUT` указывают на изменчивый asset, нечитаемое извлечение и повторный вывод. Исторический bundle допустим с явно ограниченным предметом тезиса.
-1. `SOURCE-UNVERIFIED` не называет страницу ложной: подтверждения HTTP/якоря пока нет; требуется реальный источник или DOM.
-1. `RESP-DUP` отмечает сходство с прежним ответом; `RESP-CLAIM` сверяет заявления об удалённых фрагментах с файлами; `RESP-PROCEDURAL` — служебный отчёт вместо результата.
+1. `ARROW-CONNECTIVE`, `EN-*/RU-*`, `BOLD-LEADIN`, `APP-*`, and `SENT-*` flag redundant connectives after arrows, evaluative labels, leaked internal analysis scaffolding, and overloaded prose.  
+1. `TEXT-OWNER` flags authored `your`; verbatim quotes and code blocks are exempt.  
+The subject of technical analysis is the client's actual system.  
+1. `STRUCT-*`, `ANCHOR-*`, `REF-*`, and `KEY-*` validate addressing; `GRAPH-*` validates article premise links and cycles.  
+An unreferenced item may still serve the document's goal directly; that requires an explicit substantive disposition.  
+1. `CODE-VOLATILE`, `CODE-UNREADABLE`, and `CODE-DUP-OUTPUT` flag volatile bundle filenames, unreadable extraction one-liners, and duplicated command output.  
+Citing a historical bundle is permissible when the claim's scope is explicitly restricted to that capture.  
+1. `SOURCE-UNVERIFIED` does not declare a page false: it means HTTP/anchor confirmation is missing and a real source capture or DOM observation is required.  
+1. `RESP-DUP` flags high similarity to a prior response; `RESP-CLAIM` cross-checks claims about deleted fragments against the actual files; `RESP-PROCEDURAL` flags internal procedural narration in place of the deliverable.  
 
-Частные регрессии остаются данными проекта. Инциденты: `proactivsports` req/res4–5 — `→ because` и повтор ответа; `materaprima` req4–6 — хеши и пять этапов вместо полезной статьи; wayse req219–487 — доказательства и границы правок; adorncroft req1–168 — структура proposal, поля, точные названия, повторное возвращение опровергнутых тезисов.
-Наличие слова из словаря не доказывает дефект, отсутствие ошибок линтера не подтверждает правильность смысла.
+Project-specific regressions remain project data.  
+Historical incidents: `proactivsports` req/res 4–5 — `→ because` and response repetition; `materaprima` req 4–6 — raw hashes and five-stage labels instead of a useful article; `wayse` req 219–487 — evidence and edit-scope boundaries; `adorncroft` req 1–168 — proposal structure, field limits, exact component names, and re-introduction of refuted claims.  
+The presence of a lexicon token does not prove a substantive defect, and zero linter errors do not prove that the meaning is sound.  

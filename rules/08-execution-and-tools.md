@@ -1,40 +1,41 @@
 ---
 trigger: always_on
-description: "Детерминированные операции, браузер, тесты и завершение"
+description: "Deterministic operations, browser, tests, and turn completion"
 ---
-# Исполнение
+# Execution
 ## EXEC-1
-Повторяемое действие выполняй существующим инструментом или одной параметризованной программой.
-Не создавай программу на каждый частный случай и не вшивай ожидаемый ответ в доказательство.
-Внутренние инструменты — в `scripts/README-agent-tools.md`; правила сами скрипты не запускают.
-HTTP-ответ и условия наблюдения сохраняй один раз; повторное извлечение делай из него.  
-Для одиночного HTTP(S)-наблюдения используй `upwork_project.py collect-http`, а для пакетного — `collect`; прямые сетевые запросы `urllib`/`requests`/`Invoke-WebRequest`/`curl` в командной оболочке в обход хранилища доказательств блокируются.
-Изменённые условия, необходимая актуализация и измерение изменения во времени — отдельные наблюдения с основанием.
-После трёх безрезультатных поисков одного вопроса верни конкретный пробел или обоснуй другой метод; предел поиска не подтверждает гипотезу.
+Perform any repeatable operation with an existing tool or a single parameterized script.  
+Do not write a one-off script for each special case or hardcode the expected answer into evidence.  
+Internal tools are documented in `scripts/README-agent-tools.md`; rule files do not execute scripts themselves.  
+Save an HTTP response and its observation conditions once; run subsequent extractions against the saved capture.  
+Use `upwork_project.py collect-http` for a single HTTP(S) observation and `collect` for batch collection; direct network requests (`urllib`/`requests`/`Invoke-WebRequest`/`curl`) in the shell that bypass the evidence store are blocked.  
+Changed conditions, required refreshes, and longitudinal measurements are separate observations with an explicit reason.  
+After three fruitless searches on the same question, return the specific gap or justify a method change; hitting the search limit does not confirm a hypothesis.  
 ## EXEC-2
-Тест должен проверять существенное поведение и воспроизводить дефект; различай mock, интеграцию и реальный запуск.
-Проверяй свои изменения и запрошенные среды; чужой дефект не разрешает менять файл, ослаблять проверку или подменять источник.
+A test must verify material behavior and reproduce the defect; distinguish mocks, integration tests, and live execution.  
+Verify your own changes and the requested environments; a third-party defect does not authorize modifying unrelated files, weakening a check, or substituting a source.  
 ## EXEC-3
-Профиль и аккаунт определяй по поручению и настройкам среды, затем проверяй их; при неоднозначности не выбирай произвольный профиль или CDP target.
-Пользовательскую вкладку только читай: без навигации, reload, фокуса и закрытия.
-Если нужная страница не открыта, сам открывай собственную вкладку/окно в подтверждённом профиле; не требуй от пользователя заранее готовить все страницы.  
-Собственные вкладки/окна держи в отдельной сессии инструмента, сохраняя нужный профиль авторизации; чистый профиль используй для явно изолированного сценария, а не вместо доступной пользовательской сессии.  
-Координаты и монитор бери из настроек среды, не из универсальных правил.
-Не завершай общий браузер и не удаляй его locks.
+Determine the browser profile and account from the instruction and environment settings, then verify them; when ambiguous, do not pick an arbitrary profile or CDP target.  
+Treat a user tab as read-only: no navigation, reload, focus stealing, or closing.  
+If the required page is not open, open your own tab or window in the verified profile; do not require the user to pre-open every page.  
+Keep agent-opened tabs/windows in a separate tool session while preserving the required authenticated profile; use a clean profile only for an explicitly isolated scenario, never as a substitute for an available user session.  
+Take window coordinates and monitor selection from environment settings, not from universal rules.  
+Do not terminate the shared browser or delete its lock files.  
 ## EXEC-4
-Асинхронно различай отправку, приём, выполнение и извлечение результата; учитывай ID ответов и таймауты.
-Перед повтором выясни, принят ли первый запрос; не обещай фоновое продолжение без работающего механизма.
+In asynchronous workflows, distinguish submission, acceptance, execution, and result retrieval; track response IDs and timeouts.  
+Before retrying, check whether the first request was accepted; do not promise background continuation without a working mechanism.  
 ## EXEC-5
-Перед Git-операцией проверь корень, ветку и remote; коммит — по явному списку своих файлов и принятому порядку, без чужих изменений и Git-хуков.  
-Проверки чтения Git запускай с `--no-optional-locks`, чтобы не обновлять индекс побочным действием (приоритетно — через `upwork_project.py git-read` или при `GIT_OPTIONAL_LOCKS=0`; не объединяй вызовы `git` со стартовым чтением правил до завершения `turn-begin`).  
-Создание, редактирование, комментирование и закрытие GitHub issues выполняй по навыку [df-github-issue](../skills/df-github-issue/SKILL.md) через `df_github_issue.py` с передачей UTF-8 файла без BOM (`--body-file`) и обязательной read-back проверкой; не передавай Markdown-тело через `--body`/`--comment` в командной строке или через конвейер PowerShell без UTF-8.  
-Внешние действия — по [SCOPE-2](00-scope.md#scope-2).  
-До ответа сверь полноту задачи, доказательства, проверки, журнал и собственные временные файлы; сообщи существенный результат и непроверенное.  
-Используй [единое завершение хода](../references/turn-completion.md#подготовка-ответа); успешная запись не доказывает доставку, которую проверяет нативная сверка.  
-Перед `answer-prepare` при наличии сжатия контекста (`CHECKPOINT`) в активном ходе выполни `recover-checkpoint`.  
+Before any Git operation, verify the repository root, branch, and remote; commit only an explicit file list in the established order, without unrelated changes or Git hooks.  
+Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (preferably via `upwork_project.py git-read` or with `GIT_OPTIONAL_LOCKS=0`; do not combine `git` calls with initial rule reading before `turn-begin` completes).  
+Create, edit, comment on, and close GitHub issues per the [df-github-issue](../skills/df-github-issue/SKILL.md) skill via `df_github_issue.py` using a UTF-8 file without BOM (`--body-file`) and mandatory read-back verification; never pass Markdown bodies via `--body`/`--comment` on the command line or through a PowerShell pipeline without UTF-8.  
+Perform any code changes in `code` repositories strictly by first creating or linking a GitHub Issue via `/df-github-issue`, referencing the full issue URL in the commit message and relevant code comments, and closing the issue via `df_github_issue.py close` after `git push`, while maintaining the Unified Journal `ꙮ`.  
+External actions are governed by [SCOPE-2](00-scope.md#scope-2).  
+Before responding, verify task completeness, evidence, checks, the journal, and your own temporary files; report the substantive result and anything left unverified.  
+Use [unified turn completion](../references/turn-completion.md#answer-preparation); a successful file write does not prove chat delivery, which is verified by native reconciliation.  
+Before `answer-prepare`, if context compaction (`CHECKPOINT`) occurred during the active turn, run `recover-checkpoint`.  
 ## EXEC-6
-Для порученных действий в подтверждённом аккаунте используй действующую авторизацию браузера, включая cookies, CSRF и access-токены; открытая заранее страница и ручная передача токена не являются обязательными условиями работы.  
-Предпочитай штатный интерфейс или API-клиент сервиса; необходимый токен допустимо использовать целево в памяти для проверенного API этого сервиса, не выводя секрет в модель, команды, файлы или журналы.  
-Не собирай все cookies/хранилища поиском по словам `token`/`auth`; определяй конкретный источник и получателя авторизации по контракту сервиса.  
-Различай отсутствие вкладки, истёкший вход, недостаточные права операции и отказ политики инструмента; успешное чтение страницы не доказывает право записи.  
-Перед работой с авторизованным порталом читай [процедуру доступа](../skills/upwork-init/references/authenticated-access.md); разрешение использовать сессию не расширяет поручение на отправку сообщений, оплату или иные внешние изменения по [SCOPE-2](00-scope.md#scope-2).  
+For instructed actions in a verified account, use the active browser authentication, including cookies, CSRF tokens, and access tokens; a pre-opened page or manual token handoff is not a prerequisite.  
+Prefer the service's native UI or in-page API client; a required token may be used in memory in a targeted manner for a verified API of that service without exposing the secret to the model output, command line, files, or logs.  
+Do not scrape all cookies or storage searching for `token`/`auth`; identify the specific credential source and recipient per the service contract.  
+Distinguish a missing tab, expired login, insufficient operation permissions, and tool policy rejection; successful page reading does not prove write permission.  
+Before working with an authenticated portal, read the [authenticated access procedure](../skills/upwork-init/references/authenticated-access.md); permission to use a session does not expand the scope of the instruction to sending messages, making payments, or performing other external changes under [SCOPE-2](00-scope.md#scope-2).  

@@ -1,14 +1,14 @@
 ---
 trigger: always_on
-description: "Клиентский текст: профили article/proposal и общий контракт доказательств, правок и записи"
+description: "Client text: article/proposal profiles and the shared contract for evidence, edits, and writing"
 ---
-# Клиентский текст
+# Client Text
 ## PUB-1
-Статью пиши и правь по `/df-article`, Upwork proposal — по отдельному `/df-proposal`; письмо — по `references/client-text/workflow.md` с `kind=letter`.
-Общие требования к содержанию, доказательствам и записи находятся только в `references/client-text/`; профиль задаёт форму, не переносит факты образца.
+Write and edit standalone articles per `/df-article`, Upwork proposals per the separate `/df-proposal`, and letters per `references/client-text/workflow.md` with `kind=letter`.  
+Shared requirements for content, evidence, and file writing reside exclusively in `references/client-text/`; a profile defines form and never carries over facts from a sample.  
 ## PUB-2
-Начинай с контракта текущего поручения `begin`; готовь отдельный кандидат, проверяй scope, карту утверждений, первичные основания и изменённые команды через `check`.
-Содержательный результат проходит независимую рецензию конкретной версии; целевой файл пишет `apply` с проверкой baseline.
+Begin with the `begin` contract for the current instruction; prepare a separate candidate and verify scope, the claim map, primary grounds, and modified commands via `check`.  
+A substantive result undergoes independent review of the specific version; `apply` writes the target file after verifying the baseline.  
 ## PUB-3
-Ответ строй по текущему запросу, фактическому diff и квитанциям операций; проверь через `response --against`, затем сохрани точный журнал.
-Проверки относятся к явно затронутым документам текущего поручения; ошибка постороннего текста не разрешает его редактировать.
+Build the response from the current request, actual diff, and operation receipts; validate it via `response --against`, then record the exact journal.  
+Validations apply to documents explicitly touched by the current instruction; an error in an unrelated text does not authorize editing it.  

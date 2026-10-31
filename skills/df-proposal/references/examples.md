@@ -1,50 +1,50 @@
-# Образцы и границы переноса
+# Proposal Samples and Transfer Boundaries
 
-Пути даны от корня `C:/work/upwork/code`.
-Перед использованием прочитай целиком выбранный исходник.
-Содержание этих исторических текстов не считается проверенной базой фактов или текущей инструкцией.
-В частности, прежние `your`, `I`, пассивный залог, `journey`, индексы декодера и служебные заголовки не отменяют поздние требования из format.md.
+Paths are relative to `C:/work/upwork/code`.  
+Read the chosen sample file in full before using its layout.  
+The contents of these historical texts are neither a verified fact base for new projects nor an override of current rules.  
+In particular, legacy occurrences of `your`, first-person `I` in technical analysis, passive voice, `journey`, internal decoder indices, and section headers do not override the current rules in [format.md](format.md).  
 
-## 1. Технический диагноз с коротким обзором
+## 1. Technical Diagnosis with a Brief Overview
 
-`clients/2026/09/1 - wayse.pt/Contracts/2026/1 - 44587093/Public/Letters/my/2026/09/27 - Proposal/result/EN/Full.md`
+`clients/2026/09/1 - wayse.pt/Contracts/2026/1 - 44587093/Public/Letters/my/2026/09/27 - Proposal/result/EN/Full.md`  
 
-Первый пункт называет домен и несколько существенных выводов с внутренними ссылками.
-Следующие пункты разбирают механизмы; вложенные номера дают адрес отдельному основанию.
-Есть код и список реальных работ пользователя.
-Этот профиль не требует предварительной самостоятельной статьи и не доказывает фактическую корректность старого диагноза.
+The opening item names the domain and states several key conclusions with internal `§` cross-references.  
+Subsequent items break down the underlying mechanisms; nested numbers give each supporting ground its own address.  
+Includes verification code and a compact list of relevant past projects.  
+This profile does not require a prior standalone article and does not certify the factual accuracy of the historical diagnosis.  
 
-## 2. Диагноз и отдельные ответы на вопросы
+## 2. Diagnosis Plus Separate Screening Question Answers
 
-`proposals/daily/2026/09/28/3 - adorncroft.com/result/EN/draft.md`
+`proposals/daily/2026/09/28/3 - adorncroft.com/result/EN/draft.md`  
 
-Одна проблема получает верхний пункт, родственные основания — подпункты.
-В одном пункте о формах объединены popup и inline с одинаковым механизмом.
-Параметр идентификации и токен письма того же продукта вынесены в другие пункты, поскольку это другие тезисы.
-Прямые вопросы клиента имеют собственные номера; ссылки `§N` связывают ответ с уже описанным компонентом.
-Редакторские `.0`/`.0.1` — особенность этого текста, которую преобразование обязано сохранить.
+Each distinct problem receives a top-level item, with related grounds placed in sub-items.  
+Popup and inline forms sharing the same failure mechanism are combined into a single form item.  
+The identification parameter and email token of the same product are placed in separate items because they represent distinct claims.  
+Direct client questions receive their own top-level numbers; `§N` references connect each answer back to the already described component.  
+Editorial `.0`/`.0.1` numbering is a specific feature of that document that round-trip conversion must preserve.  
 
-`proposals/daily/2026/09/25/4 - glg.com/result/EN/draft.md`
+`proposals/daily/2026/09/25/4 - glg.com/result/EN/draft.md`  
 
-После технического разбора идут цитаты вопросов и конкретные ответы, включая последовательность проверок и необходимый код.
-Сохраняй фактическую последовательность действий, если она нужна ответу; не переносить весь подробный аудит в каждое поле.
+Technical analysis is followed by quoted client questions and concrete answers, including the verification sequence and required code.  
+Preserve the actual sequence of actions when the answer depends on it; do not paste the entire detailed audit into every submission field.  
 
-## 3. Короткое опровержение исходной гипотезы
+## 3. Concise Refutation of the Client's Initial Hypothesis
 
-`proposals/daily/2026/08/31/1 - santassecretworkshop.com/result/EN/raw.md`
+`proposals/daily/2026/08/31/1 - santassecretworkshop.com/result/EN/raw.md`  
 
-Первый пункт прямо отвечает на предположение клиента; следующие разделяют видимый симптом и его объяснение.
-Ценность профиля — проверенный ответ по существу, а не копирование оценочной лексики или старого обращения `your`.
+The first item directly answers the client's supposition; subsequent items separate the visible symptom from its actual cause.  
+The value of this profile lies in its direct, evidence-backed answer, not in copying evaluative adjectives or legacy `your` phrasing.  
 
-`proposals/daily/2026/07/10/1 - GA & _gl/result/EN/raw.md`
+`proposals/daily/2026/07/10/1 - GA & _gl/result/EN/raw.md`  
 
-Пункты последовательно описывают механизм и действия исправления, ссылаясь на необходимые предшествующие шаги.
-У исходника есть склеенный повтор `8.4`; это дефект для обнаружения, а не шаблон форматирования.
+Items walk through the mechanism and remediation steps in order, referencing required prerequisite steps.  
+The historical raw file contains a glued duplicate `8.4`; that is a defect for the linter to catch, not a formatting template.  
 
-## 4. Ответы на архитектурные вопросы
+## 4. Direct Answers to Architectural Questions
 
-`proposals/daily/2026/08/27/2 - Broker & Meta & WhatsApp/result/EN/raw.md`
+`proposals/daily/2026/08/27/2 - Broker & Meta & WhatsApp/result/EN/raw.md`  
 
-Каждый верхний пункт — буквальный вопрос клиента; подпункты содержат конкретные системы, переходы данных и условия реализации.
-Этот профиль обходится без вводного диагноза домена и без искусственной части I/II.
-Точное число вопросов и нужные ссылки определяет новая вакансия.
+Each top-level item quotes a literal client question; sub-items detail the specific systems, data transitions, and implementation conditions.  
+This profile dispenses with an introductory domain diagnosis and avoids artificial Part I/II divisions.  
+The exact number of questions and cross-references is determined by the specific job post.  

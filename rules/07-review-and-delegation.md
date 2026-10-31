@@ -1,39 +1,42 @@
 ---
 trigger: always_on
-description: "Роли AA/AF, предметный аудит и ответственность"
+description: "AA/AF roles, substantive audit, and accountability"
 ---
-# Делегирование
+# Delegation
 ## REVIEW-1
-A.A отвечает за архитектуру, предметные выводы и итог. Делегируй штатным инструментом текущей UI-беседы по адаптеру среды: сложные задачи/спорные выводы/предметный аудит — A.A; извлечение/сверка — A.F.
-Версии моделей, effort и наследование — требования единого `runtime.json`, не следствие имени роли. Сверяй доступные фактические метаданные; неизвестное помечай «не проверено», несоответствие не скрывай. Без подходящего A.F простую работу выполняет A.A.
-Не запускай скрытые сеансы модели через CLI: пользователь запускает `/upwork-init` и наблюдает субагентов в UI.
-Нативные вызовы и происхождение доказательств определяет платформенный адаптер; различия сред не меняют критерии проверки.  
-Массовое первичное исследование (свыше 40 инструментальных шагов в ходе проекта Upwork) делегируй субагентам A.F/A.A либо поэтапно фиксируй промежуточные результаты в `ꘖ/KB` до исчерпания контекстного окна.
+A.A is responsible for architecture, substantive conclusions, and the final deliverable.  
+Delegate using the native subagent tool of the current UI conversation per the platform adapter: complex tasks, disputed conclusions, and substantive audits go to A.A; extraction and verification go to A.F.  
+Model versions, effort, and inheritance are requirements of the unified `runtime.json`, not consequences of a role name.  
+Verify available actual metadata; mark unknown fields as `"unverified"` and never hide discrepancies.  
+If no suitable A.F is available, A.A performs simple work.  
+Do not launch hidden model sessions via CLI: the user invokes `/upwork-init` and observes subagents in the UI.  
+The platform adapter defines native calls and evidence provenance; environment differences do not alter verification criteria.  
+Delegate large-scale primary research (exceeding 40 tool steps in an Upwork project turn) to A.F/A.A subagents or incrementally persist intermediate results in `ꘖ/KB` before exhausting the context window.  
 ## REVIEW-2
-Задание исполнителю содержит цель, точный корень, входы, разрешённые действия и критерий окончания.
-Перед исследованием фиксируй вопрос, его влияние на анализ и одного владельца в реестре; используй уже сохранённые результаты.
-Побайтовую сверку, хеши, извлечение и формальную проверку выполняет инструмент; A.F нужен для задач, где требуется работа модели.
-Передавай существующие точные пути; недоступный вход возвращается как пробел, а не повод угадывать соседние файлы.
-Ограничивай параллелизм; не допускай конкурирующей записи и управления одной браузерной сессией.
-Исполнитель не ведёт пользовательский журнал и не запускает новых аудиторов без поручения.
+A worker assignment includes the goal, exact project root, inputs, permitted actions, and completion criterion.  
+Before investigating, register the question, its impact on the analysis, and a single owner in the registry; reuse already saved results.  
+Byte-level comparison, hashing, extraction, and formal validation are performed by deterministic tools; A.F is reserved for tasks requiring model judgment.  
+Pass existing exact paths; an unavailable input is returned as a gap rather than a reason to guess neighboring files.  
+Limit parallelism; prevent concurrent writes and competing control over the same browser session.  
+A worker does not maintain the user journal and does not spawn new auditors without an instruction.  
 ## REVIEW-3
-Перед итогом проверь: что противоречит KB и что существенно, но отсутствует в ней.
-Два независимых аудитора нужны для значимых спорных выводов, архитектурных изменений или по поручению; для рутинного ответа обе проверки выполняет A.A.
-Классификацию обоснуй для текущих запросов и тезисов: новые существенные причинные выводы, выводы о скрытых настройках и архитектурные/ценовые изменения нельзя понизить до routine одним параметром.
-Рутинный пересказ требует ранее проверенных неизменившихся оснований; отсутствие новых HTTP-запросов само по себе не делает новый вывод рутинным.
-Самопроверку не называй независимым аудитом.  
-В отслеживаемом проекте с `workflow.json` до завершения этапа `finalize` первоначального анализа (а после `finalize` — для новых причинных выводов с гипотезами и способами `H-N` / `M-N` без делегирования субагенту в текущем ходе) требуется принятие текущих запросов беседы через `adopt-requests` и прохождение `authorize` до `answer-prepare`.
+Before finalizing, check both what contradicts the KB and what is material yet missing from it.  
+Two independent auditors are required for significant or disputed conclusions, architectural changes, or when instructed; for a routine response, A.A performs both checks.  
+Justify the risk classification for the current requests and claims: new material causal conclusions, conclusions about hidden configurations, and architectural or pricing changes cannot be downgraded to `routine` by a single parameter.  
+A routine restatement requires previously verified, unchanged grounds; the absence of new HTTP requests does not by itself make a new conclusion routine.  
+Do not call self-review an independent audit.  
+In a tracked project with `workflow.json` prior to completing the `finalize` stage of initial analysis (and after `finalize`, whenever a response introduces new causal conclusions with `H-N` / `M-N` hypotheses or methods without subagent delegation in the current turn), adopting the current conversation requests via `adopt-requests` and passing `authorize` before `answer-prepare` is mandatory.  
 ## REVIEW-4
-Аудитору передай источники и черновик; требуй конкретный спорный тезис и доказательства по [DOC-2](04-statement-structure.md#doc-2).
-Замечание проверь, исправь или обоснованно отклони; внешний ответ не заменяет первичные доказательства.
-Проверяй запуск, прогресс, завершение и результат исполнителя; пустое задание не создаёт агента.
-Перед аудитом зафиксируй пакет текущих модулей KB; рецензент получает пакет и первичные данные без выводов других аудиторов.
-Изменившаяся KB требует проверки затронутых выводов; отметка независимого аудита привязана к фактическому UI-сеансу и версии проверенных файлов.
-Пакет включает точные текущие запросы, кандидат ответа и карту его существенных тезисов; новая версия ответа требует собственного допуска даже при неизменной KB.
-Промпт родителем независимому аудитору (`A.A`) должен быть нейтральным: передавай корень проекта и путь к пакету (с проверкой через `review-input`), не предзаполняя положительные исходы (`approved`, `supported`, `direct`, `findings: []`) без отрицательных альтернатив схемы.
-Независимый аудитор работает только на чтение внутри текущего корня проекта: не создаёт и не изменяет файлы, не запускает генераторы в `scratch`, не читает соседние проекты и подтверждает в `observed`/`tested_claim` каждое число из одобряемого тезиса и `response_excerpt`.
-Аудитор возвращает результат по каждому существенному тезису: наблюдение, вывод, достаточность метода, альтернативы, ограничения и вердикт.
-В test_alignment сопоставь точный target_claim с фактическим tested_claim, зафиксируй direct/proxy/irrelevant и контрпример «тезис ложен, тест проходит»; proxy не допускает полного supported без видимой оговорки, irrelevant не поддерживает тезис.  
-Аудитор проверяет совместимость рекомендаций с первичными фактами: условие, опровергнутое первичным доказательством (`dead-end condition`), требует вердикта `needs_changes` и не может быть одобрено предположением о субъективном решении внешней модерации.
-Сохраняй исходный вердикт неизменяемым с подтверждённым нативным происхождением; родительские решения по замечаниям записывай отдельно и не подменяй ими результат аудитора.
-needs_changes и открытые замечания сохраняются как состояние работы и не разрешают завершение; новая попытка рецензии не перезаписывает прежний отчёт.
+Provide the auditor with the sources and draft; require identification of the specific disputed claim and evidence per [DOC-2](04-statement-structure.md#doc-2).  
+Verify each finding, fix it, or reject it with documented grounds; an external reply does not replace primary evidence.  
+Verify worker launch, progress, completion, and output; an empty assignment does not create an agent.  
+Freeze a package of current KB modules before the audit; the reviewer receives the package and primary evidence without other auditors' conclusions.  
+A modified KB requires re-auditing affected conclusions; an independent audit record is bound to the actual UI session and the digest of the reviewed files.  
+The package binds the exact current requests, response candidate, and map of its material claims; a new response version requires its own clearance even if the KB is unchanged.  
+The parent's prompt to an independent auditor (`A.A`) must be neutral: pass the project root and package path (verified via `review-input`) without pre-filling positive outcomes (`approved`, `supported`, `direct`, `findings: []`) that omit negative schema alternatives.  
+An independent auditor operates strictly read-only inside the current project root: it does not create or modify files, does not run generators in `scratch`, does not read neighboring projects, and confirms in `observed`/`tested_claim` every standalone number from an approved claim and `response_excerpt`.  
+The auditor returns a per-claim evaluation covering observation, inference, method sufficiency, alternatives, limitations, and verdict.  
+In `test_alignment`, compare the exact `target_claim` against the actual `tested_claim`, recording `direct`/`proxy`/`irrelevant` and a `"claim is false, test passes"` counterexample; `proxy` does not permit unqualified `supported` without a visible qualification, and `irrelevant` does not support the claim.  
+The auditor verifies compatibility of recommendations with primary facts: a condition refuted by primary evidence (`dead-end condition`) requires a `needs_changes` verdict and cannot be approved by assuming subjective external moderation discretion.  
+Preserve the original verdict immutable with verified native provenance; record parent dispositions of findings separately and never overwrite the auditor's result with them.  
+`needs_changes` and open findings persist as working state and block completion; a new review attempt does not overwrite a prior report.  

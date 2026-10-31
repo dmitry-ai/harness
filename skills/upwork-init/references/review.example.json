@@ -1,14 +1,14 @@
 {
-  "risk": "routine",
-  "basis": "В ответе передаются только прямо приведённые слова учебного клиента; новых причинных или архитектурных выводов нет.",
-  "request_scope": "Кратко сообщить, на что жалуется клиент, с обозначением источника.",
-  "task_flags": [],
-  "claim_ids": ["H-CONCERN-1"],
-  "claims": [
-    {
-      "claim_id": "H-CONCERN-1",
-      "response_excerpt": "Клиент сообщает о расхождении цены в магазине и объявлениях.",
-      "novelty": "new"
-    }
-  ]
+  "stage": "causes",
+  "reviewer": "AA",
+  "verdict": "approved",
+  "checked_paths": [
+    "ꘖ/KB/Analysis.json",
+    "ꘖ/KB/Overview.md",
+    "ꘖ/KB/Findings.md",
+    "ꘖ/KB/Decisions.md",
+    "ꘖ/KB/Plan.md"
+  ],
+  "findings": [],
+  "notes": "Hypotheses are separated from facts, probabilities and method suitability scores are justified, and links to Evidence are verified."
 }

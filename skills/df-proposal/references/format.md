@@ -1,73 +1,73 @@
-# Формат proposal
+# Proposal Format
 
-## 1. Предмет и порядок
+## 1. Subject Matter and Ordering
 
-1. Располагай выводы по значимости для цели клиента в его фактическом состоянии.
-Планируемая реклама не доказывает текущие расходы; установленный компонент не доказывает его влияние на выручку.
-Не пересказывай бриф как собственное открытие.
-1. Начинай содержательный пункт сразу с конкретного тезиса.
-Убирай предварительный заголовок, повторяющий этот тезис, и пояснение того же содержания другими словами.
-Общий вводный пункт допустим, когда он быстро указывает существенные результаты и ссылается на их разбор.
-1. Одна проблема и один механизм образуют один верхний пункт, даже если затронуты несколько форм или страниц.
-Другой механизм того же продукта получает самостоятельный пункт.
-Сходство названий продуктов не основание объединять различные дефекты.
-1. Цитируй точные названия компонентов, которые клиент узнает в интерфейсе.
-Внутренний индекс декодера (`Tag 42`, `Rule 24`) не заменяет название тега или триггера.
-Технический идентификатор уместен, если клиент может найти по нему нужный объект и это помогает понять тезис.
+1. Order conclusions by their importance to the client's goal given the actual state of their system.  
+Planned ad spend does not prove current ad spend; an installed component does not prove revenue impact.  
+Do not repeat the job brief back as your own discovery.  
+1. Start each substantive item directly with the concrete claim.  
+Omit any lead-in label that repeats the claim or restates the same point in different words.  
+A brief opening overview item is permissible when it immediately highlights the material findings and links to their detailed breakdown.  
+1. One problem and one mechanism form a single top-level item even when multiple forms or pages are affected.  
+A different mechanism of the same product receives its own top-level item.  
+Shared product names are not a reason to merge distinct defects.  
+1. Cite the exact component names the client will recognize in their UI.  
+An internal decoder index (`Tag 42`, `Rule 24`) never substitutes for the actual tag or trigger name.  
+A technical identifier is appropriate when the client can use it to locate the object and it clarifies the claim.  
 
-## 2. Предложения
+## 2. Sentences
 
-1. Используй активный залог и предметный субъект: `the trigger sends`, `the export contains`, `configure the webhook`.
-Не пиши техническое решение от `I`; портфолио и буквальные вопросы клиента сохраняют собственную форму.
-1. Полноценная фраза называет объект и действие.
-`server`, `client`, `this`, скобка с идентификатором и жаргон вроде `unbridged` не должны заставлять читателя угадывать, о какой сущности идёт речь.
-1. Не смешивай форму, подпись кнопки, действие посетителя, событие JavaScript и событие аналитики.
-Связь между ними описывай словами или доказанной цепочкой.
-1. Для явного следствия допустима компактная запись `причина → следствие`.
-Каждый переход требует собственного основания; стрелка не делает правдоподобную связь доказанной.
-Не добавляй после стрелки `because`, `therefore` и другие слова с повторным или противоположным значением связи.
-1. Убирай `In addition`, `Furthermore`, `Simultaneously` и подобные вводные, если единственная их функция — объявить очередной пункт списка.
-Не подменяй исправление смысла заменой одного жаргонного синонима другим.
-1. Сразу объясняй, решается ли точная задача, каким способом и что для него требуется.
-Не обещай способ, который соседний абзац объявляет неработающим.
-Не создавай искусственный блок `Limitations:`; существенную границу действия опиши там, где она определяет ответ.
-`journey` вне точной цитаты замени конкретным содержанием: история каких событий, каких посетителей и за какой период.
+1. Use active voice and an objective grammatical subject: `the trigger sends`, `the export contains`, `configure the webhook`.  
+Do not write technical analysis in the first person (`I`); portfolio descriptions and verbatim client questions retain their natural form.  
+1. Every sentence must name both the entity and the action.  
+Vague nouns like `server`, `client`, `this`, parenthetical IDs, or invented jargon like `unbridged` must not leave the reader guessing which component is meant.  
+1. Do not conflate a form element, button label, visitor action, JavaScript event, and analytics hit.  
+State the relationship between them in plain words or via a proven causal chain.  
+1. For a proven implication, the compact notation `premise → consequence` is permissible.  
+Every arrow transition requires its own verified ground; an arrow does not make a plausible connection proven.  
+Never place `because`, `therefore`, or other redundant/contradictory connectives after an arrow.  
+1. Strip `In addition`, `Furthermore`, `Simultaneously`, and similar transitions whose sole function is to announce the next list item.  
+Never substitute synonym-swapping for fixing a flawed claim.  
+1. State immediately whether the exact task is solvable, by what method, and what prerequisites it requires.  
+Do not promise a method that an adjacent paragraph shows to be non-functional.  
+Do not create an artificial `Limitations:` block; state any material constraint right where it governs the answer.  
+Outside verbatim quotes, replace vague `journey` wording with the specific events, visitor segment, and time window.  
 
-## 3. Представление
+## 3. Presentation
 
-1. Основной формат — обычные нумерованные строки: `1. …`, `2. …`, `2.1. …`.
-Для них не нужны Markdown-заголовки, римские части, HTML-якоря, граф рекомендаций статьи или жирные подписи `§`.
-1. Отделяй верхние пункты пустой строкой; предложения пиши с новой строки.
-Сохраняй выбранную пользователем плотность подпунктов и компактный список портфолио.
-При пофразовом разборе можно адресовать каждое предложение подпунктом, если это поручено пользователем.
-Ссылка на старый `raw.md` как образец не разрешает создавать или менять такой файл в текущем проекте.
-1. Нумерация сквозная; вложенные пункты принадлежат указанному родителю.
-Редакторская вводка с `.0` допустима при существующем формате (`5.0`, `21.0.1`), но не нужна по умолчанию.
-Плоский профиль запрещает вложенные пункты только по явному выбору этого профиля.
-1. Одиночная ссылка: `§3` или `§3.2`; диапазон: `§§3-6` или `§§3.1-3.4`.
-Проверяй все номера и границы диапазона после удаления или перестановки.
-Не исправляй похожие литералы внутри кода, URL и точных цитат.
-1. Для перестановки без ручной перенумерации используй `source`/`render`.
-В ключевом виде строки имеют форму `@forms …`, дочерние — `@forms.reason …`; ссылки — `§@forms.reason`.
-Дочерние блоки перемещаются вместе с родителем.
-Удалённый ключ с оставшейся ссылкой даёт ошибку рендера.
-1. В Upwork используй обычные URL, а не `[подпись](URL)`.
-Ссылка должна указывать на подтверждающий раздел или определение нужного термина; проверка одной доступности страницы недостаточна.
-Не повторяй URL: повторное место ссылается на пункт первого использования.
-1. Сокращай URL до минимальной проверенной формы: сохраняй значимые параметры и точный якорь.
-Удаление слага, `www.` или конечного `/` требует проверки работоспособности и нужного перехода к разделу.
-Не добавляй метки отслеживания к ссылкам на документацию.
-1. Код, имена API, параметры и селекторы оформляй backticks; надписи интерфейса — `«…»`.
-Не превращай обычное слово или соседство двух технических слов в псевдокод.
-Кодовые блоки допустимы, когда нужны читателю; левая граница ограждения — нулевая.
+1. The primary format is plain numbered lines: `1. …`, `2. …`, `2.1. …`.  
+Do not use Markdown `#` headings, Roman-numeral parts, HTML anchors, article recommendation graphs, or bold `§` labels.  
+1. Separate top-level items with a blank line; start every sentence on a new line with two trailing spaces (`  \n`) inside multi-sentence items.  
+Preserve the user's chosen sub-item density and compact portfolio list.  
+For clause-by-clause breakdowns, addressing each sentence as its own sub-item is permissible when instructed by the user.  
+Referencing a historical `raw.md` as a layout sample does not authorize creating or modifying `raw.md` in the current project.  
+1. Numbering is continuous; nested items belong to their stated parent.  
+An editorial `.0` lead-in (`5.0`, `21.0.1`) is preserved when editing an existing document that uses it, but is not generated by default.  
+The `flat` profile forbids nested sub-items only when explicitly selected.  
+1. Single reference: `§3` or `§3.2`; range reference: `§§3-6` or `§§3.1-3.4`.  
+Verify all item numbers and range bounds after deleting or reordering items.  
+Do not alter similar literals inside code blocks, URLs, or verbatim quotes.  
+1. Use `source`/`render` to reorder items without manual renumbering.  
+In symbolic source mode, top-level lines use `@forms …`, children use `@forms.reason …`, and references use `§@forms.reason`.  
+Child blocks move together with their parent.  
+A reference to a deleted key fails rendering.  
+1. On Upwork, use bare URLs rather than `[label](URL)` Markdown links.  
+Every URL must point to the specific section or term definition that backs the claim; mere page reachability is insufficient.  
+Do not repeat the same URL: subsequent mentions reference the `§` item where the URL was first introduced.  
+1. Shorten URLs to their minimal verified form while preserving significant query parameters and the exact `#anchor`.  
+Stripping a slug, `www.`, or trailing `/` requires verifying that the shortened URL still resolves to the exact target section.  
+Never append tracking parameters to documentation URLs.  
+1. Wrap code, API names, parameters, and selectors in backticks; wrap UI labels in `«…»`.  
+Do not wrap ordinary prose words or pairs of technical nouns in backticks as pseudo-code.  
+Fenced code blocks are permissible when helpful to the reader; keep the opening and closing fences at column zero.  
 
-## 4. Вопросы, портфолио и поля
+## 4. Screening Questions, Portfolio, and Submission Fields
 
-1. На дополнительные вопросы клиента отвечай прямо и в порядке, подходящем заданию.
-Буквальная цитата вопроса помогает адресации; это профиль, а не обязательный раздел любого proposal.
-1. Компактный список портфолио размещай в подходящем поле по текущему поручению; основания работ проверяются общей процедурой.
-1. Число вопросов, их точный текст, разделение по полям, лимиты и наличие портфолио задаёт текущее задание.
-В истории adorncroft было четыре поля по 5000 символов (Cover Letter и три вопроса); это условие того задания, а не универсальный предел одного proposal.
-Проверяй текст именно каждого отправляемого поля вместе с пробелами, переносами и URL.
-1. Никакие форматные проверки не подтверждают фактическую истинность или пригодность рекомендации.
-Карта утверждений, достаточность доказательств и независимая рецензия определяются общей процедурой, на которую ссылается SKILL.md.
+1. Answer additional client screening questions directly and in the order suited to the job post.  
+Quoting a question verbatim aids addressing; that is a profile choice rather than a mandatory section of every proposal.  
+1. Place a compact portfolio list in the appropriate field per the current instruction; claims about past projects are verified under the shared procedure.  
+1. The number of questions, their exact wording, field allocation, character limits, and portfolio placement are defined by the active job post.  
+In the historical `adorncroft` job there were four 5,000-character fields (Cover Letter plus three screening questions); that was a property of that specific job post, not a universal rule.  
+Validate the exact text of each individual submission field, including spaces, line breaks, and URLs.  
+1. Format checks never certify factual truth or suitability of a recommendation.  
+The claim map, evidence sufficiency, and independent review are governed by the shared procedure referenced in [SKILL.md](../SKILL.md).  

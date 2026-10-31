@@ -1,147 +1,69 @@
-#!/usr/bin/env python3
+# 2026-10-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
+# https://github.com/dmitry-ai/harness/issues/14
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 import json
 import re
 import sys
-
-# Сокращения, не являющиеся концом предложения
-ABBREVIATIONS = (
-    r'\b(?:г|гг|т\.д|т\.п|см|им|др|пр|ул|д|кв|рис|табл|ст|п|ч|руб|тыс|млн|млрд|'
-    r'англ|рус|напр|ок|vs|Mr|Mrs|Ms|Dr|St|Inc|Ltd|Co|Jr|Sr|e\.g|i\.e)\.'
-)
+ABBREVIATIONS = '\\b(?:\\u0433|\\u0433\\u0433|\\u0442\\.\\u0434|\\u0442\\.\\u043f|\\u0441\\u043c|\\u0438\\u043c|\\u0434\\u0440|\\u043f\\u0440|\\u0443\\u043b|\\u0434|\\u043a\\u0432|\\u0440\\u0438\\u0441|\\u0442\\u0430\\u0431\\u043b|\\u0441\\u0442|\\u043f|\\u0447|\\u0440\\u0443\\u0431|\\u0442\\u044b\\u0441|\\u043c\\u043b\\u043d|\\u043c\\u043b\\u0440\\u0434|\\u0430\\u043d\\u0433\\u043b|\\u0440\\u0443\\u0441|\\u043d\\u0430\\u043f\\u0440|\\u043e\\u043a|vs|Mr|Mrs|Ms|Dr|St|Inc|Ltd|Co|Jr|Sr|e\\.g|i\\.e)\\.'
 ABBR_RE = re.compile(ABBREVIATIONS, re.IGNORECASE)
-
-# Множественные предложения на одной строке
-MULTI_SENT_RE = re.compile(
-    r'(?:[А-Яа-яЁёA-Za-z0-9«»"(),:-]+\s+){2,}[А-Яа-яЁёA-Za-z0-9]+[.!?]\s+[А-ЯЁA-Z][a-zа-яёA-Za-z0-9]'
-)
-
-
+MULTI_SENT_RE = re.compile('(?:[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9\\u00ab\\u00bb"(),:-]+\\s+){2,}[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9]+[.!?]\\s+[\\u0410-\\u042f\\u0401A-Z][a-z\\u0430-\\u044f\\u0451A-Za-z0-9]')
 def is_abbreviation_end(text):
-    clean = text.rstrip()
-    return bool(ABBR_RE.search(clean))
-
-
+	r = bool(ABBR_RE.search(text.rstrip()))
+	return r
 def check_markdown_content(content):
-    if not content or not isinstance(content, str):
-        return None
-
-    lines = content.split('\n')
-    in_code_block = False
-    in_frontmatter = False
-
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-
-        # Frontmatter
-        if i == 0 and stripped == '---':
-            in_frontmatter = True
-            continue
-        if in_frontmatter:
-            if stripped == '---':
-                in_frontmatter = False
-            continue
-
-        # Блоки кода ``` / ~~~
-        if stripped.startswith(('```', '~~~')):
-            in_code_block = not in_code_block
-            continue
-        if in_code_block:
-            continue
-
-        # Пропуск пустых строк, заголовков, таблиц и горизонтальных линий
-        if not stripped or stripped.startswith(('#', '|', '---', '===', '>')):
-            continue
-
-        # 1. Проверка на множественные предложения на одной строке (SENT-SPLIT)
-        # Очищаем от инлайн-кода, ссылок и кавычек
-        cleaned = re.sub(r'`[^`]*`', 'code', line)
-        cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
-        cleaned = re.sub(r'«[^»]*»', '«цитата»', cleaned)
-        cleaned = re.sub(ABBREVIATIONS, 'abbr', cleaned, flags=re.IGNORECASE)
-
-        if MULTI_SENT_RE.search(cleaned):
-            return (
-                f"Строка {i + 1}: обнаружено несколько предложений на одной строке (правило DOC-4). "
-                f"Каждое предложение должно начинаться с новой физической строки.\n"
-                f"Фрагмент: {stripped[:80]}"
-            )
-
-        # 2. Проверка на склейку строк без 2 пробелов на конце (нейрослоп)
-        # Если текущая строка заканчивается знаком препинания (. ! ?) или текстом,
-        # а следующая строка — не пустая, не заголовок и не маркер списка,
-        # при этом текущая строка НЕ заканчивается двумя пробелами ('  ') и НЕ заканчивается обратным слешем ('\\').
-        if i + 1 < len(lines):
-            next_line = lines[i + 1]
-            next_stripped = next_line.strip()
-
-            # Если следующая строка не пустая и не специальный markdown-элемент
-            if (
-                next_stripped
-                and not next_stripped.startswith(('#', '```', '~~~', '---', '===', '>', '|'))
-                and not re.match(r'^(?:[-*+]|\d+\.)\s+', next_stripped)
-            ):
-                # Проверяем окончание текущей строки
-                # Допустимо: заканчивается на '  ' (два пробела) или на '\\'
-                if not (line.endswith('  ') or line.endswith('\\')):
-                    # Если это обычный текст или строка внутри пункта списка
-                    return (
-                        f"Строка {i + 1}: обнаружен слитный текст (нейрослоп) без CommonMark hard break. "
-                        f"Строка переходит на следующую без пустой строки и без двух пробелов на конце ('  \\n'). "
-                        f"В рендерере этот текст склеится в нечитаемый монолит.\n"
-                        f"Строка: {stripped[:70]}"
-                    )
-
-    return None
-
-
+	r = None
+	if content and isinstance(content, str):
+		lines = content.split('\n')
+		in_code_block = False
+		in_frontmatter = False
+		for i, line in enumerate(lines):
+			stripped = line.strip()
+			if 0 == i and '---' == stripped:
+				in_frontmatter = True
+				continue
+			if in_frontmatter:
+				if '---' == stripped:
+					in_frontmatter = False
+				continue
+			if stripped.startswith(('```', '~~~')):
+				in_code_block = not in_code_block
+				continue
+			if in_code_block or not stripped or stripped.startswith(('#', '|', '---', '===', '>')):
+				continue
+			cleaned = re.sub('`[^`]*`', 'code', line)
+			cleaned = re.sub('\\[([^\\]]+)\\]\\([^)]+\\)', '\\1', cleaned)
+			cleaned = re.sub('\\u00ab[^\\u00bb]*\\u00bb', '«quote»', cleaned)
+			cleaned = re.sub(ABBREVIATIONS, 'abbr', cleaned, flags=re.IGNORECASE)
+			if MULTI_SENT_RE.search(cleaned):
+				r = f'Line {i + 1}: multiple sentences detected on a single line (rule DOC-4). Every sentence must start on a new physical line.\nFragment: {stripped[:80]}'
+				break
+			if i + 1 < len(lines):
+				next_stripped = lines[i + 1].strip()
+				if next_stripped and (not next_stripped.startswith(('#', '```', '~~~', '---', '===', '>', '|'))) and (not re.match('^(?:[-*+]|\\d+\\.)\\s+', next_stripped)) and (not (line.endswith('  ') or line.endswith('\\'))):
+					r = f"Line {i + 1}: run-on text without a CommonMark hard line break detected. The line continues to the next without a blank line or two trailing spaces ('  \\n').\nLine: {stripped[:70]}"
+					break
+	return r
 def main():
-    try:
-        raw_input = sys.stdin.read()
-        if not raw_input.strip():
-            sys.stdout.write(json.dumps({"decision": "allow"}))
-            return
-
-        payload = json.loads(raw_input)
-        tool_call = payload.get("toolCall", {})
-        name = tool_call.get("name", "")
-        args = tool_call.get("args", {})
-
-        if name not in ("write_file", "edit_file"):
-            sys.stdout.write(json.dumps({"decision": "allow"}))
-            return
-
-        path = args.get("Path", "")
-        if not path or not path.lower().endswith(".md"):
-            sys.stdout.write(json.dumps({"decision": "allow"}))
-            return
-
-        # Исключаем логи запросов пользователя
-        normalized_path = path.replace("\\", "/").lower()
-        if "/req/" in normalized_path:
-            sys.stdout.write(json.dumps({"decision": "allow"}))
-            return
-
-        content = args.get("Content") if name == "write_file" else args.get("Replacement")
-        violation = check_markdown_content(content)
-
-        if violation:
-            sys.stdout.write(
-                json.dumps(
-                    {
-                        "decision": "deny",
-                        "reason": f"ОТКЛОНЕНО (DOC-4 Anti-Slop Hook): {violation}",
-                    },
-                    ensure_ascii=False,
-                )
-            )
-            return
-
-        sys.stdout.write(json.dumps({"decision": "allow"}))
-
-    except Exception as e:
-        # В случае внутренней ошибки хука не ломаем пайплайн намертво, но логируем
-        sys.stdout.write(json.dumps({"decision": "allow"}))
-
-
-if __name__ == "__main__":
-    main()
+	decision = {'decision': 'allow'}
+	try:
+		raw_input = sys.stdin.read()
+		if raw_input.strip():
+			payload = json.loads(raw_input)
+			tool_call = payload.get('toolCall', {})
+			name = tool_call.get('name', '')
+			args = tool_call.get('args', {})
+			path = args.get('Path', '')
+			normalized_path = path.replace('\\', '/').lower()
+			if name in ('write_file', 'edit_file') and path and path.lower().endswith('.md') and ('/req/' not in normalized_path):
+				content = args.get('Content') if 'write_file' == name else args.get('Replacement')
+				violation = check_markdown_content(content)
+				if violation:
+					decision = {'decision': 'deny', 'reason': f'REJECTED (DOC-4 Anti-Slop Hook): {violation}'}
+	except Exception:
+		decision = {'decision': 'allow'}
+	sys.stdout.write(json.dumps(decision, ensure_ascii=False))
+if '__main__' == __name__:
+	main()

@@ -1,27 +1,28 @@
-# Адаптер Antigravity
+# Antigravity Adapter
 
-Новые исследования и рецензии используют общий [контракт доказательств](../skills/upwork-init/references/evidence-contract.md) и [workflow](../skills/upwork-init/references/workflow.md).
-Пакет рецензии связывает текущие запросы, точные байты ответа и карту тезисов с KB/Evidence; routine требует основания, significant — двух независимых A.A.
-Аудитор возвращает исходный JSON-вердикт окончательным нативным сообщением; квитанция запуска после завершения передаётся отдельно, родительские решения по замечаниям сохраняются отдельной записью.
-Метаданные primary/A.A/A.F сохраняются через native-executor-metadata: отдельно requested/observed, источники и статус проверки; наследование или tier не подтверждают фактический режим.
+New investigations and reviews use the shared [evidence contract](../skills/upwork-init/references/evidence-contract.md) and [workflow](../skills/upwork-init/references/workflow.md).  
+A review package binds the current requests, exact response bytes, and claim map to KB/Evidence; `routine` requires a justified basis, while `significant` requires two independent A.A reviewers.  
+The auditor returns the original JSON verdict in its final native message; the post-completion launch receipt is passed separately, and parent dispositions of findings are recorded as separate entries.  
+Metadata for primary/A.A/A.F is saved via `native-executor-metadata`: `requested`/`observed`, sources, and verification status are tracked separately; inheritance or tier does not prove the actual runtime mode.  
 
-Каждой внутренней команде можно передавать `--platform antigravity`; это совместимое значение по умолчанию.
-Профиль `runtime.json` задаёт наследование A.A, пресет/tier A.F, браузер и путь Folders.
-Модель основного /upwork-init выбирается в UI; роль A.A не переключает её.
-Делегируй через `invoke_subagent` текущей UI-беседы: A.A — `self` с `Model: inherit`, A.F — `af-worker` с заданным tier.
-Tier не доказывает точную модель/effort; проверяй доступные фактические метаданные.
-Не запускай модели скрытыми CLI-сеансами.
-Общие правила и навыки подключаются существующими `.agents/{rules,skills,agents}.json`.
-После определения корня основной беседы выполни `turn-begin <root> --conversation <native-uuid> --platform antigravity`; обычный анализ правил также использует [контракт хода](../references/turn-completion.md#начало-хода).
-Перед окончательным ответом запиши UTF-8 текст ответа через `write_file` в `<root>/ꘖ/data/scratch/answer.md`, вызови `answer-prepare <root> --response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input --conversation <native-uuid> --platform antigravity` (не передавай кириллицу и `ꘖ`/`ꙮ` через конвейер PowerShell `| python` без `[System.Text.UTF8Encoding]::new($false)`) и [публикуй сохранённые байты](../references/turn-completion.md#подготовка-ответа).
-`/upwork-cleanup` выполняет общий навык `skills/upwork-cleanup/SKILL.md`: очищает обе системы от пустых проектов старше 72 часов, сохраняя весь `proposals/daily`.
-`/df-article` выполняет профиль статьи, `/df-proposal` — профиль Upwork proposal. Общая процедура и рецензия — `references/client-text/`; A.A — `self` с `Model: inherit`.
-Обычные init/register запрашивают регистрацию того же каталога в обеих системах; --platform указывает выполняющую среду, --target у register исправляет одну регистрацию.
-В Antigravity сохраняются штатные ID и настройки и назначается ветка Folders; Codex использует отдельный адаптер Shared-Projects.
-Вторичная ошибка/ожидание не блокирует активную регистрацию; сверяй отдельные квитанции, complete и all_registered.
-Без CODEX_HOME исходный профиль только Codex-регистрации задаётся runtime.platforms.codex.registration_profile; это не источник истории чата.
-`adopt-requests` читает точные USER_INPUT текущего родительского чата из нативной базы.
-В новом чате без URL принадлежность запроса подтверждается единственным точным workspace_uri проекта либо явным «Корень проекта: `<абсолютный путь>`» в пользовательском сообщении; общий каталог репозитория и неоднозначный multiworkspace недостаточны.
-`native-review-proof` проверяет родителя, дочерний self/inherit, нейтральность промпта (отсутствие навязанных `approved`/`supported`/`direct`/`findings: []`), работу рецензента только на чтение внутри текущего корня проекта без обращения к соседним проектам, успешное завершение и назначенный пакет KB (`review-input`).
-Если формат базы недоступен, сохрани точный текущий запрос через `resume --request-file`, не восстанавливай старые тексты из summary.
-Поведение создания, исследования, продолжения, рецензии и завершения задаёт общий навык.
+Every internal command accepts `--platform antigravity`; it is the backward-compatible default.  
+The `runtime.json` profile defines A.A inheritance, the A.F preset/tier, the browser, and the Folders path.  
+The model for the primary `/upwork-init` chat is selected in the UI; the A.A role does not switch it.  
+Delegate via `invoke_subagent` in the current UI conversation: A.A uses `self` with `Model: inherit`, and A.F uses `af-worker` with its configured tier.  
+A tier does not prove the exact model or effort; verify the available actual metadata.  
+Do not launch models via hidden CLI sessions.  
+Shared rules and skills are connected via existing `.agents/{rules,skills,agents}.json` manifests.  
+After establishing the root of the primary conversation, execute `turn-begin <root> --conversation <native-uuid> --platform antigravity`; routine analysis of rules also follows the [turn completion contract](../references/turn-completion.md#turn-begin).  
+Before publishing the final response, write the UTF-8 response text via `write_file` to `<root>/ꘖ/data/scratch/answer.md`, run `answer-prepare <root> --response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input --conversation <native-uuid> --platform antigravity` (do not pipe Cyrillic or `ꘖ`/`ꙮ` through a PowerShell `| python` pipeline without `[System.Text.UTF8Encoding]::new($false)`), and [publish the saved bytes](../references/turn-completion.md#answer-preparation).  
+`/upwork-cleanup` executes the shared skill `skills/upwork-cleanup/SKILL.md`: it cleans both systems of empty projects older than 72 hours while preserving all of `proposals/daily`.  
+`/df-article` executes the article profile, and `/df-proposal` executes the Upwork proposal profile.  
+The shared procedure and review contract reside in `references/client-text/`; A.A uses `self` with `Model: inherit`.  
+Standard `init`/`register` request registration of the same directory in both systems; `--platform` indicates the executing environment, while `--target` on `register` repairs a single registration.  
+In Antigravity, native IDs and settings are saved and the Folders branch is assigned; Codex uses the separate Shared-Projects adapter.  
+A secondary error or pending state does not block the active registration; check the individual receipts, `complete`, and `all_registered`.  
+Without `CODEX_HOME`, the source profile for Codex registration alone is taken from `runtime.platforms.codex.registration_profile`; it is never used as a chat history source.  
+`adopt-requests` reads the exact `USER_INPUT` steps of the current parent chat from the native store.  
+In a new chat without a job URL, request ownership is confirmed by a single exact project `workspace_uri` or an explicit `"Project root: <absolute path>"` in the user message; a shared repository root or ambiguous multi-workspace is insufficient.  
+`native-review-proof` verifies the parent, child `self`/`inherit`, prompt neutrality (absence of pre-filled `approved`/`supported`/`direct`/`findings: []`), read-only operation of the reviewer inside the current project root without accessing neighboring projects, successful completion, and the assigned KB package (`review-input`).  
+If the native store format is unavailable, record the exact current request via `resume --request-file`; do not reconstruct historical texts from summaries.  
+Creation, research, continuation, review, and completion behavior are governed by the shared skill.  

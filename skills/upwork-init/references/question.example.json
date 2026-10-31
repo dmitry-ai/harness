@@ -1,40 +1,34 @@
 {
-  "id": "Q-SITE",
-  "question": "Явно ли источник помечает учебные данные как синтетические?",
-  "impact": "Учебные данные не должны становиться фактами реального клиента.",
-  "done_when": "До измерения сохранён план; исход сопоставлен с критерием или указан конкретный пробел.",
+  "id": "Q-SITE-1",
+  "stage": "identity",
+  "goal": "Check whether the domain shop.example.com mentioned in work_history belongs to the current task",
+  "impact": "Determines the target object of the technical audit and Stage 1 conclusion",
+  "owner": "AF",
   "inputs": [
-    "ꘖ/project.json"
+    "ꘖ/KB/Project.md",
+    "ꘖ/KB/Evidence/example-source.json"
   ],
-  "outputs": [
-    "ꘖ/KB/Evidence/site-report.json"
+  "allowed_actions": [
+    "Read local KB files",
+    "Inspect saved Evidence captures without duplicate network requests"
   ],
-  "requirements": [
-    {
-      "id": "R-SYNTHETIC",
-      "claim": "Источник явно помечен как синтетический.",
-      "property": "content",
-      "method": "http",
-      "scope": {"objects": ["https://example.invalid/source.json"]},
-      "conditions": {
-        "session": {"mode": "unknown", "verification": "unverified"},
-        "egress": {"country": null, "verification": "unverified"}
-      },
-      "alternatives": ["Признак synthetic равен false.", "Поле отсутствует или источник недоступен."],
-      "expected": "Поле synthetic строго равно JSON true.",
-      "falsification": "Поле synthetic строго равно JSON false; отсутствие поля не считается опровержением.",
-      "discriminating_test": "Прочитать /synthetic из сырых байтов JSON и отличить true, false и отсутствие данных.",
-      "completion_criterion": "Записан фактический verified/refuted/unverified/unavailable с первичным артефактом и ограничениями.",
-      "assertions": [
-        {
-          "id": "A-SYNTHETIC",
-          "artifact_id": "response",
-          "locator": {"type": "json_pointer", "value": "/synthetic"},
-          "operator": "equals",
-          "expected": true,
-          "disconfirming": {"operator": "equals", "expected": false}
-        }
-      ]
-    }
-  ]
+  "done_when": "Both confirming and disconfirming quotes with exact JSON Pointer links are collected",
+  "plan": {
+    "hypothesis": "The domain shop.example.com from work_history may belong to the current task, but without confirmation in the job post this remains a hypothesis.",
+    "method": "Compare work_history and description/counterevidence in the saved example-source.json capture.",
+    "inputs": [
+      "ꘖ/KB/Evidence/example-source.json"
+    ],
+    "expected_if_true": "The domain appears in the current job description or is confirmed by the same storefront.",
+    "disconfirming_outcome": "The domain appears only in a past contract while the current job post names no domain.",
+    "success_criteria": [
+      "Both JSON Pointers are recorded: /work_history/0/feedback and /counterevidence."
+    ],
+    "limitations": [
+      "A local fixture without live storefront observation does not prove domain ownership."
+    ],
+    "stop_conditions": [
+      "Both fields of the local capture are verified."
+    ]
+  }
 }

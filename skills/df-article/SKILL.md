@@ -1,23 +1,25 @@
 ---
 name: df-article
-description: "Пишет и правит самостоятельную статью в формате df.tips/t/2725: две части, адресуемые тезисы, доказательства и рекомендации. Используй при /df-article и работе над такой статьёй; для Upwork proposal — df-proposal."
+description: "Writes and edits standalone technical articles in the df.tips/t/2725 format: two parts, addressable claims, reproducible evidence, and recommendations. Use for /df-article and work on such articles; use df-proposal for Upwork proposals."
 ---
-# Статья в формате df.tips/t/2725
+# Article in the df.tips/t/2725 Format
 
-Применяй [общую процедуру клиентского текста](../../references/client-text/workflow.md) и [общую рецензию](../../references/client-text/review.md).
-Общие контракты доказательств, разрешённых изменений, записи и ответа находятся только там.
-Перед составлением прочитай целиком [образец](references/2725.md) и [формат статьи](references/format.md).
-Образец задаёт устройство текста; факты и словарь из него в другой проект не переносятся.
+Apply the [shared client text procedure](../../references/client-text/workflow.md) and [shared review contract](../../references/client-text/review.md).  
+Shared contracts for evidence, permitted edits, file writing, and user responses reside exclusively there.  
+Before drafting, read the [gold sample](references/2725.md) and [article format grammar](references/format.md) in full.  
+The sample defines structural mechanics; never copy its facts or domain vocabulary into another project.  
 
-Установи цель: что читатель должен понять или сделать. Сначала отбирай рекомендации, затем необходимые для них наблюдения и выводы.
-Часть I содержит эти основания и факты, прямо отвечающие цели; часть II — выполнимые действия с основаниями.
-Не превращай полную KB в статью. Каждый абзац должен давать нужное новое содержание.
+Establish the goal: what the reader must understand or execute.  
+Select the recommendations first, and then the observations and inferences required to support them.  
+Part I contains those premises and the facts that directly answer the goal; Part II contains actionable steps backed by Part I premises.  
+Do not dump the entire KB into the article.  
+Every paragraph must contribute necessary new substance.  
 
-Инструмент: `python <agents>/scripts/df_article.py`, где `<agents>` — канонический каталог `.agents`.
-`source` строит ключевой вид: заголовки `## @routes`, дочерние `### @routes.invalid`, ссылки `§@routes`, `§§@routes-@crawl`, якорные ссылки `(#@routes)`.
-`render` вычисляет номера и ссылки, сохраняет существующий стиль якорей, включая `<a name='§I.4.1'></a>`, и отказывает при ссылке на удалённый ключ.
-Ссылки на внешние стандарты, литералы кода и точные цитаты сохраняются.
-Используй `render --diff` для предложения и `render -o` для отдельного кандидата; целевой документ записывает общая операция `apply`.
+Tool: `python <agents>/scripts/df_article.py`, where `<agents>` is the canonical `.agents` directory.  
+`source` converts numbered headings into symbolic keys: headings `## @routes`, children `### @routes.invalid`, references `§@routes`, ranges `§§@routes-@crawl`, and anchor links `(#@routes)`.  
+`render` computes numbers and links, preserves the existing anchor style including `<a name='§I.4.1'></a>`, and fails if any reference points to a deleted key.  
+References to external standards, code literals, and verbatim quotes remain untouched.  
+Use `render --diff` to preview a proposal and `render -o` to write a separate candidate file; the shared `apply` operation writes the registered target document.  
 
-Proposal имеет собственный навык [df-proposal](../df-proposal/SKILL.md); письмо использует общую процедуру с `kind=letter` и заданной пользователем формой.
-Результат и журнал проверяются по общему контракту, затем сохраняются по поручению пользователя.
+Upwork proposals use their own skill [df-proposal](../df-proposal/SKILL.md); letters use the shared procedure with `kind=letter` and the user-specified layout.  
+Validate the deliverable and journal per the shared contract, then persist them as instructed by the user.  

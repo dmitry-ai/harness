@@ -1,35 +1,35 @@
 ---
 trigger: always_on
-description: "Факты, гипотезы, способы решения и компактные документы"
+description: "Facts, hypotheses, solution methods, and compact documents"
 ---
-# Утверждения
+# Statements
 ## DOC-1
-Разделяй наблюдение, слова источника, гипотезу, следствие и рекомендуемое действие.
-Факт требует первичного доказательства; совместное появление событий не доказывает причинность, найденный дефект — неосведомлённость клиента.
-Для новой публикации используй типизированные F/H/M с областью наблюдения, статусом, первичными основаниями и версиями зависимостей по контракту навыка.
-Любое число, количество, дата или интервал в подтверждённом `observation`/`client_report` (`essence` и `response_excerpt`) должно буквально присутствовать в первичной цитате либо выводиться проверенным вычислением; домысливание ограничителей области за пределами дословной цитаты оформляй гипотезой (`H-*`), а не фактом (`F-*`).
-Собственная запись KB и высокая экспертная оценка не повышают предположение до факта.
+Separate observation, source wording, hypothesis, implication, and recommended action.  
+A fact requires primary evidence; co-occurrence of events does not prove causation, and a discovered defect does not prove client ignorance.  
+For new publications, use typed F/H/M claims with observation scope, verification status, primary grounds, and dependency versions per the skill contract.  
+Every number, count, date, or interval in a verified `observation`/`client_report` (`essence` and `response_excerpt`) must appear literally in the primary quote or follow from a verified calculation; frame any scope qualifiers inferred beyond the verbatim quote as a hypothesis (`H-*`) rather than a fact (`F-*`).  
+An agent's own KB entry or a high expert score does not promote a supposition to a fact.  
 ## DOC-2
-Любое неизвестное или недоказанное объяснение оформляй гипотезой: **суть**, **доводы за**, **доводы против**, **экспертная правдоподобность в %** с основанием оценки.
-Приводи конкретные данные данного клиента, альтернативы и недостающие проверки; доказательства — по [LINK-1](02-link-standards.md#link-1).
-Допустим результат «заблуждений не установлено»; шаблон не требует выдумывать версии или возражения.
-Различай найденные контрдоказательства, отсутствие найденных и недоступность проверки.
-Пустое `against` допустимо с `counterevidence`: `status` (`not_found`/`unavailable`), рассмотренные источники и ограничения; фиктивная или подтверждающая цитата не заполняет пробел, а оценка непроверенной гипотезы без контрнаблюдения не может превышать `75%`.
-Для причинного объяснения и гипотез о заблуждениях (`causes`, `misconceptions`) сохрани рассмотренные альтернативы (включая буквальное прочтение слов клиента) и проверку, различающую их; совпадение симптомов не устанавливает конкретную скрытую настройку или механизм.
-Пересказ нарушения не устанавливает его причину; без различающего свидетельства сохраняй вывод «причина не установлена».
-Отсутствие оснований предпочесть версии не устанавливает равновероятность или `50/50`; равные априорные оценки требуют явно названного допущения, прочие проценты — собственной экспертной основы без искусственного нормирования к 100%.
+Frame any unknown or unproven explanation as a hypothesis: **essence**, **arguments for**, **arguments against**, and **expert plausibility in %** with the assessment basis.  
+Cite concrete data from the specific client, alternatives, and missing checks; provide evidence per [LINK-1](02-link-standards.md#link-1).  
+The finding `"no misconceptions established"` is valid; the template does not require inventing theories or objections.  
+Distinguish found counterevidence, absence of found counterevidence, and unavailability of verification.  
+An empty `against` list is permissible with `counterevidence`: `status` (`not_found`/`unavailable`), reviewed sources, and limitations; a dummy or confirming quote does not fill the gap, and the score of an unverified hypothesis without a counter-observation cannot exceed `75%`.  
+For causal explanations and misconception hypotheses (`causes`, `misconceptions`), record the considered alternatives (including a literal reading of the client's words) and the discriminating check; matching symptoms do not establish a specific hidden setting or mechanism.  
+Restating a failure does not establish its cause; without discriminating evidence, retain the conclusion `"cause not established"`.  
+Having no grounds to prefer one version over another does not establish equiprobability or `50/50`; equal prior estimates require an explicitly stated assumption, while other percentages require their own expert basis without artificial normalization to 100%.  
 ## DOC-3
-Для каждого способа: **суть**, **доводы за**, **доводы против**, **оценка в %** с явным критерием и основанием.
-Свяжи способ с причиной или задачей через ID; укажи существенные условия применимости и ограничения.  
-Недоступность закрытой системы клиента (административной панели, рекламного кабинета, логов) не позволяет объявлять неполным, гипотетическим или условным (`limited`/`if`) статус фактов общедоступной системы (витрины, публичного API, DNS), подтверждённых детерминированным наблюдением.  
-Недостающая проверка закрытого кабинета ограничивает исключительно шаги внутри этого кабинета (наличие прав/кнопок), но категорически запрещает делать предположения о ложности уже доказанных свойств открытой витрины; условие `if` не заменяет проверки наблюдаемого каталога.
-Оценка способа — экспертная пригодность по названному критерию, не обещание успеха и не вероятность гипотезы.
-Укажи условия применимости и наблюдаемый критерий проверки результата; значимость дефекта обоснуй влиянием, сохраняя пределы выборки.
+For each solution method, state: **essence**, **arguments for**, **arguments against**, and **score in %** with an explicit criterion and basis.  
+Link the method to a cause or task via ID; state material applicability conditions and limitations.  
+Unavailability of a client's private system (admin panel, ad account, logs) does not allow declaring the status of facts about a public system (storefront, public API, DNS) confirmed by deterministic observation to be incomplete, hypothetical, or conditional (`limited`/`if`).  
+A missing check of a private console restricts only the steps inside that console (availability of permissions/buttons), and strictly forbids assuming that already proven properties of the public storefront might be false; an `if` clause does not replace inspecting the observable catalog.  
+A method's score represents expert suitability under the named criterion, not a promise of success or the probability of a hypothesis.  
+State applicability conditions and an observable verification criterion for the result; justify defect severity by impact while preserving sample boundaries.  
 ## DOC-4
-Не используй таблицы Markdown; каждое предложение начинай с новой строки.  
-В Markdown каждое предложение внутри абзаца обязательно завершай двумя пробелами перед переносом строки (CommonMark hard line break: `  \n`), чтобы строки не склеивались в сплошной абзац при рендеринге; между предложениями одного блока не должно быть пустых строк.  
-Не превращай обычный связный текст в списки ради переносов: списки допустимы только для реальных перечислений однотипных объектов или по прямому поручению.  
-Компактные нумерованные тезисы связывай ссылками на посылки; причинную цепь не дроби на независимые дефекты.
-Сохраняй иерархию, формат и границы анализа/рекомендаций; не перенумеровывай устойчивые ID при сортировке.
-Для обычных списков допустим повторный маркер `1.`; адресуемые параграфы имеют явные номера.
-Код проверки сопровождай фактическим результатом; большой повторно используемый код выноси в инструмент.
+Do not use Markdown tables; start every sentence on a new line.  
+In Markdown, end every sentence inside a paragraph with two trailing spaces before the newline (CommonMark hard line break: `  \n`) so lines do not collapse into a single run-on paragraph when rendered; do not insert blank lines between sentences of the same block.  
+Do not turn ordinary connected prose into bulleted or numbered lists just to get line breaks: lists are permissible only for genuine enumerations of homogeneous items or when explicitly instructed.  
+Connect compact numbered claims with links to their premises; do not fragment a causal chain into independent defects.  
+Preserve hierarchy, format, and boundaries between analysis and recommendations; do not renumber stable IDs when sorting.  
+Repeated `1.` markers are permissible for ordinary lists; addressable paragraphs carry explicit numbers.  
+Accompany verification code with its actual output; extract large reusable code into a shared tool.  

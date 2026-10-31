@@ -1,1 +1,6 @@
-"""Portable project utilities; importing this package performs no I/O."""
+# 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26

@@ -1,4 +1,4 @@
 interface:
   display_name: "Upwork Cleanup"
-  short_description: "Очищает пустые проекты Upwork, сохраняя историю"
-  default_prompt: "Используй $upwork-cleanup для очистки пустых проектов Upwork в Antigravity и Codex."
+  short_description: "Cleans up empty Upwork projects while preserving on-disk history"
+  default_prompt: "Use $upwork-cleanup to clean up empty Upwork projects in Antigravity and Codex."

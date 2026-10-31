@@ -11,16 +11,16 @@
   "facts": [
     {
       "id": "F-CLIENT-REPORT",
-      "essence": "Учебный клиент сообщает, что после изменения цены товара объявления показывают старую цену.",
+      "essence": "The sample client reports that after changing the product price, ads still show the old price.",
       "knowledge_type": "client_report",
       "verification_status": "verified",
       "scope": {
-        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "description": "Sample JSON response; records source statements rather than live store state.",
         "sample": [
           "https://example.invalid/source.json"
         ],
         "limitations": [
-          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+          "Synthetic example. Admin, live prices, browser, and feed were not checked."
         ]
       },
       "properties": [
@@ -36,8 +36,8 @@
           "kind": "observation",
           "source": "https://example.invalid/source.json",
           "observation": "Evidence/Examples/observation.json",
-          "source_sha256": "be470a3a286da2925bd045d7c961fa99b71527b62eaac79455edbfeef73d8ac3",
-          "quote": "Учебный клиент сообщает, что после изменения цены товара объявления показывают старую цену.",
+          "source_sha256": "fecdd29ddac098a390e66aa289b51e17db6145ad3a08c4090338aba5cc59b432",
+          "quote": "The sample client reports that after changing the product price, ads still show the old price.",
           "locator": {
             "type": "json_pointer",
             "value": "/client_statement"
@@ -45,25 +45,25 @@
         }
       ],
       "missing_checks": [],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "assessment_basis": "Sample expert estimate; not a calibrated probability.",
       "impact": {
         "severity": "unknown",
-        "basis": "Коммерческий ущерб не измерялся.",
+        "basis": "Commercial impact was not measured.",
         "evidence_claim_ids": []
       }
     },
     {
       "id": "F-SITE-REPORT",
-      "essence": "Учебный клиент называет example.invalid своим магазином.",
+      "essence": "The sample client names example.invalid as their store.",
       "knowledge_type": "client_report",
       "verification_status": "verified",
       "scope": {
-        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "description": "Sample JSON response; records source statements rather than live store state.",
         "sample": [
           "https://example.invalid/source.json"
         ],
         "limitations": [
-          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+          "Synthetic example. Admin, live prices, browser, and feed were not checked."
         ]
       },
       "properties": [
@@ -79,8 +79,8 @@
           "kind": "observation",
           "source": "https://example.invalid/source.json",
           "observation": "Evidence/Examples/observation.json",
-          "source_sha256": "be470a3a286da2925bd045d7c961fa99b71527b62eaac79455edbfeef73d8ac3",
-          "quote": "Учебный клиент называет example.invalid своим магазином.",
+          "source_sha256": "fecdd29ddac098a390e66aa289b51e17db6145ad3a08c4090338aba5cc59b432",
+          "quote": "The sample client names example.invalid as their store.",
           "locator": {
             "type": "json_pointer",
             "value": "/identity"
@@ -88,10 +88,10 @@
         }
       ],
       "missing_checks": [],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "assessment_basis": "Sample expert estimate; not a calibrated probability.",
       "impact": {
         "severity": "unknown",
-        "basis": "Коммерческий ущерб не измерялся.",
+        "basis": "Commercial impact was not measured.",
         "evidence_claim_ids": []
       }
     }
@@ -99,16 +99,16 @@
   "identity": [
     {
       "id": "H-SITE-1",
-      "essence": "Гипотеза: example.invalid принадлежит учебному клиенту.",
+      "essence": "Hypothesis: example.invalid belongs to the sample client.",
       "knowledge_type": "hypothesis",
       "verification_status": "limited",
       "scope": {
-        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "description": "Sample JSON response; records source statements rather than live store state.",
         "sample": [
           "https://example.invalid/source.json"
         ],
         "limitations": [
-          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+          "Synthetic example. Admin, live prices, browser, and feed were not checked."
         ]
       },
       "properties": [
@@ -120,22 +120,22 @@
       "derived_from": [
         {
           "claim_id": "F-SITE-REPORT",
-          "sha256": "552c815d8b2755df4f236e671fdc6fa69b5cf8468dedd57c409f806f17251ce1"
+          "sha256": "4b1b8c05c32d4012e94af267e61b0fdd38fef61013ec50337d6733ee921a1491"
         }
       ],
       "evidence": [],
       "missing_checks": [
-        "Нужна отдельная проверка на первичных данных клиента."
+        "Requires a separate check against the client primary data."
       ],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "assessment_basis": "Sample expert estimate; not a calibrated probability.",
       "impact": {
         "severity": "unknown",
-        "basis": "Коммерческий ущерб не измерялся.",
+        "basis": "Commercial impact was not measured.",
         "evidence_claim_ids": []
       },
       "for": [
         {
-          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "argument": "The basis is limited to the quoted statement or explicitly stated hypothesis.",
           "claim_id": "F-SITE-REPORT"
         }
       ],
@@ -145,7 +145,7 @@
         "reviewed_sources": [
           "Evidence/Examples/observation.json"
         ],
-        "limitations": "Независимая проверка клиента и административных источников недоступна."
+        "limitations": "Independent verification of client and administrative sources is unavailable."
       },
       "probability_percent": 70
     }
@@ -153,16 +153,16 @@
   "concerns": [
     {
       "id": "H-CONCERN-1",
-      "essence": "Клиент сообщает о расхождении цены в магазине и объявлениях.",
+      "essence": "The client reports a price discrepancy between the store and ads.",
       "knowledge_type": "client_report",
       "verification_status": "verified",
       "scope": {
-        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "description": "Sample JSON response; records source statements rather than live store state.",
         "sample": [
           "https://example.invalid/source.json"
         ],
         "limitations": [
-          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+          "Synthetic example. Admin, live prices, browser, and feed were not checked."
         ]
       },
       "properties": [
@@ -174,20 +174,20 @@
       "derived_from": [
         {
           "claim_id": "F-CLIENT-REPORT",
-          "sha256": "743b7525461a19d2ce55ca8c172446145305ed49da02003814d11d12f59ec590"
+          "sha256": "eaba843c5f5e7e973c3275d1333c8cd0d5d86b549e3fbe438fa6f37a4e73dbc4"
         }
       ],
       "evidence": [],
       "missing_checks": [],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "assessment_basis": "Sample expert estimate; not a calibrated probability.",
       "impact": {
         "severity": "unknown",
-        "basis": "Коммерческий ущерб не измерялся.",
+        "basis": "Commercial impact was not measured.",
         "evidence_claim_ids": []
       },
       "for": [
         {
-          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "argument": "The basis is limited to the quoted statement or explicitly stated hypothesis.",
           "claim_id": "F-CLIENT-REPORT"
         }
       ],
@@ -197,7 +197,7 @@
         "reviewed_sources": [
           "Evidence/Examples/observation.json"
         ],
-        "limitations": "Независимая проверка клиента и административных источников недоступна."
+        "limitations": "Independent verification of client and administrative sources is unavailable."
       },
       "probability_percent": 90
     }
@@ -206,16 +206,16 @@
   "causes": [
     {
       "id": "H-CAUSE-1",
-      "essence": "Возможная причина: источник объявлений ещё не обновился после изменения цены.",
+      "essence": "Possible cause: the ad feed has not yet updated after the price change.",
       "knowledge_type": "hypothesis",
       "verification_status": "limited",
       "scope": {
-        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "description": "Sample JSON response; records source statements rather than live store state.",
         "sample": [
           "https://example.invalid/source.json"
         ],
         "limitations": [
-          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+          "Synthetic example. Admin, live prices, browser, and feed were not checked."
         ]
       },
       "properties": [
@@ -227,26 +227,26 @@
       "derived_from": [
         {
           "claim_id": "F-CLIENT-REPORT",
-          "sha256": "743b7525461a19d2ce55ca8c172446145305ed49da02003814d11d12f59ec590"
+          "sha256": "eaba843c5f5e7e973c3275d1333c8cd0d5d86b549e3fbe438fa6f37a4e73dbc4"
         },
         {
           "claim_id": "H-CONCERN-1",
-          "sha256": "4d73ee8bbf3d9af27eb05cce6820cef3b68f08168642b6bc53f17ff7ef24e947"
+          "sha256": "ff1487abf587abd728b12d8ab47b1afe0fa85efb01ce7ab558c2ac38cb4ce4ab"
         }
       ],
       "evidence": [],
       "missing_checks": [
-        "Нужна отдельная проверка на первичных данных клиента."
+        "Requires a separate check against the client primary data."
       ],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "assessment_basis": "Sample expert estimate; not a calibrated probability.",
       "impact": {
         "severity": "unknown",
-        "basis": "Коммерческий ущерб не измерялся.",
+        "basis": "Commercial impact was not measured.",
         "evidence_claim_ids": []
       },
       "for": [
         {
-          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "argument": "The basis is limited to the quoted statement or explicitly stated hypothesis.",
           "claim_id": "F-CLIENT-REPORT"
         }
       ],
@@ -256,14 +256,14 @@
         "reviewed_sources": [
           "Evidence/Examples/observation.json"
         ],
-        "limitations": "Независимая проверка клиента и административных источников недоступна."
+        "limitations": "Independent verification of client and administrative sources is unavailable."
       },
       "probability_percent": 55,
       "alternative_explanations": [
-        "Сопоставляются разные варианты товара.",
-        "Объявления используют другой источник цены."
+        "Different product variants are being compared.",
+        "Ads use a different price source."
       ],
-      "discriminating_check": "Сопоставить один SKU и вариант, источник цены, временные метки и журнал обновлений.",
+      "discriminating_check": "Compare a single SKU and variant, price source, timestamps, and update log.",
       "addresses": [
         "H-CONCERN-1"
       ]
@@ -272,16 +272,16 @@
   "methods": [
     {
       "id": "M-1",
-      "essence": "Сначала сопоставить один SKU, источник цены и время обновления.",
+      "essence": "First compare a single SKU, price source, and update timestamp.",
       "knowledge_type": "recommendation",
       "verification_status": "limited",
       "scope": {
-        "description": "Учебный JSON-ответ; фиксируются слова источника, а не состояние реального магазина.",
+        "description": "Sample JSON response; records source statements rather than live store state.",
         "sample": [
           "https://example.invalid/source.json"
         ],
         "limitations": [
-          "Синтетический пример. Admin, реальные цены, браузер и feed не проверялись."
+          "Synthetic example. Admin, live prices, browser, and feed were not checked."
         ]
       },
       "properties": [
@@ -293,26 +293,26 @@
       "derived_from": [
         {
           "claim_id": "H-CAUSE-1",
-          "sha256": "ffd1334dae3d483c4ce23b30f1b02ce019cd44c6222de3d9e595a8b1d7023da3"
+          "sha256": "8ff4d6d5a092da4e7c405a7daccc1c559b16c59cb3d469c68dec62dd0e076f6f"
         },
         {
           "claim_id": "H-CONCERN-1",
-          "sha256": "4d73ee8bbf3d9af27eb05cce6820cef3b68f08168642b6bc53f17ff7ef24e947"
+          "sha256": "ff1487abf587abd728b12d8ab47b1afe0fa85efb01ce7ab558c2ac38cb4ce4ab"
         }
       ],
       "evidence": [],
       "missing_checks": [
-        "Нужна отдельная проверка на первичных данных клиента."
+        "Requires a separate check against the client primary data."
       ],
-      "assessment_basis": "Учебная экспертная оценка; не калиброванная вероятность.",
+      "assessment_basis": "Sample expert estimate; not a calibrated probability.",
       "impact": {
         "severity": "unknown",
-        "basis": "Коммерческий ущерб не измерялся.",
+        "basis": "Commercial impact was not measured.",
         "evidence_claim_ids": []
       },
       "for": [
         {
-          "argument": "Основание ограничено приведёнными словами или явно указанной гипотезой.",
+          "argument": "The basis is limited to the quoted statement or explicitly stated hypothesis.",
           "claim_id": "H-CAUSE-1"
         }
       ],
@@ -322,21 +322,21 @@
         "reviewed_sources": [
           "Evidence/Examples/observation.json"
         ],
-        "limitations": "Независимая проверка клиента и административных источников недоступна."
+        "limitations": "Independent verification of client and administrative sources is unavailable."
       },
       "score_percent": 75,
-      "criterion": "Пригодность как следующей проверки при авторизованном доступе",
+      "criterion": "Suitability as the next check once authorized access is available",
       "addresses": [
         "H-CAUSE-1"
       ],
       "applicability": [
-        "Доступны авторизованные выгрузки и время их формирования.",
-        "Сравниваются одинаковые SKU, варианты и период."
+        "Authorized exports and their generation timestamps are available.",
+        "The same SKU, variants, and period are compared."
       ],
-      "validation": "Зафиксировать совпадение или расхождение одного SKU; проверить, различают ли временные метки задержку и другой источник цены."
+      "validation": "Record whether a single SKU matches or diverges; check whether timestamps distinguish a delay from a different price source."
     }
   ],
   "notes": {
-    "misconceptions": "Заблуждений клиента по учебным материалам не установлено."
+    "misconceptions": "No client misconceptions established from the sample materials."
   }
 }

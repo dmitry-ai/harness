@@ -1,37 +1,37 @@
 ---
 trigger: always_on
-description: "Владение KB, типы знаний, устойчивые ID и полный контекст"
+description: "KB ownership, knowledge types, stable IDs, and full context export"
 ---
-# База знаний
+# Knowledge Base
 ## KB-1
-`KB/` принадлежит пользователю; агент создаёт `KB/Project.md` один раз при первом анализе (и синхронизирует раздел `# 2. Текущий проект клиента` при `sync-attachments`), затем не меняет его и другие файлы ручной KB без нового прямого поручения.
-Сразу портируй полный первоначальный документ в `ꘖ/KB/Project.md` (а также `ꘖ/KB/Projects.md` и `ꘖ/KB/Evidence.md`), включая дословно и полностью все приложенные текстовые файлы (в том числе PDF и DOCX) с форматированием Markdown, полные расшифровки видео клиента (`# Видео:`, `# Ключевые моменты устного комментария (дополнения к тексту документа):`, `# Полная расшифровка аудиозаписи:` с таймкодами `[MM:SS]`) и полные расшифровки изображений (дословные цитаты текста и UI-элементов в `«»`, подтверждения и противоречия словам клиента с оценками в `%`); дальнейшие исследования — только в `ꘖ/KB`.
-Внешние ссылки `http(s)://` в ответе по проекту должны опираться на записи в `ꘖ/KB` (модули, `Analysis.json` или `Project.md`) и сохранённые первичные наблюдения; добавление в ответ внешних URL в обход `ꘖ/KB` блокируется.  
-Повторный init не регенерирует пользовательские или дополненные агентом документы.
+`KB/` belongs to the user; the agent creates `KB/Project.md` once during initial analysis (and synchronizes the `# 2. Current Client Project` section during `sync-attachments`), and thereafter does not modify it or other manual KB files without a new direct instruction.  
+Immediately port the complete initial document into `ꘖ/KB/Project.md` (as well as `ꘖ/KB/Projects.md` and `ꘖ/KB/Evidence.md`), including verbatim and in full all attached text files (including PDF and DOCX) with Markdown formatting, complete transcripts of client videos (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:` with `[MM:SS]` timestamps), and complete descriptions of images (verbatim text and UI labels in `«»`, confirmations and contradictions against client statements with `%` scores); store all further research exclusively in `ꘖ/KB`.  
+External `http(s)://` links in a project response must be backed by entries in `ꘖ/KB` (modules, `Analysis.json`, or `Project.md`) and saved primary observations; adding external URLs to a response while bypassing `ꘖ/KB` is blocked.  
+Re-running `init` does not regenerate user-authored or agent-enriched documents.  
 ## KB-2
-KB — компактные тематические модули, исходные доказательства и реестр связей; один факт хранится один раз.
-Используй устойчивые ID: F — наблюдение/цитируемые слова, H — гипотеза, M — способ; заголовок с ID служит адресом без HTML-тега.
-F содержит тезис, точную цитату, источник и дату/область наблюдения; слова клиента не становятся независимым фактом.
-Для нового анализа структурированные F хранятся в реестре анализа, а тематические Markdown-модули раскрывают их первичные основания через устойчивые ID.
-Ссылки на производные F/H/M содержат проверяемые версии; изменившееся основание требует пересмотра зависимого вывода, а не простого сохранения прежнего процента.
-H и M соответствуют [DOC-2](04-statement-structure.md#doc-2) и [DOC-3](04-statement-structure.md#doc-3); связывай причины с беспокойствами, способы — с причинами/задачами.
-Упоминание домена, имя из отзыва, прежний заказ и название папки не устанавливают личность, сайт или принадлежность всех заказов одному бизнесу.
+The KB consists of compact topical modules, primary evidence, and a relationship registry; each fact is stored once.  
+Use stable IDs: F for observation/quoted client report, H for hypothesis, M for method; a heading with the ID serves as the target anchor without HTML tags.  
+An F entry contains the claim, exact quote, source, and observation date/scope; client statements do not become independent facts.  
+For new analyses, structured F claims live in the analysis registry while topical Markdown modules expand their primary grounds via stable IDs.  
+References to derived F/H/M items carry verifiable digests; a changed ground requires re-evaluating the dependent conclusion rather than keeping the old percentage.  
+H and M conform to [DOC-2](04-statement-structure.md#doc-2) and [DOC-3](04-statement-structure.md#doc-3); link causes to concerns and methods to causes or tasks.  
+A mentioned domain, a name in a review, a prior contract, or a folder name does not establish identity, website ownership, or that all jobs belong to one business.  
 ## KB-3
-Перед исследованием читай обзор и профильные модули; новые проверенные сведения и исправления сохраняй до ответа, обновляя зависимости и глоссарий.
-Внутренние агенты обеих систем работают с собственной агентской KB (`ꘖ/KB`), первичными доказательствами и её навигацией `Progress.md`.
-Поддерживай KB актуальной и непротиворечивой постоянно: после новых данных сверяй зависимые утверждения, исправляй разрешённые модули и явно отмечай непроверенное/устаревшее.
-После сбоя и просьбы «Продолжай анализ» в текущем чате восстанавливай следующий шаг из KB и служебных квитанций; наличие старого файла не доказывает завершение этапа.
-Проект можно продолжать в другой системе и новом чате по тому же корню на диске, включая полуручную подготовку proposal после первичного анализа.
-Читай также точный журнал и существующие `result/**/draft.md`/`final.md`; не переноси беседу одной системы в другую вымышленной историей.
-Текущее поручение, рабочие файлы, нерешённые вопросы и следующий шаг сохраняй в `ꘖ/data/continuation.md` со ссылками на реальные материалы.
-Завершённость первичного анализа и готовность proposal различаются; новое поручение по черновику само по себе не требует повторного сбора или всех пяти этапов анализа.
-Проценты H меняются с доказательствами; повышение до факта требует отдельного наблюдения, а не высокой оценки.
-Сохраняй происхождение старой версии и существенные исходники; временные файлы — по [FILE-5](01-file-boundaries.md#file-5).  
-Сетевые HTTP(S)-наблюдения выполняй через `upwork_project.py collect` или `collect-http` с сохранением в `ꘖ/KB/Evidence/HTTP` и `ꘖ/data/http-index.json`; одноразовые сетевые вызовы в оболочке без сохранения доказательств запрещены.  
-При сжатии контекста (`CHECKPOINT`/`compaction`) после вызовов инструментов до публикации ответа восстанови докомпактные результаты через `recover-checkpoint` либо чтение полного транскрипта.
+Read the overview and relevant topical modules before investigating; save new verified findings and corrections before responding, updating dependencies and the glossary.  
+Internal agents of both platforms work with their own agent KB (`ꘖ/KB`), primary evidence, and its `Progress.md` navigation.  
+Keep the KB current and self-consistent at all times: after new data arrives, audit dependent claims, update permitted modules, and explicitly mark anything unverified or stale.  
+After an interruption and a `"Continue analysis"` request in the current chat, restore the next step from the KB and service receipts; the mere presence of an old file does not prove stage completion.  
+A project may be continued in the other platform and in a new chat using the same root on disk, including semi-manual proposal preparation after initial analysis.  
+Also read the exact journal and existing `result/**/draft.md`/`final.md`; do not carry over a conversation from one platform to another via fabricated history.  
+Record the current instruction, working files, open questions, and next step in `ꘖ/data/continuation.md` with links to real artifacts.  
+Completion of initial analysis and readiness of a proposal are distinct; a new instruction regarding a draft does not by itself require re-collection or all five analysis stages.  
+H percentages change with evidence; promotion to a fact requires a separate observation rather than a high score.  
+Preserve provenance of prior versions and material sources; handle temporary files per [FILE-5](01-file-boundaries.md#file-5).  
+Perform network HTTP(S) observations through `upwork_project.py collect` or `collect-http`, saving into `ꘖ/KB/Evidence/HTTP` and `ꘖ/data/http-index.json`; ad-hoc network calls in the shell that bypass evidence storage are prohibited.  
+If context compaction (`CHECKPOINT`/`compaction`) occurs after tool calls before publishing the response, restore pre-compaction results via `recover-checkpoint` or by reading the full transcript.  
 ## KB-4
-`ꙮ/0/Context.md` собирает источники полностью: задачу, ограничения, ручную/агентскую KB и хронологические req/res с авторами.
-Это единый экспорт для внешних агентов, прежде всего Gemini DeepThink в веб-интерфейсе `https://gemini.google.com`; пользователь передаёт его вручную.
-Внутренние агенты не используют Context.md как свою рабочую KB; собирай внешний экспорт после согласования KB/журнала или по просьбе пользователя.
-Не обрезай и не заменяй источники пересказом; неполную пару обозначь ошибкой сборки, сохрани прежний контекст.
-В переписке приоритет `final.md`, иначе `draft.md`; пустой final — ошибка, а не разрешение подставить draft.
+`ꙮ/0/Context.md` assembles sources in full: task, constraints, manual/agent KB, and chronological `req/res` pairs with authors.  
+It is the unified export for external agents, primarily Gemini DeepThink in the web UI at `https://gemini.google.com`; the user submits it manually.  
+Internal agents do not use `Context.md` as their working KB; build the external export after reconciling the KB and journal or when requested by the user.  
+Do not truncate sources or replace them with summaries; flag an incomplete pair as a build error and preserve the previous context file.  
+In correspondence, `final.md` takes priority over `draft.md`; an empty `final.md` is an error rather than permission to substitute `draft.md`.  

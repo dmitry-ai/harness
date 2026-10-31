@@ -1,11 +1,11 @@
 {
   "synthetic": true,
-  "client_statement": "Учебный клиент сообщает, что после изменения цены товара объявления показывают старую цену.",
-  "identity": "Учебный клиент называет example.invalid своим магазином.",
-  "identity_limit": "Принадлежность домена не проверена независимыми данными.",
-  "observation": "В учебном снимке JSON товара цена 25.97, а в учебной выгрузке feed — 24.97.",
-  "alternative": "Время последнего обновления feed неизвестно.",
-  "method": "Учебное условие: сначала сравнить один SKU, время обновления и источник цены.",
-  "method_limit": "Доступ к реальному feed и журналу синхронизации пока не предоставлен.",
-  "limitations": "Данные синтетические. Проверка альтернативных причин и административных журналов недоступна."
+  "client_statement": "The sample client reports that after changing the product price, ads still show the old price.",
+  "identity": "The sample client names example.invalid as their store.",
+  "identity_limit": "Domain ownership has not been verified with independent data.",
+  "observation": "In the sample product JSON snapshot the price is 25.97, while in the sample feed export it is 24.97.",
+  "alternative": "The last feed update timestamp is unknown.",
+  "method": "Sample condition: first compare a single SKU, update timestamp, and price source.",
+  "method_limit": "Access to the live feed and sync log has not yet been provided.",
+  "limitations": "The data is synthetic. Verification of alternative causes and administrative logs is unavailable."
 }

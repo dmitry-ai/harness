@@ -1,88 +1,125 @@
-# Допуск внешних источников текста
+# External Source Clearance for Client Text
 
-## Обязательный допуск источника
+## Mandatory Source Clearance
 
-`check` требует квитанцию `source-check` для каждого внешнего HTTP(S)-адреса в авторской прозе и заголовках кандидата. Это относится также к механической правке ссылок и режиму `inspect`; код и блоковые цитаты не становятся авторскими ссылками. Проверяются точные адреса, включая значимые query и fragment, с приведением читаемого Unicode к одной форме.
+`check` requires a `source-check` receipt for every external HTTP(S) URL in authored prose and headings of a candidate.  
+This requirement also applies to mechanical link edits and `inspect` mode; fenced code blocks and blockquotes do not count as authored links.  
+Exact addresses are verified, including significant query parameters and fragments, with readable Unicode normalized to a canonical form.  
 
-Квитанция связана с SHA256 точных UTF-8-байтов кандидата, URL, сохранённым HTTP/DOM-наблюдением и хешами первичных файлов. Произвольный объект `{"valid":true}` не заменяет квитанцию. Изменение текста требует новых квитанций, изменение первичных байтов делает прежнюю квитанцию недействительной.
+Each receipt is bound to the SHA256 of the candidate's exact UTF-8 bytes, the URL, the saved HTTP/DOM observation, and the hashes of primary evidence files.  
+An arbitrary `{"valid":true}` object cannot substitute for a receipt.  
+Modifying the candidate text requires new receipts, and modifying primary evidence bytes invalidates any prior receipt.  
 
-`apply`, проверка рецензии и `finalize` повторно проверяют эти основания без нового сетевого запроса. Старые квитанции применения с внешними ссылками, но без проверок источников, больше не подтверждают готовность документа. Этот контракт действует в штатных инструментах; он не запрещает прямую запись в файлы произвольным shell.
+`apply`, review validation, and `finalize` re-verify these grounds without making new network requests.  
+Legacy apply receipts that contain external links without source checks no longer certify document readiness.  
+This contract is enforced across the standard tools; it does not sandbox arbitrary shell writes outside the toolkit.  
 
-## Наблюдение и квитанция
+## Observation and Receipt
 
-Явная сетевая диагностика сохраняет первичные ответы, включая ошибки и редиректы:
+Explicit network diagnostics save primary responses, including HTTP errors and redirects:  
 
 ```text
 python <scripts>/df_article.py lint <candidate> --network --project <root>
 ```
 
-Кандидат должен находиться внутри указанного корня. За один вызов выполняется один GET на базовый URL, даже если несколько ссылок различаются fragment. Квитанции `*-probe.json` хранятся в `ꘖ/data/texts/sources`, первичные байты и метаданные — в KB/Evidence. HTTP200 сам по себе не даёт содержательного допуска. Обычный `lint` без `--network` остаётся локальной проверкой формата.
+The candidate must reside inside the specified project root.  
+A single invocation performs one GET per base URL even when multiple links differ only by `#fragment`.  
+`*-probe.json` receipts are stored in `ꘖ/data/texts/sources`, while raw response bytes and metadata are stored in `KB/Evidence`.  
+HTTP 200 alone does not grant substantive clearance.  
+Standard `lint` without `--network` remains a local format check.  
 
-После чтения первичного источника подготовь спецификацию и выполни:
+After reading the primary source, prepare the specification and run:  
 
 ```text
 python <scripts>/df_text.py source-check <root> --candidate <candidate> --spec <source.json>
 ```
 
-Пример схемы ниже синтетический; пути и хеш берутся из реального результата `collect` или `capture-dom`:
+The example schema below is synthetic; take paths and hashes from actual `collect` or `capture-dom` outputs:  
 
 ```json
 {
   "url": "https://example.org/manual#limits",
   "currency": "current",
-  "currency_basis": "Почему эта страница применима к текущему тезису и версии",
+  "currency_basis": "Why this page applies to the current claim and version",
   "evidence": {
     "source": "https://example.org/manual#limits",
     "observation": "Evidence/HTTP/<capture>/observation.json",
-    "source_sha256": "<SHA256 сохранённых response.bin>",
+    "source_sha256": "<SHA256 of saved response.bin>",
     "documentation": true,
     "locator": {"type": "anchor", "value": "limits"},
-    "quote": "Дословная цитата из проверяемого фрагмента"
+    "quote": "Verbatim quote from the verified section"
   }
 }
 ```
 
-`observation` разрешается относительно `ꘖ/KB`; `source_check` из результата команды — относительно корня проекта. В карте кандидата перечисли именно пути полученных квитанций:
+`observation` resolves relative to `ꘖ/KB`; `source_check` in the command output resolves relative to the project root.  
+List the exact receipt paths returned by the command in the candidate manifest:  
 
 ```json
 {"source_checks": ["ꘖ/data/texts/sources/<hash>-source.json"]}
 ```
 
-Для содержательной правки это поле дополняет карту блоков, для механической — обязательно и без карты. Неудачная `source-check` тоже сохраняет неизменяемую квитанцию, но возвращает `valid:false` и код1; такая квитанция не допускает текст.
+For a substantive edit, this field supplements the block map; for a mechanical edit, it is required even without a block map.  
+A failed `source-check` also writes an immutable receipt, but returns `valid: false` and exit code `1`; such a receipt never clears the text.  
 
-Проверяются запрошенный и конечный URL, статус, сохранённые байты, их SHA256, существование и однозначность anchor, принадлежность цитаты этому фрагменту. Неожиданный конечный адрес отклоняется. Для проверенного перенаправления явно укажи `expected_final_url`; это не отменяет проверки цитаты и anchor. Сокращённый URL допустим после проверки того же ресурса и фрагмента, а не по одному сходству пути.
+Validation checks the requested and final URLs, HTTP status, saved bytes, their SHA256 digest, existence and uniqueness of the anchor, and containment of the quote within that fragment.  
+An unexpected final URL after redirection is rejected.  
+For a verified redirect, specify `expected_final_url` explicitly; quote and anchor checks still apply.  
+A shortened URL is permissible only after verifying that it resolves to the same resource and fragment, never from path similarity alone.  
 
-Для документации имеющийся anchor должен находиться в самом цитируемом URL. Если подходящего anchor действительно нет, используй `locator.type: text`, точную цитату и `anchor_exception: {"section":"Название раздела","observation":"То же наблюдение"}` внутри `evidence`. Сборщик должен подтвердить единственный такой раздел и отсутствие anchor у него и его предков; текстовое пояснение автора не заменяет эту проверку.
+For documentation, an existing anchor must appear in the cited URL itself.  
+If no suitable anchor exists on the page, use `locator.type: text`, an exact quote, and `anchor_exception: {"section":"Section Title","observation":"Same observation path"}` inside `evidence`.  
+The collector must confirm that the section title is unique and that neither the heading nor its ancestors carry an anchor; a prose note from the author does not replace this check.  
 
-`currency: current` требует наблюдения не старше 24 часов. Это срок действия квитанции, а не автоматическое доказательство актуальности нормы. `currency: historical` требует непустой `edition` и `currency_basis`; применимость редакции к тезису оценивается при рецензии. Архивная редакция не получает статус текущей через переименование поля.
+`currency: current` requires an observation no older than 24 hours.  
+That window defines receipt freshness rather than automatic proof that a standard is still in force.  
+`currency: historical` requires non-empty `edition` and `currency_basis` fields; applicability of a historical edition to the claim is evaluated during review.  
+An archived edition cannot be relabeled `current` merely by changing the field value.  
 
-## Недоступность и замена
+## Unavailability and Replacement
 
-Более поздняя неудачная или противоречащая проверка того же URL внутри проекта препятствует повторному использованию старого успеха. Изменение кандидата не стирает этот результат. Новое успешное наблюдение, достаточная цитата и новая квитанция разрешают конфликт; независимо собранные более поздние успешные байты того же ресурса с тем же хешем не обесценивают авторскую проверку.
+A later failed or contradicting check of the same URL within the project blocks reuse of an earlier passing check.  
+Editing the candidate text does not erase that failure record.  
+A new successful observation, sufficient quote, and fresh receipt resolve the conflict; independently collected later bytes of the same resource with an identical hash do not invalidate the author's check.  
 
-HTTP-ошибку или защитную страницу можно разрешить сохранённым DOM через разрешённую CDP-сессию. `capture-dom` возвращает наблюдение и `cdp_identity`; передай оба в спецификации `source-check`. Проверяется связь наблюдения с точной сессией, target, методом READ_DOM и неизменяемой квитанцией идентичности. Неподтверждённый профиль или произвольный DOM-файл не заменяет этот путь.
+An HTTP error or bot-protection page may be resolved via a DOM snapshot captured from a permitted CDP session.  
+`capture-dom` returns the observation and `cdp_identity`; pass both in the `source-check` specification.  
+Validation verifies the binding between the observation, exact session, target, `READ_DOM` method, and immutable identity receipt.  
+An unverified browser profile or arbitrary local DOM file cannot substitute for this path.  
 
-Другой официальный источник проверяется как новый адрес: цитата, фрагмент, редакция и применимость. Затем исправляется кандидат и формируются его новые квитанции. Снимок другой страницы не подтверждает оставленную в тексте сломанную ссылку. Если достаточного основания нет, зафиксируй неподтверждённость в отчёте; кандидат с непроверенной внешней ссылкой не получает положительный допуск.
+A replacement official source is validated as a brand-new URL: quote, fragment, edition, and applicability.  
+Update the candidate text first and then generate its new receipts.  
+A snapshot of a different page never validates a broken URL left inside the text.  
+If sufficient primary evidence is unavailable, record the gap in the report; a candidate containing an unverified external URL cannot receive positive clearance.  
 
-## Подписи ссылок и числа
+## Link Labels and Numbers
 
-В профиле статьи `link_style: formatted` видимая подпись должна сохранять домен, путь, query и fragment адреса перехода; `www.` и схема могут быть опущены. Удаление только видимого `#anchor` даёт `LINK-LABEL`. В других профилях разрешены именованные ссылки; код и буквальные цитаты сохраняются.
+In the `link_style: formatted` article profile, the visible link label must preserve the domain, path, query, and fragment of the target URL; `www.` and the scheme may be omitted.  
+Stripping only the visible `#anchor` triggers `LINK-LABEL`.  
+Named link labels are permitted in other profiles; code blocks and verbatim quotes remain untouched.  
 
-Разбор самостоятельных чисел использует Markdown-ссылки, включая reference links и сбалансированные скобки. Числа в технической подписи URL того же домена — адресные идентификаторы. Количественная проза в подписи, например `[The limit is 15.3 volts.](https://example.org/)`, продолжает требовать числового основания.
+Standalone number extraction parses Markdown links, including reference links and balanced parentheses.  
+Numbers inside a technical URL label pointing to the same domain are treated as address identifiers.  
+Quantitative prose inside a link label, such as `[The limit is 15.3 volts.](https://example.org/)`, still requires numeric evidence.  
 
-## Рецензия и пределы
+## Review and Limits
 
-Для одобрения каждого внешнего URL рецензент заполняет `source_reviews`:
+To approve each external URL, the reviewer populates `source_reviews`:  
 
 ```json
 {
   "url": "https://example.org/manual#limits",
   "receipt": "ꘖ/data/texts/sources/<hash>-source.json",
-  "assessment": "Что именно цитата устанавливает для этого тезиса, версии и условий",
+  "assessment": "What the quote establishes for this specific claim, version, and condition",
   "outcome": "supported"
 }
 ```
 
-Допустимые исходы: `supported` и `unsupported`; `approved` требует полного покрытия и `supported` для всех цитируемых URL. При `needs_changes` можно указать найденные дефекты в findings, включая отсутствие достаточной квитанции. Рецензент вправе собрать собственное наблюдение и квитанцию для того же кандидата. `review-record` сохраняет в proof хеши квитанций и первичных байтов, включая независимо полученные основания.
+Valid outcomes are `supported` and `unsupported`; an `approved` verdict requires complete coverage and `supported` for every cited URL.  
+When returning `needs_changes`, the reviewer lists defects in `findings`, including any missing or insufficient receipt.  
+The reviewer may collect its own observation and receipt for the same candidate.  
+`review-record` stores the hashes of receipts and primary bytes in the proof, including independently gathered grounds.  
 
-Механическая проверка подтверждает происхождение, адресацию и наличие цитаты. Строки `currency_basis`, `assessment` и совпавшая цитата сами по себе не доказывают логическое следование, актуальность редакции или применимость к системе клиента. Это остаётся задачей [содержательной рецензии](review.md#независимая-рецензия-конкретной-версии-текста); нативное авторство вердикта проверяется прежним контрактом.
+Mechanical validation confirms provenance, addressing, and quote presence.  
+The strings in `currency_basis`, `assessment`, and a matching quote do not by themselves prove logical entailment, regulatory currency, or applicability to the client's system.  
+Evaluating those remains the responsibility of [substantive review](review.md#independent-review-of-a-specific-text-version); native authorship of the verdict is enforced by the review provenance contract.  

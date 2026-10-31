@@ -1,65 +1,65 @@
-# Завершение любого хода
+# Completing Any Turn
 
-Этот контракт относится к основной беседе и обычным аналитическим ответам, включая исследование `.agents`; формат статьи/proposal и пять этапов анализа не являются условием журналирования.
-Явное текущее поручение пользователя имеет приоритет по SCOPE-1; дочерние A.A/A.F не ведут пользовательский журнал.
-Изменения клиентских документов сохраняют собственные проверки scope, baseline, доказательств и рецензий.
+This contract applies to the primary conversation and ordinary analytical responses, including `.agents` investigations; an article/proposal format or the five-stage analysis workflow is not a prerequisite for journaling.  
+An explicit current user instruction takes priority under SCOPE-1; child A.A/A.F subagents do not maintain the user journal.  
+Edits to client documents retain their own checks for scope, baseline, evidence, and reviews.  
 
-## Начало хода
+## Turn Begin
 
-После определения точного корня основной беседы выполни:
+After determining the exact root of the primary conversation, run:  
 
 ```text
 python <agents>/scripts/upwork_project.py turn-begin <root> --platform codex
 python <agents>/scripts/upwork_project.py turn-begin <root> --conversation <native-uuid> --platform antigravity
 ```
 
-Codex получает UUID из `CODEX_THREAD_ID`, профиль — из `CODEX_HOME` или явного `--codex-profile`; соседний профиль и чат не выбираются автоматически.
-Antigravity требует действительный UUID текущей беседы.
-Инструмент сверяет нативную принадлежность запросов корню и роль primary/child; обычный агентский проект не требует вымышленной вакансии или клиентской статьи.
-В `ꘖ/data/turns` сохраняются корень, нативный ход, точные запросы, применимые FILE-3/EXEC-5/DOC-2, их источники и обязательные этапы.  
-В первой фазе хода выполни `policy-instructions` (в Codex), `turn-begin` и порционное чтение правил без усечения вывода; любые команды `git` запускай только после получения ответа первой фазы и строго с `--no-optional-locks` (или через `git-read`).
-Параметр `--journal <каталог>` сохраняет явно выбранный пользователем журнал; без него новый ход использует `ꙮ/1 - Анализ`, существующий — свою прежнюю привязку.
-Журнал уже начатого хода нельзя молча перенаправить; сверщик сохраняет его привязку и проверяет связанные документы также по корню проекта.
-Это свидетельство применимости и конфигурации, а не прочтения или понимания правил моделью.
-`instruction_snapshot` сохраняет перечень и SHA256 общих правил, адаптера, runtime, локальной регистрации и её path-источников; для Codex также фиксируются найденные кандидаты `AGENTS.md`/`AGENTS.override.md` по настроенному корню и в текущем профиле.
-Это инвентаризация доступных источников, а не доказательство выбора по trigger или фактического включения в контекст: `selection_verified` и `delivery_to_model_verified` остаются `false`.
-Ошибки разрешения локальной регистрации сохраняются в `errors`; позднее добавление снимка к прежнему состоянию помечается `existing-state-upgrade`, восстановление после доставки — `recovery`.
-По умолчанию запускается один скрытый локальный сверщик для явно зарегистрированных бесед; `--no-watch` не запускает его и не добавляет регистрацию, но сохраняет уже существующую.
-При явном исключении пользователя из журналирования сначала выполни `journal-unwatch <root> --conversation <native-uuid> --platform <platform>`, затем соблюдай исключение и не вызывай `answer-prepare` для этого ответа.
-Команда снимает только эту привязку и дожидается окончания уже начатой сверки; ранее сохранённая история остаётся.
+Codex obtains the UUID from `CODEX_THREAD_ID` and the profile from `CODEX_HOME` or an explicit `--codex-profile`; a neighboring profile or chat is never selected automatically.  
+Antigravity requires the valid UUID of the current conversation.  
+The tool verifies native request ownership for the root and the `primary`/`child` role; an ordinary agent project does not require a synthetic job post or client article.  
+`ꘖ/data/turns` records the root, native turn, exact requests, applicable FILE-3/EXEC-5/DOC-2 rules, their sources, and mandatory stages.  
+In the first phase of a turn, run `policy-instructions` (in Codex), `turn-begin`, and batched reading of rules without output truncation; launch any `git` commands only after receiving the first-phase output and strictly with `--no-optional-locks` (or via `git-read`).  
+The `--journal <directory>` option records a journal explicitly chosen by the user; without it, a new turn uses `ꙮ/1 - Analysis` (or `ꙮ` when configured at the root) and an existing turn retains its prior binding.  
+The journal of an already started turn cannot be silently redirected; the verifier preserves its binding and also checks linked documents against the project root.  
+This record is evidence of applicability and configuration, not proof that the model read or understood the rules.  
+`instruction_snapshot` records the list and SHA256 digests of shared rules, the adapter, `runtime.json`, local registration, and its path sources; for Codex it also records discovered `AGENTS.md`/`AGENTS.override.md` candidates along the configured root and in the active profile.  
+This is an inventory of available sources rather than proof of trigger selection or actual context injection: `selection_verified` and `delivery_to_model_verified` remain `false`.  
+Errors resolving local registrations are saved in `errors`; appending a snapshot to prior state is marked `existing-state-upgrade`, and post-delivery recovery is marked `recovery`.  
+By default, a single hidden local verifier is started for explicitly registered conversations; `--no-watch` neither starts it nor adds a registration, while preserving any existing registration.  
+When the user explicitly opts out of journaling, first run `journal-unwatch <root> --conversation <native-uuid> --platform <platform>`, then honor the opt-out and do not call `answer-prepare` for that response.  
+The command removes only that binding and waits for any in-progress verification pass to finish; previously saved history remains intact.  
 
-## Подготовка ответа
+## Answer Preparation
 
 ```text
 python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --platform codex
 python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --conversation <native-uuid> --platform antigravity
 ```
 
-**Обязательное правило кодировки UTF-8 в Windows PowerShell:**
-1. В Windows PowerShell 5.1 передача текста через конвейер (`@' ... '@ | python ...` или `"..." | python ... --response-file -`) по умолчанию использует однобайтовую кодировку `[Console]::OutputEncoding` (OEM/ASCII), безвозвратно заменяя кириллицу и символы `ꘖ` (`\ua616`) / `ꙮ` (`\ua66e`) знаками вопроса `?` (`0x3F`).
-2. Поэтому перед вызовом `answer-prepare` (а также `record-answer`, `prepare-review`, `record-review`, `save-analysis`) **всегда записывай текст ответа в UTF-8 без BOM в `<root>/ꘖ/data/scratch/answer.md`** штатным файловым инструментом (`write_file` в Antigravity либо `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))` в PowerShell) и передавай путь через `--response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input`.
-3. Если в PowerShell запускается однострочник `python -` через конвейер `|`, в начале команды обязательно выставляй `[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, а для путей к `ꘖ` и `ꙮ` в Python-коде используй Unicode-последовательности `\ua616` и `\ua66e`.
+**Mandatory UTF-8 encoding rule in Windows PowerShell:**  
+1. In Windows PowerShell 5.1, piping text (`@' ... '@ | python ...` or `"..." | python ... --response-file -`) defaults to the single-byte `[Console]::OutputEncoding` (OEM/ASCII), irreversibly replacing Cyrillic and the characters `ꘖ` (`\ua616`) / `ꙮ` (`\ua66e`) with question marks `?` (`0x3F`).  
+2. Therefore, before calling `answer-prepare` (as well as `record-answer`, `prepare-review`, `record-review`, and `save-analysis`), **always write the response text in UTF-8 without BOM to `<root>/ꘖ/data/scratch/answer.md`** using the native file tool (`write_file` in Antigravity or `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))` in PowerShell) and pass the path via `--response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input`.  
+3. If you run a `python -` one-liner via a pipe `|` in PowerShell, always prefix the command with `[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, and use the Unicode escapes `\ua616` and `\ua66e` for paths containing `ꘖ` and `ꙮ` inside Python code.  
 
-Операция повторно проверяет активный нативный ход, сохраняет точные запросы и ответ существующим механизмом `record_answer`, проверяет прочитанные байты (отклоняя повреждённый OEM/ASCII-вывод с заменой слов на `???`) и возвращает `response_file`, SHA256, номера пар и `ready: true`.  
-Операция также проверяет публичные вызовы инструментов активного хода на соблюдение `EXEC-5` (отсутствие вызовов чтения Git без `--no-optional-locks`), сохраняя результат в `exec5_check`.  
-Дополнительно `answer-prepare` выполняет четыре защитные проверки хода и источников:
-1. `http_fetch_check` (`KB-3` / `EXEC-1`): отклоняет одноразовые внешние сетевые запросы в командной оболочке (`urllib.request`, `requests`, `Invoke-WebRequest`, `curl`), выполненные в обход `collect` / `collect-http`.
-2. `compaction_check` (`COMPACT-1` / `KB-3`): если в активном ходе после вызовов инструментов произошло сжатие контекста (`CHECKPOINT` / `context_compacted`), требует восстановления докомпактных результатов через `upwork_project.py recover-checkpoint <root> --conversation <native-uuid>` либо чтение `transcript_full.jsonl` после шага `CHECKPOINT`.
-3. `delegation_check` (`REVIEW-1` / `KB-3`): в проектах Upwork (`ꘖ/project.json`) отклоняет выполнение более 40 инструментальных шагов основным агентом без делегирования субагентам (`A.F`/`A.A`) или промежуточной записи в `ꘖ/KB` (при проверке файловых инструментов учитывается только целевой путь `Path` / `TargetFile`, а не тело `Content`).
-4. `source_kb_check` (`LINK-1` / `LINK-5` / `VERIFY-1` / `KB-1` / `KB-3`): проверяет читаемость ссылок (`readable_link_issues`, допуская в ответах чата незакодированные локальные ссылки `file:///C:/...` без `%`-кодирования), наличие всех внешних `http(s)://` ссылок ответа в модулях `ꘖ/KB` / `Analysis.json`, наличие первичных наблюдений в `ꘖ/KB/Evidence` для внешних ссылок со статейными заголовками и соответствие заявленного текста ссылки (`[Заголовок](url)`) реальному `<title>` / `<h1>` / JSON-заголовку темы в сохранённом наблюдении.
+The operation re-verifies the active native turn, records the exact requests and response through the existing `record_answer` mechanism, validates the read-back bytes (rejecting corrupted OEM/ASCII output where words were replaced by `???`), and returns `response_file`, SHA256, pair numbers, and `ready: true`.  
+It also checks public tool calls of the active turn for compliance with `EXEC-5` (no read-only Git invocations without `--no-optional-locks`), saving the result in `exec5_check`.  
+Additionally, `answer-prepare` performs four protective turn and source checks:  
+1. `http_fetch_check` (`KB-3` / `EXEC-1`): rejects ad-hoc external network requests in the shell (`urllib.request`, `requests`, `Invoke-WebRequest`, `curl`) executed outside `collect` / `collect-http`.  
+2. `compaction_check` (`COMPACT-1` / `KB-3`): if context compaction (`CHECKPOINT` / `context_compacted`) occurred in the active turn after tool calls, requires restoring pre-compaction results via `upwork_project.py recover-checkpoint <root> --conversation <native-uuid>` or reading `transcript_full.jsonl` after the `CHECKPOINT` step.  
+3. `delegation_check` (`REVIEW-1` / `KB-3`): in Upwork projects (`ꘖ/project.json`), rejects executing more than 40 tool steps in the primary agent without delegating to subagents (`A.F`/`A.A`) or writing intermediate findings to `ꘖ/KB` (when inspecting file tools, only the target path `Path` / `TargetFile` is checked, not `Content`).  
+4. `source_kb_check` (`LINK-1` / `LINK-5` / `VERIFY-1` / `KB-1` / `KB-3`): verifies link readability (`readable_link_issues`, permitting unencoded local `file:///C:/...` links in chat responses), presence of all external `http(s)://` links from the response in `ꘖ/KB` modules or `Analysis.json`, presence of primary observations in `ꘖ/KB/Evidence` for external links with descriptive article titles, and agreement between the link label (`[Title](url)`) and the actual `<title>` / `<h1>` / JSON topic title in the saved observation.  
 
-В отслеживаемых проектах с `ꘖ/data/workflow.json` и `ꘖ/project.json` при незавершённом этапе `finalize` первоначального анализа (либо при наличии в последующем аналитическом ответе причинных гипотез и способов `H-N` / `M-N` без делегированного аудита субагенту в текущем ходе) запросы должны быть приняты через `adopt-requests` и одобрены через `authorize` (с фильтрацией по текущей беседе без блокировки на старых беседах); после завершения `finalize` правка клиентских текстов (`/df-article`, `/df-proposal`) и обычные последующие ходы записываются в журнал через `_record` и проверяются по `source_kb_check` и `gate_requests` без привязки к карточкам первоначального анализа `Analysis.json`.  
-Сверка включает полный снимок запросов после `turn-begin`, после ожидания блокировки и после записи журнала.
-Если новый запрос или смена хода обнаружены после записи, история сохраняется, состояние получает `preparation_unverified` и отрицательный `readiness_check`; готовность не выдаётся.
-Такая сверка не создаёт атомарной операции с отправкой платформы: сообщение, пришедшее после последней проверки, всё ещё требует обработки основным агентом.
-Связанные клиентские документы проходят прежний `gate_requests`; запросы отслеживаемого первоначального анализа сохраняют содержательный допуск `authorize`.
-Публикуй содержимое `response_file` без изменений.
-Повтор с теми же байтами идемпотентен; другая версия уже записанного ответа или новый непокрытый запрос не заменяет прежнюю историю.
-`delivery_verified: false` означает подготовку, не наблюдение доставки.
-Узкая проверка отклоняет явное обоснование равных вероятностей одним отсутствием данных; цитаты, код и явное отрицание такого вывода сохраняются.
-Эта проверка не определяет скрытые причины, не запрещает обоснованные равные априорные оценки и не заменяет содержательную рецензию.
+In tracked projects with `ꘖ/data/workflow.json` and `ꘖ/project.json`, while the `finalize` stage of initial analysis is incomplete (or when a subsequent analytical response contains causal hypotheses or methods `H-N` / `M-N` without a delegated subagent audit in the current turn), requests must be adopted via `adopt-requests` and approved via `authorize` (filtered to the current conversation without blocking on historical conversations); once `finalize` is complete, client text edits (`/df-article`, `/df-proposal`) and ordinary follow-up turns are recorded in the journal via `_record` and checked against `source_kb_check` and `gate_requests` without binding to the initial analysis cards in `Analysis.json`.  
+Verification includes a full request snapshot after `turn-begin`, after lock acquisition, and after writing the journal.  
+If a new request or turn change is detected after writing, history is preserved, the state receives `preparation_unverified` and a negative `readiness_check`, and readiness is withheld.  
+This check does not create an atomic transaction with platform delivery: a message arriving after the last check still requires handling by the primary agent.  
+Linked client documents pass through `gate_requests`; requests of a tracked initial analysis retain the substantive `authorize` gate.  
+Publish the exact contents of `response_file` without modification.  
+Retrying with the exact same bytes is idempotent; a different version of an already recorded response or a new uncovered request never overwrites prior history.  
+`delivery_verified: false` indicates preparation rather than observed delivery.  
+A narrow check rejects justifying equal probabilities solely from absence of data; verbatim quotes, code blocks, and explicit negations of that fallacy are preserved.  
+This check does not identify hidden causes, does not forbid justified equal priors, and does not replace substantive review.  
 
-## Нативная сверка
+## Native Verification
 
 ```text
 python <agents>/scripts/upwork_project.py journal-sync <root> --conversation <native-uuid> --platform codex
@@ -68,25 +68,25 @@ python <agents>/scripts/upwork_project.py journal-watch --action once
 python <agents>/scripts/upwork_project.py journal-watch --action stop
 ```
 
-Сверщик независимо читает только зарегистрированные беседы, их точные пользовательские запросы и завершённые финальные сообщения; приватные рассуждения не экспортируются.
-Codex требует нативное завершение хода и финальное сообщение, согласованное с событием завершения.
-Antigravity проверяет завершённый шаг; для текущего хвоста дополнительно нужны нативный idle, `not_fully_idle: 0`, отсутствие killed и согласованные индексы последнего запроса/шага.
-Незавершённые записи, явно прерванные ходы Codex, текущий killed-хвост Antigravity, чужие проекты, дочерние агенты и неполные JSONL не превращаются в успешную доставку.
-При совпадении подготовленных и доставленных байтов состояние получает `delivered` и `delivery.verified: true`.
-Если подготовка пропущена, фактический обмен записывается с `recovered_after_delivery: true`; это восстановление постфактум и не выполнение FILE-3 до публикации.
-Если точная группа уже существовала без состояния нового контракта, сверка указывает `completion_provenance: existing_journal`, не создаёт копию и не присваивает ей проверку подготовки до отправки.
-Исторические ответы сохраняются дословно, даже если в них есть ошибки; такая запись не является содержательным одобрением.
-Изменённые байты становятся конфликтом с отдельным первичным текстом; существующие пары не переписываются.
-Кэш неизменного нативного источника действует до 60 секунд; после истечения проверка целостности повторяется на следующем доступном проходе, с учётом обработки остальных бесед и ожидания блокировок.
-При сохранённом состоянии завершения удаление учтённой пары или её квитанции отражается конфликтом, без молчаливого восстановления либо дублирования истории.
-Утрата всех квитанций принадлежности прежней пары не позволяет восстановить её нативный ID по одному совпадению текста; такая проверка здесь не гарантируется.
-Синтаксически и структурно повреждённая привязка сохраняется с ошибкой и не останавливает проверку остальных бесед; временная ошибка чтения повторяется на следующем проходе и не считается успехом кэша.
-Отказ прежней проверки связанного клиентского документа также сохраняется конфликтом с нативным текстом, а не обходится ради восстановления.
-Устойчивый нативный ID и проверка запросов предотвращают дубликаты; одинаковые слова в разных ходах не являются одним запросом.
+The verifier independently reads only registered conversations, their exact user requests, and completed final messages; private reasoning traces are never exported.  
+Codex requires a native turn-completion event and a final assistant message matching that completion event.  
+Antigravity verifies a completed step; for the active tail, it additionally requires native idle state, `not_fully_idle: 0`, absence of killed status, and consistent indices for the last user request and planner step.  
+Incomplete entries, explicitly aborted Codex turns, a killed Antigravity tail, unrelated projects, child subagents, and truncated JSONL lines never count as successful delivery.  
+When the prepared and delivered bytes match, the state transitions to `delivered` with `delivery.verified: true`.  
+If preparation was skipped, the actual exchange is recorded with `recovered_after_delivery: true`; this is post-hoc recovery rather than compliance with FILE-3 before publication.  
+If the exact request group already existed without the new contract state, reconciliation records `completion_provenance: existing_journal`, avoids creating a duplicate, and does not retroactively mark it as pre-delivery verified.  
+Historical responses are preserved verbatim even if they contain errors; recording them does not constitute substantive approval.  
+Altered bytes are recorded as a conflict alongside the separate native text; existing journal pairs are never overwritten.  
+An unchanged native source is cached for up to 60 seconds; once expired, integrity verification repeats on the next available pass alongside other conversations and lock waits.  
+When a completion state exists, deleting a recorded pair or its receipt is flagged as a conflict without silent restoration or history duplication.  
+If all ownership receipts for a legacy pair are lost, its native ID cannot be recovered from text similarity alone; such matching is not guaranteed here.  
+A syntactically or structurally corrupted binding is preserved with an error and does not halt verification of other conversations; a transient read error is retried on the next pass rather than cached as success.  
+Failure of a prior gate on a linked client document is likewise preserved as a conflict with the native text rather than bypassed for recovery.  
+A stable native ID and request check prevent duplicates; identical wording in different turns is not treated as the same request.  
 
-## Пределы и проверка
+## Limits and Verification
 
-Общий источник остаётся `AI/primary/result/.agents`; сверщик хранит своё состояние в `AI/primary/ꘖ/data/journal-watch` и не меняет нативные базы.
-Он не закрывает окна, не перезапускает Codex/Antigravity и не завершает чужие процессы; остановка адресуется собственному токену сверщика.
-Контракт не создаёт платформенного перехвата отправки: подготовку ещё можно пропустить прямым финальным ответом, после чего сверщик обнаруживает нарушение и восстанавливает журнал.
-Критерии: обычный анализ и статья используют одинаковое FILE-3; неполный ответ не импортируется; пропуск восстанавливается; повтор не дублируется; чужой root/profile/child отклоняется; конфликт сохраняет исходные байты.
+The shared source remains `AI/harness/code`; the verifier stores its own state in `AI/harness/_/ꘖ/data/journal-watch` and never modifies native databases.  
+It does not close windows, restart Codex or Antigravity, or terminate third-party processes; `stop` targets only the verifier's own token.  
+The contract does not intercept platform message submission: an agent can still bypass preparation by emitting a direct final reply, after which the verifier detects the violation and recovers the journal entry.  
+Criteria: routine analysis and articles use the same FILE-3 contract; an incomplete reply is not imported; a skipped preparation is recovered; retries do not duplicate pairs; a foreign root/profile/child is rejected; a conflict preserves the original bytes.  

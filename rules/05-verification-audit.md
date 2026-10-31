@@ -1,39 +1,39 @@
 ---
 trigger: always_on
-description: "Происхождение, метод проверки, полнота и исправления"
+description: "Provenance, verification method, completeness, and corrections"
 ---
-# Проверка
+# Verification
 ## VERIFY-1
-Для существенного тезиса фиксируй источник, дату, условия и статус: наблюдение, слова клиента, гипотеза, подтверждено, опровергнуто или не проверено.
-Ответ модели, прежний отчёт и запись KB сами по себе доказательством не являются.
-Прослеживай производные тезисы до первичного наблюдения или документированного импорта клиента: расположение файла в Evidence не устанавливает происхождение.  
-Каждая внешняя ссылка с описательным заголовком статьи или документа в ответе должна соответствовать сохранённому первичному наблюдению в `ꘖ/KB/Evidence` (включая сверку `<title>`/`<h1>` или JSON-заголовка темы); непроверенные или противоречащие наблюдению заголовки блокируются при подготовке ответа.  
-Неизвестные значения не заменяй нулями; старую проверку не выдавай за текущую.
+For every material claim, record the source, date, conditions, and status: observation, client report, hypothesis, verified, refuted, or unverified.  
+A model response, prior report, or KB entry is not evidence by itself.  
+Trace derived claims back to a primary observation or documented client intake: a file's placement inside Evidence does not establish provenance.  
+Every external link with a descriptive article or document title in a response must correspond to a saved primary observation in `ꘖ/KB/Evidence` (including verification of `<title>`/`<h1>` or the JSON topic title); unverified titles or titles contradicting the observation are blocked during answer preparation.  
+Do not replace unknown values with zeros; do not present a stale check as current.  
 ## VERIFY-2
-Проверяй заявленное свойство: HTTP/DNS/исходник — сетевым инструментом; JavaScript, DOM, авторизацию и интерфейс — соответствующим браузерным сценарием.
-Сначала сопоставь полный тезис с тем, что реально измеряет тест: положительный результат более слабого индикатора не устанавливает сильный статус, причину или обобщение.
-Отсутствие отдельного вызова чтения правил не устанавливает, что агент их не получил: проверь автоматическую загрузку; файл на диске и квитанция применимости сами по себе не доказывают получение, понимание или исполнение инструкций.
-Рассмотри правдоподобный случай, в котором тезис ложен, а тест всё равно проходит; если он возможен, сохрани ограниченный вывод либо выбери различающую проверку.
-Строка в бандле не доказывает исполнение; подмена User-Agent — поведение верифицированного краулера.
-Снимок DOM не доказывает переход или сохранение выбора: для этого нужен сценарий с действием и состоянием до/после.
-Региональный URL, язык браузера и подтверждённая страна подключения — разные условия; отсутствие cookies у HTTP-клиента не является Incognito.
-Публичная разметка не устанавливает скрытую конфигурацию Admin или фактическую поисковую выдачу; выбирай соответствующий первичный источник либо оставляй гипотезу.  
-Недоступность закрытого интерфейса не переносит статус `limited` или сослагательное условие `if` на публичную витрину и открытые данные: доказанное свойство витрины остаётся подтверждённым фактом и не может быть объявлено сомнительным из-за отсутствия доступа к панели администратора.
-До выдвижения гипотез о внешних системах проверь сам локальный артефакт (HTTP-статус, наличие в извлечённых `links` навигации/подвала и непустое содержимое) и исключи тривиальную недоступность запрошенного адреса.
-Записи в `sitemap.xml` или `robots.txt` не доказывают статус HTTP, содержимое или разметку самих страниц: для каждого ключевого шаблона сайта (главная, листинг/каталог, карточка товара/работы, статья блога, контакты) выполни отдельное наблюдение целевого URL либо JSON-эндпоинта CMS (включая Squarespace `?format=json-pretty`).
-При сбое HTTP различай ошибку резолвинга DNS (`gaierror`/`NXDOMAIN`), TCP-таймаут и отказ соединения; не приписывай домену отсутствие DNS-записи без прямой DNS-проверки или явной ошибки резолвинга.
-Отсутствие подтверждения и неудавшийся тест не означают опровержения.
+Test the claimed property with a matching method: HTTP/DNS/source via a network tool; JavaScript, DOM, authentication, and UI via an executed browser scenario.  
+First compare the full target claim against what the test actually measures: a positive result on a weaker proxy indicator does not establish a strong status, cause, or generalization.  
+Absence of a separate file-read tool call does not prove that the agent did not receive the rules: check automatic loading; a file on disk and an applicability receipt do not by themselves prove receipt, comprehension, or execution of instructions.  
+Consider a plausible scenario in which the claim is false yet the test still passes; if such a case exists, retain a qualified conclusion or choose a discriminating check.  
+A string in a bundle does not prove execution; spoofing `User-Agent` does not prove verified crawler behavior.  
+A static DOM snapshot does not prove navigation or state persistence: that requires an action scenario with before/after state.  
+A regional URL, browser locale, and verified connection country are distinct conditions; an HTTP client without cookies is not browser Incognito mode.  
+Public markup does not establish hidden Admin configuration or actual search engine rankings; select the appropriate primary source or keep the claim as a hypothesis.  
+Unavailability of a private admin interface does not transfer `limited` status or conditional `if` qualifiers onto the public storefront and open data: a proven storefront property remains a verified fact and cannot be treated as doubtful due to lacking admin access.  
+Before proposing hypotheses about external systems, inspect the local artifact itself (HTTP status, presence of navigation/footer in extracted `links`, and non-empty body) and rule out trivial unavailability of the requested URL.  
+Entries in `sitemap.xml` or `robots.txt` do not prove the HTTP status, content, or markup of the pages themselves: for each key site template (home, listing/catalog, product/work item page, blog post, contact page), perform a separate observation of the target URL or CMS JSON endpoint (including Squarespace `?format=json-pretty`).  
+On HTTP failure, distinguish DNS resolution failure (`gaierror`/`NXDOMAIN`), TCP timeout, and connection refusal; do not attribute absence of a DNS record to a domain without a direct DNS check or an explicit resolution error.  
+Absence of confirmation or a failed test does not equal refutation.  
 ## VERIFY-3
-Полноту доказывай перечнем объектов, периодом, пагинацией и результатом по каждому; выборку так и называй.
-Все URL, перечисленные в `scope.sample` подтверждённого тезиса, должны иметь собственные первичные наблюдения; один снимок главной страницы не подтверждает отсутствие продуктовой или статейной разметки (`Product`/`Offer`/`Article`) на всём сайте.
-Количественные сводки, границы дат и распределения по массивам данных бери из детерминированного `summary` (`record_count`, `timestamp_ranges`, `field_counts`) инструмента `extract` по всей коллекции, не оценивая массив по первому элементу (`[0]`) и не затирая прежние наблюдения при доборе.
-Различай пользователей, события, сеансы, продажи и их знаменатели; причинность и ущерб подтверждай отдельно.
-Вычисляемые показатели проверяй программно по исходным операндам, единицам, формуле, источникам и правилу округления; экспертные проценты H/M не являются измеренными значениями.
+Prove completeness by listing the objects, time range, pagination, and per-object result; label a sample as a sample.  
+All URLs listed in `scope.sample` of a verified claim must have their own primary observations; a single home-page snapshot does not confirm the absence of product or article schema (`Product`/`Offer`/`Article`) across the entire site.  
+Take quantitative summaries, date bounds, and distributions over data arrays from the deterministic `summary` (`record_count`, `timestamp_ranges`, `field_counts`) produced by `extract` across the full collection, without judging an array by its first element (`[0]`) or overwriting prior observations during incremental collection.  
+Distinguish users, events, sessions, sales, and their denominators; prove causation and business impact separately.  
+Verify computed metrics programmatically from raw operands, units, formula, sources, and rounding rules; expert H/M percentages are not measured values.  
 ## VERIFY-4
-Сохраняй минимальное воспроизводимое доказательство: исходные данные, шаги, ожидаемый и фактический результат, вывод и существенные ограничения.
-План с альтернативами, опровергающим исходом и критериями фиксируй до наблюдения; изменение критериев создаёт новую версию и требует новой проверки, сохраняя прежние исходы.
-Сравнивай критерии с сырыми результатами отдельно от интерпретации; недоступный или неопределённый результат не заменяй желаемым успехом.
-Не сочиняй вывод команд; зелёный код возврата не заменяет проверки смысла.
-Исправление факта распространяй на зависимые разрешённые материалы; защищённые расхождения отметь.
-Закрыть вопрос с конкретным пробелом допустимо; недоступная проверка не позволяет присвоить тезису подтверждённый статус.
-Формальная совместимость метода и артефакта не является машинной гарантией логического следования: его оценивает A.A.
+Save minimal reproducible evidence: inputs, steps, expected and actual results, conclusion, and material limitations.  
+Record the plan with alternatives, disconfirming outcome, and criteria before observation; changing criteria creates a new version and requires a new run while preserving prior outcomes.  
+Compare criteria against raw results separately from interpretation; do not replace an unavailable or inconclusive result with a desired success.  
+Do not fabricate command output; a zero exit code does not replace semantic verification.  
+Propagate fact corrections to dependent permitted materials; flag protected discrepancies explicitly.  
+Closing a question with a documented gap is permissible; an unavailable check does not allow assigning `verified` status to a claim.  
+Formal compatibility between method and artifact is not a machine guarantee of logical entailment: A.A evaluates substantive entailment.  

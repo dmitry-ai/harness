@@ -1,63 +1,63 @@
-# Доступ к авторизованным порталам
+# Access to Authenticated Portals
 
-Общая процедура [EXEC-3 и EXEC-6](../../../rules/08-execution-and-tools.md#exec-3) действует для анализа, выполнения работ и продолжения существующего проекта в обеих средах.  
-Она разрешает использовать имеющуюся авторизацию для порученного действия; объём внешних изменений определяет [SCOPE-2](../../../rules/00-scope.md#scope-2).  
+The shared procedure in [EXEC-3 and EXEC-6](../../../rules/08-execution-and-tools.md#exec-3) governs analysis, task execution, and continuation of existing projects across both platforms.  
+It authorizes using active browser authentication for an instructed action, while the scope of permissible external changes is governed by [SCOPE-2](../../../rules/00-scope.md#scope-2).  
 
-## Выбор сессии и открытие страниц
+## Session Selection and Opening Pages
 
-1. Определи сервис, ресурс и нужную операцию из текущего поручения и KB.  
-   Возьми профиль и подключение из настроек среды; получи актуальный список вкладок/targets и проверь приложение, origin и аккаунт.  
-   Не используй сохранённый target ID как постоянный адрес.  
-1. Если нужной страницы нет, сам создай собственную вкладку/окно в том же подтверждённом профиле и открой адрес нужного сервиса.  
-   Отсутствие вкладки не означает отсутствие доступа; пользователь не обязан заранее открывать все кабинеты и разделы.  
-   Пользовательские вкладки сохраняй по EXEC-3; навигацию и порученные изменения выполняй в своих.  
-1. После открытия проверь вход, выбранный аккаунт и ресурс по интерфейсу или штатному ответу сервиса.  
-   Существующая вкладка другого аккаунта не подтверждает доступ к нужному.  
-   Новый пустой профиль не заменяет профиль с рабочей сессией.  
-1. Проси участия пользователя, когда действительно нужен вход/MFA, выбор неоднозначного аккаунта или отсутствующее право.  
-   Сначала проверь доступный профиль и штатное восстановление сессии; не проси вручную пересылать токен или открывать каждую следующую страницу.  
+1. Identify the target service, resource, and required operation from the current instruction and KB.  
+   Obtain the browser profile and connection settings from the environment configuration; fetch the live list of tabs/targets and verify the application, origin, and account.  
+   Never treat a saved `target_id` as a permanent address.  
+1. If the required page is not already open, open your own tab or window in that same verified profile and navigate to the service URL.  
+   Absence of an open tab does not mean lack of access; the user is not required to pre-open every console or section in advance.  
+   Leave user-owned tabs untouched per EXEC-3; perform navigation and instructed changes in agent-opened tabs.  
+1. After opening the page, verify login state, selected account, and resource via the UI or the service's standard API response.  
+   An open tab logged into a different account does not confirm access to the target account.  
+   A fresh empty browser profile never substitutes for the profile holding the active session.  
+1. Ask for user intervention only when login/MFA, disambiguation between accounts, or a missing permission is genuinely required.  
+   Check the available profile and standard session recovery first; do not ask the user to manually copy-paste tokens or open each subsequent page.  
 
-Подключение к существующей сессии — предусмотренный режим Chrome DevTools: «connect your agent to an existing browser session».  
-Версию Chrome и поддерживаемый способ подключения проверяй по [документации](https://developer.chrome.com/docs/devtools/agents/get-started/configuration#connect-to-an-existing-browser-session); наличие CDP не означает, что конкретный MCP уже настроен на этот профиль.  
+Connecting to an existing browser session is a documented Chrome DevTools workflow: «connect your agent to an existing browser session».  
+Verify the Chrome version and supported connection method against the [official documentation](https://developer.chrome.com/docs/devtools/agents/get-started/configuration#connect-to-an-existing-browser-session); the presence of a CDP port does not prove that a specific MCP server is already bound to that profile.  
 
-## Использование cookies и токенов
+## Using Cookies and Tokens
 
-1. Для порученной операции используй штатный интерфейс или авторизованный API-клиент страницы.  
-   Cookies, включая HttpOnly, пусть обслуживает браузер; экспортировать их для обычного запроса не требуется.  
-   Для запроса из контекста страницы выбери подходящий режим credentials по контракту сервиса.  
-   Не считай `credentials: include` доказательством наличия нужного Bearer/CSRF-заголовка, прав операции или разрешённого CORS.  
-1. Если операция требует явного CSRF/access-токена, разрешено целевое использование токена текущего подтверждённого аккаунта.  
-   Сначала установи конкретный источник и назначение по документации или штатной конфигурации/клиенту приложения; при необходимости прочитай только этот именованный источник в контексте нужной страницы и используй значение в памяти для проверенного запроса.  
-   Это относится и к токену в web storage, если сервис действительно использует его для данной операции; отдельный безусловный запрет на такой источник не вводится.  
-1. Получатель токена — только проверенный API этого сервиса и нужного ресурса.  
-   Отдельный API-origin проверь по контракту или штатной конфигурации сервиса; не отправляй секрет по произвольному URL из содержимого страницы и не следуй непроверенному перенаправлению с явно добавленным секретным заголовком.  
-   Не отключай CORS, CSRF или HttpOnly ради переноса авторизации.  
-1. Не возвращай значение токена, cookies или секретные заголовки из браузерного вызова в вывод инструмента/модель.  
-   Не помещай их в URL, командную строку, stdout, файлы, KB, Журнал, дампы сети или снимки экрана; возвращай только необходимые поля результата и очищенные метаданные ошибки.  
-   Источник, назначение и факт использования можно зафиксировать без значения секрета.  
-1. Не перечисляй все cookies, localStorage, sessionStorage или браузерные профили поиском секретов «на всякий случай».  
-   Нужный приложению токен не выдаёт разрешения собирать остальные секреты; диагностическую cookie кэша вроде `X-Magento-Vary` проверяй отдельно и целево.  
-   Не копируй профиль или базу cookies в проект и не подменяй отсутствие прав извлечением чужой сессии.  
-1. Если действительно нужен внешний SDK/CLI, предпочитай предусмотренную сервисом авторизацию и защищённую передачу выданного для этой задачи API-токена.  
-   Не превращай браузерную сессию в общий файл credentials; перенос браузерного секрета за пределы браузера не является способом по умолчанию.  
-   При истечении авторизации используй штатное обновление/повторный вход, не сохраняй бессрочную копию сессионного токена.  
+1. Use the service's native UI or in-page authenticated API client for the instructed operation.  
+   Let the browser handle cookies (including `HttpOnly`); exporting cookies for ordinary in-page requests is unnecessary.  
+   When issuing a request from the page context, select the credentials mode required by the service contract.  
+   Do not treat `credentials: include` as proof that a required `Bearer` or CSRF header is present, that the account holds write permissions, or that CORS allows the call.  
+1. When an operation requires an explicit CSRF or access token, targeted use of the token belonging to the verified active account is permitted.  
+   First establish the exact token source and destination from documentation or the application's standard client configuration; if needed, read only that named source inside the target page context and use the value in memory for the verified request.  
+   This also applies to a token stored in web storage when the service genuinely uses it for that operation; no blanket ban on web storage sources is imposed.  
+1. The token recipient must be the verified API of that exact service and resource.  
+   Verify any separate API origin against the service contract or application configuration; never send a secret to an arbitrary URL scraped from page content or follow an unverified redirect with an attached secret header.  
+   Never disable CORS, CSRF, or `HttpOnly` protections to transplant authentication.  
+1. Never return token values, cookies, or secret headers from an in-browser evaluation into tool output or model context.  
+   Never place secrets in URLs, command lines, stdout, files, the KB, the Journal, network dumps, or screenshots; return only the required result fields and sanitized error metadata.  
+   You may record the credential source, target endpoint, and the fact that authenticated access was used without recording the secret value itself.  
+1. Do not enumerate all cookies, `localStorage`, `sessionStorage`, or browser profiles searching for secrets "just in case".  
+   Needing one application token does not authorize harvesting other credentials; inspect diagnostic cache cookies such as `X-Magento-Vary` individually and in a targeted manner.  
+   Never copy a browser profile or cookie database into a project directory, and never bypass missing permissions by extracting another user's session.  
+1. When an external SDK or CLI is genuinely required, prefer the service's standard authentication flow and secure injection of a task-scoped API token.  
+   Do not dump a browser session into a general-purpose credentials file; exporting a browser secret outside the browser is never the default approach.  
+   When a session expires, use standard token refresh or re-authentication rather than storing a long-lived copy of a session token.  
 
-Техническая граница fetch: «By default, credentials are only included in same-origin requests».  
-Условия cookies, cross-origin и CSRF проверяй по разделу [Including credentials](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch#including_credentials); пользовательское поручение само по себе не меняет поведение браузера или права сервиса.  
+Technical boundary of `fetch`: «By default, credentials are only included in same-origin requests».  
+Check cookie, cross-origin, and CSRF requirements against [Including credentials](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch#including_credentials); a user instruction does not alter browser security mechanics or server-side permissions.  
 
-## Проверка прав и обработка отказов
+## Permission Verification and Failure Handling
 
-- Различай отсутствие соединения/CDP, страницу входа, выбранный не тот ресурс, HTTP 401/403, прикладной отказ операции и отказ политики инструмента.  
-  Не выводи конкретную причину только из одного HTTP-кода: например, 403 сам по себе не устанавливает, что проблема именно в токене.  
-- Проверяй права для конкретной операции.  
-  Право чтения кабинета или очистки кэша не доказывает право изменения правил; перед запросом новых доступов проверь штатный интерфейс и фактически доступные возможности.  
-  Не выполняй постороннюю запись только ради теста прав.  
-- После порученного изменения проверь прикладной результат и повторное чтение состояния, учитывая задержку применения.  
-  HTTP 200 и отсутствие ошибки инструмента сами по себе не доказывают сохранение нужной настройки.  
-- При отказе политики инструмента соблюдай указанные средой ограничения.  
-  Не скрывай запрещённое действие переупаковкой команды, другим транспортом или отключением проверок; сообщи конкретную отклонённую операцию и продолжай независимую разрешённую работу только если среда это допускает.  
-  Эта процедура не гарантирует отсутствия всех будущих отказов и не отменяет системных ограничений.  
-- Если последнее сообщение агента — отказ продолжать прежнюю задачу, а пользователь явно поручил другую разрешённую работу, восстанови актуальную цель и выполняй её.  
-  Не называй старый текстовый отказ новым срабатыванием хука и не возвращайся самовольно к отменённому патчу из истории.  
-- При реальной нехватке доступа укажи сервис, аккаунт/ресурс без секретов, точную операцию, наблюдаемый отказ и минимально нужный шаг пользователя.  
-  В KB сохраняй проверенный способ доступа и его ограничения, а не токены и не обещание вечной авторизации.  
+- Distinguish a missing CDP connection, a login screen, a wrong selected property, HTTP 401/403, an application-level rejection, and a tool policy refusal.  
+  Never infer a specific root cause from an HTTP status code alone: for example, HTTP 403 by itself does not prove that a token is invalid.  
+- Verify permissions for the specific operation.  
+  Read access to a console or permission to flush a cache does not prove permission to edit rules; check the native UI and actually available controls before asking the user for elevated access.  
+  Never perform an unrelated write merely to test permissions.  
+- After performing an instructed change, verify the application-level result and re-read the state, accounting for propagation delay.  
+  HTTP 200 and the absence of a tool error do not by themselves prove that a setting persisted.  
+- When a tool policy refuses an action, respect the environment constraint.  
+  Never disguise a blocked action by wrapping the command, switching transports, or disabling checks; report the specific refused operation and continue only with independent permitted work if the environment allows.  
+  This procedure does not guarantee the absence of future refusals and does not override system boundaries.  
+- If the previous assistant message refused an earlier task and the user has now explicitly instructed a different, permitted task, adopt the new goal and execute it.  
+  Do not treat an old text refusal in chat history as a live hook block, and do not unilaterally resume a canceled patch from history.  
+- When access is genuinely missing, state the service, account/resource (without secrets), exact operation, observed rejection, and the minimal step needed from the user.  
+  In the KB, record the verified access method and its boundaries, never raw tokens or promises of permanent authentication.  

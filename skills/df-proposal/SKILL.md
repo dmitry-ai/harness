@@ -1,23 +1,23 @@
 ---
 name: df-proposal
-description: Пишет, сокращает и правит Upwork proposal по правилам пользователя; проверяет простую нумерацию, ссылки § и распределение по полям. Используй при /df-proposal и работе над proposal; для самостоятельной статьи — df-article.
+description: "Writes, condenses, and edits Upwork proposals per user rules; validates plain numbering, § references, and per-field character limits. Use for /df-proposal and proposal work; use df-article for standalone articles."
 ---
-# Proposal для Upwork
+# Upwork Proposal
 
-Применяй [общую процедуру клиентского текста](../../references/client-text/workflow.md) и [общую рецензию](../../references/client-text/review.md).
-Это единственные источники общих требований к доказательствам, разрешённым изменениям, записи результата и ответу пользователю.
+Apply the [shared client text procedure](../../references/client-text/workflow.md) and [shared review contract](../../references/client-text/review.md).  
+They are the sole sources of shared requirements for evidence, permitted edits, file writing, and user responses.  
 
-Перед составлением прочитай [формат proposal](references/format.md).
-При подборе формы прочитай подходящий профиль в [образцах](references/examples.md), затем сам исходный образец и актуальную редакцию пользователя.
-Исторические образцы показывают разные способы изложения; поздние прямые требования пользователя имеют приоритет над прежними формулировками.
+Before drafting, read the [proposal format](references/format.md).  
+When selecting a structural layout, read the matching profile in [examples.md](references/examples.md), then inspect the referenced historical file and the user's final revision.  
+Historical samples illustrate layout patterns; the user's current rules take priority over legacy phrasing.  
 
-Proposal — самостоятельный результат: отдельная статья проекта для него не требуется.
-Отбирай материал непосредственно под вакансию, вопросы клиента и проверенные сведения о его системе.
-Не переносить в proposal части I/II, заголовки и якоря статьи из `/df-article`.
+A proposal is a standalone deliverable: it does not require a prior project article.  
+Select material directly for the job post, the client's screening questions, and verified findings about the client's system.  
+Never carry over Part I/II headings or HTML anchors from `/df-article` into a proposal.  
 
-Инструмент: `python <agents>/scripts/df_proposal.py <lint|source|render|replay|response>`, где `<agents>` — канонический каталог `.agents`.
-Редактирование через ключи использует обычные строки `@forms …`, `@forms.reason …` и ссылки `§@forms`, `§§@forms-@tracking`; результат содержит `1. …`, `1.1. …`, `§1`, `§§1-3`.
-Нумерация служит содержанию и проверяемым ссылкам; она не задаёт число проблем, вопросов, примеров или подпунктов.
+Tool: `python <agents>/scripts/df_proposal.py <lint|source|render|replay|response>`, where `<agents>` is the canonical `.agents` directory.  
+Key-based editing uses plain lines `@forms …`, `@forms.reason …` and references `§@forms`, `§§@forms-@tracking`; rendered output uses `1. …`, `1.1. …`, `§1`, `§§1-3`.  
+Numbering serves clarity and verifiable cross-references; it never dictates a fixed count of problems, questions, examples, or sub-items.  
 
-Условия конкретного Upwork задания определяют число полей и лимит каждого поля.
-До окончательной сборки проверь отдельно Cover Letter и каждый ответ на вопрос; общий размер текста не подтверждает соблюдение отдельных лимитов.
+The specific Upwork job post determines the number of submission fields and each field's character limit.  
+Before finalizing, validate the Cover Letter and each screening question answer separately; total document length does not prove compliance with individual field limits.  

@@ -1,1 +1,1 @@
-Общий источник: [slop.md](../../../references/client-text/slop.md).
+Shared source: [slop.md](../../../references/client-text/slop.md).  

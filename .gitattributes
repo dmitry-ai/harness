@@ -1,2 +1,5 @@
-# Synthetic evidence hashes depend on these exact UTF-8 bytes.
+# 2026-10-19
+# "Enforce primary evidence contract, independent subagent review provenance, and empirical experiment verification":
+# https://github.com/dmitry-ai/harness/issues/10
 skills/upwork-init/references/example-source.json -text
+*.md whitespace=-blank-at-eol

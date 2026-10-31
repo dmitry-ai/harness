@@ -1,34 +1,34 @@
 ---
 name: df-github-issue
-description: "Создаёт, редактирует, комментирует, закрывает и проверяет GitHub issues через файловый UTF-8 вход и API read-back без искажений PowerShell; используй при /df-github-issue и любой работе с GitHub issues."
+description: "Creates, edits, comments on, closes, and audits GitHub issues via UTF-8 file input and API read-back without PowerShell corruption; use for /df-github-issue and any work with GitHub issues."
 ---
-# Работа с GitHub Issues без синтаксических искажений
+# Working with GitHub Issues Without Syntax Corruption
 
-Общий инструмент: `C:/work/upwork/code/AI/primary/result/.agents/scripts/df_github_issue.py`.  
-Любое создание, редактирование, комментирование, закрытие и проверка GitHub issues в Windows PowerShell выполняются только через этот инструмент и UTF-8 файл без BOM.  
+Shared tool: `C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py`.  
+All creation, editing, commenting, closing, and auditing of GitHub issues in Windows PowerShell must be executed exclusively through this tool using a UTF-8 file without BOM.  
 
-## Запрещённые шаблоны вызова `gh` в PowerShell
+## Prohibited `gh` Invocation Patterns in PowerShell
 
-Никогда не передавай Markdown-текст описания или комментария через аргументы командной строки или неконфигурированный конвейер PowerShell:  
-- Запрещено `--body "..."`, `-b "..."`, `--body @"..."@`, `--comment "..."`: внутри двойных кавычек PowerShell символ `` ` `` является escape-префиксом, поэтому `` `0 `` превращается в `NUL` (`0x00`) и обрывает описание на первом нулевом байте в `CreateProcessW`, `` `a ``/`` `b ``/`` `f ``/`` `t ``/`` `v `` превращаются в управляющие ASCII-символы (`0x07`, `0x08`, `0x0C`, `0x09`, `0x0B`), все одиночные обратные кавычки `` ` `` удаляются, bash-экранирование `` \`код\` `` превращается в `\код\`, а переменные `$this` / `$var` раскрываются в пустую строку.  
-- Запрещено передавать переменную `--body $body` нативному процессу `gh.exe`: в Windows PowerShell 5.1 (`Legacy` argument passing) внутренние двойные кавычки `"` не экранируются при сборке командной строки, поэтому `CommandLineToArgvW` удаляет кавычки из XML/HTML-атрибутов (`<argument name="session">` превращается в `<argument name=session>`) или ломает разбор аргументов на пробелах.  
-- Запрещено передавать `@'...'@ | gh issue create --body-file -` или `@'...'@ | python -` без предварительной установки UTF-8 без BOM: по умолчанию `$OutputEncoding` в Windows PowerShell 5.1 равен `US-ASCII`, из-за чего тире `–`/`—`, кавычки `«»` и `§` заменяются на `?`, а при UTF-8 с преамбулой в начало тела записывается `U+FEFF` (`UTF-8 BOM`), ломающий заголовок первой строки (`\ufeff### Problem`).  
+Never pass Markdown issue bodies or comments via command-line arguments or an unconfigured PowerShell pipeline:  
+- Prohibited: `--body "..."`, `-b "..."`, `--body @"..."@`, `--comment "..."`: inside PowerShell double quotes, the backtick `` ` `` is an escape prefix, so `` `0 `` turns into a `NUL` byte (`0x00`) and truncates the body at the first null byte in `CreateProcessW`, `` `a ``/`` `b ``/`` `f ``/`` `t ``/`` `v `` turn into ASCII control characters (`0x07`, `0x08`, `0x0C`, `0x09`, `0x0B`), single backticks `` ` `` are stripped, bash-escaped `` \`code\` `` turns into `\code\`, and `$this` / `$var` tokens expand to empty strings.  
+- Prohibited: passing a variable `--body $body` to the native `gh.exe` process: in Windows PowerShell 5.1 (`Legacy` argument passing), embedded double quotes `"` are not escaped when assembling the command line, so `CommandLineToArgvW` strips quotes from XML/HTML attributes (`<argument name="session">` becomes `<argument name=session>`) or breaks argument splitting on spaces.  
+- Prohibited: piping `@'...'@ | gh issue create --body-file -` or `@'...'@ | python -` without prior UTF-8-no-BOM configuration: by default, `$OutputEncoding` in Windows PowerShell 5.1 is `US-ASCII`, which replaces dashes `–`/`—`, guillemets `«»`, and `§` with `?`, while UTF-8 with preamble prepends `U+FEFF` (`UTF-8 BOM`) to the body and breaks a first-line heading (`\ufeff### Problem`).  
 
-## Обязательный порядок работы
+## Mandatory Workflow
 
-1. Запиши полный Markdown-текст описания или комментария в UTF-8 файл без BOM внутри `ꘖ/data/scratch/` (или временного scratch-каталога беседы) штатным инструментом `write_file`.  
-2. Выполни нужную операцию через `df_github_issue.py`:  
-   - Предварительная проверка Markdown-файла без сетевых вызовов:  
-     `python "C:/work/upwork/code/AI/primary/result/.agents/scripts/df_github_issue.py" lint --title "<заголовок>" --body-file "<путь/к/body.md>"`  
-   - Создание issue с автоматической проверкой синтаксиса до отправки, передачей JSON в `gh api` по UTF-8 stdin и побайтовой сверкой прочитанного с GitHub результата:  
-     `python "C:/work/upwork/code/AI/primary/result/.agents/scripts/df_github_issue.py" create --repo <owner/repo> --title "<заголовок>" --body-file "<путь/к/body.md>" [--label "<метки>"] --consume-input`  
-   - Редактирование существующего issue с полной сверкой:  
-     `python "C:/work/upwork/code/AI/primary/result/.agents/scripts/df_github_issue.py" edit --repo <owner/repo> --issue <N> --body-file "<путь/к/body.md>" [--title "<новый заголовок>"] --consume-input`  
-   - Добавление или исправление комментария к issue:  
-     `python "C:/work/upwork/code/AI/primary/result/.agents/scripts/df_github_issue.py" comment --repo <owner/repo> (--issue <N> | --comment-id <ID>) --body-file "<путь/к/comment.md>" --consume-input`  
-   - Закрытие issue с проверенным комментарием:  
-     `python "C:/work/upwork/code/AI/primary/result/.agents/scripts/df_github_issue.py" close --repo <owner/repo> --issue <N> [--reason completed|not_planned] [--comment-file "<путь/к/comment.md>"] --consume-input`  
-   - Аудит всех открытых и закрытых issues и комментариев репозитория на синтаксические/кодировочные повреждения:  
-     `python "C:/work/upwork/code/AI/primary/result/.agents/scripts/df_github_issue.py" audit-repo --repo <owner/repo> --include-comments`  
-3. Если заголовок содержит кавычки `"`, `$` или обратные кавычки `` ` ``, запиши заголовок в отдельный UTF-8 файл и передай `--title-file "<путь/к/title.txt>"`.  
-4. Считай операцию успешной только при коде возврата `0` и `"verified": true` в JSON-ответе инструмента.  
+1. Write the complete Markdown body or comment to a UTF-8 file without BOM inside `ꘖ/data/scratch/` (or the conversation's scratch directory) using the native `write_file` tool.  
+2. Run the required operation via `df_github_issue.py`:  
+   - Pre-flight syntax check of the Markdown file without network calls:  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" lint --title "<title>" --body-file "<path/to/body.md>"`  
+   - Create an issue with pre-flight syntax checking, UTF-8 stdin JSON transport to `gh api`, and byte-exact read-back verification from GitHub:  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" create --repo <owner/repo> --title "<title>" --body-file "<path/to/body.md>" [--label "<labels>"] --consume-input`  
+   - Edit an existing issue with full read-back verification:  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" edit --repo <owner/repo> --issue <N> --body-file "<path/to/body.md>" [--title "<new-title>"] --consume-input`  
+   - Add or update an issue comment:  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" comment --repo <owner/repo> (--issue <N> | --comment-id <ID>) --body-file "<path/to/comment.md>" --consume-input`  
+   - Close an issue with a verified closing comment:  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" close --repo <owner/repo> --issue <N> [--reason completed|not_planned] [--comment-file "<path/to/comment.md>"] --consume-input`  
+   - Audit all open and closed issues and comments in a repository for syntax or encoding corruption:  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" audit-repo --repo <owner/repo> --include-comments`  
+3. If the title contains double quotes `"`, `$`, or backticks `` ` ``, write the title to a separate UTF-8 file and pass `--title-file "<path/to/title.txt>"`.  
+4. Treat the operation as successful only when the exit code is `0` and the tool's JSON output reports `"verified": true`.  

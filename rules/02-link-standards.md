@@ -1,30 +1,30 @@
 ---
 trigger: always_on
-description: "Тезис, точная цитата и проверенный адрес источника"
+description: "Claim, exact quote, and verified source address"
 ---
-# Источники
+# Sources
 ## LINK-1
-Предметное утверждение подтверждай точной цитатой и ссылкой рядом с ним; платформа — её документацией или исходным кодом, клиент — его данными.
-Документация о возможности не доказывает конфигурацию клиента; наличие ссылки не доказывает тезис.
-Сторонний источник и вывод обозначай явно; при отсутствии доказательства используй [DOC-2](04-statement-structure.md#doc-2).
+Support every substantive claim with an exact quote and a link next to it; prove platform behavior from its documentation or source code, and client specifics from client data.  
+Documentation of a capability does not prove a client's configuration; the presence of a link does not prove a claim.  
+State third-party sources and inferences explicitly; when evidence is absent, use [DOC-2](04-statement-structure.md#doc-2).  
 ## LINK-2
-Документация: прочитай относящийся к тезису фрагмент и дай URL до существующего anchor.
-Если anchor отсутствует, укажи раздел и цитату, не выдумывай идентификатор.
-В структурированном анализе сохраняй `anchor_exception`: название раздела и ссылку на наблюдение, где проверены раздел, цитата и отсутствие подходящего anchor.
-Проверяй содержимое и адресат, а не только HTTP 200; различай исходный HTML и DOM после JavaScript.
+Documentation: read the fragment relevant to the claim and provide the URL down to an existing anchor.  
+If no anchor exists, cite the section title and quote; do not invent an identifier.  
+In structured analysis, record `anchor_exception`: the section title and a link to the observation where the section, quote, and absence of a suitable anchor were verified.  
+Verify the content and destination rather than HTTP 200 alone; distinguish raw HTML from post-JavaScript DOM.  
 ## LINK-3
-Для консоли проверь аккаунт, ресурс, период и фильтры; адрес бери с нужного экрана, непрозрачные ID не конструируй.
-Удаляй tracking-параметры; прочие сокращения URL допустимы лишь после проверки того же содержимого и anchor.
-Для поддерживающей `hl=en` документации Google предпочитай английскую версию.
+For a console, verify the account, property, date range, and filters; take the URL from the relevant screen and do not construct opaque IDs.  
+Strip tracking parameters; other URL shortenings are permissible only after verifying identical content and anchor resolution.  
+For Google documentation that supports `hl=en`, prefer the English version.  
 ## LINK-4
-Внутри документа вводи доказательство один раз и ссылайся на его параграф; самостоятельный ответ должен содержать свои необходимые источники.
-В файлах используй относительные пути и устойчивые ID заголовков; в чате — кликабельные пути по требованиям среды.
-После перемещения проверяй файлы и anchors; не добавляй `<a name=...>` в агентскую KB.
+Introduce a piece of evidence once within a document and reference its paragraph; a standalone response must include its own required sources.  
+Use relative paths and stable heading IDs inside files; in chat, use clickable paths as required by the environment.  
+After moving files, re-verify paths and anchors; do not add `<a name=...>` into the agent KB.  
 ## LINK-5
-Все агенты, включая основного, A.A и A.F, пишут читаемые ссылки во всех создаваемых текстах: промежуточной Markdown/KB, черновиках, отчётах, итоговых документах, материалах для публикации и отправки клиенту.
-Не применяй URL encode к авторскому тексту, именам ссылок и путям: сохраняй пробелы и Unicode вместо `%20`, `%D0...`, `%EA...`.
-В Markdown заключай адрес с пробелами или скобками в `<...>`: `[Источник](<папка с пробелами/ꘖ/файл.json>)`; область пути — по LINK-4.
-При генерации пользуйся `links.markdown_link`/`readable_reference`; до завершения проверяй авторские документы через `validate_links.py --readable`.
-Полученный исходный URL не перекодируй и не меняй его значимые параметры/подписи или экранированные разделители; показывай читаемое имя ссылки, сохраняя правильный адрес перехода.
-Исходные документы, первичные доказательства, дословные цитаты, код и точный журнал сохраняются без подмены байтов; это не повод переносить техническое кодирование в новые авторские ссылки.
-Сериализация URI внутри браузера, HTTP, SQLite, нативных API и скрытых гиперссылок экспортного формата относится к программному обмену, а не к оформлению читаемого документа.
+All agents, including primary, A.A, and A.F, write human-readable links in all authored texts: intermediate Markdown/KB, drafts, reports, final documents, and materials for publication or client delivery.  
+Do not apply URL encoding to authored text, link labels, or file paths: preserve spaces and Unicode instead of `%20`, `%D0...`, `%EA...`.  
+In Markdown, wrap destinations containing spaces or parentheses in `<...>`: `[Source](<folder with spaces/ꘖ/file.json>)`; path scope follows LINK-4.  
+Use `links.markdown_link`/`readable_reference` when generating links; verify authored documents with `validate_links.py --readable` before completion.  
+Do not re-encode an obtained external URL or alter its significant parameters, signatures, or escaped delimiters; display a readable link label while preserving the exact target address.  
+Source documents, primary evidence, verbatim quotes, code, and the exact journal are preserved without byte substitution; that is not a reason to copy percent-encoding into new authored links.  
+URI serialization inside browsers, HTTP, SQLite, native APIs, and hidden hyperlinks of export formats belongs to programmatic transport rather than readable document formatting.  

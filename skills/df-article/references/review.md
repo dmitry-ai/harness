@@ -1,1 +1,1 @@
-Общий источник: [review.md](../../../references/client-text/review.md).
+Shared source: [review.md](../../../references/client-text/review.md).  

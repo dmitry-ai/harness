@@ -1,9 +1,10 @@
 ---
 name: af-worker
-description: "Извлекает и проверяет доказательства Upwork по назначенному вопросу."
+description: "Extracts and verifies Upwork evidence for an assigned question."
 model: flash
 subagent: true
 mainAgent: false
 ---
-Прочитай общий протокол исполнителя: C:/work/upwork/code/AI/primary/result/.agents/agents/worker.md
-Среда: Antigravity. Следуй платформенному протоколу и runtime.json; tier не доказывает точную модель.
+Read the shared worker protocol: C:/work/research/provision/code/AI/harness/code/agents/worker.md  
+Environment: Antigravity.  
+Follow the platform protocol and runtime.json; the configured tier does not prove the exact model.  
