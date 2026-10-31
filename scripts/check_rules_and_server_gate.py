@@ -4,9 +4,15 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 import json
+from pathlib import Path
 import re
 import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from agent_tools.git_gate import prohibited_git_write_commands
 def check_rules_budget(name: str, args: dict) -> str | None:
 	r = None
 	path = args.get('Path', '')
@@ -35,6 +41,12 @@ def check_server_hygiene(name: str, args: dict) -> str | None:
 			if is_server_script and has_backup_cmd:
 				r = 'Script contains server backup commands (*.bak, *.backup, _backup)! Creating backups on remote servers is strictly prohibited! Use local Git.'
 	return r
+def check_git_write_gate(name: str, args: dict) -> str | None:
+	if 'run_command' != name:
+		return None
+	cmd = args.get('CommandLine', '')
+	violations = prohibited_git_write_commands(cmd)
+	return '; '.join(violations) if violations else None
 def main():
 	decision = {'decision': 'allow'}
 	try:
@@ -51,6 +63,10 @@ def main():
 				server_err = check_server_hygiene(name, args)
 				if server_err:
 					decision = {'decision': 'deny', 'reason': f'REJECTED (SERVER-HYGIENE-GATE): {server_err}'}
+				else:
+					git_err = check_git_write_gate(name, args)
+					if git_err:
+						decision = {'decision': 'deny', 'reason': f'REJECTED (EXEC-5-GIT-GATE): {git_err}'}
 	except Exception:
 		decision = {'decision': 'allow'}
 	sys.stdout.write(json.dumps(decision, ensure_ascii=False))

@@ -4,8 +4,13 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 import json
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -69,5 +74,32 @@ class TestGitHubIssueTool(unittest.TestCase):
 				rc = main(['create', '--repo', 'smokeday-com/m', '--title', 'Test issue title', '--body-file', str(body_path), '--consume-input'])
 				self.assertEqual(rc, 0)
 				self.assertFalse(body_path.exists())
+	def test_close_requires_committed_issue_url_in_local_code_repo(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			proj = Path(tmp) / 'proj'
+			code_repo = proj / 'code'
+			(proj / '_/ꘖ').mkdir(parents=True)
+			code_repo.mkdir(parents=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/smokeday-com/m.git'], cwd=code_repo, check=True, capture_output=True)
+			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
+				return {'number': 46, 'title': 'T', 'body': 'B', 'state': 'closed', 'state_reason': 'completed', 'html_url': 'https://github.com/smokeday-com/m/issues/46'}
+			old_cwd = Path.cwd()
+			os.chdir(proj)
+			try:
+				with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
+					rc_fail = main(['close', '--repo', 'smokeday-com/m', '--issue', '46', '--reason', 'completed'])
+					self.assertEqual(rc_fail, 2)
+					mod = code_repo / 'mod.py'
+					mod.write_text('# https://github.com/smokeday-com/m/issues/46\nx = 1\n', encoding='utf-8')
+					subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+					subprocess.run(['git', 'commit', '-m', 'https://github.com/smokeday-com/m/issues/46'], cwd=code_repo, check=True, capture_output=True)
+					rc = main(['close', '--repo', 'smokeday-com/m', '--issue', '46', '--reason', 'completed'])
+					self.assertEqual(rc, 0)
+					self.assertTrue((proj / '_/ꘖ/KB/Evidence/GitHub/smokeday-com__m/issue-46.json').is_file())
+			finally:
+				os.chdir(old_cwd)
 if '__main__' == __name__:
 	unittest.main()

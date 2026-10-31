@@ -13,6 +13,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
 # https://github.com/dmitry-ai/harness/issues/30
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -107,6 +110,127 @@ def _delegation_status(root, turn):
 	unpersisted_bulk = bool(is_upwork_project and tool_steps > DEL_MAX_UNPERSISTED_STEPS and (0 == sub_steps) and (0 == kb_steps))
 	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'kb_persistence_step_count': kb_steps, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS}
 	return r
+def _origin_repo_slug(code_repo: Path):
+	from .git_gate import run_git_read
+	proc = run_git_read(code_repo, ['remote', 'get-url', 'origin'], check=False)
+	if 0 != proc.returncode:
+		return None
+	remote = proc.stdout.decode('utf-8', errors='replace').strip()
+	m = re.search('github\\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\\.git)?$', remote)
+	return m.group(1) if m else None
+def _evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repos=()):
+	from .runtime import HARNESS_META
+	safe_repo = repo_slug.replace('/', '__')
+	fname = f'issue-{int(number)}.json'
+	roots = [Path(root).resolve()] + [Path(r).resolve().parent for r in candidate_repos]
+	ev_files = []
+	for rt in roots:
+		for rel in ('_/ꘖ/KB/Evidence/GitHub', 'ꘖ/KB/Evidence/GitHub'):
+			p = rt / rel / safe_repo / fname
+			if p.is_file() and p not in ev_files:
+				ev_files.append(p)
+	hm = (HARNESS_META / 'ꘖ/KB/Evidence/GitHub' / safe_repo / fname).resolve()
+	if hm.is_file() and hm not in ev_files:
+		ev_files.append(hm)
+	for p in ev_files:
+		try:
+			data = json.loads(p.read_text(encoding='utf-8'))
+			issue_obj = data.get('issue') if isinstance(data.get('issue'), dict) else data
+			st = str(issue_obj.get('state') or '').strip().lower()
+			if st:
+				return st
+		except (OSError, ValueError):
+			continue
+	return None
+def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
+	from .git_gate import extract_issue_urls, is_code_file, is_issue_tracked_code_repo, run_git_read, verify_repo_issue_ready_for_close
+	root = Path(root).resolve()
+	repo_touched = {}
+	for raw_p in turn.get('touched_files') or []:
+		if not isinstance(raw_p, str) or not raw_p.strip():
+			continue
+		try:
+			p = Path(raw_p.strip())
+			p = p.resolve() if p.is_absolute() else (root / p).resolve()
+		except OSError:
+			continue
+		for anc in (p, *p.parents):
+			if is_issue_tracked_code_repo(anc):
+				try:
+					rel = p.relative_to(anc).as_posix()
+				except ValueError:
+					break
+				if rel and rel != '.' and (not rel.startswith(('.git/', 'ꘖ/', 'ꙮ/', '_/'))):
+					repo_touched.setdefault(anc, set()).add(rel)
+				break
+	turn_issues = {}
+	for item in list((turn_state or {}).get('github_issues') or []) + list(turn.get('issue_actions') or []):
+		if not isinstance(item, dict):
+			continue
+		url = (item.get('url') or '').strip()
+		m = re.match('^https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)$', url)
+		if not m:
+			continue
+		slug, num = (m.group(1), int(m.group(2)))
+		st = str(item.get('state') or '').strip().lower()
+		if 'close' == item.get('action'):
+			st = 'closed'
+		turn_issues[url] = {'url': url, 'repo': slug, 'number': num, 'state': st or turn_issues.get(url, {}).get('state') or 'open'}
+	candidate_repos = list(repo_touched.keys())
+	for cand in (root, root / 'code'):
+		cand_res = cand.resolve()
+		if is_issue_tracked_code_repo(cand_res) and cand_res not in candidate_repos:
+			candidate_repos.append(cand_res)
+	required_issues_by_repo = {r: set() for r in candidate_repos}
+	for url, info in turn_issues.items():
+		for cand in candidate_repos:
+			slug = _origin_repo_slug(cand)
+			if slug and slug.lower() == info['repo'].lower():
+				required_issues_by_repo.setdefault(cand, set()).add(url)
+				repo_touched.setdefault(cand, set())
+	violations = []
+	checked_issues = []
+	for code_repo, rel_set in sorted(repo_touched.items(), key=lambda x: str(x[0])):
+		rel_paths = sorted(rel_set)
+		if rel_paths:
+			st_proc = run_git_read(code_repo, ['status', '--porcelain', '-z', '--', *rel_paths], check=False)
+			if 0 == st_proc.returncode and st_proc.stdout.strip(b'\x00'):
+				violations.append(f'Modified files in {code_repo} are not committed: {", ".join(rel_paths)}')
+			for rel in rel_paths:
+				fpath = code_repo / rel
+				if fpath.is_file() and is_code_file(rel):
+					try:
+						urls_in_file = extract_issue_urls(fpath.read_text(encoding='utf-8', errors='replace'))
+					except OSError:
+						urls_in_file = []
+					if not urls_in_file:
+						violations.append(f'Modified code file {fpath} does not reference a GitHub Issue URL')
+			existing_rels = [rel for rel in rel_paths if (code_repo / rel).exists()]
+			if existing_rels:
+				log_proc = run_git_read(code_repo, ['log', '-n', '1', '--format=%B', '--', *existing_rels], check=False)
+				commit_urls = extract_issue_urls(log_proc.stdout.decode('utf-8', errors='replace')) if 0 == log_proc.returncode else []
+				if not commit_urls:
+					violations.append(f'Latest commit for {", ".join(existing_rels)} in {code_repo} does not reference a GitHub Issue URL')
+				for cu in commit_urls:
+					required_issues_by_repo.setdefault(code_repo, set()).add(cu)
+		for issue_url in sorted(required_issues_by_repo.get(code_repo, set())):
+			m = re.match('^https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)$', issue_url)
+			if not m:
+				continue
+			slug, num = (m.group(1), int(m.group(2)))
+			try:
+				ready = verify_repo_issue_ready_for_close(code_repo, slug, num)
+			except (ValueError, RuntimeError) as exc:
+				ready = {'verified': False, 'violations': [str(exc)]}
+			for v in ready.get('violations') or []:
+				if v not in violations:
+					violations.append(v)
+			ev_state = _evidence_issue_state(root, slug, num, candidate_repos)
+			eff_state = ev_state or turn_issues.get(issue_url, {}).get('state') or 'open'
+			checked_issues.append({'url': issue_url, 'repo': slug, 'number': num, 'state': eff_state, 'code_repo': str(code_repo), 'commit_and_push_verified': bool(ready.get('verified'))})
+			if 'closed' != eff_state:
+				violations.append(f'GitHub issue {issue_url} remains {eff_state}; close it via df_github_issue.py close after git push before answer-prepare')
+	return {'verified': not violations, 'touched_repos': {str(k): sorted(v) for k, v in repo_touched.items()}, 'issues': checked_issues, 'violations': violations}
 def _norm_url(url: str) -> str:
 	r = urldefrag(url.strip())[0].rstrip('/')
 	return r
@@ -511,7 +635,7 @@ def _instruction_snapshot(root, native, *, stage):
 	return r
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	key = _key(native, turn)
-	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn), 'http_fetch_check': _http_fetch_status(turn), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn), 'http_fetch_check': _http_fetch_status(turn), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'code_lifecycle_check': _code_and_issue_lifecycle_status(root, turn), 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
 	return r
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
 	key = _key(native, turn)
@@ -525,6 +649,7 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 	value['http_fetch_check'] = _http_fetch_status(turn)
 	value['compaction_check'] = _compaction_status(root, key, turn)
 	value['delegation_check'] = _delegation_status(root, turn)
+	value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
 	saved_directory = _directory(root, value['journal'])
 	if strict_journal and None is not journal_directory and (saved_directory != _directory(root, journal_directory)):
 		raise ValueError('The native turn already has a different journal; preserve its original binding')
@@ -569,7 +694,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=True, w
 		with locked(_folder(root) / 'writer.lock'):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
 			_persist(path, value)
-		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		if watch:
 			from .journal_watch import register, start
 			register(root, native, turn['start_step'], state_dir=watch_dir, journal_directory=value['journal'])
@@ -712,6 +837,11 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			raise ValueError(detail)
 		if not value['delegation_check']['verified']:
 			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research ({value['delegation_check']['tool_step_count']} tool steps > {value['delegation_check']['max_unpersisted_steps']}) executed without A.F/A.A subagent delegation or incremental ꘖ/KB persistence"
+			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+			_persist(path, value)
+			raise ValueError(detail)
+		if not value['code_lifecycle_check']['verified']:
+			detail = 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(value['code_lifecycle_check']['violations'])
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)

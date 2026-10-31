@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 import argparse
 import json
 from pathlib import Path
@@ -46,6 +49,7 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 		parser.add_argument('--file', action='append', required=True)
 		parser.add_argument('--message', '-m', required=True)
 		parser.add_argument('--execute', action='store_true')
+		parser.add_argument('--worktree', action='store_true', help='Commit explicit files in an isolated temporary linked git worktree')
 	elif 'validate_statements' == command:
 		parser.add_argument('directory', type=Path)
 	else:
@@ -114,7 +118,7 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			print(snapshot_draft(args.target, args.turn))
 		elif 'safe_commit' == command:
 			from .git_gate import commit
-			paths = commit(args.repo, args.file, args.message, args.execute)
+			paths = commit(args.repo, args.file, args.message, args.execute, worktree=args.worktree)
 			print(f"{('Committed' if args.execute else 'Checked; commit requires --execute')}: {json.dumps(paths, ensure_ascii=False)}")
 		elif 'validate_statements' == command:
 			from .statements import validate_statements

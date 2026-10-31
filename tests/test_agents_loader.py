@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 import json
 import shutil
 import tomllib
@@ -115,6 +118,7 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertIn('git -C "C:/repo" log -1', violations[1])
 	def test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message(self):
 		from agent_tools import git_gate
+		import git_shim
 		import subprocess
 		project = self.root / 'tracked_project'
 		code_repo = project / 'code'
@@ -122,6 +126,8 @@ class AgentsLoaderTests(TemporaryCase):
 		(project / '.agents').mkdir(parents=True)
 		code_repo.mkdir(parents=True)
 		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
 		self.assertTrue(git_gate.is_issue_tracked_code_repo(code_repo))
 		script = code_repo / 'mod.py'
 		script.write_text('x = 1\n', encoding='utf-8')
@@ -133,4 +139,23 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertEqual(git_gate.check_commit(code_repo, ['mod.py']), ['mod.py'])
 		with self.assertRaisesRegex(ValueError, 'Commit message in an issue-tracked code repository'):
 			git_gate.commit(code_repo, ['mod.py'], 'Missing issue URL', execute=False)
-		self.assertEqual(git_gate.commit(code_repo, ['mod.py'], 'Fix\n\nhttps://github.com/dmitry-ai/harness/issues/26', execute=False), ['mod.py'])
+		with self.assertRaisesRegex(ValueError, 'Commit message in an issue-tracked code repository must contain only the GitHub Issue URL'):
+			git_gate.commit(code_repo, ['mod.py'], 'Fix\n\nhttps://github.com/dmitry-ai/harness/issues/26', execute=False)
+		with self.assertRaisesRegex(ValueError, 'Issue-tracked code file mod.py does not reference the commit GitHub Issue URL'):
+			git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/31', execute=False)
+		self.assertEqual(git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=True), ['mod.py'])
+		with self.assertRaisesRegex(ValueError, 'git commit --no-verify/-n is prohibited'):
+			git_shim.prepare_git_invocation(['commit', '--no-verify', '-m', 'https://github.com/dmitry-ai/harness/issues/26'], cwd=code_repo)
+		self.assertEqual(len(git_gate.prohibited_git_write_commands('git commit --no-verify -m "x" && git filter-branch -f')), 2)
+		script.write_text('# https://github.com/dmitry-ai/harness/issues/26\nx = 2\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		dirty_other = code_repo / 'dirty.py'
+		dirty_other.write_text('# https://github.com/dmitry-ai/harness/issues/99\ny = 2\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'dirty.py'], cwd=code_repo, check=True, capture_output=True)
+		with self.assertRaisesRegex(ValueError, 'Staged paths differ from explicit paths'):
+			git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=False, worktree=False)
+		committed = git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=True, worktree=True)
+		self.assertEqual(committed, ['mod.py'])
+		log_msg = subprocess.run(['git', '--no-optional-locks', 'log', '-1', '--format=%B'], cwd=code_repo, check=True, capture_output=True, text=True).stdout.strip()
+		self.assertEqual(log_msg, 'https://github.com/dmitry-ai/harness/issues/26')
+		self.assertTrue(dirty_other.exists())

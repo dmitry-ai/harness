@@ -13,6 +13,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
 # https://github.com/dmitry-ai/harness/issues/30
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -868,6 +871,43 @@ class AntigravityCompletionTests(unittest.TestCase):
 		prepared = completion.prepare(self.project, final_ru, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
 		self.assertEqual([1, 2], prepared['journal_steps'])
+	def test_code_and_issue_lifecycle_gate_blocks_uncommitted_unpushed_and_open_issue_in_prepare(self):
+		import subprocess
+		bare = self.root / 'remote.git'
+		subprocess.run(['git', 'init', '--bare', str(bare)], check=True, capture_output=True)
+		code_repo = self.project / 'code'
+		(self.project / '_/ꘖ').mkdir(parents=True, exist_ok=True)
+		code_repo.mkdir(parents=True, exist_ok=True)
+		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'remote', 'add', 'origin', str(bare)], cwd=code_repo, check=True, capture_output=True)
+		mod = code_repo / 'mod.py'
+		mod.write_text('x = 1\n', encoding='utf-8')
+		self.rows.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w1', 'name': 'write_file', 'args': {'Path': str(mod)}}]})
+		self.write()
+		with self.assertRaisesRegex(ValueError, 'EXEC-5 violation in active turn \\(code/issue lifecycle incomplete\\)'):
+			completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		mod.write_text('# https://github.com/dmitry-ai/antigravity-addons/issues/999\nx = 1\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'commit', '-m', 'https://github.com/dmitry-ai/antigravity-addons/issues/999'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
+		mod.write_text('# https://github.com/dmitry-ai/antigravity-addons/issues/999\nx = 2\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'commit', '-m', 'https://github.com/dmitry-ai/antigravity-addons/issues/999'], cwd=code_repo, check=True, capture_output=True)
+		with self.assertRaisesRegex(ValueError, 'has not been pushed to upstream'):
+			completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True)
+		ev_file = self.project / '_/ꘖ/KB/Evidence/GitHub/dmitry-ai__antigravity-addons/issue-999.json'
+		ev_file.parent.mkdir(parents=True, exist_ok=True)
+		ev_file.write_text(json.dumps({'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/999', 'issue': {'number': 999, 'state': 'OPEN'}}), encoding='utf-8')
+		with self.assertRaisesRegex(ValueError, 'remains open; close it via df_github_issue.py close'):
+			completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		ev_file.write_text(json.dumps({'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/999', 'issue': {'number': 999, 'state': 'CLOSED'}}), encoding='utf-8')
+		prepared = completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+		self.assertTrue(prepared['code_lifecycle_check']['verified'])
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

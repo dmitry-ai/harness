@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
 # https://github.com/dmitry-ai/harness/issues/30
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 from pathlib import Path
 from datetime import date
 from urllib.parse import unquote
@@ -586,7 +589,7 @@ def native_answers(root, conversation_id, *, backend=None):
 		statuses = {index: (kind, status) for index, kind, status in connection.execute('SELECT idx,step_type,status FROM steps')}
 	finally:
 		connection.close()
-	from ..git_gate import unflagged_git_read_commands, unpersisted_http_fetch_commands
+	from ..git_gate import extract_issue_actions_from_outputs, unflagged_git_read_commands, unpersisted_http_fetch_commands
 	from ..journal import state_dir
 	root_p = Path(root).resolve()
 	jdir = (root_p / '_/ꙮ').resolve() if (root_p / '_/ꙮ').is_dir() else (root_p / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').resolve() if (root_p / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').is_dir() and (not (root_p / 'ꙮ/1 - Analysis').is_dir()) else (root_p / 'ꙮ').resolve() if (root_p / 'ꙮ/README.md').is_file() and (not (root_p / 'ꙮ/1 - Analysis').is_dir()) else (root_p / 'ꙮ/1 - Analysis').resolve()
@@ -614,6 +617,8 @@ def native_answers(root, conversation_id, *, backend=None):
 		kb_persistence_steps = []
 		transcript_read_steps = []
 		tool_records = []
+		touched_files = []
+		issue_actions = []
 		spawned_subagents = 0
 		completed_subagents = 0
 		answer_prepared_in_segment = False
@@ -637,6 +642,8 @@ def native_answers(root, conversation_id, *, backend=None):
 					if 'GENERIC' == cand.get('type') and cand.get('content'):
 						outputs.append(str(cand.get('content'))[:4000])
 				tool_records.append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
+				for act_item in extract_issue_actions_from_outputs(outputs):
+					issue_actions.append({**act_item, 'step': step_idx})
 				for call in calls:
 					name = call.get('name', '')
 					args = call.get('args', {})
@@ -664,7 +671,10 @@ def native_answers(root, conversation_id, *, backend=None):
 					if name in ('invoke_subagent', 'send_message'):
 						if step_idx not in subagent_steps:
 							subagent_steps.append(step_idx)
-					target_path = str(args.get('Path') or args.get('TargetFile') or args.get('path') or '' if isinstance(args, dict) else '')
+					target_path = str(args.get('Path') or args.get('TargetFile') or args.get('path') or '' if isinstance(args, dict) else '').strip()
+					if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and target_path:
+						if target_path not in touched_files:
+							touched_files.append(target_path)
 					if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and any((tok in target_path for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or ('run_command' == name and re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', args_text)):
 						if step_idx not in kb_persistence_steps:
 							kb_persistence_steps.append(step_idx)
@@ -688,7 +698,7 @@ def native_answers(root, conversation_id, *, backend=None):
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
-		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records})
+		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records, 'touched_files': touched_files, 'issue_actions': issue_actions})
 	def _merge_pending(items):
 		first, last = (items[0], items[-1])
 		cp_steps = [s for item in items for s in item.get('checkpoint_steps', [])]
@@ -697,11 +707,13 @@ def native_answers(root, conversation_id, *, backend=None):
 		kb_steps = [s for item in items for s in item.get('kb_persistence_steps', [])]
 		tr_steps = [s for item in items for s in item.get('transcript_read_steps', [])]
 		records = [r for item in items for r in item.get('tool_records', [])]
+		t_files = list(dict.fromkeys((f for item in items for f in item.get('touched_files', []))))
+		i_actions = [a for item in items for a in item.get('issue_actions', [])]
 		last_cp = max(cp_steps) if cp_steps else None
 		pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
 		post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]
 		pre_cp_records = [r for r in records if None is not last_cp and r['step'] < last_cp]
-		merged = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [r for item in items for r in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'compaction': {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records}, 'delegation': {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'kb_persistence_step_count': len(kb_steps)}}
+		merged = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [r for item in items for r in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records}, 'delegation': {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'kb_persistence_step_count': len(kb_steps)}}
 		for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'kb_persistence_steps', 'transcript_read_steps', 'tool_records'):
 			merged.pop(k, None)
 		return merged

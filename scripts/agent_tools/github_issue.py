@@ -10,6 +10,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
 # https://github.com/dmitry-ai/harness/issues/28
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 from __future__ import annotations
 import argparse
 import json
@@ -18,6 +21,7 @@ import re
 import subprocess
 import sys
 from typing import Any
+from .git_gate import is_issue_tracked_code_repo, verify_repo_issue_ready_for_close
 from .runtime import HARNESS_META
 REPO_RE = re.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
 def normalize_newlines(text: str) -> str:
@@ -140,35 +144,126 @@ def _consume_files(files: list[tuple[Path, bytes]]) -> list[str]:
 			removed.append(str(path))
 	r = removed
 	return r
-def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], *, kind: str='issue') -> str | None:
-	if not isinstance(fetched, dict) or not fetched.get('html_url'):
-		return None
-	meta_dir = None
+def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
+	cfg_file = code_repo / '.git/config'
+	if not cfg_file.is_file():
+		return False
+	try:
+		cfg_text = cfg_file.read_text(encoding='utf-8', errors='replace')
+	except OSError:
+		return False
+	return bool(re.search(f'github\\.com[:/]{re.escape(repo)}(?:\\.git)?/?(?:\\s|$)', cfg_text, re.I))
+def _find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> Path | None:
+	candidates: list[Path] = []
+	if None is not project_root and str(project_root).strip():
+		pr = Path(project_root).resolve()
+		candidates.extend([pr, pr / 'code'])
+	for fpath, _ in source_files or []:
+		resolved = fpath.resolve()
+		for anc in (resolved, *resolved.parents):
+			candidates.extend([anc, anc / 'code'])
+	cwd = Path.cwd().resolve()
+	for anc in (cwd, *cwd.parents):
+		candidates.extend([anc, anc / 'code'])
+	seen: set[Path] = set()
+	for cand in candidates:
+		if cand in seen:
+			continue
+		seen.add(cand)
+		if cand.is_dir() and _repo_matches_github_slug(cand, repo):
+			return cand
+	ai_root = HARNESS_META.parents[1] if len(HARNESS_META.parents) >= 2 else None
+	if None is not ai_root and ai_root.is_dir():
+		try:
+			for cfg in ai_root.glob('**/code/.git/config'):
+				code_dir = cfg.parent.parent.resolve()
+				if code_dir not in seen and _repo_matches_github_slug(code_dir, repo):
+					return code_dir
+		except OSError:
+			pass
+	return None
+def _meta_dir_for_project_root(proj_root: Path) -> Path | None:
+	proj_root = proj_root.resolve()
+	if (proj_root / '_/ꘖ').is_dir() or (proj_root / '_').is_dir():
+		return proj_root / '_' / 'ꘖ'
+	if (proj_root / 'ꘖ').is_dir():
+		return proj_root / 'ꘖ'
+	return None
+def _resolve_meta_dirs(source_files: list[tuple[Path, bytes]], repo: str, project_root: str | Path | None=None) -> list[Path]:
+	dirs: list[Path] = []
+	def _add(d: Path | None) -> None:
+		if None is not d:
+			resolved = d.resolve()
+			if resolved not in dirs:
+				dirs.append(resolved)
+	if None is not project_root and str(project_root).strip():
+		pr = Path(project_root).resolve()
+		_add(_meta_dir_for_project_root(pr) or (pr / '_' / 'ꘖ' if (pr / '_').is_dir() else pr / 'ꘖ'))
+	code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=source_files)
+	if None is not code_repo:
+		_add(_meta_dir_for_project_root(code_repo.parent))
 	for fpath, _ in source_files:
 		resolved_path = fpath.resolve()
 		for parent in resolved_path.parents:
 			if 'ꘖ' == parent.name:
-				if parent.parent.name == 'harness' and (parent.parent / '_/ꘖ').is_dir():
-					meta_dir = parent.parent / '_' / 'ꘖ'
+				if 'harness' == parent.parent.name and (parent.parent / '_/ꘖ').is_dir():
+					_add(parent.parent / '_' / 'ꘖ')
 				else:
-					meta_dir = parent
+					_add(parent)
 				break
-		if None is not meta_dir:
-			break
-	if None is meta_dir:
-		meta_dir = HARNESS_META / 'ꘖ'
-	if not meta_dir.exists():
-		meta_dir.mkdir(parents=True, exist_ok=True)
-	safe_repo = repo.replace('/', '__')
+	_add(HARNESS_META / 'ꘖ')
+	return dirs
+def _record_issue_in_open_turns(meta_dir: Path, repo: str, record: dict[str, Any], action: str | None) -> None:
+	turns_dir = meta_dir / 'data/turns'
+	if not turns_dir.is_dir():
+		return
+	issue_num = record.get('number')
+	raw_url = str(record.get('html_url') or record.get('url') or '')
+	if None is issue_num:
+		m = re.search('/issues/(\\d+)\\b', raw_url)
+		if m:
+			issue_num = int(m.group(1))
+	if None is issue_num:
+		return
+	issue_url = f'https://github.com/{repo}/issues/{issue_num}'
+	for tfile in turns_dir.glob('*.json'):
+		if tfile.name.endswith('-checkpoint-recovery.json'):
+			continue
+		try:
+			tdata = json.loads(tfile.read_text(encoding='utf-8'))
+		except (OSError, ValueError):
+			continue
+		if not isinstance(tdata, dict) or 'open' != tdata.get('status'):
+			continue
+		gh_issues = tdata.setdefault('github_issues', {})
+		prev = gh_issues.get(issue_url) if isinstance(gh_issues.get(issue_url), dict) else {}
+		state = record.get('state') or prev.get('state') or ('closed' if 'close' == action else 'open')
+		gh_issues[issue_url] = {'repo': repo, 'number': issue_num, 'url': issue_url, 'state': state, 'state_reason': record.get('state_reason') or prev.get('state_reason'), 'last_action': action or record.get('kind', 'issue')}
+		try:
+			tfile.write_bytes((json.dumps(tdata, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
+		except OSError:
+			pass
+def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], *, kind: str='issue', action: str | None=None, project_root: str | Path | None=None) -> str | None:
+	if not isinstance(fetched, dict) or not fetched.get('html_url'):
+		return None
 	ident = fetched.get('number') if 'issue' == kind else fetched.get('id')
 	if None is ident:
 		return None
+	safe_repo = repo.replace('/', '__')
 	record = {'url': fetched.get('html_url'), 'html_url': fetched.get('html_url'), 'repo': repo, 'kind': kind, 'number': fetched.get('number'), 'id': fetched.get('id'), 'title': fetched.get('title') or f'{repo}#{ident}', 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'body': fetched.get('body') or ''}
 	payload_bytes = (json.dumps(record, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
-	target = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'{kind}-{ident}.json'
-	target.parent.mkdir(parents=True, exist_ok=True)
-	target.write_bytes(payload_bytes)
-	return str(target)
+	meta_dirs = _resolve_meta_dirs(source_files, repo, project_root=project_root)
+	first_target: str | None = None
+	for meta_dir in meta_dirs:
+		if not meta_dir.exists():
+			meta_dir.mkdir(parents=True, exist_ok=True)
+		target = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'{kind}-{ident}.json'
+		target.parent.mkdir(parents=True, exist_ok=True)
+		target.write_bytes(payload_bytes)
+		if None is first_target:
+			first_target = str(target)
+		_record_issue_in_open_turns(meta_dir, repo, record, action)
+	return first_target
 def _resolve_title(args: argparse.Namespace, consumable: list[tuple[Path, bytes]]) -> str | None:
 	if getattr(args, 'title_file', None):
 		t_path, t_raw, t_text = read_utf8_no_bom_file(args.title_file)
@@ -231,7 +326,7 @@ def cmd_create(args: argparse.Namespace) -> int:
 			print(json.dumps({'ok': False, 'action': 'create', 'stage': 'post_flight_readback', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'exact_match': exact_match, 'title_errors': post_title_errors, 'body_errors': post_body_errors}, ensure_ascii=False, indent=2))
 			r = 2
 		else:
-			_persist_issue_evidence(consumable, repo, fetched, kind='issue')
+			_persist_issue_evidence(consumable, repo, fetched, kind='issue', action='create', project_root=getattr(args, 'project_root', None))
 			removed = _consume_files(consumable) if args.consume_input else []
 			print(json.dumps({'ok': True, 'action': 'create', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}, ensure_ascii=False, indent=2))
 			r = 0
@@ -273,7 +368,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
 			print(json.dumps({'ok': False, 'action': 'edit', 'stage': 'post_flight_readback', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'exact_match': exact_match, 'title_errors': post_title_errors, 'body_errors': post_body_errors}, ensure_ascii=False, indent=2))
 			r = 2
 		else:
-			_persist_issue_evidence(consumable, repo, fetched, kind='issue')
+			_persist_issue_evidence(consumable, repo, fetched, kind='issue', action='edit', project_root=getattr(args, 'project_root', None))
 			removed = _consume_files(consumable) if args.consume_input else []
 			print(json.dumps({'ok': True, 'action': 'edit', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}, ensure_ascii=False, indent=2))
 			r = 0
@@ -303,7 +398,7 @@ def cmd_comment(args: argparse.Namespace) -> int:
 			print(json.dumps({'ok': False, 'action': 'comment', 'stage': 'post_flight_readback', 'repo': repo, 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'exact_match': exact_match, 'body_errors': post_errors}, ensure_ascii=False, indent=2))
 			r = 2
 		else:
-			_persist_issue_evidence(consumable, repo, fetched, kind='comment')
+			_persist_issue_evidence(consumable, repo, fetched, kind='comment', action='comment', project_root=getattr(args, 'project_root', None))
 			removed = _consume_files(consumable) if args.consume_input else []
 			print(json.dumps({'ok': True, 'action': 'comment', 'repo': repo, 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}, ensure_ascii=False, indent=2))
 			r = 0
@@ -312,7 +407,7 @@ def cmd_close(args: argparse.Namespace) -> int:
 	repo = _validate_repo(args.repo)
 	number = args.issue
 	consumable: list[tuple[Path, bytes]] = []
-	comment_id = None
+	comment_body = None
 	if args.comment_file:
 		c_path, c_raw, comment_body = read_utf8_no_bom_file(args.comment_file)
 		consumable.append((c_path, c_raw))
@@ -320,6 +415,16 @@ def cmd_close(args: argparse.Namespace) -> int:
 		if c_errors:
 			print(json.dumps({'ok': False, 'action': 'close', 'stage': 'pre_flight_comment_lint', 'repo': repo, 'number': number, 'comment_errors': c_errors}, ensure_ascii=False, indent=2))
 			return 2
+	if 'completed' == getattr(args, 'reason', 'completed'):
+		code_repo = _find_local_code_repo(repo, project_root=getattr(args, 'project_root', None), source_files=consumable)
+		if None is not code_repo and is_issue_tracked_code_repo(code_repo):
+			try:
+				verify_repo_issue_ready_for_close(code_repo, repo, number)
+			except (ValueError, RuntimeError) as exc:
+				print(json.dumps({'ok': False, 'action': 'close', 'stage': 'pre_flight_commit_check', 'repo': repo, 'number': number, 'error': str(exc)}, ensure_ascii=False, indent=2))
+				return 2
+	comment_id = None
+	if None is not comment_body:
 		created_comment = _gh_api(f'repos/{repo}/issues/{number}/comments', method='POST', payload={'body': comment_body})
 		comment_id = created_comment['id']
 		fetched_comment = _gh_api(f'repos/{repo}/issues/comments/{comment_id}', method='GET')
@@ -327,14 +432,14 @@ def cmd_close(args: argparse.Namespace) -> int:
 		if normalize_newlines(remote_c) != normalize_newlines(comment_body) or lint_issue_markdown(remote_c, is_title=False):
 			print(json.dumps({'ok': False, 'action': 'close', 'stage': 'post_flight_comment_readback', 'repo': repo, 'number': number, 'comment_id': comment_id}, ensure_ascii=False, indent=2))
 			return 2
-		_persist_issue_evidence(consumable, repo, fetched_comment, kind='comment')
+		_persist_issue_evidence(consumable, repo, fetched_comment, kind='comment', action='comment', project_root=getattr(args, 'project_root', None))
 	payload: dict[str, Any] = {'state': 'closed', 'state_reason': args.reason}
 	_gh_api(f'repos/{repo}/issues/{number}', method='PATCH', payload=payload)
 	fetched = _gh_api(f'repos/{repo}/issues/{number}', method='GET')
 	if 'closed' != fetched.get('state'):
 		print(json.dumps({'ok': False, 'action': 'close', 'stage': 'post_flight_state_check', 'repo': repo, 'number': number, 'state': fetched.get('state')}, ensure_ascii=False, indent=2))
 		return 2
-	_persist_issue_evidence(consumable, repo, fetched, kind='issue')
+	_persist_issue_evidence(consumable, repo, fetched, kind='issue', action='close', project_root=getattr(args, 'project_root', None))
 	removed = _consume_files(consumable) if args.consume_input else []
 	print(json.dumps({'ok': True, 'action': 'close', 'repo': repo, 'number': number, 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'verified': True, 'consumed_files': removed}, ensure_ascii=False, indent=2))
 	return 0
@@ -379,6 +484,7 @@ def build_parser() -> argparse.ArgumentParser:
 	p_create.add_argument('--label', '-l', action='append', help='Issue label(s), repeatable or comma-separated.')
 	p_create.add_argument('--assignee', '-a', action='append', help='Assignee login(s), repeatable or comma-separated.')
 	p_create.add_argument('--milestone', '-m', type=int, help='Milestone number.')
+	p_create.add_argument('--project-root', help='Optional explicit project root directory.')
 	p_create.add_argument('--consume-input', action='store_true', help='Delete input file(s) after verified creation.')
 	p_create.set_defaults(func=cmd_create)
 	p_edit = sub.add_parser('edit', help='Update a GitHub issue from a UTF-8 file and verify via API read-back.')
@@ -388,6 +494,7 @@ def build_parser() -> argparse.ArgumentParser:
 	p_edit.add_argument('--title-file', help='UTF-8 file containing updated issue title.')
 	p_edit.add_argument('--body-file', '-F', help='UTF-8 file containing updated issue Markdown body.')
 	p_edit.add_argument('--state', choices=['open', 'closed'], help='Optional state change.')
+	p_edit.add_argument('--project-root', help='Optional explicit project root directory.')
 	p_edit.add_argument('--consume-input', action='store_true', help='Delete input file(s) after verified update.')
 	p_edit.set_defaults(func=cmd_edit)
 	p_comment = sub.add_parser('comment', help='Add or edit an issue comment from a UTF-8 file and verify via API read-back.')
@@ -395,6 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
 	p_comment.add_argument('--issue', '-i', type=int, help='Issue number (for creating a new comment).')
 	p_comment.add_argument('--comment-id', '-c', type=int, help='Comment ID (for editing an existing comment).')
 	p_comment.add_argument('--body-file', '-F', required=True, help='UTF-8 file containing comment Markdown body.')
+	p_comment.add_argument('--project-root', help='Optional explicit project root directory.')
 	p_comment.add_argument('--consume-input', action='store_true', help='Delete input file after verified publication.')
 	p_comment.set_defaults(func=cmd_comment)
 	p_close = sub.add_parser('close', help='Close a GitHub issue with optional verified comment from a UTF-8 file.')
@@ -402,6 +510,7 @@ def build_parser() -> argparse.ArgumentParser:
 	p_close.add_argument('--issue', '-i', type=int, required=True, help='Issue number.')
 	p_close.add_argument('--reason', '-r', choices=['completed', 'not_planned'], default='completed', help='Closure reason.')
 	p_close.add_argument('--comment-file', '-F', help='Optional UTF-8 file containing closing comment Markdown.')
+	p_close.add_argument('--project-root', help='Optional explicit project root directory.')
 	p_close.add_argument('--consume-input', action='store_true', help='Delete comment file after verified closure.')
 	p_close.set_defaults(func=cmd_close)
 	p_audit = sub.add_parser('audit-repo', help='Audit all issues and comments in a repository for syntax/encoding corruption.')

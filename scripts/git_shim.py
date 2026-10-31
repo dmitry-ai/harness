@@ -4,13 +4,16 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from agent_tools.git_gate import READ_SUBCOMMANDS, classify_git_argv
+from agent_tools.git_gate import READ_SUBCOMMANDS, classify_git_argv, run_git_hook, verify_git_write_invocation
 def resolve_system_git() -> str:
 	r = None
 	explicit = os.environ.get('UPWORK_REAL_GIT')
@@ -39,7 +42,7 @@ def resolve_system_git() -> str:
 	if None is r:
 		raise FileNotFoundError('System git executable not found outside .agents shim directory')
 	return r
-def prepare_git_invocation(argv: list[str], *, mode: str | None=None) -> tuple[list[str], dict[str, str]]:
+def prepare_git_invocation(argv: list[str], *, mode: str | None=None, cwd: Path | None=None) -> tuple[list[str], dict[str, str]]:
 	mode = (mode or os.environ.get('GIT_SHIM_MODE') or os.environ.get('UPWORK_GIT_SHIM_MODE') or 'inject').strip().lower()
 	subcommand, has_flag = classify_git_argv(argv)
 	effective = list(argv)
@@ -47,12 +50,16 @@ def prepare_git_invocation(argv: list[str], *, mode: str | None=None) -> tuple[l
 		if 'reject' == mode:
 			raise ValueError(f'EXEC-5 violation: git {subcommand} requires --no-optional-locks')
 		effective = ['--no-optional-locks', *effective]
+	elif subcommand in ('commit', 'filter-branch', 'merge', 'rebase', 'cherry-pick'):
+		verify_git_write_invocation(effective, cwd=cwd)
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	r = (effective, env)
 	return r
 normalize_argv = prepare_git_invocation
 def main(argv: list[str] | None=None) -> int:
 	args = list(sys.argv[1:] if None is argv else argv)
+	if len(args) >= 2 and '--hook' == args[0]:
+		return run_git_hook(args[1], args[2:])
 	try:
 		effective, env = prepare_git_invocation(args)
 		binary = resolve_system_git()

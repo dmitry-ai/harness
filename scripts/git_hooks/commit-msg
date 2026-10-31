@@ -1,0 +1,6 @@
+#!/bin/sh
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
+HOOK_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+python "$HOOK_DIR/../git_shim.py" --hook commit-msg "$@"
