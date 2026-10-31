@@ -16,7 +16,7 @@ Multiple reports within the same minute receive suffixes `--2`, `--3`, etc.; pri
 The user starts with `/upwork-init <URL>` and continues with ordinary messages in the same chat.  
 Work on the same directory may be resumed in a new chat of the other platform, including semi-manual proposal preparation under a separate instruction.  
 All commands below are executed by the agent; Python 3.12+ is required, with dependencies listed in `requirements-agent-tools.txt`.  
-General entry point: `python <scripts>/upwork_project.py <command> --help`.  
+General entry point: `python <scripts>/harness.py <command> --help` (`upwork_project.py` remains a backward-compatible alias).  
 A single shared library services Antigravity and Codex; workspace root, daily directory, models, time zone, and paths are defined in `../runtime.json` (schema v2).  
 Pass `--platform antigravity|codex` to every operation; omitting the flag preserves Antigravity compatibility.  
 Codex resolves C1/C2 from `CODEX_HOME`, or accepts an explicit `--codex-profile C1|C2`.  
@@ -37,7 +37,7 @@ Managed files are guarded by SHA-256 digests in `ꘖ/data/native-config.json`; a
 Changing the set of rule paths, roles, or `runtime.json` requires running `build-native`, then `build-native --check`, and starting a new chat; edits to the body of existing rule files are read live from their canonical paths.  
 
 Detailed command order, stages, and source rules are in [workflow.md](../skills/upwork-init/references/workflow.md).  
-Exit codes of `upwork_project.py`: `0` — operation succeeded; `1` — input, structure, or runtime failure; `2` — validation or publication requires action.  
+Exit codes of `harness.py` / `upwork_project.py`: `0` — operation succeeded; `1` — input, structure, or runtime failure; `2` — validation, browser-check requirement (`browser_check_required: true`), or publication requires action.  
 JSON output always includes the full `diagnostics` list rather than stopping at the first error.  
 File existence and a green validator do not prove substantive truth or a completed analysis.  
 
@@ -91,7 +91,9 @@ This is a coordination registry rather than a hook intercepting built-in `search
 A.A/A.F invocations receive exact existing input paths, a bounded write scope, and an explicit completion criterion.  
 Deterministic scripts compare bytes, hashes, and JSON pointers; A.A evaluates causation and meaning; A.F extracts and structures data where model judgment is needed.  
 
-`collect <project> --plan <JSON>` performs batch GET observations and extractions; when writing to an existing report in `ꘖ/KB/Evidence/*.json`, it merges prior `results` without losing earlier observations.  
+`collect <project> --plan <JSON> [--browser auto|always|never]` performs batch GET and browser DOM observations and extractions; when writing to an existing report in `ꘖ/KB/Evidence/*.json`, it merges prior `results` without losing earlier observations.  
+`collect-http <project> <URL> [--extract-profile html|shopify|tracking|document] [--browser auto|always|never] [--cdp-port <port>]` performs a single observation and automatically falls back to the configured browser CDP endpoint (`cdp_port: 9222`) under `--browser auto` when HTTP returns `401`/`403`/`429`, `word_count: 0`, or an anti-bot/JS challenge (`browser_check_required: true`).  
+`collect-browser <project> <URL> [--extract-profile html|shopify|tracking|document] [--cdp-port <port>]` captures post-JS DOM directly via the configured browser CDP endpoint (`platforms.<platform>.browser.cdp_port` in `runtime.json`), reading an existing open user tab strictly read-only (`throwOnSideEffect: true`) or opening a temporary background tab (`Target.createTarget` with `background: true`), saving the DOM capture (`kind: "dom"`, `collector: "read-only-dom"`) and `CDPSessions` receipt, and closing only the agent-created background tab.  
 [collection.example.json](../skills/upwork-init/references/collection.example.json) is illustrative: `example.invalid` is not a real source.  
 Extraction profiles: `html` (title/meta/meta_all/canonical/text/sections/anchors/links/JSON-LD), `shopify` (public JSON plus a deterministic `summary` across object arrays: `record_count`, `timestamp_ranges`, `field_counts`), `tracking` (identifiers and literal JSON), and `document` (text/PDF/DOCX with Markdown formatting, plus `summary` for JSON).  
 `extract <project> <observation> --profile <name>` re-extracts from a saved response without making a new HTTP request.  
@@ -183,7 +185,7 @@ Build new links with `agent_tools.links.markdown_link`; `readable_reference` str
 `validate_anchors.py <files> --include-code` checks raw HTML anchors over HTTP; it does not prove DOM state, authentication, or semantic applicability.  
 Exit codes for standalone link tools: `0` — checks passed; `1` — input or local validation error; `2` — network check unconfirmed.  
 `safe_commit.py --repo <root> --file <path> -m <message> [--execute]` verifies the exact Git index, unstaged/conflicted files, and Markdown links without running `git add` or `git push`.  
-`upwork_project.py git-read [root] [status|diff|log|rev-parse|show|ls-files] [--short] [--stat] [--check] [--arg <arg>]` executes read-only Git commands strictly with `--no-optional-locks` and `GIT_OPTIONAL_LOCKS=0`; the `git_shim.py` wrapper (`shim/git.cmd`) intercepts read-only `git` invocations in `PATH` and injects `--no-optional-locks`.  
+`harness.py git-read [root] [status|diff|log|rev-parse|show|ls-files] [--short] [--stat] [--check] [--arg <arg>]` (or `upwork_project.py git-read`) executes read-only Git commands strictly with `--no-optional-locks` and `GIT_OPTIONAL_LOCKS=0`; the `git_shim.py` wrapper (`shim/git.cmd`) intercepts read-only `git` invocations in `PATH` and injects `--no-optional-locks`.  
 `df_github_issue.py [lint|create|edit|comment|close|audit-repo] ...` performs deterministic creation, editing, commenting, closing, and auditing of GitHub issues from UTF-8 files without BOM (`--body-file`) via `gh api --input -` with pre-flight syntax linting and mandatory byte-exact read-back verification per the [df-github-issue](../skills/df-github-issue/SKILL.md) skill.  
 `validate_statements.py <directory>` checks non-empty `.md` and `Test.md` files in numbered statement directories; it does not prove substantive truth.  
 `metrics <trace.jsonl> ... [--bindings <JSON>] [--project <project>]` aggregates fresh input, cache read, output tokens, and tool calls from observed trace data, deduplicating repeated exports and keeping unknown fields unknown rather than zero.  

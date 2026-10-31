@@ -7,10 +7,12 @@ description: "Provenance, verification method, completeness, and corrections"
 For every material claim, record the source, date, conditions, and status: observation, client report, hypothesis, verified, refuted, or unverified.  
 A model response, prior report, or KB entry is not evidence by itself.  
 Trace derived claims back to a primary observation or documented client intake: a file's placement inside Evidence does not establish provenance.  
-Every external link with a descriptive article or document title in a response must correspond to a saved primary observation in `ꘖ/KB/Evidence` (including verification of `<title>`/`<h1>` or the JSON topic title); unverified titles or titles contradicting the observation are blocked during answer preparation.  
+Every external link in a response (outside client intake URLs) must correspond to a valid saved primary observation in `ꘖ/KB/Evidence` (excluding anti-bot/JS challenge shells and empty `word_count: 0` pages), with verified `<title>`/`<h1>`/topic title, `#fragment` anchor, and verbatim quotes; unverified URLs, anchors, titles, or quotes contradicting the observation are blocked during answer preparation.  
+Search engine snippets (`search_web`) are discovery indices only and must never be used as a primary source for verbatim quotes, dates, authors, or `#anchor` targets in place of a primary page or browser DOM observation.  
 Do not replace unknown values with zeros; do not present a stale check as current.  
 ## VERIFY-2
 Test the claimed property with a matching method: HTTP/DNS/source via a network tool; JavaScript, DOM, authentication, and UI via an executed browser scenario.  
+When an HTTP request returns `401`/`403`/`429`, an anti-bot challenge (`js_challenge`/Cloudflare), or an empty JS shell (`word_count: 0`, `browser_check_required: true`), capture the rendered DOM via the user's configured browser CDP endpoint (`harness.py collect-browser` or `collect-http --browser auto` on `cdp_port: 9222`) rather than substituting search engine snippets.  
 First compare the full target claim against what the test actually measures: a positive result on a weaker proxy indicator does not establish a strong status, cause, or generalization.  
 Absence of a separate file-read tool call does not prove that the agent did not receive the rules: check automatic loading; a file on disk and an applicability receipt do not by themselves prove receipt, comprehension, or execution of instructions.  
 Consider a plausible scenario in which the claim is false yet the test still passes; if such a case exists, retain a qualified conclusion or choose a discriminating check.  

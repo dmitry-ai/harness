@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 import hashlib
 import json
 from pathlib import Path
@@ -193,9 +196,9 @@ def _loader(primary, local=(), *, restore_global=True):
 	paths = [*sorted((primary / 'rules').glob('*.md')), primary / 'platforms/codex.md', *local]
 	lines = ['Read the listed canonical rule sources before executing the task.  ', 'Shared always_on rules and the Codex adapter are mandatory in every new chat, including child subagents.  ', 'For project-specific sources, honor the frontmatter trigger; links are not copies of the rules.  ']
 	if restore_global:
-		lines.extend([f'''First run the Python tool "{(primary / 'scripts/upwork_project.py').as_posix()}" policy-instructions --platform codex; apply the returned global developer_instructions of the active profile in addition to these rules.  ''', 'That command reads only the required TOML key rather than the entire configuration file.  '])
+		lines.extend([f'''First run the Python tool "{(primary / 'scripts/harness.py').as_posix()}" policy-instructions --platform codex; apply the returned global developer_instructions of the active profile in addition to these rules.  ''', 'That command reads only the required TOML key rather than the entire configuration file.  '])
 	lines.extend((f'- {path.as_posix()}' for path in dict.fromkeys(paths)))
-	lines.extend(['Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  ', 'Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  ', 'Never pick a neighboring project.  ', 'If the root of the current task is unknown, determine it from the explicit chat binding.  ', f'''For the established root of every turn, run the Python tool "{(primary / 'scripts/upwork_project.py').as_posix()}" turn-begin "<exact root of current chat>" --platform codex; the UUID is read from CODEX_THREAD_ID and the profile from CODEX_HOME.  ''', 'FILE-3 and EXEC-5 also apply to ordinary analytical responses and .agents investigations; the article/proposal profile does not define their scope.  ', 'Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (or via upwork_project.py git-read; read rules in batches without Get-Content output truncation and do not bundle git calls with initial rule reading before turn-begin completes).  ', 'Before publishing the final response, the primary agent runs answer-prepare with the exact UTF-8 bytes per references/turn-completion.md; a child subagent does not maintain the user journal.  '])
+	lines.extend(['Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  ', 'Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  ', 'Never pick a neighboring project.  ', 'If the root of the current task is unknown, determine it from the explicit chat binding.  ', f'''For the established root of every turn, run the Python tool "{(primary / 'scripts/harness.py').as_posix()}" turn-begin "<exact root of current chat>" --platform codex; the UUID is read from CODEX_THREAD_ID and the profile from CODEX_HOME.  ''', 'FILE-3 and EXEC-5 also apply to ordinary analytical responses and .agents investigations; the article/proposal profile does not define their scope.  ', 'Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (or via harness.py git-read; read rules in batches without Get-Content output truncation and do not bundle git calls with initial rule reading before turn-begin completes).  ', 'Before publishing the final response, the primary agent runs answer-prepare with the exact UTF-8 bytes per references/turn-completion.md; a child subagent does not maintain the user journal.  '])
 	r = '\n'.join(lines)
 	return r
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -301,7 +304,7 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 	instructions = _loader(primary, local_rules, restore_global=restore_global)
 	skill_source = primary / 'skills/upwork-init/SKILL.md'
 	skill = f'---\nname: upwork-init\ndescription: Creates a project workspace and performs the full analysis of an Upwork job post; resumes it after an interruption.\n---\nRead and execute the shared skill [{skill_source.name}](<{skill_source.as_posix()}>).  \nDetermine the active UI platform from the conversation and use the corresponding platform adapter of the shared skill.  \n'
-	guidance = f'# Codex: Upwork\n\n<!-- Generated from {primary.as_posix()}; run upwork_project.py build-native to update. -->\n\n' + instructions + '\n'
+	guidance = f'# Codex: Upwork\n\n<!-- Generated from {primary.as_posix()}; run harness.py build-native to update. -->\n\n' + instructions + '\n'
 	outputs = {root / 'AGENTS.md': guidance, root / '.agents/skills/upwork-init/SKILL.md': skill}
 	cleanup_source = primary / 'skills/upwork-cleanup/SKILL.md'
 	if cleanup_source.is_file():

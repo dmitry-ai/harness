@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -11,8 +14,10 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+from urllib.parse import unquote, urldefrag, urlsplit
 from . import journal
 from .platforms import adapter
+from .research import _CHALLENGE_RE
 from .runtime import PRIMARY, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
 COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'journal-sync', 'journal-watch', 'journal-unwatch')
@@ -97,7 +102,6 @@ def _delegation_status(root, turn):
 	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'kb_persistence_step_count': kb_steps, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS}
 	return r
 def _norm_url(url: str) -> str:
-	from urllib.parse import urldefrag
 	r = urldefrag(url.strip())[0].rstrip('/')
 	return r
 def _discourse_topic_key(url: str):
@@ -105,7 +109,6 @@ def _discourse_topic_key(url: str):
 	r = (m.group(1).lower(), m.group(2)) if m else None
 	return r
 def _is_descriptive_title_label(label: str, href: str) -> bool:
-	from urllib.parse import urlsplit
 	text = (label or '').strip()
 	if not text or text.lower().startswith(('http://', 'https://', 'file:')):
 		r = False
@@ -115,7 +118,7 @@ def _is_descriptive_title_label(label: str, href: str) -> bool:
 			r = False
 		else:
 			words = re.findall('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u04510-9]{2,}', text)
-			if len(words) < 3 or len(text) < 15:
+			if len(text.split()) < 3 or len(words) < 3 or len(text) < 15:
 				r = False
 			else:
 				r = True
@@ -135,17 +138,28 @@ def _titles_compatible(claimed: str, observed: str) -> bool:
 			overlap = len(c_set & o_set) / max(1, len(c_set))
 			r = overlap >= 0.6
 	return r
-def _ingest_json_observations(parsed, default_host, observed_urls, observed_topics, observed_titles, observed_topic_titles):
-	from urllib.parse import urlsplit
+def _norm_quote_text(value: str) -> str:
+	cleaned = re.sub('[`*_~]+', '', value or '')
+	cleaned = cleaned.replace('\u00a0', ' ').replace('—', '-').replace('–', '-').replace('’', "'").replace('‘', "'").replace('“', '"').replace('”', '"')
+	r = ' '.join(cleaned.split()).lower()
+	return r
+def _ingest_json_observations(parsed, default_host, observed_urls, observed_topics, observed_titles, observed_topic_titles, observed_texts=None):
 	if not isinstance(parsed, dict):
 		return
+	u = parsed.get('url') or parsed.get('html_url')
+	if isinstance(u, str) and u.startswith(('http://', 'https://')):
+		nu = _norm_url(u)
+		observed_urls.add(nu)
+		if isinstance(parsed.get('title'), str) and parsed['title'].strip():
+			t = ' '.join(parsed['title'].split())
+			observed_titles.setdefault(nu, t)
+		if None is not observed_texts:
+			for field in ('body', 'text', 'title'):
+				val = parsed.get(field)
+				if isinstance(val, str) and val.strip():
+					observed_texts.setdefault(nu, []).append(val)
 	if isinstance(parsed.get('title'), str) and parsed['title'].strip():
 		t = ' '.join(parsed['title'].split())
-		u = parsed.get('url')
-		if isinstance(u, str) and u.startswith(('http://', 'https://')):
-			nu = _norm_url(u)
-			observed_urls.add(nu)
-			observed_titles.setdefault(nu, t)
 		if default_host and isinstance(parsed.get('id'), int):
 			tk = (default_host.lower(), str(parsed['id']))
 			observed_topics.add(tk)
@@ -161,9 +175,9 @@ def _ingest_json_observations(parsed, default_host, observed_urls, observed_topi
 		t = ' '.join(topic['title'].split())
 		tid = str(topic['id'])
 		host = default_host
-		u = topic.get('url')
-		if isinstance(u, str) and u.startswith(('http://', 'https://')):
-			nu = _norm_url(u)
+		tu = topic.get('url')
+		if isinstance(tu, str) and tu.startswith(('http://', 'https://')):
+			nu = _norm_url(tu)
 			observed_urls.add(nu)
 			observed_titles.setdefault(nu, t)
 			host = host or (urlsplit(nu).hostname or '')
@@ -180,7 +194,6 @@ def _ingest_json_observations(parsed, default_host, observed_urls, observed_topi
 				observed_urls.add(slug_u)
 				observed_titles.setdefault(slug_u, t)
 def response_source_and_kb_issues(root: Path, response: str, requests: list[dict]) -> list[str]:
-	from urllib.parse import urlsplit
 	from markdown_it import MarkdownIt
 	from .links import readable_link_issues, _bare_urls
 	root = Path(root).resolve()
@@ -190,15 +203,43 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 	parser.validateLink = lambda value: True
 	authored_links = []
 	authored_urls = []
+	attributed_quotes = []
 	quote_depth = 0
+	last_para_ext_href = None
 	for block in parser.parse(response):
 		if 'blockquote_open' == block.type:
 			quote_depth += 1
-		elif 'blockquote_close' == block.type:
+			continue
+		if 'blockquote_close' == block.type:
 			quote_depth -= 1
-		if quote_depth or block.type in ('fence', 'code_block'):
+			continue
+		if block.type in ('fence', 'code_block'):
+			last_para_ext_href = None
+			continue
+		if quote_depth > 0:
+			if 'inline' == block.type and block.content:
+				bq_ext_hrefs = []
+				for tok in block.children or []:
+					if 'link_open' == tok.type:
+						h = tok.attrGet('href') or ''
+						if h.startswith(('http://', 'https://')):
+							bq_ext_hrefs.append(h)
+				target_href = bq_ext_hrefs[-1] if bq_ext_hrefs else last_para_ext_href
+				if target_href:
+					guillemets = re.findall('«([^»]{20,})»', block.content)
+					if guillemets:
+						for gq in guillemets:
+							attributed_quotes.append((target_href, gq))
+					else:
+						m_orig = re.search('(?:Оригинал|Original)\\s*:\\s*["«]?(.{20,})["»]?$', block.content.strip(), re.I | re.S)
+						if m_orig:
+							attributed_quotes.append((target_href, m_orig.group(1).strip(' "«»')))
 			continue
 		children = block.children or []
+		if not children:
+			continue
+		ext_in_block = []
+		has_local_link = False
 		idx = 0
 		while idx < len(children):
 			token = children[idx]
@@ -220,12 +261,23 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 				if href.startswith(('http://', 'https://')):
 					authored_links.append((label, href))
 					authored_urls.append(href)
+					ext_in_block.append(href)
+				elif href:
+					has_local_link = True
 				continue
 			elif 'text' == token.type:
 				for u in _bare_urls(token.content):
 					if u.startswith(('http://', 'https://')):
 						authored_urls.append(u)
+						ext_in_block.append(u)
 			idx += 1
+		if ext_in_block and (not has_local_link):
+			last_para_ext_href = ext_in_block[-1]
+			if 1 == len(ext_in_block) and block.content:
+				for gq in re.findall('«([^»]{25,})»', block.content):
+					attributed_quotes.append((ext_in_block[0], gq))
+		elif has_local_link:
+			last_para_ext_href = None
 	if not authored_urls:
 		r = errors
 	else:
@@ -233,8 +285,14 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 		observed_topics = set()
 		observed_titles = {}
 		observed_topic_titles = {}
-		ev_dir = root / 'ꘖ/KB/Evidence'
-		if ev_dir.is_dir():
+		observed_anchors = {}
+		observed_texts = {}
+		invalid_observations = {}
+		ev_dirs = []
+		for candidate_ev in (root / 'ꘖ/KB/Evidence', root / '_/ꘖ/KB/Evidence'):
+			if candidate_ev.is_dir() and candidate_ev.resolve() not in ev_dirs:
+				ev_dirs.append(candidate_ev.resolve())
+		for ev_dir in ev_dirs:
 			for jfile in ev_dir.rglob('*.json'):
 				try:
 					if jfile.stat().st_size > 4 * 1024 * 1024:
@@ -245,54 +303,102 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 				if 'observation.json' == jfile.name and isinstance(data, dict):
 					urls_here = [u for u in (data.get('url'), data.get('final_url')) if isinstance(u, str) and u.startswith(('http://', 'https://'))]
 					host = (urlsplit(urls_here[0]).hostname or '').lower() if urls_here else ''
-					for u in urls_here:
-						nu = _norm_url(u)
-						observed_urls.add(nu)
-						tk = _discourse_topic_key(nu)
-						if tk:
-							observed_topics.add(tk)
-					for ext_file in jfile.parent.glob('extracted-*.json'):
+					valid_status = not data.get('error') and ('dom' == data.get('kind') or 200 <= (data.get('status') or 0) < 300)
+					is_shell_or_empty = False
+					shell_reason = None
+					ext_titles = []
+					ext_anchors = set()
+					ext_texts = []
+					has_html_anchors = False
+					ext_files = list(jfile.parent.glob('extracted-*.json'))
+					for ext_file in ext_files:
 						try:
 							ext = json.loads(ext_file.read_text(encoding='utf-8'))
 						except (OSError, ValueError):
 							continue
-						t = (ext.get('title') or '').strip() if isinstance(ext, dict) else ''
-						if not t and isinstance(ext, dict) and isinstance(ext.get('headings'), list):
+						if not isinstance(ext, dict):
+							continue
+						if True is ext.get('browser_check_required'):
+							is_shell_or_empty = True
+							shell_reason = 'browser_check_required=True (JS/anti-bot challenge or empty SPA shell)'
+						elif 'headings' in ext and None is ext.get('sitemap') and (0 == ext.get('word_count', 0)):
+							is_shell_or_empty = True
+							shell_reason = 'word_count=0 (empty HTML shell)'
+						t = (ext.get('title') or '').strip()
+						if not t and isinstance(ext.get('headings'), list):
 							h1s = [h.get('text', '').strip() for h in ext['headings'] if isinstance(h, dict) and 1 == h.get('level') and h.get('text')]
 							if h1s:
 								t = h1s[0]
 						if t:
-							for u in urls_here:
-								nu = _norm_url(u)
-								observed_titles.setdefault(nu, t)
-								tk = _discourse_topic_key(nu)
-								if tk:
-									observed_topic_titles.setdefault(tk, t)
+							ext_titles.append(t)
+						if isinstance(ext.get('anchors'), list):
+							has_html_anchors = True
+							ext_anchors.update((str(a) for a in ext['anchors'] if a))
+						if isinstance(ext.get('text'), str) and ext['text'].strip():
+							ext_texts.append(ext['text'])
 					resp_bin = jfile.parent / 'response.bin'
 					if resp_bin.is_file():
 						try:
 							if resp_bin.stat().st_size <= 2 * 1024 * 1024:
 								raw_text = resp_bin.read_bytes().decode(data.get('charset') or 'utf-8', errors='replace')
 								ctype = (data.get('content_type') or '').lower()
-								if 'html' in ctype or '<title' in raw_text[:4000].lower():
+								is_html = 'html' in ctype or '<title' in raw_text[:4000].lower() or raw_text.lstrip().lower().startswith(('<!doctype html', '<html'))
+								if is_html:
+									if not ext_files:
+										body_plain = re.sub('<(?is)(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', ' ', raw_text)
+										if _CHALLENGE_RE.search(raw_text) or not re.findall('\\w+', body_plain):
+											is_shell_or_empty = True
+											shell_reason = 'unextracted HTML JS challenge or empty shell'
+									has_html_anchors = True
+									for m_id in re.finditer('\\b(?:id|name)=["\\\']([^"\\\']+)["\\\']', raw_text, re.I):
+										ext_anchors.add(m_id.group(1))
 									m_t = re.search('<title[^>]*>(.*?)</title>', raw_text[:16000], re.I | re.S)
 									if m_t:
 										t = ' '.join(m_t.group(1).split())
 										if t:
-											for u in urls_here:
-												nu = _norm_url(u)
-												observed_titles.setdefault(nu, t)
-												tk = _discourse_topic_key(nu)
-												if tk:
-													observed_topic_titles.setdefault(tk, t)
-								if 'json' in ctype or raw_text.lstrip().startswith('{'):
-									_ingest_json_observations(json.loads(raw_text), host, observed_urls, observed_topics, observed_titles, observed_topic_titles)
+											ext_titles.append(t)
+								if raw_text.strip():
+									ext_texts.append(raw_text)
+								if ('json' in ctype or raw_text.lstrip().startswith('{')) and valid_status and (not is_shell_or_empty):
+									_ingest_json_observations(json.loads(raw_text), host, observed_urls, observed_topics, observed_titles, observed_topic_titles, observed_texts)
 						except (OSError, ValueError):
 							pass
-				elif isinstance(data, dict):
-					src_u = data.get('url') or data.get('source') or ''
+					if valid_status and (not is_shell_or_empty):
+						for u in urls_here:
+							nu = _norm_url(u)
+							observed_urls.add(nu)
+							tk = _discourse_topic_key(nu)
+							if tk:
+								observed_topics.add(tk)
+							for t in ext_titles:
+								observed_titles.setdefault(nu, t)
+								if tk:
+									observed_topic_titles.setdefault(tk, t)
+							if has_html_anchors:
+								observed_anchors.setdefault(nu, set()).update(ext_anchors)
+							if ext_texts:
+								observed_texts.setdefault(nu, []).extend(ext_texts)
+					else:
+						reason = shell_reason or f"error={data.get('error')} status={data.get('status')}"
+						for u in urls_here:
+							nu = _norm_url(u)
+							invalid_observations.setdefault(nu, reason)
+				elif isinstance(data, dict) and (not jfile.name.startswith('extracted-')):
+					src_u = data.get('url') or data.get('html_url') or data.get('source') or ''
 					host = (urlsplit(src_u).hostname or '').lower() if isinstance(src_u, str) and src_u.startswith(('http://', 'https://')) else ''
-					_ingest_json_observations(data, host, observed_urls, observed_topics, observed_titles, observed_topic_titles)
+					_ingest_json_observations(data, host, observed_urls, observed_topics, observed_titles, observed_topic_titles, observed_texts)
+		client_urls = set()
+		for req in requests or []:
+			for u in _bare_urls(req.get('text', '') if isinstance(req, dict) else str(req)):
+				client_urls.add(_norm_url(u))
+		for pfile in (root / 'ꘖ/project.json', root / 'KB/Project.md', root / 'ꘖ/KB/Project.md'):
+			if pfile.is_file():
+				try:
+					txt = pfile.read_text(encoding='utf-8')
+					for u in _bare_urls(txt):
+						client_urls.add(_norm_url(u))
+				except OSError:
+					pass
 		for label, href in authored_links:
 			if not _is_descriptive_title_label(label, href):
 				continue
@@ -303,24 +409,8 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 				errors.append(f'VERIFY-1 / LINK-1: Link title "{label}" for {href} contradicts saved observation title "{obs_title}"')
 		is_upwork_project = (root / 'ꘖ/project.json').is_file() and (root / 'ꘖ/KB').is_dir()
 		if is_upwork_project:
-			kb_urls = set()
+			kb_urls = set(client_urls)
 			kb_topics = set()
-			client_urls = set()
-			for req in requests or []:
-				for u in _bare_urls(req.get('text', '') if isinstance(req, dict) else str(req)):
-					nu = _norm_url(u)
-					kb_urls.add(nu)
-					client_urls.add(nu)
-			for pfile in (root / 'ꘖ/project.json', root / 'KB/Project.md', root / 'ꘖ/KB/Project.md'):
-				if pfile.is_file():
-					try:
-						txt = pfile.read_text(encoding='utf-8')
-						for u in _bare_urls(txt):
-							nu = _norm_url(u)
-							kb_urls.add(nu)
-							client_urls.add(nu)
-					except OSError:
-						pass
 			for kb_file in list((root / 'ꘖ/KB').rglob('*.md')) + (list((root / 'KB').rglob('*.md')) if (root / 'KB').is_dir() else []):
 				try:
 					txt = kb_file.read_text(encoding='utf-8')
@@ -349,15 +439,35 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 				tk = _discourse_topic_key(nu)
 				if nu not in kb_urls and (not tk or tk not in kb_topics):
 					errors.append(f'KB-1 / KB-3: External URL in response is missing from ꘖ/KB modules/Analysis.json (record verified sources in ꘖ/KB before answer-prepare): {u}')
-			for label, href in authored_links:
-				if not _is_descriptive_title_label(label, href):
-					continue
-				nu = _norm_url(href)
-				tk = _discourse_topic_key(nu)
-				if nu in client_urls:
-					continue
-				if nu not in observed_urls and (not tk or tk not in observed_topics):
+		for label, href in authored_links:
+			host = (urlsplit(href).hostname or '').lower()
+			if host in ('localhost', '127.0.0.1', '::1'):
+				continue
+			nu = _norm_url(href)
+			tk = _discourse_topic_key(nu)
+			if nu in client_urls:
+				continue
+			if nu not in observed_urls and (not tk or tk not in observed_topics):
+				if nu in invalid_observations:
+					errors.append(f'VERIFY-1 / KB-3: External article link [{label}]({href}) has no valid saved observation in ꘖ/KB/Evidence ({invalid_observations[nu]})')
+				else:
 					errors.append(f'VERIFY-1 / KB-3: External article link [{label}]({href}) has no saved observation in ꘖ/KB/Evidence/HTTP or ꘖ/KB/Evidence')
+				continue
+			frag = urlsplit(href).fragment
+			if frag and (not re.fullmatch('L\\d+(?:-L?\\d+)?', frag)) and (nu in observed_anchors):
+				unquoted_frag = unquote(frag)
+				if frag not in observed_anchors[nu] and unquoted_frag not in observed_anchors[nu] and ('anchor_exception' not in response):
+					errors.append(f'VERIFY-1 / LINK-2: External link [{label}]({href}) references anchor "#{frag}" which is absent from the saved observation in ꘖ/KB/Evidence')
+		for href, q_raw in attributed_quotes:
+			nu = _norm_url(href)
+			if nu in client_urls or nu not in observed_texts or (not observed_texts[nu]):
+				continue
+			obs_blob = ' '.join((_norm_quote_text(t) for t in observed_texts[nu]))
+			segments = [_norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[…\\]|\\(…\\)|\\.{3,}|…', q_raw)]
+			segments = [s for s in segments if len(s) >= 15]
+			if segments and (not any((s in obs_blob for s in segments))):
+				preview = ' '.join(q_raw.split())[:80]
+				errors.append(f'VERIFY-1 / LINK-1: Verbatim quote «{preview}» attributed to {href} is absent from the saved observation in ꘖ/KB/Evidence')
 		r = errors
 	return r
 def _instruction_snapshot(root, native, *, stage):

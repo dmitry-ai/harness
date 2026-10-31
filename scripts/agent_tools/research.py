@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -23,6 +26,8 @@ import zipfile
 from .storage import create_bytes, locked, replace_bytes
 MAX_BYTES = 16 * 1024 * 1024
 PROFILES = ('html', 'shopify', 'tracking', 'document')
+BROWSER_MODES = ('auto', 'always', 'never')
+_CHALLENGE_RE = re.compile('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__|enable javascript and cookies|name=["\\\'](?:js_challenge|jsc_token)["\\\']|cf-browser-verification|cf_chl_opt|challenge-platform|<noscript>[^<]*enable javascript')
 def classify_network_error(exc):
 	cause = exc.reason if isinstance(exc, URLError) and None is not getattr(exc, 'reason', None) else exc
 	if isinstance(cause, socket.gaierror):
@@ -188,7 +193,7 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 			if len(response.body) > MAX_BYTES:
 				raise ValueError('Response exceeds 16 MiB')
 			dns_resolved = True if 'http' == observation_kind and (response.status or 0) > 0 else None
-		except (OSError, ValueError) as exc:
+		except (OSError, ValueError, RuntimeError) as exc:
 			response = Response(url, 0, 'application/octet-stream', b'')
 			error = type(exc).__name__
 			error_kind, dns_resolved = classify_network_error(exc)
@@ -452,7 +457,7 @@ def extract_bytes(body, content_type, profile, charset='utf-8'):
 				result['embedded_json'] = configs
 				result['embedded_json_unparsed'] = parse_failures
 				result['execution_checked'] = False
-			result['browser_check_required'] = bool(re.search('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__|enable javascript and cookies', result['text'] + text[:8000]))
+			result['browser_check_required'] = bool(_CHALLENGE_RE.search(result['text'] + '\n' + text) or (None is result.get('sitemap') and 0 == result.get('word_count', 0)))
 			r = result
 	else:
 		import io
@@ -481,7 +486,16 @@ def extract_observation(root, reference, profile='html'):
 	if not target.exists():
 		data = extract_bytes((folder / 'response.bin').read_bytes(), meta['content_type'], profile, meta.get('charset') or 'utf-8')
 		create_bytes(target, json_data({'profile': profile, 'extractor_version': version, 'observation': reference, 'body_sha256': meta['body_sha256'], 'observed_at': meta['observed_at'], **data}))
+	else:
+		try:
+			data = json.loads(target.read_text(encoding='utf-8'))
+		except (OSError, ValueError):
+			data = {}
 	r = {'extraction': target.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix(), 'observation': reference, 'profile': profile, 'observed_at': meta['observed_at']}
+	if 'browser_check_required' in data:
+		r['browser_check_required'] = bool(data['browser_check_required'])
+	if 'word_count' in data:
+		r['word_count'] = data['word_count']
 	return r
 def extract_file(root, file, profile='document'):
 	file = inside(root, file)
@@ -542,6 +556,32 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 	if observation['error']:
 		return {**observation, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
 	return {**observation, **extract_observation(root, observation['observation']), 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
+def collect_browser(root, url, *, profile='html', scope='public', refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None):
+	from .text_browser import collect_cdp_dom
+	effective_profile = 'document' if 'auto' == profile else profile
+	if effective_profile not in PROFILES:
+		raise ValueError(f'Unknown extraction profile: {profile}')
+	cdp_meta = {}
+	def read_dom(target, headers, fetch_timeout):
+		capture = (cdp_fetcher or collect_cdp_dom)(root, target, cdp_port=cdp_port, timeout=fetch_timeout, config=config, http_get=http_get, cdp_call=cdp_call)
+		if not isinstance(capture, dict) or not isinstance(capture.get('html'), str):
+			raise ValueError('CDP DOM capture did not return HTML payload')
+		cdp_meta.update(capture)
+		r = Response(capture.get('url') or target, 0, 'text/html', capture['html'].encode('utf-8'))
+		return r
+	observation = collect(root, url, scope=scope, max_age=max_age, refresh_reason=refresh_reason, timeout=timeout, fetcher=read_dom, observation_kind='dom', context=context)
+	item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
+	for key in ('cdp_identity', 'cdp_identity_sha256', 'target_id', 'target_mode', 'closed_after_capture', 'endpoint'):
+		if key in cdp_meta:
+			item[key] = cdp_meta[key]
+	if not observation.get('error'):
+		try:
+			item.update(extract_observation(root, observation['observation'], effective_profile))
+		except (OSError, ValueError, KeyError, TypeError, LookupError) as exc:
+			item['extraction_error'] = type(exc).__name__
+			item['detail'] = 'DOM observation saved; inspect the source or choose another extraction profile'
+	r = item
+	return r
 def compute_site_summary(root, results):
 	root = Path(root).resolve()
 	kb_dir = root / 'ꘖ/KB'
@@ -550,7 +590,7 @@ def compute_site_summary(root, results):
 	all_identifiers, cms_domains = (set(), set())
 	html_pages = 0
 	for item in results or []:
-		if not isinstance(item, dict) or item.get('error') or (not 200 <= (item.get('status') or 0) < 300):
+		if not isinstance(item, dict) or item.get('error') or ('dom' != item.get('kind') and (not 200 <= (item.get('status') or 0) < 300)):
 			continue
 		url = item.get('url') or ''
 		ext_rel = item.get('extraction')
@@ -593,12 +633,16 @@ def compute_site_summary(root, results):
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
-def collect_http(root, url, *, profile='html', scope='public', refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None):
+def collect_http(root, url, *, profile='html', scope='public', refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
+	if browser not in BROWSER_MODES:
+		raise ValueError(f'Unknown browser mode: {browser}; choose {BROWSER_MODES}')
 	effective_profile = 'document' if 'auto' == profile else profile
 	if effective_profile not in PROFILES:
 		raise ValueError(f'Unknown extraction profile: {profile}')
+	if 'always' == browser:
+		return collect_browser(root, url, profile=profile, scope=scope, refresh_reason=refresh_reason, max_age=max_age, cdp_port=cdp_port, context=context, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
 	observation = collect(root, url, headers=headers, scope=scope, max_age=max_age, refresh_reason=refresh_reason, fetcher=fetcher, context=context)
-	item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
+	item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
 	if not observation.get('error') and 200 <= (observation.get('status') or 0) < 300:
 		chosen = 'document' if profile in ('html', 'auto') and 'application/json' == (observation.get('content_type') or '').lower() else effective_profile
 		try:
@@ -606,12 +650,25 @@ def collect_http(root, url, *, profile='html', scope='public', refresh_reason=No
 		except (OSError, ValueError, KeyError, TypeError, LookupError) as exc:
 			item['extraction_error'] = type(exc).__name__
 			item['detail'] = 'Response saved; inspect the source or choose another extraction profile, without fetching it again'
+	needs_browser = observation.get('status') in (401, 403, 429) or bool(item.get('browser_check_required'))
+	if 'auto' == browser and needs_browser and (None is fetcher or any((None is not x for x in (cdp_fetcher, http_get, cdp_call)))):
+		dom_item = collect_browser(root, url, profile=profile, scope=scope, refresh_reason=refresh_reason or 'browser fallback after HTTP challenge or empty body', max_age=max_age, cdp_port=cdp_port, context=context, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+		if not dom_item.get('error') and (not dom_item.get('extraction_error')):
+			dom_item['http_observation'] = item.get('observation')
+			dom_item['http_status'] = item.get('status')
+			dom_item['browser_fallback'] = True
+			dom_item['browser_fallback_from_http'] = True
+			return dom_item
+		item['browser_fallback_attempted'] = True
+		item['browser_fallback_error'] = dom_item.get('error') or dom_item.get('extraction_error')
 	r = item
 	return r
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-def collect_plan(root, plan, *, fetcher=None):
+def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
+	if browser not in BROWSER_MODES:
+		raise ValueError(f'Unknown browser mode: {browser}; choose {BROWSER_MODES}')
 	if not isinstance(plan, dict) or not isinstance(plan.get('requests'), list) or (not plan['requests']):
 		raise ValueError('Plan needs a nonempty requests list')
 	results = []
@@ -622,16 +679,34 @@ def collect_plan(root, plan, *, fetcher=None):
 			profile = entry.get('profile', 'html')
 			if profile not in PROFILES:
 				raise ValueError('Unknown extraction profile')
-			observation = collect(root, entry['url'], headers=entry.get('headers'), scope=entry.get('scope', 'public'), max_age=entry.get('max_age', 86400), refresh_reason=entry.get('refresh_reason'), fetcher=fetcher, context=entry.get('context'))
-			item = {k: observation.get(k) for k in ('url', 'cached', 'observation', 'status', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
-			if not observation['error'] and 200 <= observation['status'] < 300:
-				try:
-					item.update(extract_observation(root, observation['observation'], profile))
-				except (OSError, ValueError, KeyError, TypeError, LookupError) as exc:
-					item['extraction_error'] = type(exc).__name__
-					item['detail'] = 'Response saved; inspect the source or choose another extraction profile, without fetching it again'
+			req_browser = entry.get('browser', browser)
+			if req_browser not in BROWSER_MODES:
+				raise ValueError(f'Unknown browser mode: {req_browser}')
+			if 'always' == req_browser:
+				item = collect_browser(root, entry['url'], profile=profile, scope=entry.get('scope', 'public'), max_age=entry.get('max_age', 86400), refresh_reason=entry.get('refresh_reason'), cdp_port=cdp_port, context=entry.get('context'), cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+			else:
+				observation = collect(root, entry['url'], headers=entry.get('headers'), scope=entry.get('scope', 'public'), max_age=entry.get('max_age', 86400), refresh_reason=entry.get('refresh_reason'), fetcher=fetcher, context=entry.get('context'))
+				item = {k: observation.get(k) for k in ('url', 'cached', 'observation', 'status', 'kind', 'collector', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
+				if not observation['error'] and 200 <= observation['status'] < 300:
+					try:
+						item.update(extract_observation(root, observation['observation'], profile))
+					except (OSError, ValueError, KeyError, TypeError, LookupError) as exc:
+						item['extraction_error'] = type(exc).__name__
+						item['detail'] = 'Response saved; inspect the source or choose another extraction profile, without fetching it again'
+				needs_browser = observation.get('status') in (401, 403, 429) or bool(item.get('browser_check_required'))
+				if 'auto' == req_browser and needs_browser and (None is fetcher or any((None is not x for x in (cdp_fetcher, http_get, cdp_call)))):
+					dom_item = collect_browser(root, entry['url'], profile=profile, scope=entry.get('scope', 'public'), max_age=entry.get('max_age', 86400), refresh_reason=entry.get('refresh_reason') or 'browser fallback after HTTP challenge or empty body', cdp_port=cdp_port, context=entry.get('context'), cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+					if not dom_item.get('error') and (not dom_item.get('extraction_error')):
+						dom_item['http_observation'] = item.get('observation')
+						dom_item['http_status'] = item.get('status')
+						dom_item['browser_fallback'] = True
+						dom_item['browser_fallback_from_http'] = True
+						item = dom_item
+					else:
+						item['browser_fallback_attempted'] = True
+						item['browser_fallback_error'] = dom_item.get('error') or dom_item.get('extraction_error')
 			results.append(item)
 		except (OSError, ValueError, KeyError, TypeError) as exc:
 			results.append({'error': type(exc).__name__, 'detail': 'Invalid or unavailable input; check this plan entry', 'request_index': len(results)})
-	r = {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and x.get('status', 0) > 0 for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and (200 <= x.get('status', 0) < 300) for x in results)), 'detail': 'A saved HTTP 403/404 is a completed observation, not a reason to repeat the same request blindly'}
+	r = {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and ('dom' == x.get('kind') or (x.get('status') or 0) > 0) for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and ('dom' == x.get('kind') or 200 <= (x.get('status') or 0) < 300) and (not x.get('browser_check_required')) for x in results)), 'detail': 'A saved HTTP 403/404 is a completed observation, not a reason to repeat the same request blindly'}
 	return r

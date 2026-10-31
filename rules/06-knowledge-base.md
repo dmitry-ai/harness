@@ -27,7 +27,7 @@ Record the current instruction, working files, open questions, and next step in 
 Completion of initial analysis and readiness of a proposal are distinct; a new instruction regarding a draft does not by itself require re-collection or all five analysis stages.  
 H percentages change with evidence; promotion to a fact requires a separate observation rather than a high score.  
 Preserve provenance of prior versions and material sources; handle temporary files per [FILE-5](01-file-boundaries.md#file-5).  
-Perform network HTTP(S) observations through `upwork_project.py collect` or `collect-http`, saving into `ꘖ/KB/Evidence/HTTP` and `ꘖ/data/http-index.json`; ad-hoc network calls in the shell that bypass evidence storage are prohibited.  
+Perform network HTTP(S) and browser DOM observations through `harness.py collect`, `collect-http`, or `collect-browser` (with `upwork_project.py` retained as a compatibility alias), saving into `ꘖ/KB/Evidence/HTTP` and `ꘖ/data/http-index.json`; ad-hoc network calls in the shell that bypass evidence storage are prohibited.  
 If context compaction (`CHECKPOINT`/`compaction`) occurs after tool calls before publishing the response, restore pre-compaction results via `recover-checkpoint` or by reading the full transcript.  
 ## KB-4
 `ꙮ/0/Context.md` assembles sources in full: task, constraints, manual/agent KB, and chronological `req/res` pairs with authors.  

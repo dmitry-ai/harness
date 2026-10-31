@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 from __future__ import annotations
 import argparse
 import json
@@ -34,7 +37,7 @@ def lint_issue_markdown(text: str, *, is_title: bool=False) -> list[dict[str, An
 	else:
 		if '\ufeff' in text:
 			errors.append({'code': 'UTF8_BOM', 'message': 'Contains UTF-8 BOM (U+FEFF), which breaks ATX Markdown headings at the start of a file'})
-		if '�' in text:
+		if '\ufffd' in text:
 			errors.append({'code': 'UNICODE_REPLACEMENT', 'message': 'Contains Unicode replacement character (U+FFFD)'})
 		for idx, ch in enumerate(text):
 			code = ord(ch)
@@ -133,6 +136,33 @@ def _consume_files(files: list[tuple[Path, bytes]]) -> list[str]:
 			removed.append(str(path))
 	r = removed
 	return r
+def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], *, kind: str='issue') -> str | None:
+	if not isinstance(fetched, dict) or not fetched.get('html_url'):
+		return None
+	meta_dir = None
+	for fpath, _ in source_files:
+		for parent in fpath.resolve().parents:
+			if 'ꘖ' == parent.name:
+				meta_dir = parent
+				break
+		if None is not meta_dir:
+			break
+	if None is meta_dir:
+		return None
+	safe_repo = repo.replace('/', '__')
+	ident = fetched.get('number') if 'issue' == kind else fetched.get('id')
+	if None is ident:
+		return None
+	record = {'url': fetched.get('html_url'), 'html_url': fetched.get('html_url'), 'repo': repo, 'kind': kind, 'number': fetched.get('number'), 'id': fetched.get('id'), 'title': fetched.get('title') or f'{repo}#{ident}', 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'body': fetched.get('body') or ''}
+	payload_bytes = (json.dumps(record, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+	target = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'{kind}-{ident}.json'
+	target.parent.mkdir(parents=True, exist_ok=True)
+	target.write_bytes(payload_bytes)
+	if '_' == meta_dir.parent.name and (meta_dir.parent.parent / 'ꘖ').is_dir():
+		mirror = meta_dir.parent.parent / 'ꘖ/KB/Evidence/GitHub' / safe_repo / f'{kind}-{ident}.json'
+		mirror.parent.mkdir(parents=True, exist_ok=True)
+		mirror.write_bytes(payload_bytes)
+	return str(target)
 def _resolve_title(args: argparse.Namespace, consumable: list[tuple[Path, bytes]]) -> str | None:
 	if getattr(args, 'title_file', None):
 		t_path, t_raw, t_text = read_utf8_no_bom_file(args.title_file)
@@ -195,6 +225,7 @@ def cmd_create(args: argparse.Namespace) -> int:
 			print(json.dumps({'ok': False, 'action': 'create', 'stage': 'post_flight_readback', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'exact_match': exact_match, 'title_errors': post_title_errors, 'body_errors': post_body_errors}, ensure_ascii=False, indent=2))
 			r = 2
 		else:
+			_persist_issue_evidence(consumable, repo, fetched, kind='issue')
 			removed = _consume_files(consumable) if args.consume_input else []
 			print(json.dumps({'ok': True, 'action': 'create', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}, ensure_ascii=False, indent=2))
 			r = 0
@@ -236,6 +267,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
 			print(json.dumps({'ok': False, 'action': 'edit', 'stage': 'post_flight_readback', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'exact_match': exact_match, 'title_errors': post_title_errors, 'body_errors': post_body_errors}, ensure_ascii=False, indent=2))
 			r = 2
 		else:
+			_persist_issue_evidence(consumable, repo, fetched, kind='issue')
 			removed = _consume_files(consumable) if args.consume_input else []
 			print(json.dumps({'ok': True, 'action': 'edit', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}, ensure_ascii=False, indent=2))
 			r = 0
@@ -265,6 +297,7 @@ def cmd_comment(args: argparse.Namespace) -> int:
 			print(json.dumps({'ok': False, 'action': 'comment', 'stage': 'post_flight_readback', 'repo': repo, 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'exact_match': exact_match, 'body_errors': post_errors}, ensure_ascii=False, indent=2))
 			r = 2
 		else:
+			_persist_issue_evidence(consumable, repo, fetched, kind='comment')
 			removed = _consume_files(consumable) if args.consume_input else []
 			print(json.dumps({'ok': True, 'action': 'comment', 'repo': repo, 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}, ensure_ascii=False, indent=2))
 			r = 0
@@ -288,12 +321,14 @@ def cmd_close(args: argparse.Namespace) -> int:
 		if normalize_newlines(remote_c) != normalize_newlines(comment_body) or lint_issue_markdown(remote_c, is_title=False):
 			print(json.dumps({'ok': False, 'action': 'close', 'stage': 'post_flight_comment_readback', 'repo': repo, 'number': number, 'comment_id': comment_id}, ensure_ascii=False, indent=2))
 			return 2
+		_persist_issue_evidence(consumable, repo, fetched_comment, kind='comment')
 	payload: dict[str, Any] = {'state': 'closed', 'state_reason': args.reason}
 	_gh_api(f'repos/{repo}/issues/{number}', method='PATCH', payload=payload)
 	fetched = _gh_api(f'repos/{repo}/issues/{number}', method='GET')
 	if 'closed' != fetched.get('state'):
 		print(json.dumps({'ok': False, 'action': 'close', 'stage': 'post_flight_state_check', 'repo': repo, 'number': number, 'state': fetched.get('state')}, ensure_ascii=False, indent=2))
 		return 2
+	_persist_issue_evidence(consumable, repo, fetched, kind='issue')
 	removed = _consume_files(consumable) if args.consume_input else []
 	print(json.dumps({'ok': True, 'action': 'close', 'repo': repo, 'number': number, 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'verified': True, 'consumed_files': removed}, ensure_ascii=False, indent=2))
 	return 0

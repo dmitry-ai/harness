@@ -9,8 +9,8 @@ Edits to client documents retain their own checks for scope, baseline, evidence,
 After determining the exact root of the primary conversation, run:  
 
 ```text
-python <agents>/scripts/upwork_project.py turn-begin <root> --platform codex
-python <agents>/scripts/upwork_project.py turn-begin <root> --conversation <native-uuid> --platform antigravity
+python <agents>/scripts/harness.py turn-begin <root> --platform codex
+python <agents>/scripts/harness.py turn-begin <root> --conversation <native-uuid> --platform antigravity
 ```
 
 Codex obtains the UUID from `CODEX_THREAD_ID` and the profile from `CODEX_HOME` or an explicit `--codex-profile`; a neighboring profile or chat is never selected automatically.  
@@ -31,8 +31,8 @@ The command removes only that binding and waits for any in-progress verification
 ## Answer Preparation
 
 ```text
-python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --platform codex
-python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --conversation <native-uuid> --platform antigravity
+python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --platform codex
+python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --conversation <native-uuid> --platform antigravity
 ```
 
 **Mandatory UTF-8 encoding rule in Windows PowerShell:**  
@@ -43,10 +43,10 @@ python <agents>/scripts/upwork_project.py answer-prepare <root> --response-file 
 The operation re-verifies the active native turn, records the exact requests and response through the existing `record_answer` mechanism, validates the read-back bytes (rejecting corrupted OEM/ASCII output where words were replaced by `???`), and returns `response_file`, SHA256, pair numbers, and `ready: true`.  
 It also checks public tool calls of the active turn for compliance with `EXEC-5` (no read-only Git invocations without `--no-optional-locks`), saving the result in `exec5_check`.  
 Additionally, `answer-prepare` performs four protective turn and source checks:  
-1. `http_fetch_check` (`KB-3` / `EXEC-1`): rejects ad-hoc external network requests in the shell (`urllib.request`, `requests`, `Invoke-WebRequest`, `curl`) executed outside `collect` / `collect-http`.  
-2. `compaction_check` (`COMPACT-1` / `KB-3`): if context compaction (`CHECKPOINT` / `context_compacted`) occurred in the active turn after tool calls, requires restoring pre-compaction results via `upwork_project.py recover-checkpoint <root> --conversation <native-uuid>` or reading `transcript_full.jsonl` after the `CHECKPOINT` step.  
+1. `http_fetch_check` (`KB-3` / `EXEC-1`): rejects ad-hoc external network requests in the shell (`urllib.request`, `requests`, `Invoke-WebRequest`, `curl`) executed outside `collect` / `collect-http` / `collect-browser`.  
+2. `compaction_check` (`COMPACT-1` / `KB-3`): if context compaction (`CHECKPOINT` / `context_compacted`) occurred in the active turn after tool calls, requires restoring pre-compaction results via `harness.py recover-checkpoint <root> --conversation <native-uuid>` or reading `transcript_full.jsonl` after the `CHECKPOINT` step.  
 3. `delegation_check` (`REVIEW-1` / `KB-3`): in Upwork projects (`ꘖ/project.json`), rejects executing more than 40 tool steps in the primary agent without delegating to subagents (`A.F`/`A.A`) or writing intermediate findings to `ꘖ/KB` (when inspecting file tools, only the target path `Path` / `TargetFile` is checked, not `Content`).  
-4. `source_kb_check` (`LINK-1` / `LINK-5` / `VERIFY-1` / `KB-1` / `KB-3`): verifies link readability (`readable_link_issues`, permitting unencoded local `file:///C:/...` links in chat responses), presence of all external `http(s)://` links from the response in `ꘖ/KB` modules or `Analysis.json`, presence of primary observations in `ꘖ/KB/Evidence` for external links with descriptive article titles, and agreement between the link label (`[Title](url)`) and the actual `<title>` / `<h1>` / JSON topic title in the saved observation.  
+4. `source_kb_check` (`LINK-1` / `LINK-5` / `VERIFY-1` / `KB-1` / `KB-3`): verifies link readability (`readable_link_issues`, permitting unencoded local `file:///C:/...` links in chat responses), presence of all external `http(s)://` links from the response in `ꘖ/KB` modules or `Analysis.json` (in projects with `ꘖ/project.json`), presence of valid primary observations in `ꘖ/KB/Evidence` across all projects for every external link (rejecting anti-bot/JS challenge shells with `browser_check_required: true` and empty `word_count: 0` HTML captures), verification of `#fragment` anchors against extracted `anchors`, verification of attributed verbatim quotes (`«...»` / `Оригинал:`) against the saved observation text, and agreement between a descriptive link label (`[Title](url)`) and the actual `<title>` / `<h1>` / JSON topic title in the saved observation.  
 
 In tracked projects with `ꘖ/data/workflow.json` and `ꘖ/project.json`, while the `finalize` stage of initial analysis is incomplete (or when a subsequent analytical response contains causal hypotheses or methods `H-N` / `M-N` without a delegated subagent audit in the current turn), requests must be adopted via `adopt-requests` and approved via `authorize` (filtered to the current conversation without blocking on historical conversations); once `finalize` is complete, client text edits (`/df-article`, `/df-proposal`) and ordinary follow-up turns are recorded in the journal via `_record` and checked against `source_kb_check` and `gate_requests` without binding to the initial analysis cards in `Analysis.json`.  
 Verification includes a full request snapshot after `turn-begin`, after lock acquisition, and after writing the journal.  
@@ -62,10 +62,10 @@ This check does not identify hidden causes, does not forbid justified equal prio
 ## Native Verification
 
 ```text
-python <agents>/scripts/upwork_project.py journal-sync <root> --conversation <native-uuid> --platform codex
-python <agents>/scripts/upwork_project.py journal-watch --action status
-python <agents>/scripts/upwork_project.py journal-watch --action once
-python <agents>/scripts/upwork_project.py journal-watch --action stop
+python <agents>/scripts/harness.py journal-sync <root> --conversation <native-uuid> --platform codex
+python <agents>/scripts/harness.py journal-watch --action status
+python <agents>/scripts/harness.py journal-watch --action once
+python <agents>/scripts/harness.py journal-watch --action stop
 ```
 
 The verifier independently reads only registered conversations, their exact user requests, and completed final messages; private reasoning traces are never exported.  

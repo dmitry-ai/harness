@@ -4,14 +4,17 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 from pathlib import Path
 import json
 import sys
 from .completion import COMMANDS as COMPLETION_COMMANDS
-COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
+COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'collect-browser', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
 def add_parsers(sub):
 	for command in COMMANDS:
-		parser = sub.add_parser(command, help={'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init', 'status': 'Read-only current stage and agent KB navigation', 'collect': 'Batch GET observations and extraction with persistent project cache', 'collect-http': 'Single-URL GET observation and extraction with persistent Evidence cache', 'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions', 'check-project': 'All saved-source and local KB diagnostics; no network calls', 'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits'}.get(command, 'Internal ' + command + ' operation'))
+		parser = sub.add_parser(command, help={'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init', 'status': 'Read-only current stage and agent KB navigation', 'collect': 'Batch GET/DOM observations and extraction with persistent project cache', 'collect-http': 'Single-URL GET/DOM observation and extraction with persistent Evidence cache', 'collect-browser': 'Single-URL CDP browser DOM observation in the configured user browser profile', 'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions', 'check-project': 'All saved-source and local KB diagnostics; no network calls', 'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits'}.get(command, 'Internal ' + command + ' operation'))
 		if command in COMPLETION_COMMANDS:
 			from .completion import add_parser_arguments
 			add_parser_arguments(parser, command)
@@ -50,11 +53,21 @@ def add_parsers(sub):
 		elif 'collect' == command:
 			parser.add_argument('--plan', required=True, type=Path)
 			parser.add_argument('--output', help='Optional project-owned result JSON')
+			parser.add_argument('--browser', choices=('auto', 'always', 'never'), default='auto', help='Browser CDP fallback mode (default: auto)')
+			parser.add_argument('--cdp-port', type=int, help='Optional explicit CDP port override')
 		elif 'collect-http' == command:
 			parser.add_argument('--url', required=True, help='Single HTTP(S) URL to fetch and persist in ꘖ/KB/Evidence/HTTP')
 			parser.add_argument('--profile', choices=('html', 'shopify', 'tracking', 'document', 'auto'), default='auto')
 			parser.add_argument('--scope', default='public')
 			parser.add_argument('--refresh-reason')
+			parser.add_argument('--browser', choices=('auto', 'always', 'never'), default='auto', help='Browser CDP fallback mode (default: auto)')
+			parser.add_argument('--cdp-port', type=int, help='Optional explicit CDP port override')
+		elif 'collect-browser' == command:
+			parser.add_argument('--url', required=True, help='Single HTTP(S) URL to capture via user browser CDP and persist in ꘖ/KB/Evidence/HTTP')
+			parser.add_argument('--profile', choices=('html', 'shopify', 'tracking', 'document', 'auto'), default='html')
+			parser.add_argument('--scope', default='public')
+			parser.add_argument('--refresh-reason')
+			parser.add_argument('--cdp-port', type=int, help='Optional explicit CDP port override')
 		elif 'capture-dom' == command:
 			parser.add_argument('--url', required=True)
 			parser.add_argument('--tab-id', required=True)
@@ -187,7 +200,7 @@ def execute(args):
 		from .research import collect_plan, compute_site_summary, inside, json_data
 		payload = _operation_input(args, args.plan)
 		plan = json.loads(payload.decode('utf-8-sig'))
-		result = collect_plan(args.project, plan)
+		result = collect_plan(args.project, plan, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
 		if args.output:
 			from .analysis import publish_owned, digest
 			target = inside(args.project, args.output)
@@ -215,7 +228,10 @@ def execute(args):
 		return result
 	if 'collect-http' == command:
 		from .research import collect_http
-		return collect_http(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason)
+		return collect_http(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
+	if 'collect-browser' == command:
+		from .research import collect_browser
+		return collect_browser(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
 	if 'extract' == command:
 		from .research import extract_observation
 		return extract_observation(args.project, args.source, args.profile)

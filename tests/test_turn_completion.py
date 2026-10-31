@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce browser CDP DOM collection for JS/anti-bot pages, block search-snippet citation substitution, and extract universal harness.py CLI":
+# https://github.com/dmitry-ai/harness/issues/27
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -733,6 +736,28 @@ class AntigravityCompletionTests(unittest.TestCase):
 			completion.prepare(self.project, bad_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		good_resp = "See [Resolving Next.js interference with the Google tag's cross-domain measurement linker](https://df.tips/t/2722)."
 		prepared = completion.prepare(self.project, good_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+	def test_universal_source_kb_check_blocks_reddit_js_shell_unverified_short_links_missing_anchors_and_fake_quotes(self):
+		from agent_tools import research
+		self.assertFalse((self.project / 'ꘖ/project.json').exists())
+		reddit_url = 'https://www.reddit.com/r/GoogleGeminiAI/comments/1abc/post/'
+		short_link_resp = f'Author [u/Kooky-Split-8432]({reddit_url}#t1_nvz0p8c) wrote: «I hit a brick wall with Google Antigravity».'
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / KB-3: External article link .* has no saved observation'):
+			completion.prepare(self.project, short_link_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		js_shell = ('<!DOCTYPE html><html><head><title>Reddit</title><style>' + ('body{}' * 1400) + '</style></head><body><form><input type="hidden" name="js_challenge" value="1"/></form></body></html>').encode('utf-8')
+		research.collect_http(self.project, reddit_url, fetcher=lambda u, h, t: research.Response(u, 200, 'text/html', js_shell), browser='never')
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / KB-3: External article link .* has no valid saved observation in ꘖ/KB/Evidence \\(browser_check_required=True'):
+			completion.prepare(self.project, short_link_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		html_no_anchor = b'<html><head><title>Google Antigravity Thread</title></head><body><h1>Google Antigravity Thread</h1><p>I hit a brick wall with Google Antigravity in production.</p></body></html>'
+		research.collect_http(self.project, reddit_url, fetcher=lambda u, h, t: research.Response(u, 200, 'text/html', html_no_anchor), browser='never', refresh_reason='replace shell with body lacking anchor')
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / LINK-2: External link .* references anchor "#t1_nvz0p8c" which is absent from the saved observation'):
+			completion.prepare(self.project, short_link_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		html_with_anchor = b'<html><head><title>Google Antigravity Thread</title></head><body><h1>Google Antigravity Thread</h1><div id="t1_nvz0p8c"><p>I hit a brick wall with Google Antigravity in production.</p></div></body></html>'
+		research.collect_http(self.project, reddit_url, fetcher=lambda u, h, t: research.Response(u, 200, 'text/html', html_with_anchor), browser='never', refresh_reason='add verified anchor')
+		fake_quote_resp = f'Author [u/Kooky-Split-8432]({reddit_url}#t1_nvz0p8c) wrote: «Completely fabricated quote from search snippet».'
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / LINK-1: Verbatim quote .* attributed to .* is absent from the saved observation'):
+			completion.prepare(self.project, fake_quote_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		prepared = completion.prepare(self.project, short_link_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
 	def test_unadopted_substantive_followup_in_tracked_project_cannot_bypass_review(self):
 		marker = self.project / 'ꘖ/project.json'

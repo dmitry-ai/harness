@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -81,7 +84,7 @@ def start(*, state_dir=None):
 		if 'running' == current['status']:
 			return current
 		token = uuid.uuid4().hex
-		args = [sys.executable, str(PRIMARY / 'scripts/upwork_project.py'), 'journal-watch', '--action', 'run', '--state-dir', str(directory), '--token', token]
+		args = [sys.executable, str(PRIMARY / 'scripts/harness.py'), 'journal-watch', '--action', 'run', '--state-dir', str(directory), '--token', token]
 		options = {'cwd': str(HARNESS_ROOT), 'stdin': subprocess.DEVNULL}
 		if 'nt' != os.name:
 			options['start_new_session'] = True
@@ -198,7 +201,7 @@ def run(*, state_dir=None, token=None, interval=5):
 		raise ValueError('Watcher needs its explicit launch ownership token')
 	directory = _folder(state_dir)
 	with locked(directory / 'daemon.lock', timeout=0):
-		marker = {'schema_version': 1, 'pid': os.getpid(), 'token': token, 'started_at': _now(), 'status': 'running', 'script': str(PRIMARY / 'scripts/upwork_project.py')}
+		marker = {'schema_version': 1, 'pid': os.getpid(), 'token': token, 'started_at': _now(), 'status': 'running', 'script': str(PRIMARY / 'scripts/harness.py')}
 		_save(directory / 'daemon.json', marker)
 		try:
 			while _read(directory / 'stop.json', {}).get('token') != token:

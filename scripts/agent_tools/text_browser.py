@@ -4,18 +4,24 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 from contextlib import contextmanager
 from copy import deepcopy
+from datetime import datetime, timezone
 from fnmatch import fnmatchcase
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import threading
-from urllib.parse import urlsplit
+import time
+from urllib.parse import urldefrag, urlsplit
 from urllib.request import urlopen
-from .runtime import HARNESS_META, settings
-from .storage import locked
+from .runtime import HARNESS_META, platform_settings, settings
+from .storage import create_bytes, locked
 _LOCKS, _LOCKS_GUARD = ({}, threading.Lock())
 _READ = frozenset({'DOM.getDocument', 'DOM.getOuterHTML', 'DOM.describeNode', 'DOM.querySelector', 'DOM.querySelectorAll', 'DOM.getAttributes', 'DOM.getBoxModel', 'Page.getFrameTree', 'Page.getLayoutMetrics', 'Page.getResourceTree', 'Page.getNavigationHistory', 'Network.getResponseBody', 'Runtime.getProperties', 'Accessibility.getFullAXTree', 'Accessibility.getPartialAXTree', 'Browser.getWindowForTarget'})
 _NAVIGATE = frozenset({'Page.navigate', 'Page.reload', 'Page.navigateToHistoryEntry'})
@@ -286,7 +292,7 @@ class GuardedCDP:
 						owned['url'] = after['target']['url']
 			r = (result, deepcopy(report)) if include_identity else result
 		return r
-	def create_target(self, url):
+	def create_target(self, url, *, background=False):
 		if 'browser' != self.session['surface']:
 			raise PermissionError('Desktop application window creation is unsupported')
 		self._permitted('create')
@@ -294,7 +300,8 @@ class GuardedCDP:
 			raise PermissionError('New target URL is outside the authorized session')
 		with self._lock():
 			report = self._check()
-			result = self.call_native(report['browser']['websocket_url'], 'Target.createTarget', {'url': url, 'newWindow': True})
+			create_params = {'url': url, 'background': True} if background else {'url': url, 'newWindow': True}
+			result = self.call_native(report['browser']['websocket_url'], 'Target.createTarget', create_params)
 			identifier = result.get('targetId') if isinstance(result, dict) else None
 			if not isinstance(identifier, str) or not identifier or identifier == report['target']['id']:
 				raise RuntimeError('Browser did not return a distinct created target ID; no ownership is assigned')
@@ -303,7 +310,7 @@ class GuardedCDP:
 			if not created['valid'] or created['browser']['websocket_url'] != report['browser']['websocket_url']:
 				raise RuntimeError('Created target could not be verified in the same browser; it was left open without ownership')
 			self._owned[identifier] = {'browser': report['browser']['websocket_url'], 'url': url}
-			r = {'target_id': identifier, 'owner': 'this-guard', 'session_id': self.spec['session_id'], 'new_window': True, 'browser': report['browser']['websocket_url']}
+			r = {'target_id': identifier, 'owner': 'this-guard', 'session_id': self.spec['session_id'], 'new_window': not background, 'background': bool(background), 'browser': report['browser']['websocket_url']}
 		return r
 	def select_owned(self, identifier):
 		with self._lock():
@@ -311,3 +318,131 @@ class GuardedCDP:
 				raise PermissionError('Target was not created by this guard')
 			self.spec['target_id'] = identifier
 			self.spec.pop('target_url', None)
+_CDP_CHALLENGE_RE = re.compile('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__|enable javascript and cookies|name=["\\\'](?:js_challenge|jsc_token)["\\\']|cf-browser-verification|cf_chl_opt|challenge-platform|<noscript>[^<]*enable javascript')
+@contextmanager
+def _endpoint_lock(endpoint, config):
+	key = hashlib.sha256(endpoint.encode()).hexdigest()
+	with _LOCKS_GUARD:
+		lock = _LOCKS.setdefault(key, threading.Lock())
+	cfg_ws = Path(config['workspace_root']).resolve()
+	default_ws = Path(settings()['workspace_root']).resolve()
+	lock_dir = HARNESS_META / 'ꘖ/data/browser-locks' if cfg_ws == default_ws else cfg_ws / 'ꘖ/data/browser-locks'
+	path = lock_dir / f'{key}.lock'
+	with lock, locked(path):
+		yield
+def resolve_cdp_port(config=None, explicit_port=None):
+	if None is not explicit_port:
+		r = int(explicit_port)
+	else:
+		cfg = settings() if None is config else config
+		try:
+			plat_port = platform_settings().get('browser', {}).get('cdp_port')
+		except Exception:
+			plat_port = None
+		if not plat_port:
+			for plat_cfg in (cfg.get('platforms') or {}).values():
+				if isinstance(plat_cfg, dict) and isinstance(plat_cfg.get('browser'), dict) and plat_cfg['browser'].get('cdp_port'):
+					plat_port = plat_cfg['browser']['cdp_port']
+					break
+		r = int(plat_port or 9222)
+	return r
+def collect_cdp_dom(root, url, *, cdp_port=None, timeout=15, config=None, http_get=None, cdp_call=None):
+	if None is root or not str(root).strip():
+		raise ValueError('An explicit project root is required')
+	root_path = Path(root).resolve()
+	if not root_path.is_dir():
+		raise ValueError('Project root is not a directory')
+	cfg = settings() if None is config else deepcopy(config)
+	port = resolve_cdp_port(cfg, cdp_port)
+	endpoint = _endpoint({'endpoint': f'http://127.0.0.1:{port}'})
+	get, call = (http_get or _http_json, _transport(cfg, cdp_call))
+	clean_url = urldefrag(url)[0]
+	parsed_req = urlsplit(clean_url)
+	if parsed_req.scheme not in ('http', 'https') or not parsed_req.hostname:
+		raise ValueError('A valid HTTP(S) URL is required for CDP DOM collection')
+	with _endpoint_lock(endpoint, cfg):
+		version, targets = (get(endpoint + '/json/version'), get(endpoint + '/json/list'))
+		if not isinstance(version, dict) or not isinstance(targets, list):
+			raise ValueError('Invalid CDP discovery response')
+		browser_ws = _checked_ws(version.get('webSocketDebuggerUrl'), endpoint)
+		if not urlsplit(browser_ws).path.startswith('/devtools/browser/'):
+			raise ValueError('Discovery did not expose a browser endpoint')
+		profile_info = {'status': 'unverified'}
+		try:
+			observed_cmd = call(browser_ws, 'Browser.getBrowserCommandLine', {})
+			arguments = observed_cmd.get('arguments') if isinstance(observed_cmd, dict) else None
+			if isinstance(arguments, list):
+				udd = _argument_values(arguments, '--user-data-dir')
+				if udd:
+					profile_info = {'status': 'observed', 'argument': '--user-data-dir', 'observed': udd[0], 'evidence_method': 'Browser.getBrowserCommandLine'}
+		except Exception:
+			pass
+		existing_matches = [t for t in targets if isinstance(t, dict) and 'page' == t.get('type') and (urldefrag(t.get('url', ''))[0] == clean_url) and t.get('webSocketDebuggerUrl')]
+		expr = '({url:location.href,html:document.documentElement?document.documentElement.outerHTML:"",title:document.title||"",readyState:document.readyState||"",textLen:document.body?(document.body.innerText||"").trim().length:0})'
+		data = None
+		closed = False
+		if existing_matches:
+			target = existing_matches[0]
+			target_id = target.get('id')
+			target_mode = 'existing_readonly_tab'
+			target_ws = _checked_ws(target.get('webSocketDebuggerUrl'), endpoint)
+			if not urlsplit(target_ws).path.startswith('/devtools/page/'):
+				raise ValueError('Selected existing tab has no page websocket')
+			native = call(target_ws, 'Runtime.evaluate', {'expression': expr, 'throwOnSideEffect': True, 'returnByValue': True})
+			if not isinstance(native, dict) or native.get('exceptionDetails'):
+				raise RuntimeError('Native DOM evaluation on existing tab failed')
+			val = native.get('result', {}).get('value')
+			if not isinstance(val, dict) or not isinstance(val.get('html'), str):
+				raise RuntimeError('Existing tab DOM evaluation returned invalid payload')
+			data = val
+		else:
+			existing_ids = {t.get('id') for t in targets if isinstance(t, dict) and t.get('id')}
+			created_res = call(browser_ws, 'Target.createTarget', {'url': url, 'background': True})
+			target_id = created_res.get('targetId') if isinstance(created_res, dict) else None
+			if not isinstance(target_id, str) or not target_id or target_id in existing_ids:
+				raise RuntimeError('Browser did not return a distinct created background target ID')
+			target_mode = 'temporary_background_tab'
+			deadline = time.time() + max(1.0, float(timeout))
+			try:
+				while True:
+					current_targets = get(endpoint + '/json/list')
+					matches = [t for t in current_targets if isinstance(t, dict) and t.get('id') == target_id and t.get('webSocketDebuggerUrl')] if isinstance(current_targets, list) else []
+					if matches:
+						target_ws = _checked_ws(matches[0].get('webSocketDebuggerUrl'), endpoint)
+						if urlsplit(target_ws).path.startswith('/devtools/page/'):
+							try:
+								native = call(target_ws, 'Runtime.evaluate', {'expression': expr, 'throwOnSideEffect': True, 'returnByValue': True})
+								val = native.get('result', {}).get('value') if isinstance(native, dict) and (not native.get('exceptionDetails')) else None
+								if isinstance(val, dict) and isinstance(val.get('html'), str) and val['html'].strip():
+									data = val
+									html_str = val['html']
+									cur_url = val.get('url') or ''
+									ready = val.get('readyState') in ('complete', 'interactive') and cur_url not in ('', 'about:blank')
+									has_text = (val.get('textLen') or 0) > 0 or bool(re.sub('<(?is)(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', '', html_str).strip())
+									is_challenge = bool(_CDP_CHALLENGE_RE.search(html_str))
+									if None is not cdp_call or (ready and has_text and (not is_challenge)):
+										break
+							except Exception:
+								if None is not cdp_call:
+									raise
+					if None is not cdp_call or time.time() >= deadline:
+						break
+					time.sleep(0.35)
+			finally:
+				try:
+					close_res = call(browser_ws, 'Target.closeTarget', {'targetId': target_id})
+					closed = bool(isinstance(close_res, dict) and close_res.get('success', True))
+				except Exception:
+					pass
+		if not isinstance(data, dict) or not isinstance(data.get('html'), str) or (not data['html'].strip()):
+			raise RuntimeError('CDP DOM capture returned empty or invalid HTML')
+		observed_identity = {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'endpoint': endpoint, 'browser': version.get('Browser'), 'browser_websocket': browser_ws, 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'profile': profile_info}
+		identity_bytes = (json.dumps(observed_identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+		identity_hash = hashlib.sha256(identity_bytes).hexdigest()
+		identity_path = root_path / 'ꘖ/KB/Evidence/CDPSessions' / f'{identity_hash}.json'
+		identity_path.parent.mkdir(parents=True, exist_ok=True)
+		if not identity_path.exists():
+			create_bytes(identity_path, identity_bytes)
+		identity_ref = identity_path.relative_to(root_path / 'ꘖ/KB').as_posix()
+		r = {'url': data.get('url') or url, 'html': data['html'], 'title': data.get('title') or '', 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash, 'endpoint': endpoint}
+	return r

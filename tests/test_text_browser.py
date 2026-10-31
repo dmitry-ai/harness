@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce browser CDP DOM collection for JS/anti-bot pages, block search-snippet citation substitution, and extract universal harness.py CLI":
+# https://github.com/dmitry-ai/harness/issues/27
 from copy import deepcopy
 import json
 from pathlib import Path
@@ -38,6 +41,10 @@ class NativeFixture:
 		elif 'Target.createTarget' == method:
 			self.targets.append({'id': 'owned', 'type': 'page', 'url': params['url'], 'title': 'New', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/owned'})
 			r = {'targetId': 'owned'}
+		elif 'Target.closeTarget' == method:
+			tid = params.get('targetId')
+			self.targets = [t for t in self.targets if t.get('id') != tid]
+			r = {'success': True}
 		elif 'Page.navigate' != method:
 			r = {'ok': True}
 		else:
@@ -260,5 +267,52 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertFalse(errors)
 		self.assertEqual(maximum, 1)
 		self.assertEqual([method for _, method, _ in self.native.calls], ['Browser.getBrowserCommandLine', 'DOM.getDocument'] * 2)
+	def test_collect_browser_reuses_open_user_tab_or_opens_and_closes_background_tab(self):
+		from agent_tools.research import collect_browser
+		native = NativeFixture()
+		reddit_url = 'https://www.reddit.com/r/GoogleGeminiAI/comments/1abc/post/'
+		rendered_html = '<html><head><title>Google Antigravity Thread</title></head><body><h1>Google Antigravity Thread</h1><div id="t1_nvz0p8c"><p>I hit a brick wall with Google Antigravity in production.</p></div></body></html>'
+		def call(endpoint, method, params):
+			if 'Runtime.evaluate' != method:
+				return native.call(endpoint, method, params)
+			native.calls.append((endpoint, method, deepcopy(params)))
+			return {'result': {'type': 'object', 'value': {'readyState': 'complete', 'url': reddit_url, 'title': 'Google Antigravity Thread', 'html': rendered_html, 'textLen': 65}}}
+		obs_bg = collect_browser(self.root, reddit_url, cdp_port=9222, http_get=native.get, cdp_call=call)
+		self.assertEqual(obs_bg['kind'], 'dom')
+		self.assertEqual(obs_bg['collector'], 'read-only-dom')
+		self.assertFalse(obs_bg.get('browser_check_required'))
+		self.assertGreater(obs_bg.get('word_count', 0), 0)
+		create_calls = [params for _, method, params in native.calls if 'Target.createTarget' == method]
+		close_calls = [params for _, method, params in native.calls if 'Target.closeTarget' == method]
+		self.assertEqual(len(create_calls), 1)
+		self.assertTrue(create_calls[0].get('background'))
+		self.assertFalse(create_calls[0].get('newWindow', False))
+		self.assertEqual(close_calls, [{'targetId': 'owned'}])
+		native.calls.clear()
+		native.targets[0]['url'] = reddit_url
+		obs_user = collect_browser(self.root, reddit_url, cdp_port=9222, http_get=native.get, cdp_call=call, refresh_reason='verify user tab reuse')
+		self.assertEqual(obs_user['kind'], 'dom')
+		self.assertFalse(any(('Target.createTarget' == m for _, m, _ in native.calls)))
+		self.assertFalse(any(('Target.closeTarget' == m for _, m, _ in native.calls)))
+	def test_collect_http_auto_fallback_to_browser_on_reddit_js_challenge_shell(self):
+		from agent_tools.research import Response, collect_http
+		native = NativeFixture()
+		reddit_url = 'https://www.reddit.com/r/GoogleGeminiAI/comments/1abc/post/'
+		js_shell = ('<!DOCTYPE html><html><head><title>Reddit</title><style>' + ('body{}' * 1400) + '</style></head><body><form><input type="hidden" name="js_challenge" value="1"/></form></body></html>').encode('utf-8')
+		self.assertGreater(len(js_shell), 8000)
+		rendered_html = '<html><head><title>Google Antigravity Thread</title></head><body><h1>Google Antigravity Thread</h1><div id="t1_nvz0p8c"><p>Verified DOM body from user browser session.</p></div></body></html>'
+		def call(endpoint, method, params):
+			if 'Runtime.evaluate' != method:
+				return native.call(endpoint, method, params)
+			native.calls.append((endpoint, method, deepcopy(params)))
+			return {'result': {'type': 'object', 'value': {'readyState': 'complete', 'url': reddit_url, 'title': 'Google Antigravity Thread', 'html': rendered_html, 'textLen': 48}}}
+		obs_never = collect_http(self.root, reddit_url, fetcher=lambda u, h, t: Response(u, 200, 'text/html', js_shell), browser='never')
+		self.assertTrue(obs_never.get('browser_check_required'))
+		self.assertEqual(obs_never.get('word_count'), 0)
+		obs_auto = collect_http(self.root, reddit_url, fetcher=lambda u, h, t: Response(u, 200, 'text/html', js_shell), browser='auto', cdp_port=9222, http_get=native.get, cdp_call=call, refresh_reason='auto browser fallback')
+		self.assertEqual(obs_auto['kind'], 'dom')
+		self.assertTrue(obs_auto.get('browser_fallback_from_http'))
+		self.assertFalse(obs_auto.get('browser_check_required'))
+		self.assertGreater(obs_auto.get('word_count', 0), 0)
 if '__main__' == __name__:
 	unittest.main()

@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
+# https://github.com/dmitry-ai/harness/issues/27
 import argparse
 import hashlib
 import json
@@ -295,7 +298,7 @@ def run(args):
 		if args.command in COMMANDS:
 			result = execute(args)
 			print(json.dumps(result, ensure_ascii=False, indent=2))
-			if False is result.get('valid') or False is result.get('complete') or False is result.get('content_available_for_all') or result.get('error') or ('conflict' == result.get('status')) or ('conflict' == result.get('publication', {}).get('status')):
+			if False is result.get('valid') or False is result.get('complete') or False is result.get('content_available_for_all') or result.get('error') or result.get('extraction_error') or True is result.get('browser_check_required') or ('conflict' == result.get('status')) or ('conflict' == result.get('publication', {}).get('status')):
 				return 2
 			return 0
 		if 'doctor' == args.command:

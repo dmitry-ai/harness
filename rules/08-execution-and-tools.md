@@ -8,7 +8,7 @@ Perform any repeatable operation with an existing tool or a single parameterized
 Do not write a one-off script for each special case or hardcode the expected answer into evidence.  
 Internal tools are documented in `scripts/README-agent-tools.md`; rule files do not execute scripts themselves.  
 Save an HTTP response and its observation conditions once; run subsequent extractions against the saved capture.  
-Use `upwork_project.py collect-http` for a single HTTP(S) observation and `collect` for batch collection; direct network requests (`urllib`/`requests`/`Invoke-WebRequest`/`curl`) in the shell that bypass the evidence store are blocked.  
+Use `harness.py collect-http` or `collect-browser` for a single observation and `collect` for batch collection (`upwork_project.py` remains a compatibility alias), with automatic CDP browser fallback (`--browser auto` on `cdp_port: 9222`) when HTTP returns an anti-bot challenge or empty JS shell; direct network requests (`urllib`/`requests`/`Invoke-WebRequest`/`curl`) in the shell that bypass the evidence store and substituting `search_web` snippets for primary page observations are blocked.  
 Changed conditions, required refreshes, and longitudinal measurements are separate observations with an explicit reason.  
 After three fruitless searches on the same question, return the specific gap or justify a method change; hitting the search limit does not confirm a hypothesis.  
 ## EXEC-2
@@ -26,7 +26,7 @@ In asynchronous workflows, distinguish submission, acceptance, execution, and re
 Before retrying, check whether the first request was accepted; do not promise background continuation without a working mechanism.  
 ## EXEC-5
 Before any Git operation, verify the repository root, branch, and remote; commit only an explicit file list in the established order, without unrelated changes or Git hooks.  
-Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (preferably via `upwork_project.py git-read` or with `GIT_OPTIONAL_LOCKS=0`; do not combine `git` calls with initial rule reading before `turn-begin` completes).  
+Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (preferably via `harness.py git-read` or with `GIT_OPTIONAL_LOCKS=0`; do not combine `git` calls with initial rule reading before `turn-begin` completes).  
 Create, edit, comment on, and close GitHub issues per the [df-github-issue](../skills/df-github-issue/SKILL.md) skill via `df_github_issue.py` using a UTF-8 file without BOM (`--body-file`) and mandatory read-back verification; never pass Markdown bodies via `--body`/`--comment` on the command line or through a PowerShell pipeline without UTF-8.  
 Perform any code changes in `code` repositories strictly by first creating or linking a GitHub Issue via `/df-github-issue`, referencing the full issue URL in the commit message and relevant code comments, and closing the issue via `df_github_issue.py close` after `git push`, while maintaining the Unified Journal `ꙮ`.  
 External actions are governed by [SCOPE-2](00-scope.md#scope-2).  
