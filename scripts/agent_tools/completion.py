@@ -345,7 +345,7 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 								is_html = 'html' in ctype or '<title' in raw_text[:4000].lower() or raw_text.lstrip().lower().startswith(('<!doctype html', '<html'))
 								if is_html:
 									if not ext_files:
-										body_plain = re.sub('<(?is)(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', ' ', raw_text)
+										body_plain = re.sub('<(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', ' ', raw_text, flags=re.I | re.S)
 										if _CHALLENGE_RE.search(raw_text) or not re.findall('\\w+', body_plain):
 											is_shell_or_empty = True
 											shell_reason = 'unextracted HTML JS challenge or empty shell'
