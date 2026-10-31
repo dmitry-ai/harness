@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
+# https://github.com/dmitry-ai/harness/issues/28
 import os
 from pathlib import Path
 import re
@@ -99,6 +102,8 @@ def unflagged_git_read_commands(text: str) -> list[str]:
 					exec_cmds.append(_unquote(raw_lit))
 		candidates = exec_cmds if exec_cmds else [text]
 		for candidate in candidates:
+			if re.search('(?:\\$env:)?GIT_OPTIONAL_LOCKS\\s*=\\s*["\']?0["\']?', candidate):
+				continue
 			cleaned = re.sub('@\'[\\s\\S]*?\'@|@\\"[\\s\\S]*?\\"@', '""', candidate)
 			cleaned = re.sub('(\\bpython(?:3)?(?:\\.exe)?\\s+(?:-[A-Za-z]+\\s+)*-c\\s+)(?:"(?:\\\\.|[^"\\\\])*"|\\\'(?:\\\'\\\'|[^\\\'])*\\\')', '\\1""', cleaned)
 			for segment in _split_shell_segments(cleaned):

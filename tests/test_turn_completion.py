@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce browser CDP DOM collection for JS/anti-bot pages, block search-snippet citation substitution, and extract universal harness.py CLI":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
+# https://github.com/dmitry-ai/harness/issues/28
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -111,6 +114,12 @@ class CompletionCase(unittest.TestCase):
 		result = self.prepare('Allowed response')
 		self.assertTrue(result['ready'])
 		self.assertTrue(result['exec5_check']['verified'])
+	def test_unflagged_git_read_allows_env_assignment(self):
+		from agent_tools.git_gate import unflagged_git_read_commands
+		self.assertEqual(unflagged_git_read_commands('$env:GIT_OPTIONAL_LOCKS="0"; git status --short'), [])
+		self.assertEqual(unflagged_git_read_commands('GIT_OPTIONAL_LOCKS=0 git status --short'), [])
+		self.assertEqual(unflagged_git_read_commands('git --no-optional-locks status --short'), [])
+		self.assertEqual(unflagged_git_read_commands('git status --short'), ['git status --short'])
 	def test_codex_compaction_and_adhoc_http_fetch_gates(self):
 		self.rows.append({'type': 'response_item', 'payload': {'type': 'custom_tool_call', 'call_id': 'c-http', 'name': 'exec', 'input': "exec_command({ cmd: 'curl.exe https://df.tips/t/2722' })"}})
 		self.write()

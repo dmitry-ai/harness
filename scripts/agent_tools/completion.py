@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
+# https://github.com/dmitry-ai/harness/issues/28
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -289,9 +292,10 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 		observed_texts = {}
 		invalid_observations = {}
 		ev_dirs = []
-		for candidate_ev in (root / 'ꘖ/KB/Evidence', root / '_/ꘖ/KB/Evidence'):
-			if candidate_ev.is_dir() and candidate_ev.resolve() not in ev_dirs:
-				ev_dirs.append(candidate_ev.resolve())
+		if (root / '_/ꘖ/KB/Evidence').is_dir():
+			ev_dirs.append((root / '_/ꘖ/KB/Evidence').resolve())
+		elif (root / 'ꘖ/KB/Evidence').is_dir():
+			ev_dirs.append((root / 'ꘖ/KB/Evidence').resolve())
 		for ev_dir in ev_dirs:
 			for jfile in ev_dir.rglob('*.json'):
 				try:

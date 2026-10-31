@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
+# https://github.com/dmitry-ai/harness/issues/28
 from __future__ import annotations
 import argparse
 import json
@@ -15,6 +18,7 @@ import re
 import subprocess
 import sys
 from typing import Any
+from .runtime import HARNESS_META
 REPO_RE = re.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
 def normalize_newlines(text: str) -> str:
 	return text.replace('\r\n', '\n').replace('\r', '\n')
@@ -141,14 +145,20 @@ def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, f
 		return None
 	meta_dir = None
 	for fpath, _ in source_files:
-		for parent in fpath.resolve().parents:
+		resolved_path = fpath.resolve()
+		for parent in resolved_path.parents:
 			if 'ꘖ' == parent.name:
-				meta_dir = parent
+				if parent.parent.name == 'harness' and (parent.parent / '_/ꘖ').is_dir():
+					meta_dir = parent.parent / '_' / 'ꘖ'
+				else:
+					meta_dir = parent
 				break
 		if None is not meta_dir:
 			break
 	if None is meta_dir:
-		return None
+		meta_dir = HARNESS_META / 'ꘖ'
+	if not meta_dir.exists():
+		meta_dir.mkdir(parents=True, exist_ok=True)
 	safe_repo = repo.replace('/', '__')
 	ident = fetched.get('number') if 'issue' == kind else fetched.get('id')
 	if None is ident:
@@ -158,10 +168,6 @@ def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, f
 	target = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'{kind}-{ident}.json'
 	target.parent.mkdir(parents=True, exist_ok=True)
 	target.write_bytes(payload_bytes)
-	if '_' == meta_dir.parent.name and (meta_dir.parent.parent / 'ꘖ').is_dir():
-		mirror = meta_dir.parent.parent / 'ꘖ/KB/Evidence/GitHub' / safe_repo / f'{kind}-{ident}.json'
-		mirror.parent.mkdir(parents=True, exist_ok=True)
-		mirror.write_bytes(payload_bytes)
 	return str(target)
 def _resolve_title(args: argparse.Namespace, consumable: list[tuple[Path, bytes]]) -> str | None:
 	if getattr(args, 'title_file', None):
