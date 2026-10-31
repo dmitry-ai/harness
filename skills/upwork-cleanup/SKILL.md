@@ -25,7 +25,7 @@ Determine the active platform from the conversation and pass `--platform codex` 
    Publish the verbatim `answer` field returned by the command: it contains the exact bytes written and verified by read-back.  
    Logging is mandatory even for dry-run previews, zero candidates, waiting on a closed profile, or cleanup errors; intermediate JSON dumps never substitute for the final response.  
 
-The response log is saved to `C:/work/upwork/code/AI/log/cleanup/YYYY/MM/DD--HH-mm.md`.  
+The response log is saved to `C:/work/research/provision/code/AI/harness/_/Data/Log/cleanup/YYYY/MM/DD--HH-mm.md`.  
 The first line is the `Europe/Istanbul` timestamp in `2026-10-18 00:49 UTC+3` format, followed by a blank line and the full response.  
 Both the first-line timestamp and the file path derive from the same instant; subsequent reports within the same minute receive suffixes `--2`, `--3`, etc., without overwriting existing logs.  
 If writing the log fails, report the write error; never claim that the log was saved when it failed.  

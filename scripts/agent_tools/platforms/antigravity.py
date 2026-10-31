@@ -19,6 +19,14 @@ from ..storage import create_bytes, replace_bytes, locked
 from .request_binding import native_project_fields
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
 ANTIGRAVITY_FOLDERS_JSON = Path(platform_settings('antigravity')['folders_json'])
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
+# https://github.com/dmitry-ai/harness/issues/29
+def resource_uri(res):
+	if not isinstance(res, dict):
+		return None
+	r = res.get('folderUri') or (res.get('gitFolder') or {}).get('folderUri') or (res.get('folder') or {}).get('folderUri')
+	return r if isinstance(r, str) and r.strip() else None
 def folder_path(uri):
 	path = unquote(uri[7:]) if uri.startswith('file://') else uri
 	if re.match('^/[A-Za-z]:/', path):
@@ -51,7 +59,7 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None, pr
 		for path in projects.glob('*.json'):
 			item = json.loads(path.read_text(encoding='utf-8-sig'))
 			resources = (item.get('projectResources') or {}).get('resources') or []
-			if any((res.get('folderUri') and folder_path(res['folderUri']) == root for res in resources)):
+			if any((resource_uri(res) and folder_path(resource_uri(res)) == root for res in resources)):
 				ident, payload, destination = (item.get('id') or path.stem, item, path)
 				break
 		if None is ident:
@@ -487,6 +495,20 @@ def _native_inputs(backend, conversation_id):
 		inputs.append((index, text))
 	r = inputs
 	return r
+def _project_roots(backend, project_id):
+	if not isinstance(project_id, str) or not project_id.strip() or project_id in ('outside-of-project', 'default-cli-project'):
+		return []
+	from .request_binding import canonical_path
+	candidate = Path(backend).resolve().parent / 'config/projects' / f'{project_id}.json'
+	if not candidate.is_file():
+		return []
+	try:
+		data = json.loads(candidate.read_text(encoding='utf-8-sig'))
+		resources = (data.get('projectResources') or {}).get('resources') or []
+		r = [canonical_path(folder_path(resource_uri(res))) for res in resources if resource_uri(res)]
+	except Exception:
+		r = []
+	return r
 def _workspace_context(backend, conversation_id):
 	file = backend / 'conversation_summaries.db'
 	if not file.is_file():
@@ -496,16 +518,24 @@ def _workspace_context(backend, conversation_id):
 		columns = {row[1] for row in conn.execute('PRAGMA table_info(conversation_summaries)')}
 		if 'workspace_uris' not in columns:
 			return []
-		row = conn.execute('SELECT workspace_uris FROM conversation_summaries WHERE conversation_id=?', (conversation_id,)).fetchone()
+		sel = 'SELECT workspace_uris, project_id FROM conversation_summaries WHERE conversation_id=?' if 'project_id' in columns else 'SELECT workspace_uris, NULL FROM conversation_summaries WHERE conversation_id=?'
+		row = conn.execute(sel, (conversation_id,)).fetchone()
 	finally:
 		conn.close()
 	roots = json.loads(row[0]) if row and row[0] else []
+	project_id = row[1] if row and len(row) > 1 else None
 	if not isinstance(roots, list) or any((not isinstance(root, str) or not root.startswith('file://') for root in roots)):
 		raise ValueError('Native Antigravity workspace_uris format is unsupported')
+	from .request_binding import canonical_path
+	p_roots = _project_roots(backend, project_id)
 	if not roots:
-		return []
-	root = str(folder_path(roots[0])) if 1 == len(roots) else None
-	return [(-1, root, 'antigravity-workspace-uris')]
+		return [(-1, str(p_roots[0]), 'antigravity-project-id')] if 1 == len(p_roots) else []
+	if 1 == len(roots):
+		w_path = canonical_path(folder_path(roots[0]))
+		if not w_path.exists() and 1 == len(p_roots) and p_roots[0].exists():
+			return [(-1, str(p_roots[0]), 'antigravity-project-id')]
+		return [(-1, str(w_path), 'antigravity-workspace-uris')]
+	return [(-1, None, 'antigravity-workspace-uris')]
 def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None):
 	from .request_binding import native_project_id, scoped_inputs
 	job_id = identifier if None is not identifier else native_project_id(root)

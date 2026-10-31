@@ -205,3 +205,26 @@ class AntigravityContinuationTests(ProjectCase):
 		self.assertEqual([item['text'] for item in antigravity.native_requests(self.project, self.parent, backend=self.backend)], [texts[0]])
 		with self.assertRaises(ValueError):
 			antigravity.require_current_binding(self.project, self.parent, backend=self.backend)
+	# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
+	# https://github.com/dmitry-ai/harness/issues/29
+	def test_git_folder_project_id_fallback_and_relocated_root_canonicalization(self):
+		from agent_tools.platforms.request_binding import _same_root
+		self.assertTrue(_same_root('C:/work/research/provision/code/Software/OpenAI/Codex', 'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons'))
+		self.assertTrue(_same_root('C:/work/research/provision/code/Software/Google/AI/Antigravity', 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons'))
+		self.assertTrue(_same_root('C:/work/upwork/code/AI', 'C:/work/research/provision/code/AI/harness'))
+		self.assertTrue(_same_root('C:/work/research/provision/code/AI/primary', 'C:/work/research/provision/code/AI/harness'))
+		pid = 'cd16380f-c085-4876-a083-62bf924eda55'
+		projects_dir = self.backend.parent / 'config/projects'
+		projects_dir.mkdir(parents=True, exist_ok=True)
+		(projects_dir / f'{pid}.json').write_text(json.dumps({'id': pid, 'name': 'Test', 'projectResources': {'resources': [{'gitFolder': {'folderUri': self.project.as_uri()}}]}}), encoding='utf-8')
+		conn = sqlite3.connect(self.backend / 'conversation_summaries.db')
+		try:
+			conn.execute('ALTER TABLE conversation_summaries ADD COLUMN project_id TEXT')
+			conn.execute('UPDATE conversation_summaries SET workspace_uris=?, project_id=? WHERE conversation_id=?', ('[]', pid, self.parent))
+			conn.commit()
+		finally:
+			conn.close()
+		requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		self.assertEqual(requests[0]['project_binding']['kind'], 'antigravity-project-id')
+		self.assertEqual(Path(requests[0]['project_binding']['root']).resolve(), self.project.resolve())

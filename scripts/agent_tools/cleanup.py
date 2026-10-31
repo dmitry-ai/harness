@@ -144,12 +144,20 @@ def candidates(daily, config, now):
 			issues.append({'root': str(root), 'error': str(exc)})
 	r = (values, issues)
 	return r
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
+# https://github.com/dmitry-ai/harness/issues/29
+def _resource_uri(res):
+	if not isinstance(res, dict):
+		return None
+	r = res.get('folderUri') or (res.get('gitFolder') or {}).get('folderUri') or (res.get('folder') or {}).get('folderUri')
+	return r if isinstance(r, str) and r.strip() else None
 def antigravity_projects(directory, root):
 	matches = []
 	for path in sorted(directory.glob('*.json')):
 		value = _json(path)
 		resources = (value.get('projectResources') or {}).get('resources') or []
-		roots = [path_key(res['folderUri']) for res in resources if res.get('folderUri')]
+		roots = [path_key(_resource_uri(res)) for res in resources if _resource_uri(res)]
 		if path_key(root) in roots:
 			if roots != [path_key(root)]:
 				raise ValueError('Antigravity multi-root project preserved')
@@ -168,7 +176,7 @@ def antigravity_projects(directory, root):
 				raise ValueError('Pending Antigravity project changed its workspace')
 			payload = base64.b64decode(saved['payload'], validate=True)
 			restored = json.loads(payload.decode('utf-8-sig'))
-			roots = [path_key(r['folderUri']) for r in restored['projectResources']['resources']]
+			roots = [path_key(_resource_uri(r)) for r in restored['projectResources']['resources'] if _resource_uri(r)]
 			if restored.get('id') != ident or roots != [path_key(root)]:
 				raise ValueError('Pending Antigravity payload changed identity')
 			matches.append({'id': ident, 'file': str(path), 'sha': None, 'restore': payload})

@@ -44,15 +44,29 @@ def completion_project_id(root):
 	else:
 		r = text_project_id(root)
 	return r
-def _canonical_root(value):
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
+# https://github.com/dmitry-ai/harness/issues/29
+_RELOCATED_ROOTS = {
+	'c:/work/upwork/code/ai': 'C:/work/research/provision/code/AI/harness',
+	'c:/work/upwork/code/ai/primary': 'C:/work/research/provision/code/AI/harness',
+	'c:/work/upwork/code/ai/primary/' + 'result': 'C:/work/research/provision/code/AI/harness',
+	'c:/work/research/provision/code/ai/primary': 'C:/work/research/provision/code/AI/harness',
+	'c:/work/research/provision/code/ai/harness': 'C:/work/research/provision/code/AI/harness',
+	'c:/work/research/provision/code/software/openai/codex': 'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons',
+	'c:/work/research/provision/code/ai/products/openai/chatgpt/desktop/addons': 'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons',
+	'c:/work/research/provision/code/software/google/ai/antigravity': 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons',
+	'c:/work/research/provision/code/ai/products/google/antigravity/addons': 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons',
+}
+def canonical_path(value):
 	path = Path(value).resolve()
 	if path.name in ('code', '_') and (path.parent / 'code').is_dir() and (path.parent / '_').is_dir():
 		path = path.parent.resolve()
 	norm = str(path).replace('\\', '/').rstrip('/').lower()
-	if norm in ('c:/work/upwork/code/ai', 'c:/work/upwork/code/ai/primary', 'c:/work/upwork/code/ai/primary/' + 'result', 'c:/work/research/provision/code/ai/harness'):
-		r = 'c:/work/research/provision/code/ai/harness'
-	else:
-		r = norm
+	r = Path(_RELOCATED_ROOTS[norm]).resolve() if norm in _RELOCATED_ROOTS else path
+	return r
+def _canonical_root(value):
+	r = str(canonical_path(value)).replace('\\', '/').rstrip('/').lower()
 	return r
 def _same_root(value, root):
 	if not isinstance(value, str) or not value.strip() or (not Path(value).is_absolute()):
@@ -80,7 +94,7 @@ def scoped_inputs(root, job_id, inputs, contexts=(), *, until=None):
 	selected, active, previous_root, binding = ([], False, object(), None)
 	for step, kind, value, source in events:
 		if 0 == kind:
-			normalized = str(Path(value).resolve()) if value else None
+			normalized = str(canonical_path(value)) if value else None
 			if normalized != previous_root:
 				previous_root, active = (normalized, _same_root(normalized, root))
 				binding = {'kind': source, 'native_step': step, 'root': normalized}

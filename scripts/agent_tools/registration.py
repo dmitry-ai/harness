@@ -45,8 +45,9 @@ def validate_registration(project, label, day, platform, result):
 	roots = value.get('root_paths')
 	if 'antigravity' == platform and value.get('project_file'):
 		native = json.loads(Path(value['project_file']).read_text(encoding='utf-8-sig'))
-		from .platforms.antigravity import folder_path
-		roots = [str(folder_path(item['folderUri'])) for item in native.get('projectResources', {}).get('resources', []) if item.get('folderUri')]
+		# https://github.com/dmitry-ai/harness/issues/29
+		from .platforms.antigravity import folder_path, resource_uri
+		roots = [str(folder_path(resource_uri(item))) for item in native.get('projectResources', {}).get('resources', []) if resource_uri(item)]
 		if native.get('name') != value.get('project_name'):
 			issues.append('Native project name differs from the registration receipt')
 		if native.get('id') and native['id'] != value.get('project_id'):
