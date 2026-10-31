@@ -10,6 +10,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
 # https://github.com/dmitry-ai/harness/issues/28
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
+# https://github.com/dmitry-ai/harness/issues/30
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -234,7 +237,7 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 						for gq in guillemets:
 							attributed_quotes.append((target_href, gq))
 					else:
-						m_orig = re.search('(?:Оригинал|Original)\\s*:\\s*["«]?(.{20,})["»]?$', block.content.strip(), re.I | re.S)
+						m_orig = re.search('(?:\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b|Original)\\s*:\\s*["«]?(.{20,})["»]?$', block.content.strip(), re.I | re.S)
 						if m_orig:
 							attributed_quotes.append((target_href, m_orig.group(1).strip(' "«»')))
 			continue
@@ -621,6 +624,26 @@ def _group(root, native, turn, response, directory):
 	return (key, native_ids)
 def _recorded(value):
 	return next((receipt for receipt in (value.get('prepared'), value.get('journal_record'), value.get('delivery')) if isinstance(receipt, dict) and 'journal_steps' in receipt), None)
+def _strip_code_and_urls(text: str) -> str:
+	clean = re.sub('```[\\s\\S]*?```', ' ', text or '')
+	clean = re.sub('`[^`\\n]+`', ' ', clean)
+	clean = re.sub('https?://\\S+', ' ', clean)
+	return clean
+def _intermediate_or_language_issues(requests, response: str) -> list[str]:
+	issues = []
+	if re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', response or ''):
+		issues.append('FILE-3 / REVIEW-1: Response is an intermediate subagent/task waiting status stub rather than a complete final response')
+	req_raw = '\n'.join((r.get('text', '') if isinstance(r, dict) else str(r) for r in requests or []))
+	req_prose = _strip_code_and_urls(req_raw)
+	resp_prose = _strip_code_and_urls(response or '')
+	req_cyr = re.findall('[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', req_prose)
+	req_lat = re.findall('[A-Za-z]', req_prose)
+	resp_cyr = re.findall('[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', resp_prose)
+	resp_lat = re.findall('[A-Za-z]', resp_prose)
+	english_requested = bool(re.search('(?i)\\b(?:in\\s+english|translate\\s+to\\s+english|\\u043d\\u0430\\s+\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u043e\\u043c|\\u043f\\u043e-\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u0438)\\b', req_raw))
+	if 6 <= len(req_cyr) and len(req_lat) < len(req_cyr) and (not english_requested) and (0 == len(resp_cyr)) and (20 <= len(resp_lat)):
+		issues.append('TEXT-1: Request is in Russian (Cyrillic), but the response contains zero Cyrillic prose characters')
+	return issues
 def _record(root, native, turn, response, directory, *, existing=None):
 	directory = _directory(root, directory)
 	from .text_workflow import gate_requests
@@ -628,6 +651,10 @@ def _record(root, native, turn, response, directory, *, existing=None):
 	token, request_ids = _group(root, native, turn, response, directory)
 	group_file = journal.state_dir(directory) / 'answer-groups' / (token + '.json')
 	already_complete = group_file.exists() and 'complete' == _read(group_file).get('status')
+	if not already_complete:
+		lang_issues = _intermediate_or_language_issues(turn['requests'], response)
+		if lang_issues:
+			raise ValueError('; '.join(lang_issues))
 	if existing:
 		if not already_complete:
 			raise ValueError('Recorded answer-group receipt is missing or incomplete; preserve journal history')
@@ -685,6 +712,13 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			raise ValueError(detail)
 		if not value['delegation_check']['verified']:
 			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research ({value['delegation_check']['tool_step_count']} tool steps > {value['delegation_check']['max_unpersisted_steps']}) executed without A.F/A.A subagent delegation or incremental ꘖ/KB persistence"
+			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+			_persist(path, value)
+			raise ValueError(detail)
+		lang_issues = _intermediate_or_language_issues(turn['requests'], response)
+		value['language_and_stub_check'] = {'verified': not lang_issues, 'issues': lang_issues}
+		if lang_issues:
+			detail = '; '.join(lang_issues)
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
@@ -786,6 +820,17 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
 				else:
 					results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
 					continue
+			elif not value['prepared']:
+				j_dir = _directory(root, value['journal'])
+				req_ids = [r['id'] for r in turn['requests']]
+				for g_file in (journal.state_dir(j_dir) / 'answer-groups').glob('*.json'):
+					g_val = _read(g_file)
+					if g_val.get('request_ids') == req_ids and g_val.get('steps'):
+						res_path = j_dir / 'res' / f"{g_val['steps'][0]}.md"
+						res_text = res_path.read_text(encoding='utf-8') if res_path.is_file() else ''
+						if res_text and _strip_local_file_scheme(res_text) == _strip_local_file_scheme(response):
+							effective_response = res_text
+						break
 			try:
 				recorded = _record(root, native, turn, effective_response, value['journal'], existing=_recorded(value))
 			except (OSError, ValueError) as exc:

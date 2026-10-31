@@ -12,6 +12,7 @@ If no suitable A.F is available, A.A performs simple work.
 Do not launch hidden model sessions via CLI: the user invokes `/upwork-init` and observes subagents in the UI.  
 The platform adapter defines native calls and evidence provenance; environment differences do not alter verification criteria.  
 Delegate large-scale primary research (exceeding 40 tool steps in an Upwork project turn) to A.F/A.A subagents or incrementally persist intermediate results in `ꘖ/KB` before exhausting the context window.  
+When woken by a completion message from one of several parallel subagents while sibling subagents are still running, do not publish an intermediate status summary in chat or switch to the subagent's language; wait until all required subagents complete and prepare a single consolidated response via `answer-prepare`.  
 ## REVIEW-2
 A worker assignment includes the goal, exact project root, inputs, permitted actions, and completion criterion.  
 Before investigating, register the question, its impact on the analysis, and a single owner in the registry; reuse already saved results.  

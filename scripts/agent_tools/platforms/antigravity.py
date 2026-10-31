@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
+# https://github.com/dmitry-ai/harness/issues/30
 from pathlib import Path
 from datetime import date
 from urllib.parse import unquote
@@ -611,12 +614,17 @@ def native_answers(root, conversation_id, *, backend=None):
 		kb_persistence_steps = []
 		transcript_read_steps = []
 		tool_records = []
+		spawned_subagents = 0
+		completed_subagents = 0
+		answer_prepared_in_segment = False
 		for pos, row in enumerate(segment):
 			if not isinstance(row, dict):
 				continue
 			step_idx = row.get('step_index')
 			if 'CHECKPOINT' == row.get('type') and isinstance(step_idx, int):
 				checkpoint_steps.append(step_idx)
+			if 'EPHEMERAL_MESSAGE' == row.get('type') and re.search('<SYSTEM_MESSAGE>.*\\bSubagent\\b.*\\bcompleted\\b', str(row.get('content') or ''), re.S):
+				completed_subagents += 1
 			calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 			if calls and isinstance(step_idx, int):
 				tool_steps.append(step_idx)
@@ -646,9 +654,13 @@ def native_answers(root, conversation_id, *, backend=None):
 						bad_http = unpersisted_http_fetch_commands(cmd)
 						if bad_http:
 							http_violations.append({'step': step_idx, 'commands': bad_http})
+						if re.search('\\banswer-prepare\\b', cmd):
+							answer_prepared_in_segment = True
 					if any((tok in args_text for tok in ('transcript_full.jsonl', 'transcript.jsonl', 'recover-checkpoint'))):
 						if step_idx not in transcript_read_steps:
 							transcript_read_steps.append(step_idx)
+					if 'invoke_subagent' == name:
+						spawned_subagents += 1
 					if name in ('invoke_subagent', 'send_message'):
 						if step_idx not in subagent_steps:
 							subagent_steps.append(step_idx)
@@ -665,12 +677,17 @@ def native_answers(root, conversation_id, *, backend=None):
 		idle = 'CASCADE_RUN_STATUS_IDLE' == summary.get('status') and 0 == summary.get('not_fully_idle') and (not summary.get('killed')) and (last_user_idx == start or (0 == start and last_user_idx == -1)) and (last_db_user == start) and (final_step == max(statuses, default=-1))
 		req_id = f'{conversation_id}-{start}'
 		j_entry = journal_groups.get(req_id)
-		if not (not final and None is not end and (None is not j_entry)):
+		last_text = str(last.get('content') or '')
+		intermediate_wait = None is not end and (not answer_prepared_in_segment) and (completed_subagents < spawned_subagents or bool(re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', last_text)))
+		if intermediate_wait:
+			completed = False
+			resp_text = None
+		elif None is not j_entry and (not final or 1 < len(j_entry[0].get('request_ids', []))):
+			completed = req_id == j_entry[0]['request_ids'][-1] and (None is not end or idle)
+			resp_text = (jdir / 'res' / f'{j_entry[1]}.md').read_text(encoding='utf-8') if completed else None
+		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
-		else:
-			completed = req_id == j_entry[0]['request_ids'][-1]
-			resp_text = (jdir / 'res' / f'{j_entry[1]}.md').read_text(encoding='utf-8') if completed else None
 		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records})
 	def _merge_pending(items):
 		first, last = (items[0], items[-1])

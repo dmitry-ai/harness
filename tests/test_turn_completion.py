@@ -10,6 +10,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
 # https://github.com/dmitry-ai/harness/issues/28
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
+# https://github.com/dmitry-ai/harness/issues/30
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -832,6 +835,39 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.write()
 		prepared = completion.prepare(self.project, 'Simple reply.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+	def test_unfinished_parallel_subagent_turn_merges_with_next_request_and_blocks_english_stub_on_russian_request(self):
+		req1 = '\u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0434\u0432\u0435 \u0437\u0430\u0434\u0430\u0447\u0438 \u0432 \u0440\u0435\u043f\u043e\u0437\u0438\u0442\u043e\u0440\u0438\u0438.'
+		req2 = '\u041a\u0430\u043a\u043e\u0439 \u0441\u0442\u0430\u0442\u0443\u0441 \u043f\u043e \u0437\u0430\u0434\u0430\u0447\u0430\u043c?'
+		self.rows = [
+			{'step_index': 0, 'type': 'USER_INPUT', 'content': req1},
+			{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 's1', 'name': 'invoke_subagent', 'args': {'TypeName': 'self'}}, {'id': 's2', 'name': 'invoke_subagent', 'args': {'TypeName': 'self'}}]},
+			{'step_index': 2, 'type': 'EPHEMERAL_MESSAGE', 'content': '<SYSTEM_MESSAGE>\nSubagent 111 completed.\n</SYSTEM_MESSAGE>'},
+			{'step_index': 3, 'type': 'PLANNER_RESPONSE', 'content': 'Subagent 1 finished. Waiting for the remaining 1 subagent to complete.'},
+			{'step_index': 4, 'type': 'USER_INPUT', 'content': req2}
+		]
+		self.write()
+		c = sqlite3.connect(self.backend / 'conversations' / (self.cid + '.db'))
+		c.execute('DELETE FROM steps')
+		c.execute('INSERT INTO steps VALUES(0,14,3,0,?)', (wire(19, wire(2, req1.encode('utf-8'))),))
+		c.execute('INSERT INTO steps VALUES(3,15,3,0,NULL)')
+		c.execute('INSERT INTO steps VALUES(4,14,3,0,?)', (wire(19, wire(2, req2.encode('utf-8'))),))
+		c.commit()
+		c.close()
+		c = sqlite3.connect(self.backend / 'conversation_summaries.db')
+		c.execute('UPDATE conversation_summaries SET last_user_input_step_index=4')
+		c.commit()
+		c.close()
+		native = antigravity.native_answers(self.project, self.cid, backend=self.backend)
+		self.assertEqual(1, len(native['turns']))
+		self.assertEqual([f'{self.cid}-0', f'{self.cid}-4'], [r['id'] for r in native['turns'][0]['requests']])
+		with self.assertRaisesRegex(ValueError, 'FILE-3 / REVIEW-1'):
+			completion.prepare(self.project, 'Waiting for the remaining 1 subagent to complete.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		with self.assertRaisesRegex(ValueError, 'TEXT-1'):
+			completion.prepare(self.project, 'All subagent tasks were verified and completed without errors.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		final_ru = '\u041e\u0431\u0435 \u0437\u0430\u0434\u0430\u0447\u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u044b \u0438 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u044b.'
+		prepared = completion.prepare(self.project, final_ru, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+		self.assertEqual([1, 2], prepared['journal_steps'])
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

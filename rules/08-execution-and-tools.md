@@ -24,6 +24,7 @@ Do not terminate the shared browser or delete its lock files.
 ## EXEC-4
 In asynchronous workflows, distinguish submission, acceptance, execution, and result retrieval; track response IDs and timeouts.  
 Before retrying, check whether the first request was accepted; do not promise background continuation without a working mechanism.  
+Bound background commands, browser fixtures, and subagent waits with explicit timeouts (such as `--test-force-exit` and `--test-timeout` for `node --test`, or a `schedule` timer with `DurationSeconds` and `TimerCondition="any"`), and inspect or terminate stalled background tasks via `manage_task` rather than waiting indefinitely.  
 ## EXEC-5
 Before any Git operation, verify the repository root, branch, and remote; commit only an explicit file list in the established order, without unrelated changes or Git hooks.  
 Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (preferably via `harness.py git-read` or with `GIT_OPTIONAL_LOCKS=0`; do not combine `git` calls with initial rule reading before `turn-begin` completes).  
