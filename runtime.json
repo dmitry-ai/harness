@@ -12,6 +12,10 @@
   "platforms": {
     "antigravity": {
       "surface": "antigravity-ui",
+      "homes": {
+        "A0": "C:/Users/dfedi",
+        "A6": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home"
+      },
       "roles": {
         "AA": {
           "selection": "inherit",

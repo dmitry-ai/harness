@@ -25,7 +25,9 @@ The configured `platforms.codex.registration_profile` is used only when register
 Platform adapters live in `agent_tools/platforms`, while domain logic, KB, journaling, stages, and context export are shared.  
 `doctor` reports the version digest across all static tools, rules, and references, along with existing paths and launch parameters.  
 An unchanged static `doctor` result may be reused; the selected browser tab, active model, and actual rule loading are verified separately per session.  
-`install-global` merges native skill/worker manifest entries while preserving other entries; it does not install project analysis rules globally.  
+`install-global` merges the shared `rules`/`skills`/`agents` manifest entries and missing canonical hooks (by hook name) into the global `.gemini/config` of every Antigravity profile declared in `runtime.json` `platforms.antigravity.homes`, preserving other entries and existing hooks; an undeclared current `Path.home()` is configured too and reported as `current-undeclared`.  
+`install-global --check` reports per profile a missing manifest, a missing shared entry, or a missing canonical hook without writing (`valid: false`, exit code `2`); `doctor` includes the same check as `global_customizations`.  
+Each Antigravity profile has its own `USERPROFILE` and thus its own global configuration: a manifest present in one profile does not load rules in another.  
 `build-native [--root <root>] [--check]` builds or verifies native Codex projections from the shared rules, skills, worker protocol, and `runtime.json`.  
 Python code is never copied into projects.  
 The build writes a root `AGENTS.md` containing a short loader for the canonical rules; the same loader is stored in native `developer_instructions` inside `.codex/config.toml` for compatibility, without creating a root `CODEX.md` or copying full policy bodies into role files.  

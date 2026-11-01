@@ -112,24 +112,104 @@ def check_configuration(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR):
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-def install_global_customizations(config_dir=None):
-	config = Path(config_dir) if None is not config_dir else Path.home() / '.gemini' / 'config'
-	result = {}
+GLOBAL_KINDS = ('rules', 'skills', 'agents')
+UNDECLARED_ANTIGRAVITY_HOME = 'current-undeclared'
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+# https://github.com/dmitry-ai/harness/issues/33
+def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR):
+	primary = Path(primary)
+	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_markdown_slop.py').as_posix()}", 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_rules_and_server_gate.py').as_posix()}", 'timeout': 10}]}]}}
+	return r
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+# https://github.com/dmitry-ai/harness/issues/33
+def antigravity_global_config_dirs():
+	homes = settings()['platforms']['antigravity'].get('homes') or {}
+	if not isinstance(homes, dict):
+		raise ValueError('runtime.json platforms.antigravity.homes must map profile names to home directories')
+	r = {name: Path(home) / '.gemini' / 'config' for name, home in homes.items()}
+	current = Path.home() / '.gemini' / 'config'
+	if all((current.resolve() != path.resolve() for path in r.values())):
+		r[UNDECLARED_ANTIGRAVITY_HOME] = current
+	return r
+def _has_entry(entries, target):
+	r = isinstance(entries, list) and any((isinstance(e, dict) and isinstance(e.get('path'), str) and Path(e['path']).resolve() == Path(target).resolve() for e in entries))
+	return r
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+# https://github.com/dmitry-ai/harness/issues/33
+def _install_profile_customizations(config, primary=PRIMARY_AGENTS_DIR):
+	config, primary = (Path(config), Path(primary))
+	result = {'config': str(config), 'added_entries': [], 'added_hooks': []}
 	with locked(config / 'ꘖ' / 'data' / 'customizations.lock'):
-		for kind in ('rules', 'skills', 'agents'):
+		for kind in GLOBAL_KINDS:
 			target = config / f'{kind}.json'
 			payload = json.loads(target.read_text(encoding='utf-8-sig')) if target.exists() else {'entries': []}
-			entry = {'path': (PRIMARY_AGENTS_DIR / kind).as_posix()}
-			if entry not in payload.setdefault('entries', []):
-				payload['entries'].append(entry)
+			if not isinstance(payload, dict) or not isinstance(payload.setdefault('entries', []), list):
+				raise ValueError(f'Native manifest needs an entries list; preserved: {target}')
+			if not _has_entry(payload['entries'], primary / kind):
+				payload['entries'].append({'path': (primary / kind).as_posix()})
 				replace_bytes(target, json_bytes(payload))
-			result[kind] = str(target)
+				result['added_entries'].append(kind)
 		hooks_target = config / 'hooks.json'
-		if not hooks_target.exists():
-			hooks_payload = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': f"python {(PRIMARY_AGENTS_DIR / 'scripts/check_markdown_slop.py').as_posix()}", 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command', 'hooks': [{'type': 'command', 'command': f"python {(PRIMARY_AGENTS_DIR / 'scripts/check_rules_and_server_gate.py').as_posix()}", 'timeout': 10}]}]}}
-			replace_bytes(hooks_target, json_bytes(hooks_payload))
-		result['hooks'] = str(hooks_target)
+		hooks = json.loads(hooks_target.read_text(encoding='utf-8-sig')) if hooks_target.exists() else {}
+		if not isinstance(hooks, dict):
+			raise ValueError(f'hooks.json must be a JSON object; preserved: {hooks_target}')
+		canonical = canonical_global_hooks(primary)
+		missing = [name for name in canonical if name not in hooks]
+		if missing:
+			hooks.update({name: canonical[name] for name in missing})
+			replace_bytes(hooks_target, json_bytes(hooks))
+		result['added_hooks'] = missing
 	r = result
+	return r
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+# https://github.com/dmitry-ai/harness/issues/33
+def check_global_customizations(config_dirs=None, primary=PRIMARY_AGENTS_DIR):
+	targets = {name: Path(path) for name, path in (antigravity_global_config_dirs() if None is config_dirs else config_dirs).items()}
+	primary = Path(primary)
+	canonical = canonical_global_hooks(primary)
+	profiles = {}
+	for name, config in targets.items():
+		issues = []
+		if UNDECLARED_ANTIGRAVITY_HOME == name:
+			issues.append({'file': str(config), 'message': 'Current Antigravity home is not declared in runtime.json platforms.antigravity.homes'})
+		for kind in GLOBAL_KINDS:
+			target = config / f'{kind}.json'
+			try:
+				payload = json.loads(target.read_text(encoding='utf-8-sig')) if target.is_file() else None
+			except ValueError as exc:
+				issues.append({'file': str(target), 'message': f'Invalid JSON: {exc}'})
+				continue
+			if None is payload:
+				issues.append({'file': str(target), 'message': f'{kind}.json is missing: shared {kind} are not loaded in this profile'})
+			elif not isinstance(payload, dict) or not _has_entry(payload.get('entries'), primary / kind):
+				issues.append({'file': str(target), 'message': f'No entry references {(primary / kind).as_posix()}'})
+		hooks_target = config / 'hooks.json'
+		try:
+			hooks = json.loads(hooks_target.read_text(encoding='utf-8-sig')) if hooks_target.is_file() else {}
+		except ValueError as exc:
+			hooks = {}
+			issues.append({'file': str(hooks_target), 'message': f'Invalid JSON: {exc}'})
+		missing = [hook for hook in canonical if not isinstance(hooks, dict) or hook not in hooks]
+		if missing:
+			issues.append({'file': str(hooks_target), 'message': f"Missing canonical hooks: {', '.join(missing)}"})
+		profiles[name] = {'config': str(config), 'valid': not issues, 'issues': issues}
+	r = {'valid': all((p['valid'] for p in profiles.values())), 'profiles': profiles}
+	return r
+# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+# https://github.com/dmitry-ai/harness/issues/33
+def install_global_customizations(config_dir=None, primary=PRIMARY_AGENTS_DIR):
+	targets = {'explicit': Path(config_dir)} if None is not config_dir else antigravity_global_config_dirs()
+	profiles = {name: _install_profile_customizations(path, primary) for name, path in targets.items()}
+	check = check_global_customizations(targets, primary)
+	r = {'valid': check['valid'], 'profiles': profiles, 'check': check}
 	return r
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
@@ -239,6 +319,11 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
 	version_files = sorted((p for p in primary.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.json') and ('__pycache__' not in p.parts)))
 	tool_version = hashlib.sha256(b''.join((p.relative_to(primary).as_posix().encode() + hashlib.sha256(p.read_bytes()).digest() for p in version_files))).hexdigest()
 	r = {'tool_version': tool_version, 'rules': len(files), 'rule_bytes': sum(sizes.values()), 'per_file_bytes': sizes, 'skills': sorted((p.parent.name for p in (primary / 'skills').glob('*/SKILL.md'))), 'resolved_role_defaults': {role: role_settings(platform_name(), role) for role in ('AA', 'AF')}, 'subagent_policy': platform_settings().get('subagents', {'selection': 'configured_roles'}), 'surface': platform_settings()['surface'], 'delegation': platform_settings()['delegation'], 'actual_session_models_verified': False, 'paths': {'rules': [str(p.resolve()) for p in files], 'reference': str((primary / 'scripts/README-agent-tools.md').resolve()), 'analysis_contract': str((primary / 'scripts/agent_tools/analysis.py').resolve()), 'workflow_reference': str((primary / 'skills/upwork-init/references/workflow.md').resolve()), 'examples': str((primary / 'skills/upwork-init/references').resolve()), 'example_files': [str(p.resolve()) for p in sorted((primary / 'skills/upwork-init/references').glob('*.json'))]}, 'workflow_commands': list(COMMANDS), 'internal_knowledge': 'ꘖ/KB', 'context_purpose': 'complete external export for Gemini DeepThink or another external agent'}
+	# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+	# https://github.com/dmitry-ai/harness/issues/33
+	r['global_customizations'] = check_global_customizations(primary=primary)
+	r['valid'] = r['global_customizations']['valid']
 	return r
 def main(argv=None):
 	parser = argparse.ArgumentParser(description=__doc__)
@@ -278,7 +363,8 @@ def main(argv=None):
 	validate.add_argument('--format', choices=('text', 'json'), default='text')
 	validate.add_argument('--evidence', action='store_true', help='Verify saved sources and quotes without network requests')
 	sub.add_parser('doctor', help='Check discovery inputs, always_on rules, size and model settings')
-	sub.add_parser('install-global', help='Register only the shared skill and worker in native global manifests')
+	install_global = sub.add_parser('install-global', help='Merge shared rules, skills, agents and canonical hooks into every Antigravity profile declared in runtime.json')
+	install_global.add_argument('--check', action='store_true', help='Report missing global manifests, entries and hooks per profile without writing')
 	build = sub.add_parser('build-native', help='Generate/check native projections from canonical policy and runtime')
 	build.add_argument('--root', type=Path)
 	build.add_argument('--check', action='store_true')
@@ -310,7 +396,7 @@ def run(args):
 			from .configuration import global_codex_instructions
 			result = global_codex_instructions()
 		elif 'install-global' == args.command:
-			result = install_global_customizations()
+			result = check_global_customizations() if args.check else install_global_customizations()
 		elif 'configure' == args.command:
 			if args.check:
 				result = check_configuration(args.project)

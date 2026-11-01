@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+# https://github.com/dmitry-ai/harness/issues/33
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from email.message import Message
@@ -392,6 +395,46 @@ class RegistrationTests(TemporaryCase):
 		value = json.loads(before)
 		self.assertEqual(value['inherits'], original['inherits'])
 		self.assertIn(original['entries'][0], value['entries'])
+	def test_global_install_repairs_profile_without_rules_and_merges_missing_hooks(self):
+		a0 = self.root / 'A0/.gemini/config'
+		a6 = self.root / 'A6/.gemini/config'
+		up.install_global_customizations(a0)
+		for kind in ('skills', 'agents'):
+			self.put(f'A6/.gemini/config/{kind}.json', json.dumps({'entries': [{'path': (up.PRIMARY_AGENTS_DIR / kind).as_posix()}]}))
+		custom = {'type': 'command', 'command': 'python custom.py'}
+		hooks = {'doc4-anti-slop-gate': up.canonical_global_hooks()['doc4-anti-slop-gate'], 'my-hook': {'Stop': [custom]}}
+		self.put('A6/.gemini/config/hooks.json', json.dumps(hooks))
+		profiles = {'A0': a0, 'A6': a6}
+		before = up.check_global_customizations(profiles)
+		self.assertFalse(before['valid'])
+		self.assertTrue(before['profiles']['A0']['valid'])
+		messages = ' '.join((i['message'] for i in before['profiles']['A6']['issues']))
+		self.assertIn('rules.json is missing', messages)
+		self.assertIn('rules-and-server-gate', messages)
+		with patch.object(up, 'antigravity_global_config_dirs', return_value=profiles):
+			result = up.install_global_customizations()
+			self.assertTrue(result['valid'])
+			self.assertEqual(result['profiles']['A6']['added_entries'], ['rules'])
+			self.assertEqual(result['profiles']['A6']['added_hooks'], ['rules-and-server-gate'])
+			self.assertEqual(result['profiles']['A0']['added_entries'], [])
+			snapshot = {p: p.read_bytes() for p in sorted(a6.glob('*.json'))}
+			again = up.install_global_customizations()
+		self.assertEqual(again['profiles']['A6']['added_entries'], [])
+		self.assertEqual(again['profiles']['A6']['added_hooks'], [])
+		self.assertEqual({p: p.read_bytes() for p in sorted(a6.glob('*.json'))}, snapshot)
+		merged = json.loads((a6 / 'hooks.json').read_text(encoding='utf-8'))
+		self.assertEqual(merged['my-hook'], hooks['my-hook'])
+		self.assertIn({'path': (up.PRIMARY_AGENTS_DIR / 'rules').as_posix()}, json.loads((a6 / 'rules.json').read_text(encoding='utf-8'))['entries'])
+	def test_undeclared_current_antigravity_home_is_reported(self):
+		declared, current = (self.root / 'declared', self.root / 'current')
+		with patch.object(up, 'settings', return_value={'platforms': {'antigravity': {'homes': {'A0': str(declared)}}}}), patch.object(Path, 'home', return_value=current):
+			dirs = up.antigravity_global_config_dirs()
+			self.assertEqual(dirs, {'A0': declared / '.gemini/config', up.UNDECLARED_ANTIGRAVITY_HOME: current / '.gemini/config'})
+			result = up.install_global_customizations()
+		self.assertFalse(result['valid'])
+		self.assertTrue(result['check']['profiles']['A0']['valid'])
+		self.assertIn('not declared', result['check']['profiles'][up.UNDECLARED_ANTIGRAVITY_HOME]['issues'][0]['message'])
+		self.assertTrue((current / '.gemini/config/rules.json').is_file())
 	def test_parallel_registration_retains_all_assignments(self):
 		folders = self.put('folders.json', '{"folders":[],"projectFolderMap":{}}')
 		projects = self.root / 'native-projects'
