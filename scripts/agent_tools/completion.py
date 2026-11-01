@@ -897,10 +897,10 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			_persist(path, value)
 			raise ValueError(detail)
 		if value['compaction_check'].get('occurred') and value['compaction_check'].get('evicted_unreread_files'):
-			from .source_grounding import _parse_markdown_blocks, _resolve_local_href
+			from .source_grounding import _parse_blocks, _resolve_local_href
 			ev_map = {p.replace('\\', '/').lower(): p for p in value['compaction_check']['evicted_unreread_files']}
 			unreread_cited = []
-			for _, lhrefs, _ in _parse_markdown_blocks(response):
+			for _, lhrefs, _ in _parse_blocks(response):
 				for lh in lhrefs:
 					rp = _resolve_local_href(root, lh)
 					if None is not rp:
