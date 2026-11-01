@@ -10,6 +10,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 from pathlib import Path
 from datetime import date
 from urllib.parse import unquote
@@ -614,10 +617,14 @@ def native_answers(root, conversation_id, *, backend=None):
 		checkpoint_steps = []
 		tool_steps = []
 		subagent_steps = []
+		aa_subagent_steps = []
+		af_subagent_steps = []
 		kb_persistence_steps = []
 		transcript_read_steps = []
 		tool_records = []
 		touched_files = []
+		file_reads = []
+		file_writes = []
 		issue_actions = []
 		spawned_subagents = 0
 		completed_subagents = 0
@@ -668,14 +675,44 @@ def native_answers(root, conversation_id, *, backend=None):
 							transcript_read_steps.append(step_idx)
 					if 'invoke_subagent' == name:
 						spawned_subagents += 1
+						subs = args.get('Subagents', []) if isinstance(args, dict) else []
+						if isinstance(subs, str):
+							try:
+								subs = json.loads(subs)
+							except ValueError:
+								subs = []
+						if not subs and isinstance(args, dict):
+							subs = [args]
+						for sub in subs if isinstance(subs, list) else []:
+							if isinstance(sub, dict):
+								tname = str(sub.get('TypeName') or '').strip().lower()
+								if 'self' == tname:
+									if step_idx not in aa_subagent_steps:
+										aa_subagent_steps.append(step_idx)
+								elif tname:
+									if step_idx not in af_subagent_steps:
+										af_subagent_steps.append(step_idx)
 					if name in ('invoke_subagent', 'send_message'):
 						if step_idx not in subagent_steps:
 							subagent_steps.append(step_idx)
-					target_path = str(args.get('Path') or args.get('TargetFile') or args.get('path') or '' if isinstance(args, dict) else '').strip()
+					target_path = str(args.get('Path') or args.get('TargetFile') or args.get('AbsolutePath') or args.get('path') or '' if isinstance(args, dict) else '').strip()
+					if name in ('read_file', 'view_file') and target_path:
+						try:
+							rp = Path(target_path)
+							norm_rp = (rp.resolve() if rp.is_absolute() else (root_p / rp).resolve()).as_posix()
+						except OSError:
+							norm_rp = target_path.replace('\\', '/')
+						file_reads.append((step_idx, norm_rp))
 					if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and target_path:
 						if target_path not in touched_files:
 							touched_files.append(target_path)
-					if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and any((tok in target_path for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or ('run_command' == name and re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', args_text)):
+						try:
+							wp = Path(target_path)
+							norm_wp = (wp.resolve() if wp.is_absolute() else (root_p / wp).resolve()).as_posix()
+						except OSError:
+							norm_wp = target_path.replace('\\', '/')
+						file_writes.append((step_idx, norm_wp))
+					if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and (any((tok in target_path for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or target_path.replace('\\', '/').lower().endswith('/kb/analysis.md')) or ('run_command' == name and re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', args_text)):
 						if step_idx not in kb_persistence_steps:
 							kb_persistence_steps.append(step_idx)
 		last = segment[-1] if segment else {}
@@ -698,23 +735,53 @@ def native_answers(root, conversation_id, *, backend=None):
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
-		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records, 'touched_files': touched_files, 'issue_actions': issue_actions})
+		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'aa_subagent_steps': aa_subagent_steps, 'af_subagent_steps': af_subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records, 'touched_files': touched_files, 'file_reads': file_reads, 'file_writes': file_writes, 'issue_actions': issue_actions})
 	def _merge_pending(items):
 		first, last = (items[0], items[-1])
 		cp_steps = [s for item in items for s in item.get('checkpoint_steps', [])]
 		t_steps = [s for item in items for s in item.get('tool_steps', [])]
 		sub_steps = [s for item in items for s in item.get('subagent_steps', [])]
+		aa_steps = [s for item in items for s in item.get('aa_subagent_steps', [])]
+		af_steps = [s for item in items for s in item.get('af_subagent_steps', [])]
 		kb_steps = [s for item in items for s in item.get('kb_persistence_steps', [])]
 		tr_steps = [s for item in items for s in item.get('transcript_read_steps', [])]
 		records = [r for item in items for r in item.get('tool_records', [])]
 		t_files = list(dict.fromkeys((f for item in items for f in item.get('touched_files', []))))
+		f_reads = [fr for item in items for fr in item.get('file_reads', [])]
+		f_writes = [fw for item in items for fw in item.get('file_writes', [])]
 		i_actions = [a for item in items for a in item.get('issue_actions', [])]
 		last_cp = max(cp_steps) if cp_steps else None
 		pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
 		post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]
 		pre_cp_records = [r for r in records if None is not last_cp and r['step'] < last_cp]
-		merged = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [r for item in items for r in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records}, 'delegation': {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'kb_persistence_step_count': len(kb_steps)}}
-		for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'kb_persistence_steps', 'transcript_read_steps', 'tool_records'):
+		pre_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st < last_cp)))
+		post_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st > last_cp)))
+		post_cp_writes = list(dict.fromkeys((p for st, p in f_writes if None is not last_cp and st > last_cp)))
+		post_cp_lower = {p.lower() for p in post_cp_reads}
+		evicted_unreread = [p for p in pre_cp_reads if p.lower() not in post_cp_lower]
+		reads_by_step = {}
+		for st, p in f_reads:
+			reads_by_step.setdefault(st, []).append(p)
+		cur_streak = 0
+		max_streak = 0
+		cur_src_reads = set()
+		max_src_reads = 0
+		persist_or_sub = set(sub_steps) | set(kb_steps)
+		for st in t_steps:
+			if st in persist_or_sub:
+				cur_streak = 0
+				cur_src_reads.clear()
+			else:
+				cur_streak += 1
+				if cur_streak > max_streak:
+					max_streak = cur_streak
+				for rp in reads_by_step.get(st, ()):
+					if rp.lower().endswith('/kb/source.md'):
+						cur_src_reads.add(rp.lower())
+				if len(cur_src_reads) > max_src_reads:
+					max_src_reads = len(cur_src_reads)
+		merged = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [r for item in items for r in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}, 'delegation': {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads}}
+		for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'af_subagent_steps', 'kb_persistence_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes'):
 			merged.pop(k, None)
 		return merged
 	grouped, pending = ([], [])

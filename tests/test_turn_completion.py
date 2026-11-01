@@ -16,6 +16,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -908,6 +911,63 @@ class AntigravityCompletionTests(unittest.TestCase):
 		prepared = completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
 		self.assertTrue(prepared['code_lifecycle_check']['verified'])
+	def test_local_source_grounding_blocks_fabricated_quotes_identifiers_and_currencies(self):
+		src_dir = self.project / 'source/Nexcess/support/48401406/KB'
+		src_dir.mkdir(parents=True, exist_ok=True)
+		src_file = src_dir / 'source.md'
+		src_file.write_text('# Case 48401406\nAuthor: Brent\nInvoice #4901796 on 2026-06-22 charged $425.00 for XS Plan.\nMessage: "Please review our XS Plan renewal invoice."\n', encoding='utf-8')
+		bad_quote_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) the invoice states `"5697111 2026-10-22 $475.27 PAID"`.'
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / LINK-1'):
+			completion.prepare(self.project, bad_quote_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		bad_id_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#5697111` charged `$425.00`.'
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / DOC-1: Identifier'):
+			completion.prepare(self.project, bad_id_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		bad_amt_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` charged `$475.27`.'
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / DOC-1: Currency amount'):
+			completion.prepare(self.project, bad_amt_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		good_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` charged `$425.00`: «Please review our XS Plan renewal invoice.»'
+		prepared = completion.prepare(self.project, good_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+	def test_post_checkpoint_unreread_source_blocks_analysis_and_response(self):
+		src_dir = self.project / 'source/Nexcess/support/48401406/KB'
+		src_dir.mkdir(parents=True, exist_ok=True)
+		src_file = src_dir / 'source.md'
+		src_file.write_text('# Case 48401406\nInvoice #4901796 charged $425.00.\n', encoding='utf-8')
+		an_file = src_dir / 'analysis.md'
+		an_file.write_text('In [source.md](source.md) invoice `#4901796` charged `$425.00`.\n', encoding='utf-8')
+		self.rows += [
+			{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'r1', 'name': 'read_file', 'args': {'Path': str(src_file)}}]},
+			{'step_index': 2, 'type': 'GENERIC', 'content': '# Case 48401406'},
+			{'step_index': 3, 'type': 'CHECKPOINT', 'content': 'Compacted summary'},
+			{'step_index': 4, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w1', 'name': 'write_file', 'args': {'Path': str(an_file)}}]}
+		]
+		self.write()
+		completion.recover_checkpoint(self.project, self.cid, platform='antigravity', backend=self.backend)
+		with self.assertRaisesRegex(ValueError, 'COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md'):
+			completion.prepare(self.project, 'Summary.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.rows.append({'step_index': 5, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'r2', 'name': 'read_file', 'args': {'Path': str(src_file)}}]})
+		self.write()
+		prepared = completion.prepare(self.project, 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` charged `$425.00`.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+	def test_unpersisted_source_reads_and_af_worker_cannot_bypass_substantive_review(self):
+		marker = self.project / '\ua616/project.json'
+		marker.parent.mkdir(parents=True, exist_ok=True)
+		marker.write_text(json.dumps({'job_id': '~123456'}), encoding='utf-8')
+		for idx in range(1, 11):
+			self.rows.append({'step_index': idx, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'sr{idx}', 'name': 'read_file', 'args': {'Path': f'source/Nexcess/support/{idx}/KB/source.md'}}]})
+		self.write()
+		with self.assertRaisesRegex(ValueError, 'REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research'):
+			completion.prepare(self.project, 'Simple reply.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.rows.append({'step_index': 11, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'af1', 'name': 'invoke_subagent', 'args': {'TypeName': 'af-worker'}}]})
+		self.write()
+		state = workflow.load(self.project)
+		state['requests'] = [{'id': 'old-turn-0', 'text': 'Old request'}]
+		state.setdefault('stages', {}).setdefault('finalize', {})['status'] = 'complete'
+		wpath = workflow.state_path(self.project)
+		wpath.parent.mkdir(parents=True, exist_ok=True)
+		wpath.write_text(json.dumps(state), encoding='utf-8')
+		with self.assertRaisesRegex(ValueError, 'REVIEW-3 / REVIEW-4: Adopt current requests'):
+			completion.prepare(self.project, 'Method M-SRV-1: score 90%.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

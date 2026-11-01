@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 import hashlib
 import json
 from pathlib import Path
@@ -143,6 +146,7 @@ def native_answers(root, conversation_id, *, backend=None):
 	selected, _, _ = _request_scope(root, rows, identifier=completion_project_id(root))
 	requests = {index: {'id': f'codex:{conversation_id}:{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
 	from ..git_gate import extract_issue_actions_from_outputs, unflagged_git_read_commands, unpersisted_http_fetch_commands
+	root_p = Path(root).resolve()
 	turns, current = ([], None)
 	for index, item in rows:
 		payload = item.get('payload', {})
@@ -151,7 +155,7 @@ def native_answers(root, conversation_id, *, backend=None):
 			ident = payload.get('turn_id')
 			if not isinstance(ident, str) or not ident:
 				raise ValueError('Native Codex task_started has no turn ID')
-			current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'checkpoint_steps': [], 'tool_steps': [], 'subagent_steps': [], 'kb_persistence_steps': [], 'transcript_read_steps': [], 'touched_files': [], 'tool_records': [], '_pending_calls': {}}
+			current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'checkpoint_steps': [], 'tool_steps': [], 'subagent_steps': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'kb_persistence_steps': [], 'transcript_read_steps': [], 'touched_files': [], 'file_reads': [], 'file_writes': [], 'tool_records': [], '_pending_calls': {}}
 			turns.append(current)
 		elif None is not current and (kind in ('compacted', 'context_compacted', 'checkpoint') or (kind in ('event_msg', 'response_item') and payload.get('type') in ('context_compacted', 'compacted', 'checkpoint'))):
 			current['checkpoint_steps'].append(index)
@@ -178,12 +182,25 @@ def native_answers(root, conversation_id, *, backend=None):
 			if name.endswith(('spawn_agent', 'send_input')) or 'spawn_agent' in raw_cmd:
 				if index not in current['subagent_steps']:
 					current['subagent_steps'].append(index)
+				if name.endswith('spawn_agent') or 'spawn_agent' in raw_cmd:
+					if re.search('(?i)"(?:task_name|agent_type|role)"\\s*:\\s*"[^"]*\\baf\\b', raw_cmd):
+						if index not in current['af_subagent_steps']:
+							current['af_subagent_steps'].append(index)
+					elif index not in current['aa_subagent_steps']:
+						current['aa_subagent_steps'].append(index)
 			patch_list = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', raw_cmd, flags=re.M) if 'apply_patch' in name else []
 			for pt in patch_list:
 				pt_s = pt.strip()
-				if pt_s and pt_s not in current['touched_files']:
-					current['touched_files'].append(pt_s)
-			if name.endswith(('write_file', 'edit_file')):
+				if pt_s:
+					if pt_s not in current['touched_files']:
+						current['touched_files'].append(pt_s)
+					try:
+						wp = Path(pt_s)
+						norm_wp = (wp.resolve() if wp.is_absolute() else (root_p / wp).resolve()).as_posix()
+					except OSError:
+						norm_wp = pt_s.replace('\\', '/')
+					current['file_writes'].append((index, norm_wp))
+			if name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
 				args_raw = payload.get('arguments', payload.get('input', {}))
 				if isinstance(args_raw, str):
 					try:
@@ -191,12 +208,22 @@ def native_answers(root, conversation_id, *, backend=None):
 					except ValueError:
 						args_raw = {}
 				if isinstance(args_raw, dict):
-					p_arg = args_raw.get('Path') or args_raw.get('path') or ''
-					if isinstance(p_arg, str) and p_arg.strip() and (p_arg.strip() not in current['touched_files']):
-						current['touched_files'].append(p_arg.strip())
+					p_arg = str(args_raw.get('Path') or args_raw.get('TargetFile') or args_raw.get('path') or '').strip()
+					if p_arg:
+						try:
+							rp = Path(p_arg)
+							norm_rp = (rp.resolve() if rp.is_absolute() else (root_p / rp).resolve()).as_posix()
+						except OSError:
+							norm_rp = p_arg.replace('\\', '/')
+						if name.endswith(('read_file', 'view_file')):
+							current['file_reads'].append((index, norm_rp))
+						else:
+							if p_arg not in current['touched_files']:
+								current['touched_files'].append(p_arg)
+							current['file_writes'].append((index, norm_rp))
 			patch_targets = '\n'.join(patch_list)
 			kb_target_text = patch_targets if 'apply_patch' in name else '' if 'answer-prepare' in raw_cmd else raw_cmd
-			if any((tok in kb_target_text for tok in ('ꘖ/KB', 'ꘖ\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', raw_cmd):
+			if any((tok in kb_target_text for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or '/kb/analysis.md' in kb_target_text.replace('\\', '/').lower() or re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', raw_cmd):
 				if index not in current['kb_persistence_steps']:
 					current['kb_persistence_steps'].append(index)
 		elif None is not current and 'response_item' == kind and (payload.get('type') in ('function_call_output', 'custom_tool_call_output')):
@@ -233,8 +260,12 @@ def native_answers(root, conversation_id, *, backend=None):
 		cp_steps = turn.pop('checkpoint_steps', [])
 		t_steps = turn.pop('tool_steps', [])
 		sub_steps = turn.pop('subagent_steps', [])
+		aa_steps = turn.pop('aa_subagent_steps', [])
+		af_steps = turn.pop('af_subagent_steps', [])
 		kb_steps = turn.pop('kb_persistence_steps', [])
 		tr_steps = turn.pop('transcript_read_steps', [])
+		f_reads = turn.pop('file_reads', [])
+		f_writes = turn.pop('file_writes', [])
 		records = turn.pop('tool_records', [])
 		turn.pop('_pending_calls', None)
 		turn['issue_actions'] = extract_issue_actions_from_outputs([out for r in records for out in r.get('outputs', [])])
@@ -242,8 +273,34 @@ def native_answers(root, conversation_id, *, backend=None):
 		pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
 		post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]
 		pre_cp_records = [r for r in records if None is not last_cp and r['step'] < last_cp]
-		turn['compaction'] = {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records}
-		turn['delegation'] = {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'kb_persistence_step_count': len(kb_steps)}
+		pre_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st < last_cp)))
+		post_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st > last_cp)))
+		post_cp_writes = list(dict.fromkeys((p for st, p in f_writes if None is not last_cp and st > last_cp)))
+		post_cp_lower = {p.lower() for p in post_cp_reads}
+		evicted_unreread = [p for p in pre_cp_reads if p.lower() not in post_cp_lower]
+		reads_by_step = {}
+		for st, p in f_reads:
+			reads_by_step.setdefault(st, []).append(p)
+		cur_streak = 0
+		max_streak = 0
+		cur_src_reads = set()
+		max_src_reads = 0
+		persist_or_sub = set(sub_steps) | set(kb_steps)
+		for st in t_steps:
+			if st in persist_or_sub:
+				cur_streak = 0
+				cur_src_reads.clear()
+			else:
+				cur_streak += 1
+				if cur_streak > max_streak:
+					max_streak = cur_streak
+				for rp in reads_by_step.get(st, ()):
+					if rp.lower().endswith('/kb/source.md'):
+						cur_src_reads.add(rp.lower())
+				if len(cur_src_reads) > max_src_reads:
+					max_src_reads = len(cur_src_reads)
+		turn['compaction'] = {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}
+		turn['delegation'] = {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads}
 	return {'platform': 'codex', 'conversation_id': conversation_id, 'native_backend': str(home), 'source_file': str(path), 'primary': not child, 'turns': turns, 'active_turn_id': current['turn_id'] if current and (not current['completion_step']) else None}
 def _model(rows, before=None):
 	contexts = [item['payload'] for index, item in rows if 'turn_context' == item.get('type') and (None is before or index <= before)]

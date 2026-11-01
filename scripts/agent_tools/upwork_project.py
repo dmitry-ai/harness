@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 import argparse
 import hashlib
 import json
@@ -119,7 +122,7 @@ UNDECLARED_ANTIGRAVITY_HOME = 'current-undeclared'
 # https://github.com/dmitry-ai/harness/issues/33
 def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR):
 	primary = Path(primary)
-	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_markdown_slop.py').as_posix()}", 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_rules_and_server_gate.py').as_posix()}", 'timeout': 10}]}]}}
+	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_markdown_slop.py').as_posix()}", 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_rules_and_server_gate.py').as_posix()}", 'timeout': 10}]}]}, 'final-turn-gate': {'Stop': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_stop_gate.py').as_posix()}", 'timeout': 15}]}}
 	return r
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
@@ -157,7 +160,7 @@ def _install_profile_customizations(config, primary=PRIMARY_AGENTS_DIR):
 		if not isinstance(hooks, dict):
 			raise ValueError(f'hooks.json must be a JSON object; preserved: {hooks_target}')
 		canonical = canonical_global_hooks(primary)
-		missing = [name for name in canonical if name not in hooks]
+		missing = [name for name in canonical if hooks.get(name) != canonical[name]]
 		if missing:
 			hooks.update({name: canonical[name] for name in missing})
 			replace_bytes(hooks_target, json_bytes(hooks))
@@ -193,7 +196,7 @@ def check_global_customizations(config_dirs=None, primary=PRIMARY_AGENTS_DIR):
 		except ValueError as exc:
 			hooks = {}
 			issues.append({'file': str(hooks_target), 'message': f'Invalid JSON: {exc}'})
-		missing = [hook for hook in canonical if not isinstance(hooks, dict) or hook not in hooks]
+		missing = [hook for hook in canonical if not isinstance(hooks, dict) or hooks.get(hook) != canonical[hook]]
 		if missing:
 			issues.append({'file': str(hooks_target), 'message': f"Missing canonical hooks: {', '.join(missing)}"})
 		profiles[name] = {'config': str(config), 'valid': not issues, 'issues': issues}

@@ -7,6 +7,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from email.message import Message
@@ -415,7 +418,7 @@ class RegistrationTests(TemporaryCase):
 			result = up.install_global_customizations()
 			self.assertTrue(result['valid'])
 			self.assertEqual(result['profiles']['A6']['added_entries'], ['rules'])
-			self.assertEqual(result['profiles']['A6']['added_hooks'], ['rules-and-server-gate'])
+			self.assertEqual(result['profiles']['A6']['added_hooks'], ['rules-and-server-gate', 'final-turn-gate'])
 			self.assertEqual(result['profiles']['A0']['added_entries'], [])
 			snapshot = {p: p.read_bytes() for p in sorted(a6.glob('*.json'))}
 			again = up.install_global_customizations()

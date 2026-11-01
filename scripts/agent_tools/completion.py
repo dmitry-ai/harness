@@ -16,6 +16,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -86,6 +89,18 @@ def _compaction_status(root, key, turn):
 	last_cp = comp.get('last_checkpoint_step')
 	pre_steps = list(comp.get('pre_checkpoint_tool_steps') or [])
 	post_rec = list(comp.get('post_checkpoint_recovery_steps') or [])
+	pre_reads = list(comp.get('pre_checkpoint_read_files') or [])
+	post_reads = list(comp.get('post_checkpoint_read_files') or [])
+	post_writes = list(comp.get('post_checkpoint_written_files') or [])
+	evicted_unreread = list(comp.get('evicted_unreread_files') or [])
+	evicted_lower = {p.replace('\\', '/').lower(): p for p in evicted_unreread}
+	unreread_analysis_sources = []
+	for w in post_writes:
+		wnorm = w.replace('\\', '/')
+		if wnorm.lower().endswith('/kb/analysis.md'):
+			sib = (Path(wnorm).parent / 'source.md').as_posix()
+			if sib.lower() in evicted_lower and evicted_lower[sib.lower()] not in unreread_analysis_sources:
+				unreread_analysis_sources.append(evicted_lower[sib.lower()])
 	recovered_in_trace = bool(comp.get('recovered_in_trace', True))
 	receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
 	recovered_via_receipt = False
@@ -97,18 +112,24 @@ def _compaction_status(root, key, turn):
 				recovered_via_receipt = True
 		except (OSError, ValueError):
 			pass
-	verified = bool(not occurred or not pre_steps or recovered_in_trace or recovered_via_receipt)
-	r = {'verified': verified, 'occurred': occurred, 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_steps, 'post_checkpoint_recovery_steps': post_rec, 'recovered_in_trace': recovered_in_trace, 'recovered_via_receipt': recovered_via_receipt}
+	verified = bool((not occurred or not pre_steps or recovered_in_trace or recovered_via_receipt) and (not unreread_analysis_sources))
+	r = {'verified': verified, 'occurred': occurred, 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_steps, 'post_checkpoint_recovery_steps': post_rec, 'recovered_in_trace': recovered_in_trace, 'recovered_via_receipt': recovered_via_receipt, 'pre_checkpoint_read_files': pre_reads, 'post_checkpoint_read_files': post_reads, 'post_checkpoint_written_files': post_writes, 'evicted_unreread_files': evicted_unreread, 'unreread_analysis_sources': unreread_analysis_sources}
 	return r
 DEL_MAX_UNPERSISTED_STEPS = 40
+DEL_MAX_UNPERSISTED_SOURCE_READS = 10
 def _delegation_status(root, turn):
 	del_info = dict(turn.get('delegation') or {})
 	tool_steps = int(del_info.get('tool_step_count') or 0)
 	sub_steps = int(del_info.get('subagent_step_count') or 0)
+	aa_steps = int(del_info.get('aa_subagent_step_count') if 'aa_subagent_step_count' in del_info else sub_steps)
+	af_steps = int(del_info.get('af_subagent_step_count') or 0)
 	kb_steps = int(del_info.get('kb_persistence_step_count') or 0)
-	is_upwork_project = (Path(root).resolve() / 'ꘖ/project.json').is_file()
-	unpersisted_bulk = bool(is_upwork_project and tool_steps > DEL_MAX_UNPERSISTED_STEPS and (0 == sub_steps) and (0 == kb_steps))
-	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'kb_persistence_step_count': kb_steps, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS}
+	cur_streak = int(del_info.get('unpersisted_step_streak') if 'unpersisted_step_streak' in del_info else tool_steps if 0 == sub_steps and 0 == kb_steps else 0)
+	max_streak = int(del_info.get('max_unpersisted_step_streak') if 'max_unpersisted_step_streak' in del_info else cur_streak)
+	max_src_reads = int(del_info.get('max_unpersisted_source_reads') or 0)
+	is_upwork_project = (Path(root).resolve() / '\ua616/project.json').is_file()
+	unpersisted_bulk = bool(is_upwork_project and ((tool_steps > DEL_MAX_UNPERSISTED_STEPS and 0 == sub_steps and 0 == kb_steps) or cur_streak > DEL_MAX_UNPERSISTED_STEPS or (max_src_reads >= DEL_MAX_UNPERSISTED_SOURCE_READS and 0 == sub_steps)))
+	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
 	return r
 def _origin_repo_slug(code_repo: Path):
 	from .git_gate import run_git_read
@@ -323,9 +344,10 @@ def _ingest_json_observations(parsed, default_host, observed_urls, observed_topi
 				slug_u = f'https://{host.lower()}/t/{slug}/{tid}'
 				observed_urls.add(slug_u)
 				observed_titles.setdefault(slug_u, t)
-def response_source_and_kb_issues(root: Path, response: str, requests: list[dict]) -> list[str]:
+def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None) -> list[str]:
 	from markdown_it import MarkdownIt
 	from .links import readable_link_issues, _bare_urls
+	from .source_grounding import local_source_grounding_issues
 	root = Path(root).resolve()
 	errors = list(readable_link_issues(response, allow_unencoded_file_uri=True))
 	parser = MarkdownIt('commonmark', {'html': True})
@@ -357,8 +379,9 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 				target_href = bq_ext_hrefs[-1] if bq_ext_hrefs else last_para_ext_href
 				if target_href:
 					guillemets = re.findall('«([^»]{20,})»', block.content)
-					if guillemets:
-						for gq in guillemets:
+					backtick_quotes = re.findall('`"([^"\\n]{20,})"`', block.content)
+					if guillemets or backtick_quotes:
+						for gq in guillemets + backtick_quotes:
 							attributed_quotes.append((target_href, gq))
 					else:
 						m_orig = re.search('(?:\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b|Original)\\s*:\\s*["«]?(.{20,})["»]?$', block.content.strip(), re.I | re.S)
@@ -406,17 +429,17 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 			if 1 == len(ext_in_block) and block.content:
 				for gq in re.findall('«([^»]{25,})»', block.content):
 					attributed_quotes.append((ext_in_block[0], gq))
+				for bq in re.findall('`"([^"\\n]{25,})"`', block.content):
+					attributed_quotes.append((ext_in_block[0], bq))
 		elif has_local_link:
 			last_para_ext_href = None
-	if not authored_urls:
-		r = errors
-	else:
+	observed_texts = {}
+	if authored_urls:
 		observed_urls = set()
 		observed_topics = set()
 		observed_titles = {}
 		observed_topic_titles = {}
 		observed_anchors = {}
-		observed_texts = {}
 		invalid_observations = {}
 		ev_dirs = []
 		if (root / '_/ꘖ/KB/Evidence').is_dir():
@@ -598,8 +621,26 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 			segments = [s for s in segments if len(s) >= 15]
 			if segments and (not any((s in obs_blob for s in segments))):
 				preview = ' '.join(q_raw.split())[:80]
-				errors.append(f'VERIFY-1 / LINK-1: Verbatim quote «{preview}» attributed to {href} is absent from the saved observation in ꘖ/KB/Evidence')
-		r = errors
+				errors.append(f'VERIFY-1 / LINK-1: Verbatim quote «{preview}» attributed to {href} is absent from the saved observation in \ua616/KB/Evidence')
+	for iss in local_source_grounding_issues(root, response, observed_texts=observed_texts):
+		if iss not in errors:
+			errors.append(iss)
+	for tf in touched_files or []:
+		tf_str = str(tf).strip()
+		if not tf_str or (not tf_str.replace('\\', '/').lower().endswith('/kb/analysis.md')):
+			continue
+		try:
+			tf_path = Path(tf_str)
+			tf_path = tf_path.resolve() if tf_path.is_absolute() else (root / tf_path).resolve()
+			if tf_path.is_file():
+				tf_text = tf_path.read_text(encoding='utf-8', errors='replace')
+				for iss in local_source_grounding_issues(root, tf_text, doc_path=tf_path, observed_texts=observed_texts):
+					msg = f'{tf_path.name} ({tf_path.parent.parent.name}): {iss}'
+					if msg not in errors:
+						errors.append(msg)
+		except OSError:
+			pass
+	r = errors
 	return r
 def _instruction_snapshot(root, native, *, stage):
 	from .configuration import _project_rule_paths
@@ -717,13 +758,29 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None):
 		raise ValueError('No active primary native turn to recover')
 	key = _key(native, turn)
 	comp = dict(turn.get('compaction') or {})
+	raw_records = list(comp.get('pre_checkpoint_records') or [])
+	rec_dir = _folder(root) / f'{key}-recovery'
+	rec_dir.mkdir(parents=True, exist_ok=True)
+	stdout_records = []
+	compact_mode = len(raw_records) > 5
+	for rec in raw_records:
+		st = rec.get('step')
+		outs = list(rec.get('outputs') or [])
+		step_file = rec_dir / f'step-{st}.txt'
+		if outs:
+			replace_bytes(step_file, ('\n--- OUTPUT ---\n'.join(outs) + '\n').encode('utf-8'))
+		rel_step = step_file.relative_to(root).as_posix() if step_file.is_relative_to(root) else str(step_file)
+		if compact_mode:
+			stdout_records.append({'step': st, 'tools': list(rec.get('tools') or []), 'output_file': rel_step if outs else None, 'output_preview': [o[:200] for o in outs[:2]]})
+		else:
+			stdout_records.append({**rec, 'output_file': rel_step if outs else None})
 	receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
-	receipt = {'turn_key': key, 'recovered_at': _now(), 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_records': list(comp.get('pre_checkpoint_records') or [])}
+	receipt = {'turn_key': key, 'recovered_at': _now(), 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_read_files': list(comp.get('pre_checkpoint_read_files') or []), 'post_checkpoint_read_files': list(comp.get('post_checkpoint_read_files') or []), 'evicted_unreread_files': list(comp.get('evicted_unreread_files') or []), 'recovery_dir': rec_dir.relative_to(root).as_posix() if rec_dir.is_relative_to(root) else str(rec_dir), 'pre_checkpoint_records': raw_records}
 	with locked(_folder(root) / 'writer.lock'):
 		replace_bytes(receipt_path, _json(receipt))
 		path, value = _state(root, native, turn)
 		_persist(path, value)
-	r = {**receipt, 'recovery_file': receipt_path.relative_to(root).as_posix() if receipt_path.is_relative_to(root) else str(receipt_path), 'compaction_check': value['compaction_check']}
+	r = {**receipt, 'pre_checkpoint_records': stdout_records, 'recovery_file': receipt_path.relative_to(root).as_posix() if receipt_path.is_relative_to(root) else str(receipt_path), 'compaction_check': value['compaction_check']}
 	return r
 def _group(root, native, turn, response, directory):
 	key = 'native-' + _key(native, turn)
@@ -831,12 +888,32 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			_persist(path, value)
 			raise ValueError(detail)
 		if not value['compaction_check']['verified']:
-			detail = 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
+			unreread_src = value['compaction_check'].get('unreread_analysis_sources') or []
+			if unreread_src:
+				detail = 'COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md: ' + ', '.join(unreread_src)
+			else:
+				detail = 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
+		if value['compaction_check'].get('occurred') and value['compaction_check'].get('evicted_unreread_files'):
+			from .source_grounding import _parse_markdown_blocks, _resolve_local_href
+			ev_map = {p.replace('\\', '/').lower(): p for p in value['compaction_check']['evicted_unreread_files']}
+			unreread_cited = []
+			for _, lhrefs, _ in _parse_markdown_blocks(response):
+				for lh in lhrefs:
+					rp = _resolve_local_href(root, lh)
+					if None is not rp:
+						rlow = rp.as_posix().lower()
+						if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow) and (ev_map[rlow] not in unreread_cited):
+							unreread_cited.append(ev_map[rlow])
+			if unreread_cited:
+				detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
+				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+				_persist(path, value)
+				raise ValueError(detail)
 		if not value['delegation_check']['verified']:
-			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research ({value['delegation_check']['tool_step_count']} tool steps > {value['delegation_check']['max_unpersisted_steps']}) executed without A.F/A.A subagent delegation or incremental ꘖ/KB persistence"
+			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={value['delegation_check']['tool_step_count']}, max_streak={value['delegation_check'].get('max_unpersisted_step_streak', 0)} > {value['delegation_check']['max_unpersisted_steps']}, or unpersisted_source_reads={value['delegation_check'].get('max_unpersisted_source_reads', 0)} >= {value['delegation_check'].get('max_allowed_unpersisted_source_reads', 10)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
@@ -852,7 +929,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
-		source_issues = response_source_and_kb_issues(root, response, turn['requests'])
+		source_issues = response_source_and_kb_issues(root, response, turn['requests'], touched_files=turn.get('touched_files'))
 		value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
 		if source_issues:
 			detail = '; '.join(source_issues)
@@ -864,7 +941,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			raise ValueError('Prepared response bytes are immutable; preserve the earlier version and reconcile before a corrective turn')
 		if 'conflict' == value['status']:
 			raise ValueError('Resolve the native delivery conflict without overwriting journal history')
-		workflow = root / 'ꘖ/data/workflow.json'
+		workflow = root / '\ua616/data/workflow.json'
 		if workflow.exists():
 			from .workflow import load
 			state = load(root)
@@ -883,11 +960,14 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 					record_current_answer(root, response, journal_directory=value['journal'], request_ids=identifiers)
 				elif any((r['response_prepared']['sha256'] != sha for r in state['requests'] if r['id'] in identifiers)):
 					raise ValueError('Tracked analysis requests already have different prepared response bytes')
-			elif (root / 'ꘖ/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and ('complete' != state.get('stages', {}).get('finalize', {}).get('status') or (bool(re.search('\\b(?:H|M)-\\d+\\b', response)) and 0 == value['delegation_check'].get('subagent_step_count', 0))):
-				detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
-				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-				_persist(path, value)
-				raise ValueError(detail)
+			else:
+				has_substantive_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response)) or any((str(tf).replace('\\', '/').lower().endswith('/kb/analysis.md') for tf in turn.get('touched_files') or []))
+				aa_steps = value['delegation_check'].get('aa_subagent_step_count', value['delegation_check'].get('subagent_step_count', 0))
+				if (root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and ('complete' != state.get('stages', {}).get('finalize', {}).get('status') or (has_substantive_hm and 0 == aa_steps)):
+					detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
+					value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+					_persist(path, value)
+					raise ValueError(detail)
 		value['prepared'] = _record(root, native, turn, response, value['journal'], existing=_recorded(value))
 		try:
 			_unchanged(root, native, turn)
