@@ -897,13 +897,17 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			_persist(path, value)
 			raise ValueError(detail)
 		if value['compaction_check'].get('occurred') and value['compaction_check'].get('evicted_unreread_files'):
-			from .source_grounding import _parse_blocks, _resolve_local_href
+			from markdown_it import MarkdownIt
+			from .source_grounding import _extract_block_links
 			ev_map = {p.replace('\\', '/').lower(): p for p in value['compaction_check']['evicted_unreread_files']}
 			unreread_cited = []
-			for _, lhrefs, _ in _parse_blocks(response):
-				for lh in lhrefs:
-					rp = _resolve_local_href(root, lh)
-					if None is not rp:
+			md_parser = MarkdownIt('commonmark', {'html': True})
+			md_parser.normalizeLink = lambda v: v
+			md_parser.validateLink = lambda v: True
+			for blk in md_parser.parse(response):
+				if 'inline' == blk.type:
+					lpaths, _ = _extract_block_links(blk, root, None)
+					for rp in lpaths:
 						rlow = rp.as_posix().lower()
 						if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow) and (ev_map[rlow] not in unreread_cited):
 							unreread_cited.append(ev_map[rlow])
