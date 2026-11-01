@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
 import json
 import re
 import shutil
@@ -177,7 +180,7 @@ class LexiconAndProjectionTests(TemporaryCase):
 		text_good = wrap('Storefront bottleneck: `curl`\n> slow', recommendations=('Profile interactions with DevTools (**[§I.1](#I.1)**).', 'If the bottleneck of **[§II.1](#II.1)** turns out to be script execution → split bundle.'))
 		findings_good = article.lint_text(text_good)
 		self.assertNotIn('GRAPH-CONDITIONAL-STEP', rules(findings_good, 'error'))
-	def test_build_native_projects_every_shared_skill(self):
+	def test_build_native_uses_shared_skills_without_project_wrappers(self):
 		primary = self.root / 'canonical'
 		for relative in ('rules', 'platforms', 'skills/upwork-init', 'agents'):
 			(primary / relative).mkdir(parents=True, exist_ok=True)
@@ -188,7 +191,8 @@ class LexiconAndProjectionTests(TemporaryCase):
 		shutil.copytree(runtime.PRIMARY / 'skills/df-article', primary / 'skills/df-article')
 		output = self.root / 'workspace'
 		self.assertTrue(configuration.build_native(output, primary=primary)['valid'])
-		projected = (output / '.agents/skills/df-article/SKILL.md').read_text(encoding='utf-8')
-		self.assertTrue(projected.startswith('---\nname: df-article\ndescription: '))
-		self.assertIn((primary / 'skills/df-article/SKILL.md').as_posix(), projected)
+		self.assertFalse((output / '.agents/skills/df-article/SKILL.md').exists())
+		manifest = json.loads((primary / 'platforms/antigravity/skills.json').read_text(encoding='utf-8'))
+		self.assertEqual(manifest['entries'], [{'path': (primary / 'skills').as_posix()}])
+		self.assertTrue((primary / 'skills/df-article/SKILL.md').is_file())
 		self.assertIn('10-client-text.md', (output / '.codex/config.toml').read_text(encoding='utf-8'))

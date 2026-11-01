@@ -7,29 +7,35 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
 import hashlib
 import json
 from pathlib import Path
 import re
 import tomllib
 from contextlib import nullcontext
-from .runtime import PRIMARY, settings, role_settings, profile_name
-from .storage import data_dir_for, locked, replace_bytes
+from .runtime import PRIMARY, settings, profile_name
+from .storage import create_bytes, data_dir_for, locked, replace_bytes
 def _digest(data):
 	return hashlib.sha256(data).hexdigest()
-def _publish(root, outputs, *, check=False, merge=None, retire=()):
+def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), preflight=False):
 	root = Path(root).resolve()
 	manifest = data_dir_for(root) / 'native-config.json'
 	if not outputs and (not any((Path(path).exists() for path in retire))):
 		r = {'valid': True, 'issues': [], 'written': [], 'outputs': [], 'removed': []}
 	else:
-		with nullcontext() if check else locked(data_dir_for(root) / 'native-config.lock'):
+		with nullcontext() if check or preflight else locked(data_dir_for(root) / 'native-config.lock'):
 			receipt_bytes = manifest.read_bytes() if manifest.exists() else None
 			previous = json.loads(receipt_bytes) if None is not receipt_bytes else {}
 			issues, planned, removed, preimages = ([], {}, [], {})
+			disowned = {str(Path(path).resolve()) for path in disown} & set(previous)
+			if check:
+				issues.extend({'file': path, 'message': 'Shared definition ownership must move to the central native profile registry'} for path in sorted(disowned))
 			for target, text in outputs.items():
 				target = Path(target)
-				if any((p.is_symlink() or p.is_junction() for p in (target, *target.parents) if p.exists())):
+				if any((p.is_symlink() or p.is_junction() for p in (target, *target.parents))):
 					issues.append({'file': str(target), 'message': 'Linked native configuration preserved'})
 					continue
 				payload = text.encode('utf-8')
@@ -47,7 +53,7 @@ def _publish(root, outputs, *, check=False, merge=None, retire=()):
 						preimages[target] = actual
 			for target in retire:
 				target = Path(target)
-				if any((p.is_symlink() or p.is_junction() for p in (target, *target.parents) if p.exists())):
+				if any((p.is_symlink() or p.is_junction() for p in (target, *target.parents))):
 					issues.append({'file': str(target), 'message': 'Linked legacy file preserved'})
 					continue
 				target = target.resolve()
@@ -63,11 +69,23 @@ def _publish(root, outputs, *, check=False, merge=None, retire=()):
 			if issues:
 				r = {'valid': False, 'issues': issues, 'written': []}
 			else:
-				if not check:
+				if not check and not preflight:
+					for target in removed:
+						payload = target.read_bytes()
+						if _digest(payload) != previous[str(target)]:
+							raise ValueError('Legacy file changed before backup; external edit preserved')
+						backup = data_dir_for(root) / 'native-retired' / _digest(str(target).encode('utf-8')) / (_digest(payload) + '.bin')
+						backup.parent.mkdir(parents=True, exist_ok=True)
+						if not backup.exists():
+							create_bytes(backup, payload)
+						if backup.read_bytes() != payload:
+							raise ValueError('Retired native backup differs; configuration preserved')
 					for target, payload in planned.items():
 						if (target.read_bytes() if target.exists() else None) != preimages[target]:
 							raise ValueError('Native configuration changed during publication; external edit preserved')
 						replace_bytes(target, payload)
+					for key in disowned:
+						previous.pop(key, None)
 					previous.update({str(Path(p).resolve()): _digest(text.encode('utf-8')) for p, text in outputs.items()})
 					for target in removed:
 						if _digest(target.read_bytes()) != previous[str(target)]:
@@ -94,7 +112,7 @@ def _publish(root, outputs, *, check=False, merge=None, retire=()):
 						replace_bytes(manifest, (json.dumps(previous, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 					elif manifest.exists():
 						manifest.unlink()
-				r = {'valid': True, 'issues': [], 'written': [str(p) for p in planned], 'outputs': [str(p) for p in outputs], 'removed': [str(p) for p in removed]}
+				r = {'valid': True, 'issues': [], 'written': [] if preflight else [str(p) for p in planned], 'outputs': [str(p) for p in outputs], 'removed': [] if preflight else [str(p) for p in removed]}
 	return r
 def _toml_statements(text):
 	start = index = depth = 0
@@ -253,6 +271,7 @@ def _project_rule_paths(root, primary):
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
 def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, check=False):
+	from .native_profiles import legacy_project_projection_paths
 	root, primary = (Path(root).resolve(), Path(primary).resolve())
 	if root == Path(settings()['workspace_root']).resolve():
 		return {'valid': True, 'issues': [], 'written': []}
@@ -268,7 +287,7 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
 		current = data.get('developer_instructions', '')
 		manual = current.replace(_managed_block(current), '').strip()
 		path, text, merge = _native_config(root, _loader(primary, paths, restore_global=False) if manual else None)
-		result = _publish(root, {path: text} if text or path.exists() else {}, check=check, merge=merge, retire=[root / 'CODEX.md'])
+		result = _publish(root, {path: text} if text or path.exists() else {}, check=check, merge=merge, retire=[root / 'CODEX.md', *legacy_project_projection_paths(root, primary)])
 	except ValueError as exc:
 		if not check:
 			raise
@@ -291,6 +310,7 @@ def _frontmatter(path):
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
 def build_native(root=None, *, primary=PRIMARY, check=False):
+	from .native_profiles import build_shared_native, shared_native_outputs, legacy_project_projection_paths
 	config = settings()
 	root = Path(root or config['workspace_root']).resolve()
 	primary = Path(primary).resolve()
@@ -302,35 +322,23 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 	restore_global = 'policy-instructions' in old_block if old_block else not bool(current.strip())
 	local_rules = _project_rule_paths(root, primary) if (root / '.agents/rules').is_dir() else ()
 	instructions = _loader(primary, local_rules, restore_global=restore_global)
-	skill_source = primary / 'skills/upwork-init/SKILL.md'
-	skill = f'---\nname: upwork-init\ndescription: Creates a project workspace and performs the full analysis of an Upwork job post; resumes it after an interruption.\n---\nRead and execute the shared skill [{skill_source.name}](<{skill_source.as_posix()}>).  \nDetermine the active UI platform from the conversation and use the corresponding platform adapter of the shared skill.  \n'
 	guidance = f'# Codex: Upwork\n\n<!-- Generated from {primary.as_posix()}; run harness.py build-native to update. -->\n\n' + instructions + '\n'
-	outputs = {root / 'AGENTS.md': guidance, root / '.agents/skills/upwork-init/SKILL.md': skill}
-	cleanup_source = primary / 'skills/upwork-cleanup/SKILL.md'
-	if cleanup_source.is_file():
-		outputs[root / '.agents/skills/upwork-cleanup/SKILL.md'] = f'---\nname: upwork-cleanup\ndescription: Cleans up empty Upwork projects older than 72 hours in Antigravity and Codex while preserving on-disk history.\n---\nRead and execute the shared skill [{cleanup_source.name}](<{cleanup_source.as_posix()}>).  \nDetermine the active UI platform from the conversation; a normal run cleans both platforms.  \n'
-	for other in sorted((primary / 'skills').glob('*/SKILL.md')):
-		name = other.parent.name
-		if name in ('upwork-init', 'upwork-cleanup'):
-			continue
-		description = _frontmatter(other).get('description', '')
-		if not description:
-			return {'valid': False, 'issues': [{'file': str(other), 'message': 'Shared skill needs a frontmatter description'}], 'written': []}
-		description = json.dumps(description, ensure_ascii=False) if re.search(':\\s|\\s#|^[\\\'"\\[{>|*&!%@`]', description) else description
-		outputs[root / f'.agents/skills/{name}/SKILL.md'] = f'---\nname: {name}\ndescription: {description}\n---\nRead and execute the shared skill [{other.name}](<{other.as_posix()}>).  \n'
-	for role in ('AA', 'AF'):
-		value = role_settings('codex', role)
-		name = value['agent']
-		purpose = 'Independent substantive review of the five stages and KB consistency.' if 'AA' == role else 'Collection and extraction of evidence for an assigned question.'
-		instructions_role = f'Role: {role}.  \n{purpose}  \n' + instructions + f"\nAlso read the worker protocol: {(primary / 'agents/worker.md').as_posix()}  "
-		model_fields = '' if 'parent' == config['platforms']['codex'].get('subagents', {}).get('selection') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
-		outputs[root / f'.codex/agents/{name}.toml'] = f'# Generated from runtime.json and agents/worker.md; do not edit.\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose, ensure_ascii=False)}\n' + model_fields + f'developer_instructions = {json.dumps(instructions_role, ensure_ascii=False)}\n'
-	flash = role_settings('antigravity', 'AF')
-	outputs[primary / 'agents/af-worker.md'] = f"""---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\nmodel: {flash['tier']}\nsubagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(primary / 'agents/worker.md').as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the configured tier does not prove the exact model.  \n"""
+	outputs = {root / 'AGENTS.md': guidance}
 	try:
 		path, text, merge = _native_config(root, instructions)
 		outputs[path] = text
-		result = _publish(root, outputs, check=check, merge=merge, retire=[root / 'CODEX.md'])
+		publication = {'merge': merge, 'retire': [root / 'CODEX.md', *legacy_project_projection_paths(root, primary)], 'disown': list(shared_native_outputs(primary))}
+		preflight = _publish(root, outputs, preflight=True, **publication) if not check else None
+		if preflight is not None and not preflight['valid']:
+			result = preflight
+		else:
+			shared = build_shared_native(primary, check=check)
+			if not shared['valid'] and not check:
+				result = {'valid': False, 'issues': [], 'written': []}
+			else:
+				publication['disown'].extend(shared['removed'])
+				result = _publish(root, outputs, check=check, **publication)
+			result.update(valid=result['valid'] and shared['valid'], issues=[*shared['issues'], *result['issues']], written=[*shared['written'], *result['written']], removed=[*shared['removed'], *result.get('removed', [])], shared=shared)
 	except ValueError as exc:
 		return {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
 	result.update(source_sha256=source_hash, policy_bytes=len(instructions.encode('utf-8')), canonical_runtime=str(primary / 'runtime.json'))

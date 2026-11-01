@@ -10,12 +10,16 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from email.message import Message
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import sys
 import unittest
@@ -345,6 +349,15 @@ class EvidenceTests(TemporaryCase):
 		document.write_text('[invalid](source.json#/missing)', encoding='utf-8')
 		self.assertTrue(validate_file(document))
 class RegistrationTests(TemporaryCase):
+	def native_primary(self):
+		primary = self.root / 'canonical'
+		if not primary.exists():
+			for name in ('rules', 'skills', 'agents'):
+				shutil.copytree(up.PRIMARY_AGENTS_DIR / name, primary / name, ignore=shutil.ignore_patterns('af-worker.md') if name == 'agents' else None)
+			(primary / 'platforms').mkdir()
+			for name in ('runtime.json', 'platforms/codex.md'):
+				shutil.copyfile(up.PRIMARY_AGENTS_DIR / name, primary / name)
+		return primary
 	def test_existing_native_file_uri_is_matched_without_replacing_settings(self):
 		root = self.root / '2026/10/15/1 - Topic'
 		root.mkdir(parents=True)
@@ -389,51 +402,56 @@ class RegistrationTests(TemporaryCase):
 			node = next((x for x in actual['folders'] if x['id'] == node['parentId']), None)
 		self.assertEqual(chain, ['upwork', 'Proposals', '2026', '10', '14'])
 	def test_global_install_preserves_other_customizations_and_is_idempotent(self):
+		primary = self.native_primary()
 		original = {'inherits': [{'path': 'other.json'}], 'entries': [{'path': 'my-skills'}]}
 		config = self.put('global/skills.json', json.dumps(original)).parent
-		up.install_global_customizations(config)
+		up.install_global_customizations(config, primary)
 		before = (config / 'skills.json').read_bytes()
-		up.install_global_customizations(config)
+		up.install_global_customizations(config, primary)
 		self.assertEqual((config / 'skills.json').read_bytes(), before)
 		value = json.loads(before)
-		self.assertEqual(value['inherits'], original['inherits'])
+		self.assertIn(original['inherits'][0], value['inherits'])
+		self.assertIn({'path': (primary / 'platforms/antigravity/skills.json').as_posix()}, value['inherits'])
 		self.assertIn(original['entries'][0], value['entries'])
 	def test_global_install_repairs_profile_without_rules_and_merges_missing_hooks(self):
+		primary = self.native_primary()
 		a0 = self.root / 'A0/.gemini/config'
 		a6 = self.root / 'A6/.gemini/config'
-		up.install_global_customizations(a0)
+		up.install_global_customizations(a0, primary)
 		for kind in ('skills', 'agents'):
-			self.put(f'A6/.gemini/config/{kind}.json', json.dumps({'entries': [{'path': (up.PRIMARY_AGENTS_DIR / kind).as_posix()}]}))
+			self.put(f'A6/.gemini/config/{kind}.json', json.dumps({'entries': [{'path': (primary / kind).as_posix()}]}))
 		custom = {'type': 'command', 'command': 'python custom.py'}
-		hooks = {'doc4-anti-slop-gate': up.canonical_global_hooks()['doc4-anti-slop-gate'], 'my-hook': {'Stop': [custom]}}
+		hooks = {'doc4-anti-slop-gate': up.canonical_global_hooks(primary)['doc4-anti-slop-gate'], 'my-hook': {'Stop': [custom]}}
 		self.put('A6/.gemini/config/hooks.json', json.dumps(hooks))
 		profiles = {'A0': a0, 'A6': a6}
-		before = up.check_global_customizations(profiles)
+		before = up.check_global_customizations(profiles, primary)
 		self.assertFalse(before['valid'])
 		self.assertTrue(before['profiles']['A0']['valid'])
-		messages = ' '.join((i['message'] for i in before['profiles']['A6']['issues']))
-		self.assertIn('rules.json is missing', messages)
-		self.assertIn('rules-and-server-gate', messages)
+		pending = [i['file'] for i in before['profiles']['A6']['issues']]
+		self.assertIn(str(a6 / 'rules.json'), pending)
+		self.assertIn(str(a6 / 'hooks.json'), pending)
 		with patch.object(up, 'antigravity_global_config_dirs', return_value=profiles):
-			result = up.install_global_customizations()
+			result = up.install_global_customizations(primary=primary)
 			self.assertTrue(result['valid'])
-			self.assertEqual(result['profiles']['A6']['added_entries'], ['rules'])
+			self.assertEqual(result['profiles']['A6']['added_entries'], ['rules', 'skills', 'agents'])
 			self.assertEqual(result['profiles']['A6']['added_hooks'], ['rules-and-server-gate', 'final-turn-gate'])
 			self.assertEqual(result['profiles']['A0']['added_entries'], [])
 			snapshot = {p: p.read_bytes() for p in sorted(a6.glob('*.json'))}
-			again = up.install_global_customizations()
+			again = up.install_global_customizations(primary=primary)
 		self.assertEqual(again['profiles']['A6']['added_entries'], [])
 		self.assertEqual(again['profiles']['A6']['added_hooks'], [])
 		self.assertEqual({p: p.read_bytes() for p in sorted(a6.glob('*.json'))}, snapshot)
 		merged = json.loads((a6 / 'hooks.json').read_text(encoding='utf-8'))
 		self.assertEqual(merged['my-hook'], hooks['my-hook'])
-		self.assertIn({'path': (up.PRIMARY_AGENTS_DIR / 'rules').as_posix()}, json.loads((a6 / 'rules.json').read_text(encoding='utf-8'))['entries'])
+		self.assertIn({'path': (primary / 'platforms/antigravity/rules.json').as_posix()}, json.loads((a6 / 'rules.json').read_text(encoding='utf-8'))['inherits'])
+		self.assertNotIn({'path': (primary / 'rules').as_posix()}, json.loads((a6 / 'rules.json').read_text(encoding='utf-8')).get('entries', []))
 	def test_undeclared_current_antigravity_home_is_reported(self):
+		primary = self.native_primary()
 		declared, current = (self.root / 'declared', self.root / 'current')
 		with patch.object(up, 'settings', return_value={'platforms': {'antigravity': {'homes': {'A0': str(declared)}}}}), patch.object(Path, 'home', return_value=current):
 			dirs = up.antigravity_global_config_dirs()
 			self.assertEqual(dirs, {'A0': declared / '.gemini/config', up.UNDECLARED_ANTIGRAVITY_HOME: current / '.gemini/config'})
-			result = up.install_global_customizations()
+			result = up.install_global_customizations(primary=primary)
 		self.assertFalse(result['valid'])
 		self.assertTrue(result['check']['profiles']['A0']['valid'])
 		self.assertIn('not declared', result['check']['profiles'][up.UNDECLARED_ANTIGRAVITY_HOME]['issues'][0]['message'])

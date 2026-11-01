@@ -1,0 +1,5 @@
+# Generated from runtime.json and agents/worker.md; do not edit.
+# https://github.com/dmitry-ai/harness/issues/35
+name = "upwork-aa"
+description = "Independent substantive review of the five stages and KB consistency."
+developer_instructions = "Role: AA.  \nIndependent substantive review of the five stages and KB consistency.  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: C:/work/research/provision/code/AI/harness/code/platforms/codex/AGENTS.md  \nAlso read the worker protocol: C:/work/research/provision/code/AI/harness/code/agents/worker.md  "

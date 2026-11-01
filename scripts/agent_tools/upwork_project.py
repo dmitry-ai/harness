@@ -10,6 +10,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
 import argparse
 import hashlib
 import json
@@ -143,65 +146,24 @@ def _has_entry(entries, target):
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
 def _install_profile_customizations(config, primary=PRIMARY_AGENTS_DIR):
-	config, primary = (Path(config), Path(primary))
-	result = {'config': str(config), 'added_entries': [], 'added_hooks': []}
-	with locked(config / 'ꘖ' / 'data' / 'customizations.lock'):
-		for kind in GLOBAL_KINDS:
-			target = config / f'{kind}.json'
-			payload = json.loads(target.read_text(encoding='utf-8-sig')) if target.exists() else {'entries': []}
-			if not isinstance(payload, dict) or not isinstance(payload.setdefault('entries', []), list):
-				raise ValueError(f'Native manifest needs an entries list; preserved: {target}')
-			if not _has_entry(payload['entries'], primary / kind):
-				payload['entries'].append({'path': (primary / kind).as_posix()})
-				replace_bytes(target, json_bytes(payload))
-				result['added_entries'].append(kind)
-		hooks_target = config / 'hooks.json'
-		hooks = json.loads(hooks_target.read_text(encoding='utf-8-sig')) if hooks_target.exists() else {}
-		if not isinstance(hooks, dict):
-			raise ValueError(f'hooks.json must be a JSON object; preserved: {hooks_target}')
-		canonical = canonical_global_hooks(primary)
-		missing = [name for name in canonical if hooks.get(name) != canonical[name]]
-		if missing:
-			hooks.update({name: canonical[name] for name in missing})
-			replace_bytes(hooks_target, json_bytes(hooks))
-		result['added_hooks'] = missing
-	r = result
-	return r
+	from .native_profiles import install_native_profiles
+	result = install_native_profiles(['explicit'], primary=primary, config_dirs={'explicit': Path(config)}, codex_homes={})
+	return result['profiles']['explicit'] | {'valid': result['valid'], 'issues': result['issues']}
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
 def check_global_customizations(config_dirs=None, primary=PRIMARY_AGENTS_DIR):
-	targets = {name: Path(path) for name, path in (antigravity_global_config_dirs() if None is config_dirs else config_dirs).items()}
-	primary = Path(primary)
-	canonical = canonical_global_hooks(primary)
-	profiles = {}
-	for name, config in targets.items():
-		issues = []
-		if UNDECLARED_ANTIGRAVITY_HOME == name:
-			issues.append({'file': str(config), 'message': 'Current Antigravity home is not declared in runtime.json platforms.antigravity.homes'})
-		for kind in GLOBAL_KINDS:
-			target = config / f'{kind}.json'
-			try:
-				payload = json.loads(target.read_text(encoding='utf-8-sig')) if target.is_file() else None
-			except ValueError as exc:
-				issues.append({'file': str(target), 'message': f'Invalid JSON: {exc}'})
-				continue
-			if None is payload:
-				issues.append({'file': str(target), 'message': f'{kind}.json is missing: shared {kind} are not loaded in this profile'})
-			elif not isinstance(payload, dict) or not _has_entry(payload.get('entries'), primary / kind):
-				issues.append({'file': str(target), 'message': f'No entry references {(primary / kind).as_posix()}'})
-		hooks_target = config / 'hooks.json'
-		try:
-			hooks = json.loads(hooks_target.read_text(encoding='utf-8-sig')) if hooks_target.is_file() else {}
-		except ValueError as exc:
-			hooks = {}
-			issues.append({'file': str(hooks_target), 'message': f'Invalid JSON: {exc}'})
-		missing = [hook for hook in canonical if not isinstance(hooks, dict) or hooks.get(hook) != canonical[hook]]
-		if missing:
-			issues.append({'file': str(hooks_target), 'message': f"Missing canonical hooks: {', '.join(missing)}"})
-		profiles[name] = {'config': str(config), 'valid': not issues, 'issues': issues}
-	r = {'valid': all((p['valid'] for p in profiles.values())), 'profiles': profiles}
-	return r
+	from .native_profiles import install_native_profiles
+	targets = antigravity_global_config_dirs() if config_dirs is None else config_dirs
+	result = install_native_profiles(list(targets), primary=primary, check=True, config_dirs=targets, codex_homes={})
+	if UNDECLARED_ANTIGRAVITY_HOME in result['profiles']:
+		profile = result['profiles'][UNDECLARED_ANTIGRAVITY_HOME]
+		issue = {'file': profile['config'], 'message': 'Current Antigravity home is not declared in runtime.json platforms.antigravity.homes'}
+		profile['issues'].insert(0, issue)
+		profile['valid'] = False
+		result['issues'].append(issue)
+		result['valid'] = False
+	return result
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
@@ -209,11 +171,12 @@ def check_global_customizations(config_dirs=None, primary=PRIMARY_AGENTS_DIR):
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
 def install_global_customizations(config_dir=None, primary=PRIMARY_AGENTS_DIR):
-	targets = {'explicit': Path(config_dir)} if None is not config_dir else antigravity_global_config_dirs()
-	profiles = {name: _install_profile_customizations(path, primary) for name, path in targets.items()}
-	check = check_global_customizations(targets, primary)
-	r = {'valid': check['valid'], 'profiles': profiles, 'check': check}
-	return r
+	from .native_profiles import install_native_profiles
+	targets = {'explicit': Path(config_dir)} if config_dir is not None else antigravity_global_config_dirs()
+	result = install_native_profiles(list(targets), primary=primary, config_dirs=targets, codex_homes={})
+	result['check'] = check_global_customizations(targets, primary)
+	result['valid'] = result['valid'] and result['check']['valid']
+	return result
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
@@ -366,8 +329,9 @@ def main(argv=None):
 	validate.add_argument('--format', choices=('text', 'json'), default='text')
 	validate.add_argument('--evidence', action='store_true', help='Verify saved sources and quotes without network requests')
 	sub.add_parser('doctor', help='Check discovery inputs, always_on rules, size and model settings')
-	install_global = sub.add_parser('install-global', help='Merge shared rules, skills, agents and canonical hooks into every Antigravity profile declared in runtime.json')
-	install_global.add_argument('--check', action='store_true', help='Report missing global manifests, entries and hooks per profile without writing')
+	install_global = sub.add_parser('install-global', help='Connect selected Antigravity/Codex profiles to shared native Harness sources')
+	install_global.add_argument('--target-profile', action='append', choices=tuple(settings()['platforms']['antigravity']['homes']) + tuple(settings()['platforms']['codex']['homes']), help='Profile to configure; repeat for a pilot, default: all configured profiles')
+	install_global.add_argument('--check', action='store_true', help='Verify shared sources, inherited manifests, directory links and role paths without writing')
 	build = sub.add_parser('build-native', help='Generate/check native projections from canonical policy and runtime')
 	build.add_argument('--root', type=Path)
 	build.add_argument('--check', action='store_true')
@@ -399,7 +363,8 @@ def run(args):
 			from .configuration import global_codex_instructions
 			result = global_codex_instructions()
 		elif 'install-global' == args.command:
-			result = check_global_customizations() if args.check else install_global_customizations()
+			from .native_profiles import install_native_profiles
+			result = install_native_profiles(args.target_profile, check=args.check)
 		elif 'configure' == args.command:
 			if args.check:
 				result = check_configuration(args.project)

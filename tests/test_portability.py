@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
 from contextlib import contextmanager
 from copy import deepcopy
 import json
@@ -46,6 +49,8 @@ class ProjectionTests(TemporaryCase):
 		result = configuration.build_native(self.output, primary=self.primary)
 		self.assertTrue(result['valid'], result)
 		self.assertFalse(legacy.exists())
+		backups = list((self.output / 'ꘖ/data/native-retired').rglob('*.bin'))
+		self.assertEqual([path.read_bytes() for path in backups], [b'old owned projection'])
 		value = tomllib.loads(native.read_text())
 		self.assertEqual(value['project_doc_fallback_filenames'], ['TEAM.md'])
 		self.assertNotIn('project_doc_max_bytes', value)
@@ -97,7 +102,7 @@ class ProjectionTests(TemporaryCase):
 		rule.write_text(rule.read_text(encoding='utf-8') + '\nSpecific changed policy.\n', encoding='utf-8')
 		self.assertTrue(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
 		self.assertEqual(configuration.build_native(self.output, primary=self.primary)['written'], [])
-		generated = self.output / '.codex/agents/upwork-aa.toml'
+		generated = self.primary / 'platforms/codex/agents/upwork-aa.toml'
 		generated.write_text('USER CHANGE', encoding='utf-8')
 		result = configuration.build_native(self.output, primary=self.primary)
 		self.assertFalse(result['valid'])
@@ -105,6 +110,54 @@ class ProjectionTests(TemporaryCase):
 	def test_check_does_not_create_an_uninstalled_workspace(self):
 		self.assertFalse(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
 		self.assertFalse(self.output.exists())
+	def test_dangling_personal_guidance_links_are_preserved_before_shared_publication(self):
+		for relative in ('AGENTS.md', '.codex/config.toml', 'CODEX.md'):
+			with self.subTest(relative=relative):
+				project = self.root / ('dangling-' + Path(relative).stem)
+				path = project / relative
+				path.parent.mkdir(parents=True)
+				target = self.root / 'missing-personal' / Path(relative).name
+				path.symlink_to(target)
+				identity = path.readlink()
+				result = configuration.build_native(project, primary=self.primary)
+				self.assertFalse(result['valid'], result)
+				self.assertTrue(path.is_symlink())
+				self.assertEqual(path.readlink(), identity)
+				self.assertFalse(target.exists())
+				self.assertFalse((self.primary / 'agents/af-worker.md').exists())
+	def test_shared_generation_uses_one_owner_across_projects_and_profile_install(self):
+		from agent_tools import native_profiles
+		from agent_tools.storage import data_dir_for
+		home = self.root / 'profile-C2'
+		def install(check=False):
+			return native_profiles.install_native_profiles(['C2'], primary=self.primary, check=check, config_dirs={}, codex_homes={'C2': home})
+		self.assertTrue(install()['valid'])
+		self.assertTrue(configuration.build_native(self.output, primary=self.primary)['valid'])
+		receipt_path = data_dir_for(self.output) / 'native-config.json'
+		legacy_receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+		for path in native_profiles.shared_native_outputs(self.primary):
+			legacy_receipt[str(path)] = configuration._digest(path.read_bytes())
+		receipt_path.write_text(json.dumps(legacy_receipt), encoding='utf-8')
+		self.assertFalse(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
+		first_rule = self.primary / 'rules/91-first-added.md'
+		first_rule.write_text('---\ntrigger: always_on\n---\n# Added rule\nFirst addition.  \n', encoding='utf-8')
+		self.assertTrue(configuration.build_native(self.output, primary=self.primary)['valid'])
+		second = self.root / 'another-workspace'
+		second_rule = self.primary / 'rules/92-second-added.md'
+		second_rule.write_text('---\ntrigger: always_on\n---\n# Added rule\nSecond addition.  \n', encoding='utf-8')
+		self.assertTrue(configuration.build_native(second, primary=self.primary)['valid'])
+		third_rule = self.primary / 'rules/93-third-added.md'
+		third_rule.write_text('---\ntrigger: always_on\n---\n# Added rule\nThird addition.  \n', encoding='utf-8')
+		result = install()
+		self.assertTrue(result['valid'], result)
+		self.assertTrue(install(check=True)['valid'])
+		bootstrap = self.primary / 'platforms/codex/AGENTS.md'
+		self.assertIn('93-third-added.md', bootstrap.read_text(encoding='utf-8'))
+		state = native_profiles._load_state(self.primary)
+		self.assertEqual(state['shared'][str(bootstrap)], configuration._digest(bootstrap.read_bytes()))
+		for project in (self.output, second):
+			receipt = json.loads((data_dir_for(project) / 'native-config.json').read_text(encoding='utf-8'))
+			self.assertFalse(any(Path(path).is_relative_to(self.primary) for path in receipt))
 	def test_first_install_preserves_an_unowned_antigravity_worker(self):
 		worker = self.primary / 'agents/af-worker.md'
 		worker.write_text('CUSTOM WORKER', encoding='utf-8')
@@ -121,7 +174,8 @@ class ProjectionTests(TemporaryCase):
 		self.assertNotIn('model', native_config)
 		self.assertNotIn('model_reasoning_effort', native_config)
 		for name in ('upwork-aa', 'upwork-af'):
-			value = tomllib.loads((self.output / f'.codex/agents/{name}.toml').read_text(encoding='utf-8'))
+			self.assertFalse((self.output / f'.codex/agents/{name}.toml').exists())
+			value = tomllib.loads((self.primary / f'platforms/codex/agents/{name}.toml').read_text(encoding='utf-8'))
 			self.assertNotIn('model', value)
 			self.assertNotIn('model_reasoning_effort', value)
 		with patch.object(runtime, 'settings', return_value=config):
