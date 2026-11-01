@@ -80,7 +80,7 @@ Before the first edit to `draft.md` in a turn, save its exact bytes via `snapsho
 Record completed work, the active working file, open questions, and the next step in `continuation.md`; keep facts and primary grounds in the topical KB modules and evidence store.  
 Proposal workflows do not add synthetic automated stages: do not invent stage statuses or re-run `inspect`/`init` merely because the user switched UI platforms.  
 Write standalone articles via [df-article](../df-article/SKILL.md), proposals via [df-proposal](../df-proposal/SKILL.md), and letters via the [shared procedure](../../references/client-text/workflow.md) with `kind=letter` (PUB-1).  
-Once initial analysis is finalized, record a proposal-only request via `scripts/record_step.py` (or `answer-prepare`) per FILE-3 without re-opening initial analysis stages.  
+Once initial analysis is finalized, record a proposal-only request via `answer-prepare` per FILE-3 without re-opening initial analysis stages.  
 Submitting a proposal to the client requires a separate explicit instruction.  
 
 ## Research and KB

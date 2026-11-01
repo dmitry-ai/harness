@@ -173,11 +173,10 @@ A programmatic receipt does not guarantee substantive truth: A.A evaluates meani
 By default, `turn-begin` registers the active conversation with the hidden local verifier; `journal-watch --action status|once|start|stop` manages that watcher, and `journal-unwatch <project> --conversation <native-uuid>` removes a single registration upon explicit user opt-out.  
 Exact guarantees and limits are in the [turn completion contract](../references/turn-completion.md#limits-and-verification); saved state does not prove rule comprehension, and preparation does not prove UI delivery.  
 
-`record_step.py --dir <journal> --req-file request.txt --res-file response.txt [--step N]` writes exact UTF-8 bytes into the next free pair.  
 `validate_step.py --dir <journal> --all` validates pairs and checks for stale reservations.  
-`record_step.py --dir <same-journal> --recover N --token <token>` recovers an interrupted write without overwriting conflicting files.  
+`recover-turn-violation <project> --conversation <native-uuid> [--reason <note>]` records a retrospective violation receipt in `ꘖ/data/turns/<turn_key>-violation-recovery.json` so `answer-prepare` can complete the journal with `answer-groups` receipts after an earlier `EXEC-5` or `http_fetch` tool-call violation in the same turn; direct writes to `ꙮ/**/req|res/*.md` and standalone `record_step.py` invocations are blocked by the PreToolUse gate.  
 Service records in `ꘖ/data/.journal` are bound to the journal path, token, and SHA-256 digests; file publication is atomic.  
-Legacy `record-answer <project> --response-file <exact-final-answer>` remains as a low-level compatibility and recovery primitive; standard primary turn completion uses `answer-prepare`.  
+Legacy `record-answer <project> --response-file <exact-final-answer>` and `agent_tools.journal` (`record_step` / `recover_step`) remain as internal compatibility and recovery primitives; standard primary turn completion uses `answer-prepare`.  
 Reserving the entire request group upfront prevents sequence gaps after crashes.  
 `stage ... finalize` verifies the current KB, reviews, journal, emptiness of `ꘖ/data/scratch`, and absence of one-off scripts in the project, then builds `Context.md`; this certifies response readiness rather than confirmed UI delivery.  
 

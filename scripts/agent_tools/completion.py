@@ -16,6 +16,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
@@ -32,7 +35,7 @@ from .platforms import adapter
 from .research import _CHALLENGE_RE
 from .runtime import PRIMARY, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
-COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'journal-sync', 'journal-watch', 'journal-unwatch')
+COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 def _now():
@@ -75,13 +78,33 @@ def _native(root, conversation=None, *, platform=None, backend=None):
 	return r
 def _policy():
 	return {ident: {'source': relative, 'anchor': anchor, 'sha256': _hash((PRIMARY / relative).read_bytes()), 'requirement': RULE_REQUIREMENTS[ident]} for ident, (relative, anchor) in RULES.items()}
-def _exec5_status(turn):
+def _violation_recovery(root, key):
+	if None is root or not key:
+		return {}
+	path = _folder(root) / f'{key}-violation-recovery.json'
+	if not path.is_file():
+		return {}
+	try:
+		return _read(path)
+	except (OSError, ValueError):
+		return {}
+def _exec5_status(turn, root=None, key=None):
 	violations = list(turn.get('exec5_violations') or [])
-	r = {'verified': not violations, 'violations': violations}
+	rec = _violation_recovery(root, key) if violations else {}
+	covered = set(rec.get('covered_exec5_steps') or [])
+	unrecovered = [item for item in violations if item.get('step') not in covered]
+	r = {'verified': not unrecovered, 'violations': violations}
+	if violations and (not unrecovered):
+		r['recovered_via_receipt'] = True
 	return r
-def _http_fetch_status(turn):
+def _http_fetch_status(turn, root=None, key=None):
 	violations = list(turn.get('http_fetch_violations') or [])
-	r = {'verified': not violations, 'violations': violations}
+	rec = _violation_recovery(root, key) if violations else {}
+	covered = set(rec.get('covered_http_fetch_steps') or [])
+	unrecovered = [item for item in violations if item.get('step') not in covered]
+	r = {'verified': not unrecovered, 'violations': violations}
+	if violations and (not unrecovered):
+		r['recovered_via_receipt'] = True
 	return r
 def _compaction_status(root, key, turn):
 	comp = dict(turn.get('compaction') or {})
@@ -676,7 +699,7 @@ def _instruction_snapshot(root, native, *, stage):
 	return r
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	key = _key(native, turn)
-	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn), 'http_fetch_check': _http_fetch_status(turn), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'code_lifecycle_check': _code_and_issue_lifecycle_status(root, turn), 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, root, key), 'http_fetch_check': _http_fetch_status(turn, root, key), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'code_lifecycle_check': _code_and_issue_lifecycle_status(root, turn), 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
 	return r
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
 	key = _key(native, turn)
@@ -686,8 +709,8 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 		value['instruction_snapshot'] = _instruction_snapshot(root, native, stage='existing-state-upgrade')
 	value['applicable_rules'] = _policy()
 	value['git_optional_locks_env'] = os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
-	value['exec5_check'] = _exec5_status(turn)
-	value['http_fetch_check'] = _http_fetch_status(turn)
+	value['exec5_check'] = _exec5_status(turn, root, key)
+	value['http_fetch_check'] = _http_fetch_status(turn, root, key)
 	value['compaction_check'] = _compaction_status(root, key, turn)
 	value['delegation_check'] = _delegation_status(root, turn)
 	value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
@@ -782,16 +805,97 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None):
 		_persist(path, value)
 	r = {**receipt, 'pre_checkpoint_records': stdout_records, 'recovery_file': receipt_path.relative_to(root).as_posix() if receipt_path.is_relative_to(root) else str(receipt_path), 'compaction_check': value['compaction_check']}
 	return r
+def recover_turn_violation(root, conversation=None, *, reason=None, platform=None, backend=None):
+	root = Path(root).resolve()
+	native = _native(root, conversation, platform=platform, backend=backend)
+	turn = _active(native)
+	if None is turn:
+		raise ValueError('No active primary native turn to recover')
+	key = _key(native, turn)
+	exec5_v = list(turn.get('exec5_violations') or [])
+	http_v = list(turn.get('http_fetch_violations') or [])
+	receipt_path = _folder(root) / f'{key}-violation-recovery.json'
+	receipt = {'turn_key': key, 'recovered_at': _now(), 'reason': (reason or 'Retrospective turn violation acknowledged for journal completion').strip(), 'covered_exec5_steps': [item.get('step') for item in exec5_v if None is not item.get('step')], 'covered_http_fetch_steps': [item.get('step') for item in http_v if None is not item.get('step')], 'exec5_violations': exec5_v, 'http_fetch_violations': http_v}
+	with locked(_folder(root) / 'writer.lock'):
+		replace_bytes(receipt_path, _json(receipt))
+		path, value = _state(root, native, turn)
+		_persist(path, value)
+	r = {**receipt, 'recovery_file': receipt_path.relative_to(root).as_posix() if receipt_path.is_relative_to(root) else str(receipt_path), 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check']}
+	return r
+def _norm_journal_text(text: str) -> str:
+	return _strip_local_file_scheme((text or '').replace('\r\n', '\n'))
+def _find_orphan_or_overwritten_steps(directory: Path, requests: list[str], response: str, native_ids: list[str]):
+	n = len(requests or [])
+	req_dir, res_dir = (directory / 'req', directory / 'res')
+	if 0 == n or (not req_dir.is_dir()) or (not res_dir.is_dir()):
+		return (None, None, None)
+	norm_reqs = [_norm_journal_text(r) for r in requests]
+	norm_resp = _norm_journal_text(response)
+	groups_dir = journal.state_dir(directory) / 'answer-groups'
+	claimed_by_step = {}
+	if groups_dir.is_dir():
+		for g_file in groups_dir.glob('*.json'):
+			try:
+				g_val = _read(g_file)
+				for st in g_val.get('steps') or []:
+					if type(st) is int:
+						claimed_by_step[st] = g_val
+			except (OSError, ValueError):
+				continue
+	pair_ids = sorted({int(p.stem) for p in req_dir.glob('*.md') if p.stem.isascii() and p.stem.isdigit() and (res_dir / p.name).is_file()})
+	pair_set = set(pair_ids)
+	overwritten_conflict = None
+	for start in pair_ids:
+		cand_steps = list(range(start, start + n))
+		if not all((st in pair_set for st in cand_steps)):
+			continue
+		try:
+			disk_reqs = [(req_dir / f'{st}.md').read_bytes().decode('utf-8') for st in cand_steps]
+			disk_resps = [(res_dir / f'{st}.md').read_bytes().decode('utf-8') for st in cand_steps]
+		except (OSError, UnicodeDecodeError):
+			continue
+		if len(set(disk_resps)) != 1:
+			continue
+		if [_norm_journal_text(x) for x in disk_reqs] != norm_reqs or _norm_journal_text(disk_resps[0]) != norm_resp:
+			continue
+		if all((st not in claimed_by_step and (not (journal.state_dir(directory) / f'{st}.json').exists()) for st in cand_steps)):
+			return (cand_steps, disk_reqs, disk_resps[0])
+		for st in cand_steps:
+			owner = claimed_by_step.get(st)
+			if owner and owner.get('request_ids') != native_ids:
+				o_steps = owner.get('steps') or []
+				o_reqs = owner.get('requests') or []
+				o_sha = owner.get('response_sha256')
+				matches_owner = o_steps == cand_steps and len(o_reqs) == len(cand_steps) and all((d_req == o_req for d_req, o_req in zip(disk_reqs, o_reqs))) and (_hash(disk_resps[0].encode('utf-8')) == o_sha)
+				if not matches_owner and None is overwritten_conflict:
+					overwritten_conflict = (cand_steps, owner.get('turn'))
+	if None is not overwritten_conflict:
+		c_steps, o_turn = overwritten_conflict
+		raise ValueError(f'Journal step(s) {c_steps} match this native turn but are claimed by another answer group ({o_turn}); preserve the conflict')
+	return (None, None, None)
 def _group(root, native, turn, response, directory):
 	key = 'native-' + _key(native, turn)
 	legacy = turn['turn_id']
 	groups = journal.state_dir(directory) / 'answer-groups'
 	native_ids = [r['id'] for r in turn['requests']]
+	norm_turn_reqs = [_norm_journal_text(r['text']) for r in turn['requests']]
+	norm_turn_resp = _norm_journal_text(response)
 	matches = []
 	for file in groups.glob('*.json'):
 		old = _read(file)
 		if old.get('request_ids') == native_ids:
-			if old.get('requests') != [r['text'] for r in turn['requests']] or old.get('response_sha256') != _hash(response.encode('utf-8')):
+			old_reqs = old.get('requests') or []
+			reqs_ok = old_reqs == [r['text'] for r in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
+			resp_ok = old.get('response_sha256') == _hash(response.encode('utf-8'))
+			if not resp_ok and old.get('steps'):
+				res_p = directory / 'res' / f"{old['steps'][0]}.md"
+				if res_p.is_file():
+					try:
+						disk_r = res_p.read_bytes().decode('utf-8')
+						resp_ok = _hash(disk_r.encode('utf-8')) == old.get('response_sha256') and _norm_journal_text(disk_r) == norm_turn_resp
+					except (OSError, UnicodeDecodeError):
+						pass
+			if not reqs_ok or not resp_ok:
 				raise ValueError('A journal for these exact native request IDs has different bytes; preserve the conflict')
 			matches.append(old)
 	if len(matches) > 1:
@@ -800,7 +904,9 @@ def _group(root, native, turn, response, directory):
 		return (matches[0]['turn'], native_ids)
 	if re.fullmatch('[A-Za-z0-9_-]{1,100}', legacy) and (groups / (legacy + '.json')).exists():
 		old = _read(groups / (legacy + '.json'))
-		if old.get('requests') != [r['text'] for r in turn['requests']] or old.get('response_sha256') != _hash(response.encode('utf-8')):
+		old_reqs = old.get('requests') or []
+		reqs_ok = old_reqs == [r['text'] for r in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
+		if not reqs_ok or old.get('response_sha256') != _hash(response.encode('utf-8')):
 			raise ValueError('Existing native-turn journal has different bytes; preserve the conflict')
 		return (legacy, old.get('request_ids'))
 	return (key, native_ids)
@@ -842,13 +948,37 @@ def _record(root, native, turn, response, directory, *, existing=None):
 			raise ValueError('Recorded answer-group receipt is missing or incomplete; preserve journal history')
 		if _read(group_file).get('steps') != existing['journal_steps']:
 			raise ValueError('Recorded answer-group steps changed; preserve journal history')
-	steps = journal.record_answer(directory, [r['text'] for r in turn['requests']], response, token, request_ids)
-	for step, request in zip(steps, turn['requests']):
-		if (directory / 'req' / f'{step}.md').read_bytes() != request['text'].encode('utf-8'):
+	effective_requests = [r['text'] for r in turn['requests']]
+	effective_response = response
+	adopt_steps = None
+	adopted_existing = False
+	if already_complete:
+		g_data = _read(group_file)
+		g_reqs = g_data.get('requests') or []
+		if [_norm_journal_text(x) for x in g_reqs] == [_norm_journal_text(x) for x in effective_requests]:
+			effective_requests = list(g_reqs)
+		if g_data.get('steps') and _hash(effective_response.encode('utf-8')) != g_data.get('response_sha256'):
+			res_p = directory / 'res' / f"{g_data['steps'][0]}.md"
+			if res_p.is_file():
+				try:
+					disk_r = res_p.read_bytes().decode('utf-8')
+					if _hash(disk_r.encode('utf-8')) == g_data.get('response_sha256') and _norm_journal_text(disk_r) == _norm_journal_text(effective_response):
+						effective_response = disk_r
+				except (OSError, UnicodeDecodeError):
+					pass
+	elif None is existing:
+		adopt_steps, disk_reqs, disk_resp = _find_orphan_or_overwritten_steps(directory, effective_requests, effective_response, request_ids)
+		if None is not adopt_steps:
+			effective_requests = disk_reqs
+			effective_response = disk_resp
+			adopted_existing = True
+	steps = journal.record_answer(directory, effective_requests, effective_response, token, request_ids, adopt_steps=adopt_steps)
+	for step, request in zip(steps, effective_requests):
+		if (directory / 'req' / f'{step}.md').read_bytes() != request.encode('utf-8'):
 			raise ValueError('Recorded request read-back differs from native text')
-		if (directory / 'res' / f'{step}.md').read_bytes() != response.encode('utf-8'):
+		if (directory / 'res' / f'{step}.md').read_bytes() != effective_response.encode('utf-8'):
 			raise ValueError('Recorded response read-back differs from prepared text')
-	return {'journal_steps': steps, 'response_sha256': _hash(response.encode('utf-8')), 'response_file': str(directory / 'res' / f'{steps[0]}.md'), 'recorded_at': _now(), 'group_file': str(group_file), 'reused_complete_journal_group': already_complete}
+	return {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'response_file': str(directory / 'res' / f'{steps[0]}.md'), 'recorded_at': _now(), 'group_file': str(group_file), 'reused_complete_journal_group': bool(already_complete or adopted_existing)}
 def _unchanged(root, native, turn):
 	latest = _native(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'])
 	current = _active(latest)
@@ -877,13 +1007,13 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 		path, value = _state(root, native, turn)
 		if not value['exec5_check']['verified']:
 			commands = [cmd for item in value['exec5_check']['violations'] for cmd in item.get('commands', [])]
-			detail = 'EXEC-5 violation in active turn (git read command without --no-optional-locks): ' + '; '.join(commands)
+			detail = 'EXEC-5 violation in active turn (git read command without --no-optional-locks; run recover-turn-violation to record retrospective violation receipt before answer-prepare): ' + '; '.join(commands)
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
 		if not value['http_fetch_check']['verified']:
 			commands = [cmd for item in value['http_fetch_check']['violations'] for cmd in item.get('commands', [])]
-			detail = 'KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection; use collect or collect-http): ' + '; '.join(commands)
+			detail = 'KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection; use collect/collect-http or run recover-turn-violation to record retrospective violation receipt before answer-prepare): ' + '; '.join(commands)
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
@@ -1025,27 +1155,27 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
 			if value.get('uncovered_requests'):
 				results.append(_conflict(root, path, value, native, turn, response, 'Prepared answer does not cover newly received native requests'))
 				continue
-			effective_response = response
-			if value['prepared'] and value['prepared']['response_sha256'] != sha:
-				prep_file = Path(value['prepared'].get('response_file') or '')
-				prep_text = prep_file.read_text(encoding='utf-8') if prep_file.is_file() else ''
-				if prep_text and _strip_local_file_scheme(prep_text) == _strip_local_file_scheme(response):
-					effective_response = prep_text
-				else:
-					results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
-					continue
-			elif not value['prepared']:
-				j_dir = _directory(root, value['journal'])
-				req_ids = [r['id'] for r in turn['requests']]
-				for g_file in (journal.state_dir(j_dir) / 'answer-groups').glob('*.json'):
-					g_val = _read(g_file)
-					if g_val.get('request_ids') == req_ids and g_val.get('steps'):
-						res_path = j_dir / 'res' / f"{g_val['steps'][0]}.md"
-						res_text = res_path.read_text(encoding='utf-8') if res_path.is_file() else ''
-						if res_text and _strip_local_file_scheme(res_text) == _strip_local_file_scheme(response):
-							effective_response = res_text
-						break
 			try:
+				effective_response = response
+				if value['prepared'] and value['prepared']['response_sha256'] != sha:
+					prep_file = Path(value['prepared'].get('response_file') or '')
+					prep_text = prep_file.read_bytes().decode('utf-8') if prep_file.is_file() else ''
+					if prep_text and _norm_journal_text(prep_text) == _norm_journal_text(response):
+						effective_response = prep_text
+					else:
+						results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
+						continue
+				elif not value['prepared']:
+					j_dir = _directory(root, value['journal'])
+					req_ids = [r['id'] for r in turn['requests']]
+					for g_file in (journal.state_dir(j_dir) / 'answer-groups').glob('*.json'):
+						g_val = _read(g_file)
+						if g_val.get('request_ids') == req_ids and g_val.get('steps'):
+							res_path = j_dir / 'res' / f"{g_val['steps'][0]}.md"
+							res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
+							if res_text and _norm_journal_text(res_text) == _norm_journal_text(response):
+								effective_response = res_text
+							break
 				recorded = _record(root, native, turn, effective_response, value['journal'], existing=_recorded(value))
 			except (OSError, ValueError) as exc:
 				results.append(_conflict(root, path, value, native, turn, response, str(exc), retryable=isinstance(exc, OSError) and (not isinstance(exc, FileNotFoundError))))
@@ -1066,10 +1196,13 @@ def add_parser_arguments(parser, command):
 		parser.add_argument('--state-dir', type=Path)
 		parser.add_argument('--interval', type=float, default=5)
 		parser.add_argument('--token', help='Internal watcher ownership token')
+		parser.add_argument('--dry-run', action='store_true')
 		return
 	parser.add_argument('project', type=Path)
 	parser.add_argument('--conversation', help='Actual current native conversation UUID; Codex can use CODEX_THREAD_ID')
-	if command not in ('journal-unwatch', 'recover-checkpoint'):
+	if 'recover-turn-violation' == command:
+		parser.add_argument('--reason', help='Audit note for retrospective turn violation recovery')
+	if command not in ('journal-unwatch', 'recover-checkpoint', 'recover-turn-violation'):
 		parser.add_argument('--journal', type=Path, help='User-selected journal; otherwise preserve the turn binding or use ꙮ/1 - Analysis')
 	if command in ('turn-begin', 'answer-prepare'):
 		parser.add_argument('--no-watch', action='store_true', help='Explicit foreground-only mode; no independent recovery')
@@ -1083,6 +1216,8 @@ def execute(args):
 		r = begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal)
 	elif 'recover-checkpoint' == args.command:
 		r = recover_checkpoint(args.project, args.conversation)
+	elif 'recover-turn-violation' == args.command:
+		r = recover_turn_violation(args.project, args.conversation, reason=args.reason)
 	elif 'answer-prepare' == args.command:
 		from .operations import _operation_input, _consumed
 		payload = _operation_input(args, args.response_file)
@@ -1102,6 +1237,8 @@ def execute(args):
 		from . import journal_watch
 		if 'run' == args.action:
 			r = journal_watch.run(state_dir=args.state_dir, token=args.token, interval=args.interval)
+		elif 'once' == args.action:
+			r = journal_watch.once(state_dir=args.state_dir, dry_run=args.dry_run)
 		else:
 			r = getattr(journal_watch, args.action)(state_dir=args.state_dir)
 	return r

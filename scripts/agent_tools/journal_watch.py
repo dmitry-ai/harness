@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -35,6 +38,23 @@ def _save(path, value):
 	replace_bytes(path, (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 def _now():
 	return datetime.now(timezone.utc).isoformat()
+def _log(directory, event, **fields):
+	try:
+		path = Path(directory) / 'daemon.log'
+		path.parent.mkdir(parents=True, exist_ok=True)
+		entry = {'ts': _now(), 'event': event, **fields}
+		with path.open('ab') as stream:
+			stream.write((json.dumps(entry, ensure_ascii=False) + '\n').encode('utf-8'))
+	except OSError:
+		pass
+def _code_digest():
+	digest = hashlib.sha256()
+	for path in sorted((PRIMARY / 'scripts/agent_tools').rglob('*.py')):
+		try:
+			digest.update(path.relative_to(PRIMARY).as_posix().encode('utf-8') + b'\x00' + path.read_bytes() + b'\x00')
+		except OSError:
+			pass
+	return digest.hexdigest()
 def register(root, native, from_step, *, state_dir=None, journal_directory=None):
 	directory = _folder(state_dir)
 	identity = [str(Path(root).resolve()), native['platform'], native['native_backend'], native['conversation_id']]
@@ -89,16 +109,19 @@ def start(*, state_dir=None):
 		if 'nt' != os.name:
 			options['start_new_session'] = True
 		else:
-			base_flags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+			base_flags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, 'DETACHED_PROCESS', 0)
 			options['creationflags'] = base_flags | getattr(subprocess, 'CREATE_BREAKAWAY_FROM_JOB', 0)
+		breakaway_fallback = False
 		with (directory / 'daemon.log').open('ab') as output:
 			try:
-				process = subprocess.Popen(args, stdout=output, stderr=output, **options)
+				process = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=output, **options)
 			except OSError:
 				if 'nt' != os.name:
 					raise
+				breakaway_fallback = True
 				options['creationflags'] = base_flags
-				process = subprocess.Popen(args, stdout=output, stderr=output, **options)
+				process = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=output, **options)
+		_log(directory, 'start_spawn', pid=process.pid, token=token, breakaway_fallback=breakaway_fallback)
 		Thread(target=process.wait, daemon=True).start()
 		deadline = time.monotonic() + 8
 		while time.monotonic() < deadline:
@@ -116,6 +139,7 @@ def stop(*, state_dir=None):
 		r = {**current, 'stop_requested': False}
 	else:
 		_save(directory / 'stop.json', {'token': current['token'], 'requested_at': _now()})
+		_log(directory, 'stop_requested', token=current['token'], pid=current.get('pid'))
 		r = {**current, 'stop_requested': True}
 	return r
 def _signature(binding):
@@ -158,12 +182,14 @@ def _integrity_due(binding):
 	except (KeyError, TypeError, ValueError):
 		r = True
 	return r
-def once(*, state_dir=None):
+def once(*, state_dir=None, dry_run=False, stop_token=None):
 	from .completion import sync
 	directory = _folder(state_dir)
 	results = []
 	with locked(directory / 'scan.lock', timeout=0):
 		for path in sorted((directory / 'bindings').glob('*.json')):
+			if stop_token and _read(directory / 'stop.json', {}).get('token') == stop_token:
+				break
 			try:
 				value = _read(path)
 				_validate_binding(value)
@@ -175,12 +201,19 @@ def once(*, state_dir=None):
 				if False is value.get('last_result', {}).get('valid'):
 					results.append({'conversation_id': value['conversation_id'], **value['last_result'], 'unchanged': True})
 				continue
+			if dry_run:
+				results.append({'conversation_id': value['conversation_id'], 'project_root': value['project_root'], 'platform': value['platform'], 'valid': True, 'dry_run': True, 'would_sync': True})
+				continue
 			try:
 				result = sync(value['project_root'], value['conversation_id'], platform=value['platform'], backend=value['native_backend'], from_step=value['from_step'], journal_directory=value.get('journal_directory'))
 				update = {'last_result': result, 'last_error': None, 'last_checked_at': _now(), 'last_signature': None if result.get('retryable') else signature}
+				for t_rec in result.get('turns') or []:
+					if t_rec.get('recovered_after_delivery') or 'conflict' == t_rec.get('status'):
+						_log(directory, 'turn_reconciled', conversation_id=value['conversation_id'], project_root=value['project_root'], turn_key=t_rec.get('turn_key'), status=t_rec.get('status'), journal_steps=t_rec.get('journal_steps'), completion_provenance=t_rec.get('completion_provenance'), detail=t_rec.get('detail'))
 			except (OSError, ValueError, TypeError, KeyError, AttributeError, IndexError, TimeoutError, sqlite3.Error) as exc:
 				result = {'valid': False, 'error': str(exc)}
 				update = {'last_result': result, 'last_error': str(exc), 'last_checked_at': _now(), 'last_signature': None}
+				_log(directory, 'binding_sync_error', conversation_id=value['conversation_id'], project_root=value['project_root'], error=str(exc))
 			try:
 				with locked(directory / 'bindings.lock'):
 					latest = _read(path)
@@ -193,7 +226,7 @@ def once(*, state_dir=None):
 			except (OSError, ValueError, TypeError, KeyError, TimeoutError) as exc:
 				result = {'valid': False, 'error': str(exc), 'binding': str(path)}
 			results.append({'conversation_id': value['conversation_id'], **result})
-	return {'valid': all((False is not r.get('valid') for r in results)), 'bindings_checked': len(results), 'results': results}
+	return {'valid': all((False is not r.get('valid') for r in results)), 'bindings_checked': len(results), 'dry_run': bool(dry_run), 'results': results}
 def run(*, state_dir=None, token=None, interval=5):
 	if not isinstance(interval, (int, float)) or not 0.1 <= interval <= 60:
 		raise ValueError('Watcher interval must be between 0.1 and 60 seconds')
@@ -201,16 +234,23 @@ def run(*, state_dir=None, token=None, interval=5):
 		raise ValueError('Watcher needs its explicit launch ownership token')
 	directory = _folder(state_dir)
 	with locked(directory / 'daemon.lock', timeout=0):
-		marker = {'schema_version': 1, 'pid': os.getpid(), 'token': token, 'started_at': _now(), 'status': 'running', 'script': str(PRIMARY / 'scripts/harness.py')}
+		initial_code = _code_digest()
+		marker = {'schema_version': 1, 'pid': os.getpid(), 'token': token, 'started_at': _now(), 'status': 'running', 'script': str(PRIMARY / 'scripts/harness.py'), 'code_sha256': initial_code}
 		_save(directory / 'daemon.json', marker)
+		_log(directory, 'daemon_started', pid=os.getpid(), token=token, code_sha256=initial_code)
 		try:
 			while _read(directory / 'stop.json', {}).get('token') != token:
+				current_code = _code_digest()
+				if current_code != initial_code:
+					_log(directory, 'code_digest_changed', pid=os.getpid(), token=token, old_sha256=initial_code, new_sha256=current_code)
+					break
 				try:
-					result = once(state_dir=directory)
+					result = once(state_dir=directory, stop_token=token)
 					marker.update(last_scan_at=_now(), bindings_checked=result['bindings_checked'], last_scan_valid=result['valid'])
 					marker.pop('last_error', None)
 				except (OSError, ValueError, TimeoutError, sqlite3.Error) as exc:
 					marker.update(last_scan_at=_now(), last_error=str(exc))
+					_log(directory, 'daemon_error', pid=os.getpid(), token=token, error=str(exc))
 				_save(directory / 'daemon.json', marker)
 				deadline = time.monotonic() + interval
 				while time.monotonic() < deadline:
@@ -219,5 +259,6 @@ def run(*, state_dir=None, token=None, interval=5):
 					time.sleep(min(0.1, max(0, deadline - time.monotonic())))
 		finally:
 			_save(directory / 'daemon.json', {**marker, 'status': 'stopped', 'stopped_at': _now()})
+			_log(directory, 'daemon_stopped', pid=os.getpid(), token=token)
 	r = {'status': 'stopped', 'token': token}
 	return r

@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 import hashlib
 import json
 from pathlib import Path
@@ -114,7 +117,7 @@ def validate_step(journal_dir, step_num) -> bool:
 		print(error)
 	r = not errors
 	return r
-def record_answer(directory, requests, response, turn, request_ids=None):
+def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None):
 	import re
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn) or not isinstance(requests, list) or (not requests):
 		raise ValueError('Stable turn ID and nonempty exact request list required')
@@ -136,8 +139,14 @@ def record_answer(directory, requests, response, turn, request_ids=None):
 			if group.get('journal') != str(directory) or group.get('requests') != requests or group.get('request_ids') != request_ids or (group.get('response_sha256') != digest(response.encode())):
 				raise ValueError('Answer group differs from its original journal/requests/response; preserve it')
 		else:
-			start = max(get_existing_step_ids(directory), default=0) + 1
-			group = {'version': 1, 'journal': str(directory), 'turn': turn, 'status': 'pending', 'steps': list(range(start, start + len(requests))), 'requests': requests, 'response_sha256': digest(response.encode()), 'tokens': [uuid.uuid4().hex for _ in requests], 'request_ids': request_ids}
+			if None is not adopt_steps:
+				if not isinstance(adopt_steps, list) or len(adopt_steps) != len(requests) or any((type(x) is not int or x < 1 for x in adopt_steps)):
+					raise ValueError('Adopted journal steps must match the exact request list')
+				steps_to_use = list(adopt_steps)
+			else:
+				start = max(get_existing_step_ids(directory), default=0) + 1
+				steps_to_use = list(range(start, start + len(requests)))
+			group = {'version': 1, 'journal': str(directory), 'turn': turn, 'status': 'pending', 'steps': steps_to_use, 'requests': requests, 'response_sha256': digest(response.encode()), 'tokens': [uuid.uuid4().hex for _ in requests], 'request_ids': request_ids}
 			create_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
 		for step, request, token in zip(group['steps'], requests, group['tokens']):
 			receipt = journal_state / f'{step}.json'

@@ -19,6 +19,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -968,6 +971,65 @@ class AntigravityCompletionTests(unittest.TestCase):
 		wpath.write_text(json.dumps(state), encoding='utf-8')
 		with self.assertRaisesRegex(ValueError, 'REVIEW-3 / REVIEW-4: Adopt current requests'):
 			completion.prepare(self.project, 'Method M-SRV-1: score 90%.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+	def test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict(self):
+		jdir = self.project / 'ꙮ/1 - Analysis'
+		(jdir / 'req').mkdir(parents=True, exist_ok=True)
+		(jdir / 'res').mkdir(parents=True, exist_ok=True)
+		(jdir / 'req/75.md').write_bytes(b'Native user\r\n')
+		(jdir / 'res/75.md').write_bytes('Final ꘖ\r\n'.encode('utf-8'))
+		self.finish('Final ꘖ')
+		synced = self.sync()['turns'][0]
+		self.assertEqual(synced['status'], 'delivered')
+		self.assertEqual(synced['journal_steps'], [75])
+		self.assertEqual(synced['completion_provenance'], 'existing_journal')
+		self.assertFalse(synced['recovered_after_delivery'])
+		self.assertFalse((jdir / 'req/76.md').exists())
+		again = self.sync()['turns'][0]
+		self.assertEqual(again['status'], 'delivered')
+		self.assertEqual(again['journal_steps'], [75])
+		other = AntigravityCompletionTests()
+		other.setUp()
+		self.addCleanup(other.doCleanups)
+		ojdir = other.project / 'ꙮ/1 - Analysis'
+		(ojdir / 'req').mkdir(parents=True, exist_ok=True)
+		(ojdir / 'res').mkdir(parents=True, exist_ok=True)
+		gdir = journal.state_dir(ojdir) / 'answer-groups'
+		gdir.mkdir(parents=True, exist_ok=True)
+		(gdir / 'native-owner36.json').write_text(json.dumps({'version': 1, 'journal': str(ojdir.resolve()), 'turn': 'native-owner36', 'status': 'complete', 'steps': [36], 'requests': ['Original step 36 request'], 'response_sha256': '11' * 32, 'tokens': ['tok36'], 'request_ids': ['other-conv-112']}), encoding='utf-8')
+		(ojdir / 'req/36.md').write_text('Native user', encoding='utf-8')
+		(ojdir / 'res/36.md').write_text('Overwritten 36 response', encoding='utf-8')
+		other.finish('Overwritten 36 response')
+		conflict_res = other.sync()
+		self.assertFalse(conflict_res['valid'])
+		self.assertEqual(conflict_res['turns'][0]['status'], 'conflict')
+		self.assertIn('claimed by another answer group', conflict_res['turns'][0]['detail'])
+		self.assertFalse((ojdir / 'req/37.md').exists())
+	def test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes(self):
+		import check_rules_and_server_gate as gate
+		self.assertIsNotNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꙮ/1 - Анализ/req/36.md'}))
+		self.assertIsNotNone(gate.check_journal_write_gate('edit_file', {'Path': 'C:/work/project/ꙮ/res/120.md'}))
+		self.assertIsNotNone(gate.check_journal_write_gate('run_command', {'CommandLine': 'python scripts/record_step.py --dir ꙮ'}))
+		self.assertIsNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꘖ/data/scratch/answer.md'}))
+		self.rows += [
+			{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'g1', 'name': 'run_command', 'args': {'CommandLine': 'git status --short'}}, {'id': 'h1', 'name': 'run_command', 'args': {'CommandLine': 'curl.exe https://example.com/'}}]}
+		]
+		self.write()
+		with self.assertRaisesRegex(ValueError, 'EXEC-5 violation'):
+			completion.prepare(self.project, 'Final after recovery.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		rec = completion.recover_turn_violation(self.project, self.cid, reason='Verified retrospective violation recovery', platform='antigravity', backend=self.backend)
+		self.assertTrue(rec['exec5_check']['verified'])
+		self.assertTrue(rec['exec5_check'].get('recovered_via_receipt'))
+		self.assertTrue(rec['http_fetch_check']['verified'])
+		self.assertTrue(rec['http_fetch_check'].get('recovered_via_receipt'))
+		prepared = completion.prepare(self.project, 'Final after recovery.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+	def test_crlf_prepared_journal_and_system_message_subagent_completion_do_not_conflict(self):
+		prepared = completion.prepare(self.project, 'Line 1\r\nLine 2\r\n', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+		self.finish('Line 1\nLine 2')
+		synced = self.sync()['turns'][0]
+		self.assertEqual(synced['status'], 'delivered')
+		self.assertTrue(synced['delivery_verified'])
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'
@@ -985,5 +1047,13 @@ class WatcherLifecycleTests(unittest.TestCase):
 				self.assertEqual(first['pid'], second['pid'])
 				self.assertEqual(first['token'], second['token'])
 			self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'stopped')
+			log_lines = [json.loads(line) for line in (directory / 'daemon.log').read_text(encoding='utf-8').splitlines() if line.strip() and line.lstrip().startswith('{')]
+			events = {item.get('event') for item in log_lines}
+			self.assertIn('start_spawn', events)
+			self.assertIn('daemon_started', events)
+			self.assertIn('stop_requested', events)
+			self.assertIn('daemon_stopped', events)
+			dry = journal_watch.once(state_dir=directory, dry_run=True)
+			self.assertTrue(dry['dry_run'])
 if '__main__' == __name__:
 	unittest.main()

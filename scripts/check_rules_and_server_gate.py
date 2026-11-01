@@ -10,6 +10,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 import json
 from pathlib import Path
 import re
@@ -51,6 +54,16 @@ def check_git_write_gate(name: str, args: dict) -> str | None:
 	cmd = args.get('CommandLine', '')
 	violations = prohibited_git_write_commands(cmd)
 	return '; '.join(violations) if violations else None
+def check_journal_write_gate(name: str, args: dict) -> str | None:
+	if name in ('write_file', 'edit_file'):
+		path = (args.get('Path') or '').replace('\\', '/')
+		if re.search('(?:^|/)\\ua66e/(?:[^/]+/)?(?:req|res)/[^/]+\\.md$', path, re.IGNORECASE):
+			return 'FILE-3 / FILE-4: Direct write_file or edit_file to journal req/res files is prohibited; use harness.py answer-prepare to record primary responses with answer-groups receipts.'
+	elif 'run_command' == name:
+		cmd = args.get('CommandLine') or ''
+		if re.search('\\brecord_step\\.py\\b', cmd, re.IGNORECASE) and (not re.search('\\bgit\\b[^;|\\n]*\\brm\\b[^;|\\n]*\\brecord_step\\.py\\b', cmd, re.IGNORECASE)):
+			return 'FILE-3 / FILE-4: Executing record_step.py is prohibited; use harness.py answer-prepare to record primary responses with answer-groups receipts.'
+	return None
 def check_batch_analysis_generator(name: str, args: dict) -> str | None:
 	if name in ('write_file', 'edit_file'):
 		path = (args.get('Path') or '').replace('\\', '/').lower()
@@ -125,6 +138,7 @@ def main():
 				('RULES-BUDGET-GATE', lambda: check_rules_budget(name, args)),
 				('SERVER-HYGIENE-GATE', lambda: check_server_hygiene(name, args)),
 				('EXEC-5-GIT-GATE', lambda: check_git_write_gate(name, args)),
+				('FILE-3-JOURNAL-GATE', lambda: check_journal_write_gate(name, args)),
 				('VERIFY-1-BATCH-SYNTHESIS-GATE', lambda: check_batch_analysis_generator(name, args)),
 				('REVIEW-1-BULK-SOURCE-GATE', lambda: check_bulk_source_read_streak(name, args, payload)),
 			):

@@ -13,6 +13,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 from pathlib import Path
 from datetime import date
 from urllib.parse import unquote
@@ -635,7 +638,7 @@ def native_answers(root, conversation_id, *, backend=None):
 			step_idx = row.get('step_index')
 			if 'CHECKPOINT' == row.get('type') and isinstance(step_idx, int):
 				checkpoint_steps.append(step_idx)
-			if 'EPHEMERAL_MESSAGE' == row.get('type') and re.search('<SYSTEM_MESSAGE>.*\\bSubagent\\b.*\\bcompleted\\b', str(row.get('content') or ''), re.S):
+			if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and re.search('<SYSTEM_MESSAGE>.*(?:\\bSubagent\\b.*\\bcompleted\\b|\\[Message\\]\\s+timestamp=[^\\n]+\\bsender=[0-9a-f]{8}-[0-9a-f]{4}-)', str(row.get('content') or ''), re.S | re.I):
 				completed_subagents += 1
 			calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 			if calls and isinstance(step_idx, int):
@@ -724,14 +727,15 @@ def native_answers(root, conversation_id, *, backend=None):
 		idle = 'CASCADE_RUN_STATUS_IDLE' == summary.get('status') and 0 == summary.get('not_fully_idle') and (not summary.get('killed')) and (last_user_idx == start or (0 == start and last_user_idx == -1)) and (last_db_user == start) and (final_step == max(statuses, default=-1))
 		req_id = f'{conversation_id}-{start}'
 		j_entry = journal_groups.get(req_id)
+		has_single_journal_group = None is not j_entry and 1 == len(j_entry[0].get('request_ids', []))
 		last_text = str(last.get('content') or '')
-		intermediate_wait = None is not end and (not answer_prepared_in_segment) and (completed_subagents < spawned_subagents or bool(re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', last_text)))
+		intermediate_wait = None is not end and (not answer_prepared_in_segment) and (not has_single_journal_group) and (completed_subagents < spawned_subagents or bool(re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', last_text)))
 		if intermediate_wait:
 			completed = False
 			resp_text = None
 		elif None is not j_entry and (not final or 1 < len(j_entry[0].get('request_ids', []))):
 			completed = req_id == j_entry[0]['request_ids'][-1] and (None is not end or idle)
-			resp_text = (jdir / 'res' / f'{j_entry[1]}.md').read_text(encoding='utf-8') if completed else None
+			resp_text = (jdir / 'res' / f'{j_entry[1]}.md').read_bytes().decode('utf-8') if completed else None
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None

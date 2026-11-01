@@ -42,6 +42,7 @@ python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/
 
 The operation re-verifies the active native turn, records the exact requests and response through the existing `record_answer` mechanism, validates the read-back bytes (rejecting corrupted OEM/ASCII output where words were replaced by `???`), and returns `response_file`, SHA256, pair numbers, and `ready: true`.  
 It also checks public tool calls of the active turn for compliance with `EXEC-5` (no read-only Git invocations without `--no-optional-locks`), saving the result in `exec5_check`.  
+If an earlier step in the active turn triggered an `exec5_check` or `http_fetch_check` violation, run `python <agents>/scripts/harness.py recover-turn-violation <root> --conversation <native-uuid> --reason "<explanation>"` to record a retrospective violation receipt in `ꘖ/data/turns/<turn_key>-violation-recovery.json` (preserving the violation list with `recovered_via_receipt: true`) before calling `answer-prepare`, rather than writing directly to `ꙮ/**/req|res/*.md`.  
 Additionally, `answer-prepare` performs five protective turn and source checks:  
 1. `http_fetch_check` (`KB-3` / `EXEC-1`): rejects ad-hoc external network requests in the shell (`urllib.request`, `requests`, `Invoke-WebRequest`, `curl`) executed outside `collect` / `collect-http` / `collect-browser`.  
 2. `compaction_check` (`COMPACT-1` / `KB-3`): if context compaction (`CHECKPOINT` / `context_compacted`) occurred in the active turn after tool calls, requires restoring pre-compaction results via `harness.py recover-checkpoint <root> --conversation <native-uuid>` or reading `transcript_full.jsonl` after the `CHECKPOINT` step.  
@@ -66,6 +67,7 @@ This check does not identify hidden causes, does not forbid justified equal prio
 python <agents>/scripts/harness.py journal-sync <root> --conversation <native-uuid> --platform codex
 python <agents>/scripts/harness.py journal-watch --action status
 python <agents>/scripts/harness.py journal-watch --action once
+python <agents>/scripts/harness.py journal-watch --action once --dry-run
 python <agents>/scripts/harness.py journal-watch --action stop
 ```
 
@@ -80,7 +82,7 @@ Historical responses are preserved verbatim even if they contain errors; recordi
 Altered bytes are recorded as a conflict alongside the separate native text; existing journal pairs are never overwritten.  
 An unchanged native source is cached for up to 60 seconds; once expired, integrity verification repeats on the next available pass alongside other conversations and lock waits.  
 When a completion state exists, deleting a recorded pair or its receipt is flagged as a conflict without silent restoration or history duplication.  
-If all ownership receipts for a legacy pair are lost, its native ID cannot be recovered from text similarity alone; such matching is not guaranteed here.  
+When an unrecorded native turn matches an existing unclaimed pair in `req/<N>.md` and `res/<N>.md` (after normalizing `CRLF`/`LF`, trailing newlines, and local `file:///` prefixes), `_record` adopts that pair into `answer-groups/native-<turn_key>.json` with `completion_provenance: existing_journal` instead of allocating a duplicate `max + 1` pair; if the matching on-disk pair is claimed by another `answer-groups` receipt whose recorded hashes disagree with the overwritten disk bytes, `_record` raises a conflict and preserves the evidence.  
 A syntactically or structurally corrupted binding is preserved with an error and does not halt verification of other conversations; a transient read error is retried on the next pass rather than cached as success.  
 Failure of a prior gate on a linked client document is likewise preserved as a conflict with the native text rather than bypassed for recovery.  
 A stable native ID and request check prevent duplicates; identical wording in different turns is not treated as the same request.  

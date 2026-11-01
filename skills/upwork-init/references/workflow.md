@@ -41,7 +41,7 @@ If workspace creation itself was interrupted before `ꘖ/project.json` was writt
 Once initial analysis is finalized, any specific instruction to draft or edit a proposal is executed semi-manually using the same KB, exact journal, `continuation.md`, and existing `result/**/draft.md` or `final.md`.  
 The stages below track initial analysis; they do not declare a proposal ready and do not require re-running all five stages when switching platforms.  
 Snapshot any existing `draft.md` per FILE-2 before editing, and record the current task and next step in `ꘖ/data/continuation.md`.  
-After initial analysis is finalized, record a proposal-only request via `scripts/record_step.py` (or `answer-prepare`) without adding it as an unfinished initial-analysis request.  
+After initial analysis is finalized, record a proposal-only request via `answer-prepare` without adding it as an unfinished initial-analysis request.  
 
 ## Stages
 

@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
@@ -108,7 +111,8 @@ class JournalTests(TemporaryCase):
 		self.assertEqual(journal.step_errors(self.root, 1), [])
 	def test_concurrent_real_processes_same_request_get_distinct_pairs(self):
 		def run(index):
-			return self.cli('record_step', '--dir', self.root, '--req', 'identical request', '--res', f'response {index}')
+			code = 'import sys; sys.path.insert(0, sys.argv[1]); from agent_tools.cli import main; raise SystemExit(main("record_step", sys.argv[2:]))'
+			return subprocess.run([sys.executable, '-c', code, str(SCRIPTS), '--dir', str(self.root), '--req', 'identical request', '--res', f'response {index}'], cwd=self.root, capture_output=True, encoding='utf-8')
 		with ThreadPoolExecutor(max_workers=6) as pool:
 			results = list(pool.map(run, range(12)))
 		for result in results:
