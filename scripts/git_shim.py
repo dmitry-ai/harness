@@ -10,13 +10,16 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
+# https://github.com/dmitry-ai/harness/issues/40
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from agent_tools.git_gate import READ_SUBCOMMANDS, classify_git_argv, cleanup_stale_credential_locks, normalize_host_path, run_git_hook, verify_git_write_invocation
+from agent_tools.git_gate import READ_SUBCOMMANDS, classify_git_argv, cleanup_stale_credential_locks, is_agent_git_context, normalize_host_path, run_git_hook, verify_git_write_invocation
 _NET_SUBCOMMANDS = ('push', 'fetch', 'pull', 'clone', 'ls-remote', 'submodule')
 def _normalize_arg_token(token: str) -> str:
 	if token.startswith(('/cygdrive/', '/mnt/')) and len(token.split('/')) >= 3:
@@ -81,7 +84,8 @@ def main(argv: list[str] | None=None) -> int:
 		r = 2
 	else:
 		try:
-			completed = subprocess.run([binary, *effective], env=env)
+			flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if is_agent_git_context() else 0
+			completed = subprocess.run([binary, *effective], env=env, creationflags=flags)
 			r = completed.returncode
 		finally:
 			cleanup_stale_credential_locks()

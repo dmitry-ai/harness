@@ -28,6 +28,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
+# https://github.com/dmitry-ai/harness/issues/40
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -164,6 +167,15 @@ def _delegation_status(root, turn):
 	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'issue_actions_count': issue_actions_count, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
 	return r
 def _origin_repo_slug(code_repo: Path):
+	cfg_file = Path(code_repo) / '.git/config'
+	if cfg_file.is_file():
+		try:
+			cfg_text = cfg_file.read_text(encoding='utf-8', errors='replace')
+			cm = re.search('github\\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\\.git)?/?(?:\\s|$)', cfg_text)
+			if cm:
+				return cm.group(1)
+		except OSError:
+			pass
 	from .git_gate import run_git_read
 	proc = run_git_read(code_repo, ['remote', 'get-url', 'origin'], check=False)
 	if 0 != proc.returncode:
@@ -771,7 +783,8 @@ def _instruction_snapshot(root, native, *, stage):
 	return r
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	key = _key(native, turn)
-	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, root, key), 'http_fetch_check': _http_fetch_status(turn, root, key), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'code_lifecycle_check': _code_and_issue_lifecycle_status(root, turn), 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []} if recovered else _code_and_issue_lifecycle_status(root, turn)
+	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, root, key), 'http_fetch_check': _http_fetch_status(turn, root, key), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'code_lifecycle_check': lifecycle, 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
 	return r
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
 	key = _key(native, turn)
@@ -785,7 +798,10 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 	value['http_fetch_check'] = _http_fetch_status(turn, root, key)
 	value['compaction_check'] = _compaction_status(root, key, turn)
 	value['delegation_check'] = _delegation_status(root, turn)
-	value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
+	if not recovered:
+		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
+	elif 'code_lifecycle_check' not in value:
+		value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []}
 	saved_directory = _directory(root, value['journal'])
 	if strict_journal and None is not journal_directory and (saved_directory != _directory(root, journal_directory)):
 		raise ValueError('The native turn already has a different journal; preserve its original binding')

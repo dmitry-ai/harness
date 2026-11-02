@@ -19,6 +19,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
+# https://github.com/dmitry-ai/harness/issues/40
 import os
 from pathlib import Path
 import re
@@ -28,6 +31,7 @@ import sys
 import time
 import uuid
 from .links import validate_file
+_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 READ_SUBCOMMANDS = ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files')
 _VALUE_GLOBAL_OPTS = ('-C', '--git-dir', '--work-tree', '-c', '--exec-path', '--namespace', '--super-prefix', '--config-env')
 HOOKS_DIR = Path(__file__).resolve().parents[1] / 'git_hooks'
@@ -118,7 +122,7 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 	if not expired:
 		return []
 	if check_running and 'nt' == os.name:
-		proc = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq git-credential-store.exe', '/NH'], capture_output=True, text=True, check=False)
+		proc = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq git-credential-store.exe', '/NH'], capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
 		if 'git-credential-store' in (proc.stdout or '').lower():
 			return []
 	removed: list[str] = []
@@ -131,7 +135,7 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 	return removed
 def git(root: Path, *args) -> bytes:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	result = subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env)
+	result = subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env, creationflags=_NO_WINDOW)
 	if result.returncode:
 		raise RuntimeError(result.stderr.decode('utf-8', errors='replace').strip())
 	r = result.stdout
@@ -243,7 +247,7 @@ def is_code_file(rel_path: str | Path) -> bool:
 	return Path(rel_path).suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES
 def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True):
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env, check=check)
+	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
 def _main_repo_for_worktree(root: Path) -> Path:
 	resolved = normalize_host_path(root).resolve()
 	dot_git = resolved / '.git'
@@ -273,10 +277,10 @@ def ensure_repo_hooks(root: Path) -> Path | None:
 			hp = HOOKS_DIR / hname
 			if hp.is_file():
 				hp.chmod(hp.stat().st_mode | 0o755)
-		proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], capture_output=True, text=True, check=False)
+		proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
 		current = (proc.stdout or '').strip()
 		if normalize_host_path(current).resolve() != HOOKS_DIR.resolve() if current else True:
-			subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(HOOKS_DIR)], capture_output=True, check=False)
+			subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(HOOKS_DIR)], capture_output=True, check=False, creationflags=_NO_WINDOW)
 	except OSError:
 		return None
 	return HOOKS_DIR
@@ -289,7 +293,7 @@ def verify_staged_blob_sizes(root: Path, staged_paths: list[str] | None=None) ->
 		return
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	batch_in = ''.join((f':{p}\n' for p in paths)).encode('utf-8')
-	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objecttype) %(objectsize)'], input=batch_in, capture_output=True, env=env, check=False)
+	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objecttype) %(objectsize)'], input=batch_in, capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 	if 0 != proc.returncode:
 		return
 	lines = proc.stdout.decode('utf-8', errors='replace').splitlines()
@@ -325,14 +329,14 @@ def verify_push_blob_sizes(root: Path, stdin_lines: list[str] | None=None) -> No
 		if not rev_args:
 			return
 	else:
-		head_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-parse', '--verify', 'HEAD'], capture_output=True, env=env, check=False)
+		head_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-parse', '--verify', 'HEAD'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 		if 0 != head_proc.returncode:
 			return
 		rev_args = ['HEAD', '--not', '--remotes']
-	rev_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-list', '--objects', *rev_args], capture_output=True, env=env, check=False)
+	rev_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-list', '--objects', *rev_args], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 	if 0 != rev_proc.returncode or not rev_proc.stdout.strip():
 		return
-	cat_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)'], input=rev_proc.stdout, capture_output=True, env=env, check=False)
+	cat_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)'], input=rev_proc.stdout, capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 	if 0 != cat_proc.returncode:
 		return
 	for line in cat_proc.stdout.decode('utf-8', errors='replace').splitlines():
@@ -353,7 +357,7 @@ def _extract_added_diff_urls(root: Path, rel_name: str) -> tuple[set[str], set[s
 	if not (Path(root) / '.git').exists():
 		return (added_urls, head_urls)
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	diff_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(root), 'diff', '--cached', '-U0', '--', f':(literal){rel_name}'], capture_output=True, env=env, check=False)
+	diff_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(root), 'diff', '--cached', '-U0', '--', f':(literal){rel_name}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 	if 0 == diff_proc.returncode and diff_proc.stdout:
 		diff_text = diff_proc.stdout.decode('utf-8', errors='replace')
 		for line in diff_text.splitlines():
@@ -362,7 +366,7 @@ def _extract_added_diff_urls(root: Path, rel_name: str) -> tuple[set[str], set[s
 				if re.match('^\\s*(?:#|//|REM\\b|/\\*|\\*)', body, re.I):
 					added_urls.update(_GITHUB_ISSUE_URL_RE.findall(body))
 	if added_urls:
-		show_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(root), 'show', f'HEAD:{rel_name}'], capture_output=True, env=env, check=False)
+		show_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(root), 'show', f'HEAD:{rel_name}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 		if 0 == show_proc.returncode and show_proc.stdout:
 			head_text = show_proc.stdout.decode('utf-8', errors='replace')
 			for hline in head_text.splitlines():
@@ -709,7 +713,7 @@ def remove_isolated_worktree(root: Path, wt_dir: Path) -> None:
 	finally:
 		if wt_dir.exists():
 			shutil.rmtree(wt_dir, ignore_errors=True)
-		subprocess.run(['git', '-C', str(root), 'worktree', 'prune'], capture_output=True, check=False)
+		subprocess.run(['git', '-C', str(root), 'worktree', 'prune'], capture_output=True, check=False, creationflags=_NO_WINDOW)
 def commit_in_worktree(root: Path, paths: list[str], message: str) -> list[str]:
 	root = Path(root).resolve(strict=True)
 	actual = Path(git(root, 'rev-parse', '--show-toplevel').decode('utf-8').strip()).resolve()
@@ -789,10 +793,10 @@ def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int) -
 	if not commit_sha:
 		raise ValueError(f'EXEC-5 violation: no commit in {code_repo} references {issue_url}; commit and push changes before closing the issue as completed')
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	up_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(code_repo), 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], capture_output=True, env=env, check=False)
+	up_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(code_repo), 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 	pushed = True
 	if 0 == up_proc.returncode:
-		anc_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(code_repo), 'merge-base', '--is-ancestor', commit_sha, '@{u}'], capture_output=True, env=env, check=False)
+		anc_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(code_repo), 'merge-base', '--is-ancestor', commit_sha, '@{u}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 		unpushed_str = git(code_repo, 'rev-list', '--count', '@{u}..HEAD').decode('utf-8', errors='replace').strip()
 		unpushed = int(unpushed_str) if unpushed_str.isdigit() else 0
 		if 0 != anc_proc.returncode or unpushed > 0:

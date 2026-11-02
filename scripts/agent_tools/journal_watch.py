@@ -10,6 +10,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 # https://github.com/dmitry-ai/harness/issues/36
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
+# https://github.com/dmitry-ai/harness/issues/40
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -109,7 +112,7 @@ def start(*, state_dir=None):
 		if 'nt' != os.name:
 			options['start_new_session'] = True
 		else:
-			base_flags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, 'DETACHED_PROCESS', 0)
+			base_flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
 			options['creationflags'] = base_flags | getattr(subprocess, 'CREATE_BREAKAWAY_FROM_JOB', 0)
 		breakaway_fallback = False
 		with (directory / 'daemon.log').open('ab') as output:
@@ -211,8 +214,9 @@ def once(*, state_dir=None, dry_run=False, stop_token=None):
 					if t_rec.get('recovered_after_delivery') or 'conflict' == t_rec.get('status'):
 						_log(directory, 'turn_reconciled', conversation_id=value['conversation_id'], project_root=value['project_root'], turn_key=t_rec.get('turn_key'), status=t_rec.get('status'), journal_steps=t_rec.get('journal_steps'), completion_provenance=t_rec.get('completion_provenance'), detail=t_rec.get('detail'))
 			except (OSError, ValueError, TypeError, KeyError, AttributeError, IndexError, TimeoutError, sqlite3.Error) as exc:
-				result = {'valid': False, 'error': str(exc)}
-				update = {'last_result': result, 'last_error': str(exc), 'last_checked_at': _now(), 'last_signature': None}
+				retryable_exc = isinstance(exc, (OSError, TimeoutError, sqlite3.Error)) and (not isinstance(exc, FileNotFoundError))
+				result = {'valid': False, 'error': str(exc), 'retryable': retryable_exc}
+				update = {'last_result': result, 'last_error': str(exc), 'last_checked_at': _now(), 'last_signature': None if retryable_exc else signature}
 				_log(directory, 'binding_sync_error', conversation_id=value['conversation_id'], project_root=value['project_root'], error=str(exc))
 			try:
 				with locked(directory / 'bindings.lock'):

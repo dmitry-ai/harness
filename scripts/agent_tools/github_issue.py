@@ -16,6 +16,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
+# https://github.com/dmitry-ai/harness/issues/40
 from __future__ import annotations
 import argparse
 import json
@@ -114,7 +117,7 @@ def _gh_api(endpoint: str, *, method: str='GET', payload: dict[str, Any] | None=
 	if None is not payload:
 		cmd.extend(['--input', '-'])
 		input_bytes = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-	proc = subprocess.run(cmd, input=input_bytes, capture_output=True, check=False)
+	proc = subprocess.run(cmd, input=input_bytes, capture_output=True, check=False, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
 	if 0 != proc.returncode:
 		stderr = proc.stderr.decode('utf-8', errors='replace').strip()
 		stdout = proc.stdout.decode('utf-8', errors='replace').strip()

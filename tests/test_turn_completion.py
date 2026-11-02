@@ -31,6 +31,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
+# https://github.com/dmitry-ai/harness/issues/40
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -60,14 +63,20 @@ def wire(field, payload):
 @contextmanager
 def running_watcher(directory):
 	launched = []
+	captured_kwargs = []
 	original = journal_watch.subprocess.Popen
 	def launch(*args, **kwargs):
+		captured_kwargs.append(kwargs)
 		process = original(*args, **kwargs)
 		launched.append(process)
 		r = process
 		return r
 	with patch.object(journal_watch.subprocess, 'Popen', side_effect=launch):
 		first = journal_watch.start(state_dir=directory)
+	if captured_kwargs and 'creationflags' in captured_kwargs[0]:
+		flags = captured_kwargs[0]['creationflags']
+		assert flags & getattr(journal_watch.subprocess, 'CREATE_NO_WINDOW', 0)
+		assert 0 == (flags & getattr(journal_watch.subprocess, 'DETACHED_PROCESS', 8))
 	try:
 		yield first
 	finally:
@@ -1021,7 +1030,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertFalse((ojdir / 'req/37.md').exists())
 	def test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes(self):
 		import check_rules_and_server_gate as gate
-		self.assertIsNotNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꙮ/1 - Анализ/req/36.md'}))
+		self.assertIsNotNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437/req/36.md'}))
 		self.assertIsNotNone(gate.check_journal_write_gate('edit_file', {'Path': 'C:/work/project/ꙮ/res/120.md'}))
 		self.assertIsNotNone(gate.check_journal_write_gate('run_command', {'CommandLine': 'python scripts/record_step.py --dir ꙮ'}))
 		self.assertIsNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꘖ/data/scratch/answer.md'}))
@@ -1071,7 +1080,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 		tpath.write_text(json.dumps(tdata), encoding='utf-8')
 		ev_p = self.project / 'ꘖ/KB/Evidence/GitHub/smokeday-com__m/issue-48.json'
 		ev_p.parent.mkdir(parents=True, exist_ok=True)
-		ev_p.write_text(json.dumps({'url': 'https://github.com/smokeday-com/m/issues/48', 'number': 48, 'state': 'open', 'title': 'Русский заголовок в английском репозитории', 'body': 'Русский текст описания задачи с кодом `test`.'}), encoding='utf-8')
+		ev_p.write_text(json.dumps({'url': 'https://github.com/smokeday-com/m/issues/48', 'number': 48, 'state': 'open', 'title': '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a', 'body': '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0442\u0435\u043a\u0441\u0442 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u0437\u0430\u0434\u0430\u0447\u0438 \u0441 \u043a\u043e\u0434\u043e\u043c `test`.'}), encoding='utf-8')
 		with self.assertRaisesRegex(ValueError, 'EXEC-5 violation in active turn \\(code/issue lifecycle incomplete\\).*LOCALE_MISMATCH'):
 			completion.prepare(self.project, 'Summary.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 	def test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks(self):
@@ -1140,6 +1149,11 @@ class AntigravityCompletionTests(unittest.TestCase):
 		git_gate.verify_git_write_invocation(['-C', str(repo), 'commit', '-am', '2026-11-02'], agent_context=False)
 		msg_file.write_text('https://github.com/dmitry-ai/harness/issues/39\n', encoding='utf-8')
 		self.assertEqual(git_gate.run_git_hook('commit-msg', [str(msg_file)], cwd=repo, agent_context=True), 0)
+		self.assertEqual(git_gate._NO_WINDOW, getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+		with patch.object(completion, '_code_and_issue_lifecycle_status', side_effect=AssertionError('sync must not run git lifecycle checks')):
+			self.finish('Delivered without git storm in sync.')
+			synced = self.sync()['turns'][0]
+			self.assertTrue(synced['delivery_verified'])
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'
