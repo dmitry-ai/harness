@@ -16,6 +16,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 import os
 from pathlib import Path
 import re
@@ -32,6 +35,48 @@ GITHUB_MAX_BLOB_BYTES = 100 * 1024 * 1024
 EXTRACTED_MAX_BYTES = 16 * 1024 * 1024
 _CYGDRIVE_RE = re.compile('^/(?:cygdrive|mnt)/([a-zA-Z])(?:/(.*))?$')
 _EXTRACTED_DERIVED_RE = re.compile('(?:^|/)(?:Evidence/HTTP/[^/]+/[^/]+/extracted-[^/]+\\.json|Evidence/Extracted/[0-9a-f]{64}/[^/]+\\.json|extracted-(?:html|text|json)(?:-[0-9a-f]{16})?\\.json)$')
+AGENT_ENV_KEYS = ('ANTIGRAVITY_AGENT', 'ANTIGRAVITY_CONVERSATION_ID', 'ANTIGRAVITY_TRAJECTORY_ID', 'ANTIGRAVITY_AGENTAPI_EXE', 'ANTIGRAVITY_SOURCE_METADATA', 'CODEX_HOME', 'CODEX_CLI_PATH', 'CODEX_SANDBOX', 'CODEX_THREAD_ID', 'CODEX_CI', 'CODEX_WINDOWS_REGISTERED_CORE', 'NODE_REPL_NODE_PATH', 'SKY_CUA_NATIVE_PIPE', 'HARNESS_AGENT_GIT', 'UPWORK_AGENT_GIT')
+AGENT_PROCESS_NAMES = ('antigravity.exe', 'language_server.exe', 'codex.exe', 'codex-command-runner.exe', 'codex-code-mode-host.exe', 'codex-windows-sandbox-service.exe', 'codex-windows-sandbox-setup.exe', 'node_repl.exe', 'codex-computer-use.exe', 'codex-computer-use-swift.exe')
+def _ancestor_process_names(pid: int | None=None) -> list[str]:
+	if 'nt' != os.name:
+		return []
+	import ctypes
+	from ctypes import wintypes
+	class _PROCESSENTRY32W(ctypes.Structure):
+		_fields_ = [('dwSize', wintypes.DWORD), ('cntUsage', wintypes.DWORD), ('th32ProcessID', wintypes.DWORD), ('th32DefaultHeapID', ctypes.c_size_t), ('th32ModuleID', wintypes.DWORD), ('cntThreads', wintypes.DWORD), ('th32ParentProcessID', wintypes.DWORD), ('pcPriClassBase', wintypes.LONG), ('dwFlags', wintypes.DWORD), ('szExeFile', ctypes.c_wchar * wintypes.MAX_PATH)]
+	kernel32 = ctypes.windll.kernel32
+	snap = kernel32.CreateToolhelp32Snapshot(2, 0)
+	if None is snap or snap == wintypes.HANDLE(-1).value:
+		return []
+	table: dict[int, tuple[int, str]] = {}
+	try:
+		entry = _PROCESSENTRY32W()
+		entry.dwSize = ctypes.sizeof(_PROCESSENTRY32W)
+		if kernel32.Process32FirstW(snap, ctypes.byref(entry)):
+			while True:
+				table[int(entry.th32ProcessID)] = (int(entry.th32ParentProcessID), str(entry.szExeFile).lower())
+				if not kernel32.Process32NextW(snap, ctypes.byref(entry)):
+					break
+	finally:
+		kernel32.CloseHandle(snap)
+	curr = os.getpid() if None is pid else int(pid)
+	names: list[str] = []
+	visited: set[int] = set()
+	while curr and curr not in visited and (curr in table):
+		visited.add(curr)
+		ppid, name = table[curr]
+		names.append(name)
+		curr = ppid
+	return names
+def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: list[str] | tuple[str, ...] | None=None) -> bool:
+	environ = os.environ if None is env else env
+	for key in AGENT_ENV_KEYS:
+		val = environ.get(key)
+		if isinstance(val, str) and val.strip() and (val.strip().lower() not in ('0', 'false', 'no')):
+			return True
+	ancestors = [str(n).lower() for n in ancestor_names] if None is not ancestor_names else _ancestor_process_names()
+	agent_procs = {p.lower() for p in AGENT_PROCESS_NAMES}
+	return any((name in agent_procs for name in ancestors))
 def normalize_host_path(value: str | Path) -> Path:
 	raw = str(value).strip()
 	m = _CYGDRIVE_RE.match(raw.replace('\\', '/'))
@@ -324,14 +369,14 @@ def _extract_added_diff_urls(root: Path, rel_name: str) -> tuple[set[str], set[s
 				if re.match('^\\s*(?:#|//|REM\\b|/\\*|\\*)', hline, re.I):
 					head_urls.update(_GITHUB_ISSUE_URL_RE.findall(hline))
 	return (added_urls, head_urls)
-def verify_issue_workflow(root: Path, relative: list[str], message: str | None=None) -> None:
-	if not is_issue_tracked_code_repo(root):
+def verify_issue_workflow(root: Path, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
+	if not agent_context:
 		return
 	stripped_msg = None
 	if None is not message:
 		stripped_msg = message.strip()
 		if not _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch(stripped_msg):
-			raise ValueError('Commit message in an issue-tracked code repository must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
+			raise ValueError('Commit message for an agent commit must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
 	all_new_diff_urls: set[str] = set()
 	for name in relative:
 		path = root / name
@@ -460,7 +505,7 @@ def _parse_commit_subcommand_args(argv: list[str] | tuple[str, ...]) -> tuple[li
 			i += 1
 	msg = '\n\n'.join(msg_parts) if msg_parts else None
 	return (rest, msg, msg_file, no_verify, all_flag, pathspecs)
-def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> None:
+def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | None=None, *, agent_context: bool | None=None) -> None:
 	cleanup_stale_credential_locks()
 	subcommand, _ = classify_git_argv(argv)
 	if subcommand not in ('commit', 'push', 'filter-branch', 'merge', 'rebase', 'cherry-pick'):
@@ -469,23 +514,23 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 	if None is repo_root:
 		return
 	ensure_repo_hooks(repo_root)
-	tracked_code = is_issue_tracked_code_repo(repo_root)
+	is_agent = is_agent_git_context() if None is agent_context else bool(agent_context)
 	if 'push' == subcommand:
-		if '--no-verify' in argv and tracked_code:
-			raise ValueError('EXEC-5 violation: git push --no-verify is prohibited in issue-tracked code repositories')
+		if '--no-verify' in argv and is_agent:
+			raise ValueError('EXEC-5 violation: git push --no-verify is prohibited for agents')
 		verify_push_blob_sizes(repo_root)
 		return
 	if 'filter-branch' == subcommand:
-		if tracked_code:
-			raise ValueError('EXEC-5 violation: git filter-branch is prohibited in issue-tracked code repositories')
+		if is_agent:
+			raise ValueError('EXEC-5 violation: git filter-branch is prohibited for agents')
 		return
 	if 'commit' == subcommand:
 		_, msg, msg_file, no_verify, all_flag, pathspecs = _parse_commit_subcommand_args(argv)
-		if tracked_code:
+		if is_agent:
 			if no_verify:
-				raise ValueError('EXEC-5 violation: git commit --no-verify/-n is prohibited in issue-tracked code repositories')
+				raise ValueError('EXEC-5 violation: git commit --no-verify/-n is prohibited for agents')
 			if all_flag:
-				raise ValueError('EXEC-5 violation: git commit -a/--all is prohibited in issue-tracked code repositories; stage and commit only an explicit file list')
+				raise ValueError('EXEC-5 violation: git commit -a/--all is prohibited for agents; stage and commit only an explicit file list')
 			if None is msg and msg_file and ('-' != msg_file):
 				mf = normalize_host_path(msg_file)
 				if not mf.is_absolute():
@@ -495,7 +540,7 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 			if None is not msg:
 				stripped = '\n'.join((line for line in msg.splitlines() if not line.startswith('#'))).strip()
 				if not _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch(stripped):
-					raise ValueError('EXEC-5 violation: commit message in an issue-tracked code repository must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
+					raise ValueError('EXEC-5 violation: commit message for an agent commit must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
 		if (repo_root / '.git').exists():
 			clean_specs = []
 			for sp in pathspecs:
@@ -510,8 +555,8 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 					clean_specs = []
 			if clean_specs:
 				verify_staged_blob_sizes(repo_root, clean_specs)
-				if tracked_code:
-					verify_issue_workflow(repo_root, clean_specs, message=msg)
+				if is_agent:
+					verify_issue_workflow(repo_root, clean_specs, message=msg, agent_context=True)
 def prohibited_git_write_commands(text: str) -> list[str]:
 	if not isinstance(text, str) or 'git' not in text:
 		return []
@@ -534,25 +579,23 @@ def prohibited_git_write_commands(text: str) -> list[str]:
 			if all_flag:
 				violations.append(f'git commit -a/--all is prohibited ({segment.strip()})')
 			if None is not msg and (not _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch(msg.strip())) and ('$' not in msg):
-				repo_root = resolve_git_repo_from_argv(tokens)
-				if None is repo_root or is_issue_tracked_code_repo(repo_root):
-					violations.append(f'git commit message must contain only the GitHub Issue URL ({segment.strip()})')
+				violations.append(f'git commit message must contain only the GitHub Issue URL ({segment.strip()})')
 	return violations
-def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path | None=None, *, stdin_text: str | None=None) -> int:
+def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path | None=None, *, stdin_text: str | None=None, agent_context: bool | None=None) -> int:
 	cleanup_stale_credential_locks()
 	repo_root = resolve_git_repo_from_argv((), cwd=cwd)
 	if None is repo_root:
 		return 0
-	tracked_code = is_issue_tracked_code_repo(repo_root)
+	is_agent = is_agent_git_context() if None is agent_context else bool(agent_context)
 	try:
 		if 'pre-commit' == hook_name:
 			staged = [x.decode('utf-8') for x in git(repo_root, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
 			if staged:
 				verify_staged_blob_sizes(repo_root, staged)
-				if tracked_code:
-					verify_issue_workflow(repo_root, staged)
+				if is_agent:
+					verify_issue_workflow(repo_root, staged, agent_context=True)
 		elif 'commit-msg' == hook_name:
-			if tracked_code:
+			if is_agent:
 				if not argv:
 					raise ValueError('commit-msg hook requires message file path argument')
 				msg_path = normalize_host_path(argv[0])
@@ -561,7 +604,7 @@ def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path
 				raw_msg = msg_path.read_text(encoding='utf-8', errors='replace')
 				cleaned_msg = '\n'.join((line for line in raw_msg.splitlines() if not line.startswith('#'))).strip()
 				staged = [x.decode('utf-8') for x in git(repo_root, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
-				verify_issue_workflow(repo_root, staged, message=cleaned_msg)
+				verify_issue_workflow(repo_root, staged, message=cleaned_msg, agent_context=True)
 		elif 'pre-push' == hook_name:
 			lines = stdin_text.splitlines() if None is not stdin_text else (sys.stdin.read().splitlines() if not sys.stdin.isatty() else None)
 			verify_push_blob_sizes(repo_root, stdin_lines=lines)

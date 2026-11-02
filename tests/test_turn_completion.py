@@ -28,6 +28,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -1121,6 +1124,22 @@ class AntigravityCompletionTests(unittest.TestCase):
 				git_gate.verify_push_blob_sizes(repo)
 		eff_push, _ = git_shim.prepare_git_invocation(['-C', str(repo), 'push', 'origin', 'HEAD'])
 		self.assertEqual(eff_push[:2], ['-c', 'credentialstore.locktimeoutms=5000'])
+		self.assertFalse(git_gate.is_agent_git_context(env={}, ancestor_names=('python.exe', 'sh.exe', 'git.exe', 'bash.exe', 'windowsterminal.exe', 'explorer.exe')))
+		self.assertTrue(git_gate.is_agent_git_context(env={'ANTIGRAVITY_AGENT': '1'}, ancestor_names=('python.exe', 'bash.exe')))
+		self.assertTrue(git_gate.is_agent_git_context(env={}, ancestor_names=('python.exe', 'sh.exe', 'git.exe', 'powershell.exe', 'language_server.exe', 'antigravity.exe')))
+		self.assertTrue(git_gate.is_agent_git_context(env={}, ancestor_names=('python.exe', 'sh.exe', 'git.exe', 'codex-command-runner.exe', 'codex.exe')))
+		msg_file = repo / '.git/COMMIT_EDITMSG'
+		msg_file.write_text('2026-11-02\n', encoding='utf-8')
+		(repo / 'note.md').write_text('human note\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'note.md'], cwd=repo, check=True, capture_output=True)
+		self.assertEqual(git_gate.run_git_hook('pre-commit', cwd=repo, agent_context=False), 0)
+		self.assertEqual(git_gate.run_git_hook('commit-msg', [str(msg_file)], cwd=repo, agent_context=False), 0)
+		self.assertEqual(git_gate.run_git_hook('commit-msg', [str(msg_file)], cwd=repo, agent_context=True), 2)
+		with self.assertRaisesRegex(ValueError, 'commit message for an agent commit must contain only the GitHub Issue URL'):
+			git_gate.verify_git_write_invocation(['-C', str(repo), 'commit', '-m', '2026-11-02'], agent_context=True)
+		git_gate.verify_git_write_invocation(['-C', str(repo), 'commit', '-am', '2026-11-02'], agent_context=False)
+		msg_file.write_text('https://github.com/dmitry-ai/harness/issues/39\n', encoding='utf-8')
+		self.assertEqual(git_gate.run_git_hook('commit-msg', [str(msg_file)], cwd=repo, agent_context=True), 0)
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

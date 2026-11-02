@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 import json
 import shutil
 import tomllib
@@ -137,16 +140,16 @@ class AgentsLoaderTests(TemporaryCase):
 		script.write_text('# https://github.com/dmitry-ai/harness/issues/26\nx = 1\n', encoding='utf-8')
 		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
 		self.assertEqual(git_gate.check_commit(code_repo, ['mod.py']), ['mod.py'])
-		with self.assertRaisesRegex(ValueError, 'Commit message in an issue-tracked code repository'):
+		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
 			git_gate.commit(code_repo, ['mod.py'], 'Missing issue URL', execute=False)
-		with self.assertRaisesRegex(ValueError, 'Commit message in an issue-tracked code repository must contain only the GitHub Issue URL'):
+		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
 			git_gate.commit(code_repo, ['mod.py'], 'Fix\n\nhttps://github.com/dmitry-ai/harness/issues/26', execute=False)
 		with self.assertRaisesRegex(ValueError, 'Issue-tracked code file mod.py does not reference the commit GitHub Issue URL'):
 			git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/31', execute=False)
 		self.assertEqual(git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=True), ['mod.py'])
 		with self.assertRaisesRegex(ValueError, 'git commit --no-verify/-n is prohibited'):
 			git_shim.prepare_git_invocation(['commit', '--no-verify', '-m', 'https://github.com/dmitry-ai/harness/issues/26'], cwd=code_repo)
-		self.assertEqual(len(git_gate.prohibited_git_write_commands('git commit --no-verify -m "x" && git filter-branch -f')), 2)
+		self.assertEqual(len(git_gate.prohibited_git_write_commands('git commit --no-verify -m "x" && git filter-branch -f')), 3)
 		script.write_text('# https://github.com/dmitry-ai/harness/issues/26\nx = 2\n', encoding='utf-8')
 		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
 		dirty_other = code_repo / 'dirty.py'

@@ -7,6 +7,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 # https://github.com/dmitry-ai/harness/issues/36
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
@@ -289,9 +292,11 @@ class GitTests(TemporaryCase):
 			check_commit(self.root, ['a space.md'])
 		self.git('add', '--', 'a space.md')
 		before = self.git('rev-parse', 'HEAD')
-		commit(self.root, ['a space.md'], 'review only')
+		with self.assertRaises(ValueError):
+			commit(self.root, ['a space.md'], 'review only')
+		commit(self.root, ['a space.md'], 'https://github.com/dmitry-ai/harness/issues/17')
 		self.assertEqual(self.git('rev-parse', 'HEAD'), before)
-		commit(self.root, ['a space.md'], 'explicit commit', execute=True)
+		commit(self.root, ['a space.md'], 'https://github.com/dmitry-ai/harness/issues/17', execute=True)
 		self.assertEqual(self.git('show', 'HEAD:a space.md'), b'later user change\n')
 		self.assertEqual(self.git('show', 'HEAD:b.md'), b'other\n')
 class StatementTests(TemporaryCase):
