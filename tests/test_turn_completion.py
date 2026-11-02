@@ -22,6 +22,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 # https://github.com/dmitry-ai/harness/issues/36
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -923,11 +926,17 @@ class AntigravityCompletionTests(unittest.TestCase):
 		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / LINK-1'):
 			completion.prepare(self.project, bad_quote_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		bad_id_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#5697111` charged `$425.00`.'
-		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / DOC-1: Identifier'):
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / DOC-1: Unverified numeric figure or identifier'):
 			completion.prepare(self.project, bad_id_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		bad_amt_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` charged `$475.27`.'
-		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / DOC-1: Currency amount'):
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / DOC-1: Unverified numeric figure or identifier'):
 			completion.prepare(self.project, bad_amt_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		bad_count_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` had `65` occurrences and cost `EUR 300`.'
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / DOC-1: Unverified numeric figure or identifier'):
+			completion.prepare(self.project, bad_count_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		bad_rel_mod = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) the file was modified directly inside `vendor/mirasvit/`.'
+		with self.assertRaisesRegex(ValueError, 'VERIFY-1 / LINK-1: Relational modification claim requires at least two distinct primary source operands'):
+			completion.prepare(self.project, bad_rel_mod, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		good_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` charged `$425.00`: «Please review our XS Plan renewal invoice.»'
 		prepared = completion.prepare(self.project, good_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
@@ -1030,6 +1039,35 @@ class AntigravityCompletionTests(unittest.TestCase):
 		synced = self.sync()['turns'][0]
 		self.assertEqual(synced['status'], 'delivered')
 		self.assertTrue(synced['delivery_verified'])
+	def test_universal_gates_m1_to_m6_for_external_writes_dict_issues_and_kb_mutations(self):
+		import check_rules_and_server_gate as gate
+		self.assertIsNotNone(gate.check_external_write_gate('run_command', {'CommandLine': 'gh issue create --repo smokeday-com/m --title T --body B'}))
+		self.assertIsNotNone(gate.check_external_write_gate('run_command', {'CommandLine': 'gh api repos/smokeday-com/m/issues/37/comments -X POST'}))
+		marker = self.project / 'ꘖ/project.json'
+		marker.parent.mkdir(parents=True, exist_ok=True)
+		marker.write_text(json.dumps({'job_id': '~123456'}), encoding='utf-8')
+		res_begin = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		body_p = self.project / 'ꘖ/data/scratch/issue.md'
+		body_p.parent.mkdir(parents=True, exist_ok=True)
+		body_p.write_text('## Root Cause\nBody.\n', encoding='utf-8')
+		self.assertIsNotNone(gate.check_external_write_gate('run_command', {'CommandLine': f'python df_github_issue.py create --repo smokeday-com/m --title T --body-file "{body_p}"'}))
+		tpath = self.project / res_begin['state']
+		tdata = json.loads(tpath.read_text(encoding='utf-8'))
+		tdata['github_issues'] = {
+			'https://github.com/smokeday-com/m/issues/48': {
+				'repo': 'smokeday-com/m',
+				'number': 48,
+				'url': 'https://github.com/smokeday-com/m/issues/48',
+				'state': 'open',
+				'last_action': 'create',
+			}
+		}
+		tpath.write_text(json.dumps(tdata), encoding='utf-8')
+		ev_p = self.project / 'ꘖ/KB/Evidence/GitHub/smokeday-com__m/issue-48.json'
+		ev_p.parent.mkdir(parents=True, exist_ok=True)
+		ev_p.write_text(json.dumps({'url': 'https://github.com/smokeday-com/m/issues/48', 'number': 48, 'state': 'open', 'title': 'Русский заголовок в английском репозитории', 'body': 'Русский текст описания задачи с кодом `test`.'}), encoding='utf-8')
+		with self.assertRaisesRegex(ValueError, 'EXEC-5 violation in active turn \\(code/issue lifecycle incomplete\\).*LOCALE_MISMATCH'):
+			completion.prepare(self.project, 'Summary.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

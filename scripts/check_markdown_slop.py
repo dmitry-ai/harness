@@ -7,6 +7,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 import json
 from pathlib import Path
 import re
@@ -59,7 +62,7 @@ def check_markdown_content(content, path=None):
 		if None is r and path:
 			p_obj = Path(path)
 			norm_p = path.replace('\\', '/').lower()
-			if norm_p.endswith('/kb/analysis.md') and (p_obj.parent / 'source.md').is_file():
+			if '/req/' not in norm_p and '/source/' not in norm_p and 'source.md' != p_obj.name.lower():
 				issues = local_source_grounding_issues(_infer_project_root(p_obj), content, doc_path=p_obj)
 				if issues:
 					r = '; '.join(issues[:3])

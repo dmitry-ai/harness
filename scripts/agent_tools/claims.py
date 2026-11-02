@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
 from pathlib import Path
 from urllib.parse import urldefrag, urlsplit
@@ -15,7 +18,7 @@ from .diagnostics import problem
 SECTIONS = ('identity', 'concerns', 'misconceptions', 'causes', 'methods')
 KINDS = {'observation', 'client_report', 'hypothesis', 'recommendation', 'calculation'}
 STATUSES = {'verified', 'limited', 'unverified', 'unavailable', 'stale'}
-PROPERTIES = {'content', 'markup', 'dom', 'interaction', 'currency_transition', 'ip_country', 'admin_configuration', 'serp', 'platform_capability', 'calculation', 'causality', 'business_impact', 'architecture_change', 'pricing_change'}
+PROPERTIES = {'content', 'markup', 'dom', 'interaction', 'currency_transition', 'ip_country', 'admin_configuration', 'serp', 'platform_capability', 'calculation', 'comparison', 'modification', 'causality', 'business_impact', 'architecture_change', 'pricing_change'}
 HASH = re.compile('^[a-f0-9]{64}$')
 ID = re.compile('^[A-Z][A-Z0-9-]*$')
 def claim_locations(value):
@@ -231,6 +234,9 @@ def contract_issues(value):
 		calculation = claim.get('calculation')
 		if 'calculation' == claim.get('knowledge_type') or 'calculation' in (properties if isinstance(properties, list) else []):
 			issues.extend(_calculation_structure(calculation, field + '/calculation', claim))
+		comparison = claim.get('comparison')
+		if None is not comparison or ('verified' == claim.get('verification_status') and {'modification', 'comparison'}.intersection(properties if isinstance(properties, list) else [])):
+			issues.extend(_comparison_structure(comparison, field + '/comparison', claim, evidence))
 		for_evidence_ids = {arg.get('evidence_id') for arg in (claim.get('for') if isinstance(claim.get('for'), list) else []) if isinstance(arg, dict) and _text(arg.get('evidence_id'))}
 		for side in ('for', 'against'):
 			for number, arg in enumerate(claim.get(side, []) if isinstance(claim.get(side), list) else []):
@@ -328,6 +334,20 @@ def _calculation_structure(value, field, claim):
 		if not _text(value.get('result')):
 			message = 'Calculation result must be an explicit decimal string'
 	r = [problem('calculation.contract', field, message, claim_id=claim.get('id'))] if message else []
+	return r
+def _comparison_structure(value, field, claim, evidence):
+	message = None
+	own_ev_ids = {ref.get('id') for ref in (evidence if isinstance(evidence, list) else []) if isinstance(ref, dict) and _text(ref.get('id'))}
+	has_dep = bool(_dependencies(claim))
+	if not isinstance(value, dict) or not _enum(value.get('relation'), {'equal', 'differs', 'modified_from', 'identical_to'}):
+		message = 'A relational or modification claim requires comparison metadata with relation in {equal, differs, modified_from, identical_to}'
+	elif not _text(value.get('operand_a_evidence_id')) or not _text(value.get('operand_b_evidence_id')):
+		message = 'Relational comparison requires two primary evidence IDs: operand_a_evidence_id and operand_b_evidence_id'
+	elif value['operand_a_evidence_id'] == value['operand_b_evidence_id']:
+		message = 'Relational comparison requires two distinct primary evidence operands (operand_a_evidence_id != operand_b_evidence_id)'
+	elif not has_dep and (value['operand_a_evidence_id'] not in own_ev_ids or value['operand_b_evidence_id'] not in own_ev_ids):
+		message = 'Relational comparison operands must reference primary evidence IDs present on the claim or its derived_from dependencies'
+	r = [problem('claim.relational_arity', field, message, claim_id=claim.get('id'))] if message else []
 	return r
 def _with_locator(source, locator):
 	base, fragment = urldefrag(source)
@@ -567,7 +587,7 @@ def evidence_contract_issues(root, value):
 				add('claim.unverified_dns', field + '/essence', 'Claim asserts DNS non-resolution (getaddrinfo/NXDOMAIN) without a saved observation showing error_kind == dns_error; distinguish TCP timeout from DNS failure', claim)
 		if 'verified' == status:
 			for prop in claim.get('properties', []) if isinstance(claim.get('properties'), list) else []:
-				if 'calculation' == prop:
+				if prop in {'calculation', 'comparison', 'modification'}:
 					continue
 				if not _text(prop) or prop not in caps:
 					add('claim.method_insufficient', field + '/properties', 'Saved methods cannot verify property ' + prop + '; keep a limited hypothesis and list the missing check', claim)
@@ -594,7 +614,35 @@ def evidence_contract_issues(root, value):
 				_check_calculation(claim, index, refs)
 			except (ValueError, KeyError, TypeError, InvalidOperation, ZeroDivisionError) as exc:
 				add('calculation.unconfirmed', field + '/calculation', str(exc), claim)
+		if None is not claim.get('comparison') or ('verified' == status and {'modification', 'comparison'}.intersection(claim.get('properties') or [])):
+			try:
+				_check_comparison(claim, index, refs)
+			except (ValueError, KeyError, TypeError) as exc:
+				add('comparison.unconfirmed', field + '/comparison', str(exc), claim)
 	return issues
+def _check_comparison(claim, index, refs):
+	comp = claim.get('comparison')
+	if _comparison_structure(comp, '/', claim, claim.get('evidence')):
+		raise ValueError('Relational comparison does not satisfy its two-operand arity contract')
+	allowed_claims = {claim.get('id')} | {d.get('claim_id') for d in _dependencies(claim) if isinstance(d, dict) and _text(d.get('claim_id'))}
+	entry_a = refs.get(comp['operand_a_evidence_id'])
+	entry_b = refs.get(comp['operand_b_evidence_id'])
+	if not entry_a or not entry_b:
+		raise ValueError('Both operand_a_evidence_id and operand_b_evidence_id must resolve to verified primary evidence')
+	if entry_a[0].get('id') not in allowed_claims or entry_b[0].get('id') not in allowed_claims:
+		raise ValueError('Comparison operand evidence must belong to the claim or its versioned derived_from dependencies')
+	ref_a, saved_a = (entry_a[1], entry_a[2])
+	ref_b, saved_b = (entry_b[1], entry_b[2])
+	loc_a = (ref_a.get('source'), (ref_a.get('locator') or {}).get('type'), (ref_a.get('locator') or {}).get('value'))
+	loc_b = (ref_b.get('source'), (ref_b.get('locator') or {}).get('type'), (ref_b.get('locator') or {}).get('value'))
+	if loc_a == loc_b:
+		raise ValueError('Relational comparison requires two distinct source/locator operands, not the same source fragment twice')
+	hash_equal = ref_a.get('source_sha256') == ref_b.get('source_sha256')
+	quote_equal = ' '.join(str(ref_a.get('quote', '')).split()) == ' '.join(str(ref_b.get('quote', '')).split())
+	if comp['relation'] in {'differs', 'modified_from'} and hash_equal and quote_equal:
+		raise ValueError('Claimed modification/difference between operand_a and operand_b is refuted: primary source hashes and quotes are identical')
+	if comp['relation'] in {'equal', 'identical_to'} and (not hash_equal) and (not quote_equal):
+		raise ValueError('Claimed identity between operand_a and operand_b is refuted: primary source hashes and quotes differ')
 def _check_calculation(claim, index, refs):
 	value = claim['calculation']
 	if _calculation_structure(value, '/', claim):

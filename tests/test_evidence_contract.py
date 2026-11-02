@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 from copy import deepcopy
 from pathlib import Path
 import hashlib
@@ -527,5 +530,25 @@ class EvidenceContractTests(TemporaryCase):
 		cause['for'] = [{'argument': 'Supports the cause.', 'evidence_id': 'E-CAUSE-OWN'}]
 		cause['against'] = [{'argument': 'Same evidence reused in against.', 'evidence_id': 'E-CAUSE-OWN'}]
 		self.assertIn('argument.contradictory_reuse', self.codes(analysis_issues(value)))
+	def test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes(self):
+		from test_onboarding import analysis
+		value = v3_analysis(self.project, analysis())
+		mod_fact = deepcopy(value['facts'][0])
+		mod_fact['id'] = 'F-MOD-1'
+		mod_fact['evidence'][0]['id'] = 'E-MOD-A'
+		mod_fact['properties'] = ['content', 'modification']
+		value['facts'].append(mod_fact)
+		self.assertIn('claim.relational_arity', self.codes(analysis_issues(value)))
+		mod_fact['comparison'] = {'relation': 'modified_from', 'operand_a_evidence_id': 'E-MOD-A', 'operand_b_evidence_id': 'E-MOD-A'}
+		self.assertIn('claim.relational_arity', self.codes(analysis_issues(value)))
+		obs_same = collect(self.project, 'https://example.org/baseline-same', fetcher=lambda *a: Response(a[0], 200, 'text/plain', b'The concern\nAlternative\nOld price EUR53.95\nNew price EUR63.95\n'))
+		mod_fact['evidence'].append({'id': 'E-BASELINE-SAME', 'kind': 'observation', 'source': obs_same['url'], 'observation': obs_same['observation'], 'source_sha256': obs_same['body_sha256'], 'quote': 'The concern\nAlternative', 'locator': {'type': 'lines', 'value': '1-2'}})
+		mod_fact['comparison'] = {'relation': 'modified_from', 'operand_a_evidence_id': 'E-MOD-A', 'operand_b_evidence_id': 'E-BASELINE-SAME'}
+		self.assertIn('comparison.unconfirmed', self.codes(evidence_issues(self.project, value)))
+		obs_diff = collect(self.project, 'https://example.org/baseline-clean', fetcher=lambda *a: Response(a[0], 200, 'text/plain', b'Clean upstream distribution file\n'))
+		mod_fact['evidence'][-1] = {'id': 'E-BASELINE-CLEAN', 'kind': 'observation', 'source': obs_diff['url'], 'observation': obs_diff['observation'], 'source_sha256': obs_diff['body_sha256'], 'quote': 'Clean upstream distribution file', 'locator': {'type': 'text', 'value': 'Clean upstream distribution file'}}
+		mod_fact['comparison'] = {'relation': 'modified_from', 'operand_a_evidence_id': 'E-MOD-A', 'operand_b_evidence_id': 'E-BASELINE-CLEAN'}
+		self.assertNotIn('claim.relational_arity', self.codes(evidence_issues(self.project, value)))
+		self.assertNotIn('comparison.unconfirmed', self.codes(evidence_issues(self.project, value)))
 if '__main__' == __name__:
 	unittest.main()

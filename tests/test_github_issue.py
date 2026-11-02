@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 import json
 import os
 from pathlib import Path
@@ -71,7 +74,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 				r = proc
 				return r
 			with patch('agent_tools.github_issue.subprocess.run', side_effect=fake_run):
-				rc = main(['create', '--repo', 'smokeday-com/m', '--title', 'Test issue title', '--body-file', str(body_path), '--consume-input'])
+				rc = main(['create', '--repo', 'smokeday-com/m', '--title', 'Test issue title', '--body-file', str(body_path), '--project-root', str(tmp), '--consume-input'])
 				self.assertEqual(rc, 0)
 				self.assertFalse(body_path.exists())
 	def test_close_requires_committed_issue_url_in_local_code_repo(self):
@@ -101,5 +104,44 @@ class TestGitHubIssueTool(unittest.TestCase):
 					self.assertTrue((proj / '_/ꘖ/KB/Evidence/GitHub/smokeday-com__m/issue-46.json').is_file())
 			finally:
 				os.chdir(old_cwd)
+	def test_universal_locale_gate_blocks_cyrillic_and_greek_prose_while_allowing_fenced_logs(self):
+		ru_title = lint_issue_markdown('Аудит кейсов Upwork — обнаружена проблема в Warmer.php', is_title=True)
+		self.assertIn('LOCALE_MISMATCH', {e['code'] for e in ru_title})
+		gr_body = lint_issue_markdown('## 1. Root Cause\nΑυτή είναι μια ανάλυση του προβλήματος στο `Warmer.php`.\n', is_title=False)
+		self.assertIn('LOCALE_MISMATCH', {e['code'] for e in gr_body})
+		en_with_foreign_fence = (
+			'## 1. Root Cause\n'
+			'In `vendor/magento/module-page-cache/Model/Cache/Warmer.php` the log records:\n'
+			'```text\n'
+			'Ошибка подключения к базе данных: Σφάλμα σύνδεσης\n'
+			'```\n'
+			'> «Клиент сообщил о проблеме с кэшем»\n'
+			'This is caused by an uninitialized session state in `Warmer.php`.\n'
+		)
+		self.assertEqual(lint_issue_markdown(en_with_foreign_fence, is_title=False), [])
+	def test_idempotent_comment_gate_blocks_duplicate_comment_without_comment_id(self):
+		with tempfile.TemporaryDirectory() as tmp:
+			proj = Path(tmp) / 'proj'
+			ev_dir = proj / '_/ꘖ/KB/Evidence/GitHub/smokeday-com__m'
+			ev_dir.mkdir(parents=True)
+			(ev_dir / 'comment-4345628095.json').write_text(
+				json.dumps({
+					'id': 4345628095,
+					'issue_number': 37,
+					'html_url': 'https://github.com/smokeday-com/m/issues/37#issuecomment-4345628095',
+					'body': '## Historical Context\nInitial comment in English with `code`.\n',
+				}),
+				encoding='utf-8',
+			)
+			body_path = proj / '_/ꘖ/data/scratch/comment.md'
+			body_path.parent.mkdir(parents=True)
+			body_path.write_text('## Historical Context\nUpdated comment in English with `code`.\n', encoding='utf-8')
+			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
+				return {'id': 4345628095, 'body': body_path.read_text(encoding='utf-8'), 'html_url': 'https://github.com/smokeday-com/m/issues/37#issuecomment-4345628095'}
+			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
+				rc_dup = main(['comment', '--repo', 'smokeday-com/m', '--issue', '37', '--body-file', str(body_path), '--project-root', str(proj)])
+				self.assertEqual(rc_dup, 2)
+				rc_edit = main(['comment', '--repo', 'smokeday-com/m', '--comment-id', '4345628095', '--body-file', str(body_path), '--project-root', str(proj)])
+				self.assertEqual(rc_edit, 0)
 if '__main__' == __name__:
 	unittest.main()

@@ -13,6 +13,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 # https://github.com/dmitry-ai/harness/issues/36
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 import json
 from pathlib import Path
 import re
@@ -125,6 +128,62 @@ def check_bulk_source_read_streak(name: str, args: dict, payload: dict) -> str |
 	if target not in streak_sources and len(streak_sources) >= MAX_UNPERSISTED_SOURCE_READS:
 		return f'REVIEW-1 / KB-3: Already read {len(streak_sources)} source.md files in a row without persisting analysis.md or delegating to af-worker (limit: {MAX_UNPERSISTED_SOURCE_READS}). Persist analysis.md for already-read cases or delegate via invoke_subagent before reading more source.md files.'
 	return None
+EXTERNAL_WRITE_INTENT_RE = re.compile(
+	'(?i)\\b(?:'
+	'github|gh\\s+issue|df_github_issue|df-github-issue|issue\\s*#?\\d+|'
+	'create\\s+(?:an?\\s+)?issue|open\\s+(?:an?\\s+)?issue|close\\s+(?:the\\s+)?issue|edit\\s+(?:the\\s+)?issue|comment\\s+on\\s+issue|'
+	'git\\s+push|commit|pull\\s+request|'
+	'\\u0438\\u0441\\u043f\\u0440\\u0430\\u0432\\w+|\\u0441\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\u0443\\u0439\\w*|\\u043f\\u0435\\u0440\\u0435\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|'
+	'\\u0437\\u0430\\u043a\\u043e\\u043c\\u043c\\u0438\\u0442\\w+|\\u043e\\u043f\\u0443\\u0431\\u043b\\u0438\\u043a\\u0443\\u0439\\w*|'
+	'\\u0441\\u043e\\u0437\\u0434\\u0430\\u0439\\w*\\s+issue|\\u0437\\u0430\\u043a\\u0440\\u043e\\u0439\\w*\\s+issue|\\u043e\\u0431\\u043d\\u043e\\u0432\\u0438\\w*\\s+issue'
+	')\\b'
+)
+def _upwork_project_root_for_command(cmd: str) -> Path | None:
+	candidates = []
+	for m in re.finditer('(?:--project-root|--body-file|-F|--title-file|--comment-file)\\s+(?:"([^"]+)"|\'([^\']+)\'|(\\S+))', cmd):
+		raw_p = m.group(1) or m.group(2) or m.group(3)
+		if raw_p:
+			try:
+				candidates.append(Path(raw_p).resolve())
+			except OSError:
+				pass
+	try:
+		candidates.append(Path.cwd().resolve())
+	except OSError:
+		pass
+	for c in candidates:
+		for anc in (c, *c.parents):
+			if (anc / '\ua616/project.json').is_file():
+				return anc
+	return None
+def check_external_write_gate(name: str, args: dict) -> str | None:
+	if 'run_command' != name:
+		return None
+	cmd = args.get('CommandLine') or ''
+	if re.search('(?:^|[;|\\n&]|\\s)gh\\s+issue\\s+(?:create|edit|comment|close|reopen|delete)\\b', cmd, re.I):
+		return 'EXEC-5 / SCOPE-2: Direct gh issue write commands in the shell are prohibited; use df_github_issue.py with UTF-8 file input and mandatory API read-back verification.'
+	if re.search('(?:^|[;|\\n&]|\\s)gh\\s+api\\b[^;|\\n]*(?:--method|-X)\\s*(?:POST|PATCH|PUT|DELETE)\\b', cmd, re.I):
+		return 'EXEC-5 / SCOPE-2: Direct mutating gh api calls (POST/PATCH/PUT/DELETE) in the shell are prohibited; use df_github_issue.py.'
+	if re.search('\\bdf_github_issue\\.py\\s+(?:create|edit|comment|close)\\b', cmd, re.I):
+		proj_root = _upwork_project_root_for_command(cmd)
+		if None is not proj_root:
+			turns_dir = proj_root / '\ua616/data/turns'
+			if turns_dir.is_dir():
+				for tfile in turns_dir.glob('*.json'):
+					if tfile.name.endswith(('-recovery.json', '-violation-recovery.json')):
+						continue
+					try:
+						tdata = json.loads(tfile.read_text(encoding='utf-8'))
+					except (OSError, ValueError):
+						continue
+					if not isinstance(tdata, dict) or 'open' != tdata.get('status'):
+						continue
+					if True is tdata.get('external_write_authorized'):
+						continue
+					req_text = '\n'.join((r.get('text', '') if isinstance(r, dict) else str(r) for r in tdata.get('requests') or []))
+					if req_text.strip() and (not EXTERNAL_WRITE_INTENT_RE.search(req_text)):
+						return 'SCOPE-2 / EXEC-5: Uninstructed external GitHub write (df_github_issue.py create/edit/comment/close) during a read-only analysis turn is prohibited without an explicit user instruction.'
+	return None
 def main():
 	decision = {'decision': 'allow'}
 	try:
@@ -138,6 +197,7 @@ def main():
 				('RULES-BUDGET-GATE', lambda: check_rules_budget(name, args)),
 				('SERVER-HYGIENE-GATE', lambda: check_server_hygiene(name, args)),
 				('EXEC-5-GIT-GATE', lambda: check_git_write_gate(name, args)),
+				('SCOPE-2-EXTERNAL-WRITE-GATE', lambda: check_external_write_gate(name, args)),
 				('FILE-3-JOURNAL-GATE', lambda: check_journal_write_gate(name, args)),
 				('VERIFY-1-BATCH-SYNTHESIS-GATE', lambda: check_batch_analysis_generator(name, args)),
 				('REVIEW-1-BULK-SOURCE-GATE', lambda: check_bulk_source_read_streak(name, args, payload)),

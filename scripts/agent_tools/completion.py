@@ -22,6 +22,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -140,6 +143,8 @@ def _compaction_status(root, key, turn):
 	return r
 DEL_MAX_UNPERSISTED_STEPS = 40
 DEL_MAX_UNPERSISTED_SOURCE_READS = 10
+DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS = 60
+DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS = 3
 def _delegation_status(root, turn):
 	del_info = dict(turn.get('delegation') or {})
 	tool_steps = int(del_info.get('tool_step_count') or 0)
@@ -150,9 +155,10 @@ def _delegation_status(root, turn):
 	cur_streak = int(del_info.get('unpersisted_step_streak') if 'unpersisted_step_streak' in del_info else tool_steps if 0 == sub_steps and 0 == kb_steps else 0)
 	max_streak = int(del_info.get('max_unpersisted_step_streak') if 'max_unpersisted_step_streak' in del_info else cur_streak)
 	max_src_reads = int(del_info.get('max_unpersisted_source_reads') or 0)
+	issue_actions_count = len(turn.get('issue_actions') or [])
 	is_upwork_project = (Path(root).resolve() / '\ua616/project.json').is_file()
-	unpersisted_bulk = bool(is_upwork_project and ((tool_steps > DEL_MAX_UNPERSISTED_STEPS and 0 == sub_steps and 0 == kb_steps) or cur_streak > DEL_MAX_UNPERSISTED_STEPS or (max_src_reads >= DEL_MAX_UNPERSISTED_SOURCE_READS and 0 == sub_steps)))
-	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
+	unpersisted_bulk = bool(is_upwork_project and ((tool_steps > DEL_MAX_UNPERSISTED_STEPS and 0 == sub_steps and 0 == kb_steps) or cur_streak > DEL_MAX_UNPERSISTED_STEPS or (max_src_reads >= DEL_MAX_UNPERSISTED_SOURCE_READS and 0 == sub_steps) or (tool_steps > DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS and 0 == sub_steps) or (issue_actions_count > DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS and 0 == sub_steps)))
+	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'issue_actions_count': issue_actions_count, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
 	return r
 def _origin_repo_slug(code_repo: Path):
 	from .git_gate import run_git_read
@@ -162,10 +168,9 @@ def _origin_repo_slug(code_repo: Path):
 	remote = proc.stdout.decode('utf-8', errors='replace').strip()
 	m = re.search('github\\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\\.git)?$', remote)
 	return m.group(1) if m else None
-def _evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repos=()):
+def _evidence_issue_files(root: Path, repo_slug: str, fname: str, candidate_repos=()):
 	from .runtime import HARNESS_META
 	safe_repo = repo_slug.replace('/', '__')
-	fname = f'issue-{int(number)}.json'
 	roots = [Path(root).resolve()] + [Path(r).resolve().parent for r in candidate_repos]
 	ev_files = []
 	for rt in roots:
@@ -176,7 +181,9 @@ def _evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_rep
 	hm = (HARNESS_META / 'ꘖ/KB/Evidence/GitHub' / safe_repo / fname).resolve()
 	if hm.is_file() and hm not in ev_files:
 		ev_files.append(hm)
-	for p in ev_files:
+	return ev_files
+def _evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repos=()):
+	for p in _evidence_issue_files(root, repo_slug, f'issue-{int(number)}.json', candidate_repos):
 		try:
 			data = json.loads(p.read_text(encoding='utf-8'))
 			issue_obj = data.get('issue') if isinstance(data.get('issue'), dict) else data
@@ -188,6 +195,8 @@ def _evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_rep
 	return None
 def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 	from .git_gate import extract_issue_urls, is_code_file, is_issue_tracked_code_repo, run_git_read, verify_repo_issue_ready_for_close
+	from .github_issue import _find_local_code_repo, lint_issue_markdown
+	from .source_grounding import local_source_grounding_issues
 	root = Path(root).resolve()
 	repo_touched = {}
 	for raw_p in turn.get('touched_files') or []:
@@ -208,7 +217,9 @@ def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 					repo_touched.setdefault(anc, set()).add(rel)
 				break
 	turn_issues = {}
-	for item in list((turn_state or {}).get('github_issues') or []) + list(turn.get('issue_actions') or []):
+	gh_raw = (turn_state or {}).get('github_issues') or []
+	gh_items = list(gh_raw.values()) if isinstance(gh_raw, dict) else list(gh_raw)
+	for item in gh_items + list(turn.get('issue_actions') or []):
 		if not isinstance(item, dict):
 			continue
 		url = (item.get('url') or '').strip()
@@ -217,23 +228,40 @@ def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 			continue
 		slug, num = (m.group(1), int(m.group(2)))
 		st = str(item.get('state') or '').strip().lower()
-		if 'close' == item.get('action'):
+		act = item.get('action') or item.get('last_action')
+		if 'close' == act:
 			st = 'closed'
-		turn_issues[url] = {'url': url, 'repo': slug, 'number': num, 'state': st or turn_issues.get(url, {}).get('state') or 'open'}
+		prev_entry = turn_issues.get(url, {})
+		cids = list(prev_entry.get('comment_ids') or [])
+		for cid in item.get('comment_ids') or []:
+			if cid not in cids:
+				cids.append(cid)
+		turn_issues[url] = {'url': url, 'repo': slug, 'number': num, 'state': st or prev_entry.get('state') or 'open', 'last_action': act or prev_entry.get('last_action') or 'issue', 'comment_ids': cids}
 	candidate_repos = list(repo_touched.keys())
 	for cand in (root, root / 'code'):
 		cand_res = cand.resolve()
 		if is_issue_tracked_code_repo(cand_res) and cand_res not in candidate_repos:
 			candidate_repos.append(cand_res)
+	for info in turn_issues.values():
+		found_repo = _find_local_code_repo(info['repo'], project_root=root)
+		if None is not found_repo:
+			found_res = found_repo.resolve()
+			if is_issue_tracked_code_repo(found_res) and found_res not in candidate_repos:
+				candidate_repos.append(found_res)
+	workspace_code_repos = {c.resolve() for c in (root, root / 'code') if is_issue_tracked_code_repo(c.resolve())}
 	required_issues_by_repo = {r: set() for r in candidate_repos}
+	repo_by_issue_url = {}
 	for url, info in turn_issues.items():
 		for cand in candidate_repos:
 			slug = _origin_repo_slug(cand)
 			if slug and slug.lower() == info['repo'].lower():
-				required_issues_by_repo.setdefault(cand, set()).add(url)
-				repo_touched.setdefault(cand, set())
+				repo_by_issue_url[url] = cand
+				if bool(repo_touched.get(cand)) or cand in workspace_code_repos or 'close' == info.get('last_action'):
+					required_issues_by_repo.setdefault(cand, set()).add(url)
+					repo_touched.setdefault(cand, set())
 	violations = []
 	checked_issues = []
+	checked_urls = set()
 	for code_repo, rel_set in sorted(repo_touched.items(), key=lambda x: str(x[0])):
 		rel_paths = sorted(rel_set)
 		if rel_paths:
@@ -272,8 +300,48 @@ def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 			ev_state = _evidence_issue_state(root, slug, num, candidate_repos)
 			eff_state = ev_state or turn_issues.get(issue_url, {}).get('state') or 'open'
 			checked_issues.append({'url': issue_url, 'repo': slug, 'number': num, 'state': eff_state, 'code_repo': str(code_repo), 'commit_and_push_verified': bool(ready.get('verified'))})
+			checked_urls.add(issue_url)
 			if 'closed' != eff_state:
 				violations.append(f'GitHub issue {issue_url} remains {eff_state}; close it via df_github_issue.py close after git push before answer-prepare')
+	for issue_url, info in sorted(turn_issues.items()):
+		slug, num = (info['repo'], int(info['number']))
+		ev_state = _evidence_issue_state(root, slug, num, candidate_repos)
+		eff_state = ev_state or info.get('state') or 'open'
+		if issue_url not in checked_urls:
+			mapped_repo = repo_by_issue_url.get(issue_url)
+			checked_issues.append({'url': issue_url, 'repo': slug, 'number': num, 'state': eff_state, 'code_repo': str(mapped_repo) if mapped_repo else None, 'commit_and_push_verified': False})
+			checked_urls.add(issue_url)
+		iss_files = _evidence_issue_files(root, slug, f'issue-{num}.json', candidate_repos)
+		container_text = None
+		for p in iss_files[:1]:
+			try:
+				data = json.loads(p.read_text(encoding='utf-8'))
+				iss_obj = data.get('issue') if isinstance(data.get('issue'), dict) else data
+				t_txt = str(iss_obj.get('title') or '')
+				b_txt = str(iss_obj.get('body') or '')
+				container_text = f'{t_txt}\n{b_txt}'.strip()
+				if t_txt and ('create' == info.get('last_action') or 'edit' == info.get('last_action')):
+					for err in lint_issue_markdown(t_txt, is_title=True):
+						violations.append(f'GitHub issue {issue_url} title lint error ({err.get("code")}): {err.get("message")}')
+				if b_txt and ('create' == info.get('last_action') or 'edit' == info.get('last_action')):
+					for err in lint_issue_markdown(b_txt, is_title=False):
+						violations.append(f'GitHub issue {issue_url} body lint error ({err.get("code")}): {err.get("message")}')
+					for g_err in local_source_grounding_issues(root, b_txt, doc_path=p):
+						violations.append(f'GitHub issue {issue_url} body grounding error: {g_err}')
+			except (OSError, ValueError):
+				continue
+		for cid in info.get('comment_ids') or []:
+			for cp in _evidence_issue_files(root, slug, f'comment-{cid}.json', candidate_repos)[:1]:
+				try:
+					cdata = json.loads(cp.read_text(encoding='utf-8'))
+					c_body = str(cdata.get('body') or '')
+					if c_body:
+						for err in lint_issue_markdown(c_body, is_title=False, container_text=container_text):
+							violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} lint error ({err.get("code")}): {err.get("message")}')
+						for g_err in local_source_grounding_issues(root, c_body, doc_path=cp):
+							violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} grounding error: {g_err}')
+				except (OSError, ValueError):
+					continue
 	return {'verified': not violations, 'touched_repos': {str(k): sorted(v) for k, v in repo_touched.items()}, 'issues': checked_issues, 'violations': violations}
 def _norm_url(url: str) -> str:
 	r = urldefrag(url.strip())[0].rstrip('/')
@@ -650,7 +718,8 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 			errors.append(iss)
 	for tf in touched_files or []:
 		tf_str = str(tf).strip()
-		if not tf_str or (not tf_str.replace('\\', '/').lower().endswith('/kb/analysis.md')):
+		tf_norm = tf_str.replace('\\', '/').lower()
+		if not tf_str or not tf_norm.endswith('.md') or '/req/' in tf_norm or '/res/' in tf_norm or '/source/' in tf_norm or tf_norm.endswith('/source.md'):
 			continue
 		try:
 			tf_path = Path(tf_str)
@@ -918,19 +987,19 @@ def _strip_code_and_urls(text: str) -> str:
 	clean = re.sub('https?://\\S+', ' ', clean)
 	return clean
 def _intermediate_or_language_issues(requests, response: str) -> list[str]:
+	from .source_grounding import detect_prose_locale, extract_authored_prose
 	issues = []
 	if re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', response or ''):
 		issues.append('FILE-3 / REVIEW-1: Response is an intermediate subagent/task waiting status stub rather than a complete final response')
 	req_raw = '\n'.join((r.get('text', '') if isinstance(r, dict) else str(r) for r in requests or []))
-	req_prose = _strip_code_and_urls(req_raw)
-	resp_prose = _strip_code_and_urls(response or '')
-	req_cyr = re.findall('[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', req_prose)
-	req_lat = re.findall('[A-Za-z]', req_prose)
-	resp_cyr = re.findall('[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', resp_prose)
-	resp_lat = re.findall('[A-Za-z]', resp_prose)
+	req_info = detect_prose_locale(extract_authored_prose(req_raw))
+	resp_info = detect_prose_locale(extract_authored_prose(response or ''))
 	english_requested = bool(re.search('(?i)\\b(?:in\\s+english|translate\\s+to\\s+english|\\u043d\\u0430\\s+\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u043e\\u043c|\\u043f\\u043e-\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u0438)\\b', req_raw))
-	if 6 <= len(req_cyr) and len(req_lat) < len(req_cyr) and (not english_requested) and (0 == len(resp_cyr)) and (20 <= len(resp_lat)):
-		issues.append('TEXT-1: Request is in Russian (Cyrillic), but the response contains zero Cyrillic prose characters')
+	req_script = req_info['dominant_script']
+	if req_script not in ('NONE', 'LATIN') and req_info['script_counts'].get(req_script, 0) >= 6 and (not english_requested):
+		resp_target_chars = resp_info['script_counts'].get(req_script, 0)
+		if 0 == resp_target_chars and resp_info['total_alpha'] >= 20:
+			issues.append(f'TEXT-1: Request dominant script is {req_script}, but the response authored prose contains zero {req_script} characters (dominant: {resp_info["dominant_script"]})')
 	return issues
 def _record(root, native, turn, response, directory, *, existing=None):
 	directory = _directory(root, directory)
@@ -1095,7 +1164,9 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 				elif any((r['response_prepared']['sha256'] != sha for r in state['requests'] if r['id'] in identifiers)):
 					raise ValueError('Tracked analysis requests already have different prepared response bytes')
 			else:
-				has_substantive_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response)) or any((str(tf).replace('\\', '/').lower().endswith('/kb/analysis.md') for tf in turn.get('touched_files') or []))
+				touched_norms = [str(tf).replace('\\', '/').lower() for tf in turn.get('touched_files') or []]
+				has_kb_or_issue_mutation = any((tn.endswith('/kb/analysis.md') or ('/\ua616/kb/' in tn and '/\ua616/kb/evidence/' not in tn) for tn in touched_norms)) or bool(turn.get('issue_actions')) or bool(value.get('github_issues'))
+				has_substantive_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response)) or has_kb_or_issue_mutation
 				aa_steps = value['delegation_check'].get('aa_subagent_step_count', value['delegation_check'].get('subagent_step_count', 0))
 				if (root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and ('complete' != state.get('stages', {}).get('finalize', {}).get('status') or (has_substantive_hm and 0 == aa_steps)):
 					detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
