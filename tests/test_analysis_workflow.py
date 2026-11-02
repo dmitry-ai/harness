@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -501,6 +504,33 @@ class NativeReviewTests(ProjectCase):
 		self.assertFalse(check['valid'])
 		self.assertTrue(any(('project.one_off_script' == i['code'] for i in check['issues'])))
 		script.unlink()
+	def test_void_elements_compact_extracted_disk_json_and_max_bytes_guard(self):
+		html_doc = ('<html><head><link id="void-link" href="/a.css"><meta id="void-meta" content="x"></head><body><h1 id="sec-1">Title</h1><img id="void-img" src="/a.png"><div id="box"><p>' + ('word ' * 400) + '</p></div></body></html>').encode('utf-8')
+		parsed = extract_bytes(html_doc, 'text/html', 'html')
+		self.assertEqual(parsed['anchor_content']['void-link'], [''])
+		self.assertEqual(parsed['anchor_content']['void-meta'], [''])
+		self.assertEqual(parsed['anchor_content']['void-img'], [''])
+		self.assertIn('word word', parsed['anchor_content']['box'][0])
+		self.assertEqual(len(parsed['anchors']), len(parsed['anchor_ranges']))
+		with patch('agent_tools.research.fetch', return_value=Response('https://example.org/voids', 200, 'text/html', html_doc)):
+			collected = collect(self.project, 'https://example.org/voids')
+		obs_rel = collected['observation']
+		cap_dir = (self.project / 'ꘖ/KB' / obs_rel).parent
+		legacy = cap_dir / 'extracted-html-deadbeefcafebabe.json'
+		legacy.write_text('{}', encoding='utf-8')
+		res_ext = extract_observation(self.project, obs_rel, 'html')
+		ext_rel = res_ext['extraction']
+		self.assertTrue(ext_rel.endswith('/extracted-html.json'), ext_rel)
+		self.assertFalse(legacy.exists())
+		disk_path = self.project / 'ꘖ/KB' / ext_rel
+		disk_obj = json.loads(disk_path.read_text(encoding='utf-8'))
+		self.assertNotIn('anchor_content', disk_obj)
+		self.assertIn('anchor_ranges', disk_obj)
+		self.assertTrue(all(('content' not in s and isinstance(s.get('end'), int) for s in disk_obj['sections'])))
+		disk_path.unlink()
+		with patch('agent_tools.research.MAX_BYTES', 64):
+			with self.assertRaisesRegex(ValueError, 'Extracted JSON exceeds 16 MiB'):
+				extract_observation(self.project, obs_rel, 'html')
 class MetricsTests(TemporaryCase):
 	def test_unknown_tokens_stay_unknown_and_duplicate_exports_are_not_summed(self):
 		path = self.put('c-id/.system_generated/logs/transcript_full.jsonl', json.dumps({'type': 'PLANNER_RESPONSE', 'step_index': 1, 'input_tokens': 10, 'output_tokens': 4}) + '\n')

@@ -2,5 +2,13 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
-HOOK_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-python "$HOOK_DIR/../git_shim.py" --hook commit-msg "$@"
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
+PATH="$PATH:/usr/bin:/bin"
+HOOK_DIR="$(CDPATH= cd -- "${0%/*}" && pwd)"
+SHIM="$HOOK_DIR/../git_shim.py"
+if command -v cygpath >/dev/null 2>&1; then
+	SHIM="$(cygpath -w "$SHIM")"
+fi
+python "$SHIM" --hook commit-msg "$@"

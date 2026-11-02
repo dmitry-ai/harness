@@ -13,20 +13,80 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from .links import validate_file
 READ_SUBCOMMANDS = ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files')
 _VALUE_GLOBAL_OPTS = ('-C', '--git-dir', '--work-tree', '-c', '--exec-path', '--namespace', '--super-prefix', '--config-env')
 HOOKS_DIR = Path(__file__).resolve().parents[1] / 'git_hooks'
+GITHUB_MAX_BLOB_BYTES = 100 * 1024 * 1024
+EXTRACTED_MAX_BYTES = 16 * 1024 * 1024
+_CYGDRIVE_RE = re.compile('^/(?:cygdrive|mnt)/([a-zA-Z])(?:/(.*))?$')
+_EXTRACTED_DERIVED_RE = re.compile('(?:^|/)(?:Evidence/HTTP/[^/]+/[^/]+/extracted-[^/]+\\.json|Evidence/Extracted/[0-9a-f]{64}/[^/]+\\.json|extracted-(?:html|text|json)(?:-[0-9a-f]{16})?\\.json)$')
+def normalize_host_path(value: str | Path) -> Path:
+	raw = str(value).strip()
+	m = _CYGDRIVE_RE.match(raw.replace('\\', '/'))
+	if m:
+		drive = m.group(1).upper()
+		rest = m.group(2) or ''
+		r = Path(f'{drive}:/{rest}')
+	else:
+		r = Path(raw)
+	return r
+def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: list[Path] | tuple[Path, ...] | None=None, check_running: bool=True) -> list[str]:
+	if None is not candidates:
+		lock_paths = [normalize_host_path(p) for p in candidates]
+	else:
+		roots = [Path.home(), Path('C:/tools/shell/home')]
+		env_home = os.environ.get('HOME')
+		if env_home:
+			roots.append(normalize_host_path(env_home))
+		seen: set[str] = set()
+		lock_paths = []
+		for base in roots:
+			for rel in ('.git-credentials.lock', '.config/git/credentials.lock'):
+				cand = base / rel
+				key = str(cand).replace('\\', '/').lower()
+				if key not in seen:
+					seen.add(key)
+					lock_paths.append(cand)
+	existing = [lp for lp in lock_paths if lp.is_file()]
+	if not existing:
+		return []
+	now = time.time()
+	expired = []
+	for lp in existing:
+		try:
+			if now - lp.stat().st_mtime >= max_age_seconds:
+				expired.append(lp)
+		except OSError:
+			continue
+	if not expired:
+		return []
+	if check_running and 'nt' == os.name:
+		proc = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq git-credential-store.exe', '/NH'], capture_output=True, text=True, check=False)
+		if 'git-credential-store' in (proc.stdout or '').lower():
+			return []
+	removed: list[str] = []
+	for lp in expired:
+		try:
+			lp.unlink(missing_ok=True)
+			removed.append(str(lp))
+		except OSError:
+			continue
+	return removed
 def git(root: Path, *args) -> bytes:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	result = subprocess.run(['git', '--no-optional-locks', '-C', str(root), *args], capture_output=True, env=env)
+	result = subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env)
 	if result.returncode:
 		raise RuntimeError(result.stderr.decode('utf-8', errors='replace').strip())
 	r = result.stdout
@@ -34,7 +94,7 @@ def git(root: Path, *args) -> bytes:
 def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[str]=()) -> dict:
 	if subcommand not in READ_SUBCOMMANDS:
 		raise ValueError(f'Unsupported read-only Git subcommand: {subcommand}')
-	resolved = Path(root).resolve(strict=True)
+	resolved = normalize_host_path(root).resolve(strict=True)
 	extra = [str(a) for a in args]
 	output = git(resolved, subcommand, *extra)
 	r = {'valid': True, 'repo': str(resolved), 'subcommand': subcommand, 'args': extra, 'command': ['git', '--no-optional-locks', '-C', str(resolved), subcommand, *extra], 'git_optional_locks': '0', 'stdout': output.decode('utf-8', errors='replace')}
@@ -138,15 +198,15 @@ def is_code_file(rel_path: str | Path) -> bool:
 	return Path(rel_path).suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES
 def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True):
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	return subprocess.run(['git', '--no-optional-locks', '-C', str(root), *args], capture_output=True, env=env, check=check)
+	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env, check=check)
 def _main_repo_for_worktree(root: Path) -> Path:
-	resolved = Path(root).resolve()
+	resolved = normalize_host_path(root).resolve()
 	dot_git = resolved / '.git'
 	if dot_git.is_file():
 		try:
 			txt = dot_git.read_text(encoding='utf-8', errors='replace').strip()
 			if txt.lower().startswith('gitdir:'):
-				gitdir = Path(txt.split(':', 1)[1].strip())
+				gitdir = normalize_host_path(txt.split(':', 1)[1].strip())
 				if not gitdir.is_absolute():
 					gitdir = (resolved / gitdir).resolve()
 				if 'worktrees' == gitdir.parent.name and '.git' == gitdir.parent.parent.name:
@@ -155,26 +215,93 @@ def _main_repo_for_worktree(root: Path) -> Path:
 			pass
 	return resolved
 def is_issue_tracked_code_repo(root: Path) -> bool:
-	resolved = _main_repo_for_worktree(Path(root).resolve())
+	resolved = _main_repo_for_worktree(normalize_host_path(root).resolve())
 	r = 'code' == resolved.name and (resolved / '.git').exists() and ((resolved.parent / '_').is_dir() or (resolved.parent / '.agents').is_dir())
 	return r
 def ensure_repo_hooks(root: Path) -> Path | None:
-	resolved = Path(root).resolve()
-	if not is_issue_tracked_code_repo(resolved) or not (resolved / '.git').exists() or (not HOOKS_DIR.is_dir()):
+	resolved = normalize_host_path(root).resolve()
+	if not (resolved / '.git').exists() or not HOOKS_DIR.is_dir():
 		return None
 	main_repo = _main_repo_for_worktree(resolved)
 	try:
-		for hname in ('pre-commit', 'commit-msg'):
+		for hname in ('pre-commit', 'commit-msg', 'pre-push'):
 			hp = HOOKS_DIR / hname
 			if hp.is_file():
 				hp.chmod(hp.stat().st_mode | 0o755)
 		proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], capture_output=True, text=True, check=False)
 		current = (proc.stdout or '').strip()
-		if Path(current).resolve() != HOOKS_DIR.resolve() if current else True:
+		if normalize_host_path(current).resolve() != HOOKS_DIR.resolve() if current else True:
 			subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(HOOKS_DIR)], capture_output=True, check=False)
 	except OSError:
 		return None
 	return HOOKS_DIR
+def verify_staged_blob_sizes(root: Path, staged_paths: list[str] | None=None) -> None:
+	resolved = normalize_host_path(root).resolve()
+	if not (resolved / '.git').exists():
+		return
+	paths = list(staged_paths) if None is not staged_paths else [x.decode('utf-8') for x in git(resolved, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
+	if not paths:
+		return
+	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
+	batch_in = ''.join((f':{p}\n' for p in paths)).encode('utf-8')
+	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objecttype) %(objectsize)'], input=batch_in, capture_output=True, env=env, check=False)
+	if 0 != proc.returncode:
+		return
+	lines = proc.stdout.decode('utf-8', errors='replace').splitlines()
+	for rel_raw, line in zip(paths, lines):
+		parts = line.strip().split()
+		if len(parts) < 2 or 'blob' != parts[0] or (not parts[1].isdigit()):
+			continue
+		size = int(parts[1])
+		rel_posix = rel_raw.replace('\\', '/')
+		if _EXTRACTED_DERIVED_RE.search(rel_posix) and size > EXTRACTED_MAX_BYTES:
+			raise ValueError(f'Staged derived extraction file {rel_posix} is {size} bytes, exceeding MAX_BYTES ({EXTRACTED_MAX_BYTES} bytes)')
+		if size > GITHUB_MAX_BLOB_BYTES:
+			raise ValueError(f'Staged Git blob {rel_posix} is {size} bytes, exceeding GitHub GH001 hard limit ({GITHUB_MAX_BLOB_BYTES} bytes)')
+def verify_push_blob_sizes(root: Path, stdin_lines: list[str] | None=None) -> None:
+	resolved = normalize_host_path(root).resolve()
+	if not (resolved / '.git').exists():
+		return
+	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
+	rev_args: list[str] = []
+	if None is not stdin_lines:
+		zero_re = re.compile('^0+$')
+		for raw_line in stdin_lines:
+			parts = raw_line.strip().split()
+			if len(parts) < 4:
+				continue
+			local_sha, remote_sha = (parts[1], parts[3])
+			if zero_re.match(local_sha):
+				continue
+			if zero_re.match(remote_sha):
+				rev_args.extend([local_sha, '--not', '--remotes'])
+			else:
+				rev_args.append(f'{remote_sha}..{local_sha}')
+		if not rev_args:
+			return
+	else:
+		head_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-parse', '--verify', 'HEAD'], capture_output=True, env=env, check=False)
+		if 0 != head_proc.returncode:
+			return
+		rev_args = ['HEAD', '--not', '--remotes']
+	rev_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-list', '--objects', *rev_args], capture_output=True, env=env, check=False)
+	if 0 != rev_proc.returncode or not rev_proc.stdout.strip():
+		return
+	cat_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)'], input=rev_proc.stdout, capture_output=True, env=env, check=False)
+	if 0 != cat_proc.returncode:
+		return
+	for line in cat_proc.stdout.decode('utf-8', errors='replace').splitlines():
+		parts = line.strip().split(' ', 3)
+		if len(parts) < 3 or 'blob' != parts[1] or (not parts[2].isdigit()):
+			continue
+		sha = parts[0]
+		size = int(parts[2])
+		rel_posix = (parts[3] if len(parts) > 3 else '').replace('\\', '/')
+		if rel_posix and _EXTRACTED_DERIVED_RE.search(rel_posix) and (size > EXTRACTED_MAX_BYTES):
+			raise ValueError(f'Unpushed derived extraction blob {rel_posix} ({sha[:12]}) is {size} bytes, exceeding MAX_BYTES ({EXTRACTED_MAX_BYTES} bytes)')
+		if size > GITHUB_MAX_BLOB_BYTES:
+			label = f'{rel_posix} ({sha[:12]})' if rel_posix else sha[:12]
+			raise ValueError(f'Unpushed Git blob {label} is {size} bytes, exceeding GitHub GH001 hard limit ({GITHUB_MAX_BLOB_BYTES} bytes)')
 def _extract_added_diff_urls(root: Path, rel_name: str) -> tuple[set[str], set[str]]:
 	added_urls: set[str] = set()
 	head_urls: set[str] = set()
@@ -228,7 +355,7 @@ def verify_issue_workflow(root: Path, relative: list[str], message: str | None=N
 	if len(all_new_diff_urls) > 1:
 		raise ValueError(f'Staged files mix changes from multiple GitHub Issues: {sorted(all_new_diff_urls)}')
 def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> Path | None:
-	target_dir = Path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
+	target_dir = normalize_host_path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
 	tokens = list(argv)
 	idx = 0
 	while idx < len(tokens):
@@ -236,7 +363,7 @@ def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | No
 		if '--' == tok:
 			break
 		if tok in ('-C', '--work-tree') and idx + 1 < len(tokens):
-			cand = Path(tokens[idx + 1])
+			cand = normalize_host_path(tokens[idx + 1])
 			target_dir = cand.resolve() if cand.is_absolute() else (target_dir / cand).resolve()
 			idx += 2
 		elif tok in _VALUE_GLOBAL_OPTS:
@@ -334,36 +461,46 @@ def _parse_commit_subcommand_args(argv: list[str] | tuple[str, ...]) -> tuple[li
 	msg = '\n\n'.join(msg_parts) if msg_parts else None
 	return (rest, msg, msg_file, no_verify, all_flag, pathspecs)
 def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> None:
+	cleanup_stale_credential_locks()
 	subcommand, _ = classify_git_argv(argv)
-	if subcommand not in ('commit', 'filter-branch', 'merge', 'rebase', 'cherry-pick'):
+	if subcommand not in ('commit', 'push', 'filter-branch', 'merge', 'rebase', 'cherry-pick'):
 		return
 	repo_root = resolve_git_repo_from_argv(argv, cwd=cwd)
-	if None is repo_root or not is_issue_tracked_code_repo(repo_root):
+	if None is repo_root:
 		return
 	ensure_repo_hooks(repo_root)
+	tracked_code = is_issue_tracked_code_repo(repo_root)
+	if 'push' == subcommand:
+		if '--no-verify' in argv and tracked_code:
+			raise ValueError('EXEC-5 violation: git push --no-verify is prohibited in issue-tracked code repositories')
+		verify_push_blob_sizes(repo_root)
+		return
 	if 'filter-branch' == subcommand:
-		raise ValueError('EXEC-5 violation: git filter-branch is prohibited in issue-tracked code repositories')
+		if tracked_code:
+			raise ValueError('EXEC-5 violation: git filter-branch is prohibited in issue-tracked code repositories')
+		return
 	if 'commit' == subcommand:
 		_, msg, msg_file, no_verify, all_flag, pathspecs = _parse_commit_subcommand_args(argv)
-		if no_verify:
-			raise ValueError('EXEC-5 violation: git commit --no-verify/-n is prohibited in issue-tracked code repositories')
-		if all_flag:
-			raise ValueError('EXEC-5 violation: git commit -a/--all is prohibited in issue-tracked code repositories; stage and commit only an explicit file list')
-		if None is msg and msg_file and ('-' != msg_file):
-			mf = Path(msg_file)
-			if not mf.is_absolute():
-				mf = (Path(cwd or Path.cwd()) / mf).resolve()
-			if mf.is_file():
-				msg = mf.read_text(encoding='utf-8', errors='replace')
-		if None is not msg:
-			stripped = '\n'.join((line for line in msg.splitlines() if not line.startswith('#'))).strip()
-			if not _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch(stripped):
-				raise ValueError('EXEC-5 violation: commit message in an issue-tracked code repository must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
+		if tracked_code:
+			if no_verify:
+				raise ValueError('EXEC-5 violation: git commit --no-verify/-n is prohibited in issue-tracked code repositories')
+			if all_flag:
+				raise ValueError('EXEC-5 violation: git commit -a/--all is prohibited in issue-tracked code repositories; stage and commit only an explicit file list')
+			if None is msg and msg_file and ('-' != msg_file):
+				mf = normalize_host_path(msg_file)
+				if not mf.is_absolute():
+					mf = (normalize_host_path(cwd or Path.cwd()) / mf).resolve()
+				if mf.is_file():
+					msg = mf.read_text(encoding='utf-8', errors='replace')
+			if None is not msg:
+				stripped = '\n'.join((line for line in msg.splitlines() if not line.startswith('#'))).strip()
+				if not _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch(stripped):
+					raise ValueError('EXEC-5 violation: commit message in an issue-tracked code repository must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
 		if (repo_root / '.git').exists():
 			clean_specs = []
 			for sp in pathspecs:
 				s = sp[len(':(literal)'):] if sp.startswith(':(literal)') else sp
-				p = (repo_root / s).resolve()
+				p = (repo_root / normalize_host_path(s)).resolve()
 				if p.is_relative_to(repo_root):
 					clean_specs.append(p.relative_to(repo_root).as_posix())
 			if not clean_specs:
@@ -372,7 +509,9 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 				except RuntimeError:
 					clean_specs = []
 			if clean_specs:
-				verify_issue_workflow(repo_root, clean_specs, message=msg)
+				verify_staged_blob_sizes(repo_root, clean_specs)
+				if tracked_code:
+					verify_issue_workflow(repo_root, clean_specs, message=msg)
 def prohibited_git_write_commands(text: str) -> list[str]:
 	if not isinstance(text, str) or 'git' not in text:
 		return []
@@ -399,24 +538,33 @@ def prohibited_git_write_commands(text: str) -> list[str]:
 				if None is repo_root or is_issue_tracked_code_repo(repo_root):
 					violations.append(f'git commit message must contain only the GitHub Issue URL ({segment.strip()})')
 	return violations
-def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path | None=None) -> int:
+def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path | None=None, *, stdin_text: str | None=None) -> int:
+	cleanup_stale_credential_locks()
 	repo_root = resolve_git_repo_from_argv((), cwd=cwd)
-	if None is repo_root or not is_issue_tracked_code_repo(repo_root):
+	if None is repo_root:
 		return 0
+	tracked_code = is_issue_tracked_code_repo(repo_root)
 	try:
-		staged = [x.decode('utf-8') for x in git(repo_root, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
 		if 'pre-commit' == hook_name:
+			staged = [x.decode('utf-8') for x in git(repo_root, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
 			if staged:
-				verify_issue_workflow(repo_root, staged)
+				verify_staged_blob_sizes(repo_root, staged)
+				if tracked_code:
+					verify_issue_workflow(repo_root, staged)
 		elif 'commit-msg' == hook_name:
-			if not argv:
-				raise ValueError('commit-msg hook requires message file path argument')
-			msg_path = Path(argv[0])
-			if not msg_path.is_absolute():
-				msg_path = (repo_root / msg_path).resolve()
-			raw_msg = msg_path.read_text(encoding='utf-8', errors='replace')
-			cleaned_msg = '\n'.join((line for line in raw_msg.splitlines() if not line.startswith('#'))).strip()
-			verify_issue_workflow(repo_root, staged, message=cleaned_msg)
+			if tracked_code:
+				if not argv:
+					raise ValueError('commit-msg hook requires message file path argument')
+				msg_path = normalize_host_path(argv[0])
+				if not msg_path.is_absolute():
+					msg_path = (repo_root / msg_path).resolve()
+				raw_msg = msg_path.read_text(encoding='utf-8', errors='replace')
+				cleaned_msg = '\n'.join((line for line in raw_msg.splitlines() if not line.startswith('#'))).strip()
+				staged = [x.decode('utf-8') for x in git(repo_root, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
+				verify_issue_workflow(repo_root, staged, message=cleaned_msg)
+		elif 'pre-push' == hook_name:
+			lines = stdin_text.splitlines() if None is not stdin_text else (sys.stdin.read().splitlines() if not sys.stdin.isatty() else None)
+			verify_push_blob_sizes(repo_root, stdin_lines=lines)
 	except (OSError, ValueError, RuntimeError) as exc:
 		print(f'ERROR (Git hook {hook_name}): {exc}', file=sys.stderr)
 		return 2
@@ -476,8 +624,8 @@ def _normalize_repo_paths(root: Path, paths: list[str]) -> list[str]:
 # "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 # https://github.com/dmitry-ai/harness/issues/17
 def check_commit(root: Path, paths: list[str]) -> list[str]:
-	root = Path(root).resolve(strict=True)
-	actual = Path(git(root, 'rev-parse', '--show-toplevel').decode('utf-8').strip()).resolve()
+	root = normalize_host_path(root).resolve(strict=True)
+	actual = normalize_host_path(git(root, 'rev-parse', '--show-toplevel').decode('utf-8').strip()).resolve()
 	if actual != root:
 		raise ValueError(f'Expected repository root {root}, found {actual}')
 	ensure_repo_hooks(root)
@@ -499,6 +647,7 @@ def check_commit(root: Path, paths: list[str]) -> list[str]:
 	git(root, 'diff', '--cached', '--check')
 	from .text_workflow import gate_paths
 	gate_paths([root / name for name in relative])
+	verify_staged_blob_sizes(root, relative)
 	verify_issue_workflow(root, relative)
 	r = relative
 	return r

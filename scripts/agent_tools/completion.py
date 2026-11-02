@@ -25,6 +25,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -35,7 +38,7 @@ import sqlite3
 from urllib.parse import unquote, urldefrag, urlsplit
 from . import journal
 from .platforms import adapter
-from .research import _CHALLENGE_RE
+from .research import MAX_BYTES, _CHALLENGE_RE
 from .runtime import PRIMARY, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
 COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch')
@@ -584,7 +587,7 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 					resp_bin = jfile.parent / 'response.bin'
 					if resp_bin.is_file():
 						try:
-							if resp_bin.stat().st_size <= 2 * 1024 * 1024:
+							if resp_bin.stat().st_size <= MAX_BYTES:
 								raw_text = resp_bin.read_bytes().decode(data.get('charset') or 'utf-8', errors='replace')
 								ctype = (data.get('content_type') or '').lower()
 								is_html = 'html' in ctype or '<title' in raw_text[:4000].lower() or raw_text.lstrip().lower().startswith(('<!doctype html', '<html'))

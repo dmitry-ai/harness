@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -27,6 +30,7 @@ from .storage import create_bytes, locked, replace_bytes
 MAX_BYTES = 16 * 1024 * 1024
 PROFILES = ('html', 'shopify', 'tracking', 'document')
 BROWSER_MODES = ('auto', 'always', 'never')
+VOID_ELEMENTS = ('area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr')
 _CHALLENGE_RE = re.compile('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__|enable javascript and cookies|name=["\\\'](?:js_challenge|jsc_token)["\\\']|cf-browser-verification|cf_chl_opt|challenge-platform|<noscript>[^<]*enable javascript')
 def classify_network_error(exc):
 	cause = exc.reason if isinstance(exc, URLError) and None is not getattr(exc, 'reason', None) else exc
@@ -229,10 +233,11 @@ class HTMLData(HTMLParser):
 		self.position = 0
 	def handle_starttag(self, tag, attrs):
 		attrs = dict(attrs)
+		is_void = tag in VOID_ELEMENTS
 		anchor = attrs.get('id') or (attrs.get('name') if 'a' == tag else None)
 		if anchor:
 			self.anchors.append(anchor)
-			self.anchor_ranges.setdefault(anchor, []).append({'start': self.position, 'end': None})
+			self.anchor_ranges.setdefault(anchor, []).append({'start': self.position, 'end': self.position if is_void else None})
 		if 'a' == tag and attrs.get('href'):
 			self.link = {'href': attrs['href'], 'text': ''}
 		if 'img' == tag:
@@ -257,7 +262,7 @@ class HTMLData(HTMLParser):
 					section['end'] = position
 			self.heading = {'level': int(tag[1]), 'text': '', 'anchor': attrs.get('id'), 'ancestor_anchors': [x[1] for x in self.stack if x[1]], 'start': position, 'end': None}
 			self.section_ranges.append(self.heading)
-		if tag not in ('meta', 'link', 'img', 'input', 'br', 'hr', 'source', 'area', 'base', 'embed', 'param', 'wbr'):
+		if not is_void:
 			self.stack.append((tag, anchor))
 	def handle_endtag(self, tag):
 		if 'a' == tag and None is not self.link:
@@ -302,9 +307,11 @@ class HTMLData(HTMLParser):
 			self.position += len(value)
 	def result(self):
 		plain = ''.join(self.text)
+		plain_len = len(plain)
 		clean_text = '\n'.join((x.strip() for x in plain.splitlines() if x.strip()))
 		title_str = ' '.join(self.title.split())
-		sections = [{**h, 'content': plain[h['start']:h['end']]} for h in self.section_ranges]
+		sections = [{**h, 'end': plain_len if None is h['end'] else h['end'], 'content': plain[h['start']:h['end']]} for h in self.section_ranges]
+		anchor_ranges = {anchor: [[x['start'], plain_len if None is x['end'] else x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}
 		word_count = len(re.findall('\\w+', clean_text))
 		site_name = (self.meta.get('og:site_name') or '').strip()
 		total_imgs = len(self.images)
@@ -318,7 +325,7 @@ class HTMLData(HTMLParser):
 		json_ld_types = [item.get('@type') for item in self.json_ld if isinstance(item, dict) and item.get('@type')]
 		empty_json_ld_desc = any((isinstance(item, dict) and 'description' in item and (not str(item.get('description') or '').strip()) for item in self.json_ld))
 		insecure_json_ld_img = any((isinstance(item, dict) and isinstance(item.get('image'), str) and (item['image'].startswith('http://') or item['image'].startswith('//') or item['image'].startswith('/')) for item in self.json_ld))
-		r = {'title': title_str, 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical, 'headings': self.headings, 'anchors': sorted(set(self.anchors)), 'links': self.links, 'scripts': self.scripts, 'images': self.images, 'image_alt_summary': {'total': total_imgs, 'empty_alt': empty_alt, 'filename_like_alt': filename_alt, 'repeated_site_name_alt': repeated_site_alt, 'descriptive_alt': descriptive_alt}, 'embeds': self.embeds, 'word_count': word_count, 'seo_diagnostics': {'h1_count': h1_count, 'missing_h1': 0 == h1_count, 'multiple_h1': h1_count > 1, 'title_length': len(title_str), 'overlong_title': len(title_str) > 65, 'meta_description_length': len(meta_desc), 'missing_meta_description': not bool(meta_desc.strip()), 'spaced_brand_name': spaced_brand, 'json_ld_types': json_ld_types, 'empty_json_ld_description': empty_json_ld_desc, 'insecure_or_relative_json_ld_image': insecure_json_ld_img}, 'json_ld': self.json_ld, 'sections': sections, 'anchor_content': {anchor: [plain[x['start']:x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}, 'ambiguous_anchors': sorted((anchor for anchor, ranges in self.anchor_ranges.items() if len(ranges) > 1)), 'text': clean_text}
+		r = {'title': title_str, 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical, 'headings': self.headings, 'anchors': sorted(set(self.anchors)), 'links': self.links, 'scripts': self.scripts, 'images': self.images, 'image_alt_summary': {'total': total_imgs, 'empty_alt': empty_alt, 'filename_like_alt': filename_alt, 'repeated_site_name_alt': repeated_site_alt, 'descriptive_alt': descriptive_alt}, 'embeds': self.embeds, 'word_count': word_count, 'seo_diagnostics': {'h1_count': h1_count, 'missing_h1': 0 == h1_count, 'multiple_h1': h1_count > 1, 'title_length': len(title_str), 'overlong_title': len(title_str) > 65, 'meta_description_length': len(meta_desc), 'missing_meta_description': not bool(meta_desc.strip()), 'spaced_brand_name': spaced_brand, 'json_ld_types': json_ld_types, 'empty_json_ld_description': empty_json_ld_desc, 'insecure_or_relative_json_ld_image': insecure_json_ld_img}, 'json_ld': self.json_ld, 'sections': sections, 'anchor_ranges': anchor_ranges, 'anchor_content': {anchor: [plain[x['start']:x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}, 'ambiguous_anchors': sorted((anchor for anchor, ranges in self.anchor_ranges.items() if len(ranges) > 1)), 'text': clean_text}
 		return r
 def _extract_sitemap(text):
 	stripped = text.lstrip()
@@ -476,21 +483,47 @@ def extract_bytes(body, content_type, profile, charset='utf-8'):
 			md = '\n'.join(paragraphs)
 		r = {'paragraphs': paragraphs, 'text': '\n'.join(paragraphs), 'markdown': md, 'layout_checked': False, 'non_text_parts': non_text}
 	return r
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
+def compact_extraction_for_disk(data):
+	out = {k: v for k, v in data.items() if 'anchor_content' != k}
+	if isinstance(out.get('sections'), list):
+		out['sections'] = [{k: v for k, v in h.items() if 'content' != k} for h in out['sections'] if isinstance(h, dict)]
+	if 'paragraphs' in out and isinstance(out.get('text'), str) and (out.get('paragraphs') == out['text'].splitlines()):
+		del out['paragraphs']
+	r = out
+	return r
 def extract_observation(root, reference, profile='html'):
 	meta = load_observation(root, reference)
 	folder = inside(Path(root) / 'ꘖ/KB', urldefrag(reference)[0]).parent
 	if meta.get('error') or ('http' == meta.get('kind', 'http') and (not 200 <= meta['status'] < 300)):
 		raise ValueError('Observation is unavailable; preserve it and choose a different check method')
 	version = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
-	target = folder / f'extracted-{profile}-{version}.json'
-	if not target.exists():
-		data = extract_bytes((folder / 'response.bin').read_bytes(), meta['content_type'], profile, meta.get('charset') or 'utf-8')
-		create_bytes(target, json_data({'profile': profile, 'extractor_version': version, 'observation': reference, 'body_sha256': meta['body_sha256'], 'observed_at': meta['observed_at'], **data}))
-	else:
+	target = folder / f'extracted-{profile}.json'
+	data = None
+	if target.is_file():
 		try:
-			data = json.loads(target.read_text(encoding='utf-8'))
+			cached = json.loads(target.read_text(encoding='utf-8'))
+			if isinstance(cached, dict) and cached.get('extractor_version') == version and (cached.get('body_sha256') == meta['body_sha256']):
+				data = cached
 		except (OSError, ValueError):
-			data = {}
+			data = None
+	if None is data:
+		raw_data = extract_bytes((folder / 'response.bin').read_bytes(), meta['content_type'], profile, meta.get('charset') or 'utf-8')
+		data = {'profile': profile, 'extractor_version': version, 'observation': reference, 'body_sha256': meta['body_sha256'], 'observed_at': meta['observed_at'], **compact_extraction_for_disk(raw_data)}
+		payload = json_data(data)
+		if len(payload) > MAX_BYTES:
+			raise ValueError('Extracted JSON exceeds 16 MiB')
+		if not target.exists():
+			create_bytes(target, payload)
+		else:
+			replace_bytes(target, payload)
+		for legacy in folder.glob(f'extracted-{profile}-*.json'):
+			try:
+				legacy.unlink()
+			except OSError:
+				pass
 	r = {'extraction': target.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix(), 'observation': reference, 'profile': profile, 'observed_at': meta['observed_at']}
 	if 'browser_check_required' in data:
 		r['browser_check_required'] = bool(data['browser_check_required'])
@@ -504,13 +537,33 @@ def extract_file(root, file, profile='document'):
 		raise ValueError('Source file exceeds 16 MiB')
 	import mimetypes
 	kind = mimetypes.guess_type(file.name)[0] or 'text/plain'
-	data = extract_bytes(body, kind, profile)
 	version = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
-	target = Path(root) / 'ꘖ/KB/Evidence/Extracted' / hashlib.sha256(body).hexdigest() / f'{profile}-{version}.json'
+	source_sha = hashlib.sha256(body).hexdigest()
+	target = Path(root) / 'ꘖ/KB/Evidence/Extracted' / source_sha / f'{profile}.json'
 	target.parent.mkdir(parents=True, exist_ok=True)
-	if not target.exists():
-		create_bytes(target, json_data({'profile': profile, 'source': file.relative_to(Path(root).resolve()).as_posix(), 'source_sha256': hashlib.sha256(body).hexdigest(), 'extractor_version': version, **data}))
-	r = {'extraction': target.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix(), 'source_sha256': hashlib.sha256(body).hexdigest()}
+	need_write = True
+	if target.is_file():
+		try:
+			cached = json.loads(target.read_text(encoding='utf-8'))
+			if isinstance(cached, dict) and cached.get('extractor_version') == version and (cached.get('source_sha256') == source_sha):
+				need_write = False
+		except (OSError, ValueError):
+			need_write = True
+	if need_write:
+		data = compact_extraction_for_disk(extract_bytes(body, kind, profile))
+		payload = json_data({'profile': profile, 'source': file.relative_to(Path(root).resolve()).as_posix(), 'source_sha256': source_sha, 'extractor_version': version, **data})
+		if len(payload) > MAX_BYTES:
+			raise ValueError('Extracted JSON exceeds 16 MiB')
+		if not target.exists():
+			create_bytes(target, payload)
+		else:
+			replace_bytes(target, payload)
+		for legacy in target.parent.glob(f'{profile}-*.json'):
+			try:
+				legacy.unlink()
+			except OSError:
+				pass
+	r = {'extraction': target.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix(), 'source_sha256': source_sha}
 	return r
 def select_dom_tab(tabs, url, tab_id):
 	matches = [t for t in tabs if 'page' == t.get('type') and t.get('id') == tab_id and (urldefrag(t.get('url', ''))[0] == urldefrag(url)[0])]

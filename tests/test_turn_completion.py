@@ -25,6 +25,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -1068,6 +1071,56 @@ class AntigravityCompletionTests(unittest.TestCase):
 		ev_p.write_text(json.dumps({'url': 'https://github.com/smokeday-com/m/issues/48', 'number': 48, 'state': 'open', 'title': 'Русский заголовок в английском репозитории', 'body': 'Русский текст описания задачи с кодом `test`.'}), encoding='utf-8')
 		with self.assertRaisesRegex(ValueError, 'EXEC-5 violation in active turn \\(code/issue lifecycle incomplete\\).*LOCALE_MISMATCH'):
 			completion.prepare(self.project, 'Summary.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+	def test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks(self):
+		import os
+		import subprocess
+		import git_shim
+		from agent_tools import git_gate
+		self.assertEqual(git_gate.normalize_host_path('/cygdrive/c/work/research'), Path('C:/work/research'))
+		eff_read, _ = git_shim.prepare_git_invocation(['-C', '/cygdrive/c/work/research', 'status', '--short'])
+		self.assertEqual(eff_read[:3], ['--no-optional-locks', '-C', 'C:/work/research'])
+		lock_old = self.root / 'old.git-credentials.lock'
+		lock_fresh = self.root / 'fresh.git-credentials.lock'
+		lock_old.write_text('', encoding='utf-8')
+		lock_fresh.write_text('', encoding='utf-8')
+		old_ts = time.time() - 60.0
+		os.utime(lock_old, (old_ts, old_ts))
+		removed = git_gate.cleanup_stale_credential_locks(10.0, candidates=[lock_old, lock_fresh], check_running=False)
+		self.assertEqual(removed, [str(lock_old)])
+		self.assertFalse(lock_old.exists())
+		self.assertTrue(lock_fresh.exists())
+		bare = self.root / 'remote-blobs.git'
+		subprocess.run(['git', 'init', '--bare', str(bare)], check=True, capture_output=True)
+		repo = self.root / 'blob-repo'
+		repo.mkdir(parents=True, exist_ok=True)
+		subprocess.run(['git', 'init'], cwd=repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=repo, check=True, capture_output=True)
+		subprocess.run(['git', 'remote', 'add', 'origin', str(bare)], cwd=repo, check=True, capture_output=True)
+		har_file = repo / 'source/session.har'
+		har_file.parent.mkdir(parents=True, exist_ok=True)
+		har_file.write_bytes(b'H' * 1024)
+		ext_file = repo / 'Evidence/HTTP/obs1/cap1/extracted-html.json'
+		ext_file.parent.mkdir(parents=True, exist_ok=True)
+		ext_file.write_bytes(b'E' * 2048)
+		subprocess.run(['git', 'add', 'source/session.har', 'Evidence/HTTP/obs1/cap1/extracted-html.json'], cwd=repo, check=True, capture_output=True)
+		git_gate.verify_staged_blob_sizes(repo)
+		with patch.object(git_gate, 'EXTRACTED_MAX_BYTES', 1500):
+			with self.assertRaisesRegex(ValueError, 'Staged derived extraction file .* exceeding MAX_BYTES'):
+				git_gate.verify_staged_blob_sizes(repo)
+		with patch.object(git_gate, 'GITHUB_MAX_BLOB_BYTES', 512):
+			with self.assertRaisesRegex(ValueError, 'Staged Git blob .* exceeding GitHub GH001 hard limit'):
+				git_gate.verify_staged_blob_sizes(repo)
+		subprocess.run(['git', 'commit', '-m', 'Initial files kept in git'], cwd=repo, check=True, capture_output=True)
+		git_gate.verify_push_blob_sizes(repo)
+		with patch.object(git_gate, 'EXTRACTED_MAX_BYTES', 1500):
+			with self.assertRaisesRegex(ValueError, 'Unpushed derived extraction blob .* exceeding MAX_BYTES'):
+				git_gate.verify_push_blob_sizes(repo)
+		with patch.object(git_gate, 'GITHUB_MAX_BLOB_BYTES', 512):
+			with self.assertRaisesRegex(ValueError, 'Unpushed Git blob .* exceeding GitHub GH001 hard limit'):
+				git_gate.verify_push_blob_sizes(repo)
+		eff_push, _ = git_shim.prepare_git_invocation(['-C', str(repo), 'push', 'origin', 'HEAD'])
+		self.assertEqual(eff_push[:2], ['-c', 'credentialstore.locktimeoutms=5000'])
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'
