@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Verify saved publication approval independently of current publication policy":
+# https://github.com/dmitry-ai/harness/issues/41
 from copy import deepcopy
 from pathlib import Path
 import json
@@ -205,3 +208,52 @@ def authorize(root, check, *, applied=False):
 		if len({entry['reviewer_id'] for entry in eligible}) >= required:
 			return {'package': reference, 'package_sha256': digest(inside(root, reference).read_bytes()), 'risk': package['risk'], 'subject_sha256': package['subject_sha256'], 'review_ids': [entry['id'] for entry in eligible]}
 	raise ValueError('Current independent text approval is required; significant claims need two reviewers' + (': ' + '; '.join(dict.fromkeys(diagnostics)) if diagnostics else ''))
+def approval_integrity(root, approval, *, versioned_inputs=(), require_live_proof=True):
+	from .metrics import verify_native_proof
+	root = Path(root).resolve()
+	if not isinstance(approval, dict) or not isinstance(approval.get('review_ids'), list):
+		raise ValueError('Saved publication approval is missing')
+	package = read_package(root, approval['package'], require_current=False)
+	package_file = inside(root, approval['package'])
+	if digest(package_file.read_bytes()) != approval.get('package_sha256') or package['subject_sha256'] != approval.get('subject_sha256') or package['risk'] != approval.get('risk'):
+		raise ValueError('Saved publication approval identity changed')
+	inputs = {approval['package']: digest(package_file.read_bytes())}
+	for item in (package['response'], package['baseline']):
+		inputs[item['file']] = item['sha256']
+	entries = {entry['id']: entry for entry in _state(root)['reviews']}
+	eligible, reviews = (set(), [])
+	for ident in approval['review_ids']:
+		entry = entries.get(ident)
+		if not entry or entry.get('package') != approval['package'] or entry.get('package_sha256') != approval['package_sha256'] or entry.get('subject_sha256') != approval['subject_sha256'] or entry.get('result') != 'approved' or not entry.get('independent'):
+			raise ValueError('Saved independent publication review changed or is missing')
+		for name, expected in entry['proof'].items():
+			if name not in versioned_inputs:
+				if digest(inside(root, name).read_bytes()) != expected:
+					raise ValueError('Saved publication review input changed: ' + name)
+				inputs[name] = expected
+		data = _report_object(inside(root, entry['report']).read_text(encoding='utf-8'))
+		if data.get('result') != 'approved' or data.get('package') != approval['package']:
+			raise ValueError('Saved publication review no longer matches its admitted report')
+		if require_live_proof:
+			if _issues(data, package, inside(root, package['response']['file']).read_text(encoding='utf-8')):
+				raise ValueError('Saved publication review no longer matches its admitted report')
+			native = json.loads(inside(root, entry['native_evidence']).read_text(encoding='utf-8'))
+			observed = verify_native_proof(root, native, package=Path(entry['package']).name)
+			if digest(inside(root, entry['authored_response']).read_bytes()) != observed.get('final_response_sha256'):
+				raise ValueError('Saved review differs from its original native response')
+		else:
+			if entry.get('native_evidence'):
+				native_file = inside(root, entry['native_evidence'])
+				if native_file.exists():
+					try:
+						native = json.loads(native_file.read_text(encoding='utf-8'))
+						if native.get('final_response_sha256'):
+							if digest(inside(root, entry['authored_response']).read_bytes()) != native.get('final_response_sha256'):
+								raise ValueError('Saved review differs from its recorded native response')
+					except (json.JSONDecodeError, OSError):
+						pass
+		eligible.add(entry['reviewer_id'])
+		reviews.append(deepcopy(entry))
+	if len(eligible) < (2 if 'significant' == package['risk'] else 1):
+		raise ValueError('Saved publication approval lacks its required independent reviewers')
+	return {'files': inputs, 'reviews': reviews}

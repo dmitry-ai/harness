@@ -169,8 +169,15 @@ A programmatic receipt does not guarantee substantive truth: A.A evaluates meani
 
 `turn-begin <project> --platform codex` establishes the native turn and applicability of FILE-3/EXEC-5/DOC-2 regardless of text format; Antigravity requires `--conversation <native-uuid> --platform antigravity`.  
 `answer-prepare <project> --response-file <exact-final-answer>` records the exact native requests and response, verifies read-back bytes and prior clearances of linked documents/analysis, and returns the `response_file` to publish verbatim.  
-`journal-sync <project> --conversation <native-uuid>` independently reconciles a completed native reply against the journal; a skipped preparation is recovered post-hoc, and any byte discrepancy is saved as a conflict without overwriting history.  
-By default, `turn-begin` registers the active conversation with the hidden local verifier; `journal-watch --action status|once|start|stop` manages that watcher, and `journal-unwatch <project> --conversation <native-uuid>` removes a single registration upon explicit user opt-out.  
+`journal-sync <project> --conversation <native-uuid>` synchronously reconciles a completed native reply against the journal; a skipped preparation is recovered post-hoc, and any byte discrepancy is saved as a conflict without overwriting history.  
+All journal execution is foreground-only: `turn-begin` reconciles earlier completed turns of its current conversation, and `answer-prepare` records the present response without registering or launching a persistent process.  
+Native delivery is confirmed on the next foreground working call after publication; if no later call occurs, it remains unverified.  
+`journal-watch --action once [--dry-run]` explicitly audits saved legacy bindings once and returns; `status` is read-only, `stop` cooperatively retires an older verifier, and `start`/`run` reject persistent execution.  
+`--no-watch` and the Python `watch` parameter are compatibility inputs and never enable autonomous work; `journal-unwatch <project> --conversation <native-uuid>` removes only a legacy binding.  
+Repeated unchanged reconciliation preserves domain-state bytes, timestamps and mtime; real changes and conflicts are recorded without silently replacing history.  
+New answers pass the current applicable document, source, and approval gates and retain an immutable admission proof; repeated historical verification checks the selected recorded sources and approvals without reapplying wall-clock freshness rules.  
+Missing legacy admission proofs remain visible gaps, and prior failed admission is not bypassed by recovery.  
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->
 Exact guarantees and limits are in the [turn completion contract](../references/turn-completion.md#limits-and-verification); saved state does not prove rule comprehension, and preparation does not prove UI delivery.  
 
 `validate_step.py --dir <journal> --all` validates pairs and checks for stale reservations.  

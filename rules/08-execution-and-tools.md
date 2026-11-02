@@ -22,6 +22,7 @@ Keep agent-opened tabs/windows in a separate tool session while preserving the r
 Take window coordinates and monitor selection from environment settings, not from universal rules.  
 Do not terminate the shared browser or delete its lock files.  
 ## EXEC-4
+Harness execution follows the foreground-only lifecycle in [FILE-3](01-file-boundaries.md#file-3); all entry points must return without leaving autonomous Harness work running.  
 In asynchronous workflows, distinguish submission, acceptance, execution, and result retrieval; track response IDs and timeouts.  
 Before retrying, check whether the first request was accepted; do not promise background continuation without a working mechanism.  
 Bound background commands, browser fixtures, and subagent waits with explicit timeouts (such as `--test-force-exit` and `--test-timeout` for `node --test`, or a `schedule` timer with `DurationSeconds` and `TimerCondition="any"`), and inspect or terminate stalled background tasks via `manage_task` rather than waiting indefinitely.  
@@ -40,3 +41,4 @@ Prefer the service's native UI or in-page API client; a required token may be us
 Do not scrape all cookies or storage searching for `token`/`auth`; identify the specific credential source and recipient per the service contract.  
 Distinguish a missing tab, expired login, insufficient operation permissions, and tool policy rejection; successful page reading does not prove write permission.  
 Before working with an authenticated portal, read the [authenticated access procedure](../skills/upwork-init/references/authenticated-access.md); permission to use a session does not expand the scope of the instruction to sending messages, making payments, or performing other external changes under [SCOPE-2](00-scope.md#scope-2).  
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->

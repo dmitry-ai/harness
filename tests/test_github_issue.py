@@ -10,6 +10,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Validate the foreground lifecycle with Windows subprocess creation flags":
+# https://github.com/dmitry-ai/harness/issues/41
 import json
 import os
 from pathlib import Path
@@ -60,7 +63,8 @@ class TestGitHubIssueTool(unittest.TestCase):
 			body_path = Path(tmp) / 'body.md'
 			body_text = '## Summary\nFix `Magento\\Framework\\Data\\Form\\FormKey` in lines 10–20.\n'
 			body_path.write_text(body_text, encoding='utf-8')
-			def fake_run(cmd, *, input=None, capture_output=True, check=False):
+			def fake_run(cmd, *, input=None, capture_output=True, check=False, creationflags=None):
+				self.assertEqual(creationflags, getattr(subprocess, 'CREATE_NO_WINDOW', 0))
 				class DummyProc:
 					returncode = 0
 					stderr = b''

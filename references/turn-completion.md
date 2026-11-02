@@ -24,9 +24,12 @@ This record is evidence of applicability and configuration, not proof that the m
 `instruction_snapshot` records the list and SHA256 digests of shared rules, the adapter, `runtime.json`, local registration, and its path sources; for Codex it also records discovered `AGENTS.md`/`AGENTS.override.md` candidates along the configured root and in the active profile.  
 This is an inventory of available sources rather than proof of trigger selection or actual context injection: `selection_verified` and `delivery_to_model_verified` remain `false`.  
 Errors resolving local registrations are saved in `errors`; appending a snapshot to prior state is marked `existing-state-upgrade`, and post-delivery recovery is marked `recovery`.  
-By default, a single hidden local verifier is started for explicitly registered conversations; `--no-watch` neither starts it nor adds a registration, while preserving any existing registration.  
+Execution is foreground-only: `turn-begin` reconciles earlier completed turns of the current conversation synchronously, and `answer-prepare` records the current exact response before returning.  
+Neither command registers or starts a background process, including calls using the legacy `watch` parameter; `--no-watch` remains a compatibility option.  
+No persistent verifier, detached worker, polling loop, or timer runs between working calls, whether applications are open or closed.  
+Prepared response bytes are saved before publication; native delivery can only be confirmed during a later foreground call after the completion event exists.  
 When the user explicitly opts out of journaling, first run `journal-unwatch <root> --conversation <native-uuid> --platform <platform>`, then honor the opt-out and do not call `answer-prepare` for that response.  
-The command removes only that binding and waits for any in-progress verification pass to finish; previously saved history remains intact.  
+The command removes only the legacy binding and waits for any in-progress explicit foreground verification pass to finish; previously saved history remains intact.  
 
 ## Answer Preparation
 
@@ -41,6 +44,9 @@ python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/
 3. If you run a `python -` one-liner via a pipe `|` in PowerShell, always prefix the command with `[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, and use the Unicode escapes `\ua616` and `\ua66e` for paths containing `ꘖ` and `ꙮ` inside Python code.  
 
 The operation re-verifies the active native turn, records the exact requests and response through the existing `record_answer` mechanism, validates the read-back bytes (rejecting corrupted OEM/ASCII output where words were replaced by `???`), and returns `response_file`, SHA256, pair numbers, and `ready: true`.  
+New answer admission runs the current linked-document and source freshness gates, including semantic approval when required for the linked operation, before recording a proof bound to the exact journal, native turn, request identities, and response bytes.  
+The immutable proof retains the selected document revision, source checks, evidence, and approvals used at admission; unrelated registry entries do not become historical dependencies.  
+Its scope reflects the checks required for that operation; semantic publication clearance remains a separate requirement for publication workflows.  
 It also checks public tool calls of the active turn for compliance with `EXEC-5` (no read-only Git invocations without `--no-optional-locks`), saving the result in `exec5_check`.  
 If an earlier step in the active turn triggered an `exec5_check` or `http_fetch_check` violation, run `python <agents>/scripts/harness.py recover-turn-violation <root> --conversation <native-uuid> --reason "<explanation>"` to record a retrospective violation receipt in `ꘖ/data/turns/<turn_key>-violation-recovery.json` (preserving the violation list with `recovered_via_receipt: true`) before calling `answer-prepare`, rather than writing directly to `ꙮ/**/req|res/*.md`.  
 Additionally, `answer-prepare` performs five protective turn and source checks:  
@@ -71,7 +77,10 @@ python <agents>/scripts/harness.py journal-watch --action once --dry-run
 python <agents>/scripts/harness.py journal-watch --action stop
 ```
 
-The verifier independently reads only registered conversations, their exact user requests, and completed final messages; private reasoning traces are never exported.  
+The foreground reconciler reads the explicitly selected conversation, its exact user requests, and completed final messages; private reasoning traces are never exported.  
+The next `turn-begin` performs this check for earlier completed turns in the current conversation; `journal-sync` requests it explicitly without starting any later work.  
+`journal-watch --action once` is a bounded compatibility command for explicitly auditing saved legacy bindings; it does not schedule another pass.  
+`journal-watch --action start` and `--action run` reject persistent execution, `status` is read-only, and `stop` can cooperatively retire a verifier from an older installation.  
 Codex requires a native turn-completion event and a final assistant message matching that completion event.  
 Antigravity verifies a completed step; for the active tail, it additionally requires native idle state, `not_fully_idle: 0`, absence of killed status, and consistent indices for the last user request and planner step.  
 Incomplete entries, explicitly aborted Codex turns, a killed Antigravity tail, unrelated projects, child subagents, and truncated JSONL lines never count as successful delivery.  
@@ -80,7 +89,12 @@ If preparation was skipped, the actual exchange is recorded with `recovered_afte
 If the exact request group already existed without the new contract state, reconciliation records `completion_provenance: existing_journal`, avoids creating a duplicate, and does not retroactively mark it as pre-delivery verified.  
 Historical responses are preserved verbatim even if they contain errors; recording them does not constitute substantive approval.  
 Altered bytes are recorded as a conflict alongside the separate native text; existing journal pairs are never overwritten.  
-An unchanged native source is cached for up to 60 seconds; once expired, integrity verification repeats on the next available pass alongside other conversations and lock waits.  
+An explicit reconciliation checks current journal integrity even when the native source is unchanged; repeated checks preserve unchanged receipt bytes, timestamps, and file modification times.  
+For an already recorded answer, reconciliation verifies its original admission proof and historical integrity rather than re-running publication-time freshness or requesting new semantic approval.  
+Elapsed time and a later legitimate applied revision do not invalidate the earlier admission; altered or missing journal, proof, evidence, or required document history remain integrity conflicts.  
+Applied successors bind the preceding registered version; historical verification follows this receipt chain to the admitted version so replaying an older valid receipt is not accepted as a later revision.  
+Explicit baseline reconciliation retains its acknowledged bytes and predecessor link, preserving earlier history while the changed baseline awaits any required new publication approval.  
+Legacy records without a proof report an explicit proof gap and are never silently promoted to current approval; a previously failed admission cannot become approved through recovery.  
 When a completion state exists, deleting a recorded pair or its receipt is flagged as a conflict without silent restoration or history duplication.  
 When an unrecorded native turn matches an existing unclaimed pair in `req/<N>.md` and `res/<N>.md` (after normalizing `CRLF`/`LF`, trailing newlines, and local `file:///` prefixes), `_record` adopts that pair into `answer-groups/native-<turn_key>.json` with `completion_provenance: existing_journal` instead of allocating a duplicate `max + 1` pair; if the matching on-disk pair is claimed by another `answer-groups` receipt whose recorded hashes disagree with the overwritten disk bytes, `_record` raises a conflict and preserves the evidence.  
 A syntactically or structurally corrupted binding is preserved with an error and does not halt verification of other conversations; a transient read error is retried on the next pass rather than cached as success.  
@@ -89,7 +103,9 @@ A stable native ID and request check prevent duplicates; identical wording in di
 
 ## Limits and Verification
 
-The shared source remains `AI/harness/code`; the verifier stores its own state in `AI/harness/_/ꘖ/data/journal-watch` and never modifies native databases.  
-It does not close windows, restart Codex or Antigravity, or terminate third-party processes; `stop` targets only the verifier's own token.  
-The contract does not intercept platform message submission: an agent can still bypass preparation by emitting a direct final reply, after which the verifier detects the violation and recovers the journal entry.  
+The shared source remains `AI/harness/code`; legacy audit bindings and retirement metadata remain in `AI/harness/_/ꘖ/data/journal-watch`, and native databases are never modified.  
+Foreground reconciliation does not close windows, restart Codex or Antigravity, or terminate third-party processes; legacy `stop` targets only the old verifier's own token.  
+The contract does not intercept platform message submission: an agent can still bypass preparation by emitting a direct final reply, after which the next foreground reconciliation detects the violation and recovers the journal entry.  
+If no later working call occurs, native delivery remains unverified; there is no autonomous post-delivery repair or promise of immediate background recovery.  
 Criteria: routine analysis and articles use the same FILE-3 contract; an incomplete reply is not imported; a skipped preparation is recovered; retries do not duplicate pairs; a foreign root/profile/child is rejected; a conflict preserves the original bytes.  
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->

@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Separate publication admission from historical integrity verification":
+# https://github.com/dmitry-ai/harness/issues/41
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -157,6 +160,22 @@ def read_source_check(root, candidate, reference):
 		raise ValueError('Source bytes or provenance changed since the source receipt')
 	r = {**value, 'source_check': reference, 'inputs': {**actual['inputs'], path.relative_to(Path(root).resolve()).as_posix(): digest(raw)}}
 	return r
+def source_integrity(root, candidate, reference):
+	from .text_claims import digest
+	from .research import inside
+	root = Path(root).resolve()
+	path = inside(root, reference)
+	raw = path.read_bytes()
+	value = json.loads(raw)
+	if path.name != digest(raw) + '-source.json' or 1 != value.get('schema_version') or True is not value.get('valid') or value.get('candidate_sha256') != digest(candidate.encode('utf-8')):
+		raise ValueError('Historical source receipt is failed, changed or belongs to another candidate')
+	inputs = value.get('inputs')
+	if not isinstance(inputs, dict) or not inputs:
+		raise ValueError('Historical source receipt has no admitted primary inputs')
+	for name, expected in inputs.items():
+		if digest(inside(root, name).read_bytes()) != expected:
+			raise ValueError('Historical source evidence changed: ' + name)
+	return {**value, 'source_check': reference, 'inputs': {**inputs, path.relative_to(root).as_posix(): digest(raw)}}
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16

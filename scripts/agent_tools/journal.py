@@ -7,6 +7,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 # https://github.com/dmitry-ai/harness/issues/36
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 import hashlib
 import json
 from pathlib import Path
@@ -117,7 +120,28 @@ def validate_step(journal_dir, step_num) -> bool:
 		print(error)
 	r = not errors
 	return r
-def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None):
+def verify_answer(directory, requests, response, turn, request_ids=None):
+	import re
+	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn):
+		raise ValueError('Stable answer-group identity required')
+	directory = Path(directory).resolve()
+	file = state_dir(directory) / 'answer-groups' / (turn + '.json')
+	group = json.loads(file.read_text(encoding='utf-8'))
+	if group.get('status') != 'complete' or group.get('journal') != str(directory) or group.get('turn') != turn or group.get('requests') != requests or group.get('request_ids') != request_ids or group.get('response_sha256') != digest(response.encode('utf-8')):
+		raise ValueError('Historical answer-group identity changed; preserve it')
+	steps = group.get('steps')
+	if not isinstance(steps, list) or len(steps) != len(requests) or len(set(steps)) != len(steps) or any((type(step) is not int or step < 1 for step in steps)):
+		raise ValueError('Historical answer-group steps changed')
+	if not isinstance(group.get('tokens'), list) or len(group['tokens']) != len(steps) or any((not isinstance(token, str) or not token for token in group['tokens'])):
+		raise ValueError('Historical answer-group reservation identity changed')
+	for step, request in zip(steps, requests):
+		if (state_dir(directory) / f'{step}.json').exists():
+			raise ValueError('Completed historical answer has an incomplete reservation')
+		for folder, expected in (('req', request), ('res', response)):
+			if (directory / folder / f'{step}.md').read_bytes() != expected.encode('utf-8'):
+				raise ValueError('Historical journal bytes changed; preserve them')
+	return steps
+def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None):
 	import re
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn) or not isinstance(requests, list) or (not requests):
 		raise ValueError('Stable turn ID and nonempty exact request list required')
@@ -126,8 +150,10 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 	if None is not request_ids and (len(request_ids) != len(requests) or any((not isinstance(x, str) or not x for x in request_ids))):
 		raise ValueError('Request IDs must match the exact request list')
 	directory = Path(directory).resolve()
-	from .text_workflow import gate_requests
-	gate_requests([directory], requests, response)
+	from .admission import binding, capture, require_current
+	identity = binding(directory, requests, response, turn, request_ids)
+	capability = capture([directory], requests, response, identity) if admission is None else admission
+	proof = require_current(capability, identity)
 	journal_state = state_dir(directory)
 	groups = journal_state / 'answer-groups'
 	for path in (directory / 'req', directory / 'res', groups):
@@ -146,7 +172,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 			else:
 				start = max(get_existing_step_ids(directory), default=0) + 1
 				steps_to_use = list(range(start, start + len(requests)))
-			group = {'version': 1, 'journal': str(directory), 'turn': turn, 'status': 'pending', 'steps': steps_to_use, 'requests': requests, 'response_sha256': digest(response.encode()), 'tokens': [uuid.uuid4().hex for _ in requests], 'request_ids': request_ids}
+			group = {'version': 1, 'journal': str(directory), 'turn': turn, 'status': 'pending', 'steps': steps_to_use, 'requests': requests, 'response_sha256': digest(response.encode()), 'tokens': [uuid.uuid4().hex for _ in requests], 'request_ids': request_ids, 'admission': proof}
 			create_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
 		for step, request, token in zip(group['steps'], requests, group['tokens']):
 			receipt = journal_state / f'{step}.json'
@@ -168,8 +194,9 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 					raise ValueError('Answer-group step is occupied; preserved')
 				create_bytes(receipt, json.dumps(state, ensure_ascii=False, indent=2).encode())
 			_publish(directory, step, state, recovering=True)
-		group['status'] = 'complete'
-		replace_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
+		if 'complete' != group['status']:
+			group['status'] = 'complete'
+			replace_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
 	r = group['steps']
 	return r
 def answer_groups(directory, *, request_ids=None):

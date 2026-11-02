@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Separate publication admission from immutable historical integrity":
+# https://github.com/dmitry-ai/harness/issues/41
 from pathlib import Path
 from copy import deepcopy
 import difflib
@@ -116,18 +119,23 @@ def begin(root, spec):
 			raise ValueError('A protected document cannot be the writable target')
 		protected[file.relative_to(root).as_posix()] = _hash_or_none(_target_bytes(file))
 	ident = uuid.uuid4().hex
-	operation = {**deepcopy(spec), 'schema_version': 1, 'id': ident, 'root': str(root), 'target': target.relative_to(root).as_posix(), 'base_sha256': _hash_or_none(current), 'base_exists': None is not current, 'protected_versions': protected}
+	operation = {**deepcopy(spec), 'schema_version': 1, 'id': ident, 'root': str(root), 'target': target.relative_to(root).as_posix(), 'base_sha256': _hash_or_none(current), 'base_exists': None is not current, 'protected_versions': protected, 'reconciliation': None}
 	previous = target.with_name('draft.prev.md')
 	if None is not current and 'draft.md' == target.name and ('edit' == spec['mode']) and (previous.relative_to(root).as_posix() in protected) and (_target_bytes(previous) != current):
 		raise ValueError('Draft snapshot would overwrite protected draft.prev.md; all protected bytes preserved')
 	with locked(_folder(root) / 'writer.lock'):
 		state = _index(root)
 		previous = state['targets'].get(operation['target'])
-		if previous and previous.get('sha256') != operation['base_sha256']:
-			if spec.get('reconcile_sha256') != operation['base_sha256']:
-				raise ValueError('Registered output changed outside the workflow; read and explicitly reconcile its current SHA256 first')
-			state['targets'][operation['target']] = {'sha256': operation['base_sha256'], 'kind': spec['kind'], 'receipt': None}
 		folder = _folder(root) / 'operations' / ident
+		if previous and previous.get('sha256') != operation['base_sha256']:
+			if 'reconcile_sha256' not in spec or spec['reconcile_sha256'] != operation['base_sha256']:
+				raise ValueError('Registered output changed outside the workflow; read and explicitly reconcile its current SHA256 first')
+			baseline = _immutable(folder / 'base.bin', current or b'')
+			reconciliation = {'schema_version': 1, 'kind': 'baseline_reconciliation', 'root': str(root), 'target': operation['target'], 'document_kind': spec['kind'], 'operation': ident, 'previous': deepcopy(previous), 'baseline': {'file': baseline.relative_to(root).as_posix(), 'sha256': operation['base_sha256']}}
+			raw = json_data(reconciliation)
+			file = _immutable(folder / (digest(raw) + '-reconciled.json'), raw)
+			operation['reconciliation'] = file.relative_to(root).as_posix()
+			state['targets'][operation['target']] = {'sha256': operation['base_sha256'], 'kind': spec['kind'], 'receipt': None, 'reconciliation': operation['reconciliation']}
 		_immutable(folder / 'base.bin', current or b'')
 		_immutable(folder / 'operation.json', json_data(operation))
 		if None is not current and 'draft.md' == target.name and ('edit' == spec['mode']):
@@ -330,6 +338,10 @@ def check(root, ident, candidate, manifest=None, *, run_replay=False, replay_rec
 		if replay_data and (len(replay_data) != len(changed) or any(('match' != r.get('status') for r in replay_data))):
 			issues.append({'code': 'text.replay', 'message': 'Changed command coverage or execution failed', 'results': replay_data})
 	result = {'schema_version': 1, 'operation': ident, 'root': str(root), 'target': op['target'], 'kind': op['kind'], 'base_sha256': op['base_sha256'], 'candidate_sha256': digest(candidate.encode()), 'valid': not issues, 'issues': issues, 'coverage': 'mechanical' if mechanical else 'semantic', 'inputs': {**mapped['inputs'], **sources['inputs']}, 'claims': mapped['claims'], 'claim_versions': mapped['claim_versions'], 'source_checks': sources['checks'], 'manifest': manifest, 'replay_record': replay_record, 'warning_dispositions': warning_dispositions, 'diff': ''.join(difflib.unified_diff(base.decode('utf-8').splitlines(True), candidate.splitlines(True), fromfile='before/' + op['target'], tofile='after/' + op['target']))}
+	if result['claim_versions']:
+		from .text_claims import registry_path, subset
+		registry = registry_path(root, (manifest or {}).get('registry', 'ꘖ/KB/TextClaims.json'))
+		result['claim_snapshot'] = subset(_read(registry), result['claim_versions'])
 	folder = _folder(root) / 'operations' / ident
 	source = _immutable(folder / (result['candidate_sha256'] + '.md'), candidate.encode())
 	result['candidate'] = source.relative_to(root).as_posix()
@@ -370,6 +382,9 @@ def apply(root, reference):
 		target = _document(root, op['target'])
 		if _hash_or_none(_target_bytes(target)) != op['base_sha256']:
 			raise ValueError('Concurrent user edit preserved; reconcile a new operation')
+		previous = deepcopy(_index(root)['targets'].get(op['target']))
+		if previous is None or previous.get('sha256') != op['base_sha256']:
+			raise ValueError('The applied revision requires its exact registered predecessor')
 		payload = candidate.encode('utf-8')
 		if op['base_exists']:
 			replace_bytes(target, payload)
@@ -379,7 +394,7 @@ def apply(root, reference):
 		if target.read_bytes() != payload:
 			raise OSError('Applied text read-back differs')
 		receipt = {k: checked[k] for k in ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks')}
-		receipt.update(schema_version=1, check=reference, approval=approval, status='applied')
+		receipt.update(schema_version=1, check=reference, approval=approval, status='applied', previous=previous)
 		raw = json_data(receipt)
 		path = _immutable(_folder(root) / 'operations' / op['id'] / (digest(raw) + '-applied.json'), raw)
 		state = _index(root)
@@ -387,7 +402,7 @@ def apply(root, reference):
 		_save_index(root, state)
 	r = {**receipt, 'receipt': path.relative_to(root).as_posix(), 'sha256': digest(payload)}
 	return r
-def gate(root, *, targets=None, response=None, publication=False):
+def gate(root, *, targets=None, response=None, publication=False, capture=False):
 	root = Path(root).resolve()
 	state, issues = (_index(root), [])
 	selected = set(targets) if None is not targets else set(state['targets'])
@@ -428,7 +443,147 @@ def gate(root, *, targets=None, response=None, publication=False):
 	if issues:
 		raise ValueError('\n'.join(issues))
 	r = {'valid': True, 'targets_checked': sorted(selected & set(state['targets'])), 'publication': publication}
+	if capture:
+		r['integrity'] = integrity_snapshot(root, {name: state['targets'][name] for name in r['targets_checked']})
 	return r
+def _claim_snapshot(root, checked):
+	from .claims import all_claims, claim_digest
+	from .text_claims import registry_path, subset
+	versions = checked.get('claim_versions', {})
+	if not versions:
+		return None
+	registry = registry_path(root, (checked.get('manifest') or {}).get('registry', 'ꘖ/KB/TextClaims.json'))
+	reference = registry.relative_to(root).as_posix()
+	snapshot = checked.get('claim_snapshot')
+	if snapshot is None:
+		candidates = [registry]
+		if reference in checked['inputs']:
+			candidates.append(root / 'ꘖ/data/text-claim-history' / (checked['inputs'][reference] + '.json'))
+		for path in candidates:
+			try:
+				candidate = subset(_read(path), versions)
+				if {claim['id']: claim_digest(claim) for claim in all_claims(candidate)} == versions:
+					snapshot = candidate
+					break
+			except (OSError, ValueError, KeyError, TypeError):
+				continue
+	if not isinstance(snapshot, dict) or {claim['id']: claim_digest(claim) for claim in all_claims(snapshot)} != versions:
+		raise ValueError('Original admitted claim revisions are missing or changed')
+	return {'registry': reference, 'versions': versions, 'snapshot': snapshot}
+def _applied_integrity(root, name, entry, *, require_live_proof=True):
+	root = Path(root).resolve()
+	if _index(root)['targets'].get(name) != entry or _hash_or_none(_target_bytes(_document(root, name))) != entry['sha256']:
+		raise ValueError('Registered text target changed without its applied version: ' + name)
+	files, claims, reviews = ({}, [], [])
+	def add(reference, expected=None):
+		actual = digest(inside(root, reference).read_bytes())
+		if expected is not None and actual != expected:
+			raise ValueError('Admitted text artifact changed: ' + reference)
+		if reference in files and files[reference] != actual:
+			raise ValueError('Conflicting admitted text artifact versions')
+		files[reference] = actual
+	if entry.get('receipt'):
+		path = inside(root, entry['receipt'])
+		saved = _read(path)
+		if path.name != digest(path.read_bytes()) + '-applied.json' or saved.get('status') != 'applied' or saved.get('target') != name or saved.get('candidate_sha256') != entry['sha256']:
+			raise ValueError('Applied text receipt changed: ' + name)
+		checked, candidate = read_check(root, saved['check'])
+		if checked.get('valid') is not True or any((saved.get(key) != checked.get(key) for key in ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks'))):
+			raise ValueError('Applied text no longer matches its admitted check')
+		op, _ = operation(root, saved['operation'])
+		if op['target'] != name or op['base_sha256'] != saved['base_sha256']:
+			raise ValueError('Applied text operation identity changed')
+		claim = _claim_snapshot(root, checked)
+		versioned = {claim['registry']} if claim else set()
+		if claim:
+			claims.append(claim)
+		for reference, expected in saved['inputs'].items():
+			if reference not in versioned:
+				add(reference, expected)
+		for reference in (entry['receipt'], saved['check'], checked['candidate'], (_folder(root) / 'operations' / op['id'] / 'operation.json').relative_to(root).as_posix(), (_folder(root) / 'operations' / op['id'] / 'base.bin').relative_to(root).as_posix()):
+			add(reference)
+		from .text_sources import source_integrity
+		for reference in saved.get('source_checks', []):
+			for source, expected in source_integrity(root, candidate, reference)['inputs'].items():
+				add(source, expected)
+		if saved.get('approval'):
+			from .text_review import approval_integrity
+			approval = approval_integrity(root, saved['approval'], versioned_inputs=versioned, require_live_proof=require_live_proof)
+			reviews = approval['reviews']
+			for reference, expected in approval['files'].items():
+				add(reference, expected)
+	elif entry.get('reconciliation'):
+		for reference, expected in _reconciled_integrity(root, name, entry)['files'].items():
+			add(reference, expected)
+	return {'target': name, 'entry': deepcopy(entry), 'files': files, 'claims': claims, 'reviews': reviews}
+def integrity_snapshot(root, entries):
+	root = Path(root).resolve()
+	return {'schema_version': 1, 'root': str(root), 'targets': [_applied_integrity(root, name, entry) for name, entry in sorted(entries.items())]}
+def _reconciled_integrity(root, name, entry):
+	reference = entry.get('reconciliation')
+	if not reference or entry.get('receipt'):
+		raise ValueError('Explicit text baseline reconciliation is missing: ' + name)
+	path = inside(root, reference)
+	raw = path.read_bytes()
+	saved = json.loads(raw)
+	if path.name != digest(raw) + '-reconciled.json' or saved.get('schema_version') != 1 or saved.get('kind') != 'baseline_reconciliation' or saved.get('root') != str(Path(root).resolve()) or saved.get('target') != name or saved.get('document_kind') != entry.get('kind') or not isinstance(saved.get('previous'), dict) or saved.get('baseline', {}).get('sha256') != entry.get('sha256'):
+		raise ValueError('Explicit text baseline reconciliation identity changed: ' + name)
+	op, base = operation(root, saved['operation'])
+	if op.get('reconciliation') != reference or op['target'] != name or op['kind'] != entry['kind'] or op['base_sha256'] != entry['sha256'] or 'reconcile_sha256' not in op or op['reconcile_sha256'] != entry['sha256'] or saved['baseline']['file'] != (_folder(root) / 'operations' / op['id'] / 'base.bin').relative_to(root).as_posix():
+		raise ValueError('Explicit text reconciliation no longer matches the captured baseline operation: ' + name)
+	files = {reference: digest(raw), saved['baseline']['file']: digest(base), (_folder(root) / 'operations' / op['id'] / 'operation.json').relative_to(root).as_posix(): digest((_folder(root) / 'operations' / op['id'] / 'operation.json').read_bytes())}
+	return {'previous': saved['previous'], 'files': files}
+def _verify_applied_successor(root, name, current, original):
+	entry, visited = (current, set())
+	while entry != original:
+		reference = entry.get('receipt') or entry.get('reconciliation')
+		if not reference or reference in visited:
+			raise ValueError('Current text is not a proven applied successor of the admitted version: ' + name)
+		visited.add(reference)
+		if not entry.get('receipt'):
+			entry = _reconciled_integrity(root, name, entry)['previous']
+			continue
+		path = inside(root, reference)
+		raw = path.read_bytes()
+		saved = json.loads(raw)
+		if path.name != digest(raw) + '-applied.json' or saved.get('status') != 'applied' or saved.get('target') != name or saved.get('candidate_sha256') != entry.get('sha256') or saved.get('kind') != entry.get('kind'):
+			raise ValueError('Applied text successor identity changed: ' + name)
+		previous = saved.get('previous')
+		if not isinstance(previous, dict) or previous.get('sha256') != saved.get('base_sha256'):
+			raise ValueError('Applied text successor has no exact predecessor: ' + name)
+		entry = previous
+	return {'valid': True, 'scope': 'exact_applied_successor_lineage'}
+def verify_integrity(graph):
+	from .claims import all_claims, claim_digest
+	if not isinstance(graph, dict) or graph.get('schema_version') != 1 or not isinstance(graph.get('root'), str) or not Path(graph['root']).is_absolute() or not isinstance(graph.get('targets'), list):
+		raise ValueError('Invalid historical text integrity graph')
+	root = Path(graph['root']).resolve()
+	with locked(_folder(root) / 'writer.lock'):
+		state = _index(root)
+		for target in graph['targets']:
+			for reference, expected in target['files'].items():
+				if digest(inside(root, reference).read_bytes()) != expected:
+					raise ValueError('Historical admitted artifact changed: ' + reference)
+			for claim in target['claims']:
+				if {item['id']: claim_digest(item) for item in all_claims(claim['snapshot'])} != claim['versions']:
+					raise ValueError('Historical admitted claim snapshot changed')
+			if target.get('reviews'):
+				from .text_review import _state
+				reviews = {entry['id']: entry for entry in _state(root)['reviews']}
+				if any((reviews.get(entry['id']) != entry for entry in target['reviews'])):
+					raise ValueError('Historical admitted publication review changed or is missing')
+			name = target['target']
+			current = state['targets'].get(name)
+			if current is None:
+				raise ValueError('Historical text target registration is missing: ' + name)
+			if current != target['entry']:
+				if not current.get('receipt') and not current.get('reconciliation'):
+					raise ValueError('Later text version has no applied receipt: ' + name)
+				_verify_applied_successor(root, name, current, target['entry'])
+				_applied_integrity(root, name, current, require_live_proof=False)
+			elif _hash_or_none(_target_bytes(_document(root, name))) != target['entry']['sha256']:
+				raise ValueError('Historical text target changed without an applied revision: ' + name)
+	return {'valid': True, 'scope': 'original_admitted_artifacts'}
 def _roots(paths):
 	roots = set()
 	for value in paths:
@@ -442,7 +597,7 @@ def gate_paths(paths, *, response=None):
 	selected = {Path(path).resolve() for path in paths}
 	r = [gate(root, response=response, targets=[name for name in _index(root)['targets'] if (root / name).resolve() in selected]) for root in _roots(selected)]
 	return r
-def gate_requests(paths, requests, response):
+def gate_requests(paths, requests, response, *, capture=False):
 	results = []
 	for root in _roots(paths):
 		state, selected = (_index(root), set())
@@ -451,7 +606,7 @@ def gate_requests(paths, requests, response):
 			if set(op['requests']) & set(requests):
 				selected.add(op['target'])
 		if selected:
-			results.append(gate(root, targets=selected, response=response))
+			results.append(gate(root, targets=selected, response=response, capture=capture))
 	r = results
 	return r
 def record_answer(root, journal, requests, response, turn):

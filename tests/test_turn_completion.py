@@ -34,6 +34,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
 # https://github.com/dmitry-ai/harness/issues/40
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -47,7 +50,7 @@ from unittest.mock import patch
 import uuid
 SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
-from agent_tools import completion, journal, journal_watch, workflow, text_workflow
+from agent_tools import completion, journal, journal_watch, storage, workflow, text_workflow
 from agent_tools.causal_checks import unsupported_probability_claims
 from agent_tools.platforms import codex, antigravity
 def wire(field, payload):
@@ -60,29 +63,49 @@ def wire(field, payload):
 		r = bytes(out)
 		return r
 	return varint(field << 3 | 2) + varint(len(payload)) + payload
-@contextmanager
-def running_watcher(directory):
-	launched = []
-	captured_kwargs = []
-	original = journal_watch.subprocess.Popen
-	def launch(*args, **kwargs):
-		captured_kwargs.append(kwargs)
-		process = original(*args, **kwargs)
-		launched.append(process)
-		r = process
-		return r
-	with patch.object(journal_watch.subprocess, 'Popen', side_effect=launch):
-		first = journal_watch.start(state_dir=directory)
-	if captured_kwargs and 'creationflags' in captured_kwargs[0]:
-		flags = captured_kwargs[0]['creationflags']
-		assert flags & getattr(journal_watch.subprocess, 'CREATE_NO_WINDOW', 0)
-		assert 0 == (flags & getattr(journal_watch.subprocess, 'DETACHED_PROCESS', 8))
-	try:
-		yield first
-	finally:
-		journal_watch.stop(state_dir=directory)
-		for process in launched:
-			process.wait(timeout=8)
+def completed_tail_is_immutable(case, *, platform, backend, prepared):
+	kwargs = {'conversation': case.cid, 'platform': platform, 'backend': backend, 'watch': True}
+	response = 'Immutable completed tail'
+	if prepared:
+		completion.prepare(case.project, response, **kwargs)
+	case.finish(response)
+	case.sync()
+	before = case.project_snapshot()
+	native = completion._native(case.project, case.cid, platform=platform, backend=backend)
+	with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(completion, '_policy', return_value={'future_policy': 'preserve completed tail'}), patch.object(storage.os, 'replace', side_effect=AssertionError('A completed tail must not be rewritten')):
+		with case.assertRaisesRegex(ValueError, 'No active native user turn'):
+			completion.begin(case.project, **kwargs)
+		with case.assertRaisesRegex(ValueError, 'No active native user turn'):
+			completion.prepare(case.project, response, **kwargs)
+		case.assertEqual(case.project_snapshot(), before)
+		tail = {**native, 'active_turn_id': native['turns'][-1]['turn_id']}
+		with patch.object(completion, '_native', return_value=tail):
+			begun = completion.begin(case.project, **kwargs)
+			again = completion.prepare(case.project, response, **kwargs)
+			with case.assertRaisesRegex(ValueError, 'Delivered response bytes are immutable'):
+				completion.prepare(case.project, 'A different proposed response', **kwargs)
+	case.assertEqual(begun['status'], 'delivered')
+	case.assertEqual(again['status'], 'delivered')
+	case.assertTrue(again['delivery_verified'])
+	case.assertEqual(again['preparation_verified'], prepared)
+	case.assertEqual(case.project_snapshot(), before)
+	state_file = next((case.project / 'ꘖ/data/turns').glob('*.json'))
+	state = json.loads(state_file.read_text(encoding='utf-8'))
+	case.assertEqual(state['status'], 'delivered')
+	case.assertEqual(state['prepared'] is not None, prepared)
+def foreground_once_preserves_admitted_delivery(case, *, platform, backend):
+	watch_dir = case.root / 'legacy-explicit-scan'
+	native = completion._native(case.project, case.cid, platform=platform, backend=backend)
+	journal_watch.register(case.project, native, native['turns'][0]['start_step'], state_dir=watch_dir)
+	case.finish('Foreground admission result')
+	first = journal_watch.once(state_dir=watch_dir)
+	case.assertTrue(first['valid'], first)
+	case.assertEqual(first['results'][0]['turns'][0]['admission_verification']['scope'], 'original_publication_admission')
+	before = {path.relative_to(case.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in case.root.rglob('*') if path.is_file()}
+	with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(journal_watch, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(storage.os, 'replace', side_effect=AssertionError('Repeated explicit scans must preserve admission and binding bytes')):
+		case.assertEqual(journal_watch.once(state_dir=watch_dir), first)
+	after = {path.relative_to(case.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in case.root.rglob('*') if path.is_file()}
+	case.assertEqual(after, before)
 class CompletionCase(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -120,6 +143,95 @@ class CompletionCase(unittest.TestCase):
 		return completion.sync(self.project, self.cid, platform='codex', backend=self.home, **kw)
 	def saved(self, sub, step=1):
 		return (self.project / 'ꙮ/1 - Analysis' / sub / f'{step}.md').read_bytes()
+	def project_snapshot(self):
+		return {path.relative_to(self.project).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in self.project.rglob('*') if path.is_file()}
+	def assert_repeated_delivery_is_read_only(self, *, prepared):
+		if prepared:
+			self.prepare('Stable native response')
+		self.finish('Stable native response')
+		first = self.sync()
+		before = self.project_snapshot()
+		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(completion, '_policy', return_value={'future_policy': 'must not replace historical grounds'}), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged domain state must not be replaced')):
+			self.assertEqual(self.sync(), first)
+		self.assertEqual(self.project_snapshot(), before)
+	def test_repeated_prepared_delivery_preserves_all_domain_bytes_and_mtimes(self):
+		self.assert_repeated_delivery_is_read_only(prepared=True)
+	def test_repeated_recovered_delivery_preserves_all_domain_bytes_and_mtimes(self):
+		self.assert_repeated_delivery_is_read_only(prepared=False)
+	def test_explicit_once_preserves_real_admission_scope_and_binding(self):
+		foreground_once_preserves_admitted_delivery(self, platform='codex', backend=self.home)
+	def test_repeated_conflict_preserves_all_domain_bytes_and_mtimes(self):
+		self.prepare('Prepared original')
+		self.finish('Different native response')
+		first = self.sync()
+		self.assertFalse(first['valid'])
+		before = self.project_snapshot()
+		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(completion, '_policy', return_value={'future_policy': 'preserve original'}), patch.object(storage.os, 'replace', side_effect=AssertionError('A repeated conflict must not be replaced')):
+			self.assertEqual(self.sync(), first)
+		self.assertEqual(self.project_snapshot(), before)
+	def test_recorded_receipt_identity_tampering_is_a_preserved_conflict(self):
+		self.finish('Immutable receipt source')
+		self.sync()
+		state_file = next((self.project / 'ꘖ/data/turns').glob('*.json'))
+		state = json.loads(state_file.read_text(encoding='utf-8'))
+		state['journal_record']['response_file'] = str(self.root / 'unrelated.md')
+		state_file.write_text(json.dumps(state), encoding='utf-8')
+		result = self.sync()
+		self.assertFalse(result['valid'])
+		self.assertIn('verified journal identity', result['turns'][0]['detail'])
+		self.assertEqual(self.saved('res'), b'Immutable receipt source')
+	def test_complete_group_metadata_tamper_does_not_pass_historical_identity(self):
+		self.prepare('Bound group identity')
+		self.finish('Bound group identity')
+		self.sync()
+		group_file = next((journal.state_dir(self.project / 'ꙮ/1 - Analysis') / 'answer-groups').glob('*.json'))
+		group = json.loads(group_file.read_text(encoding='utf-8'))
+		group['tokens'][0] = 'changed-reservation-identity'
+		group_file.write_text(json.dumps(group), encoding='utf-8')
+		changed = group_file.read_bytes()
+		result = self.sync()
+		self.assertFalse(result['valid'])
+		self.assertIn('answer-group bytes changed', result['turns'][0]['detail'])
+		self.assertEqual(group_file.read_bytes(), changed)
+	def test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission(self):
+		response = 'Legacy complete group'
+		native = completion._native(self.project, self.cid, platform='codex', backend=self.home)
+		turn = native['turns'][0]
+		directory = self.project / 'ꙮ/1 - Analysis'
+		token, request_ids = completion._group(self.project, native, turn, response, directory)
+		journal.record_answer(directory, [item['text'] for item in turn['requests']], response, token, request_ids)
+		group_file = journal.state_dir(directory) / 'answer-groups' / (token + '.json')
+		group = json.loads(group_file.read_text(encoding='utf-8'))
+		group.pop('admission')
+		group_file.write_text(json.dumps(group), encoding='utf-8')
+		old_group = (group_file.read_bytes(), group_file.stat().st_mtime_ns)
+		self.finish(response)
+		with patch.object(text_workflow, 'gate_requests', side_effect=AssertionError('Historical legacy receipt is not new publication approval')):
+			result = self.sync()
+		self.assertTrue(result['valid'])
+		self.assertEqual(result['turns'][0]['admission_verification']['status'], 'legacy_proof_gap')
+		self.assertEqual((group_file.read_bytes(), group_file.stat().st_mtime_ns), old_group)
+		before = self.project_snapshot()
+		self.assertEqual(self.sync(), result)
+		self.assertEqual(self.project_snapshot(), before)
+	def test_repeated_answer_preparation_preserves_original_recording_time(self):
+		first = self.prepare('Stable prepared response')
+		before = self.project_snapshot()
+		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged prepared answer must not be replaced')):
+			second = self.prepare('Stable prepared response')
+		self.assertEqual(second['recorded_at'], first['recorded_at'])
+		self.assertEqual(self.project_snapshot(), before)
+	def test_begin_and_prepare_cannot_register_or_start_a_daemon_even_with_legacy_watch_true(self):
+		with patch.object(journal_watch, 'register', side_effect=AssertionError('No implicit global registration')), patch.object(journal_watch, 'start', side_effect=AssertionError('No persistent process')):
+			begun = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
+			prepared = completion.prepare(self.project, 'Explicit foreground answer', self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
+		self.assertEqual(begun['execution_mode'], 'foreground-only')
+		self.assertTrue(prepared['ready'])
+		self.assertFalse((self.root / 'unused daemon').exists())
+	def test_prepared_completed_codex_tail_is_monotonic_and_read_only(self):
+		completed_tail_is_immutable(self, platform='codex', backend=self.home, prepared=True)
+	def test_recovered_completed_codex_tail_is_not_retroactively_prepared(self):
+		completed_tail_is_immutable(self, platform='codex', backend=self.home, prepared=False)
 	def test_ordinary_analysis_needs_no_article_or_fabricated_intake(self):
 		result = self.begin()
 		state = json.loads((self.project / result['state']).read_text(encoding='utf-8'))
@@ -445,7 +557,7 @@ class CompletionCase(unittest.TestCase):
 		result = self.sync()['turns'][0]
 		self.assertEqual(result['journal_steps'], [1, 2])
 		self.assertEqual(self.saved('req', 2), 'Clarification.'.encode())
-	def test_watcher_independently_recovers_without_another_model_tool_call(self):
+	def test_explicit_foreground_pass_recovers_without_another_model_tool_call(self):
 		native = codex.native_answers(self.project, self.cid, backend=self.home)
 		directory = self.root / 'watch state'
 		journal_watch.register(self.project, native, 0, state_dir=directory)
@@ -454,7 +566,7 @@ class CompletionCase(unittest.TestCase):
 		result = journal_watch.once(state_dir=directory)
 		self.assertTrue(result['results'][0]['turns'][0]['delivery_verified'])
 		self.assertEqual(self.saved('res'), b'Native final')
-		self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 0)
+		self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
 	def test_corrupt_binding_does_not_disable_other_conversations_or_rewrite_evidence(self):
 		native = codex.native_answers(self.project, self.cid, backend=self.home)
 		directory = self.root / 'watch state'
@@ -491,14 +603,14 @@ class CompletionCase(unittest.TestCase):
 		binding = Path(journal_watch.register(self.project, native, 0, state_dir=directory)['binding'])
 		self.finish('Original native final')
 		self.assertTrue(journal_watch.once(state_dir=directory)['valid'])
-		self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 0)
+		self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
 		r = (directory, binding)
 		return r
 	def expire_binding(self, binding):
 		value = json.loads(binding.read_text(encoding='utf-8'))
 		value['last_checked_at'] = '2000-01-01T00:00:00+00:00'
 		binding.write_text(json.dumps(value), encoding='utf-8')
-	def test_periodic_integrity_check_detects_changed_journal_without_native_changes(self):
+	def test_foreground_integrity_check_detects_changed_journal_without_native_changes(self):
 		directory, binding = self.registered_delivery()
 		native_before = self.path.read_bytes()
 		response = self.project / 'ꙮ/1 - Analysis/res/1.md'
@@ -516,7 +628,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(restored['valid'])
 		self.assertTrue(restored['results'][0]['turns'][0]['recovered_after_delivery'])
 		self.assertEqual(restored['results'][0]['turns'][0]['completion_provenance'], 'recovered_native')
-	def test_periodic_integrity_check_preserves_a_deleted_completed_journal_file(self):
+	def test_foreground_integrity_check_preserves_a_deleted_completed_journal_file(self):
 		directory, binding = self.registered_delivery()
 		request = self.project / 'ꙮ/1 - Analysis/req/1.md'
 		request.unlink()
@@ -563,13 +675,13 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(retried['bindings_checked'], 1)
 		self.assertTrue(retried['results'][0]['turns'][0]['recovered_after_delivery'])
 		self.assertEqual(response.read_bytes(), b'Original native final')
-	def test_unchanged_native_cache_expires_at_the_configured_sixty_second_threshold(self):
+	def test_explicit_integrity_check_never_skips_an_unchanged_native_source(self):
 		directory, binding = self.registered_delivery()
 		value = json.loads(binding.read_text(encoding='utf-8'))
 		value['last_checked_at'] = '2026-01-01T00:00:00+00:00'
 		binding.write_text(json.dumps(value), encoding='utf-8')
 		with patch.object(journal_watch, '_now', return_value='2026-01-01T00:00:59+00:00'):
-			self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 0)
+			self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
 		with patch.object(journal_watch, '_now', return_value='2026-01-01T00:01:00+00:00'):
 			self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
 	def test_binding_corrupted_during_sync_is_preserved_and_reported_without_crashing(self):
@@ -610,23 +722,18 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(journal_watch.unregister(self.project, native, state_dir=directory)['binding_removed'])
 		self.assertFalse(Path(own).exists())
 		self.assertTrue(Path(other_binding).exists())
-	def test_background_process_records_native_completion_after_the_caller_returns(self):
+	def test_begin_reconciles_previous_delivery_in_the_same_foreground_call(self):
 		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'autonomous watcher'
-		journal_watch.register(self.project, native, 0, state_dir=directory)
-		with running_watcher(directory):
-			self.finish('Autonomously reconciled native final')
-			deadline = time.monotonic() + 8
-			delivered = False
-			while time.monotonic() < deadline:
-				files = list((self.project / 'ꘖ/data/turns').glob('*.json'))
-				delivered = any(('delivered' == json.loads(path.read_text(encoding='utf-8')).get('status') for path in files))
-				if delivered:
-					break
-				time.sleep(0.05)
-			self.assertTrue(delivered, journal_watch.status(state_dir=directory))
-		self.assertEqual(self.saved('res'), b'Autonomously reconciled native final')
-	def test_background_watcher_survives_a_binding_with_wrong_types(self):
+		self.finish('Foreground reconciliation at next turn')
+		second = str(uuid.uuid4())
+		self.rows += self.turn_rows(second, 'Next explicit work')
+		self.write()
+		with patch.object(journal_watch, 'register', side_effect=AssertionError('No background registration')), patch.object(journal_watch, 'start', side_effect=AssertionError('No autonomous process')):
+			result = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True)
+		self.assertEqual(result['execution_mode'], 'foreground-only')
+		self.assertTrue(result['native_reconciliation']['turns'][0]['delivery_verified'])
+		self.assertEqual(self.saved('res'), b'Foreground reconciliation at next turn')
+	def test_foreground_pass_isolates_a_binding_with_wrong_types(self):
 		native = codex.native_answers(self.project, self.cid, backend=self.home)
 		directory = self.root / 'typed corrupt watcher'
 		binding = Path(journal_watch.register(self.project, native, 0, state_dir=directory)['binding'])
@@ -634,18 +741,13 @@ class CompletionCase(unittest.TestCase):
 		invalid = {**json.loads(binding.read_text(encoding='utf-8')), 'platform': ['codex']}
 		content = json.dumps(invalid).encode()
 		broken.write_bytes(content)
-		with running_watcher(directory):
-			self.finish('Daemon survives wrong binding types')
-			deadline = time.monotonic() + 8
-			while time.monotonic() < deadline:
-				files = list((self.project / 'ꘖ/data/turns').glob('*.json'))
-				if any(('delivered' == json.loads(path.read_text(encoding='utf-8')).get('status') for path in files)):
-					break
-				time.sleep(0.05)
-			self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'running')
-			self.assertEqual(self.saved('res'), b'Daemon survives wrong binding types')
+		self.finish('Foreground pass isolates wrong binding types')
+		result = journal_watch.once(state_dir=directory)
+		self.assertFalse(result['valid'])
+		self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'stopped')
+		self.assertEqual(self.saved('res'), b'Foreground pass isolates wrong binding types')
 		self.assertEqual(broken.read_bytes(), content)
-	def test_background_watcher_survives_a_structurally_corrupt_group_and_records_another_project(self):
+	def test_foreground_pass_preserves_a_corrupt_group_and_records_another_project(self):
 		directory, binding = self.registered_delivery()
 		groups = journal.state_dir(self.project / 'ꙮ/1 - Analysis') / 'answer-groups'
 		broken = next(groups.glob('*.json'))
@@ -657,15 +759,13 @@ class CompletionCase(unittest.TestCase):
 		other.finish('Healthy conversation remains observed')
 		native = codex.native_answers(other.project, other.cid, backend=other.home)
 		journal_watch.register(other.project, native, 0, state_dir=directory)
-		with running_watcher(directory):
-			deadline = time.monotonic() + 8
-			response = other.project / 'ꙮ/1 - Analysis/res/1.md'
-			while (not response.exists() or '2000-01-01T00:00:00+00:00' == json.loads(binding.read_text(encoding='utf-8')).get('last_checked_at')) and time.monotonic() < deadline:
-				time.sleep(0.05)
-			self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'running')
-			self.assertEqual(response.read_bytes(), b'Healthy conversation remains observed')
-			value = json.loads(binding.read_text(encoding='utf-8'))
-			self.assertFalse(value['last_result']['valid'])
+		result = journal_watch.once(state_dir=directory)
+		response = other.project / 'ꙮ/1 - Analysis/res/1.md'
+		self.assertFalse(result['valid'])
+		self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'stopped')
+		self.assertEqual(response.read_bytes(), b'Healthy conversation remains observed')
+		value = json.loads(binding.read_text(encoding='utf-8'))
+		self.assertFalse(value['last_result']['valid'])
 		self.assertEqual(broken.read_bytes(), b'null')
 class AntigravityCompletionTests(unittest.TestCase):
 	def setUp(self):
@@ -706,6 +806,49 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.write()
 	def sync(self):
 		return completion.sync(self.project, self.cid, platform='antigravity', backend=self.backend)
+	def project_snapshot(self):
+		return {path.relative_to(self.project).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in self.project.rglob('*') if path.is_file()}
+	def assert_repeated_delivery_is_read_only(self, *, prepared):
+		if prepared:
+			completion.prepare(self.project, 'Stable Antigravity response', self.cid, platform='antigravity', backend=self.backend)
+		self.finish('Stable Antigravity response')
+		first = self.sync()
+		before = self.project_snapshot()
+		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(completion, '_policy', return_value={'future_policy': 'preserve Antigravity grounds'}), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged Antigravity delivery must not be replaced')):
+			self.assertEqual(self.sync(), first)
+		self.assertEqual(self.project_snapshot(), before)
+	def test_repeated_prepared_delivery_preserves_all_domain_bytes_and_mtimes(self):
+		self.assert_repeated_delivery_is_read_only(prepared=True)
+	def test_repeated_recovered_delivery_preserves_all_domain_bytes_and_mtimes(self):
+		self.assert_repeated_delivery_is_read_only(prepared=False)
+	def test_repeated_conflict_preserves_all_domain_bytes_and_mtimes(self):
+		completion.prepare(self.project, 'Antigravity prepared original', self.cid, platform='antigravity', backend=self.backend)
+		self.finish('Different Antigravity native response')
+		first = self.sync()
+		self.assertFalse(first['valid'])
+		before = self.project_snapshot()
+		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged Antigravity conflict must not be replaced')):
+			self.assertEqual(self.sync(), first)
+		self.assertEqual(self.project_snapshot(), before)
+	def test_antigravity_begin_and_prepare_never_register_or_start_background_work(self):
+		with patch.object(journal_watch, 'register', side_effect=AssertionError('No implicit registration')), patch.object(journal_watch, 'start', side_effect=AssertionError('No autonomous process')):
+			begun = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=True)
+			prepared = completion.prepare(self.project, 'Foreground Antigravity preparation', self.cid, platform='antigravity', backend=self.backend, watch=True)
+		self.assertEqual(begun['execution_mode'], 'foreground-only')
+		self.assertTrue(prepared['ready'])
+	def test_repeated_antigravity_preparation_preserves_all_domain_bytes_and_mtimes(self):
+		first = completion.prepare(self.project, 'Stable Antigravity preparation', self.cid, platform='antigravity', backend=self.backend)
+		before = self.project_snapshot()
+		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged preparation must not be replaced')):
+			second = completion.prepare(self.project, 'Stable Antigravity preparation', self.cid, platform='antigravity', backend=self.backend)
+		self.assertEqual(second['recorded_at'], first['recorded_at'])
+		self.assertEqual(self.project_snapshot(), before)
+	def test_explicit_once_preserves_real_antigravity_admission_scope_and_binding(self):
+		foreground_once_preserves_admitted_delivery(self, platform='antigravity', backend=self.backend)
+	def test_prepared_completed_antigravity_tail_is_monotonic_and_read_only(self):
+		completed_tail_is_immutable(self, platform='antigravity', backend=self.backend, prepared=True)
+	def test_recovered_completed_antigravity_tail_is_not_retroactively_prepared(self):
+		completed_tail_is_immutable(self, platform='antigravity', backend=self.backend, prepared=False)
 	def test_idle_and_native_terminal_status_are_both_required(self):
 		self.finish(idle=False)
 		self.assertEqual(self.sync()['turns'], [])
@@ -1163,20 +1306,23 @@ class CausalBasisTests(unittest.TestCase):
 		for text in ['> ' + bad, '```text\n' + bad + '\n```', 'The source writes: «' + bad + '».', 'Absence of data does not mean equal probabilities.', 'Equal prior probabilities are given by the symmetric experiment condition.']:
 			self.assertFalse(unsupported_probability_claims(text), text)
 class WatcherLifecycleTests(unittest.TestCase):
-	def test_single_daemon_cooperatively_stops_without_touching_apps(self):
+	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
+		with tempfile.TemporaryDirectory() as temp:
+			path = Path(temp) / 'unchanged.json'
+			path.write_bytes(b'{"domain":"same"}')
+			before = path.stat().st_mtime_ns
+			with patch.object(storage.tempfile, 'mkstemp', side_effect=AssertionError('No file allocation for equal bytes')):
+				storage.replace_bytes(path, b'{"domain":"same"}')
+			self.assertEqual(path.stat().st_mtime_ns, before)
+			self.assertEqual(path.read_bytes(), b'{"domain":"same"}')
+	def test_legacy_daemon_entry_points_refuse_without_creating_state(self):
 		with tempfile.TemporaryDirectory() as temp:
 			directory = Path(temp) / 'watcher with spaces'
-			with running_watcher(directory) as first:
-				second = journal_watch.start(state_dir=directory)
-				self.assertEqual(first['pid'], second['pid'])
-				self.assertEqual(first['token'], second['token'])
-			self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'stopped')
-			log_lines = [json.loads(line) for line in (directory / 'daemon.log').read_text(encoding='utf-8').splitlines() if line.strip() and line.lstrip().startswith('{')]
-			events = {item.get('event') for item in log_lines}
-			self.assertIn('start_spawn', events)
-			self.assertIn('daemon_started', events)
-			self.assertIn('stop_requested', events)
-			self.assertIn('daemon_stopped', events)
+			with self.assertRaisesRegex(ValueError, 'foreground'):
+				journal_watch.start(state_dir=directory)
+			with self.assertRaisesRegex(ValueError, 'foreground'):
+				journal_watch.run(state_dir=directory, token='0' * 32)
+			self.assertFalse(directory.exists())
 			dry = journal_watch.once(state_dir=directory, dry_run=True)
 			self.assertTrue(dry['dry_run'])
 if '__main__' == __name__:

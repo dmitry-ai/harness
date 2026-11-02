@@ -142,7 +142,10 @@ python <scripts>/df_text.py finalize <root> --publication
 ```
 
 `answer-prepare` fetches the exact requests from the active native turn, records the response, and verifies linked clearances; Antigravity passes `--platform antigravity --conversation <native-uuid>`.  
-Turn initialization and independent delivery verification are documented in the [shared turn completion contract](../turn-completion.md#native-verification).  
+Turn initialization and foreground native delivery verification are documented in the [shared turn completion contract](../turn-completion.md#native-verification).  
+No autonomous verifier runs after publication; actual delivery is reconciled on the next foreground working call.  
+New publication requires current source checks and semantic approval; answer preparation records the applicable checks for its linked operation so later integrity verification does not reauthorize historical text solely because sources have aged.  
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->
 Low-level `df_text.py record-answer <root> --journal <journal> --request-file <request> --response-file <answer> --turn <stable-turn-id>` remains available for compatibility and recovery; multiple `--request-file` flags bind several requests to one response, and retries are allowed only with identical bytes.  
 Standard `record_step`, `record-answer`, analysis `finalize`, and `safe_commit` invoke the same gates for target files linked to the current instruction or explicit commit list.  
 `finalize` validates registered documents in the explicitly selected text root; `--publication` additionally requires an active substantive clearance.  

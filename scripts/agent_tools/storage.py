@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 from contextlib import contextmanager
 import os
 from pathlib import Path
@@ -31,11 +34,12 @@ def data_dir_for(path: Path) -> Path:
 			return parent / 'ꘖ' / 'data'
 	return start / 'ꘖ' / 'data'
 @contextmanager
-def locked(path: Path, timeout: float=15):
-	path.parent.mkdir(parents=True, exist_ok=True)
-	with path.open('a+b') as stream:
+def locked(path: Path, timeout: float=15, *, create=True):
+	if create:
+		path.parent.mkdir(parents=True, exist_ok=True)
+	with path.open('a+b' if create else 'r+b') as stream:
 		stream.seek(0, os.SEEK_END)
-		if not stream.tell():
+		if create and not stream.tell():
 			stream.write(b'\x00')
 			stream.flush()
 		deadline = time.monotonic() + timeout
@@ -77,6 +81,12 @@ def create_bytes(path: Path, data: bytes):
 	finally:
 		temp.unlink(missing_ok=True)
 def replace_bytes(path: Path, data: bytes):
+	path = Path(path)
+	try:
+		if path.read_bytes() == data:
+			return
+	except FileNotFoundError:
+		pass
 	path.parent.mkdir(parents=True, exist_ok=True)
 	fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
 	temp = Path(name)

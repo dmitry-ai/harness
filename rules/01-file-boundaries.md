@@ -15,7 +15,8 @@ Journal: the user-specified directory, otherwise `ꙮ/1 - Analysis/{req,res}` (o
 Link multiple requests answered by a single response explicitly; do not invent intermediate responses.  
 For the primary agent, completing any response, including analysis of the instructions themselves, goes through `answer-prepare` per the [turn completion contract](../references/turn-completion.md#answer-preparation).  
 Publish the verified bytes without subsequent editing; a prepared record and delivery confirmed by a native message are distinct states.  
-The independent verifier records the actually delivered text per the [verification rules](../references/turn-completion.md#native-verification); a conflict does not authorize overwriting history.  
+Native delivery is verified synchronously during the next foreground working call per the [verification rules](../references/turn-completion.md#native-verification); a conflict does not authorize overwriting history.  
+Harness must not start a persistent verifier, polling loop, timer, or detached worker; completing a command leaves no Harness background work.  
 ## FILE-4
 Reserve the number across both folders; do not overwrite an occupied pair.  
 Place state and locks in `ꘖ/data`, isolating different journals and source files.  
@@ -31,3 +32,4 @@ After a confirmed write, only an unchanged input is deleted; an error or conflic
 `incoming` is staging prior to import: after copying and verifying unique materials in Evidence and recording the `intake-drain` receipt, it is emptied.  
 Age does not authorize deleting the sole copy of a source file.  
 Do not use `git clean`, mass rollback, or `untracked` status as permission to delete.  
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->
