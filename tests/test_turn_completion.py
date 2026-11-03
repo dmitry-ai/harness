@@ -1297,6 +1297,79 @@ class AntigravityCompletionTests(unittest.TestCase):
 			self.finish('Delivered without git storm in sync.')
 			synced = self.sync()['turns'][0]
 			self.assertTrue(synced['delivery_verified'])
+	# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+	# https://github.com/dmitry-ai/harness/issues/43
+	def test_post_finalize_turn_with_adopted_request_skips_authorize_when_non_substantive(self):
+		pj = self.project / 'ꘖ/project.json'
+		pj.parent.mkdir(parents=True, exist_ok=True)
+		pj.write_text(json.dumps({'job_id': '~987654'}), encoding='utf-8')
+		wf_path = self.project / 'ꘖ/data/workflow.json'
+		wf_path.parent.mkdir(parents=True, exist_ok=True)
+		wf_state = {
+			'schema_version': 1,
+			'project_root': str(self.project),
+			'job_id': '~987654',
+			'legacy': True,
+			'stages': {'finalize': {'status': 'complete'}},
+			'questions': {},
+			'reviews': [],
+			'events': [],
+			'requests': [{'id': f'{self.cid}-0', 'text': 'Native user', 'native_step': 0, 'native_conversation_id': self.cid}]
+		}
+		wf_path.write_text(json.dumps(wf_state), encoding='utf-8')
+		completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		prepared = completion.prepare(self.project, 'Simple answer without any HM tags.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+		updated_wf = json.loads(wf_path.read_text(encoding='utf-8'))
+		req = next(r for r in updated_wf['requests'] if r['id'] == f'{self.cid}-0')
+		self.assertIsNotNone(req.get('response_prepared'))
+	def test_adopt_and_unadopt_requests_lifecycle(self):
+		pj = self.project / 'ꘖ/project.json'
+		pj.parent.mkdir(parents=True, exist_ok=True)
+		pj.write_text(json.dumps({'job_id': '~987654'}), encoding='utf-8')
+		wf_path = self.project / 'ꘖ/data/workflow.json'
+		wf_path.parent.mkdir(parents=True, exist_ok=True)
+		wf_state = {
+			'schema_version': 1,
+			'project_root': str(self.project),
+			'job_id': '~987654',
+			'legacy': True,
+			'stages': {'finalize': {'status': 'complete'}},
+			'questions': {},
+			'reviews': [],
+			'events': [],
+			'requests': []
+		}
+		wf_path.write_text(json.dumps(wf_state), encoding='utf-8')
+		from agent_tools import workflow as flow
+		with self.assertRaisesRegex(ValueError, 'Initial analysis finalize stage is already complete'):
+			flow.adopt_requests(self.project, self.cid, backend=self.backend, platform='antigravity')
+		flow.adopt_requests(self.project, self.cid, allow_finalized=True, backend=self.backend, platform='antigravity')
+		updated_wf = json.loads(wf_path.read_text(encoding='utf-8'))
+		self.assertEqual(len(updated_wf['requests']), 1)
+		flow.unadopt_requests(self.project, conversation_id=self.cid)
+		updated_wf2 = json.loads(wf_path.read_text(encoding='utf-8'))
+		self.assertEqual(len(updated_wf2['requests']), 0)
+	def test_journal_sync_adopt_conflict_recovers_failed_turn(self):
+		pj = self.project / 'ꘖ/project.json'
+		pj.parent.mkdir(parents=True, exist_ok=True)
+		pj.write_text(json.dumps({'job_id': '~987654'}), encoding='utf-8')
+		completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		state_file = next((self.project / 'ꘖ/data/turns').glob('*.json'))
+		state_val = json.loads(state_file.read_text(encoding='utf-8'))
+		state_val['readiness_check'] = {'verified': False, 'checked_at': '2026-11-03T00:00:00+00:00', 'detail': 'Simulated gate failure'}
+		state_file.write_text(json.dumps(state_val), encoding='utf-8')
+		self.finish('Direct chat response.')
+		ordinary_sync = self.sync()
+		self.assertFalse(ordinary_sync['valid'])
+		self.assertEqual(ordinary_sync['turns'][0]['status'], 'conflict')
+		recovered_sync = completion.sync(self.project, self.cid, platform='antigravity', backend=self.backend, adopt_conflict=True)
+		self.assertTrue(recovered_sync['valid'])
+		turn_res = recovered_sync['turns'][0]
+		self.assertEqual(turn_res['status'], 'delivered')
+		self.assertTrue(turn_res['delivery_verified'])
+		self.assertTrue(turn_res['recovered_after_delivery'])
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

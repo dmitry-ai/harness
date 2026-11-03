@@ -482,12 +482,20 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+# https://github.com/dmitry-ai/harness/issues/43
 def authorize(root, state, *, response=None, package_path=None):
 	from .workflow import receipt_current, questions_current, check_project
 	from .metrics import verify_native_proof
 	_analysis(root)
-	if not questions_current(root, state) or not check_project(root)['valid']:
-		raise ValueError('Complete current research questions/gaps and resolve KB/evidence diagnostics before publication')
+	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
+	if not is_finalized:
+		if not questions_current(root, state) or not check_project(root)['valid']:
+			raise ValueError('Complete current research questions/gaps and resolve KB/evidence diagnostics before publication')
+	else:
+		if state.get('questions') and not questions_current(root, state):
+			raise ValueError('Complete current research questions/gaps before publication')
 	response_sha = digest(response.encode('utf-8')) if None is not response else None
 	groups, diagnostics = ({}, [])
 	for entry in state['reviews']:

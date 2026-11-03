@@ -7,11 +7,14 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
 # https://github.com/dmitry-ai/harness/issues/27
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+# https://github.com/dmitry-ai/harness/issues/43
 from pathlib import Path
 import json
 import sys
 from .completion import COMMANDS as COMPLETION_COMMANDS
-COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'collect-browser', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
+COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'collect-browser', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'unadopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
 def add_parsers(sub):
 	for command in COMMANDS:
 		parser = sub.add_parser(command, help={'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init', 'status': 'Read-only current stage and agent KB navigation', 'collect': 'Batch GET/DOM observations and extraction with persistent project cache', 'collect-http': 'Single-URL GET/DOM observation and extraction with persistent Evidence cache', 'collect-browser': 'Single-URL CDP browser DOM observation in the configured user browser profile', 'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions', 'check-project': 'All saved-source and local KB diagnostics; no network calls', 'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits'}.get(command, 'Internal ' + command + ' operation'))
@@ -45,6 +48,10 @@ def add_parsers(sub):
 			parser.add_argument('--request-file', type=Path, help='Exact current user message; kept in service state until final journal')
 		elif 'adopt-requests' == command:
 			parser.add_argument('--conversation', required=True)
+			parser.add_argument('--allow-finalized', action='store_true', help='Permit adopting requests even if initial analysis finalize stage is complete')
+		elif 'unadopt-requests' == command:
+			parser.add_argument('--conversation')
+			parser.add_argument('--request-id', action='append', default=[], help='Specific request ID(s) to unadopt')
 		elif 'record-answer' == command:
 			parser.add_argument('--response-file', required=True, type=Path)
 		elif 'save-analysis' == command:
@@ -184,7 +191,9 @@ def execute(args):
 	if 'check-project' == command:
 		return flow.check_project(args.project)
 	if 'adopt-requests' == command:
-		return flow.adopt_requests(args.project, args.conversation)
+		return flow.adopt_requests(args.project, args.conversation, allow_finalized=getattr(args, 'allow_finalized', False))
+	if 'unadopt-requests' == command:
+		return flow.unadopt_requests(args.project, args.conversation, request_ids=args.request_id)
 	if 'record-answer' == command:
 		payload = _operation_input(args, args.response_file)
 		result = flow.record_current_answer(args.project, payload.decode('utf-8'))

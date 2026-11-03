@@ -201,10 +201,17 @@ def resume(root, reason, request=None):
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
-def adopt_requests(root, conversation_id):
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+# https://github.com/dmitry-ai/harness/issues/43
+def adopt_requests(root, conversation_id, *, allow_finalized=False, backend=None, platform=None):
 	from .metrics import native_requests
 	from .journal import answer_groups
-	requests = native_requests(root, conversation_id)
+	state = load(root)
+	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
+	if is_finalized and not allow_finalized:
+		raise ValueError('Initial analysis finalize stage is already complete. Post-finalize questions do not require adopt-requests unless explicitly reopening analysis with --allow-finalized')
+	requests = native_requests(root, conversation_id, backend=backend, platform=platform)
 	req_ids = {x['id'] for x in requests}
 	saved_answers = {}
 	j_dir = Path(root) / ('ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437' if (Path(root) / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').exists() and (not (Path(root) / 'ꙮ/1 - Analysis').exists()) else 'ꙮ/1 - Analysis')
@@ -221,6 +228,19 @@ def adopt_requests(root, conversation_id):
 			state['requests'].append({**request, **({'response_prepared': prepared} if prepared else {})})
 	r = update(root, {'action': 'adopt_requests', 'conversation_id': conversation_id}, change)
 	return r
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+# https://github.com/dmitry-ai/harness/issues/43
+def unadopt_requests(root, conversation_id=None, request_ids=None):
+	req_ids = set(request_ids or [])
+	if not conversation_id and not req_ids:
+		raise ValueError('Provide --conversation or at least one --request-id to unadopt')
+	def change(state):
+		state['requests'] = [
+			x for x in state.get('requests', [])
+			if not ((conversation_id and x.get('native_conversation_id') == conversation_id) or (req_ids and x.get('id') in req_ids))
+		]
+	return update(root, {'action': 'unadopt_requests', 'conversation_id': conversation_id, 'request_ids': sorted(req_ids)}, change)
 # 2026-10-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
 # https://github.com/dmitry-ai/harness/issues/14
