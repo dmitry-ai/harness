@@ -1340,7 +1340,7 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
 				continue
 			if adopt_conflict:
 				value.pop('admission_failure', None)
-				if value.get('delivery', {}).get('conflict_evidence'):
+				if (value.get('delivery') or {}).get('conflict_evidence'):
 					conflict_file = root / value['delivery']['conflict_evidence']
 					if conflict_file.is_file():
 						try:
