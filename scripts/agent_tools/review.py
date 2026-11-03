@@ -485,7 +485,10 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 # https://github.com/dmitry-ai/harness/issues/43
-def authorize(root, state, *, response=None, package_path=None):
+# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+# https://github.com/dmitry-ai/harness/issues/44
+def authorize(root, state, *, response=None, package_path=None, request_ids=None):
 	from .workflow import receipt_current, questions_current, check_project
 	from .metrics import verify_native_proof
 	_analysis(root)
@@ -494,7 +497,15 @@ def authorize(root, state, *, response=None, package_path=None):
 		if not questions_current(root, state) or not check_project(root)['valid']:
 			raise ValueError('Complete current research questions/gaps and resolve KB/evidence diagnostics before publication')
 	else:
-		if state.get('questions') and not questions_current(root, state):
+		finalize_time = state.get('stages', {}).get('finalize', {}).get('time')
+		relevant_qs = {}
+		for qid, q in (state.get('questions') or {}).items():
+			q_time = q.get('time') or q.get('created_at')
+			if request_ids and q.get('request_id') in request_ids:
+				relevant_qs[qid] = q
+			elif finalize_time and q_time and q_time > finalize_time:
+				relevant_qs[qid] = q
+		if relevant_qs and not questions_current(root, {**state, 'questions': relevant_qs}):
 			raise ValueError('Complete current research questions/gaps before publication')
 	response_sha = digest(response.encode('utf-8')) if None is not response else None
 	groups, diagnostics = ({}, [])

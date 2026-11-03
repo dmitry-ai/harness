@@ -1,3 +1,6 @@
+# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+# https://github.com/dmitry-ai/harness/issues/44
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 # https://github.com/dmitry-ai/harness/issues/43
@@ -51,7 +54,7 @@ from .platforms import adapter
 from .research import MAX_BYTES, _CHALLENGE_RE
 from .runtime import PRIMARY, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
-COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch')
+COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch', 'reconcile-unprepared-delivery')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 def _now():
@@ -1212,8 +1215,33 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			identifiers = {r['id'] for r in turn['requests']}
 			covered = {r['id'] for r in state['requests']} & identifiers
 			is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
-			touched_norms = [str(tf).replace('\\', '/').lower() for tf in turn.get('touched_files') or []]
-			has_kb_or_issue_mutation = any((tn.endswith('/kb/analysis.md') or ('/\ua616/kb/' in tn and '/\ua616/kb/evidence/' not in tn) for tn in touched_norms)) or bool(turn.get('issue_actions')) or bool(value.get('github_issues'))
+			has_normative_kb_mutation = False
+			factual_kb_issues = []
+			from .knowledge import validate_kb_factual_note
+			for tf in turn.get('touched_files') or []:
+				tf_norm = str(tf).replace('\\', '/').lower()
+				if ('/\ua616/kb/' in tf_norm or tf_norm.endswith('/kb/analysis.md') or tf_norm.endswith('/kb/analysis.json')) and '/\ua616/kb/evidence/' not in tf_norm:
+					basename = Path(tf).name.lower()
+					if basename in ('analysis.md', 'analysis.json', 'project.md', 'projects.md'):
+						has_normative_kb_mutation = True
+					else:
+						fpath = Path(tf)
+						if not fpath.is_absolute():
+							fpath = root / fpath
+						if fpath.is_file():
+							try:
+								note_text = fpath.read_text(encoding='utf-8', errors='replace')
+								issues = validate_kb_factual_note(fpath, note_text)
+								if issues:
+									factual_kb_issues.extend(issues)
+							except OSError:
+								pass
+			if factual_kb_issues:
+				detail = 'KB-2 / DOC-1 violation in factual research note: ' + '; '.join(factual_kb_issues)
+				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+				_persist(path, value)
+				raise ValueError(detail)
+			has_kb_or_issue_mutation = has_normative_kb_mutation or bool(turn.get('issue_actions')) or bool(value.get('github_issues'))
 			has_substantive_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response)) or has_kb_or_issue_mutation
 			aa_steps = value['delegation_check'].get('aa_subagent_step_count', value['delegation_check'].get('subagent_step_count', 0))
 			if covered:
@@ -1221,7 +1249,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 					raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
 				if not is_finalized or has_substantive_hm:
 					from .review import authorize
-					authorize(root, state, response=response)
+					authorize(root, state, response=response, request_ids=identifiers)
 					pending = {r['id'] for r in state['requests'] if not r.get('response_prepared') and (r.get('native_conversation_id') in (None, native['conversation_id']) or r['id'] in identifiers)}
 					if pending:
 						if pending != identifiers:
@@ -1371,6 +1399,11 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
 			_persist(path, value)
 			results.append({'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True, 'journal_steps': recorded['journal_steps'], 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check})
 	return {'valid': not any(('conflict' == r['status'] for r in results)), 'conversation_id': native['conversation_id'], 'source_file': native['source_file'], 'turns': results, 'retryable': any((r.get('retryable') for r in results)), 'pending_native_turn': native['active_turn_id'], 'private_reasoning_retained': False}
+# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+# https://github.com/dmitry-ai/harness/issues/44
+def reconcile_unprepared_delivery(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None):
+	return sync(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=True)
 def add_parser_arguments(parser, command):
 	if 'journal-watch' == command:
 		parser.add_argument('--action', choices=('start', 'status', 'stop', 'once', 'run'), default='status')
@@ -1390,8 +1423,9 @@ def add_parser_arguments(parser, command):
 	if 'answer-prepare' == command:
 		parser.add_argument('--response-file', type=Path, required=True, help='Exact UTF-8 final response, or - for stdin')
 		parser.add_argument('--consume-input', action='store_true')
-	if 'journal-sync' == command:
+	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
 		parser.add_argument('--from-step', type=int, default=0)
+	if 'journal-sync' == command:
 		parser.add_argument('--adopt-conflict', action='store_true', help='Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries')
 def execute(args):
 	if 'turn-begin' == args.command:
@@ -1405,6 +1439,8 @@ def execute(args):
 		payload = _operation_input(args, args.response_file)
 		result = prepare(args.project, payload.decode('utf-8'), args.conversation, watch=not args.no_watch, journal_directory=args.journal)
 		r = _consumed(args, args.response_file, payload, result)
+	elif 'reconcile-unprepared-delivery' == args.command:
+		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)
 	elif 'journal-sync' == args.command:
 		r = sync(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal, adopt_conflict=getattr(args, 'adopt_conflict', False))
 	elif 'journal-unwatch' == args.command:

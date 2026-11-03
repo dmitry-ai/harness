@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+# https://github.com/dmitry-ai/harness/issues/44
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -369,3 +372,31 @@ def sync_project_attachments_and_kb(project_root: Path, media_descriptions: dict
 		replace_bytes(root / 'ꘖ' / 'KB' / 'Evidence.md', ev_md.encode('utf-8'))
 	r = {'project_root': str(root), 'source_files': [a['source_file'] for a in assets], 'extra_sources': [{'kind': e['kind'], 'name': e['name'], 'heading': e['heading'], 'has_body': bool((e.get('body') or '').strip())} for e in extra_sources]}
 	return r
+# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+# https://github.com/dmitry-ai/harness/issues/44
+def validate_kb_factual_note(path: Path | str, text: str) -> list[str]:
+	issues = []
+	p = Path(path)
+	filename = p.name
+	m_id = re.search(r'\b(?:H|M)-(?:[A-Za-z0-9]+-)*\d+\b', text)
+	if m_id:
+		issues.append(f"{filename}: Hypothesis/method identifier '{m_id.group(0)}' forbidden in factual research note; hypotheses must be registered in Analysis.json/Analysis.md per KB-2/DOC-1")
+	m_head = re.search(r'(?im)^#{1,6}\s*(?:H-\d+|Гипотез\w*|Hypothes\w*|Причин\w*|Causes?|Misconceptions?|Заблужден\w*|Метод\w*|Methods?)\b', text)
+	if m_head:
+		issues.append(f"{filename}: Analytical heading '{m_head.group(0).strip()}' forbidden in factual research note per KB-2/DOC-1")
+	has_pro = bool(re.search(r'(?i)(?:довод\w*\s+за|arguments?\s+for)\b', text))
+	has_con = bool(re.search(r'(?i)(?:довод\w*\s+против|arguments?\s+against|counterevidence)\b', text))
+	if has_pro and has_con:
+		issues.append(f"{filename}: Structured pro/con arguments (DOC-2/DOC-3) forbidden in factual research note")
+	from .causal_checks import unsupported_probability_claims
+	for c_issue in unsupported_probability_claims(text):
+		issues.append(f"{filename}: {c_issue}")
+	for lineno, line in enumerate((text or '').splitlines(), 1):
+		sline = line.strip()
+		if not sline or sline.startswith(('#', '```', '|', '>')):
+			continue
+		m_cause = re.search(r'(?i)\b(?:причиной\s+(?:является|была|было|служит)|первопричина|root\s+cause)\b', sline)
+		if m_cause:
+			issues.append(f"{filename}:{lineno}: Causal assertion '{m_cause.group(0)}' requires H-* hypothesis in Analysis.json per DOC-2")
+	return issues

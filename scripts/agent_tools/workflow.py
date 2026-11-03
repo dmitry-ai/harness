@@ -311,6 +311,9 @@ def record_current_answer(root, response, *, journal_directory=None, request_ids
 	result = update(root, {'action': 'reply_prepared', 'turn': turn, 'steps': steps}, change)
 	r = {**result, 'journal_steps': steps, 'delivery_verified': False}
 	return r
+# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+# https://github.com/dmitry-ai/harness/issues/44
 def add_question(root, ident, question, impact, done_when, inputs, outputs, *, requirements=None):
 	if not re.fullmatch('[A-Z][A-Z0-9-]*', ident) or not all((isinstance(x, str) and x.strip() for x in (question, impact, done_when))):
 		raise ValueError('Question needs a stable ID, question, impact and completion criterion')
@@ -327,7 +330,7 @@ def add_question(root, ident, question, impact, done_when, inputs, outputs, *, r
 	def change(state):
 		if ident in state['questions']:
 			raise ValueError('Question already exists; use its saved inputs/results')
-		state['questions'][ident] = {'id': ident, 'question': question, 'impact': impact, 'done_when': done_when, 'inputs': input_hashes, 'allowed_outputs': permitted, 'status': 'pending', 'owner': None, 'searches': [], 'results': {}, 'requirements': requirements, 'requirement_results': []}
+		state['questions'][ident] = {'id': ident, 'question': question, 'impact': impact, 'done_when': done_when, 'inputs': input_hashes, 'allowed_outputs': permitted, 'status': 'pending', 'owner': None, 'searches': [], 'results': {}, 'requirements': requirements, 'requirement_results': [], 'time': now()}
 	r = update(root, {'action': 'question', 'question_id': ident}, change)
 	return r
 def claim_question(root, ident, owner):
