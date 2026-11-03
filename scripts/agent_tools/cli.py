@@ -7,6 +7,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 # https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+# https://github.com/dmitry-ai/harness/issues/42
 import argparse
 import json
 from pathlib import Path
@@ -37,10 +40,11 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 		parser.add_argument('--network', '--check-http', action='store_true')
 		parser.add_argument('--timeout', type=float, default=15)
 	elif command in ('generate_context', 'rebuild_context'):
-		parser.add_argument('--root', type=Path, default=root_default, required=None is root_default)
-		parser.add_argument('--config', type=Path, default=context_default, required=None is context_default)
-		parser.add_argument('--output', '-o', type=Path)
-		parser.add_argument('--dry-run', action='store_true')
+		parser.add_argument('root_pos', nargs='?', type=Path, default=None, help='Project root directory')
+		parser.add_argument('--root', type=Path, default=root_default, help='Project root directory')
+		parser.add_argument('--config', type=Path, default=context_default, help='Context configuration file')
+		parser.add_argument('--output', '-o', type=Path, help='Output path (defaults to ꙮ/0/Context.md)')
+		parser.add_argument('--dry-run', action='store_true', help='Check inputs without writing output')
 	elif 'snapshot_draft' == command:
 		parser.add_argument('target', type=Path)
 		parser.add_argument('--turn', required=True)
@@ -111,7 +115,8 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			print(f'Structural checks passed for {len(args.targets)} explicit files; browser behavior was not checked')
 		elif command in ('generate_context', 'rebuild_context'):
 			from .context import generate
-			target, content, sources = generate(args.root, args.config, args.output, args.dry_run)
+			root = args.root or args.root_pos or root_default or Path('.')
+			target, content, sources = generate(root, args.config, args.output, args.dry_run)
 			print(f"{len(sources)} sources; {len(content.encode('utf-8'))} bytes; {('dry run' if args.dry_run else 'saved')}: {target}")
 		elif 'snapshot_draft' == command:
 			from .snapshot import snapshot_draft

@@ -4,12 +4,43 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+# https://github.com/dmitry-ai/harness/issues/42
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
 from .storage import data_dir_for, locked, replace_bytes
 from .journal import get_existing_step_ids, step_errors, answer_groups
+def default_context_config() -> dict:
+	return {
+		'version': 1,
+		'output': 'ꙮ/0/Context.md',
+		'sections': [
+			{
+				'title': 'Agent KB',
+				'globs': ['ꘖ/KB/**/*.md'],
+				'exclude': ['ꘖ/KB/Evidence/**'],
+				'optional': True,
+			}
+		],
+	}
+def _is_excluded(rel_path: Path, patterns: list[str]) -> bool:
+	rel_str = rel_path.as_posix()
+	for pat in patterns:
+		pat_norm = pat.replace('\\', '/').rstrip('/')
+		if pat_norm.endswith('/**'):
+			prefix = pat_norm[:-3].rstrip('/')
+			if rel_str == prefix or rel_str.startswith(prefix + '/'):
+				return True
+		elif pat_norm.endswith('/*'):
+			prefix = pat_norm[:-2].rstrip('/')
+			if rel_path.parent.as_posix() == prefix:
+				return True
+		elif rel_path.match(pat) or rel_str == pat_norm or rel_str.startswith(pat_norm + '/'):
+			return True
+	return False
 def inside(root: Path, path: str | Path) -> Path:
 	target = (root / path).resolve()
 	if not target.is_relative_to(root.resolve()):
@@ -57,12 +88,17 @@ def _fence(text: str) -> str:
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
-def assemble(root: Path, manifest: dict, now: datetime | None=None) -> tuple[str, list[Path]]:
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+# https://github.com/dmitry-ai/harness/issues/42
+def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) -> tuple[str, list[Path]]:
 	root = Path(root).resolve()
+	if None is manifest:
+		manifest = default_context_config()
 	if 1 != manifest.get('version') or not manifest.get('sections'):
 		raise ValueError('Context manifest requires version=1 and nonempty sections')
 	timestamp = (now or datetime.now(timezone.utc)).isoformat(timespec='seconds')
-	blocks = [f'# Context\n\nGenerated: {timestamp}\n\nPurpose: unified full export for an external agent, including Gemini DeepThink in the web UI.\nInternal agents work with the current agent KB and primary evidence.\n']
+	blocks = [f'# Context\n\nGenerated: {timestamp}\n']
 	selected = []
 	seen = set()
 	for section in manifest['sections']:
@@ -122,7 +158,7 @@ def assemble(root: Path, manifest: dict, now: datetime | None=None) -> tuple[str
 			if not directory.is_dir() and section.get('optional', False):
 				continue
 			items.extend(((inside(root, p), group['author']) for p in discover_letters(directory, group.get('languages', ['EN', 'RU']))))
-		items = [(p, author) for p, author in items if not any((p.relative_to(root).match(pattern) for pattern in section.get('exclude', [])))]
+		items = [(p, author) for p, author in items if not _is_excluded(p.relative_to(root), section.get('exclude', []))]
 		if not items:
 			if not section.get('optional', False):
 				raise ValueError(f"Empty source section: {section['title']}")
@@ -150,13 +186,24 @@ def assemble(root: Path, manifest: dict, now: datetime | None=None) -> tuple[str
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
-def generate(root: Path, config: Path, output: Path | None=None, dry_run=False):
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+# https://github.com/dmitry-ai/harness/issues/42
+def generate(root: Path, config: Path | dict | None=None, output: Path | None=None, dry_run=False):
 	root = Path(root).resolve()
-	manifest = json.loads(Path(config).read_text(encoding='utf-8-sig'))
+	if None is config:
+		manifest = default_context_config()
+	elif isinstance(config, dict):
+		manifest = config
+	else:
+		config_path = Path(config).resolve() if Path(config).is_absolute() else (root / config).resolve()
+		if not config_path.is_file():
+			raise FileNotFoundError(config_path)
+		manifest = json.loads(config_path.read_text(encoding='utf-8-sig'))
 	def build():
 		content, sources = assemble(root, manifest)
-		target = inside(root, output if None is not output else manifest['output'])
-		if target in sources or target == Path(config).resolve():
+		target = inside(root, output if None is not output else manifest.get('output', 'ꙮ/0/Context.md'))
+		if target in sources or (isinstance(config, (str, Path)) and target == Path(config).resolve()):
 			raise ValueError('Context output would overwrite an input')
 		if not dry_run:
 			replace_bytes(target, content.encode('utf-8'))

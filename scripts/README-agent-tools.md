@@ -177,7 +177,7 @@ Native delivery is confirmed on the next foreground working call after publicati
 Repeated unchanged reconciliation preserves domain-state bytes, timestamps and mtime; real changes and conflicts are recorded without silently replacing history.  
 New answers pass the current applicable document, source, and approval gates and retain an immutable admission proof; repeated historical verification checks the selected recorded sources and approvals without reapplying wall-clock freshness rules.  
 Missing legacy admission proofs remain visible gaps, and prior failed admission is not bypassed by recovery.  
-<!-- https://github.com/dmitry-ai/harness/issues/41 -->
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->  
 Exact guarantees and limits are in the [turn completion contract](../references/turn-completion.md#limits-and-verification); saved state does not prove rule comprehension, and preparation does not prove UI delivery.  
 
 `validate_step.py --dir <journal> --all` validates pairs and checks for stale reservations.  
@@ -187,13 +187,11 @@ Legacy `record-answer <project> --response-file <exact-final-answer>` and `agent
 Reserving the entire request group upfront prevents sequence gaps after crashes.  
 `stage ... finalize` verifies the current KB, reviews, journal, emptiness of `ꘖ/data/scratch`, and absence of one-off scripts in the project, then builds `Context.md`; this certifies response readiness rather than confirmed UI delivery.  
 
-`generate_context.py --root <project> --config <project>/.agents/context.json [--dry-run]` includes all declared documents and the exact journal in full, preserving authors and boundaries.  
-The `drafts` section selects a non-empty `final.md` in each language directory under `result/`, falling back to `draft.md`; both language versions are included, while `draft.prev.md` is never substituted automatically.  
-An empty existing `final.md` blocks a new export while preserving the prior `Context.md` and all source files.  
-Grouped requests are annotated as sharing a single response, while every original pair is preserved in full.  
-Incomplete pairs/groups, an empty `final.md`, or a missing mandatory source file block overwriting the previous valid export.  
+`generate_context.py [<project> | --root <project>] [--config <context.json>] [--output <path>] [--dry-run]` exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
+If `--config` is omitted, it defaults to `default_context_config()`; custom manifests remain supported via `--config`.  
 All paths are confined to the project root; an export never overwrites a source file.  
 `Context.md` is built for manual submission to an external agent, primarily Gemini DeepThink; internal agents never use it as their working KB.  
+<!-- https://github.com/dmitry-ai/harness/issues/42 -->  
 
 # Additional Tools
 

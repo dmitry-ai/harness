@@ -10,6 +10,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
+# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+# https://github.com/dmitry-ai/harness/issues/42
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
@@ -262,6 +265,43 @@ class ContextTests(TemporaryCase):
 			with self.assertRaises(ValueError):
 				generate(self.root, config, output)
 		self.assertEqual((self.root / 'kb.md').read_text(), 'original')
+	# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+	# https://github.com/dmitry-ai/harness/issues/42
+	def test_default_context_config_includes_agent_kb_and_excludes_evidence_subfolder(self):
+		kb_main = self.put('ꘖ/KB/Overview.md', '# Overview\nAgent KB content\n')
+		kb_evidence_doc = self.put('ꘖ/KB/Evidence.md', '# Evidence Document\nEvidence summary\n')
+		self.put('ꘖ/KB/Evidence/capture.md', '# Raw Capture\nShould be excluded\n')
+		self.put('ꘖ/KB/Evidence/nested/audit.md', '# Deep Capture\nShould be excluded\n')
+		self.put('KB/Manual.md', '# Manual\nShould be excluded\n')
+		content, sources = assemble(self.root)
+		self.assertIn('Generated: ', content)
+		self.assertIn('# Overview', content)
+		self.assertIn('# Evidence Document', content)
+		self.assertNotIn('# Raw Capture', content)
+		self.assertNotIn('# Deep Capture', content)
+		self.assertNotIn('# Manual', content)
+		self.assertEqual(set(sources), {kb_main.resolve(), kb_evidence_doc.resolve()})
+		target, out_content, out_sources = generate(self.root)
+		self.assertEqual(target, self.root / 'ꙮ/0/Context.md')
+		self.assertTrue(target.is_file())
+		self.assertEqual(out_content, content)
+		self.assertEqual(set(out_sources), {kb_main.resolve(), kb_evidence_doc.resolve()})
+	# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+	# https://github.com/dmitry-ai/harness/issues/42
+	def test_generate_context_cli_supports_positional_root_and_default_config(self):
+		from agent_tools.cli import main
+		kb = self.put('ꘖ/KB/Findings.md', '# Findings\nAgent finding\n')
+		self.put('ꘖ/KB/Evidence/run.md', '# Run\nExcluded\n')
+		exit_code = main('generate_context', [str(self.root)])
+		self.assertEqual(exit_code, 0)
+		target = self.root / 'ꙮ/0/Context.md'
+		self.assertTrue(target.is_file())
+		text = target.read_text(encoding='utf-8')
+		self.assertIn('Generated: ', text)
+		self.assertIn('# Findings', text)
+		self.assertNotIn('# Run', text)
 class GitTests(TemporaryCase):
 	def git(self, *args):
 		result = subprocess.run(['git', '-C', str(self.root), *args], capture_output=True)

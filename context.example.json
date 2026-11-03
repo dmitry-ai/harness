@@ -2,15 +2,6 @@
   "version": 1,
   "output": "ꙮ/0/Context.md",
   "sections": [
-    {"title": "Project Overview", "files": [".md"], "optional": true},
-    {"title": "Manual Knowledge Base (KB)", "globs": ["KB/*.md", "KB/**/*.md"], "optional": true},
-    {"title": "Agent Knowledge Base (ꘖ/KB)", "globs": ["ꘖ/KB/*.md", "ꘖ/KB/**/*.md"], "optional": true},
-    {"title": "Analysis (ꙮ/1 - Analysis)", "journals": ["ꙮ/1 - Analysis"], "optional": true},
-    {"title": "Proposals (result)", "globs": ["result/**/final/*.md", "result/**/final.md"], "optional": true},
-    {"title": "Correspondence", "optional": true, "letters": [
-      {"root": "Letters/my", "author": "Consultant", "languages": ["EN", "RU"]},
-      {"root": "Letters/client", "author": "Client", "languages": ["EN", "RU"]}
-    ]}
+    {"title": "Agent KB", "globs": ["ꘖ/KB/**/*.md"], "exclude": ["ꘖ/KB/Evidence/**"], "optional": true}
   ]
 }
-
