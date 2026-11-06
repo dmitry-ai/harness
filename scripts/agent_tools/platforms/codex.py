@@ -258,6 +258,7 @@ def native_answers(root, conversation_id, *, backend=None):
 					raise ValueError('Native Codex final message and completion event disagree')
 				current['completed'] = bool(current['response'] and None is not current['final_step'])
 	child_parent_map: dict[str, list[str]] = {}
+	thread_parent_map: dict[str, str] = {}
 	if not child:
 		for db_file in sorted(home.glob('state_*.sqlite')):
 			try:
@@ -283,10 +284,14 @@ def native_answers(root, conversation_id, *, backend=None):
 					if not first_ln:
 						continue
 					first_obj = json.loads(first_ln)
-					p_tid = (((first_obj.get('payload') or {}).get('source') or {}).get('subagent') or {}).get('thread_spawn', {}).get('parent_thread_id')
+					src_meta = (first_obj.get('payload') or {}).get('source') if isinstance(first_obj, dict) and isinstance(first_obj.get('payload'), dict) else None
+					sub_meta = src_meta.get('subagent') if isinstance(src_meta, dict) else None
+					spawn_meta = sub_meta.get('thread_spawn') if isinstance(sub_meta, dict) else None
+					p_tid = spawn_meta.get('parent_thread_id') if isinstance(spawn_meta, dict) else None
+					thread_parent_map[tid] = p_tid if isinstance(p_tid, str) and p_tid else ''
 					if isinstance(p_tid, str) and p_tid:
 						child_parent_map.setdefault(p_tid, []).append(tid)
-				except (OSError, ValueError, KeyError, TypeError):
+				except (OSError, ValueError, KeyError, TypeError, AttributeError):
 					continue
 	for t_idx, turn in enumerate(turns):
 		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(turn.get('all_request_steps', []))
@@ -304,27 +309,35 @@ def native_answers(root, conversation_id, *, backend=None):
 		turn.pop('_pending_calls', None)
 		turn['issue_actions'] = extract_issue_actions_from_outputs([out for r in records for out in r.get('outputs', [])])
 		if not child and (sub_steps or (t_idx == len(turns) - 1 and child_parent_map.get(conversation_id))):
-			queue_ids = list(child_parent_map.get(conversation_id, []))
+			queue_ids = [(cid_item, conversation_id) for cid_item in child_parent_map.get(conversation_id, [])] if t_idx == len(turns) - 1 else []
+			queued_pairs = set(queue_ids)
 			for r in records:
+				if not any((str(t).endswith(('spawn_agent', 'invoke_subagent')) for t in r.get('tools', []))):
+					continue
 				for out in r.get('outputs', []):
 					for m_uuid in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', str(out)):
-						if m_uuid != conversation_id and m_uuid not in queue_ids:
-							queue_ids.append(m_uuid)
+						if m_uuid != conversation_id and (m_uuid, conversation_id) not in queued_pairs:
+							queued_pairs.add((m_uuid, conversation_id))
+							queue_ids.append((m_uuid, conversation_id))
 			visited_sub_ids = {conversation_id}
 			while queue_ids:
-				sub_id = queue_ids.pop(0)
+				sub_id, expected_parent = queue_ids.pop(0)
 				if sub_id in visited_sub_ids:
+					continue
+				if sub_id in thread_parent_map and (not thread_parent_map[sub_id] or thread_parent_map[sub_id] != expected_parent):
 					continue
 				visited_sub_ids.add(sub_id)
 				for grand_id in child_parent_map.get(sub_id, []):
-					if grand_id not in visited_sub_ids and grand_id not in queue_ids:
-						queue_ids.append(grand_id)
+					if grand_id not in visited_sub_ids and (grand_id, sub_id) not in queued_pairs:
+						queued_pairs.add((grand_id, sub_id))
+						queue_ids.append((grand_id, sub_id))
 				try:
 					_, _, _, sub_rows = _trace(home, sub_id)
 				except (ValueError, OSError):
 					continue
 				sub_step_anchor = sub_steps[-1] if sub_steps else (t_steps[-1] if t_steps else turn['start_step'])
 				sub_outputs = []
+				sub_spawn_call_ids = set()
 				for s_idx, s_item in sub_rows:
 					s_kind = s_item.get('type')
 					s_pay = s_item.get('payload', {})
@@ -333,6 +346,20 @@ def native_answers(root, conversation_id, *, backend=None):
 						s_raw = s_pay.get('input', s_pay.get('arguments', ''))
 						if not isinstance(s_raw, str):
 							s_raw = json.dumps(s_raw, ensure_ascii=False)
+						if s_name.endswith(('spawn_agent', 'invoke_subagent')) and s_pay.get('call_id'):
+							sub_spawn_call_ids.add(s_pay['call_id'])
+						elif s_name.endswith(('send_input', 'send_message')):
+							s_in = s_pay.get('arguments', s_pay.get('input', {}))
+							if isinstance(s_in, str):
+								try:
+									s_in = json.loads(s_in)
+								except ValueError:
+									s_in = {}
+							if isinstance(s_in, dict):
+								t_uid = str(s_in.get('id') or s_in.get('Recipient') or '').strip().lower()
+								if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', t_uid) and t_uid not in visited_sub_ids and ((t_uid, sub_id) not in queued_pairs):
+									queued_pairs.add((t_uid, sub_id))
+									queue_ids.append((t_uid, sub_id))
 						if 'exec' == s_name or s_name.endswith(('exec_command', 'run_command')):
 							bad = unflagged_git_read_commands(s_raw)
 							if bad:
@@ -377,9 +404,11 @@ def native_answers(root, conversation_id, *, backend=None):
 						out = s_pay.get('output')
 						out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
 						sub_outputs.append(out_s)
-						for m_uuid in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_s):
-							if m_uuid not in visited_sub_ids and m_uuid not in queue_ids:
-								queue_ids.append(m_uuid)
+						if s_pay.get('call_id') in sub_spawn_call_ids:
+							for m_uuid in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_s):
+								if m_uuid not in visited_sub_ids and (m_uuid, sub_id) not in queued_pairs:
+									queued_pairs.add((m_uuid, sub_id))
+									queue_ids.append((m_uuid, sub_id))
 				for act in extract_issue_actions_from_outputs(sub_outputs):
 					act_with_sub = {**act, 'subagent_id': sub_id}
 					if act_with_sub not in turn['issue_actions']:

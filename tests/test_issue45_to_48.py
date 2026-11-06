@@ -16,7 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from agent_tools import claims, completion, github_issue, review, source_grounding
-from agent_tools.platforms import antigravity
+from agent_tools.platforms import antigravity, codex
 
 
 def _wire(field: int, payload: bytes) -> bytes:
@@ -525,10 +525,16 @@ class Issue45To48Tests(unittest.TestCase):
             cid = str(uuid.uuid4())
             coord_cid = str(uuid.uuid4())
             worker_cid = str(uuid.uuid4())
+            hist_primary_cid = str(uuid.uuid4())
+            other_parent_cid = str(uuid.uuid4())
+            hist_sub_cid = str(uuid.uuid4())
 
             res_file = project / 'ꙮ' / '1 - Analysis' / 'res' / '143.md'
             res_file.parent.mkdir(parents=True, exist_ok=True)
-            res_file.write_text('# Prior response 143\nContent here.\n', encoding='utf-8')
+            res_file.write_text(
+                f'# Prior response 143\nHistorical UUIDs: {hist_primary_cid} and {hist_sub_cid}.\n',
+                encoding='utf-8',
+            )
             (project / 'ꙮ' / '1 - Analysis' / 'req').mkdir(parents=True, exist_ok=True)
             (project / 'ꙮ' / '1 - Analysis' / 'req' / '143.md').write_text('Prior request\n', encoding='utf-8')
 
@@ -548,6 +554,14 @@ class Issue45To48Tests(unittest.TestCase):
                 'INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)',
                 (worker_cid, coord_cid, json.dumps([project.as_uri()]), 'CASCADE_RUN_STATUS_IDLE', 0, 0, 0, 'worker'),
             )
+            c.execute(
+                'INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)',
+                (hist_primary_cid, '', json.dumps([project.as_uri()]), 'CASCADE_RUN_STATUS_IDLE', 0, 0, 0, ''),
+            )
+            c.execute(
+                'INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)',
+                (hist_sub_cid, other_parent_cid, json.dumps([project.as_uri()]), 'CASCADE_RUN_STATUS_IDLE', 0, 0, 0, 'worker'),
+            )
             c.commit()
             c.close()
 
@@ -557,16 +571,58 @@ class Issue45To48Tests(unittest.TestCase):
             c.commit()
             c.close()
 
-            # Coordinator transcript references worker_cid
+            # Historical transcripts with violations and unrelated issues that MUST NOT be imported
+            hist_dirty_file = project / 'historical_dirty.py'
+            for h_cid in (hist_primary_cid, hist_sub_cid):
+                h_log = backend / 'brain' / h_cid / '.system_generated/logs/transcript_full.jsonl'
+                h_log.parent.mkdir(parents=True, exist_ok=True)
+                h_issue_out = json.dumps(
+                    {
+                        'ok': True,
+                        'action': 'comment',
+                        'repo': 'smokeday-com/m',
+                        'number': 37,
+                        'html_url': 'https://github.com/smokeday-com/m/' + 'issues/37',
+                        'verified': True,
+                    }
+                )
+                h_log.write_text(
+                    json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Old turn'}) + '\n'
+                    + json.dumps(
+                        {
+                            'step_index': 1,
+                            'type': 'PLANNER_RESPONSE',
+                            'content': '',
+                            'tool_calls': [
+                                {'id': 'hw', 'name': 'write_to_file', 'args': {'TargetFile': str(hist_dirty_file)}},
+                                {'id': 'hc', 'name': 'run_command', 'args': {'CommandLine': 'git status; curl https://example.com'}},
+                            ],
+                        }
+                    )
+                    + '\n'
+                    + json.dumps({'step_index': 2, 'type': 'GENERIC', 'content': h_issue_out})
+                    + '\n',
+                    encoding='utf-8',
+                )
+
+            # Coordinator transcript references worker_cid and receives a SYSTEM_MESSAGE whose body mentions historical UUIDs
             coord_log = backend / 'brain' / coord_cid / '.system_generated/logs/transcript_full.jsonl'
             coord_log.parent.mkdir(parents=True, exist_ok=True)
             coord_log.write_text(
                 json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Coordinate task'}) + '\n'
-                + json.dumps({'step_index': 1, 'type': 'GENERIC', 'content': f'Spawned worker {worker_cid}'}) + '\n',
+                + json.dumps({'step_index': 1, 'type': 'GENERIC', 'content': f'Spawned worker {worker_cid}'}) + '\n'
+                + json.dumps(
+                    {
+                        'step_index': 2,
+                        'type': 'SYSTEM_MESSAGE',
+                        'content': f'<SYSTEM_MESSAGE>\n[Message] timestamp=2026-11-06T21:00:00Z sender={worker_cid} priority=HIGH content=Checked {hist_primary_cid} and {hist_sub_cid}\n</SYSTEM_MESSAGE>',
+                    }
+                )
+                + '\n',
                 encoding='utf-8',
             )
 
-            # Worker transcript edits a file and creates an issue via df_github_issue.py
+            # Worker transcript reads res/143.md (containing historical UUIDs), edits a file, creates an issue, and messages coordinator
             worker_file = project / 'notes.md'
             worker_log = backend / 'brain' / worker_cid / '.system_generated/logs/transcript_full.jsonl'
             worker_log.parent.mkdir(parents=True, exist_ok=True)
@@ -586,15 +642,29 @@ class Issue45To48Tests(unittest.TestCase):
                     {
                         'step_index': 1,
                         'type': 'PLANNER_RESPONSE',
-                        'content': '',
+                        'content': f'Inspecting {hist_primary_cid} and {hist_sub_cid}',
                         'tool_calls': [
+                            {'id': 'v1', 'name': 'view_file', 'args': {'AbsolutePath': str(res_file)}},
                             {'id': 'w1', 'name': 'write_to_file', 'args': {'TargetFile': str(worker_file)}},
                             {'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'python df_github_issue.py create'}},
+                            {
+                                'id': 'm1',
+                                'name': 'send_message',
+                                'args': {'Recipient': coord_cid, 'Message': f'Read {hist_primary_cid} and {hist_sub_cid}'},
+                            },
                         ],
                     }
                 )
                 + '\n'
-                + json.dumps({'step_index': 2, 'type': 'GENERIC', 'content': issue_out})
+                + json.dumps(
+                    {
+                        'step_index': 2,
+                        'type': 'GENERIC',
+                        'content': f'Created At: 2026-11-06\nFile Path: `file:///{res_file.as_posix()}`\n1: Historical {hist_primary_cid} {hist_sub_cid}',
+                    }
+                )
+                + '\n'
+                + json.dumps({'step_index': 3, 'type': 'GENERIC', 'content': issue_out})
                 + '\n',
                 encoding='utf-8',
             )
@@ -622,7 +692,11 @@ class Issue45To48Tests(unittest.TestCase):
             ans = antigravity.native_answers(project, cid, backend=backend)
             active_turn = ans['turns'][-1]
             self.assertIn(str(worker_file), active_turn['touched_files'])
+            self.assertNotIn(str(hist_dirty_file), active_turn['touched_files'])
+            self.assertEqual(active_turn['exec5_violations'], [])
+            self.assertEqual(active_turn['http_fetch_violations'], [])
             self.assertTrue(any(ia.get('number') == 45 and ia.get('subagent_id') == worker_cid for ia in active_turn['issue_actions']))
+            self.assertFalse(any(ia.get('repo') == 'smokeday-com/m' for ia in active_turn['issue_actions']))
 
             # Recover checkpoint, then verify citing evicted res/143.md without re-reading is blocked
             completion.recover_checkpoint(project, cid, platform='antigravity', backend=backend)
@@ -638,6 +712,153 @@ class Issue45To48Tests(unittest.TestCase):
                     backend=backend,
                     watch=False,
                 )
+
+    def test_issue48_codex_subagent_aggregation_ignores_read_output_uuids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / 'project'
+            project.mkdir()
+            home = root / 'codex'
+            (home / 'sessions').mkdir(parents=True)
+            cid = str(uuid.uuid4())
+            turn_id = str(uuid.uuid4())
+            child_cid = str(uuid.uuid4())
+            hist_cid = str(uuid.uuid4())
+
+            p_roll = home / 'sessions' / f'{cid}.jsonl'
+            c_roll = home / 'sessions' / f'{child_cid}.jsonl'
+            h_roll = home / 'sessions' / f'{hist_cid}.jsonl'
+
+            conn = sqlite3.connect(home / 'state_1.sqlite')
+            conn.execute('CREATE TABLE threads(id TEXT PRIMARY KEY, rollout_path TEXT, archived INTEGER DEFAULT 0)')
+            conn.execute('INSERT INTO threads VALUES(?,?,0)', (cid, str(p_roll)))
+            conn.execute('INSERT INTO threads VALUES(?,?,0)', (child_cid, str(c_roll)))
+            conn.execute('INSERT INTO threads VALUES(?,?,0)', (hist_cid, str(h_roll)))
+            conn.commit()
+            conn.close()
+
+            # Historical primary thread with git/http violations and dirty file
+            hist_dirty = project / 'hist_codex_dirty.py'
+            h_rows = [
+                {'type': 'session_meta', 'payload': {'id': hist_cid, 'cwd': str(project), 'source': 'cli'}},
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call',
+                        'name': 'exec_command',
+                        'call_id': 'hc1',
+                        'arguments': json.dumps({'cmd': 'git status; curl https://example.com'}),
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'custom_tool_call',
+                        'name': 'apply_patch',
+                        'call_id': 'hp1',
+                        'input': f'*** Begin Patch\n*** Update File: {hist_dirty.as_posix()}\n*** End Patch',
+                    },
+                },
+            ]
+            h_roll.write_text(''.join(json.dumps(r) + '\n' for r in h_rows), encoding='utf-8')
+
+            # Real child subagent edits a valid file and runs exec_command whose output mentions hist_cid
+            valid_file = project / 'valid_codex.md'
+            c_rows = [
+                {
+                    'type': 'session_meta',
+                    'payload': {
+                        'id': child_cid,
+                        'cwd': str(project),
+                        'source': {'subagent': {'thread_spawn': {'parent_thread_id': cid, 'agent_path': 'worker'}}},
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'custom_tool_call',
+                        'name': 'apply_patch',
+                        'call_id': 'cp1',
+                        'input': f'*** Begin Patch\n*** Add File: {valid_file.as_posix()}\n*** End Patch',
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call',
+                        'name': 'exec_command',
+                        'call_id': 'ce1',
+                        'arguments': json.dumps({'cmd': 'Get-Content res/144.md'}),
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call_output',
+                        'call_id': 'ce1',
+                        'output': f'Historical thread UUID in file: {hist_cid}',
+                    },
+                },
+            ]
+            c_roll.write_text(''.join(json.dumps(r) + '\n' for r in c_rows), encoding='utf-8')
+
+            # Parent thread spawns child_cid and also reads a file mentioning hist_cid
+            p_rows = [
+                {'type': 'session_meta', 'payload': {'id': cid, 'cwd': str(project), 'source': 'cli'}},
+                {'type': 'turn_context', 'payload': {'turn_id': turn_id, 'cwd': str(project), 'model': 'gpt-5.4', 'effort': 'xhigh'}},
+                {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn_id}},
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'message',
+                        'role': 'user',
+                        'content': [{'type': 'input_text', 'text': f'Project root: `{project}`\nRun task'}],
+                        'internal_chat_message_metadata_passthrough': {'turn_id': turn_id, 'content_item_kinds': ['user.text']},
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call',
+                        'name': 'exec_command',
+                        'call_id': 'pe1',
+                        'arguments': json.dumps({'cmd': 'Get-Content res/143.md'}),
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call_output',
+                        'call_id': 'pe1',
+                        'output': f'Old thread: {hist_cid}',
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call',
+                        'name': 'spawn_agent',
+                        'call_id': 'ps1',
+                        'arguments': json.dumps({'agent_type': 'worker', 'message': 'Do work'}),
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call_output',
+                        'call_id': 'ps1',
+                        'output': json.dumps({'agent_id': child_cid}),
+                    },
+                },
+            ]
+            p_roll.write_text(''.join(json.dumps(r) + '\n' for r in p_rows), encoding='utf-8')
+
+            ans = codex.native_answers(project, cid, backend=home)
+            active_turn = ans['turns'][-1]
+            self.assertIn(valid_file.as_posix(), active_turn['touched_files'])
+            self.assertNotIn(hist_dirty.as_posix(), active_turn['touched_files'])
+            self.assertEqual(active_turn['exec5_violations'], [])
+            self.assertEqual(active_turn['http_fetch_violations'], [])
 
 
 if __name__ == '__main__':

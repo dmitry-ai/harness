@@ -636,7 +636,7 @@ def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> 
 	for text in outputs or []:
 		if not isinstance(text, str) or '"action"' not in text or '"repo"' not in text:
 			continue
-		if re.search('(?m)^Ran \\d+ tests? in \\d', text):
+		if re.search('(?m)^Ran \\d+ tests? in \\d', text) or re.search('(?i)"consumed_files"\\s*:\\s*\\[\\s*"[^"]*(?:[/\\\\\\\\]temp[/\\\\\\\\]|[/\\\\\\\\]tmp[/\\\\\\\\])', text):
 			continue
 		pos = 0
 		while (pos := text.find('{', pos)) >= 0:

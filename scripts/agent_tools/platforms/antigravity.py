@@ -19,6 +19,9 @@
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
 # https://github.com/dmitry-ai/harness/issues/47
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 from pathlib import Path
 from datetime import date
 from urllib.parse import unquote
@@ -653,6 +656,58 @@ def require_current_binding(root, conversation_id, *, backend=None, inputs=None,
 		raise ValueError('Native Antigravity conversation is currently bound to another project or no exact project root')
 	r = binding
 	return r
+def _extract_subagent_uuids(rows_slice: list) -> list[str]:
+	found: list[str] = []
+	rows_list = rows_slice if isinstance(rows_slice, list) else []
+	uuid_re = re.compile('\\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', re.I)
+	for pos, ev in enumerate(rows_list):
+		if not isinstance(ev, dict):
+			continue
+		ev_type = ev.get('type')
+		content = str(ev.get('content') or '')
+		if ev_type in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and '<SYSTEM_MESSAGE>' in content:
+			for m_u in re.findall('\\[Message\\]\\s+timestamp=[^\\n]*?\\bsender=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', content, flags=re.I):
+				u_low = m_u.lower()
+				if u_low not in found:
+					found.append(u_low)
+			for m_u in re.findall('\\bSubagent\\b[^\\n]{0,80}?\\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', content, flags=re.I):
+				u_low = m_u.lower()
+				if u_low not in found:
+					found.append(u_low)
+		calls = [c for c in ev.get('tool_calls') or [] if isinstance(c, dict)]
+		if not calls:
+			continue
+		has_invoke = False
+		for call in calls:
+			c_name = call.get('name', '')
+			if 'invoke_subagent' == c_name:
+				has_invoke = True
+			elif 'send_message' == c_name:
+				c_args = call.get('args', {})
+				if isinstance(c_args, str):
+					try:
+						c_args = json.loads(c_args)
+					except ValueError:
+						c_args = {}
+				if isinstance(c_args, dict):
+					recip = str(c_args.get('Recipient') or '').strip().lower()
+					if re.fullmatch('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', recip) and recip not in found:
+						found.append(recip)
+		if has_invoke:
+			for cand in rows_list[pos + 1:]:
+				if not isinstance(cand, dict):
+					continue
+				if cand.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
+					break
+				if 'GENERIC' == cand.get('type') and cand.get('content'):
+					cand_text = str(cand.get('content'))
+					if re.search('(?:^|\\n)File Path:\\s*`?file://', cand_text) or re.search('(?:^|\\n)Command exited with code \\d+\\.', cand_text):
+						continue
+					for m_u in uuid_re.findall(cand_text):
+						u_low = m_u.lower()
+						if u_low not in found:
+							found.append(u_low)
+	return found
 def native_answers(root, conversation_id, *, backend=None):
 	from .request_binding import completion_project_id
 	backend = Path(backend).resolve() if backend else Path.home() / '.gemini/antigravity'
@@ -806,39 +861,60 @@ def native_answers(root, conversation_id, *, backend=None):
 		aa_partial_read_violations = []
 		if subagent_steps:
 			visited_cids = {conversation_id}
-			queued_set = set()
+			queued_pairs = set()
 			queue_cids = []
-			for s_row in segment:
-				if isinstance(s_row, dict):
-					for m_uuid in re.findall('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', str(s_row.get('content') or '')):
-						if m_uuid not in visited_cids and m_uuid not in queued_set:
-							queued_set.add(m_uuid)
-							queue_cids.append((m_uuid, 1, bool(aa_subagent_steps)))
+			for m_uuid in _extract_subagent_uuids(segment):
+				if m_uuid not in visited_cids and (m_uuid, conversation_id) not in queued_pairs:
+					queued_pairs.add((m_uuid, conversation_id))
+					queue_cids.append((m_uuid, 1, bool(aa_subagent_steps), conversation_id))
+			if not queue_cids and position == len(boundaries) - 1:
+				try:
+					p_conn = sqlite3.connect((backend / 'conversation_summaries.db').as_uri() + '?mode=ro', uri=True)
+					try:
+						for p_row in p_conn.execute('SELECT conversation_id FROM conversation_summaries WHERE parent_conversation_id=?', (conversation_id,)).fetchall():
+							if p_row and p_row[0] and p_row[0] not in visited_cids and (p_row[0], conversation_id) not in queued_pairs:
+								queued_pairs.add((p_row[0], conversation_id))
+								queue_cids.append((p_row[0], 1, bool(aa_subagent_steps), conversation_id))
+					finally:
+						p_conn.close()
+				except Exception:
+					pass
 			while queue_cids:
-				child_cid, depth, is_aa_hint = queue_cids.pop(0)
+				child_cid, depth, is_aa_hint, expected_parent = queue_cids.pop(0)
 				if child_cid in visited_cids or depth > 4:
 					continue
 				child_log = backend / 'brain' / child_cid / '.system_generated/logs/transcript_full.jsonl'
 				if not child_log.is_file():
 					continue
-				visited_cids.add(child_cid)
 				child_agent_name = None
+				db_grandchildren = []
+				parent_mismatch = False
 				try:
 					c_conn = sqlite3.connect((backend / 'conversation_summaries.db').as_uri() + '?mode=ro', uri=True)
 					try:
 						c_row = c_conn.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (child_cid,)).fetchone()
 						if None is not c_row:
-							if c_row[0] and c_row[0] not in visited_cids:
-								continue
-							child_agent_name = c_row[1]
+							if not c_row[0] or c_row[0] != expected_parent:
+								parent_mismatch = True
+							else:
+								child_agent_name = c_row[1]
+						if not parent_mismatch:
+							db_grandchildren = [r[0] for r in c_conn.execute('SELECT conversation_id FROM conversation_summaries WHERE parent_conversation_id=?', (child_cid,)).fetchall() if r and r[0]]
 					finally:
 						c_conn.close()
 				except Exception:
 					pass
+				if parent_mismatch:
+					continue
+				visited_cids.add(child_cid)
 				try:
 					c_rows = [json.loads(line) for line in child_log.read_text(encoding='utf-8').split('\n') if line.strip()]
 				except Exception:
 					continue
+				for m_sub_uuid in db_grandchildren + _extract_subagent_uuids(c_rows):
+					if m_sub_uuid not in visited_cids and (m_sub_uuid, child_cid) not in queued_pairs:
+						queued_pairs.add((m_sub_uuid, child_cid))
+						queue_cids.append((m_sub_uuid, depth + 1, False, child_cid))
 				if 'self' == child_agent_name or (None is child_agent_name and is_aa_hint):
 					for p_err in _partial_candidate_read_issues(root_p, c_rows):
 						if p_err not in aa_partial_read_violations:
@@ -847,9 +923,6 @@ def native_answers(root, conversation_id, *, backend=None):
 				for c_pos, c_ev in enumerate(c_rows):
 					if not isinstance(c_ev, dict):
 						continue
-					for m_sub_uuid in re.findall('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', str(c_ev.get('content') or '')):
-						if m_sub_uuid not in visited_cids:
-							queue_cids.append((m_sub_uuid, depth + 1, False))
 					c_calls = [c for c in c_ev.get('tool_calls') or [] if isinstance(c, dict)]
 					if not c_calls:
 						continue
