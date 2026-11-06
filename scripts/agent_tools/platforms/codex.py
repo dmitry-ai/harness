@@ -140,6 +140,51 @@ def require_current_binding(root, conversation_id, *, backend=None, rows=None, u
 		raise ValueError('Native Codex conversation is currently bound to another project or no exact project root')
 	r = binding
 	return r
+def _extract_codex_target_subagents(raw_args) -> list[str]:
+	if isinstance(raw_args, str):
+		try:
+			raw_args = json.loads(raw_args)
+		except ValueError:
+			raw_args = {}
+	if not isinstance(raw_args, dict):
+		return []
+	candidates: list[str] = []
+	for key in ('id', 'Recipient', 'agent_id', 'subagent_id'):
+		val = raw_args.get(key)
+		if isinstance(val, str):
+			candidates.append(val.strip().lower())
+	ids_val = raw_args.get('ids')
+	if isinstance(ids_val, list):
+		for item in ids_val:
+			if isinstance(item, str):
+				candidates.append(item.strip().lower())
+	return [
+		u for u in dict.fromkeys(candidates)
+		if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)
+	]
+def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
+	if not isinstance(out_text, str) or not out_text.strip():
+		return []
+	try:
+		parsed = json.loads(out_text)
+	except ValueError:
+		parsed = None
+	if isinstance(parsed, dict):
+		id_vals = [
+			str(parsed[k]).strip().lower()
+			for k in ('agent_id', 'conversationId', 'subagent_id', 'id', 'thread_id')
+			if isinstance(parsed.get(k), str)
+		]
+		matched = [
+			u for u in dict.fromkeys(id_vals)
+			if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)
+		]
+		if matched or any((k in parsed for k in ('output', 'message', 'response', 'content'))):
+			return matched
+	return [
+		m.lower()
+		for m in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_text, flags=re.I)
+	]
 def native_answers(root, conversation_id, *, backend=None):
 	from .request_binding import completion_project_id
 	home = _home(backend)
@@ -168,7 +213,8 @@ def native_answers(root, conversation_id, *, backend=None):
 			if not isinstance(raw_cmd, str):
 				raw_cmd = json.dumps(raw_cmd, ensure_ascii=False)
 			current['tool_steps'].append(index)
-			rec = {'step': index, 'tools': [name], 'outputs': []}
+			target_subs = _extract_codex_target_subagents(payload.get('arguments', payload.get('input', {}))) if name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')) else []
+			rec = {'step': index, 'tools': [name], 'outputs': [], 'target_subagents': target_subs}
 			current['tool_records'].append(rec)
 			if payload.get('call_id'):
 				current['_pending_calls'][payload['call_id']] = rec
@@ -182,10 +228,10 @@ def native_answers(root, conversation_id, *, backend=None):
 			if any((tok in raw_cmd for tok in ('recover-checkpoint', str(path.name), 'transcript_full.jsonl'))):
 				if index not in current['transcript_read_steps']:
 					current['transcript_read_steps'].append(index)
-			if name.endswith(('spawn_agent', 'send_input')) or 'spawn_agent' in raw_cmd:
+			if name.endswith(('spawn_agent', 'invoke_subagent', 'send_input', 'send_message', 'wait', 'wait_agent')) or 'spawn_agent' in raw_cmd:
 				if index not in current['subagent_steps']:
 					current['subagent_steps'].append(index)
-				if name.endswith('spawn_agent') or 'spawn_agent' in raw_cmd:
+				if name.endswith(('spawn_agent', 'invoke_subagent')) or 'spawn_agent' in raw_cmd:
 					if re.search('(?i)"(?:task_name|agent_type|role)"\\s*:\\s*"[^"]*\\baf\\b', raw_cmd):
 						if index not in current['af_subagent_steps']:
 							current['af_subagent_steps'].append(index)
@@ -290,9 +336,12 @@ def native_answers(root, conversation_id, *, backend=None):
 					p_tid = spawn_meta.get('parent_thread_id') if isinstance(spawn_meta, dict) else None
 					thread_parent_map[tid] = p_tid if isinstance(p_tid, str) and p_tid else ''
 					if isinstance(p_tid, str) and p_tid:
-						child_parent_map.setdefault(p_tid, []).append(tid)
+						parent_children = child_parent_map.setdefault(p_tid, [])
+						if tid not in parent_children:
+							parent_children.append(tid)
 				except (OSError, ValueError, KeyError, TypeError, AttributeError):
 					continue
+	completed_turn_sub_ids: set[str] = set()
 	for t_idx, turn in enumerate(turns):
 		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(turn.get('all_request_steps', []))
 		turn.pop('all_request_steps', None)
@@ -308,18 +357,23 @@ def native_answers(root, conversation_id, *, backend=None):
 		records = turn.pop('tool_records', [])
 		turn.pop('_pending_calls', None)
 		turn['issue_actions'] = extract_issue_actions_from_outputs([out for r in records for out in r.get('outputs', [])])
-		if not child and (sub_steps or (t_idx == len(turns) - 1 and child_parent_map.get(conversation_id))):
-			queue_ids = [(cid_item, conversation_id) for cid_item in child_parent_map.get(conversation_id, [])] if t_idx == len(turns) - 1 else []
+		unclaimed_db_children = [cid_item for cid_item in child_parent_map.get(conversation_id, []) if cid_item not in completed_turn_sub_ids]
+		visited_sub_ids = {conversation_id}
+		if not child and (sub_steps or (t_idx == len(turns) - 1 and unclaimed_db_children)):
+			queue_ids = [(cid_item, conversation_id) for cid_item in unclaimed_db_children] if t_idx == len(turns) - 1 else []
 			queued_pairs = set(queue_ids)
 			for r in records:
+				for t_uid in r.get('target_subagents', []):
+					if t_uid != conversation_id and (t_uid, conversation_id) not in queued_pairs:
+						queued_pairs.add((t_uid, conversation_id))
+						queue_ids.append((t_uid, conversation_id))
 				if not any((str(t).endswith(('spawn_agent', 'invoke_subagent')) for t in r.get('tools', []))):
 					continue
 				for out in r.get('outputs', []):
-					for m_uuid in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', str(out)):
+					for m_uuid in _extract_codex_spawn_output_uuids(str(out)):
 						if m_uuid != conversation_id and (m_uuid, conversation_id) not in queued_pairs:
 							queued_pairs.add((m_uuid, conversation_id))
 							queue_ids.append((m_uuid, conversation_id))
-			visited_sub_ids = {conversation_id}
 			while queue_ids:
 				sub_id, expected_parent = queue_ids.pop(0)
 				if sub_id in visited_sub_ids:
@@ -348,16 +402,9 @@ def native_answers(root, conversation_id, *, backend=None):
 							s_raw = json.dumps(s_raw, ensure_ascii=False)
 						if s_name.endswith(('spawn_agent', 'invoke_subagent')) and s_pay.get('call_id'):
 							sub_spawn_call_ids.add(s_pay['call_id'])
-						elif s_name.endswith(('send_input', 'send_message')):
-							s_in = s_pay.get('arguments', s_pay.get('input', {}))
-							if isinstance(s_in, str):
-								try:
-									s_in = json.loads(s_in)
-								except ValueError:
-									s_in = {}
-							if isinstance(s_in, dict):
-								t_uid = str(s_in.get('id') or s_in.get('Recipient') or '').strip().lower()
-								if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', t_uid) and t_uid not in visited_sub_ids and ((t_uid, sub_id) not in queued_pairs):
+						elif s_name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')):
+							for t_uid in _extract_codex_target_subagents(s_pay.get('arguments', s_pay.get('input', {}))):
+								if t_uid not in visited_sub_ids and (t_uid, sub_id) not in queued_pairs:
 									queued_pairs.add((t_uid, sub_id))
 									queue_ids.append((t_uid, sub_id))
 						if 'exec' == s_name or s_name.endswith(('exec_command', 'run_command')):
@@ -405,7 +452,7 @@ def native_answers(root, conversation_id, *, backend=None):
 						out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
 						sub_outputs.append(out_s)
 						if s_pay.get('call_id') in sub_spawn_call_ids:
-							for m_uuid in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_s):
+							for m_uuid in _extract_codex_spawn_output_uuids(out_s):
 								if m_uuid not in visited_sub_ids and (m_uuid, sub_id) not in queued_pairs:
 									queued_pairs.add((m_uuid, sub_id))
 									queue_ids.append((m_uuid, sub_id))
@@ -413,6 +460,9 @@ def native_answers(root, conversation_id, *, backend=None):
 					act_with_sub = {**act, 'subagent_id': sub_id}
 					if act_with_sub not in turn['issue_actions']:
 						turn['issue_actions'].append(act_with_sub)
+		completed_turn_sub_ids.update(visited_sub_ids - {conversation_id})
+		for r in records:
+			r.pop('target_subagents', None)
 		last_cp = max(cp_steps) if cp_steps else None
 		pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
 		post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]

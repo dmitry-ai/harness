@@ -605,7 +605,7 @@ class Issue45To48Tests(unittest.TestCase):
                     encoding='utf-8',
                 )
 
-            # Coordinator transcript references worker_cid and receives a SYSTEM_MESSAGE whose body mentions historical UUIDs
+            # Coordinator transcript references worker_cid and receives a SYSTEM_MESSAGE whose body mentions Subagent/sender historical UUIDs
             coord_log = backend / 'brain' / coord_cid / '.system_generated/logs/transcript_full.jsonl'
             coord_log.parent.mkdir(parents=True, exist_ok=True)
             coord_log.write_text(
@@ -615,14 +615,23 @@ class Issue45To48Tests(unittest.TestCase):
                     {
                         'step_index': 2,
                         'type': 'SYSTEM_MESSAGE',
-                        'content': f'<SYSTEM_MESSAGE>\n[Message] timestamp=2026-11-06T21:00:00Z sender={worker_cid} priority=HIGH content=Checked {hist_primary_cid} and {hist_sub_cid}\n</SYSTEM_MESSAGE>',
+                        'content': (
+                            f'<SYSTEM_MESSAGE>\n[Message] timestamp=2026-11-06T21:00:00Z sender={worker_cid} priority=HIGH '
+                            f'content=Checked Subagent {hist_primary_cid} completed and [Message] timestamp=2026-11-01T00:00:00Z sender={hist_sub_cid}\n</SYSTEM_MESSAGE>'
+                        ),
                     }
                 )
                 + '\n',
                 encoding='utf-8',
             )
+            self.assertEqual(
+                antigravity._extract_subagent_uuids(
+                    [json.loads(line) for line in coord_log.read_text(encoding='utf-8').splitlines() if line.strip()]
+                ),
+                [worker_cid.lower()],
+            )
 
-            # Worker transcript reads res/143.md (containing historical UUIDs), edits a file, creates an issue, and messages coordinator
+            # Worker transcript reads res/143.md (containing historical UUIDs and <SYSTEM_MESSAGE> text), edits a file, creates an issue, and messages coordinator
             worker_file = project / 'notes.md'
             worker_log = backend / 'brain' / worker_cid / '.system_generated/logs/transcript_full.jsonl'
             worker_log.parent.mkdir(parents=True, exist_ok=True)
@@ -660,7 +669,11 @@ class Issue45To48Tests(unittest.TestCase):
                     {
                         'step_index': 2,
                         'type': 'GENERIC',
-                        'content': f'Created At: 2026-11-06\nFile Path: `file:///{res_file.as_posix()}`\n1: Historical {hist_primary_cid} {hist_sub_cid}',
+                        'content': (
+                            f'Created At: 2026-11-06\nFile Path: `file:///{res_file.as_posix()}`\n'
+                            f'1: <SYSTEM_MESSAGE>\n2: [Message] timestamp=2026-11-01T00:00:00Z sender={hist_primary_cid}\n'
+                            f'3: Subagent {hist_sub_cid} completed\n4: </SYSTEM_MESSAGE>'
+                        ),
                     }
                 )
                 + '\n'
@@ -668,8 +681,14 @@ class Issue45To48Tests(unittest.TestCase):
                 + '\n',
                 encoding='utf-8',
             )
+            self.assertEqual(
+                antigravity._extract_subagent_uuids(
+                    [json.loads(line) for line in worker_log.read_text(encoding='utf-8').splitlines() if line.strip()]
+                ),
+                [coord_cid.lower()],
+            )
 
-            # Parent transcript reads res/143.md BEFORE CHECKPOINT, then invokes coord_cid, then compacts
+            # Parent transcript reads res/143.md BEFORE CHECKPOINT alongside invoke_subagent, then compacts
             parent_log = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
             parent_log.parent.mkdir(parents=True, exist_ok=True)
             rows = [
@@ -679,14 +698,20 @@ class Issue45To48Tests(unittest.TestCase):
                     'type': 'PLANNER_RESPONSE',
                     'content': '',
                     'tool_calls': [
-                        {'id': 'r1', 'name': 'view_file', 'args': {'AbsolutePath': str(res_file)}},
+                        {'id': 'r1', 'name': 'read_file', 'args': {'Path': str(res_file)}},
                         {'id': 's1', 'name': 'invoke_subagent', 'args': {'TypeName': 'coordinator'}},
                     ],
                 },
-                {'step_index': 2, 'type': 'GENERIC', 'content': f'Subagent {coord_cid} completed'},
-                {'step_index': 3, 'type': 'CHECKPOINT', 'content': 'Compacted summary'},
+                {
+                    'step_index': 2,
+                    'type': 'GENERIC',
+                    'content': f'Created At: 2026-11-06\nCompleted At: 2026-11-06\nShowing lines 1-2 of 2\n1: Subagent {hist_primary_cid}\n2: {hist_sub_cid}',
+                },
+                {'step_index': 3, 'type': 'GENERIC', 'content': f'Subagent {coord_cid} completed'},
+                {'step_index': 4, 'type': 'CHECKPOINT', 'content': 'Compacted summary'},
             ]
             parent_log.write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
+            self.assertEqual(antigravity._extract_subagent_uuids(rows), [coord_cid.lower()])
 
             # Check recursive subagent aggregation in native_answers
             ans = antigravity.native_answers(project, cid, backend=backend)
@@ -721,17 +746,21 @@ class Issue45To48Tests(unittest.TestCase):
             home = root / 'codex'
             (home / 'sessions').mkdir(parents=True)
             cid = str(uuid.uuid4())
-            turn_id = str(uuid.uuid4())
+            turn1_id = str(uuid.uuid4())
+            turn2_id = str(uuid.uuid4())
+            turn1_sub_cid = str(uuid.uuid4())
             child_cid = str(uuid.uuid4())
             hist_cid = str(uuid.uuid4())
 
             p_roll = home / 'sessions' / f'{cid}.jsonl'
+            t1_roll = home / 'sessions' / f'{turn1_sub_cid}.jsonl'
             c_roll = home / 'sessions' / f'{child_cid}.jsonl'
             h_roll = home / 'sessions' / f'{hist_cid}.jsonl'
 
             conn = sqlite3.connect(home / 'state_1.sqlite')
             conn.execute('CREATE TABLE threads(id TEXT PRIMARY KEY, rollout_path TEXT, archived INTEGER DEFAULT 0)')
             conn.execute('INSERT INTO threads VALUES(?,?,0)', (cid, str(p_roll)))
+            conn.execute('INSERT INTO threads VALUES(?,?,0)', (turn1_sub_cid, str(t1_roll)))
             conn.execute('INSERT INTO threads VALUES(?,?,0)', (child_cid, str(c_roll)))
             conn.execute('INSERT INTO threads VALUES(?,?,0)', (hist_cid, str(h_roll)))
             conn.commit()
@@ -762,7 +791,39 @@ class Issue45To48Tests(unittest.TestCase):
             ]
             h_roll.write_text(''.join(json.dumps(r) + '\n' for r in h_rows), encoding='utf-8')
 
-            # Real child subagent edits a valid file and runs exec_command whose output mentions hist_cid
+            # Turn 1 child subagent (from a completed prior turn of the same parent cid) with old violation/file
+            turn1_dirty = project / 'turn1_codex_dirty.py'
+            t1_rows = [
+                {
+                    'type': 'session_meta',
+                    'payload': {
+                        'id': turn1_sub_cid,
+                        'cwd': str(project),
+                        'source': {'subagent': {'thread_spawn': {'parent_thread_id': cid, 'agent_path': 'worker'}}},
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call',
+                        'name': 'exec_command',
+                        'call_id': 't1c1',
+                        'arguments': json.dumps({'cmd': 'git status'}),
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'custom_tool_call',
+                        'name': 'apply_patch',
+                        'call_id': 't1p1',
+                        'input': f'*** Begin Patch\n*** Update File: {turn1_dirty.as_posix()}\n*** End Patch',
+                    },
+                },
+            ]
+            t1_roll.write_text(''.join(json.dumps(r) + '\n' for r in t1_rows), encoding='utf-8')
+
+            # Real Turn 2 child subagent edits a valid file and runs exec_command whose output mentions hist_cid
             valid_file = project / 'valid_codex.md'
             c_rows = [
                 {
@@ -802,18 +863,57 @@ class Issue45To48Tests(unittest.TestCase):
             ]
             c_roll.write_text(''.join(json.dumps(r) + '\n' for r in c_rows), encoding='utf-8')
 
-            # Parent thread spawns child_cid and also reads a file mentioning hist_cid
+            # Parent thread: Turn 1 spawns turn1_sub_cid and completes; Turn 2 spawns child_cid and reads a file mentioning hist_cid
             p_rows = [
                 {'type': 'session_meta', 'payload': {'id': cid, 'cwd': str(project), 'source': 'cli'}},
-                {'type': 'turn_context', 'payload': {'turn_id': turn_id, 'cwd': str(project), 'model': 'gpt-5.4', 'effort': 'xhigh'}},
-                {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn_id}},
+                {'type': 'turn_context', 'payload': {'turn_id': turn1_id, 'cwd': str(project), 'model': 'gpt-5.4', 'effort': 'xhigh'}},
+                {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn1_id}},
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'message',
+                        'role': 'user',
+                        'content': [{'type': 'input_text', 'text': f'Project root: `{project}`\nTurn 1 task'}],
+                        'internal_chat_message_metadata_passthrough': {'turn_id': turn1_id, 'content_item_kinds': ['user.text']},
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call',
+                        'name': 'spawn_agent',
+                        'call_id': 't1s1',
+                        'arguments': json.dumps({'agent_type': 'worker', 'message': 'Turn 1 work'}),
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'function_call_output',
+                        'call_id': 't1s1',
+                        'output': json.dumps({'agent_id': turn1_sub_cid}),
+                    },
+                },
+                {
+                    'type': 'response_item',
+                    'payload': {
+                        'type': 'message',
+                        'role': 'assistant',
+                        'phase': 'final_answer',
+                        'status': 'completed',
+                        'content': [{'type': 'output_text', 'text': 'Turn 1 done.'}],
+                    },
+                },
+                {'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': turn1_id, 'last_agent_message': 'Turn 1 done.'}},
+                {'type': 'turn_context', 'payload': {'turn_id': turn2_id, 'cwd': str(project), 'model': 'gpt-5.4', 'effort': 'xhigh'}},
+                {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn2_id}},
                 {
                     'type': 'response_item',
                     'payload': {
                         'type': 'message',
                         'role': 'user',
                         'content': [{'type': 'input_text', 'text': f'Project root: `{project}`\nRun task'}],
-                        'internal_chat_message_metadata_passthrough': {'turn_id': turn_id, 'content_item_kinds': ['user.text']},
+                        'internal_chat_message_metadata_passthrough': {'turn_id': turn2_id, 'content_item_kinds': ['user.text']},
                     },
                 },
                 {
@@ -830,7 +930,7 @@ class Issue45To48Tests(unittest.TestCase):
                     'payload': {
                         'type': 'function_call_output',
                         'call_id': 'pe1',
-                        'output': f'Old thread: {hist_cid}',
+                        'output': f'Old thread: {hist_cid} and {turn1_sub_cid}',
                     },
                 },
                 {
@@ -839,7 +939,7 @@ class Issue45To48Tests(unittest.TestCase):
                         'type': 'function_call',
                         'name': 'spawn_agent',
                         'call_id': 'ps1',
-                        'arguments': json.dumps({'agent_type': 'worker', 'message': 'Do work'}),
+                        'arguments': json.dumps({'agent_type': 'worker', 'message': f'Do work, ignore {hist_cid}'}),
                     },
                 },
                 {
@@ -847,18 +947,132 @@ class Issue45To48Tests(unittest.TestCase):
                     'payload': {
                         'type': 'function_call_output',
                         'call_id': 'ps1',
-                        'output': json.dumps({'agent_id': child_cid}),
+                        'output': json.dumps({'agent_id': child_cid, 'response': f'Read {hist_cid} and {turn1_sub_cid}'}),
                     },
                 },
             ]
             p_roll.write_text(''.join(json.dumps(r) + '\n' for r in p_rows), encoding='utf-8')
 
             ans = codex.native_answers(project, cid, backend=home)
+            self.assertEqual(len(ans['turns']), 2)
             active_turn = ans['turns'][-1]
             self.assertIn(valid_file.as_posix(), active_turn['touched_files'])
             self.assertNotIn(hist_dirty.as_posix(), active_turn['touched_files'])
+            self.assertNotIn(turn1_dirty.as_posix(), active_turn['touched_files'])
             self.assertEqual(active_turn['exec5_violations'], [])
             self.assertEqual(active_turn['http_fetch_violations'], [])
+
+    def test_issue48_antigravity_multiturn_subagent_isolation_mid_invocation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / 'project'
+            project.mkdir()
+            backend = root / 'ag'
+            (backend / 'conversations').mkdir(parents=True)
+            cid = str(uuid.uuid4())
+            turn1_sub_cid = str(uuid.uuid4())
+            turn2_sub_cid = str(uuid.uuid4())
+
+            c = sqlite3.connect(backend / 'conversation_summaries.db')
+            c.execute(
+                'CREATE TABLE conversation_summaries(conversation_id TEXT,parent_conversation_id TEXT,workspace_uris TEXT,status TEXT,not_fully_idle INTEGER,killed INTEGER,last_user_input_step_index INTEGER,agent_name TEXT)'
+            )
+            c.execute(
+                'INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)',
+                (cid, '', json.dumps([project.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 5, 'primary'),
+            )
+            c.execute(
+                'INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)',
+                (turn1_sub_cid, cid, json.dumps([project.as_uri()]), 'CASCADE_RUN_STATUS_IDLE', 0, 0, 0, 'worker'),
+            )
+            c.execute(
+                'INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)',
+                (turn2_sub_cid, cid, json.dumps([project.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'worker'),
+            )
+            c.commit()
+            c.close()
+
+            c = sqlite3.connect(backend / 'conversations' / (cid + '.db'))
+            c.execute('CREATE TABLE steps(idx INTEGER,step_type INTEGER,status INTEGER,step_format INTEGER,step_payload BLOB)')
+            c.execute('INSERT INTO steps VALUES(0,14,3,0,?)', (_wire(19, _wire(2, b'Turn 1 request')),))
+            c.execute('INSERT INTO steps VALUES(4,15,3,0,NULL)')
+            c.execute('INSERT INTO steps VALUES(5,14,3,0,?)', (_wire(19, _wire(2, b'Turn 2 request')),))
+            c.commit()
+            c.close()
+
+            t1_dirty = project / 'turn1_ag_dirty.py'
+            t1_log = backend / 'brain' / turn1_sub_cid / '.system_generated/logs/transcript_full.jsonl'
+            t1_log.parent.mkdir(parents=True, exist_ok=True)
+            t1_log.write_text(
+                json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Turn 1 subagent'}) + '\n'
+                + json.dumps(
+                    {
+                        'step_index': 1,
+                        'type': 'PLANNER_RESPONSE',
+                        'content': '',
+                        'tool_calls': [
+                            {'id': 'w1', 'name': 'write_to_file', 'args': {'TargetFile': str(t1_dirty)}},
+                            {'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'git status'}},
+                        ],
+                    }
+                )
+                + '\n',
+                encoding='utf-8',
+            )
+
+            t2_valid = project / 'turn2_ag_valid.md'
+            t2_log = backend / 'brain' / turn2_sub_cid / '.system_generated/logs/transcript_full.jsonl'
+            t2_log.parent.mkdir(parents=True, exist_ok=True)
+            t2_log.write_text(
+                json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Turn 2 subagent'}) + '\n'
+                + json.dumps(
+                    {
+                        'step_index': 1,
+                        'type': 'PLANNER_RESPONSE',
+                        'content': '',
+                        'tool_calls': [
+                            {'id': 'w2', 'name': 'write_to_file', 'args': {'TargetFile': str(t2_valid)}},
+                        ],
+                    }
+                )
+                + '\n',
+                encoding='utf-8',
+            )
+
+            # Parent transcript: Turn 1 completes; Turn 2 invokes subagent before its GENERIC step is flushed
+            parent_log = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
+            parent_log.parent.mkdir(parents=True, exist_ok=True)
+            rows = [
+                {'step_index': 0, 'type': 'USER_INPUT', 'content': 'Turn 1 request'},
+                {
+                    'step_index': 1,
+                    'type': 'PLANNER_RESPONSE',
+                    'content': '',
+                    'tool_calls': [{'id': 's1', 'name': 'invoke_subagent', 'args': {'TypeName': 'worker'}}],
+                },
+                {'step_index': 2, 'type': 'GENERIC', 'content': f'Created the following subagent:\n{{"conversationId": "{turn1_sub_cid}"}}'},
+                {
+                    'step_index': 3,
+                    'type': 'SYSTEM_MESSAGE',
+                    'content': f'<SYSTEM_MESSAGE>\n[Message] timestamp=2026-11-06T20:00:00Z sender={turn1_sub_cid} priority=HIGH content=Turn 1 done\n</SYSTEM_MESSAGE>',
+                },
+                {'step_index': 4, 'type': 'PLANNER_RESPONSE', 'content': 'Turn 1 final response.'},
+                {'step_index': 5, 'type': 'USER_INPUT', 'content': 'Turn 2 request'},
+                {
+                    'step_index': 6,
+                    'type': 'PLANNER_RESPONSE',
+                    'content': '',
+                    'tool_calls': [{'id': 's2', 'name': 'invoke_subagent', 'args': {'TypeName': 'worker'}}],
+                },
+            ]
+            parent_log.write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
+
+            ans = antigravity.native_answers(project, cid, backend=backend)
+            self.assertEqual(len(ans['turns']), 2)
+            active_turn = ans['turns'][-1]
+            self.assertIn(str(t2_valid), active_turn['touched_files'])
+            self.assertNotIn(str(t1_dirty), active_turn['touched_files'])
+            self.assertEqual(active_turn['exec5_violations'], [])
 
 
 if __name__ == '__main__':

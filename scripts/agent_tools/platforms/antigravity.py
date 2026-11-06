@@ -665,12 +665,13 @@ def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 			continue
 		ev_type = ev.get('type')
 		content = str(ev.get('content') or '')
-		if ev_type in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and '<SYSTEM_MESSAGE>' in content:
-			for m_u in re.findall('\\[Message\\]\\s+timestamp=[^\\n]*?\\bsender=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', content, flags=re.I):
+		if ev_type in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and re.match('^\\s*(?:The following is a <SYSTEM_MESSAGE>[^\\n]*\\n+\\s*)?<SYSTEM_MESSAGE>', content):
+			sys_header = re.split('\\bcontent=', content, maxsplit=1)[0]
+			for m_u in re.findall('\\[Message\\]\\s+timestamp=[^\\n]*?\\bsender=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', sys_header, flags=re.I):
 				u_low = m_u.lower()
 				if u_low not in found:
 					found.append(u_low)
-			for m_u in re.findall('\\bSubagent\\b[^\\n]{0,80}?\\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', content, flags=re.I):
+			for m_u in re.findall('\\bSubagent\\b[^\\n]{0,80}?\\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', sys_header, flags=re.I):
 				u_low = m_u.lower()
 				if u_low not in found:
 					found.append(u_low)
@@ -701,9 +702,15 @@ def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 					break
 				if 'GENERIC' == cand.get('type') and cand.get('content'):
 					cand_text = str(cand.get('content'))
-					if re.search('(?:^|\\n)File Path:\\s*`?file://', cand_text) or re.search('(?:^|\\n)Command exited with code \\d+\\.', cand_text):
+					if re.search('(?:^|\\n)(?:File Path:\\s*`?file://|Showing lines \\d+-\\d+ of \\d+|Partial read \\(lines \\d+-\\d+ of \\d+\\)|Command exited with code \\d+\\.|Tool is running as a background task)', cand_text):
 						continue
-					for m_u in uuid_re.findall(cand_text):
+					invoke_matches = (
+						re.findall('"(?:conversationId|agent_id|subagent_id)"\\s*:\\s*"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"', cand_text, flags=re.I)
+						+ re.findall('\\b(?:Subagents?|subagents?|workers?|coordinators?)\\b[^\\n]{0,80}?\\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\b', cand_text, flags=re.I)
+					)
+					if not invoke_matches and re.fullmatch('\\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\s*', cand_text, flags=re.I):
+						invoke_matches = uuid_re.findall(cand_text)
+					for m_u in invoke_matches:
 						u_low = m_u.lower()
 						if u_low not in found:
 							found.append(u_low)
@@ -752,6 +759,7 @@ def native_answers(root, conversation_id, *, backend=None):
 				pass
 	boundaries = sorted((index for index, _ in inputs))
 	turns = []
+	completed_turn_cids: set[str] = set()
 	for position, start in enumerate(boundaries):
 		end = boundaries[position + 1] if position + 1 < len(boundaries) else None
 		segment = [row for row in rows if row.get('step_index', -1) > start and (None is end or row.get('step_index', -1) < end)]
@@ -859,20 +867,20 @@ def native_answers(root, conversation_id, *, backend=None):
 						if step_idx not in kb_persistence_steps:
 							kb_persistence_steps.append(step_idx)
 		aa_partial_read_violations = []
+		visited_cids = {conversation_id}
 		if subagent_steps:
-			visited_cids = {conversation_id}
 			queued_pairs = set()
 			queue_cids = []
 			for m_uuid in _extract_subagent_uuids(segment):
 				if m_uuid not in visited_cids and (m_uuid, conversation_id) not in queued_pairs:
 					queued_pairs.add((m_uuid, conversation_id))
 					queue_cids.append((m_uuid, 1, bool(aa_subagent_steps), conversation_id))
-			if not queue_cids and position == len(boundaries) - 1:
+			if position == len(boundaries) - 1:
 				try:
 					p_conn = sqlite3.connect((backend / 'conversation_summaries.db').as_uri() + '?mode=ro', uri=True)
 					try:
 						for p_row in p_conn.execute('SELECT conversation_id FROM conversation_summaries WHERE parent_conversation_id=?', (conversation_id,)).fetchall():
-							if p_row and p_row[0] and p_row[0] not in visited_cids and (p_row[0], conversation_id) not in queued_pairs:
+							if p_row and p_row[0] and p_row[0] not in visited_cids and p_row[0] not in completed_turn_cids and (p_row[0], conversation_id) not in queued_pairs:
 								queued_pairs.add((p_row[0], conversation_id))
 								queue_cids.append((p_row[0], 1, bool(aa_subagent_steps), conversation_id))
 					finally:
@@ -990,6 +998,7 @@ def native_answers(root, conversation_id, *, backend=None):
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
+		completed_turn_cids.update(visited_cids - {conversation_id})
 		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'aa_subagent_steps': aa_subagent_steps, 'aa_partial_read_violations': aa_partial_read_violations, 'af_subagent_steps': af_subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records, 'touched_files': touched_files, 'file_reads': file_reads, 'file_writes': file_writes, 'issue_actions': issue_actions})
 	def _merge_pending(items):
 		first, last = (items[0], items[-1])
