@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+# https://github.com/dmitry-ai/harness/issues/47
 import hashlib
 import json
 import re
@@ -17,6 +20,104 @@ def digest(payload):
 	return hashlib.sha256(payload).hexdigest()
 def _text(value):
 	return isinstance(value, str) and bool(value.strip())
+def load_verified_claims_cache(root) -> dict:
+	path = Path(root).resolve() / 'ꘖ/data/verified-claims.json'
+	if path.is_file():
+		try:
+			data = json.loads(path.read_text(encoding='utf-8'))
+			if isinstance(data, dict) and isinstance(data.get('claims'), dict):
+				return data
+		except (OSError, ValueError):
+			pass
+	return {'version': 1, 'claims': {}}
+def _claim_evidence_sources(claim_id: str, index: dict) -> list[str]:
+	claim = index.get(claim_id) or {}
+	sources = set()
+	for ref in claim.get('primary_evidence') or []:
+		if isinstance(ref, dict) and _text(ref.get('source')):
+			sources.add(ref['source'])
+	for dep in claim.get('derived_from') or []:
+		dep_id = dep.get('claim_id') if isinstance(dep, dict) else None
+		if _text(dep_id) and dep_id in index:
+			for ref in (index[dep_id].get('primary_evidence') or []):
+				if isinstance(ref, dict) and _text(ref.get('source')):
+					sources.add(ref['source'])
+	return sorted(sources)
+def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> str:
+	ident = claim_entry.get('claim_id', '')
+	srcs = _claim_evidence_sources(ident, index)
+	ev_pairs = [(s, evidence_inputs.get(s, '')) for s in srcs]
+	payload = json_data({
+		'claim_id': ident,
+		'claim_sha256': claim_entry.get('claim_sha256', ''),
+		'response_excerpt': claim_entry.get('response_excerpt', ''),
+		'evidence_hashes': ev_pairs,
+	})
+	return digest(payload)
+def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence_inputs: dict) -> dict:
+	from .claims import all_claims
+	index = {c['id']: c for c in all_claims(value) if isinstance(c, dict) and _text(c.get('id'))}
+	cache = load_verified_claims_cache(root).get('claims', {})
+	cached_ids = []
+	unverified_ids = []
+	merkle_hashes = {}
+	for item in manifest:
+		ident = item['claim_id']
+		m_hash = claim_merkle_hash(item, index, evidence_inputs or {})
+		merkle_hashes[ident] = m_hash
+		cached_entry = cache.get(ident)
+		if isinstance(cached_entry, dict) and cached_entry.get('merkle_sha256') == m_hash and cached_entry.get('claim_sha256') == item.get('claim_sha256'):
+			cached_ids.append(ident)
+		else:
+			unverified_ids.append(ident)
+	return {
+		'cached_claim_ids': cached_ids,
+		'unverified_claim_ids': unverified_ids,
+		'merkle_hashes': merkle_hashes,
+	}
+def update_verified_claims_cache(root, package: dict, value: dict | None = None) -> dict:
+	from .claims import all_claims
+	root = Path(root).resolve()
+	if None is value:
+		try:
+			value = _analysis(root)
+		except (OSError, ValueError):
+			value = {}
+	index = {c['id']: c for c in all_claims(value) if isinstance(c, dict) and _text(c.get('id'))} if isinstance(value, dict) else {}
+	ev_inputs = package.get('evidence_inputs') or {}
+	cache_data = load_verified_claims_cache(root)
+	claims_map = cache_data.setdefault('claims', {})
+	for item in package.get('claims') or []:
+		if isinstance(item, dict) and _text(item.get('claim_id')):
+			ident = item['claim_id']
+			m_hash = (package.get('merkle_delta') or {}).get('merkle_hashes', {}).get(ident) or claim_merkle_hash(item, index, ev_inputs)
+			claims_map[ident] = {
+				'claim_id': ident,
+				'claim_sha256': item.get('claim_sha256', ''),
+				'merkle_sha256': m_hash,
+				'response_sha256': (package.get('response') or {}).get('sha256', ''),
+			}
+	path = root / 'ꘖ/data/verified-claims.json'
+	if path.parent.is_dir() or (root / 'ꘖ').is_dir():
+		path.parent.mkdir(parents=True, exist_ok=True)
+		path.write_text(json.dumps(cache_data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+	return cache_data
+def build_blind_verification_predicates(manifest: list[dict], value: dict) -> list[dict]:
+	from .claims import all_claims
+	index = {c['id']: c for c in all_claims(value) if isinstance(c, dict) and _text(c.get('id'))}
+	predicates = []
+	for item in manifest:
+		ident = item['claim_id']
+		raw_essence = str(item.get('essence') or '')
+		clean_predicate = re.sub('(?:\\s*\\(\\d{1,3}%\\)|\\s+with\\s+\\d{1,3}%\\s+(?:confidence|probability|plausibility))', '', raw_essence, flags=re.I).strip()
+		predicates.append({
+			'claim_id': ident,
+			'knowledge_type': item.get('knowledge_type'),
+			'atomic_predicate': clean_predicate,
+			'primary_sources': _claim_evidence_sources(ident, index),
+			'question': f'Does the Tier 0 primary evidence directly entail or falsify the atomic statement for {ident}: "{clean_predicate}"?',
+		})
+	return predicates
 def _immutable(path, payload):
 	path.parent.mkdir(parents=True, exist_ok=True)
 	if path.exists():
@@ -61,7 +162,9 @@ def _approved_digests(root, state, *, exclude_package=None):
 		if latest[entry['reviewer_id']].get('id') != entry['id'] or _unhandled_verdicts(root, state, package, latest):
 			continue
 		matching = [r for r in matching if latest[r['reviewer_id']].get('id') == r['id']]
-		if 'significant' == package['risk'] and len({r['reviewer_id'] for r in matching}) < 2:
+		has_escalation = significant_findings(root, state, package['subject_sha256']) or any(('approved' != r.get('result') for r in latest.values()))
+		is_falsifier = 'falsifier' == package.get('review_mode') or any(('falsifier' == r.get('review_mode') for r in matching))
+		if 'significant' == package['risk'] and not (is_falsifier and not has_escalation) and len({r['reviewer_id'] for r in matching}) < 2:
 			continue
 		result.update(((c['claim_id'], c['claim_sha256']) for c in package['claims']))
 	return result
@@ -136,6 +239,7 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 # https://github.com/dmitry-ai/harness/issues/12
 def prepare(root, parent_id, spec, response):
 	from .workflow import load, hashes, kb_paths, evidence_paths, doc4_sentence_issues
+	from .source_grounding import discover_entity_tier0_sources, sync_fact_ledger
 	root = Path(root).resolve()
 	if not _text(parent_id) or not _text(response):
 		raise ValueError('Observed parent ID and the exact nonempty candidate response are required')
@@ -156,7 +260,19 @@ def prepare(root, parent_id, spec, response):
 	response_sha = digest(payload)
 	candidate = root / 'ꘖ/KB/Evidence/Reviews/Candidates' / (response_sha + '.txt')
 	_immutable(candidate, payload)
-	data = {'schema_version': REVIEW_SCHEMA, 'project_root': str(root), 'job_id': state['job_id'], 'parent_id': parent_id, **classified, 'requests': requests, 'response': {'file': candidate.relative_to(root).as_posix(), 'sha256': response_sha, 'bytes': len(payload)}, 'kb_inputs': hashes(root, kb_paths(root)), 'evidence_inputs': hashes(root, evidence_paths(root)), 'scope': list(SCOPES), 'knowledge_source': 'agent KB, primary evidence, current requests and exact response; no Context.md'}
+	sync_fact_ledger(root)
+	ev_inputs = hashes(root, evidence_paths(root))
+	auto_tier0 = discover_entity_tier0_sources(root, response)
+	merkle_delta = compute_claim_merkle_delta(root, classified['claims'], value, ev_inputs)
+	blind_predicates = build_blind_verification_predicates(classified['claims'], value)
+	extra_pkg = {
+		'auto_tier0_evidence': auto_tier0,
+		'merkle_delta': merkle_delta,
+		'blind_verification_predicates': blind_predicates,
+	}
+	if isinstance(spec, dict) and spec.get('review_mode') in ('standard', 'falsifier'):
+		extra_pkg['review_mode'] = spec['review_mode']
+	data = {'schema_version': REVIEW_SCHEMA, 'project_root': str(root), 'job_id': state['job_id'], 'parent_id': parent_id, **classified, 'requests': requests, 'response': {'file': candidate.relative_to(root).as_posix(), 'sha256': response_sha, 'bytes': len(payload)}, 'kb_inputs': hashes(root, kb_paths(root)), 'evidence_inputs': ev_inputs, 'scope': list(SCOPES), 'knowledge_source': 'agent KB, primary evidence, current requests and exact response; no Context.md', **extra_pkg}
 	data['subject_sha256'] = subject_digest(data)
 	if 'routine' == data['risk'] and significant_findings(root, state, data['subject_sha256']):
 		raise ValueError('A significant/critical finding on this exact answer requires a significant package and two independent A.A')
@@ -234,7 +350,7 @@ def read_package(root, package, *, state=None, require_current=True):
 				raise ValueError('A significant/critical finding requires a significant package and two independent A.A')
 		r = data
 	return r
-REPORT_CONTRACT = {'schema_version': REVIEW_SCHEMA, 'result_options': ['approved', 'needs_changes'], 'required_scope': list(SCOPES), 'claim_review_fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'test_alignment_fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'relationship_options': ['direct', 'proxy', 'irrelevant'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'finding_fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'claim_review_required': {'fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'test_alignment_required': {'fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'relationship_options': ['direct', 'proxy', 'irrelevant']}}, 'finding_required': {'fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'status_options': ['open', 'resolved', 'rejected']}}
+REPORT_CONTRACT = {'schema_version': REVIEW_SCHEMA, 'result_options': ['approved', 'needs_changes'], 'required_scope': list(SCOPES), 'claim_review_fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'test_alignment_fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'relationship_options': ['direct', 'proxy', 'irrelevant'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'finding_fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'claim_review_required': {'fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'test_alignment_required': {'fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'relationship_options': ['direct', 'proxy', 'irrelevant']}}, 'finding_required': {'fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'status_options': ['open', 'resolved', 'rejected']}, 'falsifier_fields': ['disproved_claims'], 'disproved_claim_fields': ['claim_id', 'excerpt_from_answer', 'contradicting_tier0_source', 'verbatim_quote_from_source', 'falsification_reason']}
 def input_receipt(root, package):
 	import os
 	from .runtime import platform_name
@@ -247,7 +363,7 @@ def input_receipt(root, package):
 	if 'client_text' == data.get('kind'):
 		from .text_review import report_contract
 		contract = report_contract()
-	r = {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package, 'package_sha256': file_hash(inside(root, package)), 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks') if k in data}}
+	r = {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package, 'package_sha256': file_hash(inside(root, package)), 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks', 'auto_tier0_evidence', 'merkle_delta', 'blind_verification_predicates', 'review_mode') if k in data}}
 	return r
 def _report_object(text):
 	value = text.strip()
@@ -277,52 +393,73 @@ def report_issues(data, package):
 	expected = {c['claim_id'] for c in package['claims']}
 	targets = {c['claim_id']: c['essence'] for c in package['claims']}
 	package_claims = {c['claim_id']: c for c in package['claims']}
-	covered = set()
-	if not isinstance(data.get('claim_reviews'), list):
-		issues.append('Per-claim review coverage is required')
+	is_falsifier = 'falsifier' == data.get('review_mode') or ('disproved_claims' in data and 'claim_reviews' not in data)
+	if is_falsifier:
+		disproved = data.get('disproved_claims')
+		if not isinstance(disproved, list):
+			issues.append('Adversarial falsifier report requires a disproved_claims list')
+		else:
+			for dc in disproved:
+				if not isinstance(dc, dict):
+					issues.append('Each disproved_claims entry must be an object')
+					continue
+				if dc.get('claim_id') not in expected:
+					issues.append('Each disproved_claims entry must reference a valid response claim_id')
+				for req_field in ('excerpt_from_answer', 'contradicting_tier0_source', 'verbatim_quote_from_source', 'falsification_reason'):
+					if not _text(dc.get(req_field)):
+						issues.append(f"disproved_claims[{dc.get('claim_id', '?')}]: {req_field} is required")
+			if disproved and 'approved' == data.get('result'):
+				issues.append('Adversarial falsifier report with non-empty disproved_claims requires needs_changes')
+			if not disproved and 'needs_changes' == data.get('result') and not data.get('findings'):
+				issues.append('Adversarial falsifier needs_changes verdict requires at least one disproved_claims entry or open finding')
 	else:
-		for item in data['claim_reviews']:
-			if not isinstance(item, dict):
-				issues.append('Claim review must be an object')
-				continue
-			ident = item.get('claim_id')
-			if not _text(ident):
-				issues.append('Claim review needs a string claim_id')
-				continue
-			if ident not in expected or ident in covered:
-				issues.append('Claim review must cover each response claim exactly once')
-			covered.add(ident)
-			for field in ('observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria'):
-				if not _text(item.get(field)):
-					issues.append(f'{ident}: review {field} must explain the evidence assessment')
-			alignment = item.get('test_alignment')
-			if not isinstance(alignment, dict) or alignment.get('target_claim') != targets.get(ident) or any((not _text(alignment.get(k)) for k in ('tested_claim', 'rationale', 'counterexample'))) or (alignment.get('relationship') not in ('direct', 'proxy', 'irrelevant')):
-				issues.append(f'{ident}: test_alignment must bind the exact claim, actual tested statement, relationship, rationale and a concrete counterexample')
-			elif 'proxy' == alignment['relationship'] and 'supported' == item.get('outcome'):
-				issues.append(f'{ident}: a proxy test cannot support the broader target; qualify the claim and show the limitation in the response')
-			elif 'irrelevant' == alignment['relationship'] and 'unsupported' != item.get('outcome'):
-				issues.append(f'{ident}: an irrelevant test must leave the target unsupported')
-			if item.get('outcome') not in ('supported', 'qualified', 'unsupported'):
-				issues.append(f'{ident}: unsupported review outcome')
-			if 'unsupported' == item.get('outcome') and 'approved' == data.get('result'):
-				issues.append(f'{ident}: an unsupported claim requires needs_changes')
-			if 'qualified' == item.get('outcome'):
-				excerpt = item.get('response_qualification')
-				if not _text(excerpt):
-					issues.append(f'{ident}: qualified claim needs an exact response_qualification excerpt')
-			if ident in package_claims and 'supported' == item.get('outcome'):
-				pkg_claim = package_claims[ident]
-				claim_nums = standalone_numbers(str(pkg_claim.get('essence', '')) + '\n' + str(pkg_claim.get('response_excerpt', '')))
-				if claim_nums:
-					obs_corpus = str(item.get('observed', '')) + '\n' + str((alignment or {}).get('tested_claim', ''))
-					obs_nums = {t.replace(',', '.') for t in re.findall('\\d+(?:[.,]\\d+)*', obs_corpus)}
-					for token in list(obs_nums):
-						obs_nums.update(token.split('.'))
-					missing_nums = sorted(claim_nums - obs_nums)
-					if missing_nums:
-						issues.append(f'{ident}: claim/response numeric figures {missing_nums} are not confirmed in reviewer observed/tested_claim')
-		if covered != expected:
-			issues.append('Every response claim requires an authored evidence assessment')
+		covered = set()
+		if not isinstance(data.get('claim_reviews'), list):
+			issues.append('Per-claim review coverage is required')
+		else:
+			for item in data['claim_reviews']:
+				if not isinstance(item, dict):
+					issues.append('Claim review must be an object')
+					continue
+				ident = item.get('claim_id')
+				if not _text(ident):
+					issues.append('Claim review needs a string claim_id')
+					continue
+				if ident not in expected or ident in covered:
+					issues.append('Claim review must cover each response claim exactly once')
+				covered.add(ident)
+				for field in ('observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria'):
+					if not _text(item.get(field)):
+						issues.append(f'{ident}: review {field} must explain the evidence assessment')
+				alignment = item.get('test_alignment')
+				if not isinstance(alignment, dict) or alignment.get('target_claim') != targets.get(ident) or any((not _text(alignment.get(k)) for k in ('tested_claim', 'rationale', 'counterexample'))) or (alignment.get('relationship') not in ('direct', 'proxy', 'irrelevant')):
+					issues.append(f'{ident}: test_alignment must bind the exact claim, actual tested statement, relationship, rationale and a concrete counterexample')
+				elif 'proxy' == alignment['relationship'] and 'supported' == item.get('outcome'):
+					issues.append(f'{ident}: a proxy test cannot support the broader target; qualify the claim and show the limitation in the response')
+				elif 'irrelevant' == alignment['relationship'] and 'unsupported' != item.get('outcome'):
+					issues.append(f'{ident}: an irrelevant test must leave the target unsupported')
+				if item.get('outcome') not in ('supported', 'qualified', 'unsupported'):
+					issues.append(f'{ident}: unsupported review outcome')
+				if 'unsupported' == item.get('outcome') and 'approved' == data.get('result'):
+					issues.append(f'{ident}: an unsupported claim requires needs_changes')
+				if 'qualified' == item.get('outcome'):
+					excerpt = item.get('response_qualification')
+					if not _text(excerpt):
+						issues.append(f'{ident}: qualified claim needs an exact response_qualification excerpt')
+				if ident in package_claims and 'supported' == item.get('outcome') and not item.get('preflight_numeric_grounded'):
+					pkg_claim = package_claims[ident]
+					claim_nums = standalone_numbers(str(pkg_claim.get('essence', '')) + '\n' + str(pkg_claim.get('response_excerpt', '')))
+					if claim_nums:
+						obs_corpus = str(item.get('observed', '')) + '\n' + str((alignment or {}).get('tested_claim', ''))
+						obs_nums = {t.replace(',', '.') for t in re.findall('\\d+(?:[.,]\\d+)*', obs_corpus)}
+						for token in list(obs_nums):
+							obs_nums.update(token.split('.'))
+						missing_nums = sorted(claim_nums - obs_nums)
+						if missing_nums:
+							issues.append(f'{ident}: claim/response numeric figures {missing_nums} are not confirmed in reviewer observed/tested_claim')
+			merkle_unverified = set((package.get('merkle_delta') or {}).get('unverified_claim_ids') or [])
+			if covered != expected and not (data.get('use_merkle_delta') and covered == merkle_unverified):
+				issues.append('Every response claim requires an authored evidence assessment')
 	findings = data.get('findings')
 	if not isinstance(findings, list):
 		issues.append('Review findings list is required')
@@ -438,11 +575,12 @@ def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=N
 			addressed_ids.append(resolution['review_id'])
 		if len(set(addressed_ids)) != len(addressed_ids):
 			raise ValueError('Duplicate addressed review verdict')
+	report_mode = 'falsifier' if ('falsifier' == data.get('review_mode') or ('disproved_claims' in data and 'claim_reviews' not in data)) else package.get('review_mode', 'standard')
 	def change(state):
 		read_package(root, package_path, state=state)
 		if any((r.get('id') == review_id for r in state['reviews'])):
 			return
-		state['reviews'].append({'schema_version': REVIEW_SCHEMA, 'id': review_id, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'role': role, 'risk': package['risk'], 'package': package_path, 'package_sha256': package_sha, 'result': data['result'], 'subject_sha256': package['subject_sha256'], 'report': report_path, 'authored_response': original.relative_to(root).as_posix(), 'proof': hashes(root, proof_paths), 'independent': independent, 'kb_inputs': package['kb_inputs'], 'evidence_inputs': package['evidence_inputs'], 'response_sha256': package['response']['sha256'], 'requests': package['requests'], 'native_evidence': native_evidence, 'dispositions': [], 'addresses_reviews': addressed_ids, 'model_verification': native.get('model_verification', 'unverified'), 'time': now()})
+		state['reviews'].append({'schema_version': REVIEW_SCHEMA, 'id': review_id, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'role': role, 'risk': package['risk'], 'review_mode': report_mode, 'package': package_path, 'package_sha256': package_sha, 'result': data['result'], 'subject_sha256': package['subject_sha256'], 'report': report_path, 'authored_response': original.relative_to(root).as_posix(), 'proof': hashes(root, proof_paths), 'independent': independent, 'kb_inputs': package['kb_inputs'], 'evidence_inputs': package['evidence_inputs'], 'response_sha256': package['response']['sha256'], 'requests': package['requests'], 'native_evidence': native_evidence, 'dispositions': [], 'addresses_reviews': addressed_ids, 'model_verification': native.get('model_verification', 'unverified'), 'time': now()})
 	return update(root, {'action': 'review', 'reviewer_id': reviewer_id, 'result': data['result'], 'review_id': review_id}, change)
 def _findings_closed(root, entry):
 	from .workflow import receipt_current
@@ -491,7 +629,7 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 def authorize(root, state, *, response=None, package_path=None, request_ids=None):
 	from .workflow import receipt_current, questions_current, check_project
 	from .metrics import verify_native_proof
-	_analysis(root)
+	value = _analysis(root)
 	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
 	if not is_finalized:
 		if not questions_current(root, state) or not check_project(root)['valid']:
@@ -539,8 +677,13 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 		if _unhandled_verdicts(root, state, package, latest):
 			continue
 		eligible = [r for r in eligible if latest[r['reviewer_id']]['id'] == r['id']]
-		required = 2 if 'significant' == package['risk'] else 1
+		has_escalation = significant_findings(root, state, package['subject_sha256']) or any(('approved' != r.get('result') for r in latest.values()))
+		merkle_delta = package.get('merkle_delta') or {}
+		all_merkle_cached = bool(merkle_delta.get('cached_claim_ids')) and not bool(merkle_delta.get('unverified_claim_ids'))
+		is_falsifier_or_cached = ('falsifier' == package.get('review_mode')) or any(('falsifier' == r.get('review_mode') for r in eligible)) or all_merkle_cached
+		required = 1 if ('routine' == package['risk'] or (is_falsifier_or_cached and not has_escalation)) else 2
 		if len({r['reviewer_id'] for r in eligible}) >= required:
+			update_verified_claims_cache(root, package, value)
 			return {'package': path, 'package_sha256': digest(inside(root, path).read_bytes()), 'response_sha256': package['response']['sha256'], 'risk': package['risk'], 'review_ids': [r['id'] for r in eligible]}
 	detail = '; '.join(dict.fromkeys(diagnostics))
 	raise ValueError('Need current answer-bound approved A.A review; significant risk requires two independent reviewers' + (': ' + detail if detail else ''))
@@ -560,6 +703,11 @@ def approval_current(root, state, approval):
 		if any(('approved' != r.get('result') or latest[r['reviewer_id']].get('id') != r['id'] or (not _findings_closed(root, r)) or (not receipt_current(root, {'inputs': r['proof']})) for r in selected)):
 			return False
 		eligible = [r for r in selected if 'routine' == package['risk'] or r.get('independent')]
-		return len({r['reviewer_id'] for r in eligible}) >= (2 if 'significant' == package['risk'] else 1)
+		has_escalation = significant_findings(root, state, package['subject_sha256']) or any(('approved' != r.get('result') for r in latest.values()))
+		merkle_delta = package.get('merkle_delta') or {}
+		all_merkle_cached = bool(merkle_delta.get('cached_claim_ids')) and not bool(merkle_delta.get('unverified_claim_ids'))
+		is_falsifier_or_cached = ('falsifier' == package.get('review_mode')) or any(('falsifier' == r.get('review_mode') for r in eligible)) or all_merkle_cached
+		required = 1 if ('routine' == package['risk'] or (is_falsifier_or_cached and not has_escalation)) else 2
+		return len({r['reviewer_id'] for r in eligible}) >= required
 	except (ValueError, OSError, KeyError, TypeError):
 		return False
