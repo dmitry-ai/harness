@@ -28,11 +28,25 @@ ID = re.compile('^[A-Z][A-Z0-9-]*$')
 def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None = None) -> tuple[Decimal | None, set[str]]:
 	if not isinstance(expr, str) or not expr.strip() or len(expr) > 400:
 		return (None, set())
-	normalized = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', expr.strip())
+	normalized = re.sub('(?<=\\d)[ \\u00a0\\u202f](?=\\d{3}(?!\\d))', '', expr.strip())
+	normalized = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', normalized)
 	normalized = normalized.replace('\u2212', '-').replace('\u00d7', '*').replace('\u00f7', '/')
+	tree = None
 	try:
-		tree = ast.parse(normalized, mode='eval')
+		cand_tree = ast.parse(normalized, mode='eval')
+		if not any((isinstance(n, ast.Tuple) for n in ast.walk(cand_tree))):
+			tree = cand_tree
 	except SyntaxError:
+		tree = None
+	if None is tree:
+		dec_comma_norm = re.sub('(?<=\\d),(?=\\d)', '.', normalized)
+		try:
+			cand_tree = ast.parse(dec_comma_norm, mode='eval')
+			if not any((isinstance(n, ast.Tuple) for n in ast.walk(cand_tree))):
+				tree = cand_tree
+		except SyntaxError:
+			return (None, set())
+	if None is tree:
 		return (None, set())
 	literal_tokens: set[str] = set()
 	env_map = env or {}
@@ -96,15 +110,17 @@ def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None = None) -
 		return (res, literal_tokens)
 	except (ValueError, ZeroDivisionError, InvalidOperation, ArithmeticError, TypeError):
 		return (None, set())
+_NUM_EXPR_TOK = '-?\\d+(?:[ \\u00a0\\u202f]\\d{3})*(?:[.,]\\d+)*'
 _INLINE_EQ_RE = re.compile(
 	'(?<![A-Za-z0-9_./])'
-	'((?:\\(\\s*)*-?\\d+(?:[.,]\\d+)*(?:\\s*\\))*'
-	'(?:\\s*[+\\-*/\\u2212\\u00d7\\u00f7]\\s*(?:\\(\\s*)*-?\\d+(?:[.,]\\d+)*(?:\\s*\\))*)+)'
+	f'((?:\\(\\s*)*{_NUM_EXPR_TOK}(?:\\s*\\))*'
+	f'(?:\\s*[+\\-*/\\u2212\\u00d7\\u00f7]\\s*(?:\\(\\s*)*{_NUM_EXPR_TOK}(?:\\s*\\))*)+)'
 	'\\s*(=|\\u2248|~=|\\u2245)\\s*'
-	'(-?\\d+(?:[.,]\\d+)*)(\\s*%)?'
+	f'({_NUM_EXPR_TOK})(\\s*%)?'
 )
 def _decimal_matches_stated(computed: Decimal, stated_raw: str, is_approx: bool = False, is_percent_suffix: bool = False) -> bool:
-	clean_stated = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', stated_raw.strip()).replace(',', '.')
+	clean_stated = re.sub('(?<=\\d)[ \\u00a0\\u202f](?=\\d{3}(?!\\d))', '', stated_raw.strip())
+	clean_stated = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', clean_stated).replace(',', '.')
 	try:
 		stated_dec = Decimal(clean_stated)
 	except InvalidOperation:
@@ -132,8 +148,14 @@ def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> 
 	expanded_grounded = set(grounded_nums)
 	for g in list(grounded_nums):
 		expanded_grounded.add(g.replace(',', ''))
+		expanded_grounded.add(g.replace(',', '.'))
 	for m in _INLINE_EQ_RE.finditer(text):
 		lhs, op_sym, rhs_raw, pct_suf = (m.group(1), m.group(2), m.group(3), bool(m.group(4)))
+		for sp_m in re.finditer('\\b(\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+(?:[.,]\\d+)?)\\b', lhs):
+			sp_parts = re.findall('\\d+(?:[.,]\\d+)?', sp_m.group(1))
+			if sp_parts and all((p.replace(',', '.') in expanded_grounded or p.replace(',', '') in expanded_grounded for p in sp_parts)):
+				joined = re.sub('[ \\u00a0\\u202f]', '', sp_m.group(1)).replace(',', '.')
+				expanded_grounded.add(joined)
 		val, lit_tokens = evaluate_safe_arithmetic(lhs)
 		if None is val or len(lit_tokens) < 2:
 			continue
@@ -141,12 +163,16 @@ def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> 
 			continue
 		is_approx = op_sym != '='
 		if _decimal_matches_stated(val, rhs_raw, is_approx=is_approx, is_percent_suffix=pct_suf):
-			norm_dot = rhs_raw.replace(',', '.')
-			no_comma = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', rhs_raw).replace(',', '.')
+			clean_rhs = re.sub('(?<=\\d)[ \\u00a0\\u202f](?=\\d{3}(?!\\d))', '', rhs_raw.strip())
+			norm_dot = clean_rhs.replace(',', '.')
+			no_comma = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', clean_rhs).replace(',', '.')
 			verified.add(norm_dot)
 			verified.add(no_comma)
 			verified.update(norm_dot.split('.'))
 			verified.update(no_comma.split('.'))
+			for sub_tok in re.findall('\\d+(?:[.,]\\d+)*', rhs_raw):
+				verified.add(sub_tok.replace(',', '.'))
+				verified.add(sub_tok.replace(',', ''))
 		elif '=' == op_sym:
 			with localcontext() as ctx:
 				ctx.prec = 28
@@ -812,7 +838,7 @@ def _check_calculation(claim, index, refs):
 			context.prec = 50
 			expected = ((operands['new'] - operands['old']) / operands['old'] * Decimal(100)).quantize(Decimal(1).scaleb(-value['rounding_places']), rounding=ROUND_HALF_UP)
 	else:
-		raw_eval = evaluate_safe_arithmetic(value.get('formula', ''), env=operands)
+		raw_eval, _ = evaluate_safe_arithmetic(value.get('formula', ''), env=operands)
 		if None is raw_eval:
 			raise ValueError(f"Arithmetic formula {value.get('formula')!r} could not be evaluated safely over operands {sorted(operands)}")
 		with localcontext() as context:
