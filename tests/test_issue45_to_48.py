@@ -107,6 +107,10 @@ class Issue45To48Tests(unittest.TestCase):
 
             # 4. Normative Harness documentation files (/rules/, /skills/, /references/, /platforms/ outside /.agents/rules/)
             # must not trigger false-positive Tier 2 empirical grounding errors when cross-referencing other rule/reference files.
+            self.assertFalse(source_grounding._is_normative_harness_doc(Path('.agents/rules/91-servers.md')))
+            self.assertTrue(source_grounding._is_normative_harness_doc(Path('rules/07-review-and-delegation.md')))
+            self.assertEqual(source_grounding.classify_provenance_tier(Path('rules/07-review-and-delegation.md')), 'tier_2')
+            self.assertEqual(source_grounding.classify_provenance_tier(Path('code/platforms/antigravity.md')), 'tier_2')
             code_root = SCRIPT_DIR.parent
             for rel_doc in (
                 'rules/07-review-and-delegation.md',
@@ -129,9 +133,28 @@ class Issue45To48Tests(unittest.TestCase):
                         str((code_root / 'rules/07-review-and-delegation.md').resolve()),
                         str((code_root / 'rules/08-execution-and-tools.md').resolve()),
                         str((code_root / 'references/turn-completion.md').resolve()),
+                        'rules/07-review-and-delegation.md',
                     ],
                 ),
                 [],
+            )
+            # Relative .agents/rules/ path in touched_files must NOT be exempted as a normative Harness doc
+            draft_file = root / 'result' / 'draft.md'
+            draft_file.parent.mkdir(parents=True, exist_ok=True)
+            draft_file.write_text('# Draft\nDraft text.\n', encoding='utf-8')
+            rule_file.write_text(
+                f'# Servers\nСервер имеет 20 ГБ ОЗУ согласно [draft.md](<{draft_file.as_posix()}>).\n',
+                encoding='utf-8',
+            )
+            rel_agent_rule_issues = completion.response_source_and_kb_issues(
+                root,
+                'Updated local rule.',
+                [],
+                touched_files=['.agents/rules/91-servers.md'],
+            )
+            self.assertTrue(
+                any('91-servers.md' in item and 'Tier 2 file' in item for item in rel_agent_rule_issues),
+                f'Expected Tier 2 rejection for relative .agents/rules/91-servers.md in touched_files, got: {rel_agent_rule_issues}',
             )
 
     def test_issue46_fact_tuple_ledger_and_contradictions(self) -> None:

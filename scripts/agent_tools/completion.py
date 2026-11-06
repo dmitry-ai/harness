@@ -490,7 +490,7 @@ def _ingest_json_observations(parsed, default_host, observed_urls, observed_topi
 def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None) -> list[str]:
 	from markdown_it import MarkdownIt
 	from .links import readable_link_issues, _bare_urls
-	from .source_grounding import local_source_grounding_issues
+	from .source_grounding import _is_normative_harness_doc, local_source_grounding_issues
 	root = Path(root).resolve()
 	errors = list(readable_link_issues(response, allow_unencoded_file_uri=True))
 	parser = MarkdownIt('commonmark', {'html': True})
@@ -770,7 +770,7 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 			errors.append(iss)
 	for tf in touched_files or []:
 		tf_str = str(tf).strip()
-		tf_norm = tf_str.replace('\\', '/').lower()
+		tf_norm = '/' + tf_str.replace('\\', '/').lower().lstrip('/')
 		if (
 			not tf_str
 			or not tf_norm.endswith('.md')
@@ -778,7 +778,7 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 			or '/res/' in tf_norm
 			or '/source/' in tf_norm
 			or tf_norm.endswith('/source.md')
-			or ('/.agents/rules/' not in tf_norm and any((seg in tf_norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/'))))
+			or _is_normative_harness_doc(Path(tf_norm))
 		):
 			continue
 		try:

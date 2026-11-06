@@ -225,12 +225,12 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None = None) -> P
 			continue
 	return None
 def _is_normative_harness_doc(path: Path) -> bool:
-	norm = path.as_posix().lower()
+	norm = '/' + path.as_posix().lower().lstrip('/')
 	if '/.agents/rules/' in norm:
 		return False
 	return any((seg in norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/')))
 def classify_provenance_tier(path: Path, root: Path | None = None) -> str:
-	norm = path.as_posix().lower()
+	norm = '/' + path.as_posix().lower().lstrip('/')
 	name = path.name.lower()
 	if (
 		name in {'draft.md', 'draft.prev.md', 'context.md'}
@@ -238,6 +238,7 @@ def classify_provenance_tier(path: Path, root: Path | None = None) -> str:
 		or '/rules/' in norm
 		or '/skills/' in norm
 		or '/references/' in norm
+		or '/platforms/' in norm
 		or '/candidates/' in norm
 		or '/data/scratch/' in norm
 		or '/evidence/reviews/' in norm
