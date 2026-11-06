@@ -19,6 +19,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
 # https://github.com/dmitry-ai/harness/issues/40
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 from __future__ import annotations
 import argparse
 import json
@@ -165,7 +168,7 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 	candidates: list[Path] = []
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
-		candidates.extend([pr, pr / 'code'])
+		candidates.extend([pr, pr / 'code', pr.parent, pr.parent / 'code'])
 	for fpath, _ in source_files or []:
 		resolved = fpath.resolve()
 		for anc in (resolved, *resolved.parents):

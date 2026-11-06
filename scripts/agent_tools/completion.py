@@ -1,3 +1,6 @@
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
@@ -172,9 +175,10 @@ def _delegation_status(root, turn):
 	max_streak = int(del_info.get('max_unpersisted_step_streak') if 'max_unpersisted_step_streak' in del_info else cur_streak)
 	max_src_reads = int(del_info.get('max_unpersisted_source_reads') or 0)
 	issue_actions_count = len(turn.get('issue_actions') or [])
+	aa_part_errs = list(del_info.get('aa_partial_read_violations') or [])
 	is_upwork_project = (Path(root).resolve() / '\ua616/project.json').is_file()
 	unpersisted_bulk = bool(is_upwork_project and ((tool_steps > DEL_MAX_UNPERSISTED_STEPS and 0 == sub_steps and 0 == kb_steps) or cur_streak > DEL_MAX_UNPERSISTED_STEPS or (max_src_reads >= DEL_MAX_UNPERSISTED_SOURCE_READS and 0 == sub_steps) or (tool_steps > DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS and 0 == sub_steps) or (issue_actions_count > DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS and 0 == sub_steps)))
-	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'issue_actions_count': issue_actions_count, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
+	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'aa_partial_read_violations': aa_part_errs, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'issue_actions_count': issue_actions_count, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
 	return r
 def _origin_repo_slug(code_repo: Path):
 	cfg_file = Path(code_repo) / '.git/config'
@@ -218,7 +222,7 @@ def _evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_rep
 		except (OSError, ValueError):
 			continue
 	return None
-def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
+def _code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None):
 	from .git_gate import extract_issue_urls, is_code_file, is_issue_tracked_code_repo, run_git_read, verify_repo_issue_ready_for_close
 	from .github_issue import _find_local_code_repo, lint_issue_markdown
 	from .source_grounding import local_source_grounding_issues
@@ -263,7 +267,7 @@ def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 				cids.append(cid)
 		turn_issues[url] = {'url': url, 'repo': slug, 'number': num, 'state': st or prev_entry.get('state') or 'open', 'last_action': act or prev_entry.get('last_action') or 'issue', 'comment_ids': cids}
 	candidate_repos = list(repo_touched.keys())
-	for cand in (root, root / 'code'):
+	for cand in (root, root / 'code', root.parent / 'code'):
 		cand_res = cand.resolve()
 		if is_issue_tracked_code_repo(cand_res) and cand_res not in candidate_repos:
 			candidate_repos.append(cand_res)
@@ -273,7 +277,7 @@ def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 			found_res = found_repo.resolve()
 			if is_issue_tracked_code_repo(found_res) and found_res not in candidate_repos:
 				candidate_repos.append(found_res)
-	workspace_code_repos = {c.resolve() for c in (root, root / 'code') if is_issue_tracked_code_repo(c.resolve())}
+	workspace_code_repos = {c.resolve() for c in (root, root / 'code', root.parent / 'code') if is_issue_tracked_code_repo(c.resolve())}
 	required_issues_by_repo = {r: set() for r in candidate_repos}
 	repo_by_issue_url = {}
 	for url, info in turn_issues.items():
@@ -281,12 +285,30 @@ def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 			slug = _origin_repo_slug(cand)
 			if slug and slug.lower() == info['repo'].lower():
 				repo_by_issue_url[url] = cand
-				if bool(repo_touched.get(cand)) or cand in workspace_code_repos or 'close' == info.get('last_action'):
+				if bool(repo_touched.get(cand)) or 'close' == info.get('last_action'):
 					required_issues_by_repo.setdefault(cand, set()).add(url)
 					repo_touched.setdefault(cand, set())
 	violations = []
 	checked_issues = []
 	checked_urls = set()
+	if isinstance(response, str) and response.strip() and workspace_code_repos and (not repo_touched):
+		has_diag_causes = bool(re.search('(?m)(?:^|\\s|`|\\*\\*)(?:C|H)-[1-9]\\d*\\b', response))
+		has_diag_methods = bool(re.search('(?m)(?:^|\\s|`|\\*\\*)M-[1-9]\\d*\\b', response))
+		has_py_targets = bool(re.search('\\b[A-Za-z0-9_/-]+\\.py\\b', response))
+		if has_diag_causes and has_diag_methods and has_py_targets:
+			for ws_repo in sorted(workspace_code_repos, key=str):
+				ws_slug = _origin_repo_slug(ws_repo)
+				if not ws_slug:
+					continue
+				has_ws_issue = any((info['repo'].lower() == ws_slug.lower() for info in turn_issues.values()))
+				if not has_ws_issue:
+					for resp_url in extract_issue_urls(response):
+						m_ru = re.match('^https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)$', resp_url)
+						if m_ru and m_ru.group(1).lower() == ws_slug.lower() and _evidence_issue_files(root, m_ru.group(1), f'issue-{int(m_ru.group(2))}.json', candidate_repos):
+							has_ws_issue = True
+							break
+				if not has_ws_issue:
+					violations.append(f'EXEC-5 / SCOPE-2: Diagnostic audit of {ws_slug} identifies repository defects (C-/H-) and remediation methods (M-) without recording corresponding GitHub Issues via df_github_issue.py')
 	for code_repo, rel_set in sorted(repo_touched.items(), key=lambda x: str(x[0])):
 		rel_paths = sorted(rel_set)
 		if rel_paths:
@@ -337,6 +359,8 @@ def _code_and_issue_lifecycle_status(root, turn, turn_state=None):
 			checked_issues.append({'url': issue_url, 'repo': slug, 'number': num, 'state': eff_state, 'code_repo': str(mapped_repo) if mapped_repo else None, 'commit_and_push_verified': False})
 			checked_urls.add(issue_url)
 		iss_files = _evidence_issue_files(root, slug, f'issue-{num}.json', candidate_repos)
+		if not iss_files and info.get('last_action') in ('create', 'edit'):
+			violations.append(f'GitHub issue {issue_url} is missing saved API read-back Evidence JSON (issue-{num}.json)')
 		container_text = None
 		for p in iss_files[:1]:
 			try:
@@ -1172,8 +1196,12 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 					lpaths, _ = _extract_block_links(blk, root, None)
 					for rp in lpaths:
 						rlow = rp.as_posix().lower()
-						if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow) and (ev_map[rlow] not in unreread_cited):
+						if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
 							unreread_cited.append(ev_map[rlow])
+			for ev_low, ev_orig in ev_map.items():
+				m_res = re.search('/res/(\\d+\\.md)$', ev_low)
+				if m_res and re.search(f'\\bres/{re.escape(m_res.group(1))}\\b', response, re.I) and (ev_orig not in unreread_cited):
+					unreread_cited.append(ev_orig)
 			if unreread_cited:
 				detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
 				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
@@ -1184,6 +1212,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
+		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value, response=response)
 		if not value['code_lifecycle_check']['verified']:
 			detail = 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(value['code_lifecycle_check']['violations'])
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
@@ -1208,6 +1237,12 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			raise ValueError('Prepared response bytes are immutable; preserve the earlier version and reconcile before a corrective turn')
 		if 'conflict' == value['status']:
 			raise ValueError('Resolve the native delivery conflict without overwriting journal history')
+		aa_part_errs = value['delegation_check'].get('aa_partial_read_violations') or []
+		if aa_part_errs:
+			detail = 'REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(aa_part_errs)
+			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+			_persist(path, value)
+			raise ValueError(detail)
 		workflow = root / '\ua616/data/workflow.json'
 		if workflow.exists():
 			from .workflow import load
