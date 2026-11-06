@@ -7,6 +7,10 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement structured fact-tuple ledger (facts.json) and symbolic AST arithmetic grounding":
+# https://github.com/dmitry-ai/harness/issues/46
+import ast
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
 from pathlib import Path
 from urllib.parse import urldefrag, urlsplit
@@ -21,6 +25,134 @@ STATUSES = {'verified', 'limited', 'unverified', 'unavailable', 'stale'}
 PROPERTIES = {'content', 'markup', 'dom', 'interaction', 'currency_transition', 'ip_country', 'admin_configuration', 'serp', 'platform_capability', 'calculation', 'comparison', 'modification', 'causality', 'business_impact', 'architecture_change', 'pricing_change'}
 HASH = re.compile('^[a-f0-9]{64}$')
 ID = re.compile('^[A-Z][A-Z0-9-]*$')
+def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None = None) -> tuple[Decimal | None, set[str]]:
+	if not isinstance(expr, str) or not expr.strip() or len(expr) > 400:
+		return (None, set())
+	normalized = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', expr.strip())
+	normalized = normalized.replace('\u2212', '-').replace('\u00d7', '*').replace('\u00f7', '/')
+	try:
+		tree = ast.parse(normalized, mode='eval')
+	except SyntaxError:
+		return (None, set())
+	literal_tokens: set[str] = set()
+	env_map = env or {}
+	def _eval(node) -> Decimal:
+		if isinstance(node, ast.Expression):
+			return _eval(node.body)
+		if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and (not isinstance(node.value, bool)):
+			val_str = str(node.value)
+			literal_tokens.add(val_str)
+			return Decimal(val_str)
+		if isinstance(node, ast.Name) and node.id in env_map:
+			return Decimal(env_map[node.id])
+		if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+			operand = _eval(node.operand)
+			return operand if isinstance(node.op, ast.UAdd) else -operand
+		if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow)):
+			left = _eval(node.left)
+			right = _eval(node.right)
+			if isinstance(node.op, ast.Add):
+				return left + right
+			if isinstance(node.op, ast.Sub):
+				return left - right
+			if isinstance(node.op, ast.Mult):
+				return left * right
+			if isinstance(node.op, ast.Div):
+				if 0 == right:
+					raise ZeroDivisionError('division by zero')
+				return left / right
+			if isinstance(node.op, ast.FloorDiv):
+				if 0 == right:
+					raise ZeroDivisionError('division by zero')
+				return left // right
+			if isinstance(node.op, ast.Mod):
+				if 0 == right:
+					raise ZeroDivisionError('modulo by zero')
+				return left % right
+			if isinstance(node.op, ast.Pow):
+				if abs(right) > Decimal(10) or right != right.to_integral_value():
+					raise ValueError('unsupported exponent')
+				return left ** int(right)
+		if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and (node.func.id in {'round', 'abs', 'min', 'max'}) and (not node.keywords):
+			eval_args = [_eval(a) for a in node.args]
+			if 'abs' == node.func.id and 1 == len(eval_args):
+				return abs(eval_args[0])
+			if 'min' == node.func.id and eval_args:
+				return min(eval_args)
+			if 'max' == node.func.id and eval_args:
+				return max(eval_args)
+			if 'round' == node.func.id and 1 <= len(eval_args) <= 2:
+				places = int(eval_args[1]) if 2 == len(eval_args) else 0
+				if not 0 <= places <= 12:
+					raise ValueError('invalid rounding places')
+				return eval_args[0].quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+		raise ValueError('unsupported AST node')
+	try:
+		with localcontext() as ctx:
+			ctx.prec = 50
+			res = _eval(tree)
+		if not res.is_finite():
+			return (None, set())
+		return (res, literal_tokens)
+	except (ValueError, ZeroDivisionError, InvalidOperation, ArithmeticError, TypeError):
+		return (None, set())
+_INLINE_EQ_RE = re.compile(
+	'(?<![A-Za-z0-9_./])'
+	'((?:\\(\\s*)*-?\\d+(?:[.,]\\d+)*(?:\\s*\\))*'
+	'(?:\\s*[+\\-*/\\u2212\\u00d7\\u00f7]\\s*(?:\\(\\s*)*-?\\d+(?:[.,]\\d+)*(?:\\s*\\))*)+)'
+	'\\s*(=|\\u2248|~=|\\u2245)\\s*'
+	'(-?\\d+(?:[.,]\\d+)*)(\\s*%)?'
+)
+def _decimal_matches_stated(computed: Decimal, stated_raw: str, is_approx: bool = False, is_percent_suffix: bool = False) -> bool:
+	clean_stated = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', stated_raw.strip()).replace(',', '.')
+	try:
+		stated_dec = Decimal(clean_stated)
+	except InvalidOperation:
+		return False
+	places = len(clean_stated.split('.')[1]) if '.' in clean_stated else 0
+	q = Decimal(1).scaleb(-places)
+	candidates = [computed]
+	if is_percent_suffix:
+		candidates.append(computed * Decimal(100))
+	for cand in candidates:
+		with localcontext() as ctx:
+			ctx.prec = 50
+			rounded = cand.quantize(q, rounding=ROUND_HALF_UP)
+		if rounded == stated_dec or cand == stated_dec:
+			return True
+		if is_approx and abs(cand - stated_dec) <= q:
+			return True
+	return False
+def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> tuple[set[str], list[str]]:
+	if not isinstance(text, str) or not text:
+		return (set(), [])
+	verified: set[str] = set()
+	errors: list[str] = []
+	allowed_constants = {'100', '1000', '1024', '60', '24', '3600'}
+	expanded_grounded = set(grounded_nums)
+	for g in list(grounded_nums):
+		expanded_grounded.add(g.replace(',', ''))
+	for m in _INLINE_EQ_RE.finditer(text):
+		lhs, op_sym, rhs_raw, pct_suf = (m.group(1), m.group(2), m.group(3), bool(m.group(4)))
+		val, lit_tokens = evaluate_safe_arithmetic(lhs)
+		if None is val or len(lit_tokens) < 2:
+			continue
+		if not all((tok in expanded_grounded or tok.replace(',', '') in expanded_grounded or tok in allowed_constants for tok in lit_tokens)):
+			continue
+		is_approx = op_sym != '='
+		if _decimal_matches_stated(val, rhs_raw, is_approx=is_approx, is_percent_suffix=pct_suf):
+			norm_dot = rhs_raw.replace(',', '.')
+			no_comma = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', rhs_raw).replace(',', '.')
+			verified.add(norm_dot)
+			verified.add(no_comma)
+			verified.update(norm_dot.split('.'))
+			verified.update(no_comma.split('.'))
+		elif '=' == op_sym:
+			with localcontext() as ctx:
+				ctx.prec = 28
+				expected_str = str(val.normalize())
+			errors.append(f'derived_calc mismatch: "{lhs.strip()} = {rhs_raw}" evaluates to {expected_str}, not {rhs_raw}')
+	return (verified, errors)
 def claim_locations(value):
 	if not isinstance(value, dict):
 		return
@@ -108,6 +240,8 @@ def grounded_numbers_for_claim(claim, index=None, visited=None):
 				for addr_id in claim.get('addresses', []) if isinstance(claim.get('addresses'), list) else []:
 					if isinstance(addr_id, str) and addr_id in index:
 						numbers.update(grounded_numbers_for_claim(index[addr_id], index, visited))
+			derived_nums, _ = extract_verified_inline_calc_numbers(corpus, numbers)
+			numbers.update(derived_nums)
 			r = numbers
 	return r
 def contract_issues(value):
@@ -215,6 +349,10 @@ def contract_issues(value):
 			ev_nums = {t.replace(',', '.') for t in re.findall('\\d+(?:[.,]\\d+)*', ev_corpus)}
 			for token in list(ev_nums):
 				ev_nums.update(token.split('.'))
+			derived_ok, calc_errs = extract_verified_inline_calc_numbers(claim.get('essence', ''), ev_nums)
+			ev_nums.update(derived_ok)
+			for c_err in calc_errs:
+				add('calculation.unconfirmed', field + '/essence', c_err, claim)
 			ungrounded = sorted(essence_nums - ev_nums)
 			if ungrounded:
 				add('claim.ungrounded_number', field + '/essence', 'Verified observation/client_report essence contains numeric figures absent from its primary evidence quotes: ' + ', '.join(ungrounded), claim)
@@ -313,13 +451,18 @@ def contract_issues(value):
 	return issues
 def _calculation_structure(value, field, claim):
 	message = None
-	if not isinstance(value, dict) or 'percent_change' != value.get('operation') or '(new - old) / old * 100' != value.get('formula'):
+	op = value.get('operation') if isinstance(value, dict) else None
+	if not isinstance(value, dict) or op not in {'percent_change', 'formula', 'derived_calc'}:
+		message = 'Supported calculation operations are percent_change, formula, or derived_calc'
+	elif 'percent_change' == op and '(new - old) / old * 100' != value.get('formula'):
 		message = 'Supported calculation is percent_change with formula (new - old) / old * 100'
+	elif op in {'formula', 'derived_calc'} and (not _text(value.get('formula'))):
+		message = 'Formula calculation requires a nonempty arithmetic formula'
 	elif type(value.get('rounding_places')) is not int or not 0 <= value['rounding_places'] <= 12 or 'ROUND_HALF_UP' != value.get('rounding'):
 		message = 'Choose explicit ROUND_HALF_UP and 0..12 decimal places'
-	elif not isinstance(value.get('operands'), dict) or set(value['operands']) != {'old', 'new'}:
+	elif not isinstance(value.get('operands'), dict) or not value['operands'] or ('percent_change' == op and set(value['operands']) != {'old', 'new'}):
 		message = 'Supply old/new operands with exact decimal value, unit, claim_id and evidence_id'
-	elif 'percent' != value.get('result_unit'):
+	elif ('percent_change' == op and 'percent' != value.get('result_unit')) or (op in {'formula', 'derived_calc'} and not _text(value.get('result_unit'))):
 		message = 'Percentage change requires explicit result_unit percent'
 	else:
 		for operand in value['operands'].values():
@@ -329,7 +472,7 @@ def _calculation_structure(value, field, claim):
 			if operand['unit'] != operand['unit'].strip():
 				message = 'Operand units must be canonical strings without surrounding whitespace'
 				break
-		if None is message and value['operands']['old']['unit'] != value['operands']['new']['unit']:
+		if None is message and 'percent_change' == op and value['operands']['old']['unit'] != value['operands']['new']['unit']:
 			message = 'Percent change requires matching operand units; perform and source any conversion as a separate claim first'
 		if not _text(value.get('result')):
 			message = 'Calculation result must be an explicit decimal string'
@@ -661,14 +804,24 @@ def _check_calculation(claim, index, refs):
 		if not _quantity_matches(entry[1], operand['value'], operand['unit'], entry[2]['quantity_context']):
 			raise ValueError('Operand value and unit must identify the same unambiguous primary quantity; use an adjacent value-unit quote or a JSON value/unit object')
 		operands[name] = number
-	if 0 == operands['old']:
-		raise ValueError('Percentage change denominator old must be nonzero')
-	with localcontext() as context:
-		context.prec = 50
-		expected = ((operands['new'] - operands['old']) / operands['old'] * Decimal(100)).quantize(Decimal(1).scaleb(-value['rounding_places']), rounding=ROUND_HALF_UP)
+	op = value.get('operation')
+	if 'percent_change' == op:
+		if 0 == operands['old']:
+			raise ValueError('Percentage change denominator old must be nonzero')
+		with localcontext() as context:
+			context.prec = 50
+			expected = ((operands['new'] - operands['old']) / operands['old'] * Decimal(100)).quantize(Decimal(1).scaleb(-value['rounding_places']), rounding=ROUND_HALF_UP)
+	else:
+		raw_eval = evaluate_safe_arithmetic(value.get('formula', ''), env=operands)
+		if None is raw_eval:
+			raise ValueError(f"Arithmetic formula {value.get('formula')!r} could not be evaluated safely over operands {sorted(operands)}")
+		with localcontext() as context:
+			context.prec = 50
+			expected = raw_eval.quantize(Decimal(1).scaleb(-value['rounding_places']), rounding=ROUND_HALF_UP)
 	actual = Decimal(value['result'])
 	if not actual.is_finite() or actual != expected:
-		raise ValueError(f"Percentage change is {expected}, not {value['result']}; formula includes the declared denominator and rounding")
+		label = 'Percentage change' if 'percent_change' == op else 'Calculation result'
+		raise ValueError(f"{label} is {expected}, not {value['result']}; formula includes the declared denominator and rounding")
 def _quantity_matches(reference, decimal_value, unit, source_context=None):
 	if 'json_pointer' == reference.get('locator', {}).get('type'):
 		try:
