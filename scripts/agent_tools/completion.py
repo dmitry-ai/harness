@@ -1,4 +1,7 @@
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+# https://github.com/dmitry-ai/harness/issues/45
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -768,7 +771,15 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 	for tf in touched_files or []:
 		tf_str = str(tf).strip()
 		tf_norm = tf_str.replace('\\', '/').lower()
-		if not tf_str or not tf_norm.endswith('.md') or '/req/' in tf_norm or '/res/' in tf_norm or '/source/' in tf_norm or tf_norm.endswith('/source.md'):
+		if (
+			not tf_str
+			or not tf_norm.endswith('.md')
+			or '/req/' in tf_norm
+			or '/res/' in tf_norm
+			or '/source/' in tf_norm
+			or tf_norm.endswith('/source.md')
+			or ('/.agents/rules/' not in tf_norm and any((seg in tf_norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/'))))
+		):
 			continue
 		try:
 			tf_path = Path(tf_str)

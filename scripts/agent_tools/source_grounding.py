@@ -224,6 +224,11 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None = None) -> P
 		except OSError:
 			continue
 	return None
+def _is_normative_harness_doc(path: Path) -> bool:
+	norm = path.as_posix().lower()
+	if '/.agents/rules/' in norm:
+		return False
+	return any((seg in norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/')))
 def classify_provenance_tier(path: Path, root: Path | None = None) -> str:
 	norm = path.as_posix().lower()
 	name = path.name.lower()
@@ -647,6 +652,8 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 	visited = _visited if None is not _visited else set()
 	if None is not doc_path:
 		doc_path = Path(doc_path).resolve()
+		if _is_normative_harness_doc(doc_path):
+			return []
 		if str(doc_path) in visited:
 			return []
 		visited.add(str(doc_path))
@@ -714,7 +721,7 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 				primary_here.append(sib_src)
 		tier2_here = [p for p in local_all if 'tier_2' == classify_provenance_tier(p, root)] + orphan_analyses
 		if tier2_here and (not primary_here) and (not ext_urls) and (not META_REFUTATION_RE.search(block.content)):
-			non_analysis_tier2 = [p for p in tier2_here if 'analysis.md' != p.name.lower() or p in orphan_analyses]
+			non_analysis_tier2 = [p for p in tier2_here if ('analysis.md' != p.name.lower() or p in orphan_analyses) and (not _is_normative_harness_doc(p))]
 			if non_analysis_tier2 and re.search('(?i)\\b(?:mem_total|vcpu|cpus|swap_total|swap|\\u0441\\u0432\\u043e\\u043f|worker\\w*|\\u0432\\u043e\\u0440\\u043a\\u0435\\u0440\\w*|load\\s+average|ram|\\u043e\\u0437\\u0443|\\u044f\\u0434(?:\\u0435\\u0440|\\u0440\\u0430)|plan\\s+(?:xs|s|m|l|xl|xxl)|m[1-9]|gb|gib|\\u0433\\u0431|mb|mib|\\u043c\\u0431)\\b', block.content) and standalone_numbers(block.content):
 				errors.append(f'VERIFY-1 / SCOPE-1: Tier 2 file ({non_analysis_tier2[0].name}) cannot serve as sole primary evidence for factual or numeric claims; cite a Tier 0 primary observation')
 				for disc in discover_entity_tier0_sources(root, block.content):

@@ -1,4 +1,7 @@
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+# https://github.com/dmitry-ai/harness/issues/45
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
 from __future__ import annotations
@@ -101,6 +104,35 @@ class Issue45To48Tests(unittest.TestCase):
             )
             discovered_paths = [d['path'] for d in discovered]
             self.assertIn('tickets/1465836/source.md', discovered_paths)
+
+            # 4. Normative Harness documentation files (/rules/, /skills/, /references/, /platforms/ outside /.agents/rules/)
+            # must not trigger false-positive Tier 2 empirical grounding errors when cross-referencing other rule/reference files.
+            code_root = SCRIPT_DIR.parent
+            for rel_doc in (
+                'rules/07-review-and-delegation.md',
+                'rules/08-execution-and-tools.md',
+                'references/turn-completion.md',
+            ):
+                doc_file = (code_root / rel_doc).resolve()
+                doc_text = doc_file.read_text(encoding='utf-8')
+                self.assertEqual(
+                    source_grounding.local_source_grounding_issues(code_root, doc_text, doc_path=doc_file),
+                    [],
+                    f'Expected [] for normative doc {rel_doc}',
+                )
+            self.assertEqual(
+                completion.response_source_and_kb_issues(
+                    code_root,
+                    'Updated normative rules.',
+                    [],
+                    touched_files=[
+                        str((code_root / 'rules/07-review-and-delegation.md').resolve()),
+                        str((code_root / 'rules/08-execution-and-tools.md').resolve()),
+                        str((code_root / 'references/turn-completion.md').resolve()),
+                    ],
+                ),
+                [],
+            )
 
     def test_issue46_fact_tuple_ledger_and_contradictions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
