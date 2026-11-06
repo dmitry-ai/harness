@@ -22,6 +22,9 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
 # https://github.com/dmitry-ai/harness/issues/40
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 import os
 from pathlib import Path
 import re
@@ -633,6 +636,8 @@ def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> 
 	for text in outputs or []:
 		if not isinstance(text, str) or '"action"' not in text or '"repo"' not in text:
 			continue
+		if re.search('(?m)^Ran \\d+ tests? in \\d', text):
+			continue
 		pos = 0
 		while (pos := text.find('{', pos)) >= 0:
 			try:
@@ -641,7 +646,10 @@ def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> 
 				pos += 1
 				continue
 			pos += size
-			if not isinstance(obj, dict):
+			if not isinstance(obj, dict) or not obj.get('ok', True):
+				continue
+			consumed = obj.get('consumed_files')
+			if isinstance(consumed, list) and any((re.search('(?i)(?:[/\\\\]temp[/\\\\]|[/\\\\]tmp[/\\\\])', str(cf)) for cf in consumed)):
 				continue
 			act = obj.get('action')
 			repo = obj.get('repo')
@@ -653,7 +661,7 @@ def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> 
 				if m:
 					num = int(m.group(1))
 			if isinstance(num, int):
-				actions.append({'action': act, 'repo': repo, 'number': num, 'url': f'https://github.com/{repo}/issues/{num}', 'ok': bool(obj.get('ok')), 'state': obj.get('state')})
+				actions.append({'action': act, 'repo': repo, 'number': num, 'url': f'https://github.com/{repo}/issues/{num}', 'ok': bool(obj.get('ok', True)), 'state': obj.get('state')})
 	return actions
 def _normalize_repo_paths(root: Path, paths: list[str]) -> list[str]:
 	if not paths:

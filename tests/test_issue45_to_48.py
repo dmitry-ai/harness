@@ -40,6 +40,10 @@ class Issue45To48Tests(unittest.TestCase):
             rule_file = rules_dir / '91-servers.md'
             rule_file.write_text('# Servers\nServer A has 20 GB RAM and 40 cores.\n', encoding='utf-8')
 
+            res_file = root / 'ꙮ' / '1 - Analysis' / 'res' / '204.md'
+            res_file.parent.mkdir(parents=True, exist_ok=True)
+            res_file.write_text('# Response 204\nPrior claim.\n', encoding='utf-8')
+
             ticket_dir = root / 'tickets' / '1465836'
             ticket_dir.mkdir(parents=True, exist_ok=True)
             source_file = ticket_dir / 'source.md'
@@ -56,6 +60,7 @@ class Issue45To48Tests(unittest.TestCase):
             self.assertEqual(source_grounding.classify_provenance_tier(source_file, root), 'tier_0')
             self.assertEqual(source_grounding.classify_provenance_tier(analysis_file, root), 'tier_1')
             self.assertEqual(source_grounding.classify_provenance_tier(rule_file, root), 'tier_2')
+            self.assertEqual(source_grounding.classify_provenance_tier(res_file, root), 'tier_2')
 
             # 1. Citing Tier 2 rule file as sole evidence for factual server metric must fail
             resp_tier2 = (
@@ -66,6 +71,17 @@ class Issue45To48Tests(unittest.TestCase):
             self.assertTrue(
                 any('Tier 2 file' in item and 'cannot serve as sole primary evidence' in item for item in issues_tier2),
                 f'Expected Tier 2 rejection, got: {issues_tier2}',
+            )
+
+            # 1b. Co-citing Tier 2 (91-servers.md) alongside Tier 0 (source.md) must NOT allow Tier 2 numbers (40) into ev_nums
+            resp_mixed = (
+                'Сервер M6 имеет 40 ядер по данным '
+                f'[source.md](<{source_file.as_posix()}>) и [91-servers.md](<{rule_file.as_posix()}>).  \n'
+            )
+            issues_mixed = source_grounding.local_source_grounding_issues(root, resp_mixed)
+            self.assertTrue(
+                any('40' in item for item in issues_mixed),
+                f'Expected ungrounded/contradicted 40 when co-citing Tier 0 and Tier 2, got: {issues_mixed}',
             )
 
             # 2. Citing analysis.md without sibling source.md having "15" or "20" (for RAM) must fail
@@ -127,6 +143,28 @@ class Issue45To48Tests(unittest.TestCase):
                 f'Expected mem_total contradiction, got: {issues_ram}',
             )
 
+            # 2b. Burst RAM misrepresentation ("в burst 24 GB" when mem_total=24379 is permanent RAM)
+            resp_burst = (
+                'Пиковое потребление составляет 20 GB за счёт доступных в burst 24 GB '
+                f'[source.md](<{source_file.as_posix()}>).  \n'
+            )
+            issues_burst = source_grounding.local_source_grounding_issues(root, resp_burst)
+            self.assertTrue(
+                any('characterizes permanent mem_total RAM as "burst"' in item for item in issues_burst),
+                f'Expected burst RAM contradiction, got: {issues_burst}',
+            )
+
+            # 2c. Ungrounded swap claim ("фиксировался уход сервера в swap" when swap is absent from source.md)
+            resp_swap = (
+                'В тикете 1465836 при 20 ядрах фиксировался уход сервера в swap '
+                f'[source.md](<{source_file.as_posix()}>).  \n'
+            )
+            issues_swap = source_grounding.local_source_grounding_issues(root, resp_swap)
+            self.assertTrue(
+                any('asserts server swap activity' in item for item in issues_swap),
+                f'Expected ungrounded swap contradiction, got: {issues_swap}',
+            )
+
             # 3. Unnormalized load average overload claim when load_avg (15.61) < cpus (20)
             resp_la = (
                 'Наблюдается перегрузка CPU: load average 15.61 при 20 ядрах '
@@ -151,9 +189,9 @@ class Issue45To48Tests(unittest.TestCase):
         self.assertIsNone(bad_val)
         self.assertEqual(bad_tokens, set())
 
-        # Inline arithmetic grounding in text when operands are in primary evidence
+        # Inline arithmetic grounding in text when operands are in primary evidence (including decimal commas and space thousands)
         grounded = {'12285', '10133', '15.61', '20'}
-        text_ok = 'Рост составил 12285 - 10133 = 2152, а загрузка 15.61 / 20 = 0.78.'
+        text_ok = 'Рост составил 12 285 - 10 133 = 2 152, а загрузка 15,61 / 20 = 0,78.'
         derived_ok, calc_errs_ok = claims.extract_verified_inline_calc_numbers(text_ok, grounded)
         self.assertEqual(calc_errs_ok, [])
         self.assertIn('2152', derived_ok)
@@ -164,14 +202,49 @@ class Issue45To48Tests(unittest.TestCase):
         self.assertEqual(len(calc_errs_bad), 1)
         self.assertIn('2152', calc_errs_bad[0])
 
+        # Schema 3 _check_calculation with operation='formula' must unpack evaluate_safe_arithmetic without crashing
+        f1 = {
+            'id': 'F-1',
+            'knowledge_type': 'observation',
+            'verification_status': 'verified',
+            'essence': 'Before: 10133 req, After: 12285 req.',
+            'evidence': [
+                {'id': 'E-1', 'source': 'source/metrics.json', 'quote': '10133 req', 'locator': {'type': 'text', 'value': '10133 req'}},
+                {'id': 'E-2', 'source': 'source/metrics.json', 'quote': '12285 req', 'locator': {'type': 'text', 'value': '12285 req'}},
+            ],
+        }
+        f_calc = {
+            'id': 'F-2',
+            'knowledge_type': 'calculation',
+            'verification_status': 'verified',
+            'derived_from': [{'claim_id': 'F-1', 'claim_sha256': claims.claim_digest(f1)}],
+            'calculation': {
+                'operation': 'formula',
+                'formula': 'after - before',
+                'rounding_places': 0,
+                'rounding': 'ROUND_HALF_UP',
+                'result': '2152',
+                'result_unit': 'req',
+                'operands': {
+                    'before': {'claim_id': 'F-1', 'evidence_id': 'E-1', 'value': '10133', 'unit': 'req'},
+                    'after': {'claim_id': 'F-1', 'evidence_id': 'E-2', 'value': '12285', 'unit': 'req'},
+                },
+            },
+        }
+        refs = {
+            'E-1': (f1, f1['evidence'][0], {'quantity_context': '10133 req'}),
+            'E-2': (f1, f1['evidence'][1], {'quantity_context': '12285 req'}),
+        }
+        claims._check_calculation(f_calc, {'F-1': f1, 'F-2': f_calc}, refs)
+
         # Verify source_grounding accepts derived inline arithmetic without flagging 2152 as ungrounded
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             src_dir = root / 'source'
             src_dir.mkdir(parents=True, exist_ok=True)
             src = src_dir / 'source.md'
-            src.write_text('# Metrics\nBefore: 10133\nAfter: 12285\n', encoding='utf-8')
-            line_ok = f'Прирост равен 12285 - 10133 = 2152 по данным [source.md](<{src.as_posix()}>).  \n'
+            src.write_text('# Metrics\nBefore: 10 133\nAfter: 12 285\n', encoding='utf-8')
+            line_ok = f'Прирост равен 12 285 - 10 133 = 2 152 по данным [source.md](<{src.as_posix()}>).  \n'
             self.assertEqual(source_grounding.local_source_grounding_issues(root, line_ok), [])
 
             line_bad = f'Прирост равен 12285 - 10133 = 3500 по данным [source.md](<{src.as_posix()}>).  \n'
@@ -197,8 +270,9 @@ class Issue45To48Tests(unittest.TestCase):
                     {
                         'id': 'F-1',
                         'knowledge_type': 'observation',
+                        'verification_status': 'verified',
                         'essence': 'Server has 24379 MB RAM and 20 CPUs with 95% confidence.',
-                        'primary_evidence': [{'source': ev_rel}],
+                        'evidence': [{'id': 'E-1', 'source': ev_rel}],
                     }
                 ],
             }
@@ -222,6 +296,7 @@ class Issue45To48Tests(unittest.TestCase):
             preds = review.build_blind_verification_predicates(manifest, analysis_val)
             self.assertEqual(len(preds), 1)
             self.assertEqual(preds[0]['claim_id'], 'F-1')
+            self.assertEqual(preds[0]['primary_sources'], [ev_rel])
             self.assertNotIn('95%', preds[0]['atomic_predicate'])
             self.assertIn('Does the Tier 0 primary evidence directly entail or falsify', preds[0]['question'])
 
@@ -237,9 +312,17 @@ class Issue45To48Tests(unittest.TestCase):
             self.assertEqual(delta2['unverified_claim_ids'], [])
             self.assertEqual(delta2['cached_claim_ids'], ['F-1'])
 
+            # Changing the Tier 0 evidence digest must invalidate the Merkle cache for F-1
+            delta3 = review.compute_claim_merkle_delta(
+                root, manifest, analysis_val, {ev_rel: 'sha256-changed999'}
+            )
+            self.assertEqual(delta3['unverified_claim_ids'], ['F-1'])
+            self.assertEqual(delta3['cached_claim_ids'], [])
+
             # Falsifier report validation
             pkg = {
                 'schema_version': review.REVIEW_SCHEMA,
+                'project_root': str(root),
                 'review_mode': 'falsifier',
                 'risk': 'significant',
                 'scope': list(review.SCOPES),
@@ -272,6 +355,23 @@ class Issue45To48Tests(unittest.TestCase):
                 f'Expected disproved_claims error, got: {bad_issues}',
             )
 
+            # Falsifier report with fabricated quote or non-Tier-0 source must be rejected
+            fab_quote_report = dict(good_falsifier_report, result='needs_changes')
+            fab_quote_report['disproved_claims'] = [
+                {
+                    'claim_id': 'F-1',
+                    'excerpt_from_answer': 'Server has 20 GB RAM',
+                    'contradicting_tier0_source': ev_rel,
+                    'verbatim_quote_from_source': 'mem_total: 99999999 (absent quote)',
+                    'falsification_reason': 'Fabricated quote',
+                }
+            ]
+            fab_issues = review.report_issues(fab_quote_report, pkg)
+            self.assertTrue(
+                any('verbatim_quote_from_source is absent from Tier 0 source' in item for item in fab_issues),
+                f'Expected fabricated quote error in disproved_claims, got: {fab_issues}',
+            )
+
     def test_issue47_partial_candidate_read_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -298,6 +398,22 @@ class Issue45To48Tests(unittest.TestCase):
             self.assertTrue(
                 any('partial/truncated read of candidate response' in item and '1-60 of 108' in item for item in issues_partial),
                 f'Expected partial candidate read violation, got: {issues_partial}',
+            )
+
+            # Non-contiguous middle gap (1..20 and 90..108, skipping 21..89) must also be caught
+            gap_rows = [
+                {
+                    'type': 'tool_call',
+                    'tool_calls': [
+                        {'name': 'view_file', 'args': {'AbsolutePath': str(cand), 'StartLine': 1, 'EndLine': 20}},
+                        {'name': 'view_file', 'args': {'AbsolutePath': str(cand), 'StartLine': 90, 'EndLine': 108}},
+                    ],
+                }
+            ]
+            issues_gap = antigravity.reviewer_isolation_issues(root, gap_rows)
+            self.assertTrue(
+                any('partial/truncated read of candidate response' in item and 'non-contiguous' in item for item in issues_gap),
+                f'Expected non-contiguous partial candidate read violation, got: {issues_gap}',
             )
 
             full_rows = partial_rows + [

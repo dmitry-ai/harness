@@ -10,6 +10,9 @@
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 import hashlib
 import json
 from pathlib import Path
@@ -254,7 +257,38 @@ def native_answers(root, conversation_id, *, backend=None):
 				if None is not current['response'] and isinstance(native_final, str) and (native_final != current['response']):
 					raise ValueError('Native Codex final message and completion event disagree')
 				current['completed'] = bool(current['response'] and None is not current['final_step'])
-	for turn in turns:
+	child_parent_map: dict[str, list[str]] = {}
+	if not child:
+		for db_file in sorted(home.glob('state_*.sqlite')):
+			try:
+				conn = sqlite3.connect(db_file.as_uri() + '?mode=ro', uri=True)
+				conn.row_factory = sqlite3.Row
+				try:
+					t_rows = conn.execute('SELECT id, rollout_path FROM threads').fetchall()
+				finally:
+					conn.close()
+			except sqlite3.Error:
+				continue
+			for tr in t_rows:
+				tid = tr['id']
+				r_path = tr['rollout_path']
+				if not tid or tid == conversation_id or not r_path:
+					continue
+				try:
+					rp = _local_path(r_path)
+					if not rp.is_file():
+						continue
+					with rp.open('r', encoding='utf-8', errors='replace') as fh:
+						first_ln = fh.readline().strip()
+					if not first_ln:
+						continue
+					first_obj = json.loads(first_ln)
+					p_tid = (((first_obj.get('payload') or {}).get('source') or {}).get('subagent') or {}).get('thread_spawn', {}).get('parent_thread_id')
+					if isinstance(p_tid, str) and p_tid:
+						child_parent_map.setdefault(p_tid, []).append(tid)
+				except (OSError, ValueError, KeyError, TypeError):
+					continue
+	for t_idx, turn in enumerate(turns):
 		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(turn.get('all_request_steps', []))
 		turn.pop('all_request_steps', None)
 		cp_steps = turn.pop('checkpoint_steps', [])
@@ -269,6 +303,87 @@ def native_answers(root, conversation_id, *, backend=None):
 		records = turn.pop('tool_records', [])
 		turn.pop('_pending_calls', None)
 		turn['issue_actions'] = extract_issue_actions_from_outputs([out for r in records for out in r.get('outputs', [])])
+		if not child and (sub_steps or (t_idx == len(turns) - 1 and child_parent_map.get(conversation_id))):
+			queue_ids = list(child_parent_map.get(conversation_id, []))
+			for r in records:
+				for out in r.get('outputs', []):
+					for m_uuid in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', str(out)):
+						if m_uuid != conversation_id and m_uuid not in queue_ids:
+							queue_ids.append(m_uuid)
+			visited_sub_ids = {conversation_id}
+			while queue_ids:
+				sub_id = queue_ids.pop(0)
+				if sub_id in visited_sub_ids:
+					continue
+				visited_sub_ids.add(sub_id)
+				for grand_id in child_parent_map.get(sub_id, []):
+					if grand_id not in visited_sub_ids and grand_id not in queue_ids:
+						queue_ids.append(grand_id)
+				try:
+					_, _, _, sub_rows = _trace(home, sub_id)
+				except (ValueError, OSError):
+					continue
+				sub_step_anchor = sub_steps[-1] if sub_steps else (t_steps[-1] if t_steps else turn['start_step'])
+				sub_outputs = []
+				for s_idx, s_item in sub_rows:
+					s_kind = s_item.get('type')
+					s_pay = s_item.get('payload', {})
+					if 'response_item' == s_kind and s_pay.get('type') in ('function_call', 'custom_tool_call'):
+						s_name = s_pay.get('name', '')
+						s_raw = s_pay.get('input', s_pay.get('arguments', ''))
+						if not isinstance(s_raw, str):
+							s_raw = json.dumps(s_raw, ensure_ascii=False)
+						if 'exec' == s_name or s_name.endswith(('exec_command', 'run_command')):
+							bad = unflagged_git_read_commands(s_raw)
+							if bad:
+								turn['exec5_violations'].append({'step': sub_step_anchor, 'subagent_id': sub_id, 'commands': bad})
+							bad_http = unpersisted_http_fetch_commands(s_raw)
+							if bad_http:
+								turn['http_fetch_violations'].append({'step': sub_step_anchor, 'subagent_id': sub_id, 'commands': bad_http})
+						s_patches = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', s_raw, flags=re.M) if 'apply_patch' in s_name else []
+						for pt in s_patches:
+							pt_s = pt.strip()
+							if pt_s:
+								if pt_s not in turn['touched_files']:
+									turn['touched_files'].append(pt_s)
+								try:
+									wp = Path(pt_s)
+									norm_wp = (wp.resolve() if wp.is_absolute() else (root_p / wp).resolve()).as_posix()
+								except OSError:
+									norm_wp = pt_s.replace('\\', '/')
+								f_writes.append((sub_step_anchor, norm_wp))
+						if s_name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
+							s_args = s_pay.get('arguments', s_pay.get('input', {}))
+							if isinstance(s_args, str):
+								try:
+									s_args = json.loads(s_args)
+								except ValueError:
+									s_args = {}
+							if isinstance(s_args, dict):
+								p_arg = str(s_args.get('Path') or s_args.get('TargetFile') or s_args.get('path') or '').strip()
+								if p_arg:
+									try:
+										rp = Path(p_arg)
+										norm_rp = (rp.resolve() if rp.is_absolute() else (root_p / rp).resolve()).as_posix()
+									except OSError:
+										norm_rp = p_arg.replace('\\', '/')
+									if s_name.endswith(('read_file', 'view_file')):
+										f_reads.append((sub_step_anchor, norm_rp))
+									else:
+										if p_arg not in turn['touched_files']:
+											turn['touched_files'].append(p_arg)
+										f_writes.append((sub_step_anchor, norm_rp))
+					elif 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
+						out = s_pay.get('output')
+						out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
+						sub_outputs.append(out_s)
+						for m_uuid in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_s):
+							if m_uuid not in visited_sub_ids and m_uuid not in queue_ids:
+								queue_ids.append(m_uuid)
+				for act in extract_issue_actions_from_outputs(sub_outputs):
+					act_with_sub = {**act, 'subagent_id': sub_id}
+					if act_with_sub not in turn['issue_actions']:
+						turn['issue_actions'].append(act_with_sub)
 		last_cp = max(cp_steps) if cp_steps else None
 		pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
 		post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]
