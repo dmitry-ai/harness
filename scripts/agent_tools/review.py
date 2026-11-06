@@ -30,27 +30,45 @@ def load_verified_claims_cache(root) -> dict:
 		except (OSError, ValueError):
 			pass
 	return {'version': 1, 'claims': {}}
-def _claim_evidence_sources(claim_id: str, index: dict) -> list[str]:
+def _claim_evidence_pairs(claim_id: str, index: dict, evidence_inputs: dict | None = None, _visited: set | None = None) -> list[tuple[str, str]]:
+	visited = set() if None is _visited else _visited
+	if not _text(claim_id) or claim_id in visited:
+		return []
+	visited.add(claim_id)
 	claim = index.get(claim_id) or {}
-	sources = set()
-	for ref in claim.get('primary_evidence') or []:
-		if isinstance(ref, dict) and _text(ref.get('source')):
-			sources.add(ref['source'])
+	ev_map = evidence_inputs if isinstance(evidence_inputs, dict) else {}
+	pairs: dict[str, str] = {}
+	refs = list(claim.get('evidence') or []) + list(claim.get('primary_evidence') or [])
+	for ref in refs:
+		if not isinstance(ref, dict):
+			continue
+		for key in ('source', 'observation', 'manifest'):
+			val = ref.get(key)
+			if _text(val):
+				s = val.strip()
+				sha = ev_map.get(s) or (str(ref.get('source_sha256') or '') if 'source' == key else '')
+				if s not in pairs or (not pairs[s] and sha):
+					pairs[s] = sha
 	for dep in claim.get('derived_from') or []:
 		dep_id = dep.get('claim_id') if isinstance(dep, dict) else None
 		if _text(dep_id) and dep_id in index:
-			for ref in (index[dep_id].get('primary_evidence') or []):
-				if isinstance(ref, dict) and _text(ref.get('source')):
-					sources.add(ref['source'])
-	return sorted(sources)
+			for s, sha in _claim_evidence_pairs(dep_id, index, ev_map, visited):
+				if s not in pairs or (not pairs[s] and sha):
+					pairs[s] = sha
+	return sorted(pairs.items())
+def _claim_evidence_sources(claim_id: str, index: dict) -> list[str]:
+	return [s for s, _ in _claim_evidence_pairs(claim_id, index, {})]
 def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> str:
 	ident = claim_entry.get('claim_id', '')
-	srcs = _claim_evidence_sources(ident, index)
-	ev_pairs = [(s, evidence_inputs.get(s, '')) for s in srcs]
+	claim_obj = index.get(ident) or {}
+	ev_pairs = _claim_evidence_pairs(ident, index, evidence_inputs or {})
+	norm_excerpt = ' '.join(str(claim_entry.get('response_excerpt', '')).split())
 	payload = json_data({
 		'claim_id': ident,
 		'claim_sha256': claim_entry.get('claim_sha256', ''),
-		'response_excerpt': claim_entry.get('response_excerpt', ''),
+		'knowledge_type': claim_entry.get('knowledge_type') or claim_obj.get('knowledge_type') or '',
+		'verification_status': claim_entry.get('verification_status') or claim_obj.get('verification_status') or '',
+		'response_excerpt': norm_excerpt,
 		'evidence_hashes': ev_pairs,
 	})
 	return digest(payload)
@@ -90,10 +108,14 @@ def update_verified_claims_cache(root, package: dict, value: dict | None = None)
 	for item in package.get('claims') or []:
 		if isinstance(item, dict) and _text(item.get('claim_id')):
 			ident = item['claim_id']
+			claim_obj = index.get(ident) or {}
 			m_hash = (package.get('merkle_delta') or {}).get('merkle_hashes', {}).get(ident) or claim_merkle_hash(item, index, ev_inputs)
 			claims_map[ident] = {
 				'claim_id': ident,
 				'claim_sha256': item.get('claim_sha256', ''),
+				'knowledge_type': item.get('knowledge_type') or claim_obj.get('knowledge_type') or '',
+				'verification_status': item.get('verification_status') or claim_obj.get('verification_status') or '',
+				'tier0_evidence_hashes': dict(_claim_evidence_pairs(ident, index, ev_inputs)),
 				'merkle_sha256': m_hash,
 				'response_sha256': (package.get('response') or {}).get('sha256', ''),
 			}
@@ -109,7 +131,7 @@ def build_blind_verification_predicates(manifest: list[dict], value: dict) -> li
 	for item in manifest:
 		ident = item['claim_id']
 		raw_essence = str(item.get('essence') or '')
-		clean_predicate = re.sub('(?:\\s*\\(\\d{1,3}%\\)|\\s+with\\s+\\d{1,3}%\\s+(?:confidence|probability|plausibility))', '', raw_essence, flags=re.I).strip()
+		clean_predicate = re.sub('(?:\\s*\\(\\d{1,3}%\\)|\\s+with\\s+\\d{1,3}%\\s+(?:confidence|probability|plausibility|score)|\\s*[—–-]\\s*\\d{1,3}%)', '', raw_essence, flags=re.I).strip()
 		predicates.append({
 			'claim_id': ident,
 			'knowledge_type': item.get('knowledge_type'),
@@ -239,7 +261,7 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 # https://github.com/dmitry-ai/harness/issues/12
 def prepare(root, parent_id, spec, response):
 	from .workflow import load, hashes, kb_paths, evidence_paths, doc4_sentence_issues
-	from .source_grounding import discover_entity_tier0_sources, sync_fact_ledger
+	from .source_grounding import discover_entity_tier0_sources, local_source_grounding_issues, sync_fact_ledger
 	root = Path(root).resolve()
 	if not _text(parent_id) or not _text(response):
 		raise ValueError('Observed parent ID and the exact nonempty candidate response are required')
@@ -255,12 +277,15 @@ def prepare(root, parent_id, spec, response):
 	doc4_issues = doc4_sentence_issues(response)
 	if doc4_issues:
 		raise ValueError('\n'.join(doc4_issues))
+	sync_fact_ledger(root)
+	grounding_issues = local_source_grounding_issues(root, response)
+	if grounding_issues:
+		raise ValueError('\n'.join(grounding_issues))
 	classified = classification(root, state, spec, response, value)
 	payload = response.encode('utf-8')
 	response_sha = digest(payload)
 	candidate = root / 'ꘖ/KB/Evidence/Reviews/Candidates' / (response_sha + '.txt')
 	_immutable(candidate, payload)
-	sync_fact_ledger(root)
 	ev_inputs = hashes(root, evidence_paths(root))
 	auto_tier0 = discover_entity_tier0_sources(root, response)
 	merkle_delta = compute_claim_merkle_delta(root, classified['claims'], value, ev_inputs)
@@ -382,6 +407,7 @@ def _report_object(text):
 	return r
 def report_issues(data, package):
 	from .claims import standalone_numbers
+	from .source_grounding import _quote_segments_present, classify_provenance_tier, norm_quote_text
 	issues = []
 	if data.get('schema_version') != REVIEW_SCHEMA:
 		issues.append('Review report schema_version 2 is required')
@@ -393,6 +419,7 @@ def report_issues(data, package):
 	expected = {c['claim_id'] for c in package['claims']}
 	targets = {c['claim_id']: c['essence'] for c in package['claims']}
 	package_claims = {c['claim_id']: c for c in package['claims']}
+	pkg_root = Path(package['project_root']).resolve() if _text(package.get('project_root')) else None
 	is_falsifier = 'falsifier' == data.get('review_mode') or ('disproved_claims' in data and 'claim_reviews' not in data)
 	if is_falsifier:
 		disproved = data.get('disproved_claims')
@@ -403,11 +430,27 @@ def report_issues(data, package):
 				if not isinstance(dc, dict):
 					issues.append('Each disproved_claims entry must be an object')
 					continue
-				if dc.get('claim_id') not in expected:
+				cid_val = dc.get('claim_id')
+				if cid_val not in expected:
 					issues.append('Each disproved_claims entry must reference a valid response claim_id')
 				for req_field in ('excerpt_from_answer', 'contradicting_tier0_source', 'verbatim_quote_from_source', 'falsification_reason'):
 					if not _text(dc.get(req_field)):
-						issues.append(f"disproved_claims[{dc.get('claim_id', '?')}]: {req_field} is required")
+						issues.append(f"disproved_claims[{cid_val or '?'}]: {req_field} is required")
+				src_str = dc.get('contradicting_tier0_source')
+				quote_str = dc.get('verbatim_quote_from_source')
+				if _text(src_str):
+					src_cand = Path(src_str)
+					if None is not pkg_root and not src_cand.is_absolute():
+						src_cand = (pkg_root / src_cand).resolve()
+					if 'tier_0' != classify_provenance_tier(src_cand, pkg_root):
+						issues.append(f"disproved_claims[{cid_val or '?'}]: contradicting_tier0_source ({src_str}) must be a Tier 0 primary source")
+					elif src_cand.is_file() and _text(quote_str):
+						try:
+							raw_src = src_cand.read_text(encoding='utf-8', errors='replace')
+							if not _quote_segments_present(quote_str, norm_quote_text(raw_src), 8):
+								issues.append(f"disproved_claims[{cid_val or '?'}]: verbatim_quote_from_source is absent from Tier 0 source {src_str}")
+						except OSError:
+							pass
 			if disproved and 'approved' == data.get('result'):
 				issues.append('Adversarial falsifier report with non-empty disproved_claims requires needs_changes')
 			if not disproved and 'needs_changes' == data.get('result') and not data.get('findings'):

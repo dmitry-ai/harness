@@ -294,6 +294,7 @@ def _partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 	issues = []
 	candidate_reads: dict[str, dict] = {}
 	rows_list = rows if isinstance(rows, list) else []
+	root_resolved = Path(project_root).resolve()
 	for pos, row in enumerate(rows_list):
 		if not isinstance(row, dict):
 			continue
@@ -323,7 +324,8 @@ def _partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 			if not is_cand:
 				continue
 			try:
-				rp = Path(raw_path).resolve()
+				p_obj = Path(raw_path)
+				rp = p_obj.resolve() if p_obj.is_absolute() else (root_resolved / p_obj).resolve()
 			except OSError:
 				rp = Path(raw_path)
 			key = rp.as_posix().lower()
@@ -353,11 +355,20 @@ def _partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 		intervals = sorted(info['intervals'])
 		if not intervals:
 			continue
-		min_s = min((iv[0] for iv in intervals))
-		max_e = max((iv[1] for iv in intervals))
-		if total > 0 and (min_s > 1 or max_e < total):
-			issues.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} (lines {min_s}-{max_e} of {total})')
-		elif 0 == total and max_e <= 100 and min_s == 1:
+		merged = []
+		for s_val, e_val in intervals:
+			if not merged or s_val > merged[-1][1] + 1:
+				merged.append([s_val, e_val])
+			else:
+				merged[-1][1] = max(merged[-1][1], e_val)
+		min_s = merged[0][0]
+		max_e = merged[-1][1]
+		if total > 0 and (len(merged) > 1 or min_s > 1 or max_e < total):
+			if len(merged) > 1:
+				issues.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} (non-contiguous intervals {merged} of {total})')
+			else:
+				issues.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} (lines {min_s}-{max_e} of {total})')
+		elif 0 == total and (len(merged) > 1 or (max_e <= 100 and min_s == 1)):
 			issues.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} (lines {min_s}-{max_e})')
 	return issues
 def reviewer_isolation_issues(root, rows):
