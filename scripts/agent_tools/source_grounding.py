@@ -236,6 +236,7 @@ def classify_provenance_tier(path: Path, root: Path | None = None) -> str:
 		or '/candidates/' in norm
 		or '/data/scratch/' in norm
 		or '/evidence/reviews/' in norm
+		or '/res/' in norm
 		or norm.endswith('-audit.json')
 	):
 		return 'tier_2'
@@ -243,6 +244,7 @@ def classify_provenance_tier(path: Path, root: Path | None = None) -> str:
 		'source.md' == name
 		or ('/source/' in norm and 'analysis.md' != name)
 		or ('/kb/evidence/' in norm and (not norm.endswith('-audit.json')) and ('/evidence/github/' not in norm) and ('/evidence/reviews/' not in norm))
+		or norm.endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md'))
 		or '/req/' in norm
 	):
 		return 'tier_0'
@@ -322,9 +324,17 @@ def _collect_json_fact_tuples(obj, default_entity: str, source_loc: str, out: li
 		for ik in id_keys:
 			val = obj.get(ik)
 			if isinstance(val, str) and val.strip():
-				entities.append(val.strip())
+				v_s = val.strip()
+				if v_s not in entities:
+					entities.append(v_s)
+				if 'tier' == ik and re.fullmatch('(?:XS|S|M|L|XL|XXL)', v_s, re.I):
+					plan_alias = f'Plan {v_s.upper()}'
+					if plan_alias not in entities:
+						entities.append(plan_alias)
 		if not entities:
 			entities = [default_entity]
+		elif default_entity and default_entity not in entities:
+			entities.append(default_entity)
 		for k, v in obj.items():
 			kl = str(k).lower()
 			if kl in attr_keys and (None is v or isinstance(v, (int, float, str))):
@@ -354,6 +364,7 @@ def extract_fact_tuples(path: Path, raw_text: str | None = None, *, root: Path |
 		loc = path.as_posix()
 	tuples: list[dict] = []
 	default_entity = path.parent.parent.name if 'kb' == path.parent.name.lower() else (path.parent.name if 'source.md' == path.name.lower() else path.stem)
+	doc_plans = sorted({m.group(0).strip() for m in re.finditer('\\b(?:M[1-9]|Plan\\s+(?:XS|S|M|L|XL|XXL))\\b', raw_text, re.I)})
 	if '.json' == path.suffix.lower() and raw_text.strip():
 		try:
 			parsed = json.loads(raw_text)
@@ -371,13 +382,19 @@ def extract_fact_tuples(path: Path, raw_text: str | None = None, *, root: Path |
 		attr = m_mem.group(1).lower()
 		val_raw = m_mem.group(2).lower()
 		val = None if 'null' == val_raw else (int(val_raw) if val_raw.isdigit() else float(val_raw))
-		tuples.append({
-			'entity': default_entity,
-			'attribute': attr,
-			'value': val,
-			'unit': 'MB' if attr in {'mem_total', 'swap_total'} else None,
-			'source_locator': loc,
-		})
+		line_start = raw_text.rfind('\n', 0, m_mem.start()) + 1
+		line_end = raw_text.find('\n', m_mem.end())
+		line_slice = raw_text[line_start:len(raw_text) if -1 == line_end else line_end]
+		line_plans = [m.group(0).strip() for m in re.finditer('\\b(?:M[1-9]|Plan\\s+(?:XS|S|M|L|XL|XXL))\\b', line_slice, re.I)]
+		target_entities = list(dict.fromkeys([default_entity] + (line_plans or (doc_plans if 1 == len(doc_plans) else []))))
+		for ent in target_entities:
+			tuples.append({
+				'entity': ent,
+				'attribute': attr,
+				'value': val,
+				'unit': 'MB' if attr in {'mem_total', 'swap_total'} else None,
+				'source_locator': loc,
+			})
 	for m_la in re.finditer('(?i)load\\s+average\\s*[:=]\\s*(\\d+(?:\\.\\d+)?)', raw_text):
 		tuples.append({
 			'entity': default_entity,
@@ -411,6 +428,16 @@ def sync_fact_ledger(root: Path) -> dict:
 		data_dir.mkdir(parents=True, exist_ok=True)
 		(data_dir / 'facts.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 	return payload
+def load_fact_ledger(root: Path) -> list[dict]:
+	ledger_path = Path(root).resolve() / 'ꘖ' / 'data' / 'facts.json'
+	if ledger_path.is_file():
+		try:
+			data = json.loads(ledger_path.read_text(encoding='utf-8'))
+			if isinstance(data, dict) and isinstance(data.get('tuples'), list):
+				return data['tuples']
+		except (OSError, ValueError):
+			pass
+	return []
 def fact_tuple_contradictions(sline: str, infos: list[dict], ledger_tuples: list[dict] | None = None) -> list[str]:
 	if not sline or META_REFUTATION_RE.search(sline):
 		return []
@@ -419,8 +446,6 @@ def fact_tuple_contradictions(sline: str, infos: list[dict], ledger_tuples: list
 		all_tuples.extend(inf.get('fact_tuples') or [])
 	if ledger_tuples:
 		all_tuples.extend(ledger_tuples)
-	if not all_tuples:
-		return []
 	issues: list[str] = []
 	null_cpu_entities = {
 		str(t['entity']).lower(): t
@@ -450,6 +475,25 @@ def fact_tuple_contradictions(sline: str, infos: list[dict], ledger_tuples: list
 				issues.append(
 					f'DOC-1 / VERIFY-1: Fact-tuple contradiction for mem_total={mt0["value"]} MB in {mt0["source_locator"]}: prose claims {m_gb.group(0).strip()} (expected ~{round(float(mt0["value"]) / 1024.0, 2)} GiB)'
 				)
+		if re.search('(?i)\\bburst\\b[^\\n]{0,25}\\b(\\d+(?:[.,]\\d+)?)\\s*(?:gb|gib|\\u0433\\u0431)|(\\d+(?:[.,]\\d+)?)\\s*(?:gb|gib|\\u0433\\u0431)[^\\n]{0,25}\\bburst\\b', sline):
+			if not any(('burst' in str(inf.get('raw') or '').lower() for inf in infos)):
+				mt0 = mem_tuples[0]
+				issues.append(
+					f'DOC-1 / VERIFY-1: Fact-tuple contradiction for mem_total={mt0["value"]} MB in {mt0["source_locator"]}: prose characterizes permanent mem_total RAM as "burst" without primary source support'
+				)
+	if re.search('(?i)(?:\\b\\u0443\\u0445\\u043e\\u0434\\w*\\s+(?:\\u0441\\u0435\\u0440\\u0432\\u0435\\u0440\\u0430\\s+)?\\u0432\\s+(?:swap|\\u0441\\u0432\\u043e\\u043f)|\\u0444\\u0438\\u043a\\u0441\\u0438\\u0440\\u043e\\u0432\\u0430\\u043b\\w*[^\\n]{0,40}\\b(?:swap|\\u0441\\u0432\\u043e\\u043f)|\\bswapping\\b)', sline) and (not re.search('(?i)(?:\\b\\u0431\\u0435\\u0437\\s+(?:swap|\\u0441\\u0432\\u043e\\u043f)|\\bno\\s+swap|\\bswap[_ ]total\\s*[:=]\\s*0|\\b\\u043d\\u0435\\s+\\u0443\\u0445\\u043e\\u0434|\\b\\u043e\\u0442\\u0441\\u0443\\u0442\\u0441\\u0442\\u0432\\w*\\s+(?:swap|\\u0441\\u0432\\u043e\\u043f))', sline)):
+		zero_swap = [t for t in all_tuples if 'swap_total' == t.get('attribute') and 0 == t.get('value')]
+		tier0_infos = [inf for inf in infos if 'tier_0' == inf.get('tier') and inf.get('raw')]
+		if zero_swap:
+			zs0 = zero_swap[0]
+			issues.append(
+				f'DOC-1 / VERIFY-1: Fact-tuple contradiction for swap_total=0 in {zs0["source_locator"]}: prose asserts server swap activity despite swap_total=0'
+			)
+		elif tier0_infos and not any((re.search('(?i)\\b(?:swap\\w*|\\u0441\\u0432\\u043e\\u043f\\w*)', str(inf.get('raw') or '')) for inf in tier0_infos)):
+			src_name = tier0_infos[0]['path'].name
+			issues.append(
+				f'DOC-1 / VERIFY-1: Fact-tuple contradiction in {src_name}: prose asserts server swap activity ("swap"), which is absent from the Tier 0 primary source'
+			)
 	la_tuples = [t for t in all_tuples if 'load_average_1m' == t.get('attribute') and isinstance(t.get('value'), (int, float))]
 	cpu_tuples = [t for t in all_tuples if t.get('attribute') in {'cpus', 'vcpu'} and isinstance(t.get('value'), (int, float)) and t['value'] > 0]
 	if la_tuples and cpu_tuples:
@@ -476,6 +520,10 @@ def _json_scalar_strings(obj, out: list[str]):
 		out.append(str(obj))
 def _source_numeric_tokens(raw_text: str) -> set[str]:
 	nums = set()
+	for sp_tok in re.findall('\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+(?:[.,]\\d+)?', raw_text or ''):
+		compact = re.sub('[ \\u00a0\\u202f]', '', sp_tok)
+		nums.add(compact.replace(',', '.'))
+		nums.add(compact.replace(',', ''))
 	for tok in re.findall('\\d+(?:[.,]\\d+)*', raw_text or ''):
 		norm_dot = tok.replace(',', '.')
 		no_comma = tok.replace(',', '')
@@ -543,8 +591,10 @@ def _quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int = 12) ->
 	return r
 def _filter_primary_sources(paths: list[Path]) -> list[Path]:
 	src_dirs = {p.parent for p in paths if 'source.md' == p.name.lower()}
-	r = [p for p in paths if not ('analysis.md' == p.name.lower() and p.parent in src_dirs)]
-	return r
+	non_analysis = [p for p in paths if not ('analysis.md' == p.name.lower() and p.parent in src_dirs)]
+	if any(('tier_2' != classify_provenance_tier(p) for p in non_analysis)):
+		non_analysis = [p for p in non_analysis if 'tier_2' != classify_provenance_tier(p)]
+	return non_analysis
 def _extract_block_links(block, root: Path, doc_path: Path | None):
 	local_all = []
 	ext_urls = []
@@ -602,6 +652,11 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 		visited.add(str(doc_path))
 	errors = []
 	cache = {}
+	ledger_tuples = list(load_fact_ledger(root))
+	for disc in discover_entity_tier0_sources(root, content):
+		dp = (root / disc['path']).resolve()
+		if dp.is_file():
+			ledger_tuples.extend(_load_local_source_info(dp, cache).get('fact_tuples') or [])
 	default_sources = []
 	if None is not doc_path and (doc_path.parent / 'source.md').is_file() and 'source.md' != doc_path.name.lower():
 		default_sources = [(doc_path.parent / 'source.md').resolve()]
@@ -641,22 +696,26 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 			continue
 		local_all, ext_urls = _extract_block_links(block, root, doc_path)
 		sibling_tier0_for_analysis = []
+		orphan_analyses = []
 		for lp in local_all:
-			if 'analysis.md' == lp.name.lower() and (lp.parent / 'source.md').is_file():
-				if lp not in linked_analyses:
-					linked_analyses.append(lp)
-				sib_src = (lp.parent / 'source.md').resolve()
-				if sib_src not in sibling_tier0_for_analysis:
-					sibling_tier0_for_analysis.append(sib_src)
+			if 'analysis.md' == lp.name.lower():
+				if (lp.parent / 'source.md').is_file():
+					if lp not in linked_analyses:
+						linked_analyses.append(lp)
+					sib_src = (lp.parent / 'source.md').resolve()
+					if sib_src not in sibling_tier0_for_analysis:
+						sibling_tier0_for_analysis.append(sib_src)
+				else:
+					orphan_analyses.append(lp)
 		filtered_locals = _filter_primary_sources(local_all)
 		primary_here = [p for p in filtered_locals if is_primary_local_source(p)]
 		for sib_src in sibling_tier0_for_analysis:
 			if sib_src not in primary_here:
 				primary_here.append(sib_src)
-		tier2_here = [p for p in local_all if 'tier_2' == classify_provenance_tier(p, root)]
-		if tier2_here and (not [p for p in filtered_locals if is_primary_local_source(p)]) and (not ext_urls) and (not META_REFUTATION_RE.search(block.content)):
-			non_analysis_tier2 = [p for p in tier2_here if 'analysis.md' != p.name.lower()]
-			if non_analysis_tier2 and re.search('(?i)\\b(?:mem_total|vcpu|cpus|swap_total|load\\s+average|ram|\\u043e\\u0437\\u0443|\\u044f\\u0434(?:\\u0435\\u0440|\\u0440\\u0430)|plan\\s+(?:xs|s|m|l|xl|xxl)|m[1-9])\\b', block.content) and standalone_numbers(block.content):
+		tier2_here = [p for p in local_all if 'tier_2' == classify_provenance_tier(p, root)] + orphan_analyses
+		if tier2_here and (not primary_here) and (not ext_urls) and (not META_REFUTATION_RE.search(block.content)):
+			non_analysis_tier2 = [p for p in tier2_here if 'analysis.md' != p.name.lower() or p in orphan_analyses]
+			if non_analysis_tier2 and re.search('(?i)\\b(?:mem_total|vcpu|cpus|swap_total|swap|\\u0441\\u0432\\u043e\\u043f|worker\\w*|\\u0432\\u043e\\u0440\\u043a\\u0435\\u0440\\w*|load\\s+average|ram|\\u043e\\u0437\\u0443|\\u044f\\u0434(?:\\u0435\\u0440|\\u0440\\u0430)|plan\\s+(?:xs|s|m|l|xl|xxl)|m[1-9]|gb|gib|\\u0433\\u0431|mb|mib|\\u043c\\u0431)\\b', block.content) and standalone_numbers(block.content):
 				errors.append(f'VERIFY-1 / SCOPE-1: Tier 2 file ({non_analysis_tier2[0].name}) cannot serve as sole primary evidence for factual or numeric claims; cite a Tier 0 primary observation')
 				for disc in discover_entity_tier0_sources(root, block.content):
 					dp = (root / disc['path']).resolve()
@@ -737,7 +796,7 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 						errors.append(f'VERIFY-1 / LINK-1: Cited person "{author_name}" is absent from {src_label}')
 			for ungrounded_num in _line_grounded_numbers_check(sline, ev_nums, valid_msg_nums, bound_ticket_ids, bool(ticket_infos)):
 				errors.append(f'VERIFY-1 / DOC-1: Unverified numeric figure or identifier ({ungrounded_num}) attributed to {src_label} is absent from the primary source')
-			for ft_err in fact_tuple_contradictions(sline, infos):
+			for ft_err in fact_tuple_contradictions(sline, infos, ledger_tuples=ledger_tuples):
 				errors.append(ft_err)
 			for code_span in re.findall('`([^`\\n]{3,60})`', sline):
 				c_strip = code_span.strip()
