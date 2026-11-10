@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -202,5 +205,17 @@ class ExecutorMetadataTests(unittest.TestCase):
 		self.codex_trace(self.aa, model=None, effort=None, parent=self.parent)
 		with self.assertRaisesRegex(ValueError, 'model/effort'):
 			codex._model(codex._trace(self.home, self.aa)[3])
+	def test_variant_suffixed_generation_model_matches_executor_configuration_and_inherit(self):
+		self.ag_database(self.parent, 'gemini-4-argon-b', 'gemini-4-argon-high')
+		self.ag_database(self.aa, 'gemini-4-argon-b', 'gemini-4-argon-high')
+		self.ag_child(self.aa, 'self', 'inherit')
+		primary = self.ag_read(self.parent)
+		aa = self.ag_read(self.aa, role='AA', parent_id=self.parent)
+		self.assertEqual(primary['observed']['generation_model'], 'gemini-4-argon-b')
+		self.assertEqual(primary['observed']['executor_model'], 'gemini-4-argon')
+		self.assertEqual(primary['verification']['status'], 'verified')
+		self.assertEqual(aa['requested']['generation_model'], 'gemini-4-argon-b')
+		self.assertEqual(aa['requested']['executor_model'], 'gemini-4-argon')
+		self.assertEqual(aa['verification']['status'], 'verified')
 if '__main__' == __name__:
 	unittest.main()

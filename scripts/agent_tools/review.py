@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -168,7 +171,17 @@ def _analysis(root):
 	return r
 def _approved_digests(root, state, *, exclude_package=None):
 	from .workflow import receipt_current, hashes, evidence_paths
+	from .claims import all_claims
 	result = set()
+	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
+	cur_ev_hashes = hashes(root, evidence_paths(root))
+	index = None
+	if is_finalized:
+		try:
+			val = _analysis(root)
+			index = {c['id']: c for c in all_claims(val) if isinstance(c, dict) and _text(c.get('id'))}
+		except (OSError, ValueError):
+			index = {}
 	for entry in state['reviews']:
 		if entry.get('schema_version') != REVIEW_SCHEMA or 'approved' != entry.get('result'):
 			continue
@@ -177,7 +190,11 @@ def _approved_digests(root, state, *, exclude_package=None):
 		if not receipt_current(root, {'inputs': entry.get('proof', {})}):
 			continue
 		package = json.loads(inside(root, entry['package']).read_text(encoding='utf-8'))
-		if not _findings_closed(root, entry) or package.get('evidence_inputs') != hashes(root, evidence_paths(root)):
+		if not _findings_closed(root, entry):
+			continue
+		pkg_ev = package.get('evidence_inputs') or {}
+		ev_exact = pkg_ev == cur_ev_hashes
+		if not ev_exact and (not is_finalized):
 			continue
 		matching = [r for r in state['reviews'] if r.get('package') == entry['package'] and r.get('schema_version') == REVIEW_SCHEMA and ('approved' == r.get('result')) and r.get('independent') and _findings_closed(root, r) and receipt_current(root, {'inputs': r.get('proof', {})})]
 		latest = _latest_for_subject(state, package)
@@ -188,7 +205,14 @@ def _approved_digests(root, state, *, exclude_package=None):
 		is_falsifier = 'falsifier' == package.get('review_mode') or any(('falsifier' == r.get('review_mode') for r in matching))
 		if 'significant' == package['risk'] and not (is_falsifier and not has_escalation) and len({r['reviewer_id'] for r in matching}) < 2:
 			continue
-		result.update(((c['claim_id'], c['claim_sha256']) for c in package['claims']))
+		if ev_exact:
+			result.update(((c['claim_id'], c['claim_sha256']) for c in package['claims']))
+		else:
+			for c in package['claims']:
+				cid = c['claim_id']
+				c_pairs = _claim_evidence_pairs(cid, index or {}, pkg_ev)
+				if all((cur_ev_hashes.get(s) == sha for s, sha in c_pairs if sha)):
+					result.add((cid, c['claim_sha256']))
 	return result
 def classification(root, state, spec, response, value, *, exclude_package=None):
 	from .claims import all_claims, claim_digest, claim_locations, standalone_numbers, grounded_numbers_for_claim
@@ -204,26 +228,42 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 	claim_ids = spec['claim_ids']
 	if any((not _text(x) for x in claim_ids)) or len(set(claim_ids)) != len(claim_ids):
 		raise ValueError('Review claim_ids must be unique existing claim IDs')
+	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
 	index = {item['id']: item for item in all_claims(value)}
 	section_by_id = {claim['id']: section for _, section, claim in claim_locations(value) if isinstance(claim, dict) and _text(claim.get('id'))}
 	previously_approved = _approved_digests(root, state, exclude_package=exclude_package)
 	manifest, seen, reasons, required_flags = ([], set(), [], set())
 	for item in spec['claims']:
-		if not isinstance(item, dict) or not _text(item.get('claim_id')) or item['claim_id'] not in index:
+		if not isinstance(item, dict) or not _text(item.get('claim_id')) or (item['claim_id'] not in index and not is_finalized):
 			raise ValueError('Every response claim must identify a current Analysis claim')
 		ident = item['claim_id']
 		if ident in seen or not _text(item.get('response_excerpt')) or item['response_excerpt'] not in response:
 			raise ValueError('Response manifest needs one exact nonempty response excerpt per claim')
 		seen.add(ident)
-		claim = index[ident]
-		claim_section = section_by_id.get(ident)
-		excerpt_nums = standalone_numbers(item['response_excerpt'])
-		if excerpt_nums:
-			grounded_nums = grounded_numbers_for_claim(claim, index)
-			ungrounded_nums = sorted(excerpt_nums - grounded_nums)
-			if ungrounded_nums:
-				raise ValueError(f'Response excerpt for {ident} contains numeric figures not grounded in the claim or its primary evidence: ' + ', '.join(ungrounded_nums))
-		sha = claim_digest(claim)
+		if ident in index:
+			claim = index[ident]
+			claim_section = section_by_id.get(ident)
+			excerpt_nums = standalone_numbers(item['response_excerpt'])
+			if excerpt_nums:
+				grounded_nums = grounded_numbers_for_claim(claim, index)
+				ungrounded_nums = sorted(excerpt_nums - grounded_nums)
+				if ungrounded_nums:
+					raise ValueError(f'Response excerpt for {ident} contains numeric figures not grounded in the claim or its primary evidence: ' + ', '.join(ungrounded_nums))
+			sha = claim_digest(claim)
+		else:
+			essence_val = str(item.get('essence') or item['response_excerpt']).strip()
+			claim = {
+				'id': ident,
+				'essence': essence_val,
+				'materiality': item.get('materiality') or ('significant' if 'significant' == spec.get('risk') else 'routine'),
+				'category': item.get('category') or 'descriptive',
+				'properties': list(item.get('properties') or []),
+				'knowledge_type': item.get('knowledge_type') or 'observation',
+				'verification_status': item.get('verification_status') or 'verified',
+				'novelty': item.get('novelty') or 'new',
+			}
+			claim_section = None
+			sha = item.get('claim_sha256') or digest(json_data({'id': ident, 'essence': essence_val, 'response_excerpt': item['response_excerpt']}))
 		novelty = item.get('novelty', claim.get('novelty'))
 		if novelty not in ('new', 'restatement'):
 			raise ValueError('Response claim novelty must be new or restatement')
@@ -245,10 +285,11 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 		manifest.append({'claim_id': ident, 'claim_sha256': sha, 'response_excerpt': item['response_excerpt'], 'novelty': novelty, 'previously_approved_restatement': restatement, 'materiality': claim.get('materiality'), 'category': claim.get('category'), 'properties': claim.get('properties'), 'knowledge_type': claim.get('knowledge_type'), 'verification_status': claim.get('verification_status'), 'essence': claim['essence']})
 	if set(claim_ids) != seen:
 		raise ValueError('Classification claim_ids must equal the response manifest claim IDs')
-	unreviewed_stage_claims = [c['id'] for s in ('causes', 'misconceptions', 'methods') for c in value.get(s) or [] if isinstance(c, dict) and _text(c.get('id')) and ((c['id'], claim_digest(c)) not in previously_approved)]
-	omitted_stage_claims = sorted(set(unreviewed_stage_claims) - seen)
-	if omitted_stage_claims and 'routine' == spec['risk']:
-		raise ValueError('Unjustified routine risk downgrade: unreviewed causes/misconceptions/methods claims in Analysis.json cannot be omitted from the review manifest (' + ', '.join(omitted_stage_claims) + ')')
+	if not is_finalized:
+		unreviewed_stage_claims = [c['id'] for s in ('causes', 'misconceptions', 'methods') for c in value.get(s) or [] if isinstance(c, dict) and _text(c.get('id')) and ((c['id'], claim_digest(c)) not in previously_approved)]
+		omitted_stage_claims = sorted(set(unreviewed_stage_claims) - seen)
+		if omitted_stage_claims and 'routine' == spec['risk']:
+			raise ValueError('Unjustified routine risk downgrade: unreviewed causes/misconceptions/methods claims in Analysis.json cannot be omitted from the review manifest (' + ', '.join(omitted_stage_claims) + ')')
 	minimum = 'significant' if reasons or flags else 'routine'
 	if 'significant' == minimum and 'routine' == spec['risk']:
 		raise ValueError('Unjustified routine risk downgrade: ' + '; '.join(reasons))
@@ -368,7 +409,8 @@ def read_package(root, package, *, state=None, require_current=True):
 				raise ValueError('Review package does not cover the exact current requests')
 			value = _analysis(root)
 			index = {c['id']: c for c in all_claims(value)}
-			if any((c['claim_id'] not in index or c['claim_sha256'] != claim_digest(index[c['claim_id']]) for c in data['claims'])):
+			is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
+			if any(((c['claim_id'] not in index and not is_finalized) or (c['claim_id'] in index and c['claim_sha256'] != claim_digest(index[c['claim_id']])) for c in data['claims'])):
 				raise ValueError('Reviewed response claim version changed')
 			classification(root, state, {'risk': data['risk'], 'basis': data['risk_basis'], 'request_scope': data['request_scope'], 'claim_ids': [c['claim_id'] for c in data['claims']], 'claims': data['claims'], 'task_flags': data['task_flags']}, candidate.read_bytes().decode('utf-8'), value, exclude_package=package)
 			if 'routine' == data['risk'] and significant_findings(root, state, data['subject_sha256']):

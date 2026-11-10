@@ -1,4 +1,7 @@
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
 # https://github.com/dmitry-ai/harness/issues/50
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -631,13 +634,36 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 		observed_topic_titles = {}
 		observed_anchors = {}
 		invalid_observations = {}
+		client_urls = set()
+		for req in requests or []:
+			for u in _bare_urls(req.get('text', '') if isinstance(req, dict) else str(req)):
+				client_urls.add(_norm_url(u))
+		for pfile in (root / 'ꘖ/project.json', root / 'KB/Project.md', root / 'ꘖ/KB/Project.md'):
+			if pfile.is_file():
+				try:
+					txt = pfile.read_text(encoding='utf-8')
+					for u in _bare_urls(txt):
+						client_urls.add(_norm_url(u))
+				except OSError:
+					pass
+		needs_ev_scan = any(
+			_is_descriptive_title_label(label, href)
+			or (
+				(urlsplit(href).hostname or '').lower() not in ('localhost', '127.0.0.1', '::1')
+				and _norm_url(href) not in client_urls
+			)
+			for label, href in authored_links
+		) or any(_norm_url(href) not in client_urls for href, _ in attributed_quotes)
 		ev_dirs = []
-		if (root / '_/ꘖ/KB/Evidence').is_dir():
-			ev_dirs.append((root / '_/ꘖ/KB/Evidence').resolve())
-		elif (root / 'ꘖ/KB/Evidence').is_dir():
-			ev_dirs.append((root / 'ꘖ/KB/Evidence').resolve())
+		if needs_ev_scan:
+			if (root / '_/ꘖ/KB/Evidence').is_dir():
+				ev_dirs.append((root / '_/ꘖ/KB/Evidence').resolve())
+			elif (root / 'ꘖ/KB/Evidence').is_dir():
+				ev_dirs.append((root / 'ꘖ/KB/Evidence').resolve())
 		for ev_dir in ev_dirs:
 			for jfile in ev_dir.rglob('*.json'):
+				if jfile.name.startswith('extracted-'):
+					continue
 				try:
 					if jfile.stat().st_size > 4 * 1024 * 1024:
 						continue
@@ -731,18 +757,6 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 					src_u = data.get('url') or data.get('html_url') or data.get('source') or ''
 					host = (urlsplit(src_u).hostname or '').lower() if isinstance(src_u, str) and src_u.startswith(('http://', 'https://')) else ''
 					_ingest_json_observations(data, host, observed_urls, observed_topics, observed_titles, observed_topic_titles, observed_texts)
-		client_urls = set()
-		for req in requests or []:
-			for u in _bare_urls(req.get('text', '') if isinstance(req, dict) else str(req)):
-				client_urls.add(_norm_url(u))
-		for pfile in (root / 'ꘖ/project.json', root / 'KB/Project.md', root / 'ꘖ/KB/Project.md'):
-			if pfile.is_file():
-				try:
-					txt = pfile.read_text(encoding='utf-8')
-					for u in _bare_urls(txt):
-						client_urls.add(_norm_url(u))
-				except OSError:
-					pass
 		for label, href in authored_links:
 			if not _is_descriptive_title_label(label, href):
 				continue
@@ -812,7 +826,8 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 			if segments and (not any((s in obs_blob for s in segments))):
 				preview = ' '.join(q_raw.split())[:80]
 				errors.append(f'VERIFY-1 / LINK-1: Verbatim quote «{preview}» attributed to {href} is absent from the saved observation in \ua616/KB/Evidence')
-	for iss in local_source_grounding_issues(root, response, observed_texts=observed_texts):
+	grounding_cache = {}
+	for iss in local_source_grounding_issues(root, response, observed_texts=observed_texts, cache=grounding_cache):
 		if iss not in errors:
 			errors.append(iss)
 	for tf in touched_files or []:
@@ -833,7 +848,7 @@ def response_source_and_kb_issues(root: Path, response: str, requests: list[dict
 			tf_path = tf_path.resolve() if tf_path.is_absolute() else (root / tf_path).resolve()
 			if tf_path.is_file():
 				tf_text = tf_path.read_text(encoding='utf-8', errors='replace')
-				for iss in local_source_grounding_issues(root, tf_text, doc_path=tf_path, observed_texts=observed_texts):
+				for iss in local_source_grounding_issues(root, tf_text, doc_path=tf_path, observed_texts=observed_texts, cache=grounding_cache):
 					msg = f'{tf_path.name} ({tf_path.parent.parent.name}): {iss}'
 					if msg not in errors:
 						errors.append(msg)
@@ -896,6 +911,19 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
 	elif 'code_lifecycle_check' not in value:
 		value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []}
+	if value.get('readiness_check', {}).get('verified') is False and (not value.get('admission_failure')):
+		rc_detail = str(value.get('readiness_check', {}).get('detail') or '')
+		resolved_gate = (
+			(rc_detail.startswith('EXEC-5 violation in active turn (git read') and value.get('exec5_check', {}).get('verified'))
+			or (rc_detail.startswith('KB-3 / EXEC-1 violation') and value.get('http_fetch_check', {}).get('verified'))
+			or (rc_detail.startswith('COMPACT-1 / KB-3 violation') and value.get('compaction_check', {}).get('verified'))
+			or (rc_detail.startswith('REVIEW-1 / KB-3 violation') and value.get('delegation_check', {}).get('verified'))
+			or (rc_detail.startswith('EXEC-5 violation in active turn (code/issue') and value.get('code_lifecycle_check', {}).get('verified'))
+			or (rc_detail.startswith(('TEXT-1:', 'FILE-3 / REVIEW-1:')) and value.get('language_and_stub_check', {}).get('verified'))
+			or (rc_detail.startswith(('VERIFY-1', 'LINK-', 'KB-1 / KB-3:')) and value.get('source_kb_check', {}).get('verified'))
+		)
+		if resolved_gate and all((value.get(k, {}).get('verified', True) for k in ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'code_lifecycle_check', 'language_and_stub_check', 'source_kb_check'))):
+			value.pop('readiness_check', None)
 	saved_directory = _directory(root, value['journal'])
 	if strict_journal and None is not journal_directory and (saved_directory != _directory(root, journal_directory)):
 		raise ValueError('The native turn already has a different journal; preserve its original binding')
@@ -1248,29 +1276,38 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			_persist(path, value)
 			raise ValueError(detail)
 		if value['compaction_check'].get('occurred') and value['compaction_check'].get('evicted_unreread_files'):
-			from markdown_it import MarkdownIt
-			from .source_grounding import _extract_block_links
-			ev_map = {p.replace('\\', '/').lower(): p for p in value['compaction_check']['evicted_unreread_files']}
-			unreread_cited = []
-			md_parser = MarkdownIt('commonmark', {'html': True})
-			md_parser.normalizeLink = lambda v: v
-			md_parser.validateLink = lambda v: True
-			for blk in md_parser.parse(response):
-				if 'inline' == blk.type:
-					lpaths, _ = _extract_block_links(blk, root, None)
-					for rp in lpaths:
-						rlow = rp.as_posix().lower()
-						if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
-							unreread_cited.append(ev_map[rlow])
-			for ev_low, ev_orig in ev_map.items():
-				m_res = re.search('/res/(\\d+\\.md)$', ev_low)
-				if m_res and re.search(f'\\bres/{re.escape(m_res.group(1))}\\b', response, re.I) and (ev_orig not in unreread_cited):
-					unreread_cited.append(ev_orig)
-			if unreread_cited:
-				detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
-				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-				_persist(path, value)
-				raise ValueError(detail)
+			scratch_ans = root / f'\ua616/data/scratch/answer-{result["turn_key"]}.md'
+			post_cp_w_low = {str(w).replace('\\', '/').lower() for w in (value['compaction_check'].get('post_checkpoint_written_files') or [])}
+			pre_cp_authored = False
+			if scratch_ans.is_file() and scratch_ans.resolve().as_posix().lower() not in post_cp_w_low:
+				try:
+					pre_cp_authored = scratch_ans.read_text(encoding='utf-8') == response
+				except OSError:
+					pre_cp_authored = False
+			if not pre_cp_authored:
+				from markdown_it import MarkdownIt
+				from .source_grounding import _extract_block_links
+				ev_map = {p.replace('\\', '/').lower(): p for p in value['compaction_check']['evicted_unreread_files']}
+				unreread_cited = []
+				md_parser = MarkdownIt('commonmark', {'html': True})
+				md_parser.normalizeLink = lambda v: v
+				md_parser.validateLink = lambda v: True
+				for blk in md_parser.parse(response):
+					if 'inline' == blk.type:
+						lpaths, _ = _extract_block_links(blk, root, None)
+						for rp in lpaths:
+							rlow = rp.as_posix().lower()
+							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
+								unreread_cited.append(ev_map[rlow])
+				for ev_low, ev_orig in ev_map.items():
+					m_res = re.search('/res/(\\d+\\.md)$', ev_low)
+					if m_res and re.search(f'\\bres/{re.escape(m_res.group(1))}\\b', response, re.I) and (ev_orig not in unreread_cited):
+						unreread_cited.append(ev_orig)
+				if unreread_cited:
+					detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
+					value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+					_persist(path, value)
+					raise ValueError(detail)
 		if not value['delegation_check']['verified']:
 			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={value['delegation_check']['tool_step_count']}, max_streak={value['delegation_check'].get('max_unpersisted_step_streak', 0)} > {value['delegation_check']['max_unpersisted_steps']}, or unpersisted_source_reads={value['delegation_check'].get('max_unpersisted_source_reads', 0)} >= {value['delegation_check'].get('max_allowed_unpersisted_source_reads', 10)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
@@ -1289,13 +1326,6 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
 			raise ValueError(detail)
-		source_issues = response_source_and_kb_issues(root, response, turn['requests'], touched_files=turn.get('touched_files'))
-		value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
-		if source_issues:
-			detail = '; '.join(source_issues)
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
 		sha = _hash(response.encode('utf-8'))
 		allow_reprepare = False
 		if value['prepared'] and value['prepared']['response_sha256'] != sha:
@@ -1311,20 +1341,29 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			_persist(path, value)
 			raise ValueError(detail)
 		workflow = root / '\ua616/data/workflow.json'
+		wf_state = None
+		wf_identifiers = set()
+		wf_covered = set()
+		is_finalized = False
+		has_substantive_hm = False
 		if workflow.exists():
 			from .workflow import load
-			state = load(root)
-			identifiers = {r['id'] for r in turn['requests']}
-			covered = {r['id'] for r in state['requests']} & identifiers
-			is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
+			wf_state = load(root)
+			wf_identifiers = {r['id'] for r in turn['requests']}
+			wf_covered = {r['id'] for r in wf_state['requests']} & wf_identifiers
+			is_finalized = wf_state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
 			has_normative_kb_mutation = False
+			has_analysis_kb_mutation = False
 			factual_kb_issues = []
 			from .knowledge import validate_kb_factual_note
 			for tf in turn.get('touched_files') or []:
 				tf_norm = str(tf).replace('\\', '/').lower()
 				if ('/\ua616/kb/' in tf_norm or tf_norm.endswith('/kb/analysis.md') or tf_norm.endswith('/kb/analysis.json')) and '/\ua616/kb/evidence/' not in tf_norm:
 					basename = Path(tf).name.lower()
-					if basename in ('analysis.md', 'analysis.json', 'project.md', 'projects.md'):
+					if basename in ('analysis.md', 'analysis.json'):
+						has_analysis_kb_mutation = True
+						has_normative_kb_mutation = True
+					elif basename in ('project.md', 'projects.md'):
 						has_normative_kb_mutation = True
 					else:
 						fpath = Path(tf)
@@ -1345,49 +1384,76 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 				raise ValueError(detail)
 			has_kb_or_issue_mutation = has_normative_kb_mutation or bool(turn.get('issue_actions')) or bool(value.get('github_issues'))
 			touches_client_deliverable = any((any((seg in str(tf).replace('\\', '/').lower() for seg in ('/letters/', '/result/', '/defects/'))) and '/\ua616/' not in str(tf).replace('\\', '/').lower() for tf in (turn.get('touched_files') or [])))
-			has_substantive_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response)) or has_kb_or_issue_mutation or touches_client_deliverable
-			if covered:
-				if covered != identifiers:
-					raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
-				if not is_finalized or has_substantive_hm:
-					from .review import authorize
-					authorize(root, state, response=response, request_ids=identifiers)
-					pending = {r['id'] for r in state['requests'] if not r.get('response_prepared') and (r.get('native_conversation_id') in (None, native['conversation_id']) or r['id'] in identifiers)}
-					if pending:
-						if pending != identifiers:
-							raise ValueError('Align unanswered tracked requests with the exact current native turn before preparation')
-						from .workflow import record_current_answer
-						record_current_answer(root, response, journal_directory=value['journal'], request_ids=identifiers)
-					elif any((r['response_prepared']['sha256'] != sha for r in state['requests'] if r['id'] in identifiers)):
-						if not allow_reprepare:
-							raise ValueError('Tracked analysis requests already have different prepared response bytes')
-						from .workflow import update
-						def update_reprepared(s):
-							for req in s.get('requests', []):
-								if req['id'] in identifiers:
-									req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
-						update(root, {'action': 'reprepare_before_delivery', 'request_ids': sorted(identifiers)}, update_reprepared)
-				else:
-					from .workflow import update
-					def change(s):
-						for req in s.get('requests', []):
-							if req['id'] in identifiers and (not req.get('response_prepared') or allow_reprepare):
-								req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
-					update(root, {'action': 'post_finalize_answer', 'request_ids': sorted(identifiers)}, change)
+			has_hm_tags = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response))
+			if is_finalized:
+				has_substantive_hm = has_analysis_kb_mutation or (has_hm_tags and 0 == value['delegation_check'].get('aa_subagent_step_count', 0))
 			else:
-				if (root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and (not is_finalized or has_substantive_hm):
-					detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
-					value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-					_persist(path, value)
-					raise ValueError(detail)
-		try:
-			value['prepared'], admission_check = _record(root, native, turn, response, value['journal'], existing=None if allow_reprepare else _recorded(value), allow_reprepare=allow_reprepare)
-		except (OSError, ValueError) as exc:
-			value['admission_failure'] = {'detail': str(exc), 'checked_at': _now()}
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
+				has_substantive_hm = has_hm_tags or has_kb_or_issue_mutation or touches_client_deliverable
+			if wf_covered and wf_covered != wf_identifiers:
+				raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
+			if not wf_covered and (root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and (not is_finalized or has_substantive_hm):
+				detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
+				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
+				_persist(path, value)
+				raise ValueError(detail)
+		source_issues = response_source_and_kb_issues(root, response, turn['requests'], touched_files=turn.get('touched_files'))
+		value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
+		if source_issues:
+			detail = '; '.join(source_issues)
+			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 			_persist(path, value)
-			raise
-		value.pop('admission_failure', None)
+			raise ValueError(detail)
+		recorded_early = False
+		if not workflow.exists() or is_finalized:
+			try:
+				value['prepared'], admission_check = _record(root, native, turn, response, value['journal'], existing=None if allow_reprepare else _recorded(value), allow_reprepare=allow_reprepare)
+				recorded_early = True
+			except (OSError, ValueError) as exc:
+				value['admission_failure'] = {'detail': str(exc), 'checked_at': _now()}
+				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
+				_persist(path, value)
+				raise
+			value.pop('admission_failure', None)
+		if None is not wf_state and wf_covered:
+			if not is_finalized or has_substantive_hm:
+				from .review import authorize
+				try:
+					authorize(root, wf_state, response=response, request_ids=wf_identifiers)
+				except (OSError, ValueError) as exc:
+					value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
+					_persist(path, value)
+					raise
+				pending = {r['id'] for r in wf_state['requests'] if not r.get('response_prepared') and (r.get('native_conversation_id') in (None, native['conversation_id']) or r['id'] in wf_identifiers)}
+				if pending:
+					if pending != wf_identifiers:
+						raise ValueError('Align unanswered tracked requests with the exact current native turn before preparation')
+					from .workflow import record_current_answer
+					record_current_answer(root, response, journal_directory=value['journal'], request_ids=wf_identifiers)
+				elif any((r['response_prepared']['sha256'] != sha for r in wf_state['requests'] if r['id'] in wf_identifiers)):
+					if not allow_reprepare:
+						raise ValueError('Tracked analysis requests already have different prepared response bytes')
+					from .workflow import update
+					def update_reprepared(s):
+						for req in s.get('requests', []):
+							if req['id'] in wf_identifiers:
+								req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
+					update(root, {'action': 'reprepare_before_delivery', 'request_ids': sorted(wf_identifiers)}, update_reprepared)
+			else:
+				from .workflow import update
+				def change(s):
+					for req in s.get('requests', []):
+						if req['id'] in wf_identifiers and (not req.get('response_prepared') or allow_reprepare):
+							req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
+				update(root, {'action': 'post_finalize_answer', 'request_ids': sorted(wf_identifiers)}, change)
+		if not recorded_early:
+			try:
+				value['prepared'], admission_check = _record(root, native, turn, response, value['journal'], existing=None if allow_reprepare else _recorded(value), allow_reprepare=allow_reprepare)
+			except (OSError, ValueError) as exc:
+				value['admission_failure'] = {'detail': str(exc), 'checked_at': _now()}
+				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
+				_persist(path, value)
+				raise
+			value.pop('admission_failure', None)
 		try:
 			_unchanged(root, native, turn)
 		except (OSError, ValueError, sqlite3.Error) as exc:

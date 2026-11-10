@@ -1,4 +1,7 @@
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
 # https://github.com/dmitry-ai/harness/issues/50
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -131,6 +134,12 @@ def _configuration(value):
 		match = re.fullmatch('(.+)-(minimal|low|medium|high|xhigh|max|ultra)', value)
 		r = {'model': match[1], 'effort': match[2]} if match else {'model': value, 'effort': None}
 	return r
+def _generation_matches_executor(generation_model, executor_model):
+	if not isinstance(generation_model, str) or not generation_model.strip() or (not isinstance(executor_model, str)) or (not executor_model.strip()):
+		return False
+	g_val = generation_model.strip()
+	e_val = executor_model.strip()
+	return g_val == e_val or g_val.startswith(e_val + '-')
 def _model_metadata(backend, conversation_id):
 	path, connection = _native_database(backend, conversation_id)
 	history, sources = ({'generations': [], 'configurations': [], 'model_ids': []}, [])
@@ -160,7 +169,7 @@ def _model_metadata(backend, conversation_id):
 	generation = history['generations'][-1]['value'] if history['generations'] else None
 	config = history['configurations'][-1]['value'] if history['configurations'] else None
 	configured = _configuration(config)
-	observed = {'model': generation, 'effort': configured['effort'], 'configuration': config, 'model_ids': sorted({item['value'] for item in history['model_ids']})}
+	observed = {'model': generation, 'generation_model': generation, 'executor_model': configured['model'], 'effort': configured['effort'], 'configuration': config, 'model_ids': sorted({item['value'] for item in history['model_ids']})}
 	r = (observed, history, sources)
 	return r
 def _native_invocation(backend, parent_id, conversation_id, role):
@@ -210,27 +219,42 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 		raise ValueError('Unknown executor role')
 	backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
 	observed, history, sources = _model_metadata(backend, conversation_id)
-	requested = {'model': None, 'effort': None, 'selection': 'unavailable', 'source': None}
+	requested = {'model': None, 'generation_model': None, 'executor_model': None, 'effort': None, 'selection': 'unavailable', 'source': None}
 	if 'primary' == role and observed['configuration']:
-		requested.update(_configuration(observed['configuration']), selection='native-executor-configuration', source=next((item for item in reversed(sources) if 'executor_metadata' == item.get('table')), None))
+		cfg = _configuration(observed['configuration'])
+		gen_match = _generation_matches_executor(observed['generation_model'], cfg['model'])
+		requested.update(cfg, executor_model=cfg['model'], generation_model=observed['generation_model'] if gen_match else None, selection='native-executor-configuration', source=next((item for item in reversed(sources) if 'executor_metadata' == item.get('table')), None))
+		if gen_match and observed['generation_model']:
+			requested['model'] = observed['generation_model']
 	elif 'primary' != role:
 		if not parent_id or parent_id == conversation_id:
 			raise ValueError('Exact parent required for AA/AF metadata')
 		invocation, source = _native_invocation(backend, parent_id, conversation_id, role)
 		selection = invocation.get('Model')
 		if 'inherit' != selection:
-			requested.update(_configuration(selection), selection='explicit-parent-invocation', source=source)
+			cfg = _configuration(selection)
+			gen_match = _generation_matches_executor(observed['generation_model'], cfg['model'])
+			requested.update(cfg, executor_model=cfg['model'], generation_model=observed['generation_model'] if gen_match else None, selection='explicit-parent-invocation', source=source)
+			if gen_match and observed['generation_model']:
+				requested['model'] = observed['generation_model']
 		else:
 			parent_observed, parent_history, _ = _model_metadata(backend, parent_id)
 			if 1 == len({item['value'] for item in parent_history['generations']}):
 				requested['model'] = parent_observed['model']
+				requested['generation_model'] = parent_observed['generation_model']
 			if 1 == len({item['value'] for item in parent_history['configurations']}):
 				requested['effort'] = parent_observed['effort']
+				requested['executor_model'] = parent_observed['executor_model']
 			requested.update(selection='inherit', source=source)
 	checks = {}
 	for key in ('model', 'effort'):
 		checks[key] = 'unverified' if not requested.get(key) or not observed.get(key) else 'verified' if requested[key] == observed[key] else 'mismatch'
-	if observed['configuration'] and observed['model'] and (_configuration(observed['configuration'])['model'] != observed['model']):
+	if 'inherit' == requested.get('selection'):
+		if requested.get('executor_model') and observed.get('executor_model') and (requested['executor_model'] != observed['executor_model']):
+			checks['model'] = 'mismatch'
+		elif observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])):
+			checks['model'] = 'mismatch'
+	elif observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])):
 		checks['model'] = 'mismatch'
 	status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if set(checks.values()) == {'verified'} else 'unverified'
 	r = {'schema_version': 1, 'surface': 'antigravity-ui', 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': 'Native generation model and executor configuration fields; exact API execution internals and missing modes are not inferred from runtime'}}
@@ -774,6 +798,7 @@ def native_answers(root, conversation_id, *, backend=None):
 		aa_subagent_steps = []
 		af_subagent_steps = []
 		kb_persistence_steps = []
+		completion_service_steps = []
 		transcript_read_steps = []
 		tool_records = []
 		touched_files = []
@@ -872,6 +897,9 @@ def native_answers(root, conversation_id, *, backend=None):
 					if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and (any((tok in target_path for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or target_path.replace('\\', '/').lower().endswith('/kb/analysis.md')) or ('run_command' == name and re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', args_text)):
 						if step_idx not in kb_persistence_steps:
 							kb_persistence_steps.append(step_idx)
+					if ('run_command' == name and re.search('\\b(?:turn-begin|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b', args_text)) or (name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and any((tok in target_path.replace('\\', '/') for tok in ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md')))):
+						if step_idx not in completion_service_steps:
+							completion_service_steps.append(step_idx)
 		aa_partial_read_violations = []
 		visited_cids = {conversation_id}
 		if subagent_steps:
@@ -1005,7 +1033,7 @@ def native_answers(root, conversation_id, *, backend=None):
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
 		completed_turn_cids.update(visited_cids - {conversation_id})
-		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'aa_subagent_steps': aa_subagent_steps, 'aa_partial_read_violations': aa_partial_read_violations, 'af_subagent_steps': af_subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records, 'touched_files': touched_files, 'file_reads': file_reads, 'file_writes': file_writes, 'issue_actions': issue_actions})
+		turns.append({'turn_id': f'ag-{conversation_id}-{start}', 'requests': [requests[start]] if start in requests else [], 'owned': start in requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': violations, 'http_fetch_violations': http_violations, 'checkpoint_steps': checkpoint_steps, 'tool_steps': tool_steps, 'subagent_steps': subagent_steps, 'aa_subagent_steps': aa_subagent_steps, 'aa_partial_read_violations': aa_partial_read_violations, 'af_subagent_steps': af_subagent_steps, 'kb_persistence_steps': kb_persistence_steps, 'completion_service_steps': completion_service_steps, 'transcript_read_steps': transcript_read_steps, 'tool_records': tool_records, 'touched_files': touched_files, 'file_reads': file_reads, 'file_writes': file_writes, 'issue_actions': issue_actions})
 	def _merge_pending(items):
 		first, last = (items[0], items[-1])
 		cp_steps = [s for item in items for s in item.get('checkpoint_steps', [])]
@@ -1015,6 +1043,7 @@ def native_answers(root, conversation_id, *, backend=None):
 		aa_part_errs = list(dict.fromkeys((e for item in items for e in item.get('aa_partial_read_violations', []))))
 		af_steps = [s for item in items for s in item.get('af_subagent_steps', [])]
 		kb_steps = [s for item in items for s in item.get('kb_persistence_steps', [])]
+		svc_steps = {s for item in items for s in item.get('completion_service_steps', [])}
 		tr_steps = [s for item in items for s in item.get('transcript_read_steps', [])]
 		records = [r for item in items for r in item.get('tool_records', [])]
 		t_files = list(dict.fromkeys((f for item in items for f in item.get('touched_files', []))))
@@ -1054,6 +1083,8 @@ def native_answers(root, conversation_id, *, backend=None):
 			if st in persist_or_sub:
 				cur_streak = 0
 				cur_src_reads.clear()
+			elif st in svc_steps:
+				continue
 			else:
 				cur_streak += 1
 				if cur_streak > max_streak:
@@ -1064,7 +1095,7 @@ def native_answers(root, conversation_id, *, backend=None):
 				if len(cur_src_reads) > max_src_reads:
 					max_src_reads = len(cur_src_reads)
 		merged = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [r for item in items for r in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}, 'delegation': {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'aa_partial_read_violations': aa_part_errs, 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads}}
-		for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes'):
+		for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'completion_service_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes'):
 			merged.pop(k, None)
 		return merged
 	grouped, pending = ([], [])
@@ -1096,7 +1127,13 @@ def verify_native_proof(root, native, package=None):
 	if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != result['final_response_sha256']:
 		raise ValueError('Immutable native authored reviewer response changed')
 	if 'executor_metadata' in native and native['executor_metadata'] != result['executor_metadata']:
-		raise ValueError('Native executor metadata differs from saved reviewer proof')
+		saved_meta = native['executor_metadata']
+		curr_meta = result['executor_metadata']
+		if not isinstance(saved_meta, dict) or 'generation_model' in (saved_meta.get('observed') or {}):
+			raise ValueError('Native executor metadata differs from saved reviewer proof')
+		norm_curr = {**curr_meta, 'observed': {k: v for k, v in (curr_meta.get('observed') or {}).items() if k in (saved_meta.get('observed') or {})}, 'requested': {k: v for k, v in (curr_meta.get('requested') or {}).items() if k in (saved_meta.get('requested') or {})}}
+		if saved_meta != norm_curr:
+			raise ValueError('Native executor metadata differs from saved reviewer proof')
 	if package:
 		with Path(result['native_log']).open(encoding='utf-8') as stream:
 			prompt = json.loads(stream.readline()).get('content', '')

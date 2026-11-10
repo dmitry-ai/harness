@@ -1,4 +1,7 @@
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
 # https://github.com/dmitry-ai/harness/issues/50
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1420,6 +1423,43 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c_status = completion._compaction_status(self.project, 'k1', comp_turn)
 		self.assertFalse(c_status['verified'])
 		self.assertIn('C:/Users/test/.system_generated/steps/5/output.txt', c_status['unreread_analysis_sources'])
+	def test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache(self):
+		from agent_tools import source_grounding
+		pj = self.project / 'ꘖ/project.json'
+		pj.parent.mkdir(parents=True, exist_ok=True)
+		pj.write_text(json.dumps({'job_id': '~515151'}), encoding='utf-8')
+		ev_file = self.project / 'ꘖ/KB/Evidence/db-matrix.json'
+		ev_file.parent.mkdir(parents=True, exist_ok=True)
+		ev_file.write_text(json.dumps({'sku': 'SKU-51', 'rows': 42, 'mem_total': 16384}), encoding='utf-8')
+		deliverable = self.project / 'Letters/my/2026/11/10/result/Sections/Proposed/5 - Product Matrix.md'
+		deliverable.parent.mkdir(parents=True, exist_ok=True)
+		deliverable.write_text(f'Verified 42 rows in [db-matrix.json]({ev_file.as_posix()}).  \n', encoding='utf-8')
+		wf_path = self.project / 'ꘖ/data/workflow.json'
+		wf_path.parent.mkdir(parents=True, exist_ok=True)
+		wf_path.write_text(json.dumps({'schema_version': 1, 'project_root': str(self.project), 'job_id': '~515151', 'stages': {'finalize': {'status': 'complete'}}, 'questions': {}, 'reviews': [], 'events': [], 'requests': []}), encoding='utf-8')
+		self.rows += [
+			{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w1', 'name': 'write_file', 'args': {'Path': str(deliverable), 'Content': deliverable.read_text(encoding='utf-8')}}]},
+			{'step_index': 2, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'python harness.py answer-prepare'}}]},
+			{'step_index': 3, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c2', 'name': 'run_command', 'args': {'CommandLine': 'python harness.py native-review-proof'}}]},
+		]
+		self.write()
+		begun = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertEqual(begun['delegation_check']['unpersisted_step_streak'], 1)
+		ans_text = f'Updated [5 - Product Matrix.md]({deliverable.as_posix()}) with 42 rows from [db-matrix.json]({ev_file.as_posix()}).  \n'
+		prepared = completion.prepare(self.project, ans_text, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		self.assertTrue(prepared['ready'])
+		self.assertEqual(prepared['journal_steps'], [1])
+		disc = source_grounding.discover_entity_tier0_sources(self.project, 'Check mem_total metric.')
+		self.assertTrue((self.project / 'ꘖ/data/grounding-cache.json').is_file())
+		self.assertTrue(any(('db-matrix.json' in d['path'] for d in disc)))
+		state_file = next((self.project / 'ꘖ/data/turns').glob('*.json'))
+		st_val = json.loads(state_file.read_text(encoding='utf-8'))
+		st_val['readiness_check'] = {'verified': False, 'checked_at': '2026-11-10T04:10:12+00:00', 'detail': 'REVIEW-1 / KB-3 violation in active turn: stale resolved check'}
+		state_file.write_text(json.dumps(st_val), encoding='utf-8')
+		self.finish(ans_text)
+		synced = self.sync()
+		self.assertTrue(synced['valid'])
+		self.assertEqual(synced['turns'][0]['status'], 'delivered')
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

@@ -1,4 +1,7 @@
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
 # https://github.com/dmitry-ai/harness/issues/50
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -12,6 +15,7 @@
 # https://github.com/dmitry-ai/harness/issues/45
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import unicodedata
@@ -266,6 +270,113 @@ def is_primary_local_source(path: Path) -> bool:
 	if 'tier_0' == tier:
 		return True
 	return norm.endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md'))
+_SOURCE_INFO_CACHE: dict[tuple[str, int, int], dict] = {}
+_TIER0_INDEX_CACHE: dict[str, dict[str, dict]] = {}
+_TIER0_TEXT_SUFFIXES = {'.md', '.txt', '.json', '.yaml', '.yml', '.xml', '.csv', '.ini', '.conf', '.env', '.log', ''}
+_TIER0_MAX_FILE_BYTES = 512 * 1024
+def _tier0_candidate_files(root: Path, tickets: list[str] | tuple[str, ...] = ()) -> list[Path]:
+	candidates: list[Path] = []
+	seen: set[Path] = set()
+	for sub in ('ꘖ/KB/Evidence', 'source', 'KB', 'tickets'):
+		base = root / sub
+		if base.is_dir():
+			for dirpath, dirs, filenames in os.walk(base):
+				dirs[:] = sorted((d for d in dirs if d.lower() not in ('http', 'reviews', 'github')))
+				dpath = Path(dirpath)
+				for fname in sorted(filenames):
+					pname = fname.lower()
+					p = dpath / fname
+					if p.suffix.lower() not in _TIER0_TEXT_SUFFIXES or pname.startswith('extracted-') or 'observation.json' == pname:
+						continue
+					try:
+						if p.stat().st_size > _TIER0_MAX_FILE_BYTES:
+							continue
+					except OSError:
+						continue
+					if 'tier_0' == classify_provenance_tier(p, root):
+						rp = p.resolve()
+						if rp not in seen:
+							seen.add(rp)
+							candidates.append(rp)
+	for p in sorted(root.glob('*/KB/source.md')):
+		if p.is_file():
+			rp = p.resolve()
+			if rp not in seen:
+				seen.add(rp)
+				candidates.append(rp)
+	for tid in tickets:
+		for t_cand in (
+			root / tid / 'KB' / 'source.md',
+			root / tid / 'source.md',
+			root / 'tickets' / tid / 'KB' / 'source.md',
+			root / 'tickets' / tid / 'source.md',
+		):
+			if t_cand.is_file():
+				rp = t_cand.resolve()
+				if rp not in seen:
+					seen.add(rp)
+					candidates.append(rp)
+	return candidates
+def _get_tier0_file_entry(root: Path, rp: Path, mem_idx: dict[str, dict]) -> tuple[str, dict | None, bool]:
+	try:
+		st = rp.stat()
+		mtime_ns, size = (st.st_mtime_ns, st.st_size)
+	except OSError:
+		return ('', None, False)
+	try:
+		rel = rp.relative_to(root).as_posix()
+	except ValueError:
+		rel = rp.as_posix()
+	cached = mem_idx.get(rel)
+	if isinstance(cached, dict) and cached.get('mtime_ns') == mtime_ns and cached.get('size') == size and isinstance(cached.get('sha256'), str):
+		return (rel, cached, False)
+	try:
+		raw_bytes = rp.read_bytes()
+		raw = raw_bytes.decode('utf-8', errors='replace')
+	except OSError:
+		return (rel, None, False)
+	raw_lower = raw.lower()
+	plans_norm = sorted({' '.join(m.group(0).split()).upper() for m in re.finditer('\\b(?:M[1-9]|Plan\\s+(?:XS|S|M|L|XL|XXL))\\b', raw, re.I)})
+	metrics_found = sorted({m.group(0).lower() for m in re.finditer('\\b(?:mem_total|vcpu|cpus|swap_total|load\\s+average)\\b', raw, re.I)} | {mt for mt in ('mem_total', 'vcpu', 'cpus', 'swap_total', 'load average') if mt in raw_lower})
+	entry = {
+		'mtime_ns': mtime_ns,
+		'size': size,
+		'sha256': hashlib.sha256(raw_bytes).hexdigest(),
+		'tickets': sorted(set(re.findall('\\b(\\d{6,10})\\b', raw))),
+		'plans_norm': plans_norm,
+		'metrics': metrics_found,
+		'fact_tuples': extract_fact_tuples(rp, raw, root=root),
+	}
+	mem_idx[rel] = entry
+	return (rel, entry, True)
+def _load_tier0_index(root: Path, tickets: list[str] | tuple[str, ...] = ()) -> tuple[list[Path], dict[str, dict]]:
+	root = Path(root).resolve()
+	rkey = str(root)
+	mem_idx = _TIER0_INDEX_CACHE.get(rkey)
+	cache_file = root / 'ꘖ' / 'data' / 'grounding-cache.json'
+	if None is mem_idx:
+		mem_idx = {}
+		if cache_file.is_file():
+			try:
+				loaded = json.loads(cache_file.read_text(encoding='utf-8'))
+				if isinstance(loaded, dict) and isinstance(loaded.get('files'), dict):
+					mem_idx = loaded['files']
+			except (OSError, ValueError):
+				mem_idx = {}
+		_TIER0_INDEX_CACHE[rkey] = mem_idx
+	candidates = _tier0_candidate_files(root, tickets)
+	dirty = False
+	for rp in candidates:
+		_, _, changed = _get_tier0_file_entry(root, rp, mem_idx)
+		if changed:
+			dirty = True
+	if dirty and (cache_file.parent.is_dir() or (root / 'ꘖ').is_dir()):
+		try:
+			cache_file.parent.mkdir(parents=True, exist_ok=True)
+			cache_file.write_text(json.dumps({'version': 1, 'files': mem_idx}, ensure_ascii=False) + '\n', encoding='utf-8')
+		except OSError:
+			pass
+	return (candidates, mem_idx)
 def discover_entity_tier0_sources(root: Path, text: str) -> list[dict]:
 	if not text or not isinstance(text, str):
 		return []
@@ -275,52 +386,34 @@ def discover_entity_tier0_sources(root: Path, text: str) -> list[dict]:
 	metrics = sorted({m.group(0).lower() for m in re.finditer('\\b(?:mem_total|vcpu|cpus|swap_total|load\\s+average)\\b', text, re.I)})
 	if not (tickets or plans or metrics):
 		return []
-	candidates: list[Path] = []
-	for sub in ('ꘖ/KB/Evidence', 'source', 'KB', 'tickets'):
-		base = root / sub
-		if base.is_dir():
-			for p in sorted(base.rglob('*')):
-				if p.is_file() and 'tier_0' == classify_provenance_tier(p, root):
-					candidates.append(p)
-	for tid in tickets:
-		for t_cand in (
-			root / tid / 'KB' / 'source.md',
-			root / tid / 'source.md',
-			root / 'tickets' / tid / 'KB' / 'source.md',
-			root / 'tickets' / tid / 'source.md',
-		):
-			if t_cand.is_file():
-				candidates.append(t_cand.resolve())
-	seen = set()
+	candidates, mem_idx = _load_tier0_index(root, tickets)
 	discovered = []
-	for p in candidates:
-		rp = p.resolve()
-		if rp in seen:
-			continue
-		seen.add(rp)
+	for rp in candidates:
 		try:
-			raw_bytes = rp.read_bytes()
-			raw = raw_bytes.decode('utf-8', errors='replace')
-		except OSError:
+			rel = rp.relative_to(root).as_posix()
+		except ValueError:
+			rel = rp.as_posix()
+		entry = mem_idx.get(rel)
+		if not isinstance(entry, dict):
 			continue
+		file_tickets = set(entry.get('tickets') or ())
+		file_plans = set(entry.get('plans_norm') or ())
+		file_metrics = set(entry.get('metrics') or ())
+		rp_posix = rp.as_posix()
 		matched_entities = []
 		for tid in tickets:
-			if tid in rp.as_posix() or tid in raw:
+			if tid in rp_posix or tid in file_tickets:
 				matched_entities.append(f'ticket:{tid}')
 		for pl in plans:
-			if re.search(f'\\b{re.escape(pl)}\\b', raw, re.I):
+			if ' '.join(pl.split()).upper() in file_plans:
 				matched_entities.append(f'plan:{pl}')
 		for mt in metrics:
-			if mt in raw.lower():
+			if mt in file_metrics:
 				matched_entities.append(f'metric:{mt}')
 		if matched_entities:
-			try:
-				rel = rp.relative_to(root).as_posix()
-			except ValueError:
-				rel = rp.as_posix()
 			discovered.append({
 				'path': rel,
-				'sha256': hashlib.sha256(raw_bytes).hexdigest(),
+				'sha256': entry['sha256'],
 				'tier': 'tier_0',
 				'matched_entities': matched_entities,
 			})
@@ -415,22 +508,16 @@ def extract_fact_tuples(path: Path, raw_text: str | None = None, *, root: Path |
 	return tuples
 def sync_fact_ledger(root: Path) -> dict:
 	root = Path(root).resolve()
+	candidates, mem_idx = _load_tier0_index(root)
 	tuples: list[dict] = []
-	seen_files: set[Path] = set()
-	for sub in ('ꘖ/KB/Evidence', 'source', 'KB', 'tickets'):
-		base = root / sub
-		if base.is_dir():
-			for p in sorted(base.rglob('*')):
-				if p.is_file() and 'tier_0' == classify_provenance_tier(p, root):
-					rp = p.resolve()
-					if rp not in seen_files:
-						seen_files.add(rp)
-						tuples.extend(extract_fact_tuples(rp, root=root))
-	for p in sorted(root.glob('*/KB/source.md')):
-		rp = p.resolve()
-		if rp.is_file() and rp not in seen_files:
-			seen_files.add(rp)
-			tuples.extend(extract_fact_tuples(rp, root=root))
+	for rp in candidates:
+		try:
+			rel = rp.relative_to(root).as_posix()
+		except ValueError:
+			rel = rp.as_posix()
+		entry = mem_idx.get(rel)
+		if isinstance(entry, dict) and isinstance(entry.get('fact_tuples'), list):
+			tuples.extend(entry['fact_tuples'])
 	payload = {'version': 1, 'tuple_count': len(tuples), 'tuples': tuples}
 	data_dir = root / 'ꘖ' / 'data'
 	if tuples or data_dir.is_dir() or (root / 'ꘖ').is_dir():
@@ -543,12 +630,21 @@ def _source_numeric_tokens(raw_text: str) -> set[str]:
 		if '.' in no_comma:
 			nums.add(no_comma.rstrip('0').rstrip('.') or '0')
 	return nums
-def _load_local_source_info(path: Path, cache: dict) -> dict:
+def _load_local_source_info(path: Path, cache: dict | None = None) -> dict:
 	key = str(path)
-	if key in cache:
+	if None is not cache and key in cache:
 		return cache[key]
+	stat_key = None
 	try:
-		raw_bytes = path.read_bytes()
+		rp = path.resolve()
+		st = rp.stat()
+		stat_key = (str(rp), st.st_mtime_ns, st.st_size)
+		if stat_key in _SOURCE_INFO_CACHE:
+			info = _SOURCE_INFO_CACHE[stat_key]
+			if None is not cache:
+				cache[key] = info
+			return info
+		raw_bytes = rp.read_bytes()
 		raw = raw_bytes.decode('utf-8', errors='replace')
 		sha256 = hashlib.sha256(raw_bytes).hexdigest()
 	except OSError:
@@ -587,7 +683,10 @@ def _load_local_source_info(path: Path, cache: dict) -> dict:
 		'tier': classify_provenance_tier(path),
 		'fact_tuples': extract_fact_tuples(path, raw),
 	}
-	cache[key] = info
+	if None is not stat_key:
+		_SOURCE_INFO_CACHE[stat_key] = info
+	if None is not cache:
+		cache[key] = info
 	return info
 def _quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int = 12) -> bool:
 	parts = [norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[\\u2026\\]|\\(\\u2026\\)|\\.{3,}|\\u2026', q_raw)]
@@ -656,7 +755,7 @@ def _is_client_deliverable_doc(doc_path: Path | None) -> bool:
 	if '/\ua616/' in norm_p or '/\ua66e/' in norm_p:
 		return False
 	return any((seg in norm_p for seg in ('/letters/', '/result/', '/defects/')))
-def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | None = None, observed_texts: dict | None = None, _visited: set | None = None) -> list[str]:
+def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | None = None, observed_texts: dict | None = None, cache: dict | None = None, _visited: set | None = None) -> list[str]:
 	if not content or not isinstance(content, str):
 		return []
 	root = Path(root).resolve()
@@ -669,7 +768,7 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 			return []
 		visited.add(str(doc_path))
 	errors = []
-	cache = {}
+	cache = cache if None is not cache else {}
 	ledger_tuples = list(load_fact_ledger(root))
 	for disc in discover_entity_tier0_sources(root, content):
 		dp = (root / disc['path']).resolve()
@@ -834,7 +933,7 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 			a_text = ap.read_text(encoding='utf-8')
 		except OSError:
 			continue
-		sub_errs = local_source_grounding_issues(root, a_text, doc_path=ap, observed_texts=observed_texts, _visited=visited)
+		sub_errs = local_source_grounding_issues(root, a_text, doc_path=ap, observed_texts=observed_texts, cache=cache, _visited=visited)
 		for se in sub_errs[:5]:
 			errors.append(f'Linked {ap.parent.parent.name}/{ap.name} -> {se}')
 	r = list(dict.fromkeys(errors))
