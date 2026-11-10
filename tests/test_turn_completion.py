@@ -1,4 +1,7 @@
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
+# https://github.com/dmitry-ai/harness/issues/50
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
 # https://github.com/dmitry-ai/harness/issues/49
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1399,6 +1402,24 @@ class AntigravityCompletionTests(unittest.TestCase):
 		deliverable.parent.mkdir(parents=True, exist_ok=True)
 		violation = check_markdown_content('Single sentence.  \n', str(deliverable))
 		self.assertIn('Turn Budget & Graceful Checkpoint Gate (M-4)', violation or '')
+	def test_client_deliverable_grounding_and_evicted_step_output_gate(self):
+		from agent_tools.source_grounding import local_source_grounding_issues
+		deliverable = self.project / 'Letters/1.md'
+		deliverable.parent.mkdir(parents=True, exist_ok=True)
+		unlinked = 'Order `#3100110539` with auth_code `00456Z` at https://example.com/sales/order/view/order_id/1021242/ failed.  \n'
+		errs = local_source_grounding_issues(self.project, unlinked, doc_path=deliverable)
+		self.assertTrue(any(('without linking to a Tier 0 primary source' in e for e in errs)), errs)
+		ev_file = self.project / 'ꘖ/KB/Evidence/order-1021240.json'
+		ev_file.parent.mkdir(parents=True, exist_ok=True)
+		ev_file.write_text('{"increment_id": "3100110537", "order_id": "1021240", "auth_code": "06319G"}', encoding='utf-8')
+		wrong_linked = f'See [order-1021240.json]({ev_file.as_posix()}) for `#3100110539` and `00456Z` at https://example.com/sales/order/view/order_id/1021242/.  \n'
+		errs2 = local_source_grounding_issues(self.project, wrong_linked, doc_path=deliverable)
+		self.assertTrue(any(('order_id/1021242' in e for e in errs2)), errs2)
+		self.assertTrue(any(('00456Z' in e for e in errs2)), errs2)
+		comp_turn = {'compaction': {'occurred': True, 'last_checkpoint_step': 10, 'pre_checkpoint_tool_steps': [5], 'post_checkpoint_recovery_steps': [11], 'recovered_in_trace': True, 'pre_checkpoint_read_files': ['C:/Users/test/.system_generated/steps/5/output.txt'], 'post_checkpoint_read_files': [], 'post_checkpoint_written_files': [str(deliverable)], 'evicted_unreread_files': ['C:/Users/test/.system_generated/steps/5/output.txt']}}
+		c_status = completion._compaction_status(self.project, 'k1', comp_turn)
+		self.assertFalse(c_status['verified'])
+		self.assertIn('C:/Users/test/.system_generated/steps/5/output.txt', c_status['unreread_analysis_sources'])
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

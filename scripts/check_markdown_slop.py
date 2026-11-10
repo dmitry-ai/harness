@@ -1,4 +1,7 @@
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
+# https://github.com/dmitry-ai/harness/issues/50
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
 # https://github.com/dmitry-ai/harness/issues/49
 # 2026-10-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -29,6 +32,10 @@ def _infer_project_root(target: Path) -> Path:
 	for anc in (target.parent, *target.parents):
 		if anc.name in ('\ua616', '\ua66e', '_') and anc.parent.is_dir():
 			return anc.parent
+		if (anc / '\ua616').is_dir() or (anc / '\ua66e').is_dir() or (anc / '_/\ua616').is_dir():
+			return anc
+	cwd = Path.cwd().resolve()
+	for anc in (cwd, *cwd.parents):
 		if (anc / '\ua616').is_dir() or (anc / '\ua66e').is_dir() or (anc / '_/\ua616').is_dir():
 			return anc
 	return target.parent
@@ -106,8 +113,20 @@ def main():
 			path = args.get('Path', '')
 			normalized_path = path.replace('\\', '/').lower()
 			if name in ('write_file', 'edit_file') and path and path.lower().endswith('.md') and ('/req/' not in normalized_path):
-				content = args.get('Content') if 'write_file' == name else args.get('Replacement')
-				violation = check_markdown_content(content, path if 'write_file' == name else None)
+				if 'write_file' == name:
+					content = args.get('Content')
+				else:
+					content = args.get('Replacement')
+					p_file = Path(path)
+					target_str = args.get('Target')
+					if p_file.is_file() and isinstance(target_str, str) and target_str and isinstance(content, str):
+						try:
+							raw_doc = p_file.read_text(encoding='utf-8')
+							if target_str in raw_doc:
+								content = raw_doc.replace(target_str, content)
+						except OSError:
+							pass
+				violation = check_markdown_content(content, path)
 				if violation:
 					decision = {'decision': 'deny', 'reason': f'REJECTED (DOC-4 / VERIFY-1 Anti-Slop Hook): {violation}'}
 	except Exception:

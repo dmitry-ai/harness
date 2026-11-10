@@ -1,4 +1,7 @@
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
+# https://github.com/dmitry-ai/harness/issues/50
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
 # https://github.com/dmitry-ai/harness/issues/49
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -150,12 +153,20 @@ def _compaction_status(root, key, turn):
 	evicted_unreread = list(comp.get('evicted_unreread_files') or [])
 	evicted_lower = {p.replace('\\', '/').lower(): p for p in evicted_unreread}
 	unreread_analysis_sources = []
+	writes_client_deliverable = False
 	for w in post_writes:
 		wnorm = w.replace('\\', '/')
-		if wnorm.lower().endswith('/kb/analysis.md'):
+		wlow = wnorm.lower()
+		if wlow.endswith('/kb/analysis.md'):
 			sib = (Path(wnorm).parent / 'source.md').as_posix()
 			if sib.lower() in evicted_lower and evicted_lower[sib.lower()] not in unreread_analysis_sources:
 				unreread_analysis_sources.append(evicted_lower[sib.lower()])
+		elif any((seg in wlow for seg in ('/letters/', '/result/', '/defects/'))) and '/\ua616/' not in wlow and '/\ua66e/' not in wlow:
+			writes_client_deliverable = True
+	if writes_client_deliverable:
+		for ev_l, ev_orig in evicted_lower.items():
+			if ('/.system_generated/steps/' in ev_l or ev_l.endswith('/kb/source.md') or '/source/' in ev_l or '/\ua616/kb/evidence/' in ev_l) and ev_orig not in unreread_analysis_sources:
+				unreread_analysis_sources.append(ev_orig)
 	recovered_in_trace = bool(comp.get('recovered_in_trace', True))
 	receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
 	recovered_via_receipt = False
@@ -971,7 +982,7 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None):
 		else:
 			stdout_records.append({**rec, 'output_file': rel_step if outs else None})
 	receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
-	receipt = {'turn_key': key, 'recovered_at': _now(), 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_read_files': list(comp.get('pre_checkpoint_read_files') or []), 'post_checkpoint_read_files': list(comp.get('post_checkpoint_read_files') or []), 'evicted_unreread_files': list(comp.get('evicted_unreread_files') or []), 'recovery_dir': rec_dir.relative_to(root).as_posix() if rec_dir.is_relative_to(root) else str(rec_dir), 'pre_checkpoint_records': raw_records}
+	receipt = {'turn_key': key, 'recovered_at': _now(), 'compact_mode': compact_mode, 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_read_files': list(comp.get('pre_checkpoint_read_files') or []), 'post_checkpoint_read_files': list(comp.get('post_checkpoint_read_files') or []), 'evicted_unreread_files': list(comp.get('evicted_unreread_files') or []), 'recovery_dir': rec_dir.relative_to(root).as_posix() if rec_dir.is_relative_to(root) else str(rec_dir), 'pre_checkpoint_records': raw_records}
 	with locked(_turn_lock(root, key)):
 		replace_bytes(receipt_path, _json(receipt))
 		path, value = _state(root, native, turn)
@@ -1333,8 +1344,8 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 				_persist(path, value)
 				raise ValueError(detail)
 			has_kb_or_issue_mutation = has_normative_kb_mutation or bool(turn.get('issue_actions')) or bool(value.get('github_issues'))
-			has_substantive_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response)) or has_kb_or_issue_mutation
-			aa_steps = value['delegation_check'].get('aa_subagent_step_count', value['delegation_check'].get('subagent_step_count', 0))
+			touches_client_deliverable = any((any((seg in str(tf).replace('\\', '/').lower() for seg in ('/letters/', '/result/', '/defects/'))) and '/\ua616/' not in str(tf).replace('\\', '/').lower() for tf in (turn.get('touched_files') or [])))
+			has_substantive_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response)) or has_kb_or_issue_mutation or touches_client_deliverable
 			if covered:
 				if covered != identifiers:
 					raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
@@ -1364,7 +1375,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 								req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
 					update(root, {'action': 'post_finalize_answer', 'request_ids': sorted(identifiers)}, change)
 			else:
-				if (root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and (not is_finalized or (has_substantive_hm and 0 == aa_steps)):
+				if (root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and (not is_finalized or has_substantive_hm):
 					detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
 					value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
 					_persist(path, value)

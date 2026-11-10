@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
+# https://github.com/dmitry-ai/harness/issues/50
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
@@ -646,6 +649,13 @@ def _line_grounded_numbers_check(sline: str, ev_nums: set[str], valid_msg_nums: 
 		if num not in ev_with_calc and norm_num not in ev_with_calc:
 			missing.append(num)
 	return missing
+def _is_client_deliverable_doc(doc_path: Path | None) -> bool:
+	if None is doc_path or _is_normative_harness_doc(doc_path):
+		return False
+	norm_p = '/' + doc_path.as_posix().lower().lstrip('/')
+	if '/\ua616/' in norm_p or '/\ua66e/' in norm_p:
+		return False
+	return any((seg in norm_p for seg in ('/letters/', '/result/', '/defects/')))
 def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | None = None, observed_texts: dict | None = None, _visited: set | None = None) -> list[str]:
 	if not content or not isinstance(content, str):
 		return []
@@ -745,6 +755,9 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 					errors.append('VERIFY-1 / LINK-1: Relational modification claim is refuted because the linked local source operands are byte-identical (matching SHA-256)')
 		active_primary = primary_here or section_sources or default_sources
 		if not active_primary:
+			if _is_client_deliverable_doc(doc_path) and 0 == quote_depth and (not META_REFUTATION_RE.search(block.content)):
+				if re.search('(?i)(?:/sales/order/view/order_id/\\d+|\\b(?:auth_code|trans_id)\\b|#31\\d{6,8}|`[0-9]{5}[0-9A-Z]`|\\b\\d+\\s+(?:rows|records|orders|transactions|events|occurrences|\\u0437\\u0430\\u043f\\u0438\\u0441\\w*|\\u0441\\u0442\\u0440\\u043e\\u043a\\w*|\\u0437\\u0430\\u043a\\u0430\\u0437\\w*|\\u0442\\u0440\\u0430\\u043d\\u0437\\u0430\\u043a\\u0446\\w*)\\b)', block.content):
+					errors.append('VERIFY-1 / LINK-1: Client deliverable block asserts quantitative metrics or transaction/order identifiers without linking to a Tier 0 primary source in \ua616/KB/Evidence/')
 			continue
 		active_locals = _filter_primary_sources(list(dict.fromkeys(filtered_locals + section_all_locals + active_primary)))
 		active_exts = list(dict.fromkeys(ext_urls + section_ext_urls))
@@ -804,12 +817,17 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 						errors.append(f'VERIFY-1 / LINK-1: Cited person "{author_name}" is absent from {src_label}')
 			for ungrounded_num in _line_grounded_numbers_check(sline, ev_nums, valid_msg_nums, bound_ticket_ids, bool(ticket_infos)):
 				errors.append(f'VERIFY-1 / DOC-1: Unverified numeric figure or identifier ({ungrounded_num}) attributed to {src_label} is absent from the primary source')
+			for m_oid in re.finditer('/sales/order/view/order_id/(\\d+)', sline, re.I):
+				oid_val = m_oid.group(1)
+				if oid_val not in ev_nums and oid_val not in combined_raw:
+					errors.append(f'VERIFY-1 / DOC-1: Order URL identifier (order_id/{oid_val}) attributed to {src_label} is absent from the primary source')
 			for ft_err in fact_tuple_contradictions(sline, infos, ledger_tuples=ledger_tuples):
 				errors.append(ft_err)
 			for code_span in re.findall('`([^`\\n]{3,60})`', sline):
 				c_strip = code_span.strip()
-				if re.match('^(?:/dev/[A-Za-z0-9/_-]+|[a-z][a-z0-9_]{3,}:\\d{3,}|[A-Za-z][A-Za-z0-9_.-]+\\s+\\d+\\.\\d+(?:\\.\\d+)*(?:-[A-Za-z0-9._-]+)?)$', c_strip):
-					if norm_quote_text(c_strip) not in combined_norm and c_strip.lower() not in combined_raw.lower():
+				if re.match('^(?:/dev/[A-Za-z0-9/_-]+|[a-z][a-z0-9_]{3,}:\\d{3,}|[A-Za-z][A-Za-z0-9_.-]+\\s+\\d+\\.\\d+(?:\\.\\d+)*(?:-[A-Za-z0-9._-]+)?|#?31\\d{6,8}|[0-9]{5}[0-9A-Z]|order_id/\\d+)$', c_strip):
+					c_lookup = c_strip.lstrip('#')
+					if norm_quote_text(c_strip) not in combined_norm and c_strip.lower() not in combined_raw.lower() and c_lookup.lower() not in combined_raw.lower():
 						errors.append(f'VERIFY-1 / DOC-1: Technical literal `{c_strip}` attributed to {src_label} is absent from the primary source')
 	for ap in linked_analyses:
 		try:

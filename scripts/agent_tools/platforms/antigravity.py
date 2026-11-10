@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
+# https://github.com/dmitry-ai/harness/issues/50
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -798,7 +801,10 @@ def native_answers(root, conversation_id, *, backend=None):
 					if cand.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
 						break
 					if 'GENERIC' == cand.get('type') and cand.get('content'):
-						outputs.append(str(cand.get('content'))[:4000])
+						c_str = str(cand.get('content'))
+						outputs.append(c_str[:4000])
+						for m_step_out in re.finditer('file:///+([A-Za-z]:/[^\\s"\\\'<>`]+?/\\.system_generated/steps/\\d+/output\\.txt)', c_str):
+							file_reads.append((step_idx, m_step_out.group(1).replace('\\', '/')))
 				tool_records.append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
 				for act_item in extract_issue_actions_from_outputs(outputs):
 					issue_actions.append({**act_item, 'step': step_idx})
@@ -1023,7 +1029,19 @@ def native_answers(root, conversation_id, *, backend=None):
 		post_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st > last_cp)))
 		post_cp_writes = list(dict.fromkeys((p for st, p in f_writes if None is not last_cp and st > last_cp)))
 		post_cp_lower = {p.lower() for p in post_cp_reads}
-		evicted_unreread = [p for p in pre_cp_reads if p.lower() not in post_cp_lower]
+		recovered_step_nums = set()
+		for pr in post_cp_reads:
+			m_rec = re.search('(?:/steps/(\\d+)/output\\.txt|/step-(\\d+)\\.txt)$', pr, re.I)
+			if m_rec:
+				recovered_step_nums.add(m_rec.group(1) or m_rec.group(2))
+		evicted_unreread = []
+		for p in pre_cp_reads:
+			if p.lower() in post_cp_lower:
+				continue
+			m_ev_step = re.search('/\\.system_generated/steps/(\\d+)/output\\.txt$', p, re.I)
+			if m_ev_step and m_ev_step.group(1) in recovered_step_nums:
+				continue
+			evicted_unreread.append(p)
 		reads_by_step = {}
 		for st, p in f_reads:
 			reads_by_step.setdefault(st, []).append(p)
