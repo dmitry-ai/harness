@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
+# https://github.com/dmitry-ai/harness/issues/49
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
@@ -141,7 +144,7 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 			if (directory / folder / f'{step}.md').read_bytes() != expected.encode('utf-8'):
 				raise ValueError('Historical journal bytes changed; preserve them')
 	return steps
-def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None):
+def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, allow_reprepare=False):
 	import re
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn) or not isinstance(requests, list) or (not requests):
 		raise ValueError('Stable turn ID and nonempty exact request list required')
@@ -162,8 +165,18 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 	with locked(journal_state / 'writer.lock'):
 		if file.exists():
 			group = json.loads(file.read_text(encoding='utf-8'))
-			if group.get('journal') != str(directory) or group.get('requests') != requests or group.get('request_ids') != request_ids or (group.get('response_sha256') != digest(response.encode())):
+			if group.get('journal') != str(directory) or group.get('requests') != requests or group.get('request_ids') != request_ids:
 				raise ValueError('Answer group differs from its original journal/requests/response; preserve it')
+			if group.get('response_sha256') != digest(response.encode()):
+				if not allow_reprepare:
+					raise ValueError('Answer group differs from its original journal/requests/response; preserve it')
+				group['response_sha256'] = digest(response.encode())
+				group['admission'] = proof
+				group['status'] = 'pending'
+				for st in group.get('steps') or []:
+					res_file = directory / 'res' / f'{st}.md'
+					if res_file.exists():
+						replace_bytes(res_file, response.encode('utf-8'))
 		else:
 			if None is not adopt_steps:
 				if not isinstance(adopt_steps, list) or len(adopt_steps) != len(requests) or any((type(x) is not int or x < 1 for x in adopt_steps)):

@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
+# https://github.com/dmitry-ai/harness/issues/49
 # 2026-10-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
 # https://github.com/dmitry-ai/harness/issues/14
@@ -26,7 +29,28 @@ def _infer_project_root(target: Path) -> Path:
 	for anc in (target.parent, *target.parents):
 		if anc.name in ('\ua616', '\ua66e', '_') and anc.parent.is_dir():
 			return anc.parent
+		if (anc / '\ua616').is_dir() or (anc / '\ua66e').is_dir() or (anc / '_/\ua616').is_dir():
+			return anc
 	return target.parent
+def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
+	norm_p = target.as_posix().lower()
+	if not any((seg in norm_p for seg in ('/letters/', '/result/', '/defects/'))) or '/\ua616/' in norm_p or '/\ua66e/' in norm_p:
+		return None
+	turns_dir = proj_root / '\ua616/data/turns'
+	if not turns_dir.is_dir():
+		return None
+	for tf in turns_dir.glob('*.json'):
+		if '-' in tf.stem:
+			continue
+		try:
+			tdata = json.loads(tf.read_text(encoding='utf-8'))
+		except (OSError, ValueError):
+			continue
+		if isinstance(tdata, dict) and tdata.get('status') in ('open', 'prepared', 'preparation_unverified'):
+			bcheck = tdata.get('budget_check') or {}
+			if bcheck.get('graceful_checkpoint_required') and (not bcheck.get('continuation_saved')):
+				return 'Turn Budget & Graceful Checkpoint Gate (M-4): active turn exceeded safe compaction/step budget (checkpoint_count >= 2, tool_step_count >= 120, or 5h window >= 400); persist verified findings to ꘖ/KB/Evidence/ and ꘖ/data/continuation.md and complete the turn via answer-prepare before generating new client deliverables'
+	return None
 def check_markdown_content(content, path=None):
 	r = None
 	if content and isinstance(content, str):
@@ -63,9 +87,12 @@ def check_markdown_content(content, path=None):
 			p_obj = Path(path)
 			norm_p = path.replace('\\', '/').lower()
 			if '/req/' not in norm_p and '/source/' not in norm_p and 'source.md' != p_obj.name.lower():
-				issues = local_source_grounding_issues(_infer_project_root(p_obj), content, doc_path=p_obj)
-				if issues:
-					r = '; '.join(issues[:3])
+				proj_root = _infer_project_root(p_obj)
+				r = _check_turn_budget_gate(proj_root, p_obj)
+				if None is r:
+					issues = local_source_grounding_issues(proj_root, content, doc_path=p_obj)
+					if issues:
+						r = '; '.join(issues[:3])
 	return r
 def main():
 	decision = {'decision': 'allow'}

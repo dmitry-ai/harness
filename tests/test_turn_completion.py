@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
+# https://github.com/dmitry-ai/harness/issues/49
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
@@ -480,13 +483,14 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(self.sync()['turns'][0]['status'], 'conflict')
 	def test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite(self):
 		self.prepare('Original')
-		with self.assertRaisesRegex(ValueError, 'immutable'):
-			self.prepare('Changed')
+		reprep = self.prepare('Changed')
+		self.assertTrue(reprep.get('reprepared_before_delivery'))
+		self.assertEqual(self.saved('res'), b'Changed')
 		self.rows.append(self.turn_rows(self.turn, 'One more condition.')[2])
 		self.write()
 		with self.assertRaisesRegex(ValueError, 'new native request'):
-			self.prepare('Original')
-		self.assertEqual(self.saved('res'), b'Original')
+			self.prepare('Changed')
+		self.assertEqual(self.saved('res'), b'Changed')
 		self.finish('Response including the new condition')
 		result = self.sync()
 		self.assertFalse(result['valid'])
@@ -1370,6 +1374,31 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertEqual(turn_res['status'], 'delivered')
 		self.assertTrue(turn_res['delivery_verified'])
 		self.assertTrue(turn_res['recovered_after_delivery'])
+	def test_parallel_turn_scratch_isolation_and_budget_gate(self):
+		import argparse
+		from agent_tools.operations import _operation_input
+		from check_markdown_slop import check_markdown_content
+		res_begin = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
+		turn_key = res_begin['turn_key']
+		self.assertIn('budget_check', res_begin)
+		scratch = self.project / 'ꘖ/data/scratch'
+		scratch.mkdir(parents=True, exist_ok=True)
+		shared_ans = scratch / 'answer.md'
+		shared_ans.write_text('Shared answer.', encoding='utf-8')
+		other_turn = self.project / 'ꘖ/data/turns/otherturn123.json'
+		other_turn.write_text(json.dumps({'status': 'open', 'conversation_id': str(uuid.uuid4()), 'budget_check': {'graceful_checkpoint_required': True, 'continuation_saved': False}}), encoding='utf-8')
+		args = argparse.Namespace(command='answer-prepare', project=self.project, conversation=self.cid, consume_input=True, expected_sha256=None)
+		with self.assertRaisesRegex(ValueError, 'answer-<turn_key>\\.md'):
+			_operation_input(args, shared_ans)
+		isolated_ans = scratch / f'answer-{turn_key}.md'
+		isolated_ans.write_text('Isolated answer.', encoding='utf-8')
+		args_bad_sha = argparse.Namespace(command='answer-prepare', project=self.project, conversation=self.cid, consume_input=True, expected_sha256='0' * 64)
+		with self.assertRaisesRegex(ValueError, 'SHA-256 mismatch'):
+			_operation_input(args_bad_sha, isolated_ans)
+		deliverable = self.project / 'Letters/1.md'
+		deliverable.parent.mkdir(parents=True, exist_ok=True)
+		violation = check_markdown_content('Single sentence.  \n', str(deliverable))
+		self.assertIn('Turn Budget & Graceful Checkpoint Gate (M-4)', violation or '')
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'

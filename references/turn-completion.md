@@ -34,16 +34,17 @@ The command removes only the legacy binding and waits for any in-progress explic
 ## Answer Preparation
 
 ```text
-python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --platform codex
-python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer.md --consume-input --conversation <native-uuid> --platform antigravity
+python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input --platform codex
+python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input --conversation <native-uuid> --platform antigravity
 ```
 
 **Mandatory UTF-8 encoding rule in Windows PowerShell:**  
 1. In Windows PowerShell 5.1, piping text (`@' ... '@ | python ...` or `"..." | python ... --response-file -`) defaults to the single-byte `[Console]::OutputEncoding` (OEM/ASCII), irreversibly replacing Cyrillic and the characters `ꘖ` (`\ua616`) / `ꙮ` (`\ua66e`) with question marks `?` (`0x3F`).  
-2. Therefore, before calling `answer-prepare` (as well as `record-answer`, `prepare-review`, `record-review`, and `save-analysis`), **always write the response text in UTF-8 without BOM to `<root>/ꘖ/data/scratch/answer.md`** using the native file tool (`write_file` in Antigravity or `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))` in PowerShell) and pass the path via `--response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input`.  
+2. Therefore, before calling `answer-prepare` (as well as `record-answer`, `prepare-review`, `record-review`, and `save-analysis`), **always write the response text in UTF-8 without BOM to `<root>/ꘖ/data/scratch/answer-<turn_key>.md`** using the native file tool (`write_file` in Antigravity or `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))` in PowerShell) and pass the path via `--response-file "<root>/ꘖ/data/scratch/answer-<turn_key>.md" --consume-input` (optionally with `--expected-sha256 <sha256>`); using a shared `answer.md` when parallel turns are open is rejected.  
 3. If you run a `python -` one-liner via a pipe `|` in PowerShell, always prefix the command with `[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, and use the Unicode escapes `\ua616` and `\ua66e` for paths containing `ꘖ` and `ꙮ` inside Python code.  
 
-The operation re-verifies the active native turn, records the exact requests and response through the existing `record_answer` mechanism, validates the read-back bytes (rejecting corrupted OEM/ASCII output where words were replaced by `???`), and returns `response_file`, SHA256, pair numbers, and `ready: true`.  
+The operation re-verifies the active native turn under its isolated per-turn lock (`turn-<turn_key>.lock`), records the exact requests and response through `record_answer` under the short journal sequence lock, validates the read-back bytes (rejecting corrupted OEM/ASCII output where words were replaced by `???`), and returns `response_file`, SHA256, pair numbers, and `ready: true`.  
+It also records `budget_check` (`checkpoint_count`, `tool_step_count`, `window_5h_tool_steps`, `graceful_checkpoint_required`) so turns exceeding safe compaction/step thresholds persist verified evidence and `ꘖ/data/continuation.md` before generating new client deliverables.  
 New answer admission runs the current linked-document and source freshness gates, including semantic approval when required for the linked operation, before recording a proof bound to the exact journal, native turn, request identities, and response bytes.  
 The immutable proof retains the selected document revision, source checks, evidence, and approvals used at admission; unrelated registry entries do not become historical dependencies.  
 Its scope reflects the checks required for that operation; semantic publication clearance remains a separate requirement for publication workflows.  
@@ -64,8 +65,9 @@ If a new request or turn change is detected after writing, history is preserved,
 This check does not create an atomic transaction with platform delivery: a message arriving after the last check still requires handling by the primary agent.  
 Linked client documents pass through `gate_requests`; requests of a tracked initial analysis retain the substantive `authorize` gate.  
 Publish the exact contents of `response_file` without modification.  
-Retrying with the exact same bytes is idempotent; a different version of an already recorded response or a new uncovered request never overwrites prior history.  
+Retrying with the exact same bytes is idempotent; before native chat delivery occurs (`delivery == null`), re-running `answer-prepare` for the same request set updates the prepared `res/<N>.md` and answer-group receipt in place (`reprepared_before_delivery: true`), whereas after delivery or when a new uncovered request arrives, prior history is never overwritten.  
 `delivery_verified: false` indicates preparation rather than observed delivery.  
+<!-- https://github.com/dmitry-ai/harness/issues/49 -->
 A narrow check rejects justifying equal probabilities solely from absence of data; verbatim quotes, code blocks, and explicit negations of that fallacy are preserved.  
 This check does not identify hidden causes, does not forbid justified equal priors, and does not replace substantive review.  
 

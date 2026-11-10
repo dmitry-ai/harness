@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
+# https://github.com/dmitry-ai/harness/issues/49
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
@@ -77,6 +80,10 @@ def _read(path):
 	return r
 def _folder(root):
 	return data_dir_for(root) / 'turns'
+def _turn_lock(root, key):
+	return _folder(root) / f'turn-{key}.lock'
+def _journal_lock(root):
+	return _folder(root) / 'journal.lock'
 def _directory(root, selected=None):
 	root = Path(root).resolve()
 	if selected:
@@ -182,6 +189,35 @@ def _delegation_status(root, turn):
 	is_upwork_project = (Path(root).resolve() / '\ua616/project.json').is_file()
 	unpersisted_bulk = bool(is_upwork_project and ((tool_steps > DEL_MAX_UNPERSISTED_STEPS and 0 == sub_steps and 0 == kb_steps) or cur_streak > DEL_MAX_UNPERSISTED_STEPS or (max_src_reads >= DEL_MAX_UNPERSISTED_SOURCE_READS and 0 == sub_steps) or (tool_steps > DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS and 0 == sub_steps) or (issue_actions_count > DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS and 0 == sub_steps)))
 	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'aa_partial_read_violations': aa_part_errs, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'issue_actions_count': issue_actions_count, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
+	return r
+BUDGET_MAX_CHECKPOINTS = 2
+BUDGET_MAX_TOOL_STEPS = 120
+BUDGET_WINDOW_5H_MAX_STEPS = 400
+def _budget_status(root, turn):
+	comp = dict(turn.get('compaction') or {})
+	del_info = dict(turn.get('delegation') or {})
+	cp_count = len(comp.get('checkpoint_steps') or [])
+	tool_steps = int(del_info.get('tool_step_count') or 0)
+	now_ts = datetime.now(timezone.utc).timestamp()
+	window_5h_steps = tool_steps
+	turns_dir = _folder(root)
+	cur_tid = turn.get('turn_id')
+	if turns_dir.is_dir():
+		for tf in turns_dir.glob('*.json'):
+			if '-' in tf.stem:
+				continue
+			try:
+				if now_ts - tf.stat().st_mtime <= 18000:
+					td = _read(tf)
+					if td.get('native_turn_id') != cur_tid:
+						window_5h_steps += int((td.get('delegation_check') or {}).get('tool_step_count') or 0)
+			except (OSError, ValueError):
+				pass
+	touched = [str(x).replace('\\', '/').lower() for x in (turn.get('touched_files') or [])]
+	continuation_saved = any((x.endswith('/data/continuation.md') or x.endswith('\ua616/data/continuation.md') for x in touched))
+	kb_saved = any(('/\ua616/kb/' in x or x.endswith('/kb/analysis.md') or x.endswith('/kb/analysis.json') for x in touched))
+	exceeded = bool(cp_count >= BUDGET_MAX_CHECKPOINTS or tool_steps >= BUDGET_MAX_TOOL_STEPS or window_5h_steps >= BUDGET_WINDOW_5H_MAX_STEPS)
+	r = {'verified': True, 'checkpoint_count': cp_count, 'max_checkpoints': BUDGET_MAX_CHECKPOINTS, 'tool_step_count': tool_steps, 'max_tool_steps': BUDGET_MAX_TOOL_STEPS, 'window_5h_tool_steps': window_5h_steps, 'max_window_5h_tool_steps': BUDGET_WINDOW_5H_MAX_STEPS, 'graceful_checkpoint_required': exceeded, 'continuation_saved': continuation_saved, 'kb_saved': kb_saved}
 	return r
 def _origin_repo_slug(code_repo: Path):
 	cfg_file = Path(code_repo) / '.git/config'
@@ -829,7 +865,7 @@ def _instruction_snapshot(root, native, *, stage):
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	key = _key(native, turn)
 	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []} if recovered else _code_and_issue_lifecycle_status(root, turn)
-	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, root, key), 'http_fetch_check': _http_fetch_status(turn, root, key), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'code_lifecycle_check': lifecycle, 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, root, key), 'http_fetch_check': _http_fetch_status(turn, root, key), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'budget_check': _budget_status(root, turn), 'code_lifecycle_check': lifecycle, 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
 	return r
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
 	key = _key(native, turn)
@@ -842,7 +878,7 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 		value['applicable_rules'] = _policy()
 	if 'git_optional_locks_env' not in value:
 		value['git_optional_locks_env'] = os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
-	for name, check in (('exec5_check', lambda: _exec5_status(turn, root, key)), ('http_fetch_check', lambda: _http_fetch_status(turn, root, key)), ('compaction_check', lambda: _compaction_status(root, key, turn)), ('delegation_check', lambda: _delegation_status(root, turn))):
+	for name, check in (('exec5_check', lambda: _exec5_status(turn, root, key)), ('http_fetch_check', lambda: _http_fetch_status(turn, root, key)), ('compaction_check', lambda: _compaction_status(root, key, turn)), ('delegation_check', lambda: _delegation_status(root, turn)), ('budget_check', lambda: _budget_status(root, turn))):
 		if active_validation or name not in value:
 			value[name] = check()
 	if active_validation:
@@ -892,10 +928,10 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 	if None is turn:
 		r = {'role': 'child', 'journal_required': False, 'reason': 'The primary conversation owns the user journal'}
 	else:
-		with locked(_folder(root) / 'writer.lock'):
+		with locked(_turn_lock(root, _key(native, turn))):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
 			_persist(path, value)
-		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		result['execution_mode'] = 'foreground-only'
 		if any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) for t in native.get('turns', []))):
 			try:
@@ -936,7 +972,7 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None):
 			stdout_records.append({**rec, 'output_file': rel_step if outs else None})
 	receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
 	receipt = {'turn_key': key, 'recovered_at': _now(), 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_read_files': list(comp.get('pre_checkpoint_read_files') or []), 'post_checkpoint_read_files': list(comp.get('post_checkpoint_read_files') or []), 'evicted_unreread_files': list(comp.get('evicted_unreread_files') or []), 'recovery_dir': rec_dir.relative_to(root).as_posix() if rec_dir.is_relative_to(root) else str(rec_dir), 'pre_checkpoint_records': raw_records}
-	with locked(_folder(root) / 'writer.lock'):
+	with locked(_turn_lock(root, key)):
 		replace_bytes(receipt_path, _json(receipt))
 		path, value = _state(root, native, turn)
 		value.pop('admission_failure', None)
@@ -954,7 +990,7 @@ def recover_turn_violation(root, conversation=None, *, reason=None, platform=Non
 	http_v = list(turn.get('http_fetch_violations') or [])
 	receipt_path = _folder(root) / f'{key}-violation-recovery.json'
 	receipt = {'turn_key': key, 'recovered_at': _now(), 'reason': (reason or 'Retrospective turn violation acknowledged for journal completion').strip(), 'covered_exec5_steps': [item.get('step') for item in exec5_v if None is not item.get('step')], 'covered_http_fetch_steps': [item.get('step') for item in http_v if None is not item.get('step')], 'exec5_violations': exec5_v, 'http_fetch_violations': http_v}
-	with locked(_folder(root) / 'writer.lock'):
+	with locked(_turn_lock(root, key)):
 		replace_bytes(receipt_path, _json(receipt))
 		path, value = _state(root, native, turn)
 		_persist(path, value)
@@ -1011,7 +1047,7 @@ def _find_orphan_or_overwritten_steps(directory: Path, requests: list[str], resp
 		c_steps, o_turn = overwritten_conflict
 		raise ValueError(f'Journal step(s) {c_steps} match this native turn but are claimed by another answer group ({o_turn}); preserve the conflict')
 	return (None, None, None)
-def _group(root, native, turn, response, directory):
+def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 	key = 'native-' + _key(native, turn)
 	legacy = turn['turn_id']
 	groups = journal.state_dir(directory) / 'answer-groups'
@@ -1033,7 +1069,7 @@ def _group(root, native, turn, response, directory):
 						resp_ok = _hash(disk_r.encode('utf-8')) == old.get('response_sha256') and _norm_journal_text(disk_r) == norm_turn_resp
 					except (OSError, UnicodeDecodeError):
 						pass
-			if not reqs_ok or not resp_ok:
+			if not reqs_ok or (not resp_ok and not allow_reprepare):
 				raise ValueError('A journal for these exact native request IDs has different bytes; preserve the conflict')
 			matches.append(old)
 	if len(matches) > 1:
@@ -1044,7 +1080,7 @@ def _group(root, native, turn, response, directory):
 		old = _read(groups / (legacy + '.json'))
 		old_reqs = old.get('requests') or []
 		reqs_ok = old_reqs == [r['text'] for r in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
-		if not reqs_ok or old.get('response_sha256') != _hash(response.encode('utf-8')):
+		if not reqs_ok or (old.get('response_sha256') != _hash(response.encode('utf-8')) and not allow_reprepare):
 			raise ValueError('Existing native-turn journal has different bytes; preserve the conflict')
 		return (legacy, old.get('request_ids'))
 	return (key, native_ids)
@@ -1070,15 +1106,15 @@ def _intermediate_or_language_issues(requests, response: str) -> list[str]:
 		if 0 == resp_target_chars and resp_info['total_alpha'] >= 20:
 			issues.append(f'TEXT-1: Request dominant script is {req_script}, but the response authored prose contains zero {req_script} characters (dominant: {resp_info["dominant_script"]})')
 	return issues
-def _record(root, native, turn, response, directory, *, existing=None, purpose='publication'):
+def _record(root, native, turn, response, directory, *, existing=None, purpose='publication', allow_reprepare=False):
 	if purpose not in ('publication', 'observation'):
 		raise ValueError('Choose publication admission or historical observation')
 	directory = _directory(root, directory)
 	from . import admission
-	token, request_ids = _group(root, native, turn, response, directory)
+	token, request_ids = _group(root, native, turn, response, directory, allow_reprepare=allow_reprepare)
 	group_file = journal.state_dir(directory) / 'answer-groups' / (token + '.json')
 	already_complete = group_file.exists() and 'complete' == _read(group_file).get('status')
-	if not already_complete:
+	if not already_complete or allow_reprepare:
 		lang_issues = _intermediate_or_language_issues(turn['requests'], response)
 		if lang_issues:
 			raise ValueError('; '.join(lang_issues))
@@ -1091,6 +1127,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 	effective_response = response
 	adopt_steps = None
 	adopted_existing = False
+	reprepared_before_delivery = False
 	if already_complete:
 		g_data = _read(group_file)
 		g_reqs = g_data.get('requests') or []
@@ -1105,6 +1142,8 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 						effective_response = disk_r
 				except (OSError, UnicodeDecodeError):
 					pass
+			if _hash(effective_response.encode('utf-8')) != g_data.get('response_sha256') and allow_reprepare:
+				reprepared_before_delivery = True
 	elif None is existing:
 		adopt_steps, disk_reqs, disk_resp = _find_orphan_or_overwritten_steps(directory, effective_requests, effective_response, request_ids)
 		if None is not adopt_steps:
@@ -1112,7 +1151,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			effective_response = disk_resp
 			adopted_existing = True
 	identity = admission.binding(directory, effective_requests, effective_response, token, request_ids)
-	if already_complete:
+	if already_complete and not reprepared_before_delivery:
 		if purpose == 'publication':
 			from .text_workflow import gate_requests
 			gate_requests([root, directory], effective_requests, effective_response)
@@ -1123,7 +1162,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		verification = admission.verify(proof, identity) if proof else {'status': 'legacy_proof_gap', 'scope': 'journal_and_native_identity_only'}
 	else:
 		capability = admission.capture([root, directory], effective_requests, effective_response, identity)
-		steps = journal.record_answer(directory, effective_requests, effective_response, token, request_ids, adopt_steps=adopt_steps, admission=capability)
+		steps = journal.record_answer(directory, effective_requests, effective_response, token, request_ids, adopt_steps=adopt_steps, admission=capability, allow_reprepare=reprepared_before_delivery)
 		proof = capability.reference
 		verification = {'status': 'verified', 'scope': 'original_publication_admission' if purpose == 'observation' else 'current_publication_readiness'}
 	for step, request in zip(steps, effective_requests):
@@ -1138,7 +1177,10 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		if existing.get('group_sha256') and existing['group_sha256'] != _hash(group_file.read_bytes()):
 			raise ValueError('Recorded answer-group bytes changed; preserve history')
 		return dict(existing), verification
-	return {**recorded, 'group_sha256': _hash(group_file.read_bytes()), 'recorded_at': _now(), 'reused_complete_journal_group': bool(already_complete or adopted_existing), 'admission': proof}, verification
+	res_receipt = {**recorded, 'group_sha256': _hash(group_file.read_bytes()), 'recorded_at': _now(), 'reused_complete_journal_group': bool((already_complete and not reprepared_before_delivery) or adopted_existing), 'admission': proof}
+	if reprepared_before_delivery:
+		res_receipt['reprepared_before_delivery'] = True
+	return res_receipt, verification
 def _unchanged(root, native, turn):
 	latest = _native(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'])
 	current = _active(latest)
@@ -1162,7 +1204,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 	turn = _active(native)
 	if None is turn or _key(native, turn) != result['turn_key'] or _hash(_json(turn['requests'])) != result['native_requests_sha256']:
 		raise ValueError('The active native turn changed during preparation; no answer was recorded')
-	with locked(_folder(root) / 'writer.lock'):
+	with locked(_turn_lock(root, result['turn_key'])):
 		_unchanged(root, native, turn)
 		path, value = _state(root, native, turn)
 		if 'delivered' == value['status']:
@@ -1244,8 +1286,11 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 			_persist(path, value)
 			raise ValueError(detail)
 		sha = _hash(response.encode('utf-8'))
+		allow_reprepare = False
 		if value['prepared'] and value['prepared']['response_sha256'] != sha:
-			raise ValueError('Prepared response bytes are immutable; preserve the earlier version and reconcile before a corrective turn')
+			if None is not value.get('delivery') or 'delivered' == value.get('status') or turn.get('completed'):
+				raise ValueError('Prepared response bytes are immutable after delivery; preserve the earlier version and reconcile before a corrective turn')
+			allow_reprepare = True
 		if 'conflict' == value['status']:
 			raise ValueError('Resolve the native delivery conflict without overwriting journal history')
 		aa_part_errs = value['delegation_check'].get('aa_partial_read_violations') or []
@@ -1303,12 +1348,19 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 						from .workflow import record_current_answer
 						record_current_answer(root, response, journal_directory=value['journal'], request_ids=identifiers)
 					elif any((r['response_prepared']['sha256'] != sha for r in state['requests'] if r['id'] in identifiers)):
-						raise ValueError('Tracked analysis requests already have different prepared response bytes')
+						if not allow_reprepare:
+							raise ValueError('Tracked analysis requests already have different prepared response bytes')
+						from .workflow import update
+						def update_reprepared(s):
+							for req in s.get('requests', []):
+								if req['id'] in identifiers:
+									req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
+						update(root, {'action': 'reprepare_before_delivery', 'request_ids': sorted(identifiers)}, update_reprepared)
 				else:
 					from .workflow import update
 					def change(s):
 						for req in s.get('requests', []):
-							if req['id'] in identifiers and not req.get('response_prepared'):
+							if req['id'] in identifiers and (not req.get('response_prepared') or allow_reprepare):
 								req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
 					update(root, {'action': 'post_finalize_answer', 'request_ids': sorted(identifiers)}, change)
 			else:
@@ -1318,7 +1370,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 					_persist(path, value)
 					raise ValueError(detail)
 		try:
-			value['prepared'], admission_check = _record(root, native, turn, response, value['journal'], existing=_recorded(value))
+			value['prepared'], admission_check = _record(root, native, turn, response, value['journal'], existing=None if allow_reprepare else _recorded(value), allow_reprepare=allow_reprepare)
 		except (OSError, ValueError) as exc:
 			value['admission_failure'] = {'detail': str(exc), 'checked_at': _now()}
 			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
@@ -1373,77 +1425,78 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
 	if not eligible:
 		return {'valid': True, 'conversation_id': native['conversation_id'], 'source_file': native['source_file'], 'turns': [], 'pending_native_turn': native['active_turn_id'], 'private_reasoning_retained': False}
 	results = []
-	with locked(_folder(root) / 'writer.lock'):
+	with locked(_journal_lock(root)):
 		for turn in eligible:
-			path, value = _state(root, native, turn, recovered=True, allow_extended=True, journal_directory=journal_directory)
-			response = turn['response']
-			sha = _hash(response.encode('utf-8'))
-			if value.get('uncovered_requests') and not adopt_conflict:
-				results.append(_conflict(root, path, value, native, turn, response, 'Prepared answer does not cover newly received native requests'))
-				continue
-			if not _recorded(value) and (value.get('admission_failure') or value.get('readiness_check', {}).get('verified') is False) and not adopt_conflict:
-				results.append(_conflict(root, path, value, native, turn, response, 'A prior preparation/admission gate failed; recovery cannot grant publication approval'))
-				continue
-			try:
-				effective_response = response
-				if value['prepared'] and value['prepared']['response_sha256'] != sha:
-					prep_file = Path(value['prepared'].get('response_file') or '')
-					prep_text = prep_file.read_bytes().decode('utf-8') if prep_file.is_file() else ''
-					if prep_text and _norm_journal_text(prep_text) == _norm_journal_text(response):
-						effective_response = prep_text
-					elif not adopt_conflict:
-						results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
-						continue
-				elif not value['prepared']:
-					j_dir = _directory(root, value['journal'])
-					req_ids = [r['id'] for r in turn['requests']]
-					for g_file in (journal.state_dir(j_dir) / 'answer-groups').glob('*.json'):
-						g_val = _read(g_file)
-						if g_val.get('request_ids') == req_ids and g_val.get('steps'):
-							res_path = j_dir / 'res' / f"{g_val['steps'][0]}.md"
-							res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
-							if res_text and _norm_journal_text(res_text) == _norm_journal_text(response):
-								effective_response = res_text
-							break
-				recorded, admission_check = _record(root, native, turn, effective_response, value['journal'], existing=_recorded(value), purpose='observation')
-			except (OSError, ValueError) as exc:
-				results.append(_conflict(root, path, value, native, turn, response, str(exc), retryable=isinstance(exc, OSError) and (not isinstance(exc, FileNotFoundError))))
-				continue
-			if admission_check['status'] == 'legacy_proof_gap' and value['status'] in ('delivered', 'conflict'):
-				results.append({'turn_key': value['key'], 'status': value['status'], 'delivery_verified': bool(value.get('delivery', {}).get('verified')), 'journal_steps': recorded['journal_steps'], 'completion_provenance': value.get('delivery', {}).get('completion_provenance'), 'preparation_verified': value.get('delivery', {}).get('preparation_verified', False), 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check})
-				continue
-			if adopt_conflict:
-				value.pop('admission_failure', None)
-				if (value.get('delivery') or {}).get('conflict_evidence'):
-					conflict_file = root / value['delivery']['conflict_evidence']
-					if conflict_file.is_file():
-						try:
-							conflict_file.unlink()
-						except OSError:
-							pass
-			if not _recorded(value):
-				value['recovered_after_delivery'] = not bool(value['prepared']) and (not recorded['reused_complete_journal_group'])
-			if adopt_conflict:
-				value['recovered_after_delivery'] = True
-			provenance = 'prepared' if value['prepared'] and not adopt_conflict else 'recovered_native' if value['recovered_after_delivery'] else 'existing_journal'
-			preparation_verified = bool(value['prepared']) and value.get('readiness_check', {}).get('verified', True) and not adopt_conflict
-			value['journal_record'] = recorded
-			delivery = {**recorded, 'verified': True, 'source_file': native['source_file'], 'final_step': turn['final_step'], 'completion_step': turn['completion_step'], 'native_response_sha256': sha, 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'exec5_check': value['exec5_check']}
-			previous_delivery = value.get('delivery') or {}
-			prior_verified = value.get('prior_verified_delivery') or {}
-			if 'delivered' == value['status'] and all((previous_delivery.get(name) == expected for name, expected in delivery.items())):
-				delivery = previous_delivery
-			elif prior_verified and all((prior_verified.get(name) == expected for name, expected in delivery.items() if name != 'verified_at')):
-				delivery = prior_verified
-			else:
-				delivery['verified_at'] = _now()
-			value.pop('prior_verified_delivery', None)
-			value['delivery'] = delivery
-			value['status'] = 'delivered'
-			if adopt_conflict:
-				value['readiness_check'] = {'verified': True, 'checked_at': _now(), 'detail': 'Adopted into journal via --adopt-conflict'}
-			_persist(path, value)
-			results.append({'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True, 'journal_steps': recorded['journal_steps'], 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check})
+			with locked(_turn_lock(root, _key(native, turn))):
+				path, value = _state(root, native, turn, recovered=True, allow_extended=True, journal_directory=journal_directory)
+				response = turn['response']
+				sha = _hash(response.encode('utf-8'))
+				if value.get('uncovered_requests') and not adopt_conflict:
+					results.append(_conflict(root, path, value, native, turn, response, 'Prepared answer does not cover newly received native requests'))
+					continue
+				if not _recorded(value) and (value.get('admission_failure') or value.get('readiness_check', {}).get('verified') is False) and not adopt_conflict:
+					results.append(_conflict(root, path, value, native, turn, response, 'A prior preparation/admission gate failed; recovery cannot grant publication approval'))
+					continue
+				try:
+					effective_response = response
+					if value['prepared'] and value['prepared']['response_sha256'] != sha:
+						prep_file = Path(value['prepared'].get('response_file') or '')
+						prep_text = prep_file.read_bytes().decode('utf-8') if prep_file.is_file() else ''
+						if prep_text and _norm_journal_text(prep_text) == _norm_journal_text(response):
+							effective_response = prep_text
+						elif not adopt_conflict:
+							results.append(_conflict(root, path, value, native, turn, response, 'Prepared and delivered response bytes differ'))
+							continue
+					elif not value['prepared']:
+						j_dir = _directory(root, value['journal'])
+						req_ids = [r['id'] for r in turn['requests']]
+						for g_file in (journal.state_dir(j_dir) / 'answer-groups').glob('*.json'):
+							g_val = _read(g_file)
+							if g_val.get('request_ids') == req_ids and g_val.get('steps'):
+								res_path = j_dir / 'res' / f"{g_val['steps'][0]}.md"
+								res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
+								if res_text and _norm_journal_text(res_text) == _norm_journal_text(response):
+									effective_response = res_text
+								break
+					recorded, admission_check = _record(root, native, turn, effective_response, value['journal'], existing=_recorded(value), purpose='observation')
+				except (OSError, ValueError) as exc:
+					results.append(_conflict(root, path, value, native, turn, response, str(exc), retryable=isinstance(exc, OSError) and (not isinstance(exc, FileNotFoundError))))
+					continue
+				if admission_check['status'] == 'legacy_proof_gap' and value['status'] in ('delivered', 'conflict'):
+					results.append({'turn_key': value['key'], 'status': value['status'], 'delivery_verified': bool(value.get('delivery', {}).get('verified')), 'journal_steps': recorded['journal_steps'], 'completion_provenance': value.get('delivery', {}).get('completion_provenance'), 'preparation_verified': value.get('delivery', {}).get('preparation_verified', False), 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check})
+					continue
+				if adopt_conflict:
+					value.pop('admission_failure', None)
+					if (value.get('delivery') or {}).get('conflict_evidence'):
+						conflict_file = root / value['delivery']['conflict_evidence']
+						if conflict_file.is_file():
+							try:
+								conflict_file.unlink()
+							except OSError:
+								pass
+				if not _recorded(value):
+					value['recovered_after_delivery'] = not bool(value['prepared']) and (not recorded['reused_complete_journal_group'])
+				if adopt_conflict:
+					value['recovered_after_delivery'] = True
+				provenance = 'prepared' if value['prepared'] and not adopt_conflict else 'recovered_native' if value['recovered_after_delivery'] else 'existing_journal'
+				preparation_verified = bool(value['prepared']) and value.get('readiness_check', {}).get('verified', True) and not adopt_conflict
+				value['journal_record'] = recorded
+				delivery = {**recorded, 'verified': True, 'source_file': native['source_file'], 'final_step': turn['final_step'], 'completion_step': turn['completion_step'], 'native_response_sha256': sha, 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'exec5_check': value['exec5_check']}
+				previous_delivery = value.get('delivery') or {}
+				prior_verified = value.get('prior_verified_delivery') or {}
+				if 'delivered' == value['status'] and all((previous_delivery.get(name) == expected for name, expected in delivery.items())):
+					delivery = previous_delivery
+				elif prior_verified and all((prior_verified.get(name) == expected for name, expected in delivery.items() if name != 'verified_at')):
+					delivery = prior_verified
+				else:
+					delivery['verified_at'] = _now()
+				value.pop('prior_verified_delivery', None)
+				value['delivery'] = delivery
+				value['status'] = 'delivered'
+				if adopt_conflict:
+					value['readiness_check'] = {'verified': True, 'checked_at': _now(), 'detail': 'Adopted into journal via --adopt-conflict'}
+				_persist(path, value)
+				results.append({'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True, 'journal_steps': recorded['journal_steps'], 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check})
 	return {'valid': not any(('conflict' == r['status'] for r in results)), 'conversation_id': native['conversation_id'], 'source_file': native['source_file'], 'turns': results, 'retryable': any((r.get('retryable') for r in results)), 'pending_native_turn': native['active_turn_id'], 'private_reasoning_retained': False}
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
@@ -1469,6 +1522,7 @@ def add_parser_arguments(parser, command):
 	if 'answer-prepare' == command:
 		parser.add_argument('--response-file', type=Path, required=True, help='Exact UTF-8 final response, or - for stdin')
 		parser.add_argument('--consume-input', action='store_true')
+		parser.add_argument('--expected-sha256', help='Optional expected SHA-256 hex digest of response file')
 	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
 		parser.add_argument('--from-step', type=int, default=0)
 	if 'journal-sync' == command:

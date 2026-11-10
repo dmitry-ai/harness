@@ -1,3 +1,6 @@
+# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
+# https://github.com/dmitry-ai/harness/issues/49
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
@@ -178,7 +181,29 @@ def _operation_input(args, path):
 		scratch_dirs = [data_dir_for(args.project) / 'scratch', Path(args.project).resolve() / 'ꘖ/data/scratch']
 		if not any((target.is_relative_to(s) for s in scratch_dirs)) or Path(path).is_symlink() or any((p.is_junction() for p in (target, *target.parents) if p.exists())):
 			raise ValueError('Consumed input must be an ordinary file inside project ꘖ/data/scratch')
+	if 'answer-prepare' == getattr(args, 'command', None) and '-' != str(path):
+		from .storage import data_dir_for
+		target = Path(path).resolve()
+		if 'answer.md' == target.name.lower():
+			turns_dir = data_dir_for(args.project) / 'turns'
+			cur_conv = getattr(args, 'conversation', None)
+			if turns_dir.is_dir():
+				for tf in turns_dir.glob('*.json'):
+					if '-' in tf.stem:
+						continue
+					try:
+						tdata = json.loads(tf.read_text(encoding='utf-8'))
+					except (OSError, ValueError):
+						continue
+					if isinstance(tdata, dict) and tdata.get('status') in ('open', 'prepared', 'preparation_unverified') and (None is cur_conv or tdata.get('conversation_id') != cur_conv):
+						raise ValueError('Shared ꘖ/data/scratch/answer.md is prohibited when parallel turns are active; write to ꘖ/data/scratch/answer-<turn_key>.md')
 	r = _read_input(path)
+	expected_sha = getattr(args, 'expected_sha256', None)
+	if expected_sha:
+		import hashlib
+		actual_sha = hashlib.sha256(r).hexdigest().lower()
+		if actual_sha != str(expected_sha).strip().lower():
+			raise ValueError(f'Input SHA-256 mismatch against --expected-sha256: expected {expected_sha}, got {actual_sha}')
 	return r
 def execute(args):
 	from . import workflow as flow
