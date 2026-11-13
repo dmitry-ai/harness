@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+# https://github.com/dmitry-ai/harness/issues/66
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -23,6 +26,7 @@ import threading
 import time
 from urllib.parse import urldefrag, urlsplit
 from urllib.request import urlopen
+from .research import _CHALLENGE_RE as _CDP_CHALLENGE_RE
 from .runtime import HARNESS_META, platform_settings, settings
 from .storage import locked, write_immutable_bytes
 _LOCKS, _LOCKS_GUARD = ({}, threading.Lock())
@@ -114,21 +118,13 @@ def preflight(spec, *, config=None, http_get=None, cdp_call=None):
 		endpoint = _endpoint(session)
 		report['endpoint'] = endpoint
 		get, call = (http_get or _http_json, _transport(config, cdp_call))
-		version, targets = (get(endpoint + '/json/version'), get(endpoint + '/json/list'))
-		if not isinstance(version, dict) or not isinstance(targets, list):
-			raise ValueError('Invalid CDP discovery response')
-		browser_ws = _checked_ws(version.get('webSocketDebuggerUrl'), endpoint)
-		if not urlsplit(browser_ws).path.startswith('/devtools/browser/'):
-			raise ValueError('Discovery did not expose a browser endpoint')
+		version, targets, browser_ws = discover_cdp_browser(endpoint, get)
 		report['browser'] = {'product': version.get('Browser'), 'websocket_url': browser_ws}
 		report['inventory'] = [{key: item.get(key) for key in ('id', 'type', 'url', 'title')} for item in targets if isinstance(item, dict)]
 		expected, argument = _profile(session, config)
 		report['profile'].update(expected=expected, argument=argument)
 		try:
-			observed = call(browser_ws, 'Browser.getBrowserCommandLine', {})
-			arguments = observed.get('arguments') if isinstance(observed, dict) else None
-			if not isinstance(arguments, list):
-				raise ValueError('Native browser command-line arguments are unavailable')
+			arguments = probe_cdp_arguments(browser_ws, call)
 			values = _argument_values(arguments, argument)
 			if not values:
 				report['issues'].append('Expected profile argument is absent from the native browser command line')
@@ -233,15 +229,7 @@ class GuardedCDP:
 		self._owned = {}
 	@contextmanager
 	def _lock(self):
-		endpoint = _endpoint(self.session)
-		key = hashlib.sha256(endpoint.encode()).hexdigest()
-		with _LOCKS_GUARD:
-			lock = _LOCKS.setdefault(key, threading.Lock())
-		cfg_ws = Path(self.config['workspace_root']).resolve()
-		default_ws = Path(settings()['workspace_root']).resolve()
-		lock_dir = HARNESS_META / 'ꘖ/data/browser-locks' if cfg_ws == default_ws else cfg_ws / 'ꘖ/data/browser-locks'
-		path = lock_dir / f'{key}.lock'
-		with lock, locked(path):
+		with _endpoint_lock(_endpoint(self.session), self.config):
 			yield
 	def _check(self):
 		report = preflight(self.spec, config=self.config, http_get=self.get, cdp_call=self.call_native)
@@ -321,7 +309,6 @@ class GuardedCDP:
 				raise PermissionError('Target was not created by this guard')
 			self.spec['target_id'] = identifier
 			self.spec.pop('target_url', None)
-_CDP_CHALLENGE_RE = re.compile('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__|enable javascript and cookies|name=["\\\'](?:js_challenge|jsc_token)["\\\']|cf-browser-verification|cf_chl_opt|challenge-platform|<noscript>[^<]*enable javascript')
 @contextmanager
 def _endpoint_lock(endpoint, config):
 	key = hashlib.sha256(endpoint.encode()).hexdigest()
@@ -364,20 +351,12 @@ def collect_cdp_dom(root, url, *, cdp_port=None, timeout=15, config=None, http_g
 	if parsed_req.scheme not in ('http', 'https') or not parsed_req.hostname:
 		raise ValueError('A valid HTTP(S) URL is required for CDP DOM collection')
 	with _endpoint_lock(endpoint, cfg):
-		version, targets = (get(endpoint + '/json/version'), get(endpoint + '/json/list'))
-		if not isinstance(version, dict) or not isinstance(targets, list):
-			raise ValueError('Invalid CDP discovery response')
-		browser_ws = _checked_ws(version.get('webSocketDebuggerUrl'), endpoint)
-		if not urlsplit(browser_ws).path.startswith('/devtools/browser/'):
-			raise ValueError('Discovery did not expose a browser endpoint')
+		version, targets, browser_ws = discover_cdp_browser(endpoint, get)
 		profile_info = {'status': 'unverified'}
 		try:
-			observed_cmd = call(browser_ws, 'Browser.getBrowserCommandLine', {})
-			arguments = observed_cmd.get('arguments') if isinstance(observed_cmd, dict) else None
-			if isinstance(arguments, list):
-				udd = _argument_values(arguments, '--user-data-dir')
-				if udd:
-					profile_info = {'status': 'observed', 'argument': '--user-data-dir', 'observed': udd[0], 'evidence_method': 'Browser.getBrowserCommandLine'}
+			udd = _argument_values(probe_cdp_arguments(browser_ws, call), '--user-data-dir')
+			if udd:
+				profile_info = {'status': 'observed', 'argument': '--user-data-dir', 'observed': udd[0], 'evidence_method': 'Browser.getBrowserCommandLine'}
 		except Exception:
 			pass
 		existing_matches = [t for t in targets if isinstance(t, dict) and 'page' == t.get('type') and (urldefrag(t.get('url', ''))[0] == clean_url) and t.get('webSocketDebuggerUrl')]
@@ -421,7 +400,7 @@ def collect_cdp_dom(root, url, *, cdp_port=None, timeout=15, config=None, http_g
 									html_str = val['html']
 									cur_url = val.get('url') or ''
 									ready = val.get('readyState') in ('complete', 'interactive') and cur_url not in ('', 'about:blank')
-									has_text = (val.get('textLen') or 0) > 0 or bool(re.sub('<(?is)(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', '', html_str).strip())
+									has_text = 0 < (val.get('textLen') or 0) or bool(re.sub('<(?is)(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', '', html_str).strip())
 									is_challenge = bool(_CDP_CHALLENGE_RE.search(html_str))
 									if None is not cdp_call or (ready and has_text and (not is_challenge)):
 										break
@@ -439,10 +418,26 @@ def collect_cdp_dom(root, url, *, cdp_port=None, timeout=15, config=None, http_g
 					pass
 		if not isinstance(data, dict) or not isinstance(data.get('html'), str) or (not data['html'].strip()):
 			raise RuntimeError('CDP DOM capture returned empty or invalid HTML')
-		observed_identity = {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'endpoint': endpoint, 'browser': version.get('Browser'), 'browser_websocket': browser_ws, 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'profile': profile_info}
-		identity_bytes = (json.dumps(observed_identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
-		identity_hash = hashlib.sha256(identity_bytes).hexdigest()
-		identity_path = write_immutable_bytes(root_path / 'ꘖ/KB/Evidence/CDPSessions' / f'{identity_hash}.json', identity_bytes, diff_error='Immutable CDP session identity changed')
-		identity_ref = identity_path.relative_to(root_path / 'ꘖ/KB').as_posix()
+		identity_ref, identity_hash = save_cdp_identity(root_path, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'endpoint': endpoint, 'browser': version.get('Browser'), 'browser_websocket': browser_ws, 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'profile': profile_info})
 		r = {'url': data.get('url') or url, 'html': data['html'], 'title': data.get('title') or '', 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash, 'endpoint': endpoint}
 	return r
+def discover_cdp_browser(endpoint, get):
+	version, targets = (get(endpoint + '/json/version'), get(endpoint + '/json/list'))
+	if not isinstance(version, dict) or not isinstance(targets, list):
+		raise ValueError('Invalid CDP discovery response')
+	browser_ws = _checked_ws(version.get('webSocketDebuggerUrl'), endpoint)
+	if not urlsplit(browser_ws).path.startswith('/devtools/browser/'):
+		raise ValueError('Discovery did not expose a browser endpoint')
+	return (version, targets, browser_ws)
+def probe_cdp_arguments(browser_ws, call):
+	observed = call(browser_ws, 'Browser.getBrowserCommandLine', {})
+	r = observed.get('arguments') if isinstance(observed, dict) else None
+	if not isinstance(r, list):
+		raise ValueError('Native browser command-line arguments are unavailable')
+	return r
+def save_cdp_identity(root, observed_identity):
+	root_path = Path(root).resolve()
+	identity_bytes = (json.dumps(observed_identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+	identity_hash = hashlib.sha256(identity_bytes).hexdigest()
+	identity_path = write_immutable_bytes(root_path / 'ꘖ/KB/Evidence/CDPSessions' / f'{identity_hash}.json', identity_bytes, diff_error='Immutable CDP session identity changed')
+	return (identity_path.relative_to(root_path / 'ꘖ/KB').as_posix(), identity_hash)

@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+# https://github.com/dmitry-ai/harness/issues/66
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -314,5 +317,46 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertTrue(obs_auto.get('browser_fallback_from_http'))
 		self.assertFalse(obs_auto.get('browser_check_required'))
 		self.assertGreater(obs_auto.get('word_count', 0), 0)
+	def test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives(self):
+		from agent_tools.research import Response, collect_plan, extract_file
+		from agent_tools.text_browser import discover_cdp_browser, probe_cdp_arguments, save_cdp_identity
+		native = NativeFixture()
+		version, targets, browser_ws = discover_cdp_browser('http://127.0.0.1:9222', native.get)
+		self.assertEqual('Fixture/1', version['Browser'])
+		self.assertEqual(1, len(targets))
+		self.assertEqual(native.browser, browser_ws)
+		self.assertEqual(native.arguments, probe_cdp_arguments(browser_ws, native.call))
+		ref_one, sha_one = save_cdp_identity(self.root, {'schema_version': 1, 'endpoint': 'http://127.0.0.1:9222'})
+		ref_two, sha_two = save_cdp_identity(self.root, {'schema_version': 1, 'endpoint': 'http://127.0.0.1:9222'})
+		self.assertEqual((ref_one, sha_one), (ref_two, sha_two))
+		sample = self.root / 'sample.txt'
+		sample.write_text('cached extraction body', encoding='utf-8')
+		ext_first = extract_file(self.root, 'sample.txt', profile='document')
+		ext_second = extract_file(self.root, 'sample.txt', profile='document')
+		self.assertEqual(ext_first, ext_second)
+		json_url = 'https://example.invalid/feed.json'
+		challenge_url = 'https://example.invalid/protected'
+		js_shell = b'<html><body><form><input name="js_challenge" value="1"/></form></body></html>'
+		rendered_html = '<html><head><title>Protected</title></head><body><h1>Protected Content</h1><p>Body text.</p></body></html>'
+		def fetcher(url, headers, timeout):
+			if json_url == url:
+				r = Response(url, 200, 'application/json', b'{"items":[{"id":"1","title":"Alpha"}]}')
+			else:
+				r = Response(url, 403, 'text/html', js_shell)
+			return r
+		def call(endpoint, method, params):
+			if 'Runtime.evaluate' != method:
+				r = native.call(endpoint, method, params)
+			else:
+				native.calls.append((endpoint, method, deepcopy(params)))
+				r = {'result': {'type': 'object', 'value': {'readyState': 'complete', 'url': challenge_url, 'title': 'Protected', 'html': rendered_html, 'textLen': 25}}}
+			return r
+		plan = {'requests': [{'url': json_url, 'profile': 'html'}, {'url': challenge_url, 'profile': 'html'}]}
+		batch = collect_plan(self.root, plan, fetcher=fetcher, browser='auto', cdp_port=9222, http_get=native.get, cdp_call=call)
+		self.assertTrue(batch['complete'])
+		self.assertTrue(batch['content_available_for_all'])
+		self.assertEqual('document', batch['results'][0]['profile'])
+		self.assertEqual('dom', batch['results'][1]['kind'])
+		self.assertTrue(batch['results'][1]['browser_fallback_from_http'])
 if '__main__' == __name__:
 	unittest.main()
