@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
+# https://github.com/dmitry-ai/harness/issues/61
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
 # https://github.com/dmitry-ai/harness/issues/58
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -30,6 +33,248 @@ from ..research import json_data
 from ..storage import create_bytes
 from .request_binding import native_project_fields
 from .trace_common import collect_prompt_bias_issues, collect_shell_violations, current_turn_requests, finalize_executor_checks, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_canonical_path, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
+class CodexTurnScanner:
+	def __init__(self, root, conversation_id, *, backend=None):
+		self.root = root
+		self.root_p = Path(root).resolve()
+		self.conversation_id = conversation_id
+		self.home = _home(backend)
+		self.path = None
+		self.rows = []
+		self.child = False
+		self.requests = {}
+		self.turn_entries = []
+		self.current_turn = None
+		self.child_parent_map: dict[str, list[str]] = {}
+		self.thread_parent_map: dict[str, str] = {}
+		self.indexed_subagents = False
+		self.completed_turn_sub_ids: set[str] = set()
+	def _collect_subagent_bfs(self, t_idx, turn, acc):
+		from ..git_gate import extract_issue_actions_from_outputs
+		visited_sub_ids = {self.conversation_id}
+		is_last_turn = t_idx == len(self.turn_entries) - 1
+		if not self.child and (acc['subagent_steps'] or is_last_turn):
+			self._index_profile_subagents()
+			unclaimed = [cid for cid in self.child_parent_map.get(self.conversation_id, []) if cid not in self.completed_turn_sub_ids]
+			if acc['subagent_steps'] or (is_last_turn and unclaimed):
+				queue_ids = [(cid, 1, self.conversation_id) for cid in unclaimed] if is_last_turn else []
+				queued_pairs = {(cid, self.conversation_id) for cid, _, _ in queue_ids}
+				for rec in acc['tool_records']:
+					for t_uid in rec.get('target_subagents', []):
+						if t_uid != self.conversation_id and (t_uid, self.conversation_id) not in queued_pairs:
+							queued_pairs.add((t_uid, self.conversation_id))
+							queue_ids.append((t_uid, 1, self.conversation_id))
+					if any((str(t).endswith(('spawn_agent', 'invoke_subagent')) for t in rec.get('tools', []))):
+						for out in rec.get('outputs', []):
+							for m_uuid in _extract_codex_spawn_output_uuids(str(out)):
+								if m_uuid != self.conversation_id and (m_uuid, self.conversation_id) not in queued_pairs:
+									queued_pairs.add((m_uuid, self.conversation_id))
+									queue_ids.append((m_uuid, 1, self.conversation_id))
+				while queue_ids:
+					sub_id, depth, expected_parent = queue_ids.pop(0)
+					if sub_id in visited_sub_ids or 4 < depth:
+						continue
+					if sub_id in self.thread_parent_map and (not self.thread_parent_map[sub_id] or self.thread_parent_map[sub_id] != expected_parent):
+						continue
+					visited_sub_ids.add(sub_id)
+					for grand_id in self.child_parent_map.get(sub_id, []):
+						if grand_id not in visited_sub_ids and (grand_id, sub_id) not in queued_pairs:
+							queued_pairs.add((grand_id, sub_id))
+							queue_ids.append((grand_id, depth + 1, sub_id))
+					try:
+						sub_db_row, _, _, sub_rows = _trace(self.home, sub_id)
+					except (ValueError, OSError):
+						continue
+					sub_agent_path = str((sub_db_row or {}).get('agent_path') or '')
+					if not re.search('\\baf\\b', sub_agent_path, flags=re.I) and (acc['aa_subagent_steps'] or sub_agent_path):
+						for p_err in _partial_candidate_read_issues(self.root_p, sub_rows):
+							if p_err not in acc['aa_partial_read_violations']:
+								acc['aa_partial_read_violations'].append(p_err)
+					anchor = acc['subagent_steps'][-1] if acc['subagent_steps'] else (acc['tool_steps'][-1] if acc['tool_steps'] else turn['start_step'])
+					sub_outputs = []
+					sub_spawn_call_ids = set()
+					for _, s_item in sub_rows:
+						s_kind = s_item.get('type')
+						s_pay = s_item.get('payload', {})
+						if 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
+							out = s_pay.get('output')
+							out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
+							sub_outputs.append(out_s)
+							if s_pay.get('call_id') in sub_spawn_call_ids:
+								for m_uuid in _extract_codex_spawn_output_uuids(out_s):
+									if m_uuid not in visited_sub_ids and (m_uuid, sub_id) not in queued_pairs:
+										queued_pairs.add((m_uuid, sub_id))
+										queue_ids.append((m_uuid, depth + 1, sub_id))
+						elif 'response_item' == s_kind and s_pay.get('type') in ('function_call', 'custom_tool_call'):
+							s_name = s_pay.get('name', '')
+							s_args_in = s_pay.get('arguments', s_pay.get('input', {}))
+							s_raw_in = s_pay.get('input', s_pay.get('arguments', ''))
+							s_raw = s_raw_in if isinstance(s_raw_in, str) else json.dumps(s_raw_in, ensure_ascii=False)
+							if s_name.endswith(('spawn_agent', 'invoke_subagent')) and s_pay.get('call_id'):
+								sub_spawn_call_ids.add(s_pay['call_id'])
+							elif s_name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')):
+								for t_uid in _extract_codex_target_subagents(s_args_in):
+									if t_uid not in visited_sub_ids and (t_uid, sub_id) not in queued_pairs:
+										queued_pairs.add((t_uid, sub_id))
+										queue_ids.append((t_uid, depth + 1, sub_id))
+							self._record_tool_effects(s_name, s_args_in, s_raw, anchor, acc, extra_violation={'subagent_id': sub_id})
+					for act in extract_issue_actions_from_outputs(sub_outputs):
+						act_with_sub = {**act, 'subagent_id': sub_id}
+						if act_with_sub not in turn['issue_actions']:
+							turn['issue_actions'].append(act_with_sub)
+		self.completed_turn_sub_ids.update(visited_sub_ids - {self.conversation_id})
+	def _finalize_turn(self, t_idx, turn, acc):
+		from ..git_gate import extract_issue_actions_from_outputs
+		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(acc['all_request_steps'])
+		turn['issue_actions'] = extract_issue_actions_from_outputs([out for rec in acc['tool_records'] for out in rec.get('outputs', [])])
+		self._collect_subagent_bfs(t_idx, turn, acc)
+		for rec in acc['tool_records']:
+			rec.pop('target_subagents', None)
+		turn['compaction'], turn['delegation'] = summarize_turn_activity(acc['checkpoint_steps'], acc['tool_steps'], acc['subagent_steps'], acc['aa_subagent_steps'], acc['af_subagent_steps'], acc['kb_persistence_steps'], acc['transcript_read_steps'], acc['tool_records'], acc['file_reads'], acc['file_writes'], svc_steps=acc['completion_service_steps'], aa_part_errs=acc['aa_partial_read_violations'])
+	def _index_profile_subagents(self):
+		if not self.indexed_subagents:
+			self.indexed_subagents = True
+			if 4096 < len(_SUBAGENT_PARENT_CACHE):
+				_SUBAGENT_PARENT_CACHE.clear()
+			for db_file in sorted(self.home.glob('state_*.sqlite')):
+				try:
+					conn = sqlite3.connect(db_file.as_uri() + '?mode=ro', uri=True)
+					conn.row_factory = sqlite3.Row
+					try:
+						t_rows = conn.execute('SELECT id, rollout_path FROM threads').fetchall()
+					finally:
+						conn.close()
+				except sqlite3.Error:
+					continue
+				for tr in t_rows:
+					tid = tr['id']
+					r_path = tr['rollout_path']
+					if not tid or tid == self.conversation_id or not r_path:
+						continue
+					try:
+						rp = _local_path(r_path)
+						st = rp.stat()
+						cache_key = str(rp)
+						cached = _SUBAGENT_PARENT_CACHE.get(cache_key)
+						if None is not cached and cached[0] == st.st_mtime_ns and cached[1] == st.st_size:
+							p_tid = cached[2]
+						else:
+							with rp.open('r', encoding='utf-8', errors='replace') as fh:
+								first_ln = fh.readline().strip()
+							if not first_ln:
+								continue
+							first_obj = json.loads(first_ln)
+							src_meta = (first_obj.get('payload') or {}).get('source') if isinstance(first_obj, dict) and isinstance(first_obj.get('payload'), dict) else None
+							sub_meta = src_meta.get('subagent') if isinstance(src_meta, dict) else None
+							spawn_meta = sub_meta.get('thread_spawn') if isinstance(sub_meta, dict) else None
+							raw_parent = spawn_meta.get('parent_thread_id') if isinstance(spawn_meta, dict) else None
+							p_tid = raw_parent if isinstance(raw_parent, str) and raw_parent else ''
+							_SUBAGENT_PARENT_CACHE[cache_key] = (st.st_mtime_ns, st.st_size, p_tid)
+						self.thread_parent_map[tid] = p_tid
+						if p_tid:
+							parent_children = self.child_parent_map.setdefault(p_tid, [])
+							if tid not in parent_children:
+								parent_children.append(tid)
+					except (OSError, ValueError, KeyError, TypeError, AttributeError):
+						continue
+	def _load_context(self):
+		from .request_binding import completion_project_id
+		_, self.path, _, self.rows = _trace(self.home, self.conversation_id)
+		meta = self.rows[0][1]['payload']
+		self.child = isinstance(meta.get('source'), dict) and bool(meta['source'].get('subagent'))
+		selected, _, _ = _request_scope(self.root, self.rows, identifier=completion_project_id(self.root))
+		self.requests = {index: {'id': f'codex:{self.conversation_id}:{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
+	def _record_tool_effects(self, name, raw_args, raw_cmd, step_idx, acc, *, extra_violation=None, track_turn_steps=False):
+		is_shell = 'exec' == name or name.endswith(('exec_command', 'run_command'))
+		if is_shell:
+			collect_shell_violations(raw_cmd, step_idx, acc['exec5_violations'], acc['http_fetch_violations'], extra=extra_violation)
+		patch_list = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', raw_cmd, flags=re.M) if 'apply_patch' in name else []
+		for pt in patch_list:
+			record_canonical_path(self.root_p, step_idx, pt, False, acc['file_reads'], acc['file_writes'], acc['touched_files'])
+		p_arg = ''
+		if name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
+			args_raw = parse_tool_args(raw_args)
+			p_arg = str(args_raw.get('Path') or args_raw.get('TargetFile') or args_raw.get('path') or '').strip()
+			record_canonical_path(self.root_p, step_idx, p_arg, name.endswith(('read_file', 'view_file')), acc['file_reads'], acc['file_writes'], acc['touched_files'])
+		if track_turn_steps:
+			if any((tok in raw_cmd for tok in ('recover-checkpoint', str(self.path.name), 'transcript_full.jsonl'))) and step_idx not in acc['transcript_read_steps']:
+				acc['transcript_read_steps'].append(step_idx)
+			if name.endswith(('spawn_agent', 'invoke_subagent', 'send_input', 'send_message', 'wait', 'wait_agent')) or 'spawn_agent' in raw_cmd:
+				if step_idx not in acc['subagent_steps']:
+					acc['subagent_steps'].append(step_idx)
+				if name.endswith(('spawn_agent', 'invoke_subagent')) or 'spawn_agent' in raw_cmd:
+					sub_bucket = acc['af_subagent_steps'] if re.search('(?i)"(?:task_name|agent_type|role)"\\s*:\\s*"[^"]*\\baf\\b', raw_cmd) else acc['aa_subagent_steps']
+					if step_idx not in sub_bucket:
+						sub_bucket.append(step_idx)
+			patch_targets = '\n'.join(patch_list)
+			kb_target_text = patch_targets if 'apply_patch' in name else '' if 'answer-prepare' in raw_cmd else raw_cmd
+			if (any((tok in kb_target_text for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or '/kb/analysis.md' in kb_target_text.replace('\\', '/').lower() or re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', raw_cmd)) and step_idx not in acc['kb_persistence_steps']:
+				acc['kb_persistence_steps'].append(step_idx)
+			scratch_tokens = ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md')
+			is_scratch_write = (name.endswith(('write_file', 'edit_file')) and any((tok in p_arg.replace('\\', '/') for tok in scratch_tokens))) or (bool(patch_list) and all((any((tok in pt.replace('\\', '/') for tok in scratch_tokens)) for pt in patch_list)))
+			if ((is_shell and bool(_SERVICE_CMD_RE.search(raw_cmd))) or is_scratch_write) and step_idx not in acc['completion_service_steps']:
+				acc['completion_service_steps'].append(step_idx)
+	def _scan_primary_turns(self):
+		current, acc = (None, None)
+		for index, item in self.rows:
+			payload = item.get('payload', {})
+			kind = item.get('type')
+			ptype = payload.get('type')
+			if None is not current and (kind in ('compacted', 'context_compacted', 'checkpoint') or (kind in ('event_msg', 'response_item') and ptype in ('context_compacted', 'compacted', 'checkpoint'))):
+				acc['checkpoint_steps'].append(index)
+			elif None is not current and 'response_item' == kind and ptype in ('function_call_output', 'custom_tool_call_output'):
+				rec = acc['pending_calls'].get(payload.get('call_id'))
+				if None is not rec and None is not payload.get('output'):
+					out = payload.get('output')
+					rec['outputs'].append((out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000])
+			elif 'event_msg' == kind and 'task_started' == ptype:
+				ident = payload.get('turn_id')
+				if not isinstance(ident, str) or not ident:
+					raise ValueError('Native Codex task_started has no turn ID')
+				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': []}
+				acc = {'all_request_steps': [], 'checkpoint_steps': [], 'tool_steps': [], 'subagent_steps': [], 'aa_subagent_steps': [], 'aa_partial_read_violations': [], 'af_subagent_steps': [], 'kb_persistence_steps': [], 'completion_service_steps': [], 'transcript_read_steps': [], 'file_reads': [], 'file_writes': [], 'tool_records': [], 'pending_calls': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files']}
+				self.turn_entries.append((current, acc))
+			elif None is not current and 'event_msg' == kind and ptype in ('task_complete', 'turn_aborted') and payload.get('turn_id') == current['turn_id']:
+				current['completion_step'] = index
+				current['aborted'] = 'turn_aborted' == ptype
+				if not current['aborted']:
+					native_final = payload.get('last_agent_message')
+					if None is not current['response'] and isinstance(native_final, str) and (native_final != current['response']):
+						raise ValueError('Native Codex final message and completion event disagree')
+					current['completed'] = bool(current['response'] and None is not current['final_step'])
+			elif None is not current and 'response_item' == kind and 'message' == ptype:
+				if 'assistant' == payload.get('role') and ('final_answer' == payload.get('phase') or 'final' == payload.get('channel')) and payload.get('status') in (None, 'completed'):
+					text = ''.join((p.get('text', '') for p in payload.get('content', []) if 'output_text' == p.get('type')))
+					if text.strip():
+						current['response'], current['final_step'] = (text, index)
+				elif 'user' == payload.get('role'):
+					text = ''.join((p.get('text', '') for p in payload.get('content', []) if p.get('type') in ('input_text', 'output_text')))
+					if _actual_user_input(text, payload):
+						acc['all_request_steps'].append(index)
+						if index in self.requests:
+							current['requests'].append(self.requests[index])
+			elif None is not current and 'response_item' == kind and ptype in ('function_call', 'custom_tool_call'):
+				name = payload.get('name', '')
+				raw_args = payload.get('arguments', payload.get('input', {}))
+				raw_in = payload.get('input', payload.get('arguments', ''))
+				raw_cmd = raw_in if isinstance(raw_in, str) else json.dumps(raw_in, ensure_ascii=False)
+				acc['tool_steps'].append(index)
+				target_subs = _extract_codex_target_subagents(raw_args) if name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')) else []
+				rec = {'step': index, 'tools': [name], 'outputs': [], 'target_subagents': target_subs}
+				acc['tool_records'].append(rec)
+				if payload.get('call_id'):
+					acc['pending_calls'][payload['call_id']] = rec
+				self._record_tool_effects(name, raw_args, raw_cmd, index, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True)
+		self.current_turn = current
+	def scan(self):
+		self._load_context()
+		self._scan_primary_turns()
+		for t_idx, (turn, acc) in enumerate(self.turn_entries):
+			self._finalize_turn(t_idx, turn, acc)
+		turns = [turn for turn, _ in self.turn_entries]
+		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home), 'source_file': str(self.path), 'primary': not self.child, 'turns': turns, 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None}
+_SERVICE_CMD_RE = re.compile('\\b(?:turn-begin|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b')
+_SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 def _local_path(value):
 	path = str(Path(value).resolve())
 	if path.startswith('\\\\?\\UNC\\'):
@@ -155,251 +400,24 @@ def _extract_codex_target_subagents(raw_args) -> list[str]:
 				candidates.append(item.strip().lower())
 	return [u for u in dict.fromkeys(candidates) if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)]
 def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
-	if not isinstance(out_text, str) or not out_text.strip():
-		return []
-	try:
-		parsed = json.loads(out_text)
-	except ValueError:
-		parsed = None
-	if isinstance(parsed, dict):
-		id_vals = [
-			str(parsed[k]).strip().lower()
-			for k in ('agent_id', 'conversationId', 'subagent_id', 'id', 'thread_id')
-			if isinstance(parsed.get(k), str)
-		]
-		matched = [
-			u for u in dict.fromkeys(id_vals)
-			if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)
-		]
-		if matched or any((k in parsed for k in ('output', 'message', 'response', 'content'))):
-			return matched
-	return [
-		m.lower()
-		for m in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_text, flags=re.I)
-	]
+	r = []
+	if isinstance(out_text, str) and out_text.strip():
+		try:
+			parsed = json.loads(out_text)
+		except ValueError:
+			parsed = None
+		if not isinstance(parsed, dict):
+			r = [m.lower() for m in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_text, flags=re.I)]
+		else:
+			id_vals = [str(parsed[k]).strip().lower() for k in ('agent_id', 'conversationId', 'subagent_id', 'id', 'thread_id') if isinstance(parsed.get(k), str)]
+			matched = [u for u in dict.fromkeys(id_vals) if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)]
+			if matched or any((k in parsed for k in ('output', 'message', 'response', 'content'))):
+				r = matched
+			else:
+				r = [m.lower() for m in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_text, flags=re.I)]
+	return r
 def native_answers(root, conversation_id, *, backend=None):
-	from .request_binding import completion_project_id
-	home = _home(backend)
-	_, path, _, rows = _trace(home, conversation_id)
-	meta = rows[0][1]['payload']
-	child = isinstance(meta.get('source'), dict) and bool(meta['source'].get('subagent'))
-	selected, _, _ = _request_scope(root, rows, identifier=completion_project_id(root))
-	requests = {index: {'id': f'codex:{conversation_id}:{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
-	from ..git_gate import extract_issue_actions_from_outputs
-	root_p = Path(root).resolve()
-	turns, current = ([], None)
-	for index, item in rows:
-		payload = item.get('payload', {})
-		kind = item.get('type')
-		if 'event_msg' == kind and 'task_started' == payload.get('type'):
-			ident = payload.get('turn_id')
-			if not isinstance(ident, str) or not ident:
-				raise ValueError('Native Codex task_started has no turn ID')
-			current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'checkpoint_steps': [], 'tool_steps': [], 'subagent_steps': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'kb_persistence_steps': [], 'transcript_read_steps': [], 'touched_files': [], 'file_reads': [], 'file_writes': [], 'tool_records': [], '_pending_calls': {}}
-			turns.append(current)
-		elif None is not current and (kind in ('compacted', 'context_compacted', 'checkpoint') or (kind in ('event_msg', 'response_item') and payload.get('type') in ('context_compacted', 'compacted', 'checkpoint'))):
-			current['checkpoint_steps'].append(index)
-		elif None is not current and 'response_item' == kind and (payload.get('type') in ('function_call', 'custom_tool_call')):
-			name = payload.get('name', '')
-			raw_cmd = payload.get('input', payload.get('arguments', ''))
-			if not isinstance(raw_cmd, str):
-				raw_cmd = json.dumps(raw_cmd, ensure_ascii=False)
-			current['tool_steps'].append(index)
-			target_subs = _extract_codex_target_subagents(payload.get('arguments', payload.get('input', {}))) if name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')) else []
-			rec = {'step': index, 'tools': [name], 'outputs': [], 'target_subagents': target_subs}
-			current['tool_records'].append(rec)
-			if payload.get('call_id'):
-				current['_pending_calls'][payload['call_id']] = rec
-			if 'exec' == name or name.endswith(('exec_command', 'run_command')):
-				collect_shell_violations(raw_cmd, index, current['exec5_violations'], current['http_fetch_violations'], extra={'call_id': payload.get('call_id')})
-			if any((tok in raw_cmd for tok in ('recover-checkpoint', str(path.name), 'transcript_full.jsonl'))) and index not in current['transcript_read_steps']:
-				current['transcript_read_steps'].append(index)
-			if name.endswith(('spawn_agent', 'invoke_subagent', 'send_input', 'send_message', 'wait', 'wait_agent')) or 'spawn_agent' in raw_cmd:
-				if index not in current['subagent_steps']:
-					current['subagent_steps'].append(index)
-				if name.endswith(('spawn_agent', 'invoke_subagent')) or 'spawn_agent' in raw_cmd:
-					if re.search('(?i)"(?:task_name|agent_type|role)"\\s*:\\s*"[^"]*\\baf\\b', raw_cmd):
-						if index not in current['af_subagent_steps']:
-							current['af_subagent_steps'].append(index)
-					elif index not in current['aa_subagent_steps']:
-						current['aa_subagent_steps'].append(index)
-			patch_list = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', raw_cmd, flags=re.M) if 'apply_patch' in name else []
-			for pt in patch_list:
-				record_canonical_path(root_p, index, pt, False, current['file_reads'], current['file_writes'], current['touched_files'])
-			if name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
-				args_raw = parse_tool_args(payload.get('arguments', payload.get('input', {})))
-				p_arg = args_raw.get('Path') or args_raw.get('TargetFile') or args_raw.get('path') or ''
-				record_canonical_path(root_p, index, p_arg, name.endswith(('read_file', 'view_file')), current['file_reads'], current['file_writes'], current['touched_files'])
-			patch_targets = '\n'.join(patch_list)
-			kb_target_text = patch_targets if 'apply_patch' in name else '' if 'answer-prepare' in raw_cmd else raw_cmd
-			if any((tok in kb_target_text for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or '/kb/analysis.md' in kb_target_text.replace('\\', '/').lower() or re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', raw_cmd):
-				if index not in current['kb_persistence_steps']:
-					current['kb_persistence_steps'].append(index)
-		elif None is not current and 'response_item' == kind and (payload.get('type') in ('function_call_output', 'custom_tool_call_output')):
-			rec = current['_pending_calls'].get(payload.get('call_id'))
-			if None is not rec and None is not payload.get('output'):
-				out = payload.get('output')
-				rec['outputs'].append((out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000])
-		elif None is not current and 'response_item' == kind and ('message' == payload.get('type')):
-			if 'user' == payload.get('role'):
-				text = ''.join((p.get('text', '') for p in payload.get('content', []) if p.get('type') in ('input_text', 'output_text')))
-				if _actual_user_input(text, payload):
-					current.setdefault('all_request_steps', []).append(index)
-					if index in requests:
-						current['requests'].append(requests[index])
-			elif 'assistant' == payload.get('role') and ('final_answer' == payload.get('phase') or 'final' == payload.get('channel')):
-				if payload.get('status') not in (None, 'completed'):
-					continue
-				text = ''.join((p.get('text', '') for p in payload.get('content', []) if 'output_text' == p.get('type')))
-				if text.strip():
-					current['response'], current['final_step'] = (text, index)
-		elif None is not current and 'event_msg' == kind and (payload.get('type') in ('task_complete', 'turn_aborted')):
-			if payload.get('turn_id') != current['turn_id']:
-				continue
-			current['completion_step'] = index
-			current['aborted'] = 'turn_aborted' == payload['type']
-			if not current['aborted']:
-				native_final = payload.get('last_agent_message')
-				if None is not current['response'] and isinstance(native_final, str) and (native_final != current['response']):
-					raise ValueError('Native Codex final message and completion event disagree')
-				current['completed'] = bool(current['response'] and None is not current['final_step'])
-	child_parent_map: dict[str, list[str]] = {}
-	thread_parent_map: dict[str, str] = {}
-	if not child:
-		for db_file in sorted(home.glob('state_*.sqlite')):
-			try:
-				conn = sqlite3.connect(db_file.as_uri() + '?mode=ro', uri=True)
-				conn.row_factory = sqlite3.Row
-				try:
-					t_rows = conn.execute('SELECT id, rollout_path FROM threads').fetchall()
-				finally:
-					conn.close()
-			except sqlite3.Error:
-				continue
-			for tr in t_rows:
-				tid = tr['id']
-				r_path = tr['rollout_path']
-				if not tid or tid == conversation_id or not r_path:
-					continue
-				try:
-					rp = _local_path(r_path)
-					if not rp.is_file():
-						continue
-					with rp.open('r', encoding='utf-8', errors='replace') as fh:
-						first_ln = fh.readline().strip()
-					if not first_ln:
-						continue
-					first_obj = json.loads(first_ln)
-					src_meta = (first_obj.get('payload') or {}).get('source') if isinstance(first_obj, dict) and isinstance(first_obj.get('payload'), dict) else None
-					sub_meta = src_meta.get('subagent') if isinstance(src_meta, dict) else None
-					spawn_meta = sub_meta.get('thread_spawn') if isinstance(sub_meta, dict) else None
-					p_tid = spawn_meta.get('parent_thread_id') if isinstance(spawn_meta, dict) else None
-					thread_parent_map[tid] = p_tid if isinstance(p_tid, str) and p_tid else ''
-					if isinstance(p_tid, str) and p_tid:
-						parent_children = child_parent_map.setdefault(p_tid, [])
-						if tid not in parent_children:
-							parent_children.append(tid)
-				except (OSError, ValueError, KeyError, TypeError, AttributeError):
-					continue
-	completed_turn_sub_ids: set[str] = set()
-	for t_idx, turn in enumerate(turns):
-		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(turn.get('all_request_steps', []))
-		turn.pop('all_request_steps', None)
-		cp_steps = turn.pop('checkpoint_steps', [])
-		t_steps = turn.pop('tool_steps', [])
-		sub_steps = turn.pop('subagent_steps', [])
-		aa_steps = turn.pop('aa_subagent_steps', [])
-		af_steps = turn.pop('af_subagent_steps', [])
-		kb_steps = turn.pop('kb_persistence_steps', [])
-		tr_steps = turn.pop('transcript_read_steps', [])
-		f_reads = turn.pop('file_reads', [])
-		f_writes = turn.pop('file_writes', [])
-		records = turn.pop('tool_records', [])
-		turn.pop('_pending_calls', None)
-		turn['issue_actions'] = extract_issue_actions_from_outputs([out for r in records for out in r.get('outputs', [])])
-		aa_partial_read_violations = []
-		unclaimed_db_children = [cid_item for cid_item in child_parent_map.get(conversation_id, []) if cid_item not in completed_turn_sub_ids]
-		visited_sub_ids = {conversation_id}
-		if not child and (sub_steps or (t_idx == len(turns) - 1 and unclaimed_db_children)):
-			queue_ids = [(cid_item, conversation_id) for cid_item in unclaimed_db_children] if t_idx == len(turns) - 1 else []
-			queued_pairs = set(queue_ids)
-			for r in records:
-				for t_uid in r.get('target_subagents', []):
-					if t_uid != conversation_id and (t_uid, conversation_id) not in queued_pairs:
-						queued_pairs.add((t_uid, conversation_id))
-						queue_ids.append((t_uid, conversation_id))
-				if not any((str(t).endswith(('spawn_agent', 'invoke_subagent')) for t in r.get('tools', []))):
-					continue
-				for out in r.get('outputs', []):
-					for m_uuid in _extract_codex_spawn_output_uuids(str(out)):
-						if m_uuid != conversation_id and (m_uuid, conversation_id) not in queued_pairs:
-							queued_pairs.add((m_uuid, conversation_id))
-							queue_ids.append((m_uuid, conversation_id))
-			while queue_ids:
-				sub_id, expected_parent = queue_ids.pop(0)
-				if sub_id in visited_sub_ids:
-					continue
-				if sub_id in thread_parent_map and (not thread_parent_map[sub_id] or thread_parent_map[sub_id] != expected_parent):
-					continue
-				visited_sub_ids.add(sub_id)
-				for grand_id in child_parent_map.get(sub_id, []):
-					if grand_id not in visited_sub_ids and (grand_id, sub_id) not in queued_pairs:
-						queued_pairs.add((grand_id, sub_id))
-						queue_ids.append((grand_id, sub_id))
-				try:
-					sub_db_row, _, _, sub_rows = _trace(home, sub_id)
-				except (ValueError, OSError):
-					continue
-				sub_agent_path = str((sub_db_row or {}).get('agent_path') or '')
-				if not re.search('\\baf\\b', sub_agent_path, flags=re.I) and (aa_steps or sub_agent_path):
-					for p_err in _partial_candidate_read_issues(root_p, sub_rows):
-						if p_err not in aa_partial_read_violations:
-							aa_partial_read_violations.append(p_err)
-				sub_step_anchor = sub_steps[-1] if sub_steps else (t_steps[-1] if t_steps else turn['start_step'])
-				sub_outputs = []
-				sub_spawn_call_ids = set()
-				for s_idx, s_item in sub_rows:
-					s_kind = s_item.get('type')
-					s_pay = s_item.get('payload', {})
-					if 'response_item' == s_kind and s_pay.get('type') in ('function_call', 'custom_tool_call'):
-						s_name = s_pay.get('name', '')
-						s_raw = s_pay.get('input', s_pay.get('arguments', ''))
-						if not isinstance(s_raw, str):
-							s_raw = json.dumps(s_raw, ensure_ascii=False)
-						if s_name.endswith(('spawn_agent', 'invoke_subagent')) and s_pay.get('call_id'):
-							sub_spawn_call_ids.add(s_pay['call_id'])
-						elif s_name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')):
-							for t_uid in _extract_codex_target_subagents(s_pay.get('arguments', s_pay.get('input', {}))):
-								if t_uid not in visited_sub_ids and (t_uid, sub_id) not in queued_pairs:
-									queued_pairs.add((t_uid, sub_id))
-									queue_ids.append((t_uid, sub_id))
-						if 'exec' == s_name or s_name.endswith(('exec_command', 'run_command')):
-							collect_shell_violations(s_raw, sub_step_anchor, turn['exec5_violations'], turn['http_fetch_violations'], extra={'subagent_id': sub_id})
-						s_patches = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', s_raw, flags=re.M) if 'apply_patch' in s_name else []
-						for pt in s_patches:
-							record_canonical_path(root_p, sub_step_anchor, pt, False, f_reads, f_writes, turn['touched_files'])
-						if s_name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
-							s_args = parse_tool_args(s_pay.get('arguments', s_pay.get('input', {})))
-							p_arg = s_args.get('Path') or s_args.get('TargetFile') or s_args.get('path') or ''
-							record_canonical_path(root_p, sub_step_anchor, p_arg, s_name.endswith(('read_file', 'view_file')), f_reads, f_writes, turn['touched_files'])
-					elif 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
-						out = s_pay.get('output')
-						out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
-						sub_outputs.append(out_s)
-						if s_pay.get('call_id') in sub_spawn_call_ids:
-							for m_uuid in _extract_codex_spawn_output_uuids(out_s):
-								if m_uuid not in visited_sub_ids and (m_uuid, sub_id) not in queued_pairs:
-									queued_pairs.add((m_uuid, sub_id))
-									queue_ids.append((m_uuid, sub_id))
-				for act in extract_issue_actions_from_outputs(sub_outputs):
-					act_with_sub = {**act, 'subagent_id': sub_id}
-					if act_with_sub not in turn['issue_actions']:
-						turn['issue_actions'].append(act_with_sub)
-		completed_turn_sub_ids.update(visited_sub_ids - {conversation_id})
-		for r in records:
-			r.pop('target_subagents', None)
-		turn['compaction'], turn['delegation'] = summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, aa_part_errs=aa_partial_read_violations)
-	return {'platform': 'codex', 'conversation_id': conversation_id, 'native_backend': str(home), 'source_file': str(path), 'primary': not child, 'turns': turns, 'active_turn_id': current['turn_id'] if current and (not current['completion_step']) else None}
+	return CodexTurnScanner(root, conversation_id, backend=backend).scan()
 def _model(rows, before=None):
 	contexts = [item['payload'] for index, item in rows if 'turn_context' == item.get('type') and (None is before or index <= before)]
 	if not contexts or not contexts[-1].get('model') or (not contexts[-1].get('effort')):

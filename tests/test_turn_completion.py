@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
+# https://github.com/dmitry-ai/harness/issues/61
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -182,6 +185,52 @@ class AnswerPreparationRunnerTests(unittest.TestCase):
 				reread_turn = {**ev_turn, 'compaction': {**ev_turn['compaction'], 'evicted_unreread_files': []}}
 				_, cleared_ev = completion._state(proj, {**native, 'turns': [reread_turn]}, reread_turn)
 				self.assertNotIn('readiness_check', cleared_ev)
+class CodexTurnScannerTests(unittest.TestCase):
+	def test_service_steps_parity_subagent_cache_and_bfs_depth_cap(self):
+		with tempfile.TemporaryDirectory() as temp:
+			base = Path(temp)
+			proj = base / 'proj'
+			proj.mkdir()
+			home = base / 'codex'
+			(home / 'sessions').mkdir(parents=True)
+			parent_id = str(uuid.uuid4())
+			turn_id = str(uuid.uuid4())
+			rows = [{'type': 'session_meta', 'payload': {'id': parent_id, 'cwd': str(proj), 'source': 'vscode'}}, {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn_id}}, {'type': 'turn_context', 'payload': {'turn_id': turn_id, 'cwd': str(proj)}}, {'type': 'response_item', 'payload': {'type': 'message', 'role': 'user', 'internal_chat_message_metadata_passthrough': {'content_item_kinds': ['user.text'], 'turn_id': turn_id}, 'content': [{'type': 'input_text', 'text': 'Inspect Codex scanner parity.'}]}}, {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'exec_command', 'call_id': 'c1', 'arguments': json.dumps({'cmd': 'python harness.py turn-begin'})}}, {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'write_file', 'call_id': 'c2', 'arguments': json.dumps({'Path': str(proj / 'ꘖ/data/scratch/answer-x.md')})}}, {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'read_file', 'call_id': 'c3', 'arguments': json.dumps({'Path': str(proj / 'notes.md')})}}]
+			p_path = home / 'sessions' / (parent_id + '.jsonl')
+			p_path.write_text(''.join((json.dumps(r_item) + '\n' for r_item in rows)), encoding='utf-8')
+			conn = sqlite3.connect(home / 'state_5.sqlite')
+			conn.execute('CREATE TABLE IF NOT EXISTS threads(id TEXT PRIMARY KEY,rollout_path TEXT,agent_path TEXT)')
+			conn.execute('INSERT OR REPLACE INTO threads VALUES(?,?,NULL)', (parent_id, str(p_path)))
+			chain_parent = parent_id
+			chain_ids = []
+			for depth_idx in range(1, 7):
+				cid = str(uuid.uuid4())
+				chain_ids.append(cid)
+				c_rows = [{'type': 'session_meta', 'payload': {'id': cid, 'cwd': str(proj), 'source': {'subagent': {'thread_spawn': {'parent_thread_id': chain_parent, 'agent_path': f'/root/af_{depth_idx}'}}}}}, {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'write_file', 'call_id': f'sc_{depth_idx}', 'arguments': json.dumps({'Path': f'depth_{depth_idx}.txt'})}}]
+				c_path = home / 'sessions' / (cid + '.jsonl')
+				c_path.write_text(''.join((json.dumps(x) + '\n' for x in c_rows)), encoding='utf-8')
+				conn.execute('INSERT OR REPLACE INTO threads VALUES(?,?,?)', (cid, str(c_path), f'/root/af_{depth_idx}'))
+				chain_parent = cid
+			conn.commit()
+			conn.close()
+			codex._SUBAGENT_PARENT_CACHE.clear()
+			res1 = codex.native_answers(proj, parent_id, backend=home)
+			del1 = res1['turns'][0]['delegation']
+			self.assertEqual(3, del1['tool_step_count'])
+			self.assertEqual(1, del1['max_unpersisted_step_streak'])
+			self.assertEqual([str(proj / 'ꘖ/data/scratch/answer-x.md'), 'depth_1.txt', 'depth_2.txt', 'depth_3.txt', 'depth_4.txt'], res1['turns'][0]['touched_files'])
+			self.assertEqual(6, len(codex._SUBAGENT_PARENT_CACHE))
+			orig_open = Path.open
+			child_names = {cid + '.jsonl' for cid in chain_ids}
+			opened_headers = []
+			def tracked_open(self_p, mode='r', *a, **kw):
+				if 'r' == mode and self_p.name in child_names:
+					opened_headers.append(self_p.name)
+				return orig_open(self_p, mode, *a, **kw)
+			with patch.object(Path, 'open', tracked_open):
+				res2 = codex.native_answers(proj, parent_id, backend=home)
+			self.assertEqual([], opened_headers)
+			self.assertEqual(res1['turns'][0]['touched_files'], res2['turns'][0]['touched_files'])
 class CompletionCase(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
