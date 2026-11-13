@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -309,6 +312,18 @@ class ExperimentTests(unittest.TestCase):
 			commit = next((event for event in saved['native_trace']['events'] if 'plan-commit' == event['id']))
 			self.assertEqual(commit['name'], 'exec')
 			self.assertIn('tools.exec_command', commit['arguments']['code'])
+	def test_canonical_harness_cli_plan_commit_receipt_is_supported(self):
+		plan = self.plan(self.browser_requirement())
+		states, trace = self.native_fixture()
+		def mutate(rows):
+			for row in rows:
+				payload = row.get('payload', {})
+				if 'plan-commit' == payload.get('call_id') and 'function_call' == payload.get('type'):
+					payload['arguments'] = json.dumps({'code': 'python C:/tools/harness.py prepare-experiment --spec plan.json'})
+		self.rewrite_native(mutate)
+		with self.native_selected():
+			result = exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
+			self.assertEqual(exp.load_experiment(self.root, result['experiment'])['status'], 'verified')
 	def test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity(self):
 		from agent_tools.metrics import native_tool_trace
 		plan = self.plan(self.browser_requirement())

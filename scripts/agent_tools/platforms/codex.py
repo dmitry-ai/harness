@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/64
@@ -33,7 +36,7 @@ import sqlite3
 import subprocess
 from ..runtime import platform_settings, profile_name
 from ..research import json_data
-from ..storage import create_bytes
+from ..storage import create_bytes, iter_embedded_json_objects
 from .request_binding import native_project_fields
 from .trace_common import collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
 class CodexTurnScanner:
@@ -507,23 +510,7 @@ def _assignment_source(rows, meta, assignment):
 		raise ValueError('Encrypted native spawn does not match the child assignment')
 	return 'native-parent-spawn.message'
 def _json_objects(value):
-	if isinstance(value, dict):
-		yield value
-		for part in value.values():
-			yield from _json_objects(part)
-	elif isinstance(value, list):
-		for part in value:
-			yield from _json_objects(part)
-	elif isinstance(value, str):
-		decoder, start = (json.JSONDecoder(), 0)
-		while (start := value.find('{', start)) >= 0:
-			try:
-				parsed, size = decoder.raw_decode(value[start:])
-			except ValueError:
-				start += 1
-				continue
-			yield from _json_objects(parsed)
-			start += size
+	return iter_embedded_json_objects(value, parse_root=False)
 def _review_inputs(root, rows, parent_id, reviewer_id):
 	calls, receipts = ({}, [])
 	for index, item in rows:

@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
@@ -63,6 +66,36 @@ def data_dir_for(path: Path) -> Path:
 				r = Path('C:/work/research/provision/code/AI/harness/_/ꘖ/data/workspaces/upwork') if 'c:/work/upwork/code' == str(parent).replace('\\', '/').rstrip('/').lower() else parent / 'ꘖ' / 'data'
 				break
 	return r
+def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=True):
+	if isinstance(value, dict):
+		yield value
+		if recursive:
+			for child in value.values():
+				yield from iter_embedded_json_objects(child, parse_root=parse_root, recursive=recursive)
+	elif isinstance(value, list):
+		for child in value:
+			yield from iter_embedded_json_objects(child, parse_root=parse_root, recursive=recursive)
+	elif isinstance(value, str):
+		parsed, loaded = (None, False)
+		if parse_root:
+			try:
+				parsed = json.loads(value)
+				loaded = True
+			except ValueError:
+				loaded = False
+		if loaded:
+			if not isinstance(parsed, str):
+				yield from iter_embedded_json_objects(parsed, parse_root=parse_root, recursive=recursive)
+		else:
+			decoder, start = (json.JSONDecoder(), 0)
+			while 0 <= (start := value.find('{', start)):
+				try:
+					item, size = decoder.raw_decode(value[start:])
+				except ValueError:
+					start += 1
+				else:
+					yield from iter_embedded_json_objects(item, parse_root=parse_root, recursive=recursive)
+					start += size
 @contextmanager
 def locked(path: Path, timeout: float=15, *, create=True):
 	if create:

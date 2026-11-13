@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
 # https://github.com/dmitry-ai/harness/issues/53
@@ -37,6 +40,7 @@ import sys
 import time
 import uuid
 from .links import validate_file
+from .storage import iter_embedded_json_objects
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 READ_SUBCOMMANDS = ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files')
 _VALUE_GLOBAL_OPTS = ('-C', '--git-dir', '--work-tree', '-c', '--exec-path', '--namespace', '--super-prefix', '--config-env')
@@ -594,22 +598,13 @@ def unpersisted_http_fetch_commands(text: str) -> list[str]:
 		r = [' '.join(text.strip().split())[:240]]
 	return r
 def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> list[dict]:
-	import json as _json
 	actions: list[dict] = []
-	decoder = _json.JSONDecoder()
 	for text in outputs or []:
 		if not isinstance(text, str) or '"action"' not in text or '"repo"' not in text:
 			continue
 		if re.search('(?m)^Ran \\d+ tests? in \\d', text) or re.search('(?i)"consumed_files"\\s*:\\s*\\[\\s*"[^"]*(?:[/\\\\\\\\]temp[/\\\\\\\\]|[/\\\\\\\\]tmp[/\\\\\\\\])', text):
 			continue
-		pos = 0
-		while (pos := text.find('{', pos)) >= 0:
-			try:
-				obj, size = decoder.raw_decode(text[pos:])
-			except ValueError:
-				pos += 1
-				continue
-			pos += size
+		for obj in iter_embedded_json_objects(text, parse_root=False, recursive=False):
 			if not isinstance(obj, dict) or not obj.get('ok', True):
 				continue
 			consumed = obj.get('consumed_files')

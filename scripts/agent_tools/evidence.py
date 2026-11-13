@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
@@ -20,8 +23,9 @@ from .diagnostics import problem
 from .research import inside, load_observation, extract_bytes
 def pointer(*parts):
 	return '/' + '/'.join((str(x).replace('~', '~0').replace('/', '~1') for x in parts)) if parts else ''
-def resolve_pointer(value, fragment):
-	fragment = unquote(fragment)
+def resolve_pointer(value, fragment, *, decode_uri: bool=True):
+	if decode_uri:
+		fragment = unquote(fragment)
 	if not fragment:
 		r = value
 	else:
@@ -31,14 +35,14 @@ def resolve_pointer(value, fragment):
 			if re.search('~(?![01])', raw):
 				raise ValueError('Invalid JSON pointer escape')
 			key = raw.replace('~1', '/').replace('~0', '~')
-			if isinstance(value, list):
+			if isinstance(value, dict):
+				value = value[key]
+			elif not isinstance(value, list):
+				raise ValueError('Pointer traverses a scalar')
+			else:
 				if not re.fullmatch('0|[1-9][0-9]*', key):
 					raise ValueError('Array pointer must be a nonnegative canonical index')
 				value = value[int(key)]
-			elif isinstance(value, dict):
-				value = value[key]
-			else:
-				raise ValueError('Pointer traverses a scalar')
 		r = value
 	return r
 def local_file(root, reference):
