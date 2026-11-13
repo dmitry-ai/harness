@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/52
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -23,6 +26,7 @@ from ..runtime import platform_settings, profile_name
 from ..research import json_data
 from ..storage import create_bytes
 from .request_binding import native_project_fields
+from .trace_common import collect_prompt_bias_issues, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, reviewer_isolation_issues, verify_review_proof_core
 def _local_path(value):
 	path = str(Path(value).resolve())
 	if path.startswith('\\\\?\\UNC\\'):
@@ -357,6 +361,7 @@ def native_answers(root, conversation_id, *, backend=None):
 		records = turn.pop('tool_records', [])
 		turn.pop('_pending_calls', None)
 		turn['issue_actions'] = extract_issue_actions_from_outputs([out for r in records for out in r.get('outputs', [])])
+		aa_partial_read_violations = []
 		unclaimed_db_children = [cid_item for cid_item in child_parent_map.get(conversation_id, []) if cid_item not in completed_turn_sub_ids]
 		visited_sub_ids = {conversation_id}
 		if not child and (sub_steps or (t_idx == len(turns) - 1 and unclaimed_db_children)):
@@ -386,9 +391,14 @@ def native_answers(root, conversation_id, *, backend=None):
 						queued_pairs.add((grand_id, sub_id))
 						queue_ids.append((grand_id, sub_id))
 				try:
-					_, _, _, sub_rows = _trace(home, sub_id)
+					sub_db_row, _, _, sub_rows = _trace(home, sub_id)
 				except (ValueError, OSError):
 					continue
+				sub_agent_path = str((sub_db_row or {}).get('agent_path') or '')
+				if not re.search('\\baf\\b', sub_agent_path, flags=re.I) and (aa_steps or sub_agent_path):
+					for p_err in _partial_candidate_read_issues(root_p, sub_rows):
+						if p_err not in aa_partial_read_violations:
+							aa_partial_read_violations.append(p_err)
 				sub_step_anchor = sub_steps[-1] if sub_steps else (t_steps[-1] if t_steps else turn['start_step'])
 				sub_outputs = []
 				sub_spawn_call_ids = set()
@@ -494,7 +504,7 @@ def native_answers(root, conversation_id, *, backend=None):
 				if len(cur_src_reads) > max_src_reads:
 					max_src_reads = len(cur_src_reads)
 		turn['compaction'] = {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}
-		turn['delegation'] = {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads}
+		turn['delegation'] = {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'aa_partial_read_violations': aa_partial_read_violations, 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads}
 	return {'platform': 'codex', 'conversation_id': conversation_id, 'native_backend': str(home), 'source_file': str(path), 'primary': not child, 'turns': turns, 'active_turn_id': current['turn_id'] if current and (not current['completion_step']) else None}
 def _model(rows, before=None):
 	contexts = [item['payload'] for index, item in rows if 'turn_context' == item.get('type') and (None is before or index <= before)]
@@ -701,27 +711,28 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 	assignment = invocation[2].get('message')
 	if not isinstance(assignment, str) or not assignment.strip():
 		raise ValueError('Native parent reviewer assignment is unavailable')
+	matched_prompts = [assignment]
+	for _, p_item in parent_rows:
+		p_pay = p_item.get('payload', {}) if isinstance(p_item, dict) else {}
+		if 'response_item' == p_item.get('type') and p_pay.get('type') in ('function_call', 'custom_tool_call') and str(p_pay.get('name') or '').endswith(('send_input', 'send_message')):
+			p_args = p_pay.get('arguments', p_pay.get('input', {}))
+			if reviewer_id.lower() in _extract_codex_target_subagents(p_args):
+				p_dict = json.loads(p_args) if isinstance(p_args, str) and p_args.lstrip().startswith('{') else p_args
+				if isinstance(p_dict, dict):
+					msg_txt = p_dict.get('message') or p_dict.get('Message') or p_dict.get('input')
+					if isinstance(msg_txt, str) and msg_txt.strip():
+						matched_prompts.append(msg_txt)
+	bias_issues = collect_prompt_bias_issues(matched_prompts)
+	if bias_issues:
+		raise ValueError('Reviewer prompt biases verdict or omits negative schema outcomes: ' + '; '.join(bias_issues))
+	isolation_issues = reviewer_isolation_issues(root, rows)
+	if isolation_issues:
+		raise ValueError('Independent reviewer isolation violated: ' + '; '.join(isolation_issues))
 	assignment_source = _assignment_source(rows, meta, assignment)
 	review_inputs = _review_inputs(root, rows, parent_id, reviewer_id)
 	digest = hashlib.sha256(raw).hexdigest()
 	proof = {'surface': 'codex-ui', 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'status': 'completed', 'agent_name': spawn.get('agent_path'), 'native_profile_home': str(home), 'native_log': str(path), 'parent_log': str(parent_path), 'native_log_sha256': digest, 'final_step': final_index, 'final_response_sha256': hashlib.sha256(final['last_agent_message'].encode()).hexdigest(), 'final_response': final['last_agent_message'], 'assignment_sha256': hashlib.sha256(assignment.encode()).hexdigest(), 'assignment_source': assignment_source, 'review_inputs': review_inputs, **native_project_fields(root), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}
-	target = Path(root).resolve() / 'ꘖ/KB/Evidence/Reviews' / f'{reviewer_id}-{digest[:16]}-native.json'
-	authored = target.with_name(target.stem + '-authored.txt')
-	proof['authored_response'] = authored.relative_to(Path(root).resolve()).as_posix()
-	if write:
-		target.parent.mkdir(parents=True, exist_ok=True)
-		authored_bytes = final['last_agent_message'].encode('utf-8')
-		if authored.exists() and authored.read_bytes() != authored_bytes:
-			raise ValueError('Immutable native authored response differs')
-		if not authored.exists():
-			create_bytes(authored, authored_bytes)
-		payload = json_data(proof)
-		if target.exists() and target.read_bytes() != payload:
-			raise ValueError('Existing Codex proof differs; preserve both versions')
-		if not target.exists():
-			create_bytes(target, payload)
-	r = {'proof': target.relative_to(Path(root).resolve()).as_posix(), **proof}
-	return r
+	return persist_review_proof(root, reviewer_id, digest, final['last_agent_message'], proof, write=write, diff_error='Existing Codex proof differs; preserve both versions')
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -730,24 +741,10 @@ def verify_native_proof(root, native, package=None):
 	allowed = [Path(value).resolve() for value in platform_settings('codex')['homes'].values()]
 	if home not in allowed:
 		raise ValueError('Saved Codex proof names an unconfigured profile')
-	result = native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, write=False)
-	for key in ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'):
-		if result.get(key) != native.get(key):
-			raise ValueError('Codex review proof differs from the actual native trace')
-	if 'client_text_workspace' == result['project_kind'] or any((key in native for key in ('project_id', 'project_kind'))):
-		for key in ('project_id', 'project_kind'):
-			if result.get(key) != native.get(key):
-				raise ValueError('Codex review proof has a different explicit project identity')
-	authored = Path(root) / result['authored_response']
-	if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != result['final_response_sha256']:
-		raise ValueError('Immutable native authored reviewer response changed')
-	if 'executor_metadata' in native and native['executor_metadata'] != result['executor_metadata']:
-		raise ValueError('Native executor metadata differs from saved reviewer proof')
-	if package:
-		if not any((Path(item['package']).name == package for item in result['review_inputs'])):
-			raise ValueError('Codex reviewer did not verify this immutable KB review package')
-	r = result
-	return r
+	result = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, write=False), ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'), trace_error='Codex review proof differs from the actual native trace', identity_error='Codex review proof has a different explicit project identity')
+	if package and (not any((Path(item['package']).name == package for item in result['review_inputs']))):
+		raise ValueError('Codex reviewer did not verify this immutable KB review package')
+	return result
 def shared_control(request):
 	config = platform_settings('codex')
 	script = 'import {controlWithHelper as control} from ' + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"

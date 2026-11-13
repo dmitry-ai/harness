@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/52
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
@@ -41,6 +44,7 @@ from ..research import json_data
 from ..knowledge import json_bytes
 from ..storage import create_bytes, replace_bytes, locked
 from .request_binding import native_project_fields
+from .trace_common import collect_prompt_bias_issues, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, reviewer_isolation_issues, verify_review_proof_core
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
 ANTIGRAVITY_FOLDERS_JSON = Path(platform_settings('antigravity')['folders_json'])
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -305,138 +309,6 @@ def native_tool_trace(root, request):
 		events.append({'id': str(index), 'step': index, 'output_step': output['step_index'], 'name': call.get('name', ''), 'arguments': arguments, 'result': output.get('content', ''), 'successful': True, 'created_at': row.get('created_at'), 'completed_at': output.get('created_at'), 'native_event_sha256': hashlib.sha256(json_data(selected_data)).hexdigest()})
 	r = {'surface': 'antigravity-ui', 'conversation_id': conversation_id, 'step_indices': selected, 'native_database': str(database), 'native_log': str(path), 'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
 	return r
-def prompt_bias_issues(prompt_text):
-	if not isinstance(prompt_text, str) or not prompt_text.strip():
-		r = []
-	else:
-		issues = []
-		if re.search('["\\\']approved["\\\']|\\bresult["\\\']?\\s*:\\s*["\\\']?approved\\b', prompt_text, re.I) and (not re.search('\\bneeds_changes\\b', prompt_text, re.I)):
-			issues.append('prompt specifies result="approved" without "needs_changes"')
-		if re.search('["\\\']supported["\\\']|\\boutcome["\\\']?\\s*:\\s*["\\\']?supported\\b', prompt_text, re.I) and (not (re.search('\\bqualified\\b', prompt_text, re.I) and re.search('\\bunsupported\\b', prompt_text, re.I))):
-			issues.append('prompt specifies outcome="supported" without "qualified" and "unsupported"')
-		if re.search('["\\\']direct["\\\']|\\brelationship["\\\']?\\s*:\\s*["\\\']?direct\\b', prompt_text, re.I) and (not (re.search('\\bproxy\\b', prompt_text, re.I) and re.search('\\birrelevant\\b', prompt_text, re.I))):
-			issues.append('prompt specifies relationship="direct" without "proxy" and "irrelevant"')
-		if re.search('["\\\']findings["\\\']\\s*:\\s*\\[\\s*\\]', prompt_text) and (not (re.search('\\bseverity\\b', prompt_text, re.I) and re.search('\\bremediation\\b', prompt_text, re.I))):
-			issues.append('prompt hardcodes empty findings=[] without specifying finding object fields')
-		r = issues
-	return r
-def _partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
-	issues = []
-	candidate_reads: dict[str, dict] = {}
-	rows_list = rows if isinstance(rows, list) else []
-	root_resolved = Path(project_root).resolve()
-	for pos, row in enumerate(rows_list):
-		if not isinstance(row, dict):
-			continue
-		for call in row.get('tool_calls', []) if isinstance(row.get('tool_calls'), list) else []:
-			if not isinstance(call, dict):
-				continue
-			name = call.get('name', '')
-			if name not in ('view_file', 'read_file'):
-				continue
-			args = call.get('args', {})
-			if isinstance(args, str):
-				try:
-					args = json.loads(args)
-				except ValueError:
-					args = {}
-			if not isinstance(args, dict):
-				continue
-			raw_path = str(args.get('AbsolutePath') or args.get('Path') or args.get('TargetFile') or '').strip()
-			if not raw_path:
-				continue
-			norm_p = raw_path.replace('\\', '/').lower()
-			is_cand = (
-				norm_p.endswith(('/answer.md', '/candidate.md'))
-				or '/reviews/candidates/' in norm_p
-				or ('/data/scratch/' in norm_p and ('answer' in Path(norm_p).name or 'candidate' in Path(norm_p).name))
-			)
-			if not is_cand:
-				continue
-			try:
-				p_obj = Path(raw_path)
-				rp = p_obj.resolve() if p_obj.is_absolute() else (root_resolved / p_obj).resolve()
-			except OSError:
-				rp = Path(raw_path)
-			key = rp.as_posix().lower()
-			entry = candidate_reads.setdefault(key, {'path': rp, 'intervals': [], 'full_read': False, 'total_lines': 0})
-			if rp.is_file():
-				try:
-					entry['total_lines'] = max(entry['total_lines'], len(rp.read_text(encoding='utf-8', errors='replace').splitlines()))
-				except OSError:
-					pass
-			for nxt in rows_list[pos + 1:pos + 4]:
-				if isinstance(nxt, dict) and 'GENERIC' == nxt.get('type'):
-					m_tl = re.search('Total Lines:\\s*(\\d+)', str(nxt.get('content') or ''))
-					if m_tl:
-						entry['total_lines'] = max(entry['total_lines'], int(m_tl.group(1)))
-			start_ln = args.get('StartLine')
-			end_ln = args.get('EndLine')
-			if None is start_ln and None is end_ln:
-				entry['full_read'] = True
-			else:
-				s_val = int(start_ln) if isinstance(start_ln, int) or (isinstance(start_ln, str) and start_ln.isdigit()) else 1
-				e_val = int(end_ln) if isinstance(end_ln, int) or (isinstance(end_ln, str) and end_ln.isdigit()) else max(entry['total_lines'], 800)
-				entry['intervals'].append((s_val, e_val))
-	for info in candidate_reads.values():
-		if info['full_read']:
-			continue
-		total = info['total_lines']
-		intervals = sorted(info['intervals'])
-		if not intervals:
-			continue
-		merged = []
-		for s_val, e_val in intervals:
-			if not merged or s_val > merged[-1][1] + 1:
-				merged.append([s_val, e_val])
-			else:
-				merged[-1][1] = max(merged[-1][1], e_val)
-		min_s = merged[0][0]
-		max_e = merged[-1][1]
-		if total > 0 and (len(merged) > 1 or min_s > 1 or max_e < total):
-			if len(merged) > 1:
-				issues.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} (non-contiguous intervals {merged} of {total})')
-			else:
-				issues.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} (lines {min_s}-{max_e} of {total})')
-		elif 0 == total and (len(merged) > 1 or (max_e <= 100 and min_s == 1)):
-			issues.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} (lines {min_s}-{max_e})')
-	return issues
-def reviewer_isolation_issues(root, rows):
-	project_root = Path(root).resolve()
-	daily_root = next((p for p in project_root.parents if 'daily' == p.name), project_root.parent)
-	issues = []
-	for row in rows if isinstance(rows, list) else []:
-		for call in row.get('tool_calls', []) if isinstance(row, dict) else []:
-			if not isinstance(call, dict):
-				continue
-			name = call.get('name', '')
-			args = call.get('args', {})
-			if isinstance(args, str):
-				try:
-					args = json.loads(args)
-				except ValueError:
-					args = {}
-			if not isinstance(args, dict):
-				args = {}
-			if name in ('write_to_file', 'replace_file_content', 'multi_replace_file_content'):
-				issues.append(f'reviewer called mutating tool {name}')
-			if 'run_command' == name:
-				cmd = str(args.get('CommandLine', ''))
-				if re.search('(?i)\\b(?:Set-Content|Out-File|Add-Content)\\b|\\.(?:write_text|write_bytes)\\b|\\bgen_review', cmd):
-					issues.append('reviewer executed a file-writing command or ad-hoc generator script')
-			for key in ('AbsolutePath', 'TargetFile', 'DirectoryPath', 'SearchPath', 'Cwd'):
-				val = args.get(key)
-				if not isinstance(val, str) or not val.strip():
-					continue
-				try:
-					candidate = Path(val).resolve()
-				except OSError:
-					continue
-				if candidate.is_relative_to(daily_root) and (not candidate.is_relative_to(project_root)) and (not project_root.is_relative_to(candidate)):
-					issues.append(f'reviewer accessed sibling project path {candidate}')
-	issues.extend(_partial_candidate_read_issues(project_root, rows))
-	r = issues
-	return r
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -501,11 +373,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 		invocation = exact_invocation
 	if None is invocation:
 		raise ValueError('Matching native self/inherit invocation is not established')
-	bias_issues = []
-	for prompt_text in matched_prompts:
-		for issue in prompt_bias_issues(prompt_text):
-			if issue not in bias_issues:
-				bias_issues.append(issue)
+	bias_issues = collect_prompt_bias_issues(matched_prompts)
 	if bias_issues:
 		raise ValueError('Reviewer prompt biases verdict or omits negative schema outcomes: ' + '; '.join(bias_issues))
 	isolation_issues = reviewer_isolation_issues(root, rows)
@@ -518,42 +386,28 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 		try:
 			columns = {r[1] for r in connection.execute('PRAGMA table_info(steps)')}
 			if 'metadata' not in columns:
-				return set()
-			metadata = connection.execute('SELECT metadata FROM steps WHERE step_type=15 AND status=3' + (' AND idx=?' if None is not step else ''), (step,) if None is not step else ()).fetchall()
-			ids = set()
-			for blob, in metadata:
-				try:
-					ids.update((value for field, kind, value in wire_fields(blob or b'') if 11 == field and 0 == kind and value))
-				except (ValueError, IndexError):
-					return set()
-			return ids
+				ids = set()
+			else:
+				metadata = connection.execute('SELECT metadata FROM steps WHERE step_type=15 AND status=3' + (' AND idx=?' if None is not step else ''), (step,) if None is not step else ()).fetchall()
+				ids = set()
+				for blob, in metadata:
+					try:
+						ids.update((value for field, kind, value in wire_fields(blob or b'') if 11 == field and 0 == kind and value))
+					except (ValueError, IndexError):
+						ids = set()
+						break
 		finally:
 			connection.close()
+		return ids
 	parent_models, child_models = (observed_models(parent_id, invocation), observed_models(reviewer_id))
 	if parent_models and child_models and (not child_models.issubset(parent_models)):
 		raise ValueError('Observed reviewer model differs from the inherited A.A model')
 	executor_metadata = native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=backend)
 	if 'mismatch' == executor_metadata['verification']['status']:
 		raise ValueError('Native reviewer generation/configuration differs from requested inherited model/effort')
-	proof = {'surface': 'antigravity-ui', 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'agent_name': 'self', 'status': 'completed', 'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation, 'native_log': str(log), 'native_log_sha256': hashlib.sha256(log.read_bytes()).hexdigest(), 'final_step': last['step_index'], 'final_response_sha256': hashlib.sha256(last['content'].encode()).hexdigest(), 'final_response': last['content'], 'parent_log': str(parent_log), **native_project_fields(root)}
-	target = Path(root) / 'ꘖ/KB/Evidence/Reviews' / (reviewer_id + '-' + proof['native_log_sha256'][:16] + '-native.json')
-	authored = target.with_name(target.stem + '-authored.txt')
-	proof['authored_response'] = authored.relative_to(Path(root).resolve()).as_posix()
-	payload = json_data(proof)
-	if not write:
-		return {'proof': target.relative_to(Path(root).resolve()).as_posix(), **proof}
-	target.parent.mkdir(parents=True, exist_ok=True)
-	authored_bytes = last['content'].encode('utf-8')
-	if authored.exists() and authored.read_bytes() != authored_bytes:
-		raise ValueError('Immutable native authored response differs')
-	if not authored.exists():
-		create_bytes(authored, authored_bytes)
-	if target.exists():
-		if target.read_bytes() != payload:
-			raise ValueError('Existing reviewer proof changed; preserve both and recheck native progress')
-	else:
-		create_bytes(target, payload)
-	return {'proof': target.relative_to(Path(root).resolve()).as_posix(), **proof}
+	digest = hashlib.sha256(log.read_bytes()).hexdigest()
+	proof = {'surface': 'antigravity-ui', 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'agent_name': 'self', 'status': 'completed', 'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation, 'native_log': str(log), 'native_log_sha256': digest, 'final_step': last['step_index'], 'final_response_sha256': hashlib.sha256(last['content'].encode()).hexdigest(), 'final_response': last['content'], 'parent_log': str(parent_log), **native_project_fields(root)}
+	return persist_review_proof(root, reviewer_id, digest, last['content'], proof, write=write)
 def wire_fields(data):
 	def number(offset):
 		value, shift = (0, 0)
@@ -1115,31 +969,12 @@ def native_answers(root, conversation_id, *, backend=None):
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def verify_native_proof(root, native, package=None):
-	result = native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), write=False)
-	for field in ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'):
-		if native.get(field) != result.get(field):
-			raise ValueError('Review proof differs from the current native trace')
-	if 'client_text_workspace' == result['project_kind'] or any((key in native for key in ('project_id', 'project_kind'))):
-		for key in ('project_id', 'project_kind'):
-			if native.get(key) != result.get(key):
-				raise ValueError('Review proof has a different explicit project identity')
-	authored = Path(root) / result['authored_response']
-	if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != result['final_response_sha256']:
-		raise ValueError('Immutable native authored reviewer response changed')
-	if 'executor_metadata' in native and native['executor_metadata'] != result['executor_metadata']:
-		saved_meta = native['executor_metadata']
-		curr_meta = result['executor_metadata']
-		if not isinstance(saved_meta, dict) or 'generation_model' in (saved_meta.get('observed') or {}):
-			raise ValueError('Native executor metadata differs from saved reviewer proof')
-		norm_curr = {**curr_meta, 'observed': {k: v for k, v in (curr_meta.get('observed') or {}).items() if k in (saved_meta.get('observed') or {})}, 'requested': {k: v for k, v in (curr_meta.get('requested') or {}).items() if k in (saved_meta.get('requested') or {})}}
-		if saved_meta != norm_curr:
-			raise ValueError('Native executor metadata differs from saved reviewer proof')
+	result = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), write=False), ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'), allow_legacy_generation_model=True)
 	if package:
 		with Path(result['native_log']).open(encoding='utf-8') as stream:
 			prompt = json.loads(stream.readline()).get('content', '')
 		if package not in prompt:
 			raise ValueError('Native reviewer was not assigned this immutable KB review package')
-	r = result
-	return r
+	return result
 def register(project_dir, domain_or_topic, date_str=None):
 	return register_antigravity_project(project_dir, domain_or_topic, date_str)
