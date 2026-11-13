@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -13,6 +16,15 @@ from pathlib import Path
 import re
 from ..research import json_data
 from ..storage import write_immutable_bytes
+_ACCUMULATOR_INTERNAL_KEYS = ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'completion_service_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes')
+_KB_PATH_TOKENS = ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB')
+_KB_PERSIST_CMD_RE = re.compile('\\b(?:save-analysis|collect|collect-http|collect-browser|extract|extract-file|capture-dom)\\b')
+_SCRATCH_PATH_TOKENS = ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md')
+_SERVICE_CMD_RE = re.compile('\\b(?:turn-begin|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b')
+_SHELL_KB_WRITE_RE = re.compile('(?i)\\b(?:Set-Content|Out-File|Add-Content|WriteAllText|WriteAllBytes|write_text|write_bytes|tee)\\b')
+def _has_kb_target(text):
+	s = str(text or '')
+	return any((tok in s for tok in _KB_PATH_TOKENS)) or '/kb/analysis.md' in s.replace('\\', '/').lower()
 def _iter_normalized_tool_calls(rows):
 	rows_list = rows if isinstance(rows, list) else []
 	for pos, entry in enumerate(rows_list):
@@ -57,6 +69,37 @@ def collect_shell_violations(cmd, step_idx, exec5_violations, http_violations, *
 	bad_http = unpersisted_http_fetch_commands(cmd)
 	if bad_http:
 		http_violations.append({'step': step_idx, **meta, 'commands': bad_http})
+def collect_subagent_bfs(root_id, root_p, seeds, resolve_child, aa_violations, *, max_depth=4):
+	r = {root_id}
+	queued_pairs = set()
+	queue = []
+	for seed_cid, seed_hint, seed_parent in seeds or ():
+		if seed_cid and seed_cid not in r and (seed_cid, seed_parent) not in queued_pairs:
+			queued_pairs.add((seed_cid, seed_parent))
+			queue.append((seed_cid, 1, seed_hint, seed_parent))
+	while queue:
+		child_cid, depth, hint, expected_parent = queue.pop(0)
+		if child_cid in r or depth > max_depth:
+			continue
+		resolved = resolve_child(child_cid, depth, hint, expected_parent)
+		if None is resolved:
+			continue
+		r.add(child_cid)
+		c_rows, is_aa, pre_children, on_visit = resolved
+		for grand_cid in pre_children or ():
+			if grand_cid and grand_cid not in r and (grand_cid, child_cid) not in queued_pairs:
+				queued_pairs.add((grand_cid, child_cid))
+				queue.append((grand_cid, depth + 1, False, child_cid))
+		if is_aa:
+			for p_err in partial_candidate_read_issues(root_p, c_rows):
+				if p_err not in aa_violations:
+					aa_violations.append(p_err)
+		extra_children = on_visit(child_cid, c_rows) if None is not on_visit else ()
+		for grand_cid in extra_children or ():
+			if grand_cid and grand_cid not in r and (grand_cid, child_cid) not in queued_pairs:
+				queued_pairs.add((grand_cid, child_cid))
+				queue.append((grand_cid, depth + 1, False, child_cid))
+	return r
 def current_turn_requests(selected, conversation_id, surface, error_msg, *, id_fmt='{cid}-{idx}', extra=None):
 	if not selected:
 		raise ValueError(error_msg)
@@ -68,6 +111,49 @@ def finalize_executor_checks(surface, role, conversation_id, parent_id, requeste
 		checks['model'] = 'mismatch'
 	status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if {'verified'} == set(checks.values()) else 'unverified'
 	return {'schema_version': 1, 'surface': surface, 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': detail}}
+def init_turn_accumulator(*, extra=None):
+	return {'aa_partial_read_violations': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'checkpoint_steps': [], 'completion_service_steps': [], 'exec5_violations': [], 'file_reads': [], 'file_writes': [], 'http_fetch_violations': [], 'kb_persistence_steps': [], 'subagent_steps': [], 'tool_records': [], 'tool_steps': [], 'touched_files': [], 'transcript_read_steps': [], **(extra or {})}
+def iter_antigravity_subagents(call):
+	r = []
+	if isinstance(call, dict) and 'invoke_subagent' == call.get('name'):
+		raw_args = call.get('args', {})
+		args = parse_tool_args(raw_args)
+		if args:
+			raw_subs = args.get('Subagents', [])
+			invalid_subs = False
+			if not isinstance(raw_subs, str):
+				subs = raw_subs
+			else:
+				try:
+					subs = json.loads(raw_subs)
+				except ValueError:
+					subs, invalid_subs = ([], True)
+			if not subs and (not invalid_subs):
+				subs = [args]
+			if isinstance(subs, list):
+				r = [sub for sub in subs if isinstance(sub, dict)]
+	return r
+def merge_turn_accumulators(items, *, allow_step_output_recovery=False):
+	first, last = (items[0], items[-1])
+	cp_steps = [s for item in items for s in item.get('checkpoint_steps', [])]
+	t_steps = [s for item in items for s in item.get('tool_steps', [])]
+	sub_steps = [s for item in items for s in item.get('subagent_steps', [])]
+	aa_steps = [s for item in items for s in item.get('aa_subagent_steps', [])]
+	aa_part_errs = list(dict.fromkeys((e for item in items for e in item.get('aa_partial_read_violations', []))))
+	af_steps = [s for item in items for s in item.get('af_subagent_steps', [])]
+	kb_steps = [s for item in items for s in item.get('kb_persistence_steps', [])]
+	svc_steps = {s for item in items for s in item.get('completion_service_steps', [])}
+	tr_steps = [s for item in items for s in item.get('transcript_read_steps', [])]
+	records = [rec for item in items for rec in item.get('tool_records', [])]
+	t_files = list(dict.fromkeys((f for item in items for f in item.get('touched_files', []))))
+	f_reads = [fr for item in items for fr in item.get('file_reads', [])]
+	f_writes = [fw for item in items for fw in item.get('file_writes', [])]
+	i_actions = [a for item in items for a in item.get('issue_actions', [])]
+	compaction, delegation = summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, svc_steps=svc_steps, aa_part_errs=aa_part_errs, allow_step_output_recovery=allow_step_output_recovery)
+	r = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [req for item in items for req in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': compaction, 'delegation': delegation}
+	for k in _ACCUMULATOR_INTERNAL_KEYS:
+		r.pop(k, None)
+	return r
 def parse_tool_args(raw):
 	parsed = raw
 	if isinstance(raw, str):
@@ -167,6 +253,51 @@ def record_canonical_path(root_p, step_idx, raw_path, is_read, file_reads, file_
 			if cleaned not in touched_files:
 				touched_files.append(cleaned)
 			file_writes.append((step_idx, norm_p))
+def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, acc, *, extra_violation=None, track_turn_steps=False, transcript_tokens=()):
+	args = raw_args if isinstance(raw_args, dict) else parse_tool_args(raw_args)
+	scan_text = str(raw_cmd or '')
+	is_shell = 'exec' == name or name.endswith(('exec_command', 'run_command'))
+	shell_cmd = str(args.get('CommandLine') or '') if name.endswith('run_command') else scan_text
+	if is_shell:
+		collect_shell_violations(shell_cmd, step_idx, acc['exec5_violations'], acc['http_fetch_violations'], extra=extra_violation)
+	patch_list = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', scan_text, flags=re.M) if 'apply_patch' in name else []
+	for pt in patch_list:
+		record_canonical_path(root_p, step_idx, pt, False, acc['file_reads'], acc['file_writes'], acc['touched_files'])
+	is_read_tool = name.endswith(('read_file', 'view_file'))
+	is_write_tool = name.endswith(('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content'))
+	is_file_tool = is_read_tool or is_write_tool
+	target_path = str(args.get('Path') or args.get('TargetFile') or args.get('AbsolutePath') or args.get('path') or '').strip() if is_file_tool else ''
+	if target_path:
+		record_canonical_path(root_p, step_idx, target_path, is_read_tool, acc['file_reads'], acc['file_writes'], acc['touched_files'])
+	if track_turn_steps:
+		if is_shell and 'answer_prepared_in_segment' in acc and re.search('\\banswer-prepare\\b', shell_cmd):
+			acc['answer_prepared_in_segment'] = True
+		t_tokens = ('transcript_full.jsonl', 'transcript.jsonl', 'recover-checkpoint') + tuple(transcript_tokens or ())
+		if any((tok in scan_text for tok in t_tokens)) and step_idx not in acc['transcript_read_steps']:
+			acc['transcript_read_steps'].append(step_idx)
+		if 'invoke_subagent' != name and (name.endswith(('spawn_agent', 'invoke_subagent', 'send_input', 'send_message', 'wait', 'wait_agent')) or ((not is_file_tool) and (not is_shell) and ('spawn_agent' in scan_text))):
+			if step_idx not in acc['subagent_steps']:
+				acc['subagent_steps'].append(step_idx)
+			if name.endswith(('spawn_agent', 'invoke_subagent')) or ((not is_file_tool) and (not is_shell) and ('spawn_agent' in scan_text)):
+				sub_bucket = acc['af_subagent_steps'] if re.search('(?i)"(?:task_name|agent_type|role)"\\s*:\\s*"[^"]*\\baf\\b', scan_text) else acc['aa_subagent_steps']
+				if step_idx not in sub_bucket:
+					sub_bucket.append(step_idx)
+		elif 'invoke_subagent' == name:
+			if 'spawned_subagents' in acc:
+				acc['spawned_subagents'] += 1
+			if step_idx not in acc['subagent_steps']:
+				acc['subagent_steps'].append(step_idx)
+			for sub in iter_antigravity_subagents({'name': name, 'args': raw_args}):
+				tname = str(sub.get('TypeName') or '').strip().lower()
+				target_steps = acc['aa_subagent_steps'] if 'self' == tname else acc['af_subagent_steps'] if tname else None
+				if None is not target_steps and step_idx not in target_steps:
+					target_steps.append(step_idx)
+		is_kb_persist = (is_write_tool and _has_kb_target(target_path)) or (bool(patch_list) and _has_kb_target('\n'.join(patch_list))) or (is_shell and (bool(_KB_PERSIST_CMD_RE.search(scan_text)) or ('answer-prepare' not in scan_text and bool(_SHELL_KB_WRITE_RE.search(scan_text)) and _has_kb_target(scan_text))))
+		if is_kb_persist and step_idx not in acc['kb_persistence_steps']:
+			acc['kb_persistence_steps'].append(step_idx)
+		is_scratch_write = (is_write_tool and any((tok in target_path.replace('\\', '/') for tok in _SCRATCH_PATH_TOKENS))) or (bool(patch_list) and all((any((tok in pt.replace('\\', '/') for tok in _SCRATCH_PATH_TOKENS)) for pt in patch_list)))
+		if ((is_shell and bool(_SERVICE_CMD_RE.search(scan_text))) or is_scratch_write) and step_idx not in acc['completion_service_steps']:
+			acc['completion_service_steps'].append(step_idx)
 def require_turn_binding(selected, active, binding, error_msg):
 	if not selected or not active:
 		raise ValueError(error_msg)

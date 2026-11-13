@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
 # https://github.com/dmitry-ai/harness/issues/61
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1668,6 +1671,20 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 			bad_auditor = ResponseEvidenceAuditor(project, 'See [Example Platform Guide](https://example.com/guide#missing-anchor).', [{'text': 'Check checkout hooks'}])
 			errs = bad_auditor.validate()
 			self.assertTrue(any(('missing-anchor' in e for e in errs)), errs)
+class TraceCommonTests(unittest.TestCase):
+	def test_iter_antigravity_subagents_and_kb_persistence_parity(self):
+		from agent_tools.platforms import trace_common
+		str_call = {'name': 'invoke_subagent', 'args': json.dumps({'TypeName': 'self', 'Model': 'inherit', 'Prompt': 'Review package'})}
+		self.assertEqual([{'TypeName': 'self', 'Model': 'inherit', 'Prompt': 'Review package'}], trace_common.iter_antigravity_subagents(str_call))
+		invalid_subs_call = {'name': 'invoke_subagent', 'args': {'TypeName': 'self', 'Subagents': '[broken'}}
+		self.assertEqual([], trace_common.iter_antigravity_subagents(invalid_subs_call))
+		acc = trace_common.init_turn_accumulator()
+		trace_common.record_normalized_tool_effects(Path('.'), 1, 'exec_command', {'cmd': 'Get-Content \ua616/KB/Module.md'}, '{"cmd": "Get-Content \\ua616/KB/Module.md"}', acc, track_turn_steps=True)
+		trace_common.record_normalized_tool_effects(Path('.'), 2, 'read_file', {'path': '\ua616/KB/Module.md'}, '{"path": "\\ua616/KB/Module.md"}', acc, track_turn_steps=True)
+		self.assertEqual([], acc['kb_persistence_steps'])
+		trace_common.record_normalized_tool_effects(Path('.'), 3, 'run_command', {'CommandLine': 'python harness.py collect-browser proj --url https://example.com'}, 'python harness.py collect-browser proj --url https://example.com', acc, track_turn_steps=True)
+		trace_common.record_normalized_tool_effects(Path('.'), 4, 'apply_patch', {}, '*** Begin Patch\n*** Update File: \ua616/KB/Module.md\n*** End Patch', acc, track_turn_steps=True)
+		self.assertEqual([3, 4], acc['kb_persistence_steps'])
 class WatcherLifecycleTests(unittest.TestCase):
 	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
 		with tempfile.TemporaryDirectory() as temp:

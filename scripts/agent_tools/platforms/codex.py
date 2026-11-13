@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
 # https://github.com/dmitry-ai/harness/issues/61
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -32,7 +35,7 @@ from ..runtime import platform_settings, profile_name
 from ..research import json_data
 from ..storage import create_bytes
 from .request_binding import native_project_fields
-from .trace_common import collect_prompt_bias_issues, collect_shell_violations, current_turn_requests, finalize_executor_checks, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_canonical_path, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
+from .trace_common import collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
 class CodexTurnScanner:
 	def __init__(self, root, conversation_id, *, backend=None):
 		self.root = root
@@ -50,78 +53,24 @@ class CodexTurnScanner:
 		self.indexed_subagents = False
 		self.completed_turn_sub_ids: set[str] = set()
 	def _collect_subagent_bfs(self, t_idx, turn, acc):
-		from ..git_gate import extract_issue_actions_from_outputs
 		visited_sub_ids = {self.conversation_id}
 		is_last_turn = t_idx == len(self.turn_entries) - 1
 		if not self.child and (acc['subagent_steps'] or is_last_turn):
 			self._index_profile_subagents()
 			unclaimed = [cid for cid in self.child_parent_map.get(self.conversation_id, []) if cid not in self.completed_turn_sub_ids]
 			if acc['subagent_steps'] or (is_last_turn and unclaimed):
-				queue_ids = [(cid, 1, self.conversation_id) for cid in unclaimed] if is_last_turn else []
-				queued_pairs = {(cid, self.conversation_id) for cid, _, _ in queue_ids}
+				seeds = [(cid, False, self.conversation_id) for cid in unclaimed] if is_last_turn else []
 				for rec in acc['tool_records']:
 					for t_uid in rec.get('target_subagents', []):
-						if t_uid != self.conversation_id and (t_uid, self.conversation_id) not in queued_pairs:
-							queued_pairs.add((t_uid, self.conversation_id))
-							queue_ids.append((t_uid, 1, self.conversation_id))
+						if t_uid != self.conversation_id:
+							seeds.append((t_uid, False, self.conversation_id))
 					if any((str(t).endswith(('spawn_agent', 'invoke_subagent')) for t in rec.get('tools', []))):
 						for out in rec.get('outputs', []):
 							for m_uuid in _extract_codex_spawn_output_uuids(str(out)):
-								if m_uuid != self.conversation_id and (m_uuid, self.conversation_id) not in queued_pairs:
-									queued_pairs.add((m_uuid, self.conversation_id))
-									queue_ids.append((m_uuid, 1, self.conversation_id))
-				while queue_ids:
-					sub_id, depth, expected_parent = queue_ids.pop(0)
-					if sub_id in visited_sub_ids or 4 < depth:
-						continue
-					if sub_id in self.thread_parent_map and (not self.thread_parent_map[sub_id] or self.thread_parent_map[sub_id] != expected_parent):
-						continue
-					visited_sub_ids.add(sub_id)
-					for grand_id in self.child_parent_map.get(sub_id, []):
-						if grand_id not in visited_sub_ids and (grand_id, sub_id) not in queued_pairs:
-							queued_pairs.add((grand_id, sub_id))
-							queue_ids.append((grand_id, depth + 1, sub_id))
-					try:
-						sub_db_row, _, _, sub_rows = _trace(self.home, sub_id)
-					except (ValueError, OSError):
-						continue
-					sub_agent_path = str((sub_db_row or {}).get('agent_path') or '')
-					if not re.search('\\baf\\b', sub_agent_path, flags=re.I) and (acc['aa_subagent_steps'] or sub_agent_path):
-						for p_err in _partial_candidate_read_issues(self.root_p, sub_rows):
-							if p_err not in acc['aa_partial_read_violations']:
-								acc['aa_partial_read_violations'].append(p_err)
-					anchor = acc['subagent_steps'][-1] if acc['subagent_steps'] else (acc['tool_steps'][-1] if acc['tool_steps'] else turn['start_step'])
-					sub_outputs = []
-					sub_spawn_call_ids = set()
-					for _, s_item in sub_rows:
-						s_kind = s_item.get('type')
-						s_pay = s_item.get('payload', {})
-						if 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
-							out = s_pay.get('output')
-							out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
-							sub_outputs.append(out_s)
-							if s_pay.get('call_id') in sub_spawn_call_ids:
-								for m_uuid in _extract_codex_spawn_output_uuids(out_s):
-									if m_uuid not in visited_sub_ids and (m_uuid, sub_id) not in queued_pairs:
-										queued_pairs.add((m_uuid, sub_id))
-										queue_ids.append((m_uuid, depth + 1, sub_id))
-						elif 'response_item' == s_kind and s_pay.get('type') in ('function_call', 'custom_tool_call'):
-							s_name = s_pay.get('name', '')
-							s_args_in = s_pay.get('arguments', s_pay.get('input', {}))
-							s_raw_in = s_pay.get('input', s_pay.get('arguments', ''))
-							s_raw = s_raw_in if isinstance(s_raw_in, str) else json.dumps(s_raw_in, ensure_ascii=False)
-							if s_name.endswith(('spawn_agent', 'invoke_subagent')) and s_pay.get('call_id'):
-								sub_spawn_call_ids.add(s_pay['call_id'])
-							elif s_name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')):
-								for t_uid in _extract_codex_target_subagents(s_args_in):
-									if t_uid not in visited_sub_ids and (t_uid, sub_id) not in queued_pairs:
-										queued_pairs.add((t_uid, sub_id))
-										queue_ids.append((t_uid, depth + 1, sub_id))
-							self._record_tool_effects(s_name, s_args_in, s_raw, anchor, acc, extra_violation={'subagent_id': sub_id})
-					for act in extract_issue_actions_from_outputs(sub_outputs):
-						act_with_sub = {**act, 'subagent_id': sub_id}
-						if act_with_sub not in turn['issue_actions']:
-							turn['issue_actions'].append(act_with_sub)
+								if m_uuid != self.conversation_id:
+									seeds.append((m_uuid, False, self.conversation_id))
+				anchor = acc['subagent_steps'][-1] if acc['subagent_steps'] else (acc['tool_steps'][-1] if acc['tool_steps'] else turn['start_step'])
+				visited_sub_ids = collect_subagent_bfs(self.conversation_id, self.root_p, seeds, lambda sid, depth, hint, parent: self._resolve_subagent_child(sid, parent, anchor, turn, acc), acc['aa_partial_read_violations'])
 		self.completed_turn_sub_ids.update(visited_sub_ids - {self.conversation_id})
 	def _finalize_turn(self, t_idx, turn, acc):
 		from ..git_gate import extract_issue_actions_from_outputs
@@ -184,36 +133,18 @@ class CodexTurnScanner:
 		self.child = isinstance(meta.get('source'), dict) and bool(meta['source'].get('subagent'))
 		selected, _, _ = _request_scope(self.root, self.rows, identifier=completion_project_id(self.root))
 		self.requests = {index: {'id': f'codex:{self.conversation_id}:{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
-	def _record_tool_effects(self, name, raw_args, raw_cmd, step_idx, acc, *, extra_violation=None, track_turn_steps=False):
-		is_shell = 'exec' == name or name.endswith(('exec_command', 'run_command'))
-		if is_shell:
-			collect_shell_violations(raw_cmd, step_idx, acc['exec5_violations'], acc['http_fetch_violations'], extra=extra_violation)
-		patch_list = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', raw_cmd, flags=re.M) if 'apply_patch' in name else []
-		for pt in patch_list:
-			record_canonical_path(self.root_p, step_idx, pt, False, acc['file_reads'], acc['file_writes'], acc['touched_files'])
-		p_arg = ''
-		if name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
-			args_raw = parse_tool_args(raw_args)
-			p_arg = str(args_raw.get('Path') or args_raw.get('TargetFile') or args_raw.get('path') or '').strip()
-			record_canonical_path(self.root_p, step_idx, p_arg, name.endswith(('read_file', 'view_file')), acc['file_reads'], acc['file_writes'], acc['touched_files'])
-		if track_turn_steps:
-			if any((tok in raw_cmd for tok in ('recover-checkpoint', str(self.path.name), 'transcript_full.jsonl'))) and step_idx not in acc['transcript_read_steps']:
-				acc['transcript_read_steps'].append(step_idx)
-			if name.endswith(('spawn_agent', 'invoke_subagent', 'send_input', 'send_message', 'wait', 'wait_agent')) or 'spawn_agent' in raw_cmd:
-				if step_idx not in acc['subagent_steps']:
-					acc['subagent_steps'].append(step_idx)
-				if name.endswith(('spawn_agent', 'invoke_subagent')) or 'spawn_agent' in raw_cmd:
-					sub_bucket = acc['af_subagent_steps'] if re.search('(?i)"(?:task_name|agent_type|role)"\\s*:\\s*"[^"]*\\baf\\b', raw_cmd) else acc['aa_subagent_steps']
-					if step_idx not in sub_bucket:
-						sub_bucket.append(step_idx)
-			patch_targets = '\n'.join(patch_list)
-			kb_target_text = patch_targets if 'apply_patch' in name else '' if 'answer-prepare' in raw_cmd else raw_cmd
-			if (any((tok in kb_target_text for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or '/kb/analysis.md' in kb_target_text.replace('\\', '/').lower() or re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', raw_cmd)) and step_idx not in acc['kb_persistence_steps']:
-				acc['kb_persistence_steps'].append(step_idx)
-			scratch_tokens = ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md')
-			is_scratch_write = (name.endswith(('write_file', 'edit_file')) and any((tok in p_arg.replace('\\', '/') for tok in scratch_tokens))) or (bool(patch_list) and all((any((tok in pt.replace('\\', '/') for tok in scratch_tokens)) for pt in patch_list)))
-			if ((is_shell and bool(_SERVICE_CMD_RE.search(raw_cmd))) or is_scratch_write) and step_idx not in acc['completion_service_steps']:
-				acc['completion_service_steps'].append(step_idx)
+	def _resolve_subagent_child(self, sub_id, expected_parent, anchor, turn, acc):
+		r = None
+		if sub_id not in self.thread_parent_map or (self.thread_parent_map[sub_id] and self.thread_parent_map[sub_id] == expected_parent):
+			pre_children = self.child_parent_map.get(sub_id, [])
+			try:
+				sub_db_row, _, _, sub_rows = _trace(self.home, sub_id)
+				sub_agent_path = str((sub_db_row or {}).get('agent_path') or '')
+				is_aa = not re.search('\\baf\\b', sub_agent_path, flags=re.I) and bool(acc['aa_subagent_steps'] or sub_agent_path)
+				r = (sub_rows, is_aa, pre_children, lambda sid, rows: self._visit_subagent_rows(sid, rows, anchor, turn, acc))
+			except (ValueError, OSError):
+				r = ([], False, pre_children, None)
+		return r
 	def _scan_primary_turns(self):
 		current, acc = (None, None)
 		for index, item in self.rows:
@@ -232,7 +163,7 @@ class CodexTurnScanner:
 				if not isinstance(ident, str) or not ident:
 					raise ValueError('Native Codex task_started has no turn ID')
 				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': []}
-				acc = {'all_request_steps': [], 'checkpoint_steps': [], 'tool_steps': [], 'subagent_steps': [], 'aa_subagent_steps': [], 'aa_partial_read_violations': [], 'af_subagent_steps': [], 'kb_persistence_steps': [], 'completion_service_steps': [], 'transcript_read_steps': [], 'file_reads': [], 'file_writes': [], 'tool_records': [], 'pending_calls': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files']}
+				acc = init_turn_accumulator(extra={'all_request_steps': [], 'pending_calls': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files']})
 				self.turn_entries.append((current, acc))
 			elif None is not current and 'event_msg' == kind and ptype in ('task_complete', 'turn_aborted') and payload.get('turn_id') == current['turn_id']:
 				current['completion_step'] = index
@@ -264,8 +195,37 @@ class CodexTurnScanner:
 				acc['tool_records'].append(rec)
 				if payload.get('call_id'):
 					acc['pending_calls'][payload['call_id']] = rec
-				self._record_tool_effects(name, raw_args, raw_cmd, index, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True)
+				record_normalized_tool_effects(self.root_p, index, name, raw_args, raw_cmd, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True, transcript_tokens=(str(self.path.name),))
 		self.current_turn = current
+	def _visit_subagent_rows(self, sub_id, sub_rows, anchor, turn, acc):
+		from ..git_gate import extract_issue_actions_from_outputs
+		r = []
+		sub_outputs = []
+		sub_spawn_call_ids = set()
+		for _, s_item in sub_rows:
+			s_kind = s_item.get('type')
+			s_pay = s_item.get('payload', {})
+			if 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
+				out = s_pay.get('output')
+				out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
+				sub_outputs.append(out_s)
+				if s_pay.get('call_id') in sub_spawn_call_ids:
+					r.extend(_extract_codex_spawn_output_uuids(out_s))
+			elif 'response_item' == s_kind and s_pay.get('type') in ('function_call', 'custom_tool_call'):
+				s_name = s_pay.get('name', '')
+				s_args_in = s_pay.get('arguments', s_pay.get('input', {}))
+				s_raw_in = s_pay.get('input', s_pay.get('arguments', ''))
+				s_raw = s_raw_in if isinstance(s_raw_in, str) else json.dumps(s_raw_in, ensure_ascii=False)
+				if s_name.endswith(('spawn_agent', 'invoke_subagent')) and s_pay.get('call_id'):
+					sub_spawn_call_ids.add(s_pay['call_id'])
+				elif s_name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')):
+					r.extend(_extract_codex_target_subagents(s_args_in))
+				record_normalized_tool_effects(self.root_p, anchor, s_name, s_args_in, s_raw, acc, extra_violation={'subagent_id': sub_id})
+		for act in extract_issue_actions_from_outputs(sub_outputs):
+			act_with_sub = {**act, 'subagent_id': sub_id}
+			if act_with_sub not in turn['issue_actions']:
+				turn['issue_actions'].append(act_with_sub)
+		return r
 	def scan(self):
 		self._load_context()
 		self._scan_primary_turns()
@@ -273,7 +233,6 @@ class CodexTurnScanner:
 			self._finalize_turn(t_idx, turn, acc)
 		turns = [turn for turn, _ in self.turn_entries]
 		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home), 'source_file': str(self.path), 'primary': not self.child, 'turns': turns, 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None}
-_SERVICE_CMD_RE = re.compile('\\b(?:turn-begin|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b')
 _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 def _local_path(value):
 	path = str(Path(value).resolve())

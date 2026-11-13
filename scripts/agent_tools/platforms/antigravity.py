@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -53,7 +56,7 @@ from ..research import json_data
 from ..knowledge import json_bytes
 from ..storage import create_bytes, replace_bytes, locked
 from .request_binding import native_project_fields
-from .trace_common import collect_prompt_bias_issues, collect_shell_violations, current_turn_requests, finalize_executor_checks, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_canonical_path, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
+from .trace_common import collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, iter_antigravity_subagents, merge_turn_accumulators, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
 ANTIGRAVITY_FOLDERS_JSON = Path(platform_settings('antigravity')['folders_json'])
 class AntigravityTurnScanner:
@@ -87,51 +90,23 @@ class AntigravityTurnScanner:
 						file_reads.append((step_idx, m_step_out.group(1).replace('\\', '/')))
 		return r
 	def _collect_subagent_bfs(self, position, segment, seg):
-		visited_cids = {self.conversation_id}
+		r = {self.conversation_id}
 		if seg['subagent_steps']:
-			queued_pairs = set()
-			queue_cids = []
-			for m_uuid in _extract_subagent_uuids(segment):
-				if m_uuid not in visited_cids and (m_uuid, self.conversation_id) not in queued_pairs:
-					queued_pairs.add((m_uuid, self.conversation_id))
-					queue_cids.append((m_uuid, 1, bool(seg['aa_subagent_steps']), self.conversation_id))
+			seeds = [(m_uuid, bool(seg['aa_subagent_steps']), self.conversation_id) for m_uuid in _extract_subagent_uuids(segment)]
 			if 1 == len(self.boundaries) - position:
 				try:
 					p_conn = sqlite3.connect((self.backend / 'conversation_summaries.db').as_uri() + '?mode=ro', uri=True)
 					try:
 						for p_row in p_conn.execute('SELECT conversation_id FROM conversation_summaries WHERE parent_conversation_id=?', (self.conversation_id,)).fetchall():
-							if p_row and p_row[0] and p_row[0] not in visited_cids and p_row[0] not in self.completed_turn_cids and (p_row[0], self.conversation_id) not in queued_pairs:
-								queued_pairs.add((p_row[0], self.conversation_id))
-								queue_cids.append((p_row[0], 1, bool(seg['aa_subagent_steps']), self.conversation_id))
+							if p_row and p_row[0] and p_row[0] not in self.completed_turn_cids:
+								seeds.append((p_row[0], bool(seg['aa_subagent_steps']), self.conversation_id))
 					finally:
 						p_conn.close()
 				except Exception:
 					pass
-			while queue_cids:
-				child_cid, depth, is_aa_hint, expected_parent = queue_cids.pop(0)
-				if child_cid in visited_cids or 4 < depth:
-					continue
-				child_log = self.backend / 'brain' / child_cid / '.system_generated/logs/transcript_full.jsonl'
-				if not child_log.is_file():
-					continue
-				parent_mismatch, child_agent_name, db_grandchildren = self._query_child_summary(child_cid, expected_parent)
-				if parent_mismatch:
-					continue
-				visited_cids.add(child_cid)
-				try:
-					c_rows = [json.loads(line) for line in child_log.read_text(encoding='utf-8').split('\n') if line.strip()]
-				except Exception:
-					continue
-				for m_sub_uuid in db_grandchildren + _extract_subagent_uuids(c_rows):
-					if m_sub_uuid not in visited_cids and (m_sub_uuid, child_cid) not in queued_pairs:
-						queued_pairs.add((m_sub_uuid, child_cid))
-						queue_cids.append((m_sub_uuid, depth + 1, False, child_cid))
-				if 'self' == child_agent_name or (None is child_agent_name and is_aa_hint):
-					for p_err in _partial_candidate_read_issues(self.root_p, c_rows):
-						if p_err not in seg['aa_partial_read_violations']:
-							seg['aa_partial_read_violations'].append(p_err)
-				self._record_subagent_calls(child_cid, c_rows, seg['subagent_steps'][-1], seg)
-		return visited_cids
+			anchor = seg['subagent_steps'][-1]
+			r = collect_subagent_bfs(self.conversation_id, self.root_p, seeds, lambda cid, depth, hint, parent: self._resolve_subagent_child(cid, hint, parent, anchor, seg), seg['aa_partial_read_violations'])
+		return r
 	def _finalize_segment(self, start, end, segment, seg, visited_cids):
 		last = segment[-1] if segment else {}
 		final_step = last.get('step_index')
@@ -153,7 +128,7 @@ class AntigravityTurnScanner:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
 		self.completed_turn_cids.update(visited_cids - {self.conversation_id})
-		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': seg['violations'], 'http_fetch_violations': seg['http_violations'], 'checkpoint_steps': seg['checkpoint_steps'], 'tool_steps': seg['tool_steps'], 'subagent_steps': seg['subagent_steps'], 'aa_subagent_steps': seg['aa_subagent_steps'], 'aa_partial_read_violations': seg['aa_partial_read_violations'], 'af_subagent_steps': seg['af_subagent_steps'], 'kb_persistence_steps': seg['kb_persistence_steps'], 'completion_service_steps': seg['completion_service_steps'], 'transcript_read_steps': seg['transcript_read_steps'], 'tool_records': seg['tool_records'], 'touched_files': seg['touched_files'], 'file_reads': seg['file_reads'], 'file_writes': seg['file_writes'], 'issue_actions': seg['issue_actions']}
+		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': seg['exec5_violations'], 'http_fetch_violations': seg['http_fetch_violations'], 'checkpoint_steps': seg['checkpoint_steps'], 'tool_steps': seg['tool_steps'], 'subagent_steps': seg['subagent_steps'], 'aa_subagent_steps': seg['aa_subagent_steps'], 'aa_partial_read_violations': seg['aa_partial_read_violations'], 'af_subagent_steps': seg['af_subagent_steps'], 'kb_persistence_steps': seg['kb_persistence_steps'], 'completion_service_steps': seg['completion_service_steps'], 'transcript_read_steps': seg['transcript_read_steps'], 'tool_records': seg['tool_records'], 'touched_files': seg['touched_files'], 'file_reads': seg['file_reads'], 'file_writes': seg['file_writes'], 'issue_actions': seg['issue_actions']}
 	def _load_context(self):
 		from .request_binding import completion_project_id
 		from ..journal import resolve_journal_dir, state_dir
@@ -194,26 +169,7 @@ class AntigravityTurnScanner:
 					pass
 		self.boundaries = sorted((index for index, _ in self.inputs))
 	def _merge_pending(self, items):
-		first, last = (items[0], items[-1])
-		cp_steps = [s for item in items for s in item.get('checkpoint_steps', [])]
-		t_steps = [s for item in items for s in item.get('tool_steps', [])]
-		sub_steps = [s for item in items for s in item.get('subagent_steps', [])]
-		aa_steps = [s for item in items for s in item.get('aa_subagent_steps', [])]
-		aa_part_errs = list(dict.fromkeys((e for item in items for e in item.get('aa_partial_read_violations', []))))
-		af_steps = [s for item in items for s in item.get('af_subagent_steps', [])]
-		kb_steps = [s for item in items for s in item.get('kb_persistence_steps', [])]
-		svc_steps = {s for item in items for s in item.get('completion_service_steps', [])}
-		tr_steps = [s for item in items for s in item.get('transcript_read_steps', [])]
-		records = [rec for item in items for rec in item.get('tool_records', [])]
-		t_files = list(dict.fromkeys((f for item in items for f in item.get('touched_files', []))))
-		f_reads = [fr for item in items for fr in item.get('file_reads', [])]
-		f_writes = [fw for item in items for fw in item.get('file_writes', [])]
-		i_actions = [a for item in items for a in item.get('issue_actions', [])]
-		compaction, delegation = summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, svc_steps=svc_steps, aa_part_errs=aa_part_errs, allow_step_output_recovery=True)
-		r = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [req for item in items for req in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': compaction, 'delegation': delegation}
-		for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'completion_service_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes'):
-			r.pop(k, None)
-		return r
+		return merge_turn_accumulators(items, allow_step_output_recovery=True)
 	def _query_child_summary(self, child_cid, expected_parent):
 		child_agent_name = None
 		db_grandchildren = []
@@ -237,22 +193,15 @@ class AntigravityTurnScanner:
 	def _record_subagent_calls(self, child_cid, c_rows, anchor_step, seg):
 		from ..git_gate import extract_issue_actions_from_outputs
 		for c_pos, c_ev in enumerate(c_rows):
-			if not isinstance(c_ev, dict):
-				continue
-			c_calls = [c for c in c_ev.get('tool_calls') or [] if isinstance(c, dict)]
-			if not c_calls:
-				continue
-			c_outputs = self._collect_outputs(c_rows, c_pos)
-			for act_item in extract_issue_actions_from_outputs(c_outputs):
-				seg['issue_actions'].append({**act_item, 'step': anchor_step, 'subagent_id': child_cid})
-			for c_call in c_calls:
-				c_name = c_call.get('name', '')
-				c_args = parse_tool_args(c_call.get('args', {}))
-				if 'run_command' == c_name:
-					collect_shell_violations(c_args.get('CommandLine', ''), anchor_step, seg['violations'], seg['http_violations'], extra={'subagent_id': child_cid})
-				c_target = str(c_args.get('Path') or c_args.get('TargetFile') or c_args.get('AbsolutePath') or c_args.get('path') or '').strip()
-				if c_name in ('read_file', 'view_file', 'write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and c_target:
-					record_canonical_path(self.root_p, anchor_step, c_target, c_name in ('read_file', 'view_file'), seg['file_reads'], seg['file_writes'], seg['touched_files'])
+			if isinstance(c_ev, dict):
+				c_calls = [c for c in c_ev.get('tool_calls') or [] if isinstance(c, dict)]
+				if c_calls:
+					c_outputs = self._collect_outputs(c_rows, c_pos)
+					for act_item in extract_issue_actions_from_outputs(c_outputs):
+						seg['issue_actions'].append({**act_item, 'step': anchor_step, 'subagent_id': child_cid})
+					for c_call in c_calls:
+						record_normalized_tool_effects(self.root_p, anchor_step, c_call.get('name', ''), c_call.get('args', {}), '', seg, extra_violation={'subagent_id': child_cid})
+		return ()
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
 		from ..git_gate import extract_issue_actions_from_outputs
 		seg['tool_steps'].append(step_idx)
@@ -260,46 +209,27 @@ class AntigravityTurnScanner:
 		for act_item in extract_issue_actions_from_outputs(outputs):
 			seg['issue_actions'].append({**act_item, 'step': step_idx})
 		for call in calls:
-			name = call.get('name', '')
 			raw_args = call.get('args', {})
 			args = parse_tool_args(raw_args)
 			args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
-			if 'run_command' == name:
-				cmd = args.get('CommandLine', '')
-				collect_shell_violations(cmd, step_idx, seg['violations'], seg['http_violations'])
-				if re.search('\\banswer-prepare\\b', cmd):
-					seg['answer_prepared_in_segment'] = True
-			if any((tok in args_text for tok in ('transcript_full.jsonl', 'transcript.jsonl', 'recover-checkpoint'))) and step_idx not in seg['transcript_read_steps']:
-				seg['transcript_read_steps'].append(step_idx)
-			if 'invoke_subagent' == name:
-				seg['spawned_subagents'] += 1
-				subs = args.get('Subagents', [])
-				if isinstance(subs, str):
-					try:
-						subs = json.loads(subs)
-					except ValueError:
-						subs = []
-				if not subs and args:
-					subs = [args]
-				for sub in subs if isinstance(subs, list) else []:
-					if isinstance(sub, dict):
-						tname = str(sub.get('TypeName') or '').strip().lower()
-						target_steps = seg['aa_subagent_steps'] if 'self' == tname else seg['af_subagent_steps'] if tname else None
-						if None is not target_steps and step_idx not in target_steps:
-							target_steps.append(step_idx)
-			if name in ('invoke_subagent', 'send_message') and step_idx not in seg['subagent_steps']:
-				seg['subagent_steps'].append(step_idx)
-			target_path = str(args.get('Path') or args.get('TargetFile') or args.get('AbsolutePath') or args.get('path') or '').strip()
-			if name in ('read_file', 'view_file', 'write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and target_path:
-				record_canonical_path(self.root_p, step_idx, target_path, name in ('read_file', 'view_file'), seg['file_reads'], seg['file_writes'], seg['touched_files'])
-			if (name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and (any((tok in target_path for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or target_path.replace('\\', '/').lower().endswith('/kb/analysis.md')) or ('run_command' == name and re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', args_text))) and step_idx not in seg['kb_persistence_steps']:
-				seg['kb_persistence_steps'].append(step_idx)
-			if (('run_command' == name and re.search('\\b(?:turn-begin|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b', args_text)) or (name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and any((tok in target_path.replace('\\', '/') for tok in ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md'))))) and step_idx not in seg['completion_service_steps']:
-				seg['completion_service_steps'].append(step_idx)
+			record_normalized_tool_effects(self.root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True)
+	def _resolve_subagent_child(self, child_cid, is_aa_hint, expected_parent, anchor_step, seg):
+		r = None
+		child_log = self.backend / 'brain' / child_cid / '.system_generated/logs/transcript_full.jsonl'
+		if child_log.is_file():
+			parent_mismatch, child_agent_name, db_grandchildren = self._query_child_summary(child_cid, expected_parent)
+			if not parent_mismatch:
+				try:
+					c_rows = [json.loads(line) for line in child_log.read_text(encoding='utf-8').split('\n') if line.strip()]
+					is_aa = 'self' == child_agent_name or (None is child_agent_name and bool(is_aa_hint))
+					r = (c_rows, is_aa, db_grandchildren + _extract_subagent_uuids(c_rows), lambda cid, rows: self._record_subagent_calls(cid, rows, anchor_step, seg))
+				except Exception:
+					r = ([], False, (), None)
+		return r
 	def _scan_segment(self, position, start):
 		end = self.boundaries[position + 1] if position + 1 < len(self.boundaries) else None
 		segment = [row for row in self.rows if row.get('step_index', -1) > start and (None is end or row.get('step_index', -1) < end)]
-		seg = {'violations': [], 'http_violations': [], 'checkpoint_steps': [], 'tool_steps': [], 'subagent_steps': [], 'aa_subagent_steps': [], 'aa_partial_read_violations': [], 'af_subagent_steps': [], 'kb_persistence_steps': [], 'completion_service_steps': [], 'transcript_read_steps': [], 'tool_records': [], 'touched_files': [], 'file_reads': [], 'file_writes': [], 'issue_actions': [], 'spawned_subagents': 0, 'completed_subagents': 0, 'answer_prepared_in_segment': False}
+		seg = init_turn_accumulator(extra={'issue_actions': [], 'spawned_subagents': 0, 'completed_subagents': 0, 'answer_prepared_in_segment': False})
 		for pos, row in enumerate(segment):
 			if not isinstance(row, dict):
 				continue
@@ -474,24 +404,8 @@ def _native_invocation(backend, parent_id, conversation_id, role):
 	lines = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
 	for i, event in enumerate(lines):
 		for call in event.get('tool_calls', []):
-			if 'invoke_subagent' != call.get('name'):
-				continue
-			args = call.get('args', {})
-			if isinstance(args, str):
-				try:
-					args = json.loads(args)
-				except ValueError:
-					continue
-			subs = args.get('Subagents', []) if isinstance(args, dict) else []
-			if isinstance(subs, str):
-				try:
-					subs = json.loads(subs)
-				except ValueError:
-					continue
-			if not subs and isinstance(args, dict):
-				subs = [args]
-			for sub in subs if isinstance(subs, list) else []:
-				if isinstance(sub, dict) and sub.get('TypeName') == row[1] and sub.get('Prompt') and (sub['Prompt'] in initial):
+			for sub in iter_antigravity_subagents(call):
+				if sub.get('TypeName') == row[1] and sub.get('Prompt') and (sub['Prompt'] in initial):
 					exact = i + 1 < len(lines) and conversation_id in lines[i + 1].get('content', '')
 					matches.append((event.get('step_index'), sub, exact))
 	if not matches:
@@ -617,25 +531,14 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 	for p_idx, row in enumerate(parent_inputs):
 		for call in row.get('tool_calls', []):
 			if 'send_message' == call.get('name'):
-				args = call.get('args', {})
-				if isinstance(args, dict) and args.get('Recipient') == reviewer_id and isinstance(args.get('Message'), str):
+				args = parse_tool_args(call.get('args', {}))
+				if args.get('Recipient') == reviewer_id and isinstance(args.get('Message'), str):
 					matched_prompts.append(args['Message'])
-			if 'invoke_subagent' != call.get('name'):
-				continue
-			subs = call.get('args', {}).get('Subagents', [])
-			if isinstance(subs, str):
-				try:
-					subs = json.loads(subs)
-				except ValueError:
-					subs = []
-			if not subs and isinstance(call.get('args'), dict):
-				subs = [call['args']]
-			for sub in subs if isinstance(subs, list) else []:
-				if isinstance(sub, dict) and 'self' == sub.get('TypeName') and sub.get('Prompt') and (sub['Prompt'] in initial_prompt):
+			for sub in iter_antigravity_subagents(call):
+				if 'self' == sub.get('TypeName') and sub.get('Prompt') and (sub['Prompt'] in initial_prompt):
 					if 'inherit' != sub.get('Model'):
 						raise ValueError('Native A.A reviewer was not requested with the inherited parent model')
-					is_exact = p_idx + 1 < len(parent_inputs) and reviewer_id in parent_inputs[p_idx + 1].get('content', '')
-					if is_exact:
+					if p_idx + 1 < len(parent_inputs) and reviewer_id in parent_inputs[p_idx + 1].get('content', ''):
 						exact_invocation = row['step_index']
 					elif None is invocation:
 						invocation = row['step_index']
@@ -830,16 +733,10 @@ def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 			if 'invoke_subagent' == c_name:
 				has_invoke = True
 			elif 'send_message' == c_name:
-				c_args = call.get('args', {})
-				if isinstance(c_args, str):
-					try:
-						c_args = json.loads(c_args)
-					except ValueError:
-						c_args = {}
-				if isinstance(c_args, dict):
-					recip = str(c_args.get('Recipient') or '').strip().lower()
-					if re.fullmatch('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', recip) and recip not in found:
-						found.append(recip)
+				c_args = parse_tool_args(call.get('args', {}))
+				recip = str(c_args.get('Recipient') or '').strip().lower()
+				if re.fullmatch('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', recip) and recip not in found:
+					found.append(recip)
 		if has_invoke:
 			for cand in rows_list[pos + 1:]:
 				if not isinstance(cand, dict):
