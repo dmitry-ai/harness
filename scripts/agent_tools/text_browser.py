@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -21,7 +24,7 @@ import time
 from urllib.parse import urldefrag, urlsplit
 from urllib.request import urlopen
 from .runtime import HARNESS_META, platform_settings, settings
-from .storage import create_bytes, locked
+from .storage import locked, write_immutable_bytes
 _LOCKS, _LOCKS_GUARD = ({}, threading.Lock())
 _READ = frozenset({'DOM.getDocument', 'DOM.getOuterHTML', 'DOM.describeNode', 'DOM.querySelector', 'DOM.querySelectorAll', 'DOM.getAttributes', 'DOM.getBoxModel', 'Page.getFrameTree', 'Page.getLayoutMetrics', 'Page.getResourceTree', 'Page.getNavigationHistory', 'Network.getResponseBody', 'Runtime.getProperties', 'Accessibility.getFullAXTree', 'Accessibility.getPartialAXTree', 'Browser.getWindowForTarget'})
 _NAVIGATE = frozenset({'Page.navigate', 'Page.reload', 'Page.navigateToHistoryEntry'})
@@ -439,10 +442,7 @@ def collect_cdp_dom(root, url, *, cdp_port=None, timeout=15, config=None, http_g
 		observed_identity = {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'endpoint': endpoint, 'browser': version.get('Browser'), 'browser_websocket': browser_ws, 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'profile': profile_info}
 		identity_bytes = (json.dumps(observed_identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 		identity_hash = hashlib.sha256(identity_bytes).hexdigest()
-		identity_path = root_path / 'ꘖ/KB/Evidence/CDPSessions' / f'{identity_hash}.json'
-		identity_path.parent.mkdir(parents=True, exist_ok=True)
-		if not identity_path.exists():
-			create_bytes(identity_path, identity_bytes)
+		identity_path = write_immutable_bytes(root_path / 'ꘖ/KB/Evidence/CDPSessions' / f'{identity_hash}.json', identity_bytes, diff_error='Immutable CDP session identity changed')
 		identity_ref = identity_path.relative_to(root_path / 'ꘖ/KB').as_posix()
 		r = {'url': data.get('url') or url, 'html': data['html'], 'title': data.get('title') or '', 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash, 'endpoint': endpoint}
 	return r

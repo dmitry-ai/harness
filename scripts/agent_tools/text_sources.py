@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -13,13 +16,13 @@ from pathlib import Path
 from urllib.parse import urldefrag
 from .claims import contract_issues, evidence_contract_issues
 from .links import check_network, references, readable_reference
+from .storage import locked, read_addressed_json, replace_bytes, write_immutable_bytes
 from .text_claims import registry_path, subset, evidence_inputs
 from .text_core import Finding, scan
 SOURCE_MAX_AGE = 86400
 def _attempt(root, candidate, url, observation, reference, *, read_only=False):
 	from .research import load_observation, json_data
 	from .text_claims import digest
-	from .storage import locked, replace_bytes
 	url = readable_reference(url)
 	folder = Path(root).resolve() / 'ꘖ/data/texts/sources'
 	key = digest(url.encode('utf-8'))
@@ -75,7 +78,7 @@ def _evaluate(root, candidate, spec):
 	observed = datetime.fromisoformat(meta['observed_at'])
 	if None is observed.tzinfo or observed > datetime.now(timezone.utc):
 		raise ValueError('Source observation needs a nonfuture timezone-aware timestamp')
-	if 'current' == spec['currency'] and (datetime.now(timezone.utc) - observed).total_seconds() > SOURCE_MAX_AGE:
+	if 'current' == spec['currency'] and SOURCE_MAX_AGE < (datetime.now(timezone.utc) - observed).total_seconds():
 		raise ValueError('Current-source observation is older than 24 hours; collect a justified refresh')
 	_verify_quote(root, ref, observation=ref['observation'])
 	inputs = evidence_inputs(root, {'facts': [{'evidence': [ref]}]})
@@ -84,35 +87,32 @@ def _evaluate(root, candidate, spec):
 		if not isinstance(identity, str):
 			raise ValueError('DOM fallback requires its captured CDP identity receipt')
 		path = inside(Path(root).resolve() / 'ꘖ/KB', identity)
-		raw = path.read_bytes()
-		data = json.loads(raw)
-		if 1 != data.get('schema_version') or any((not isinstance(data.get(key), str) or not data[key] for key in ('session_id', 'target_id', 'browser_websocket', 'observed_at'))) or path.stem != digest(raw) or ('read-only-dom' != meta.get('collector')) or ('READ_DOM' != meta.get('method')) or (meta.get('conditions', {}).get('reported_context', {}).get('session_id') != data['session_id']) or (meta.get('request_scope') != f"CDP-session:{data.get('session_id')}:tab:{data.get('target_id')}:identity:{identity}"):
+		raw, data = read_addressed_json(path, stem_match=True, error_msg='DOM identity does not bind this exact observation')
+		if 1 != data.get('schema_version') or any((not isinstance(data.get(key), str) or not data[key] for key in ('session_id', 'target_id', 'browser_websocket', 'observed_at'))) or ('read-only-dom' != meta.get('collector')) or ('READ_DOM' != meta.get('method')) or (meta.get('conditions', {}).get('reported_context', {}).get('session_id') != data['session_id']) or (meta.get('request_scope') != f"CDP-session:{data.get('session_id')}:tab:{data.get('target_id')}:identity:{identity}"):
 			raise ValueError('DOM identity does not bind this exact observation')
 		inputs[path.relative_to(Path(root).resolve()).as_posix()] = digest(raw)
-	r = {'url': readable_reference(spec['url']), 'requested_url': meta['url'], 'final_url': meta['final_url'], 'method': meta['method'], 'http_status': meta['status'], 'observed_at': meta['observed_at'], 'body_sha256': meta['body_sha256'], 'currency': spec['currency'], 'edition': spec.get('edition'), 'inputs': inputs}
-	return r
+	return {'url': readable_reference(spec['url']), 'requested_url': meta['url'], 'final_url': meta['final_url'], 'method': meta['method'], 'http_status': meta['status'], 'observed_at': meta['observed_at'], 'body_sha256': meta['body_sha256'], 'currency': spec['currency'], 'edition': spec.get('edition'), 'inputs': inputs}
 def save_source_check(root, candidate, spec):
-	from .text_claims import digest
-	from .text_workflow import _folder, _immutable
 	from .research import json_data
+	from .text_claims import digest
+	from .text_workflow import _folder
 	result = {'schema_version': 1, 'candidate_sha256': digest(candidate.encode('utf-8')), 'spec': spec}
 	try:
 		result.update(_evaluate(root, candidate, spec), valid=True, issues=[])
 	except (OSError, ValueError, KeyError, TypeError) as exc:
 		result.update(valid=False, issues=[str(exc)], inputs={})
 	raw = json_data(result)
-	path = _immutable(_folder(root) / 'sources' / (digest(raw) + '-source.json'), raw)
+	path = write_immutable_bytes(_folder(root) / 'sources' / (digest(raw) + '-source.json'), raw, diff_error='Immutable source receipt differs')
 	try:
 		if isinstance(spec, dict) and isinstance(spec.get('url'), str) and (readable_reference(spec['url']) in source_urls(candidate)):
 			_attempt(root, candidate, spec['url'], spec['evidence']['observation'], path.relative_to(Path(root).resolve()).as_posix())
 	except (OSError, ValueError, KeyError, TypeError):
 		pass
-	r = {**result, 'source_check': path.relative_to(Path(root).resolve()).as_posix()}
-	return r
+	return {**result, 'source_check': path.relative_to(Path(root).resolve()).as_posix()}
 def probe_links(root, candidate, *, fetcher=None):
-	from .research import collect, json_data, extract_bytes
-	from .text_workflow import _folder, _immutable
+	from .research import collect, extract_bytes, json_data
 	from .text_claims import digest
+	from .text_workflow import _folder
 	from urllib.parse import unquote
 	observed, results, findings = ({}, [], [])
 	for url in source_urls(candidate):
@@ -125,7 +125,10 @@ def probe_links(root, candidate, *, fetcher=None):
 			status = 'unavailable'
 		elif urldefrag(meta['final_url'])[0] != base:
 			status = 'redirect-unverified'
-		elif meta['content_type'] in ('text/html', 'application/xhtml+xml'):
+		elif meta['content_type'] not in ('text/html', 'application/xhtml+xml'):
+			if fragment:
+				status = 'anchor-unverified'
+		else:
 			from .evidence import local_file
 			body = local_file(root, meta['observation']).with_name('response.bin').read_bytes()
 			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8')
@@ -133,49 +136,43 @@ def probe_links(root, candidate, *, fetcher=None):
 				status = 'browser-check-required'
 			elif fragment and (unquote(fragment) not in data['anchors'] or unquote(fragment) in data.get('ambiguous_anchors', [])):
 				status = 'anchor-unverified'
-		elif fragment:
-			status = 'anchor-unverified'
 		result = {'url': url, 'status': status, 'observation': meta['observation'], 'final_url': meta['final_url'], 'http_status': meta['status']}
 		raw = json_data({'schema_version': 1, 'candidate_sha256': digest(candidate.encode()), **result})
-		path = _immutable(_folder(root) / 'sources' / (digest(raw) + '-probe.json'), raw)
+		path = write_immutable_bytes(_folder(root) / 'sources' / (digest(raw) + '-probe.json'), raw, diff_error='Immutable source probe differs')
 		reference = path.relative_to(Path(root).resolve()).as_posix()
 		_attempt(root, candidate, url, meta['observation'], reference)
 		results.append({**result, 'probe': reference})
 		if 'http-ok' != status:
 			findings.append(Finding('error', 'SOURCE-UNVERIFIED', 1, url + ': ' + status))
-	r = {'results': results, 'findings': findings}
-	return r
+	return {'results': results, 'findings': findings}
 def read_source_check(root, candidate, reference):
-	from .text_claims import digest
 	from .research import inside
+	from .text_claims import digest
 	path = inside(root, reference)
-	raw = path.read_bytes()
-	value = json.loads(raw)
-	if path.name != digest(raw) + '-source.json' or 1 != value.get('schema_version'):
+	raw, value = read_addressed_json(path, suffix='-source.json', error_msg='Invalid or changed immutable source receipt')
+	if 1 != value.get('schema_version'):
 		raise ValueError('Invalid or changed immutable source receipt')
 	if value.get('candidate_sha256') != digest(candidate.encode('utf-8')) or True is not value.get('valid'):
 		raise ValueError('Source receipt is failed or belongs to another candidate')
 	actual = _evaluate(root, candidate, value['spec'])
 	if any((value.get(key) != actual[key] for key in actual)):
 		raise ValueError('Source bytes or provenance changed since the source receipt')
-	r = {**value, 'source_check': reference, 'inputs': {**actual['inputs'], path.relative_to(Path(root).resolve()).as_posix(): digest(raw)}}
-	return r
+	return {**value, 'source_check': reference, 'inputs': {**actual['inputs'], path.relative_to(Path(root).resolve()).as_posix(): digest(raw)}}
 def source_integrity(root, candidate, reference):
-	from .text_claims import digest
 	from .research import inside
-	root = Path(root).resolve()
-	path = inside(root, reference)
-	raw = path.read_bytes()
-	value = json.loads(raw)
-	if path.name != digest(raw) + '-source.json' or 1 != value.get('schema_version') or True is not value.get('valid') or value.get('candidate_sha256') != digest(candidate.encode('utf-8')):
+	from .text_claims import digest
+	root_p = Path(root).resolve()
+	path = inside(root_p, reference)
+	raw, value = read_addressed_json(path, suffix='-source.json', error_msg='Historical source receipt is failed, changed or belongs to another candidate')
+	if 1 != value.get('schema_version') or True is not value.get('valid') or value.get('candidate_sha256') != digest(candidate.encode('utf-8')):
 		raise ValueError('Historical source receipt is failed, changed or belongs to another candidate')
 	inputs = value.get('inputs')
 	if not isinstance(inputs, dict) or not inputs:
 		raise ValueError('Historical source receipt has no admitted primary inputs')
 	for name, expected in inputs.items():
-		if digest(inside(root, name).read_bytes()) != expected:
+		if digest(inside(root_p, name).read_bytes()) != expected:
 			raise ValueError('Historical source evidence changed: ' + name)
-	return {**value, 'source_check': reference, 'inputs': {**inputs, path.relative_to(root).as_posix(): digest(raw)}}
+	return {**value, 'source_check': reference, 'inputs': {**inputs, path.relative_to(root_p).as_posix(): digest(raw)}}
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16

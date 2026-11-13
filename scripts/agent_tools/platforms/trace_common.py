@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
 # https://github.com/dmitry-ai/harness/issues/58
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -9,7 +12,7 @@ import json
 from pathlib import Path
 import re
 from ..research import json_data
-from ..storage import create_bytes
+from ..storage import write_immutable_bytes
 def _iter_normalized_tool_calls(rows):
 	rows_list = rows if isinstance(rows, list) else []
 	for pos, entry in enumerate(rows_list):
@@ -132,17 +135,8 @@ def persist_review_proof(root, reviewer_id, digest, final_text, proof, *, write=
 	authored = target.with_name(target.stem + '-authored.txt')
 	proof['authored_response'] = authored.relative_to(root_p).as_posix()
 	if write:
-		target.parent.mkdir(parents=True, exist_ok=True)
-		authored_bytes = final_text.encode('utf-8')
-		if authored.exists() and authored.read_bytes() != authored_bytes:
-			raise ValueError('Immutable native authored response differs')
-		if not authored.exists():
-			create_bytes(authored, authored_bytes)
-		payload = json_data(proof)
-		if target.exists() and target.read_bytes() != payload:
-			raise ValueError(diff_error)
-		if not target.exists():
-			create_bytes(target, payload)
+		write_immutable_bytes(authored, final_text.encode('utf-8'), diff_error='Immutable native authored response differs')
+		write_immutable_bytes(target, json_data(proof), diff_error=diff_error)
 	return {'proof': target.relative_to(root_p).as_posix(), **proof}
 def prompt_bias_issues(prompt_text):
 	if not isinstance(prompt_text, str) or not prompt_text.strip():

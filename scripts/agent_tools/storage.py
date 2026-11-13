@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
@@ -8,31 +11,58 @@
 # "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 # https://github.com/dmitry-ai/harness/issues/41
 from contextlib import contextmanager
+import hashlib
+import json
 import os
 from pathlib import Path
 import tempfile
 import time
+def _replace_with_retry(temp: Path, path: Path):
+	for attempt in range(10):
+		try:
+			os.replace(temp, path)
+			break
+		except PermissionError:
+			if 9 == attempt:
+				raise
+			time.sleep(0.025)
+def _stage_atomic_write(path: Path, data: bytes, commit):
+	fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
+	temp = Path(name)
+	try:
+		with os.fdopen(fd, 'wb') as stream:
+			stream.write(data)
+			stream.flush()
+			os.fsync(stream.fileno())
+		commit(temp, path)
+	finally:
+		temp.unlink(missing_ok=True)
+def create_bytes(path: Path, data: bytes):
+	_stage_atomic_write(Path(path), data, os.rename if 'nt' == os.name else os.link)
 def data_dir_for(path: Path) -> Path:
 	resolved = Path(path).resolve()
 	if 'c:/work/upwork/code' == str(resolved).replace('\\', '/').rstrip('/').lower():
-		return Path('C:/work/research/provision/code/AI/harness/_/ꘖ/data/workspaces/upwork')
-	start = resolved if not resolved.exists() or resolved.is_dir() else resolved.parent
-	for parent in (start, *start.parents):
-		if 'ꘖ' == parent.name:
-			return parent / 'data'
-		if (parent / '_').is_dir() and ((parent / 'code').is_dir() or (parent / '_/ꙮ').is_dir() or (parent / '_/ꘖ').is_dir()):
-			return parent / '_' / 'ꘖ' / 'data'
-		if (parent / 'ꘖ').is_dir():
-			return parent / 'ꘖ' / 'data'
-		if '.agents' == parent.name:
-			if (parent.parent / '_').is_dir() and (parent.parent / 'code').is_dir():
-				return parent.parent / '_' / 'ꘖ' / 'data'
-			return parent.parent / 'ꘖ' / 'data'
-		if (parent / '.agents').is_dir():
-			if 'c:/work/upwork/code' == str(parent).replace('\\', '/').rstrip('/').lower():
-				return Path('C:/work/research/provision/code/AI/harness/_/ꘖ/data/workspaces/upwork')
-			return parent / 'ꘖ' / 'data'
-	return start / 'ꘖ' / 'data'
+		r = Path('C:/work/research/provision/code/AI/harness/_/ꘖ/data/workspaces/upwork')
+	else:
+		start = resolved if not resolved.exists() or resolved.is_dir() else resolved.parent
+		r = start / 'ꘖ' / 'data'
+		for parent in (start, *start.parents):
+			if 'ꘖ' == parent.name:
+				r = parent / 'data'
+				break
+			if (parent / '_').is_dir() and ((parent / 'code').is_dir() or (parent / '_/ꙮ').is_dir() or (parent / '_/ꘖ').is_dir()):
+				r = parent / '_' / 'ꘖ' / 'data'
+				break
+			if (parent / 'ꘖ').is_dir():
+				r = parent / 'ꘖ' / 'data'
+				break
+			if '.agents' == parent.name:
+				r = parent.parent / '_' / 'ꘖ' / 'data' if (parent.parent / '_').is_dir() and (parent.parent / 'code').is_dir() else parent.parent / 'ꘖ' / 'data'
+				break
+			if (parent / '.agents').is_dir():
+				r = Path('C:/work/research/provision/code/AI/harness/_/ꘖ/data/workspaces/upwork') if 'c:/work/upwork/code' == str(parent).replace('\\', '/').rstrip('/').lower() else parent / 'ꘖ' / 'data'
+				break
+	return r
 @contextmanager
 def locked(path: Path, timeout: float=15, *, create=True):
 	if create:
@@ -65,43 +95,36 @@ def locked(path: Path, timeout: float=15, *, create=True):
 				msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
 			else:
 				fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
-def create_bytes(path: Path, data: bytes):
-	path = Path(path)
-	fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
-	temp = Path(name)
-	try:
-		with os.fdopen(fd, 'wb') as stream:
-			stream.write(data)
-			stream.flush()
-			os.fsync(stream.fileno())
-		if 'nt' == os.name:
-			os.rename(temp, path)
-		else:
-			os.link(temp, path)
-	finally:
-		temp.unlink(missing_ok=True)
+def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, error_msg: str='Invalid immutable artifact') -> tuple[bytes, dict]:
+	target = Path(path)
+	raw = target.read_bytes()
+	value = json.loads(raw.decode('utf-8-sig'))
+	sha = hashlib.sha256(raw).hexdigest()
+	expected = sha if stem_match else sha + suffix
+	actual = target.stem if stem_match else target.name
+	if not isinstance(value, dict) or actual != expected:
+		raise ValueError(error_msg)
+	return (raw, value)
 def replace_bytes(path: Path, data: bytes):
-	path = Path(path)
+	target = Path(path)
+	same = False
 	try:
-		if path.read_bytes() == data:
-			return
+		same = target.read_bytes() == data
 	except FileNotFoundError:
 		pass
-	path.parent.mkdir(parents=True, exist_ok=True)
-	fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
-	temp = Path(name)
-	try:
-		with os.fdopen(fd, 'wb') as stream:
-			stream.write(data)
-			stream.flush()
-			os.fsync(stream.fileno())
-		for attempt in range(10):
-			try:
-				os.replace(temp, path)
-				break
-			except PermissionError:
-				if 9 == attempt:
-					raise
-				time.sleep(0.025)
-	finally:
-		temp.unlink(missing_ok=True)
+	if not same:
+		target.parent.mkdir(parents=True, exist_ok=True)
+		_stage_atomic_write(target, data, _replace_with_retry)
+def write_immutable_bytes(path: Path, payload: bytes, *, diff_error: str='Immutable artifact differs') -> Path:
+	target = Path(path)
+	target.parent.mkdir(parents=True, exist_ok=True)
+	if target.exists():
+		if target.read_bytes() != payload:
+			raise ValueError(diff_error)
+	else:
+		try:
+			create_bytes(target, payload)
+		except FileExistsError:
+			if target.read_bytes() != payload:
+				raise ValueError(diff_error)
+	return target

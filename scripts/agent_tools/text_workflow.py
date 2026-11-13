@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -15,7 +18,7 @@ import re
 import uuid
 from urllib.parse import unquote
 from .research import inside, json_data
-from .storage import create_bytes, replace_bytes, locked, data_dir_for
+from .storage import create_bytes, data_dir_for, locked, read_addressed_json, replace_bytes, write_immutable_bytes
 from .text_claims import digest, validate_map, blocks
 KINDS = ('article', 'proposal', 'letter')
 def _folder(root):
@@ -23,13 +26,7 @@ def _folder(root):
 def _read(path):
 	return json.loads(Path(path).read_text(encoding='utf-8-sig'))
 def _immutable(path, payload):
-	path.parent.mkdir(parents=True, exist_ok=True)
-	if not path.exists():
-		create_bytes(path, payload)
-	elif path.read_bytes() != payload:
-		raise ValueError('Immutable text artifact differs: ' + str(path))
-	r = path
-	return r
+	return write_immutable_bytes(path, payload, diff_error='Immutable text artifact differs: ' + str(path))
 def _index(root):
 	file = _folder(root) / 'index.json'
 	value = _read(file) if file.exists() else {'schema_version': 1, 'targets': {}, 'operations': []}
@@ -322,19 +319,18 @@ def check(root, ident, candidate, manifest=None, *, run_replay=False, replay_rec
 	changed = changed_command_lines(candidate, base.decode('utf-8'))
 	replay_data = []
 	if changed:
-		if run_replay:
+		if not run_replay and (not replay_record):
+			issues.append({'code': 'text.replay_missing', 'message': 'New/changed commands require an explicit replay of exactly these blocks', 'lines': changed})
+		elif not run_replay:
+			_, stored = read_addressed_json(inside(root, replay_record), suffix='-replay.json', error_msg='Replay receipt does not cover the exact changed command blocks')
+			if stored.get('operation') != ident or stored.get('candidate_sha256') != digest(candidate.encode()) or (stored.get('lines') != changed):
+				raise ValueError('Replay receipt does not cover the exact changed command blocks')
+			replay_data = stored['results']
+		else:
 			replay_data = replay(candidate, only=changed, contracts=(manifest or {}).get('commands'), shell=op.get('shell'))
 			payload = json_data({'schema_version': 1, 'operation': ident, 'candidate_sha256': digest(candidate.encode()), 'lines': changed, 'results': replay_data})
 			replay_path = _immutable(_folder(root) / 'operations' / ident / (digest(payload) + '-replay.json'), payload)
 			replay_record = replay_path.relative_to(root).as_posix()
-		elif not replay_record:
-			issues.append({'code': 'text.replay_missing', 'message': 'New/changed commands require an explicit replay of exactly these blocks', 'lines': changed})
-		else:
-			replay_path = inside(root, replay_record)
-			stored = _read(replay_path)
-			if replay_path.name != digest(replay_path.read_bytes()) + '-replay.json' or stored.get('operation') != ident or stored.get('candidate_sha256') != digest(candidate.encode()) or (stored.get('lines') != changed):
-				raise ValueError('Replay receipt does not cover the exact changed command blocks')
-			replay_data = stored['results']
 		if replay_data and (len(replay_data) != len(changed) or any(('match' != r.get('status') for r in replay_data))):
 			issues.append({'code': 'text.replay', 'message': 'Changed command coverage or execution failed', 'results': replay_data})
 	result = {'schema_version': 1, 'operation': ident, 'root': str(root), 'target': op['target'], 'kind': op['kind'], 'base_sha256': op['base_sha256'], 'candidate_sha256': digest(candidate.encode()), 'valid': not issues, 'issues': issues, 'coverage': 'mechanical' if mechanical else 'semantic', 'inputs': {**mapped['inputs'], **sources['inputs']}, 'claims': mapped['claims'], 'claim_versions': mapped['claim_versions'], 'source_checks': sources['checks'], 'manifest': manifest, 'replay_record': replay_record, 'warning_dispositions': warning_dispositions, 'diff': ''.join(difflib.unified_diff(base.decode('utf-8').splitlines(True), candidate.splitlines(True), fromfile='before/' + op['target'], tofile='after/' + op['target']))}
@@ -349,15 +345,13 @@ def check(root, ident, candidate, manifest=None, *, run_replay=False, replay_rec
 	receipt = _immutable(folder / (digest(payload) + '-check.json'), payload)
 	return {**result, 'check': receipt.relative_to(root).as_posix()}
 def read_check(root, reference):
-	file = inside(root, reference)
-	data = _read(file)
-	if file.name != digest(file.read_bytes()) + '-check.json' or data.get('root') != str(Path(root).resolve()):
+	_, data = read_addressed_json(inside(root, reference), suffix='-check.json', error_msg='Invalid/changed text check receipt')
+	if data.get('root') != str(Path(root).resolve()):
 		raise ValueError('Invalid/changed text check receipt')
 	candidate = inside(root, data['candidate']).read_bytes()
 	if digest(candidate) != data['candidate_sha256']:
 		raise ValueError('Candidate bytes changed after checking')
-	r = (data, candidate.decode('utf-8'))
-	return r
+	return (data, candidate.decode('utf-8'))
 def refresh_check(root, reference, *, applied=False):
 	saved, candidate = read_check(root, reference)
 	current = check(root, saved['operation'], candidate, saved['manifest'], replay_record=saved['replay_record'], warning_dispositions=saved['warning_dispositions'], applied=applied)
@@ -417,9 +411,12 @@ def gate(root, *, targets=None, response=None, publication=False, capture=False)
 			if publication:
 				issues.append('Text target has only a baseline, not publication approval: ' + name)
 			continue
-		file = inside(root, entry['receipt'])
-		saved = _read(file)
-		if file.name != digest(file.read_bytes()) + '-applied.json' or saved.get('candidate_sha256') != entry['sha256']:
+		try:
+			_, saved = read_addressed_json(inside(root, entry['receipt']), suffix='-applied.json', error_msg='Applied receipt changed: ' + name)
+		except (OSError, ValueError):
+			issues.append('Applied receipt changed: ' + name)
+			continue
+		if saved.get('candidate_sha256') != entry['sha256']:
 			issues.append('Applied receipt changed: ' + name)
 			continue
 		from .text_sources import validate_source_checks
@@ -477,18 +474,20 @@ def _applied_integrity(root, name, entry, *, require_live_proof=True):
 	files, claims, reviews = ({}, [], [])
 	def add(reference, expected=None):
 		actual = digest(inside(root, reference).read_bytes())
-		if expected is not None and actual != expected:
+		if None is not expected and actual != expected:
 			raise ValueError('Admitted text artifact changed: ' + reference)
 		if reference in files and files[reference] != actual:
 			raise ValueError('Conflicting admitted text artifact versions')
 		files[reference] = actual
-	if entry.get('receipt'):
-		path = inside(root, entry['receipt'])
-		saved = _read(path)
-		if path.name != digest(path.read_bytes()) + '-applied.json' or saved.get('status') != 'applied' or saved.get('target') != name or saved.get('candidate_sha256') != entry['sha256']:
+	if entry.get('reconciliation') and (not entry.get('receipt')):
+		for reference, expected in _reconciled_integrity(root, name, entry)['files'].items():
+			add(reference, expected)
+	elif entry.get('receipt'):
+		_, saved = read_addressed_json(inside(root, entry['receipt']), suffix='-applied.json', error_msg='Applied text receipt changed: ' + name)
+		if 'applied' != saved.get('status') or saved.get('target') != name or saved.get('candidate_sha256') != entry['sha256']:
 			raise ValueError('Applied text receipt changed: ' + name)
 		checked, candidate = read_check(root, saved['check'])
-		if checked.get('valid') is not True or any((saved.get(key) != checked.get(key) for key in ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks'))):
+		if True is not checked.get('valid') or any((saved.get(key) != checked.get(key) for key in ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks'))):
 			raise ValueError('Applied text no longer matches its admitted check')
 		op, _ = operation(root, saved['operation'])
 		if op['target'] != name or op['base_sha256'] != saved['base_sha256']:
@@ -512,9 +511,6 @@ def _applied_integrity(root, name, entry, *, require_live_proof=True):
 			reviews = approval['reviews']
 			for reference, expected in approval['files'].items():
 				add(reference, expected)
-	elif entry.get('reconciliation'):
-		for reference, expected in _reconciled_integrity(root, name, entry)['files'].items():
-			add(reference, expected)
 	return {'target': name, 'entry': deepcopy(entry), 'files': files, 'claims': claims, 'reviews': reviews}
 def integrity_snapshot(root, entries):
 	root = Path(root).resolve()
@@ -523,10 +519,8 @@ def _reconciled_integrity(root, name, entry):
 	reference = entry.get('reconciliation')
 	if not reference or entry.get('receipt'):
 		raise ValueError('Explicit text baseline reconciliation is missing: ' + name)
-	path = inside(root, reference)
-	raw = path.read_bytes()
-	saved = json.loads(raw)
-	if path.name != digest(raw) + '-reconciled.json' or saved.get('schema_version') != 1 or saved.get('kind') != 'baseline_reconciliation' or saved.get('root') != str(Path(root).resolve()) or saved.get('target') != name or saved.get('document_kind') != entry.get('kind') or not isinstance(saved.get('previous'), dict) or saved.get('baseline', {}).get('sha256') != entry.get('sha256'):
+	raw, saved = read_addressed_json(inside(root, reference), suffix='-reconciled.json', error_msg='Explicit text baseline reconciliation identity changed: ' + name)
+	if 1 != saved.get('schema_version') or 'baseline_reconciliation' != saved.get('kind') or saved.get('root') != str(Path(root).resolve()) or saved.get('target') != name or saved.get('document_kind') != entry.get('kind') or (not isinstance(saved.get('previous'), dict)) or saved.get('baseline', {}).get('sha256') != entry.get('sha256'):
 		raise ValueError('Explicit text baseline reconciliation identity changed: ' + name)
 	op, base = operation(root, saved['operation'])
 	if op.get('reconciliation') != reference or op['target'] != name or op['kind'] != entry['kind'] or op['base_sha256'] != entry['sha256'] or 'reconcile_sha256' not in op or op['reconcile_sha256'] != entry['sha256'] or saved['baseline']['file'] != (_folder(root) / 'operations' / op['id'] / 'base.bin').relative_to(root).as_posix():
@@ -543,10 +537,8 @@ def _verify_applied_successor(root, name, current, original):
 		if not entry.get('receipt'):
 			entry = _reconciled_integrity(root, name, entry)['previous']
 			continue
-		path = inside(root, reference)
-		raw = path.read_bytes()
-		saved = json.loads(raw)
-		if path.name != digest(raw) + '-applied.json' or saved.get('status') != 'applied' or saved.get('target') != name or saved.get('candidate_sha256') != entry.get('sha256') or saved.get('kind') != entry.get('kind'):
+		_, saved = read_addressed_json(inside(root, reference), suffix='-applied.json', error_msg='Applied text successor identity changed: ' + name)
+		if 'applied' != saved.get('status') or saved.get('target') != name or saved.get('candidate_sha256') != entry.get('sha256') or saved.get('kind') != entry.get('kind'):
 			raise ValueError('Applied text successor identity changed: ' + name)
 		previous = saved.get('previous')
 		if not isinstance(previous, dict) or previous.get('sha256') != saved.get('base_sha256'):

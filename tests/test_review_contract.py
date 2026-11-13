@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -387,3 +390,28 @@ class ReviewContractTests(ProjectCase):
 		res = flow.check_project(self.project)
 		codes = {issue['code'] for issue in res['issues']}
 		self.assertIn('kb.identity_mismatch', codes)
+	def test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts(self):
+		from agent_tools.storage import read_addressed_json, write_immutable_bytes
+		claim = self.value['identity'][0]
+		claim.update(category='pricing')
+		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
+		seed = self.package(risk='significant')
+		review.update_verified_claims_cache(self.project, seed, self.value)
+		cached_pkg = self.review_package(self.parent, 'Client task\nConfirmed.\n', 'significant', [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task', 'novelty': 'new'}])
+		self.assertEqual(['F-TITLE'], cached_pkg['merkle_delta']['cached_claim_ids'])
+		self.assertEqual([], cached_pkg['merkle_delta']['unverified_claim_ids'])
+		self.native_record(cached_pkg)
+		approved = self.authorize(response='Client task\nConfirmed.\n')
+		self.assertEqual(1, len(approved['review_ids']))
+		restated = self.review_package(self.parent, 'Client task\nRestated.\n', 'routine', [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task', 'novelty': 'restatement'}])
+		self.assertTrue(restated['claims'][0]['previously_approved_restatement'])
+		payload = json_data({'ok': 1})
+		sha = review.digest(payload)
+		target = write_immutable_bytes(self.project / 'ꘖ/data/receipts' / (sha + '-check.json'), payload, diff_error='immutable mismatch')
+		self.assertEqual(target, write_immutable_bytes(target, payload, diff_error='immutable mismatch'))
+		with self.assertRaisesRegex(ValueError, 'immutable mismatch'):
+			write_immutable_bytes(target, json_data({'ok': 2}), diff_error='immutable mismatch')
+		self.assertEqual({'ok': 1}, read_addressed_json(target, suffix='-check.json', error_msg='bad receipt')[1])
+		bad_name = self.put_project('ꘖ/data/receipts/0000-check.json', payload.decode('utf-8'))
+		with self.assertRaisesRegex(ValueError, 'bad receipt'):
+			read_addressed_json(bad_name, suffix='-check.json', error_msg='bad receipt')

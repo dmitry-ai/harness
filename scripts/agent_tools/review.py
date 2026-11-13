@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -18,14 +21,46 @@ import json
 import re
 from pathlib import Path
 from .research import inside, json_data
-from .storage import create_bytes
+from .storage import read_addressed_json, replace_bytes, write_immutable_bytes
 REVIEW_SCHEMA = 2
 SCOPES = ('identity', 'concerns', 'misconceptions', 'causes', 'methods', 'kb_consistency', 'response')
 TASK_FLAGS = {'new_causal_analysis', 'architecture_change', 'pricing_change', 'admin_configuration', 'business_impact', 'material_analysis'}
 def digest(payload):
 	return hashlib.sha256(payload).hexdigest()
-def _text(value):
+def findings_closed(root, entry):
+	from .workflow import receipt_current
+	data = json.loads(inside(root, entry['report']).read_text(encoding='utf-8'))
+	statuses = {f['id']: f.get('status') for f in data['findings']}
+	r = True
+	for item in entry.get('dispositions', []):
+		if not receipt_current(root, {'inputs': item['proof']}):
+			r = False
+			break
+		saved = json.loads(inside(root, item['file']).read_text(encoding='utf-8'))
+		statuses[saved['finding_id']] = saved['status']
+	return r and all((status in ('resolved', 'rejected') for status in statuses.values()))
+def has_unhandled_verdicts(root, state, package, latest):
+	from .workflow import receipt_current
+	ordered = {entry.get('id'): idx for idx, entry in enumerate(state['reviews'])}
+	approved = [entry for entry in latest.values() if 'approved' == entry.get('result') and entry.get('independent') and findings_closed(root, entry) and receipt_current(root, {'inputs': entry.get('proof', {})})]
+	r = False
+	for entry in latest.values():
+		if not ('approved' == entry.get('result') and findings_closed(root, entry)) and (not any((ordered[followup['id']] > ordered[entry['id']] and entry['id'] in followup.get('addresses_reviews', []) for followup in approved))):
+			r = True
+			break
+	return r
+def is_nonempty_text(value):
 	return isinstance(value, str) and bool(value.strip())
+def latest_for_subject(state, package):
+	latest = {}
+	for entry in state['reviews']:
+		if REVIEW_SCHEMA == entry.get('schema_version') and entry.get('subject_sha256') == package['subject_sha256']:
+			latest[entry['reviewer_id']] = entry
+	return latest
+_findings_closed = findings_closed
+_latest_for_subject = latest_for_subject
+_text = is_nonempty_text
+_unhandled_verdicts = has_unhandled_verdicts
 def load_verified_claims_cache(root) -> dict:
 	path = Path(root).resolve() / 'ꘖ/data/verified-claims.json'
 	if path.is_file():
@@ -99,36 +134,58 @@ def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence
 		'unverified_claim_ids': unverified_ids,
 		'merkle_hashes': merkle_hashes,
 	}
+def read_package_envelope(root, reference, *, expected_kind=None, error_msg='Invalid immutable review package'):
+	root_p = Path(root).resolve()
+	path = inside(root_p, reference)
+	raw, data = read_addressed_json(path, suffix='-inputs.json', error_msg=error_msg)
+	if REVIEW_SCHEMA != data.get('schema_version') or (None is not expected_kind and data.get('kind') != expected_kind) or data.get('project_root') != str(root_p) or (data.get('subject_sha256') != subject_digest(data)):
+		raise ValueError(error_msg)
+	resp = data.get('response') if isinstance(data.get('response'), dict) else {}
+	candidate = inside(root_p, resp.get('file', ''))
+	cand_bytes = candidate.read_bytes() if candidate.is_file() else None
+	if None is cand_bytes or digest(cand_bytes) != resp.get('sha256') or (None is not resp.get('bytes') and len(cand_bytes) != resp.get('bytes')):
+		raise ValueError('Reviewed candidate response bytes differ or are missing')
+	return (root_p, raw, data, cand_bytes)
+def resolve_addressed_reviews(root, data, package, independent, existing_reviews):
+	addresses = data.get('addresses_reviews', [])
+	if not isinstance(addresses, list):
+		raise ValueError('addresses_reviews must be an authored list of previous verdict resolutions')
+	addressed, extra_proofs = ([], [])
+	if addresses:
+		if not independent or 'approved' != data.get('result'):
+			raise ValueError('Only a new independent authored approval can address another reviewer verdict')
+		prior_by_id = {item.get('id'): item for item in existing_reviews}
+		for resolution in addresses:
+			prior = prior_by_id.get(resolution.get('review_id')) if isinstance(resolution, dict) and is_nonempty_text(resolution.get('review_id')) else None
+			if not prior or prior.get('subject_sha256') != package['subject_sha256'] or (not is_nonempty_text(resolution.get('basis'))) or (not isinstance(resolution.get('evidence'), list)) or (not resolution['evidence']):
+				raise ValueError('Authored review resolution needs same-subject prior verdict, basis and saved evidence')
+			addressed.append(prior['id'])
+			extra_proofs += [inside(root, item).relative_to(root).as_posix() for item in resolution['evidence']]
+		if len(set(addressed)) != len(addressed):
+			raise ValueError('Duplicate addressed review verdict')
+	return (addressed, extra_proofs)
 def update_verified_claims_cache(root, package: dict, value: dict | None = None) -> dict:
 	from .claims import all_claims
-	root = Path(root).resolve()
-	if None is value:
+	root_p = Path(root).resolve()
+	val = value
+	if None is val:
 		try:
-			value = _analysis(root)
+			val = _analysis(root_p)
 		except (OSError, ValueError):
-			value = {}
-	index = {c['id']: c for c in all_claims(value) if isinstance(c, dict) and _text(c.get('id'))} if isinstance(value, dict) else {}
+			val = {}
+	index = {c['id']: c for c in all_claims(val) if isinstance(c, dict) and is_nonempty_text(c.get('id'))} if isinstance(val, dict) else {}
 	ev_inputs = package.get('evidence_inputs') or {}
-	cache_data = load_verified_claims_cache(root)
+	cache_data = load_verified_claims_cache(root_p)
 	claims_map = cache_data.setdefault('claims', {})
 	for item in package.get('claims') or []:
-		if isinstance(item, dict) and _text(item.get('claim_id')):
+		if isinstance(item, dict) and is_nonempty_text(item.get('claim_id')):
 			ident = item['claim_id']
 			claim_obj = index.get(ident) or {}
 			m_hash = (package.get('merkle_delta') or {}).get('merkle_hashes', {}).get(ident) or claim_merkle_hash(item, index, ev_inputs)
-			claims_map[ident] = {
-				'claim_id': ident,
-				'claim_sha256': item.get('claim_sha256', ''),
-				'knowledge_type': item.get('knowledge_type') or claim_obj.get('knowledge_type') or '',
-				'verification_status': item.get('verification_status') or claim_obj.get('verification_status') or '',
-				'tier0_evidence_hashes': dict(_claim_evidence_pairs(ident, index, ev_inputs)),
-				'merkle_sha256': m_hash,
-				'response_sha256': (package.get('response') or {}).get('sha256', ''),
-			}
-	path = root / 'ꘖ/data/verified-claims.json'
-	if path.parent.is_dir() or (root / 'ꘖ').is_dir():
-		path.parent.mkdir(parents=True, exist_ok=True)
-		path.write_text(json.dumps(cache_data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+			claims_map[ident] = {'claim_id': ident, 'claim_sha256': item.get('claim_sha256', ''), 'knowledge_type': item.get('knowledge_type') or claim_obj.get('knowledge_type') or '', 'verification_status': item.get('verification_status') or claim_obj.get('verification_status') or '', 'tier0_evidence_hashes': dict(_claim_evidence_pairs(ident, index, ev_inputs)), 'merkle_sha256': m_hash, 'response_sha256': (package.get('response') or {}).get('sha256', '')}
+	path = root_p / 'ꘖ/data/verified-claims.json'
+	if path.parent.is_dir() or (root_p / 'ꘖ').is_dir():
+		replace_bytes(path, json_data(cache_data))
 	return cache_data
 def build_blind_verification_predicates(manifest: list[dict], value: dict) -> list[dict]:
 	from .claims import all_claims
@@ -147,18 +204,7 @@ def build_blind_verification_predicates(manifest: list[dict], value: dict) -> li
 		})
 	return predicates
 def _immutable(path, payload):
-	path.parent.mkdir(parents=True, exist_ok=True)
-	if path.exists():
-		if path.read_bytes() != payload:
-			raise ValueError('Immutable review artifact differs; preserve the original and create a new attempt')
-	else:
-		try:
-			create_bytes(path, payload)
-		except FileExistsError:
-			if path.read_bytes() != payload:
-				raise ValueError('Concurrent immutable review publication differs')
-	r = path
-	return r
+	return write_immutable_bytes(path, payload, diff_error='Immutable review artifact differs; preserve the original and create a new attempt')
 def request_snapshot(state):
 	return [{'id': item['id'], 'text': item['text']} for item in state['requests']]
 def _analysis(root):
@@ -173,40 +219,34 @@ def _analysis(root):
 	r = value
 	return r
 def _approved_digests(root, state, *, exclude_package=None):
-	from .workflow import receipt_current, hashes, evidence_paths
 	from .claims import all_claims
+	from .workflow import evidence_paths, hashes, receipt_current
 	result = set()
-	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
+	is_finalized = 'complete' == state.get('stages', {}).get('finalize', {}).get('status')
 	cur_ev_hashes = hashes(root, evidence_paths(root))
 	index = None
 	if is_finalized:
 		try:
 			val = _analysis(root)
-			index = {c['id']: c for c in all_claims(val) if isinstance(c, dict) and _text(c.get('id'))}
+			index = {c['id']: c for c in all_claims(val) if isinstance(c, dict) and is_nonempty_text(c.get('id'))}
 		except (OSError, ValueError):
 			index = {}
 	for entry in state['reviews']:
-		if entry.get('schema_version') != REVIEW_SCHEMA or 'approved' != entry.get('result'):
-			continue
-		if entry.get('package') == exclude_package:
-			continue
-		if not receipt_current(root, {'inputs': entry.get('proof', {})}):
+		if REVIEW_SCHEMA != entry.get('schema_version') or 'approved' != entry.get('result') or entry.get('package') == exclude_package or (not receipt_current(root, {'inputs': entry.get('proof', {})})):
 			continue
 		package = json.loads(inside(root, entry['package']).read_text(encoding='utf-8'))
-		if not _findings_closed(root, entry):
+		if not findings_closed(root, entry):
 			continue
 		pkg_ev = package.get('evidence_inputs') or {}
 		ev_exact = pkg_ev == cur_ev_hashes
 		if not ev_exact and (not is_finalized):
 			continue
-		matching = [r for r in state['reviews'] if r.get('package') == entry['package'] and r.get('schema_version') == REVIEW_SCHEMA and ('approved' == r.get('result')) and r.get('independent') and _findings_closed(root, r) and receipt_current(root, {'inputs': r.get('proof', {})})]
-		latest = _latest_for_subject(state, package)
-		if latest[entry['reviewer_id']].get('id') != entry['id'] or _unhandled_verdicts(root, state, package, latest):
+		matching = [item for item in state['reviews'] if item.get('package') == entry['package'] and REVIEW_SCHEMA == item.get('schema_version') and ('approved' == item.get('result')) and item.get('independent') and findings_closed(root, item) and receipt_current(root, {'inputs': item.get('proof', {})})]
+		latest = latest_for_subject(state, package)
+		if latest[entry['reviewer_id']].get('id') != entry['id'] or has_unhandled_verdicts(root, state, package, latest):
 			continue
-		matching = [r for r in matching if latest[r['reviewer_id']].get('id') == r['id']]
-		has_escalation = significant_findings(root, state, package['subject_sha256']) or any(('approved' != r.get('result') for r in latest.values()))
-		is_falsifier = 'falsifier' == package.get('review_mode') or any(('falsifier' == r.get('review_mode') for r in matching))
-		if 'significant' == package['risk'] and not (is_falsifier and not has_escalation) and len({r['reviewer_id'] for r in matching}) < 2:
+		matching = [item for item in matching if latest[item['reviewer_id']].get('id') == item['id']]
+		if not quorum_satisfied(root, state, package, latest, matching):
 			continue
 		if ev_exact:
 			result.update(((c['claim_id'], c['claim_sha256']) for c in package['claims']))
@@ -300,6 +340,21 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 		raise ValueError('Task flags omit typed significant work: ' + ', '.join(sorted(required_flags - set(flags))))
 	r = {'risk': spec['risk'], 'minimum_risk': minimum, 'risk_basis': spec['basis'], 'risk_reasons': reasons, 'request_scope': spec['request_scope'], 'claims': manifest, 'task_flags': flags, 'minimum_task_flags': sorted(required_flags)}
 	return r
+def parse_report_object(text):
+	value = text.strip()
+	if value.startswith('```'):
+		match = re.fullmatch('```(?:json)?\\s*\\n(.*?)\\n```', value, re.S)
+		if not match:
+			raise ValueError('Reviewer final output must be one JSON report, optionally one fenced JSON block')
+		value = match.group(1)
+	try:
+		result = json.loads(value)
+	except ValueError as exc:
+		raise ValueError('Reviewer authored final output is not a JSON report') from exc
+	if not isinstance(result, dict):
+		raise ValueError('Reviewer report must be a JSON object')
+	return result
+_report_object = parse_report_object
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
@@ -350,73 +405,92 @@ def prepare(root, parent_id, spec, response):
 	_immutable(path, package_bytes)
 	r = {'package': path.relative_to(root).as_posix(), 'package_sha256': digest(package_bytes), **data}
 	return r
+def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evidence=None, allow_self=True, expected_risk=None, package_reader=None, issue_checker=None, reviews_dir_fn=None, artifact_prefix_fn=None, diff_error='Immutable review artifact differs; preserve the original and create a new attempt'):
+	root_p = Path(root).resolve()
+	if not is_nonempty_text(parent_id) or (not is_nonempty_text(reviewer_id)):
+		raise ValueError('Observed A.A parent/reviewer IDs are required')
+	source_payload = report if isinstance(report, bytes) else inside(root_p, report).read_bytes()
+	data = parse_report_object(source_payload.decode('utf-8-sig'))
+	package_path = data.get('package')
+	if not is_nonempty_text(package_path):
+		raise ValueError('Review report must identify its immutable package')
+	reader = read_package if None is package_reader else package_reader
+	package = reader(root_p, package_path)
+	package_sha = digest(inside(root_p, package_path).read_bytes())
+	if data.get('package_sha256') != package_sha or package.get('parent_id') != parent_id:
+		raise ValueError('Reviewer package hash/parent differs')
+	if None is not expected_risk and expected_risk != package['risk']:
+		raise ValueError('Risk is fixed in the reviewed package; record-review cannot change it')
+	candidate = inside(root_p, package['response']['file']).read_text(encoding='utf-8')
+	checker = (lambda d, p, c: report_issues(d, p, candidate=c)) if None is issue_checker else issue_checker
+	issues = checker(data, package, candidate)
+	if issues:
+		raise ValueError('\n'.join(issues))
+	independent, proof_paths, native, raw_payload = authenticate_report(root_p, package, package_path, data, source_payload, parent_id=parent_id, reviewer_id=reviewer_id, native_evidence=native_evidence, allow_self=allow_self)
+	review_id = digest((package_sha + '\x00' + reviewer_id + '\x00' + digest(raw_payload)).encode())
+	folder = (root_p / 'ꘖ/KB/Evidence/Reviews' / package_sha) if None is reviews_dir_fn else reviews_dir_fn(root_p, package_sha)
+	prefix = (hashlib.sha256(reviewer_id.encode()).hexdigest()[:16] + '-' + review_id) if None is artifact_prefix_fn else artifact_prefix_fn(reviewer_id, review_id)
+	report_file = write_immutable_bytes(folder / f'{prefix}-report.json', json_data(data), diff_error=diff_error)
+	authored_file = write_immutable_bytes(folder / f'{prefix}-authored.txt', raw_payload, diff_error=diff_error)
+	report_rel = report_file.relative_to(root_p).as_posix()
+	authored_rel = authored_file.relative_to(root_p).as_posix()
+	proof_paths += [report_rel, authored_rel]
+	for finding in data['findings']:
+		if finding.get('status') in ('resolved', 'rejected'):
+			ev_items = finding['evidence'] if isinstance(finding['evidence'], list) else [finding['evidence']]
+			proof_paths += [inside(root_p, item).relative_to(root_p).as_posix() for item in ev_items]
+	return {'root': root_p, 'data': data, 'package': package, 'package_path': package_path, 'package_sha': package_sha, 'candidate': candidate, 'independent': independent, 'proof_paths': proof_paths, 'native': native, 'review_id': review_id, 'report_rel': report_rel, 'authored_rel': authored_rel}
+def quorum_satisfied(root, state, package, latest, eligible, *, allow_falsifier_or_cached=True) -> bool:
+	required = 1
+	if 'significant' == package['risk']:
+		required = 2
+		if allow_falsifier_or_cached:
+			has_escalation = significant_findings(root, state, package['subject_sha256']) or any(('approved' != item.get('result') for item in latest.values()))
+			merkle_delta = package.get('merkle_delta') or {}
+			all_merkle_cached = bool(merkle_delta.get('cached_claim_ids')) and (not bool(merkle_delta.get('unverified_claim_ids')))
+			if not has_escalation and ('falsifier' == package.get('review_mode') or any(('falsifier' == item.get('review_mode') for item in eligible)) or all_merkle_cached):
+				required = 1
+	return len({item['reviewer_id'] for item in eligible}) >= required
 def subject_digest(package):
 	if 'client_text' != package.get('kind'):
 		r = digest(json_data({k: package[k] for k in ('project_root', 'job_id', 'requests', 'response', 'kb_inputs', 'evidence_inputs')}))
 	else:
 		r = digest(json_data({k: package[k] for k in ('project_root', 'job_id', 'requests', 'target', 'kb_inputs', 'evidence_inputs')} | {'response_sha256': package['response']['sha256'], 'baseline_sha256': package['baseline']['sha256']}))
 	return r
-def _latest_for_subject(state, package):
-	latest = {}
-	for entry in state['reviews']:
-		if entry.get('schema_version') == REVIEW_SCHEMA and entry.get('subject_sha256') == package['subject_sha256']:
-			latest[entry['reviewer_id']] = entry
-	r = latest
-	return r
 def significant_findings(root, state, subject):
 	from .workflow import receipt_current
+	r = False
 	for entry in state['reviews']:
-		if entry.get('schema_version') != REVIEW_SCHEMA or entry.get('subject_sha256') != subject:
-			continue
-		if not receipt_current(root, {'inputs': entry.get('proof', {})}):
-			continue
-		report = json.loads(inside(root, entry['report']).read_text(encoding='utf-8'))
-		if any((f.get('severity') in ('significant', 'critical') for f in report.get('findings', []))):
-			return True
-	return False
-def _unhandled_verdicts(root, state, package, latest):
-	from .workflow import receipt_current
-	ordered = {entry.get('id'): index for index, entry in enumerate(state['reviews'])}
-	approved = [entry for entry in latest.values() if 'approved' == entry.get('result') and entry.get('independent') and _findings_closed(root, entry) and receipt_current(root, {'inputs': entry.get('proof', {})})]
-	for entry in latest.values():
-		if 'approved' == entry.get('result') and _findings_closed(root, entry):
-			continue
-		if not any((ordered[followup['id']] > ordered[entry['id']] and entry['id'] in followup.get('addresses_reviews', []) for followup in approved)):
-			return True
-	return False
+		if REVIEW_SCHEMA == entry.get('schema_version') and entry.get('subject_sha256') == subject and receipt_current(root, {'inputs': entry.get('proof', {})}):
+			report = json.loads(inside(root, entry['report']).read_text(encoding='utf-8'))
+			if any((f.get('severity') in ('significant', 'critical') for f in report.get('findings', []))):
+				r = True
+				break
+	return r
 def read_package(root, package, *, state=None, require_current=True):
-	from .workflow import load, hashes, kb_paths, evidence_paths
 	from .claims import all_claims, claim_digest
-	root = Path(root).resolve()
-	path = inside(root, package)
-	payload = path.read_bytes()
-	data = json.loads(payload.decode('utf-8'))
-	if isinstance(data, dict) and 'client_text' == data.get('kind'):
+	from .workflow import evidence_paths, hashes, kb_paths, load
+	_, peek = read_addressed_json(inside(Path(root).resolve(), package), suffix='-inputs.json', error_msg='Immutable answer-bound review package schema 2 is required')
+	if 'client_text' == peek.get('kind'):
 		from .text_review import read_package as read_text_package
 		r = read_text_package(root, package, require_current=require_current)
 	else:
-		if not isinstance(data, dict) or data.get('schema_version') != REVIEW_SCHEMA or path.name != digest(payload) + '-inputs.json':
-			raise ValueError('Immutable answer-bound review package schema 2 is required')
-		state = state or load(root)
-		if data.get('project_root') != str(root) or data.get('job_id') != state['job_id']:
+		root_p, _, data, cand_bytes = read_package_envelope(root, package, error_msg='Immutable answer-bound review package schema 2 is required')
+		cur_state = state or load(root_p)
+		if data.get('job_id') != cur_state['job_id']:
 			raise ValueError('Review package belongs to another project')
-		if data.get('subject_sha256') != subject_digest(data):
-			raise ValueError('Review subject digest differs from its exact answer, requests or evidence')
-		candidate = inside(root, data['response']['file'])
-		if not candidate.is_file() or digest(candidate.read_bytes()) != data['response']['sha256'] or candidate.stat().st_size != data['response']['bytes']:
-			raise ValueError('Reviewed candidate response bytes differ or are missing')
 		if require_current:
-			if data.get('kb_inputs') != hashes(root, kb_paths(root)) or data.get('evidence_inputs') != hashes(root, evidence_paths(root)):
+			if data.get('kb_inputs') != hashes(root_p, kb_paths(root_p)) or data.get('evidence_inputs') != hashes(root_p, evidence_paths(root_p)):
 				raise ValueError('Review package does not match present KB and primary evidence')
-			if data.get('requests') != request_snapshot(state):
+			if data.get('requests') != request_snapshot(cur_state):
 				raise ValueError('Review package does not cover the exact current requests')
-			value = _analysis(root)
+			value = _analysis(root_p)
 			index = {c['id']: c for c in all_claims(value)}
-			is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
-			if any(((c['claim_id'] not in index and not is_finalized) or (c['claim_id'] in index and c['claim_sha256'] != claim_digest(index[c['claim_id']])) for c in data['claims'])):
+			is_finalized = 'complete' == cur_state.get('stages', {}).get('finalize', {}).get('status')
+			if any(((c['claim_id'] not in index and (not is_finalized)) or (c['claim_id'] in index and c['claim_sha256'] != claim_digest(index[c['claim_id']])) for c in data['claims'])):
 				raise ValueError('Reviewed response claim version changed')
-			classification(root, state, {'risk': data['risk'], 'basis': data['risk_basis'], 'request_scope': data['request_scope'], 'claim_ids': [c['claim_id'] for c in data['claims']], 'claims': data['claims'], 'task_flags': data['task_flags']}, candidate.read_bytes().decode('utf-8'), value, exclude_package=package)
-			if 'routine' == data['risk'] and significant_findings(root, state, data['subject_sha256']):
+			classification(root_p, cur_state, {'risk': data['risk'], 'basis': data['risk_basis'], 'request_scope': data['request_scope'], 'claim_ids': [c['claim_id'] for c in data['claims']], 'claims': data['claims'], 'task_flags': data['task_flags']}, cand_bytes.decode('utf-8'), value, exclude_package=package)
+			if 'routine' == data['risk'] and significant_findings(root_p, cur_state, data['subject_sha256']):
 				raise ValueError('A significant/critical finding requires a significant package and two independent A.A')
 		r = data
 	return r
@@ -435,26 +509,11 @@ def input_receipt(root, package):
 		contract = report_contract()
 	r = {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package, 'package_sha256': file_hash(inside(root, package)), 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks', 'auto_tier0_evidence', 'merkle_delta', 'blind_verification_predicates', 'review_mode') if k in data}}
 	return r
-def _report_object(text):
-	value = text.strip()
-	if value.startswith('```'):
-		match = re.fullmatch('```(?:json)?\\s*\\n(.*?)\\n```', value, re.S)
-		if not match:
-			raise ValueError('Reviewer final output must be one JSON report, optionally one fenced JSON block')
-		value = match.group(1)
-	try:
-		result = json.loads(value)
-	except ValueError as exc:
-		raise ValueError('Reviewer authored final output is not a JSON report') from exc
-	if not isinstance(result, dict):
-		raise ValueError('Reviewer report must be a JSON object')
-	r = result
-	return r
-def report_issues(data, package):
+def report_issues(data, package, *, candidate=None):
 	from .claims import source_numeric_tokens, standalone_numbers
 	from .source_grounding import classify_provenance_tier, norm_quote_text, quote_segments_present
 	issues = []
-	if data.get('schema_version') != REVIEW_SCHEMA:
+	if REVIEW_SCHEMA != data.get('schema_version'):
 		issues.append('Review report schema_version 2 is required')
 	if data.get('result') not in ('approved', 'needs_changes'):
 		issues.append('Review result must be approved or needs_changes')
@@ -534,6 +593,8 @@ def report_issues(data, package):
 					excerpt = item.get('response_qualification')
 					if not _text(excerpt):
 						issues.append(f'{ident}: qualified claim needs an exact response_qualification excerpt')
+					elif None is not candidate and excerpt not in candidate:
+						issues.append('Claim qualification must occur verbatim in the exact response')
 				if ident in package_claims and 'supported' == item.get('outcome') and not item.get('preflight_numeric_grounded'):
 					pkg_claim = package_claims[ident]
 					claim_nums = standalone_numbers(str(pkg_claim.get('essence', '')) + '\n' + str(pkg_claim.get('response_excerpt', '')))
@@ -572,8 +633,7 @@ def report_issues(data, package):
 				issues.append('Finding claim_ids must refer to response manifest claims')
 			if finding.get('status') in ('resolved', 'rejected') and (not _text(finding.get('disposition')) or not finding.get('evidence')):
 				issues.append('Closed finding needs an authored disposition and evidence')
-	r = issues
-	return r
+	return issues
 def authenticate_report(root, package, package_path, data, source_payload, *, parent_id, reviewer_id, native_evidence=None, allow_self=True):
 	independent = reviewer_id != parent_id
 	proof_paths = [package_path, package['response']['file']]
@@ -597,7 +657,7 @@ def authenticate_report(root, package, package_path, data, source_payload, *, pa
 		final_response = observed.get('final_response')
 		if not _text(final_response) or digest(final_response.encode('utf-8')) != observed.get('final_response_sha256'):
 			raise ValueError('Native adapter must provide the actual authored final response and verified hash')
-		if _report_object(final_response) != data:
+		if parse_report_object(final_response) != data:
 			raise ValueError('Submitted report differs from the actual native reviewer verdict')
 		raw_payload = final_response.encode('utf-8')
 		proof_paths.append(native_evidence)
@@ -607,77 +667,20 @@ def authenticate_report(root, package, package_path, data, source_payload, *, pa
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=None, risk=None):
-	from .workflow import hashes, update, now, file_hash
-	root = Path(root).resolve()
-	if 'AA' != role or not _text(parent_id) or (not _text(reviewer_id)):
+	from .workflow import hashes, load, now, update
+	if 'AA' != role:
 		raise ValueError('Observed A.A parent/reviewer IDs are required')
-	source_payload = report if isinstance(report, bytes) else inside(root, report).read_bytes()
-	data = _report_object(source_payload.decode('utf-8-sig'))
-	package_path = data.get('package')
-	if not _text(package_path):
-		raise ValueError('Review report must identify its immutable package')
-	package = read_package(root, package_path)
-	package_sha = file_hash(inside(root, package_path))
-	if data.get('package_sha256') != package_sha or package.get('parent_id') != parent_id:
-		raise ValueError('Reviewer package hash/parent differs')
-	if None is not risk and risk != package['risk']:
-		raise ValueError('Risk is fixed in the reviewed package; record-review cannot change it')
-	issues = report_issues(data, package)
-	candidate = inside(root, package['response']['file']).read_text(encoding='utf-8')
-	for item in data.get('claim_reviews', []):
-		if isinstance(item, dict) and 'qualified' == item.get('outcome') and (item.get('response_qualification', '') not in candidate):
-			issues.append('Claim qualification must occur verbatim in the exact response')
-	if issues:
-		raise ValueError('\n'.join(issues))
-	independent, proof_paths, native, raw_payload = authenticate_report(root, package, package_path, data, source_payload, parent_id=parent_id, reviewer_id=reviewer_id, native_evidence=native_evidence)
-	report_payload = json_data(data)
-	review_id = digest((package_sha + '\x00' + reviewer_id + '\x00' + digest(raw_payload)).encode())
-	folder = root / 'ꘖ/KB/Evidence/Reviews' / package_sha
-	safe_reviewer = hashlib.sha256(reviewer_id.encode()).hexdigest()[:16]
-	target = _immutable(folder / f'{safe_reviewer}-{review_id}-report.json', report_payload)
-	original = _immutable(folder / f'{safe_reviewer}-{review_id}-authored.txt', raw_payload)
-	report_path = target.relative_to(root).as_posix()
-	proof_paths += [report_path, original.relative_to(root).as_posix()]
-	for finding in data['findings']:
-		if finding.get('status') in ('resolved', 'rejected'):
-			evidence = finding['evidence'] if isinstance(finding['evidence'], list) else [finding['evidence']]
-			proof_paths += [inside(root, e).relative_to(root).as_posix() for e in evidence]
-	addresses_reviews = data.get('addresses_reviews', [])
-	if not isinstance(addresses_reviews, list):
-		raise ValueError('addresses_reviews must be an authored list of previous verdict resolutions')
-	addressed_ids = []
-	if addresses_reviews:
-		from .workflow import load
-		previous = {r.get('id'): r for r in load(root)['reviews']}
-		if not independent or 'approved' != data['result']:
-			raise ValueError('Only a new independent authored approval can address another reviewer verdict')
-		for resolution in addresses_reviews:
-			if not isinstance(resolution, dict) or not _text(resolution.get('review_id')):
-				raise ValueError('Each addressed verdict requires its review_id')
-			prior = previous.get(resolution['review_id'])
-			if not prior or prior.get('subject_sha256') != package['subject_sha256'] or (not _text(resolution.get('basis'))) or (not isinstance(resolution.get('evidence'), list)) or (not resolution['evidence']):
-				raise ValueError('Authored review resolution needs same-subject prior verdict, basis and saved evidence')
-			proof_paths += [inside(root, e).relative_to(root).as_posix() for e in resolution['evidence']]
-			addressed_ids.append(resolution['review_id'])
-		if len(set(addressed_ids)) != len(addressed_ids):
-			raise ValueError('Duplicate addressed review verdict')
+	prepared = prepare_verdict_record(root, report, parent_id=parent_id, reviewer_id=reviewer_id, native_evidence=native_evidence, expected_risk=risk)
+	root_p, data, package, review_id = (prepared['root'], prepared['data'], prepared['package'], prepared['review_id'])
+	existing = load(root_p)['reviews'] if isinstance(data.get('addresses_reviews'), list) and data.get('addresses_reviews') else []
+	addressed_ids, extra_proofs = resolve_addressed_reviews(root_p, data, package, prepared['independent'], existing)
+	proof_paths = prepared['proof_paths'] + extra_proofs
 	report_mode = 'falsifier' if ('falsifier' == data.get('review_mode') or ('disproved_claims' in data and 'claim_reviews' not in data)) else package.get('review_mode', 'standard')
 	def change(state):
-		read_package(root, package_path, state=state)
-		if any((r.get('id') == review_id for r in state['reviews'])):
-			return
-		state['reviews'].append({'schema_version': REVIEW_SCHEMA, 'id': review_id, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'role': role, 'risk': package['risk'], 'review_mode': report_mode, 'package': package_path, 'package_sha256': package_sha, 'result': data['result'], 'subject_sha256': package['subject_sha256'], 'report': report_path, 'authored_response': original.relative_to(root).as_posix(), 'proof': hashes(root, proof_paths), 'independent': independent, 'kb_inputs': package['kb_inputs'], 'evidence_inputs': package['evidence_inputs'], 'response_sha256': package['response']['sha256'], 'requests': package['requests'], 'native_evidence': native_evidence, 'dispositions': [], 'addresses_reviews': addressed_ids, 'model_verification': native.get('model_verification', 'unverified'), 'time': now()})
-	return update(root, {'action': 'review', 'reviewer_id': reviewer_id, 'result': data['result'], 'review_id': review_id}, change)
-def _findings_closed(root, entry):
-	from .workflow import receipt_current
-	data = json.loads(inside(root, entry['report']).read_text(encoding='utf-8'))
-	statuses = {f['id']: f.get('status') for f in data['findings']}
-	for disposition in entry.get('dispositions', []):
-		if not receipt_current(root, {'inputs': disposition['proof']}):
-			return False
-		saved = json.loads(inside(root, disposition['file']).read_text(encoding='utf-8'))
-		statuses[saved['finding_id']] = saved['status']
-	return all((status in ('resolved', 'rejected') for status in statuses.values()))
+		read_package(root_p, prepared['package_path'], state=state)
+		if not any((item.get('id') == review_id for item in state['reviews'])):
+			state['reviews'].append({'schema_version': REVIEW_SCHEMA, 'id': review_id, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'role': role, 'risk': package['risk'], 'review_mode': report_mode, 'package': prepared['package_path'], 'package_sha256': prepared['package_sha'], 'result': data['result'], 'subject_sha256': package['subject_sha256'], 'report': prepared['report_rel'], 'authored_response': prepared['authored_rel'], 'proof': hashes(root_p, proof_paths), 'independent': prepared['independent'], 'kb_inputs': package['kb_inputs'], 'evidence_inputs': package['evidence_inputs'], 'response_sha256': package['response']['sha256'], 'requests': package['requests'], 'native_evidence': native_evidence, 'dispositions': [], 'addresses_reviews': addressed_ids, 'model_verification': prepared['native'].get('model_verification', 'unverified'), 'time': now()})
+	return update(root_p, {'action': 'review', 'reviewer_id': reviewer_id, 'result': data['result'], 'review_id': review_id}, change)
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
@@ -690,7 +693,7 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 	adapter().require_current_binding(root, parent_id)
 	state = load(root)
 	entry = next((r for r in state['reviews'] if r.get('id') == review_id), None)
-	if not entry or entry.get('schema_version') != REVIEW_SCHEMA or entry['parent_id'] != parent_id:
+	if not entry or REVIEW_SCHEMA != entry.get('schema_version') or entry['parent_id'] != parent_id:
 		raise ValueError('Current parent and immutable review ID required')
 	data = json.loads(inside(root, entry['report']).read_text(encoding='utf-8'))
 	if finding_id not in {f['id'] for f in data['findings']}:
@@ -713,10 +716,9 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
 def authorize(root, state, *, response=None, package_path=None, request_ids=None):
-	from .workflow import receipt_current, questions_current, check_project
-	from .metrics import verify_native_proof
+	from .workflow import check_project, questions_current, receipt_current
 	value = _analysis(root)
-	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
+	is_finalized = 'complete' == state.get('stages', {}).get('finalize', {}).get('status')
 	if not is_finalized:
 		if not questions_current(root, state) or not check_project(root)['valid']:
 			raise ValueError('Complete current research questions/gaps and resolve KB/evidence diagnostics before publication')
@@ -727,14 +729,14 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 			q_time = q.get('time') or q.get('created_at')
 			if request_ids and q.get('request_id') in request_ids:
 				relevant_qs[qid] = q
-			elif finalize_time and q_time and q_time > finalize_time:
+			elif finalize_time and q_time and (q_time > finalize_time):
 				relevant_qs[qid] = q
-		if relevant_qs and not questions_current(root, {**state, 'questions': relevant_qs}):
+		if relevant_qs and (not questions_current(root, {**state, 'questions': relevant_qs})):
 			raise ValueError('Complete current research questions/gaps before publication')
 	response_sha = digest(response.encode('utf-8')) if None is not response else None
 	groups, diagnostics = ({}, [])
 	for entry in state['reviews']:
-		if entry.get('schema_version') != REVIEW_SCHEMA:
+		if REVIEW_SCHEMA != entry.get('schema_version'):
 			continue
 		if package_path and entry.get('package') != package_path:
 			continue
@@ -744,56 +746,49 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 			package = read_package(root, entry['package'], state=state)
 			if not receipt_current(root, {'inputs': entry['proof']}):
 				raise ValueError('Review proof changed')
-			if 'approved' != entry['result'] or not _findings_closed(root, entry):
+			if 'approved' != entry['result'] or not findings_closed(root, entry):
 				raise ValueError('Reviewer needs changes or has open findings; parent disposition cannot replace an approval')
 			if entry.get('independent'):
-				native = json.loads(inside(root, entry['native_evidence']).read_text(encoding='utf-8'))
-				observed = verify_native_proof(root, native, package=Path(entry['package']).name)
-				original = inside(root, entry['authored_response']).read_bytes()
-				if digest(original) != observed.get('final_response_sha256'):
-					raise ValueError('Authored report differs from native final response')
+				verify_entry_native_proof(root, entry, error_msg='Authored report differs from native final response')
 			elif 'routine' != package['risk']:
 				raise ValueError('Significant risk cannot use self-review')
 			groups.setdefault(entry['package'], (package, []))[1].append(entry)
 		except (ValueError, OSError, KeyError, TypeError) as exc:
 			diagnostics.append(str(exc))
+	r = None
 	for path, (package, reviews) in reversed(list(groups.items())):
-		eligible = [r for r in reviews if 'routine' == package['risk'] or r.get('independent')]
-		latest = _latest_for_subject(state, package)
-		if _unhandled_verdicts(root, state, package, latest):
-			continue
-		eligible = [r for r in eligible if latest[r['reviewer_id']]['id'] == r['id']]
-		has_escalation = significant_findings(root, state, package['subject_sha256']) or any(('approved' != r.get('result') for r in latest.values()))
-		merkle_delta = package.get('merkle_delta') or {}
-		all_merkle_cached = bool(merkle_delta.get('cached_claim_ids')) and not bool(merkle_delta.get('unverified_claim_ids'))
-		is_falsifier_or_cached = ('falsifier' == package.get('review_mode')) or any(('falsifier' == r.get('review_mode') for r in eligible)) or all_merkle_cached
-		required = 1 if ('routine' == package['risk'] or (is_falsifier_or_cached and not has_escalation)) else 2
-		if len({r['reviewer_id'] for r in eligible}) >= required:
-			update_verified_claims_cache(root, package, value)
-			return {'package': path, 'package_sha256': digest(inside(root, path).read_bytes()), 'response_sha256': package['response']['sha256'], 'risk': package['risk'], 'review_ids': [r['id'] for r in eligible]}
-	detail = '; '.join(dict.fromkeys(diagnostics))
-	raise ValueError('Need current answer-bound approved A.A review; significant risk requires two independent reviewers' + (': ' + detail if detail else ''))
+		eligible = [item for item in reviews if 'routine' == package['risk'] or item.get('independent')]
+		latest = latest_for_subject(state, package)
+		if not has_unhandled_verdicts(root, state, package, latest):
+			eligible = [item for item in eligible if latest[item['reviewer_id']]['id'] == item['id']]
+			if quorum_satisfied(root, state, package, latest, eligible):
+				update_verified_claims_cache(root, package, value)
+				r = {'package': path, 'package_sha256': digest(inside(root, path).read_bytes()), 'response_sha256': package['response']['sha256'], 'risk': package['risk'], 'review_ids': [item['id'] for item in eligible]}
+				break
+	if None is r:
+		detail = '; '.join(dict.fromkeys(diagnostics))
+		raise ValueError('Need current answer-bound approved A.A review; significant risk requires two independent reviewers' + (': ' + detail if detail else ''))
+	return r
 def approval_current(root, state, approval):
 	from .workflow import receipt_current
-	if not isinstance(approval, dict):
-		return False
-	try:
-		package = read_package(root, approval['package'], state=state)
-		if digest(inside(root, approval['package']).read_bytes()) != approval['package_sha256']:
-			return False
-		approved = {r['id']: r for r in state['reviews'] if r.get('schema_version') == REVIEW_SCHEMA}
-		selected = [approved[ident] for ident in approval['review_ids']]
-		latest = _latest_for_subject(state, package)
-		if _unhandled_verdicts(root, state, package, latest):
-			return False
-		if any(('approved' != r.get('result') or latest[r['reviewer_id']].get('id') != r['id'] or (not _findings_closed(root, r)) or (not receipt_current(root, {'inputs': r['proof']})) for r in selected)):
-			return False
-		eligible = [r for r in selected if 'routine' == package['risk'] or r.get('independent')]
-		has_escalation = significant_findings(root, state, package['subject_sha256']) or any(('approved' != r.get('result') for r in latest.values()))
-		merkle_delta = package.get('merkle_delta') or {}
-		all_merkle_cached = bool(merkle_delta.get('cached_claim_ids')) and not bool(merkle_delta.get('unverified_claim_ids'))
-		is_falsifier_or_cached = ('falsifier' == package.get('review_mode')) or any(('falsifier' == r.get('review_mode') for r in eligible)) or all_merkle_cached
-		required = 1 if ('routine' == package['risk'] or (is_falsifier_or_cached and not has_escalation)) else 2
-		return len({r['reviewer_id'] for r in eligible}) >= required
-	except (ValueError, OSError, KeyError, TypeError):
-		return False
+	r = False
+	if isinstance(approval, dict):
+		try:
+			package = read_package(root, approval['package'], state=state)
+			if digest(inside(root, approval['package']).read_bytes()) == approval['package_sha256']:
+				approved = {item['id']: item for item in state['reviews'] if REVIEW_SCHEMA == item.get('schema_version')}
+				selected = [approved[ident] for ident in approval['review_ids']]
+				latest = latest_for_subject(state, package)
+				if not has_unhandled_verdicts(root, state, package, latest) and (not any(('approved' != item.get('result') or latest[item['reviewer_id']].get('id') != item['id'] or (not findings_closed(root, item)) or (not receipt_current(root, {'inputs': item['proof']})) for item in selected))):
+					eligible = [item for item in selected if 'routine' == package['risk'] or item.get('independent')]
+					r = quorum_satisfied(root, state, package, latest, eligible)
+		except (ValueError, OSError, KeyError, TypeError):
+			r = False
+	return r
+def verify_entry_native_proof(root, entry, *, error_msg='Saved report differs from the actual native authored final response'):
+	from .metrics import verify_native_proof
+	native = json.loads(inside(root, entry['native_evidence']).read_text(encoding='utf-8'))
+	observed = verify_native_proof(root, native, package=Path(entry['package']).name)
+	if digest(inside(root, entry['authored_response']).read_bytes()) != observed.get('final_response_sha256'):
+		raise ValueError(error_msg)
+	return observed

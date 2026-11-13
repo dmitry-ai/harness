@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
@@ -145,16 +148,11 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 def _save_executor_metadata(root, result):
 	import hashlib
 	from .research import json_data
-	from .storage import create_bytes, locked, replace_bytes
+	from .storage import locked, replace_bytes, write_immutable_bytes
 	root = Path(root).resolve()
 	payload = json_data(result)
 	sha = hashlib.sha256(payload).hexdigest()
-	target = root / 'ꘖ/KB/Evidence/Executors' / f"{result['conversation_id']}-{sha}.json"
-	target.parent.mkdir(parents=True, exist_ok=True)
-	if target.exists() and target.read_bytes() != payload:
-		raise ValueError('Immutable executor metadata changed')
-	if not target.exists():
-		create_bytes(target, payload)
+	target = write_immutable_bytes(root / 'ꘖ/KB/Evidence/Executors' / f"{result['conversation_id']}-{sha}.json", payload, diff_error='Immutable executor metadata changed')
 	receipt = {'proof': target.relative_to(root).as_posix(), 'sha256': sha, 'conversation_id': result['conversation_id'], 'role': result['role'], 'surface': result['surface'], 'verification': result['verification']}
 	index_file = root / 'ꘖ/data/executors.json'
 	with locked(index_file.with_suffix('.lock')):

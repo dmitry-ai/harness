@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -80,7 +83,7 @@ from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_
 from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 from .runtime import PRIMARY, platform_name, settings
-from .storage import create_bytes, data_dir_for, locked, replace_bytes
+from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
 COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch', 'reconcile-unprepared-delivery')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
@@ -866,12 +869,7 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 	return r
 def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
 	payload = response.encode('utf-8')
-	evidence = _folder(root) / 'conflicts' / (value['key'] + '-' + _hash(payload) + '.txt')
-	evidence.parent.mkdir(parents=True, exist_ok=True)
-	if evidence.exists() and evidence.read_bytes() != payload:
-		raise ValueError('Immutable native conflict evidence changed')
-	if not evidence.exists():
-		create_bytes(evidence, payload)
+	evidence = write_immutable_bytes(_folder(root) / 'conflicts' / (value['key'] + '-' + _hash(payload) + '.txt'), payload, diff_error='Immutable native conflict evidence changed')
 	if _recorded(value):
 		value['journal_record'] = _recorded(value)
 	prior_verified = value.get('delivery') if (value.get('delivery') or {}).get('verified') else value.get('prior_verified_delivery')

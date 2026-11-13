@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
@@ -9,7 +12,7 @@ import hashlib
 import json
 import re
 from .diagnostics import problem, require_valid
-from .storage import create_bytes, data_dir_for, locked, replace_bytes
+from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
 SECTIONS = ('identity', 'concerns', 'misconceptions', 'causes', 'methods')
 TITLES = ('Client Identification', 'Client Concerns', 'Possible Misconceptions', 'Causes of the Problem in This Client System', 'Solution Methods')
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -142,10 +145,7 @@ def save_analysis(root, candidate, expected_sha256=None):
 		if None is previous and None is not expected_sha256:
 			raise ValueError('Expected existing analysis is missing; preserve candidate and inspect state')
 		if None is not previous and previous != payload:
-			archive = root / 'ꘖ/data/analysis-history' / (digest(previous) + '.json')
-			archive.parent.mkdir(parents=True, exist_ok=True)
-			if not archive.exists():
-				create_bytes(archive, previous)
+			write_immutable_bytes(root / 'ꘖ/data/analysis-history' / (digest(previous) + '.json'), previous)
 		if (target.read_bytes() if target.exists() else None) != previous:
 			raise ValueError('Analysis changed during commit; external edit preserved')
 		if None is previous:
@@ -279,23 +279,19 @@ def publish_owned(target, content, *, source=None, history=True):
 		previous = target.read_bytes() if target.exists() else None
 		expected = receipt.get(key, {}).get('sha256')
 		if None is not previous and previous != payload and (digest(previous) != expected):
-			candidate = state_dir / 'render-candidates' / (digest(key.encode())[:16] + '-' + digest(payload)[:16] + target.suffix)
-			candidate.parent.mkdir(parents=True, exist_ok=True)
-			if not candidate.exists():
-				create_bytes(candidate, payload)
-			return {'status': 'conflict', 'target': str(target), 'candidate': str(candidate), 'detail': 'Existing file is untracked or changed; preserved for reconciliation'}
-		if history and None is not previous and (previous != payload):
-			archive = state_dir / 'render-history' / digest(key.encode())[:16] / (digest(previous) + target.suffix)
-			archive.parent.mkdir(parents=True, exist_ok=True)
-			if not archive.exists():
-				create_bytes(archive, previous)
-		target.parent.mkdir(parents=True, exist_ok=True)
-		if (target.read_bytes() if target.exists() else None) != previous:
-			raise ValueError('Target changed during publication; preserve the external edit and retry reconciliation')
-		if previous != payload:
-			replace_bytes(target, payload)
-		if target.read_bytes() != payload:
-			raise OSError('Published file failed read-back verification')
-		receipt[key] = {**receipt.get(key, {}), 'sha256': digest(payload), 'source': source if isinstance(source, dict) else str(source) if source else None}
-		replace_bytes(state_file, (json.dumps(receipt, ensure_ascii=False, indent=2) + '\n').encode())
-	return {'status': 'unchanged' if previous == payload else 'published', 'target': str(target), 'sha256': digest(payload)}
+			candidate = write_immutable_bytes(state_dir / 'render-candidates' / (digest(key.encode())[:16] + '-' + digest(payload)[:16] + target.suffix), payload)
+			r = {'status': 'conflict', 'target': str(target), 'candidate': str(candidate), 'detail': 'Existing file is untracked or changed; preserved for reconciliation'}
+		else:
+			if history and None is not previous and (previous != payload):
+				write_immutable_bytes(state_dir / 'render-history' / digest(key.encode())[:16] / (digest(previous) + target.suffix), previous)
+			target.parent.mkdir(parents=True, exist_ok=True)
+			if (target.read_bytes() if target.exists() else None) != previous:
+				raise ValueError('Target changed during publication; preserve the external edit and retry reconciliation')
+			if previous != payload:
+				replace_bytes(target, payload)
+			if target.read_bytes() != payload:
+				raise OSError('Published file failed read-back verification')
+			receipt[key] = {**receipt.get(key, {}), 'sha256': digest(payload), 'source': source if isinstance(source, dict) else str(source) if source else None}
+			replace_bytes(state_file, (json.dumps(receipt, ensure_ascii=False, indent=2) + '\n').encode())
+			r = {'status': 'unchanged' if previous == payload else 'published', 'target': str(target), 'sha256': digest(payload)}
+	return r
