@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
+# https://github.com/dmitry-ai/harness/issues/74
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
@@ -16,6 +19,84 @@ from .storage import create_bytes, replace_bytes
 from .links import markdown_link
 from .upwork_data import canonical_job_url, classify_attachment, detect_client_videos, extract_attachment_markdown, extract_loom_video, format_kb_project_md, markdown_fence, structure_job_description
 from .analysis import SECTIONS, TITLES, validate_analysis, render_analysis, publish_owned
+class AttachmentInventory:
+	def __init__(self, project_root: Path | str):
+		self.root = Path(project_root).resolve()
+		self.kb_dir = self.root / '\ua616' / 'KB'
+		self.att_root = self.kb_dir / 'Evidence' / 'Attachments'
+		self.source_dir = self.root / 'source'
+	def _evidence_entries(self, asset_evidence: list[dict] | None=None) -> list[tuple[Path, str | None]]:
+		r: list[tuple[Path, str | None]] = []
+		for item in asset_evidence or []:
+			rel = item.get('file') if isinstance(item, dict) else None
+			if rel and (self.kb_dir / rel).is_file():
+				r.append((self.kb_dir / rel, item.get('sha256')))
+		if self.att_root.is_dir():
+			for sha_dir in sorted(self.att_root.iterdir()):
+				if sha_dir.is_dir() and re.fullmatch('[0-9a-f]{64}', sha_dir.name):
+					for f in sorted(sha_dir.iterdir()):
+						if f.is_file():
+							r.append((f, sha_dir.name))
+		return r
+	def _register_bytes(self, filename: str, payload: bytes, expected_sha: str | None, seen_digests: set[str], assets: list[dict]) -> None:
+		from .upwork_extract import attachment_path
+		digest = hashlib.sha256(payload).hexdigest()
+		if expected_sha and digest != expected_sha:
+			raise ValueError(f'Attachment changed after capture: {filename}')
+		folder = self.att_root / digest
+		target = attachment_path(folder, filename)
+		folder.mkdir(parents=True, exist_ok=True)
+		if not target.exists():
+			create_bytes(target, payload)
+		self.source_dir.mkdir(parents=True, exist_ok=True)
+		src_target = attachment_path(self.source_dir, target.name)
+		if src_target.exists() and src_target.read_bytes() != payload:
+			stem, suf = (src_target.stem, src_target.suffix)
+			idx = 2
+			while True:
+				cand = self.source_dir / f'{stem} ({idx}){suf}'
+				if not cand.exists() or cand.read_bytes() == payload:
+					src_target = cand
+					break
+				idx += 1
+		if not src_target.exists():
+			create_bytes(src_target, payload)
+		if digest not in seen_digests:
+			seen_digests.add(digest)
+			assets.append({'file': target.relative_to(self.kb_dir).as_posix(), 'sha256': digest, 'filename': target.name, 'source_file': src_target.relative_to(self.root).as_posix()})
+	def _source_entries(self) -> list[Path]:
+		return [f for f in sorted(self.source_dir.iterdir()) if f.is_file()] if self.source_dir.is_dir() else []
+	def scan(self, asset_evidence: list[dict] | None=None) -> dict:
+		attachments: list[dict] = []
+		seen_sha: set[str] = set()
+		for target, hint_sha in self._evidence_entries(asset_evidence):
+			sha = hint_sha or hashlib.sha256(target.read_bytes()).hexdigest()
+			if sha not in seen_sha:
+				seen_sha.add(sha)
+				attachments.append({'filename': target.name, 'sha256': sha, 'evidence_path': target})
+		source_by_sha: dict[str, list[Path]] = {}
+		missing_evidence: list[tuple[Path, str]] = []
+		for f in self._source_entries():
+			sha = hashlib.sha256(f.read_bytes()).hexdigest()
+			source_by_sha.setdefault(sha, []).append(f)
+			if not (self.att_root / sha / f.name).is_file():
+				missing_evidence.append((f, sha))
+			if sha not in seen_sha:
+				seen_sha.add(sha)
+				attachments.append({'filename': f.name, 'sha256': sha, 'evidence_path': f})
+		return {'attachments': attachments, 'missing_evidence': missing_evidence, 'source_by_sha': source_by_sha}
+	def sync(self, saved_attachments: list[dict] | None=None, asset_evidence: list[dict] | None=None) -> list[dict]:
+		r: list[dict] = []
+		seen_digests: set[str] = set()
+		for item in saved_attachments or []:
+			src_path = Path(item['path'])
+			fname = item.get('filename') or item.get('name') or src_path.name
+			self._register_bytes(fname, src_path.read_bytes(), item.get('sha256'), seen_digests, r)
+		for target, expected_sha in self._evidence_entries(asset_evidence):
+			self._register_bytes(target.name, target.read_bytes(), expected_sha, seen_digests, r)
+		for f in self._source_entries():
+			self._register_bytes(f.name, f.read_bytes(), None, seen_digests, r)
+		return r
 def website_issues(value):
 	from urllib.parse import urlsplit
 	from .diagnostics import problem
@@ -106,61 +187,7 @@ def create_once(path: Path, content: str):
 				raise ValueError('\n'.join(issues))
 		create_bytes(path, content.encode('utf-8'))
 def sync_source_folder_attachments(project_root: Path, saved_attachments: list[dict] | None=None, asset_evidence: list[dict] | None=None) -> list[dict]:
-	from .upwork_extract import attachment_path
-	root = Path(project_root).resolve()
-	kb_dir = root / 'ꘖ' / 'KB'
-	att_root = kb_dir / 'Evidence' / 'Attachments'
-	source_dir = root / 'source'
-	assets: list[dict] = []
-	seen_digests: set[str] = set()
-	def register_bytes(filename: str, payload: bytes, expected_sha: str | None=None):
-		digest = hashlib.sha256(payload).hexdigest()
-		if expected_sha and digest != expected_sha:
-			raise ValueError(f'Attachment changed after capture: {filename}')
-		folder = att_root / digest
-		target = attachment_path(folder, filename)
-		folder.mkdir(parents=True, exist_ok=True)
-		if not target.exists():
-			create_bytes(target, payload)
-		source_dir.mkdir(parents=True, exist_ok=True)
-		src_target = attachment_path(source_dir, target.name)
-		if src_target.exists() and src_target.read_bytes() != payload:
-			stem, suf = (src_target.stem, src_target.suffix)
-			idx = 2
-			while True:
-				cand = source_dir / f'{stem} ({idx}){suf}'
-				if not cand.exists() or cand.read_bytes() == payload:
-					src_target = cand
-					break
-				idx += 1
-		if not src_target.exists():
-			create_bytes(src_target, payload)
-		if digest not in seen_digests:
-			seen_digests.add(digest)
-			assets.append({'file': target.relative_to(kb_dir).as_posix(), 'sha256': digest, 'filename': target.name, 'source_file': src_target.relative_to(root).as_posix()})
-	for item in saved_attachments or []:
-		src_path = Path(item['path'])
-		fname = item.get('filename') or item.get('name') or src_path.name
-		register_bytes(fname, src_path.read_bytes(), item.get('sha256'))
-	for item in asset_evidence or []:
-		rel_file = item.get('file')
-		if not rel_file:
-			continue
-		target = kb_dir / rel_file
-		if target.is_file():
-			register_bytes(target.name, target.read_bytes(), item.get('sha256'))
-	if att_root.is_dir():
-		for sha_dir in sorted(att_root.iterdir()):
-			if sha_dir.is_dir() and re.fullmatch('[0-9a-f]{64}', sha_dir.name):
-				for f in sorted(sha_dir.iterdir()):
-					if f.is_file():
-						register_bytes(f.name, f.read_bytes(), sha_dir.name)
-	if source_dir.is_dir():
-		for f in sorted(source_dir.iterdir()):
-			if f.is_file():
-				register_bytes(f.name, f.read_bytes())
-	r = assets
-	return r
+	return AttachmentInventory(project_root).sync(saved_attachments, asset_evidence)
 def _load_media_descriptions(project_root: Path, overrides: dict | None=None) -> dict[str, str]:
 	root = Path(project_root).resolve()
 	media_dir = root / 'ꘖ' / 'data' / 'media'

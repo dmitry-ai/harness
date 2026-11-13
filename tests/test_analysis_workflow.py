@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
+# https://github.com/dmitry-ai/harness/issues/74
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
@@ -531,6 +534,26 @@ class NativeReviewTests(ProjectCase):
 		with patch('agent_tools.research.MAX_BYTES', 64):
 			with self.assertRaisesRegex(ValueError, 'Extracted JSON exceeds 16 MiB'):
 				extract_observation(self.project, obs_rel, 'html')
+	def test_workflow_classes_and_shared_attachment_inventory(self):
+		from agent_tools.knowledge import AttachmentInventory
+		engine = flow.WorkflowStateEngine(self.project)
+		registry = flow.ResearchQuestionRegistry(self.project)
+		auditor = flow.ProjectHealthAuditor(self.project)
+		engine.resume('class-check', 'Resume via engine.')
+		req = self.experiment_requirement('R-CLASS')
+		registry.add('Q-CLASS', 'Check class registry', 'Affects workflow', 'Saved class output', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/class-out.json'], requirements=[req])
+		registry.claim('Q-CLASS', 'worker-1')
+		self.put_project('ꘖ/KB/Evidence/class-out.json', '{"ok":true}')
+		registry.finish('Q-CLASS', 'worker-1', ['ꘖ/KB/Evidence/class-out.json'], gap='Source offline', results=[self.experiment_gap(req)])
+		self.assertTrue(registry.current(engine.load()))
+		unsynced = self.put_project('source/brief.txt', 'Client brief payload\n')
+		scan_before = AttachmentInventory(self.project).scan()
+		self.assertEqual(1, len(scan_before['missing_evidence']))
+		self.assertTrue(any(('attachment.evidence_missing' == item['code'] for item in auditor.attachment_issues())))
+		synced = AttachmentInventory(self.project).sync()
+		self.assertEqual(1, len(synced))
+		self.assertIn(synced[0]['sha256'], AttachmentInventory(self.project).scan()['source_by_sha'])
+		self.assertTrue(unsynced.is_file())
 class MetricsTests(TemporaryCase):
 	def test_unknown_tokens_stay_unknown_and_duplicate_exports_are_not_summed(self):
 		path = self.put('c-id/.system_generated/logs/transcript_full.jsonl', json.dumps({'type': 'PLANNER_RESPONSE', 'step_index': 1, 'input_tokens': 10, 'output_tokens': 4}) + '\n')
