@@ -1,4 +1,7 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
 # https://github.com/dmitry-ai/harness/issues/69
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -25,6 +28,7 @@ from datetime import datetime, timezone
 import re
 import sqlite3
 import sys
+from .configuration import DISCOVERY_KINDS, configure_codex_project, is_linked_path, load_discovery_manifest, project_discovery_entries
 from .context import generate as generate_context
 from .knowledge import create_once, json_bytes, populate_agent_kb, render_analysis, validate_analysis
 from .storage import create_bytes, locked, replace_bytes
@@ -47,33 +51,23 @@ def validate_label(value):
 def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_url=None, domain_or_topic=None, *, platform=None):
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
 	agents = root / '.agents'
-	if agents.is_symlink() or agents.is_junction():
+	if is_linked_path(agents):
 		raise ValueError('Configuration must be project-local; existing linked directory is preserved')
 	agents.mkdir(parents=True, exist_ok=True)
 	rules = agents / 'rules'
-	if rules.is_symlink() or rules.is_junction():
+	if is_linked_path(rules):
 		raise ValueError('Local rules directory is linked; preserved without conversion')
 	rules.mkdir(exist_ok=True)
-	for kind in ('rules', 'skills', 'agents'):
-		shared = primary / kind
-		if not shared.is_dir():
-			raise FileNotFoundError(shared)
-		manifest = {'entries': [{'path': shared.as_posix()}]}
-		if 'rules' == kind:
-			manifest['entries'].append({'path': 'rules'})
+	for kind in DISCOVERY_KINDS:
+		expected = project_discovery_entries(primary, kind, require_dir=True)
 		path = agents / f'{kind}.json'
 		if not path.exists():
-			create_once(path, json_bytes(manifest).decode('utf-8'))
+			create_once(path, json_bytes({'entries': expected}).decode('utf-8'))
 		else:
-			existing = json.loads(path.read_text(encoding='utf-8-sig'))
-			if not isinstance(existing, dict) or not isinstance(existing.get('entries', []), list):
-				raise ValueError(f'Native manifest needs an entries list; preserved: {path}')
-			changed = False
-			for entry in manifest['entries']:
-				if entry not in existing.setdefault('entries', []):
-					existing['entries'].append(entry)
-					changed = True
-			if changed:
+			existing = load_discovery_manifest(path, missing_ok=False, entries_error=f'Native manifest needs an entries list; preserved: {path}')
+			missing = [entry for entry in expected if entry not in existing.setdefault('entries', [])]
+			if missing:
+				existing['entries'].extend(missing)
 				replace_bytes(path, json_bytes(existing))
 	context_path = agents / 'context.json'
 	context_config = default_context_config()
@@ -90,38 +84,30 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
 				create_bytes(history, previous)
 			replace_bytes(context_path, json_bytes(context_config))
 	create_once(rules / '90-project.md', '\n'.join(['---', 'trigger: always_on', 'description: "Project parameters"', '---', '', '# Project', f"Job post: {job_url or 'not specified'}.", f'Folder name: `{domain_or_topic or root.name}`; domain ownership is not proven by this.', 'Paths and boundaries: shared rules KB-1 and FILE-4.', '']))
-	from .configuration import configure_codex_project
 	configure_codex_project(root, primary, job_url, domain_or_topic)
-	r = agents
-	return r
+	return agents
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 def check_configuration(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR):
-	from .configuration import configure_codex_project
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
 	result = configure_codex_project(root, primary, check=True)
-	for kind in ('rules', 'skills', 'agents'):
+	for kind in DISCOVERY_KINDS:
 		path = root / f'.agents/{kind}.json'
 		try:
-			manifest = json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else {}
-			if not isinstance(manifest, dict) or not isinstance(manifest.get('entries', []), list):
-				raise ValueError('Native manifest needs an entries list')
-			entries = manifest.get('entries', [])
+			entries = load_discovery_manifest(path, entries_error='Native manifest needs an entries list').get('entries', [])
 		except (ValueError, OSError) as exc:
 			result['valid'] = False
 			result['issues'].append({'file': str(path), 'message': str(exc)})
 			continue
-		expected = [{'path': (primary / kind).as_posix()}] + ([{'path': 'rules'}] if 'rules' == kind else [])
-		if any((entry not in entries for entry in expected)):
+		if any((entry not in entries for entry in project_discovery_entries(primary, kind))):
 			result['valid'] = False
 			result['issues'].append({'file': str(path), 'message': 'Antigravity common/local discovery entry is missing; run configure'})
-	r = result
-	return r
+	return result
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-GLOBAL_KINDS = ('rules', 'skills', 'agents')
+GLOBAL_KINDS = DISCOVERY_KINDS
 UNDECLARED_ANTIGRAVITY_HOME = 'current-undeclared'
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":

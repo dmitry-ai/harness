@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -9,7 +12,7 @@ import json
 from pathlib import Path
 import re
 import tomllib
-from .configuration import _frontmatter
+from .configuration import DISCOVERY_KINDS, _frontmatter, load_discovery_manifest, load_project_receipt, receipt_sha256, resolve_manifest_entry
 from .runtime import PRIMARY, settings
 def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=PRIMARY):
 	if None is root or not str(root).strip():
@@ -125,23 +128,21 @@ def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=
 		for path in sorted((agents / 'skills').glob('*/SKILL.md')):
 			add(path, 'local-skill', f'project-discovery:{scope}')
 			discover_references(path, 'skill-reference')
-		for category in ('rules', 'skills', 'agents'):
+		for category in DISCOVERY_KINDS:
 			manifest = agents / f'{category}.json'
 			item = add(manifest, f'{category}-manifest', f'optional-discovery:{scope}')
 			if not item['exists']:
 				continue
 			try:
-				data = json.loads(manifest.read_text(encoding='utf-8-sig'))
-				if not isinstance(data, dict) or not isinstance(data.get('entries', []), list):
-					raise ValueError('Manifest needs an entries list')
+				data = load_discovery_manifest(manifest, missing_ok=False)
 				if data.get('inherits'):
 					issue('UNRESOLVED-INHERITANCE', manifest, 'Manifest inheritance needs platform-specific resolution; no loading is inferred', 'warning')
 				for entry in data.get('entries', []):
-					if not isinstance(entry, dict) or not isinstance(entry.get('path'), str):
+					target, has_extra = resolve_manifest_entry(agents, entry)
+					if None is target:
 						issue('UNSUPPORTED-SELECTOR', manifest, 'Entry has no path; selector cannot be resolved')
 						continue
-					target = (agents / Path(entry['path']).expanduser()).resolve()
-					if set(entry) - {'path'}:
+					if has_extra:
 						issue('CONDITIONAL-SOURCE', manifest, f'Additional selector fields for {target}; applicability is unknown', 'warning')
 					if not target.is_dir():
 						add(target, f'configured-{category}', str(manifest), required=True)
@@ -161,13 +162,10 @@ def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=
 		receipt_item = add(receipt_path, 'projection-receipt', f'optional-discovery:{scope}')
 		if receipt_item['exists']:
 			try:
-				receipt = json.loads(receipt_path.read_text(encoding='utf-8-sig'))
-				if not isinstance(receipt, dict):
-					raise ValueError('Projection receipt must be an object')
+				_, _, receipt = load_project_receipt(receipt_path, by_path=True, error_message='Projection receipt must be an object')
 				for path, expected in receipt.items():
-					expected = expected.get('sha256') if isinstance(expected, dict) else expected
 					projection = add(Path(path), 'native-projection', str(receipt_path), required=True)
-					projection['projection'] = 'matches-receipt' if projection.get('sha256') == expected else 'differs-from-receipt'
+					projection['projection'] = 'matches-receipt' if projection.get('sha256') == receipt_sha256(expected) else 'differs-from-receipt'
 					if 'matches-receipt' != projection['projection']:
 						issue('PROJECTION-DRIFT', path, 'Projection differs from its publication receipt; no file was changed')
 			except (OSError, ValueError, UnicodeError) as exc:

@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -10,40 +13,39 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace per-profile Harness projections with shared native connections":
 # https://github.com/dmitry-ai/harness/issues/35
+from contextlib import nullcontext
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import tomllib
-from contextlib import nullcontext
 from .runtime import PRIMARY, settings, profile_name
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
+DISCOVERY_KINDS = ('rules', 'skills', 'agents')
 def _digest(data):
 	return hashlib.sha256(data).hexdigest()
 def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), preflight=False):
 	root = Path(root).resolve()
-	manifest = data_dir_for(root) / 'native-config.json'
 	if not outputs and (not any((Path(path).exists() for path in retire))):
 		r = {'valid': True, 'issues': [], 'written': [], 'outputs': [], 'removed': []}
 	else:
 		with nullcontext() if check or preflight else locked(data_dir_for(root) / 'native-config.lock'):
-			receipt_bytes = manifest.read_bytes() if manifest.exists() else None
-			previous = json.loads(receipt_bytes) if None is not receipt_bytes else {}
+			manifest, receipt_bytes, previous = load_project_receipt(root)
 			issues, planned, removed, preimages = ([], {}, [], {})
 			disowned = {str(Path(path).resolve()) for path in disown} & set(previous)
 			if check:
 				issues.extend({'file': path, 'message': 'Shared definition ownership must move to the central native profile registry'} for path in sorted(disowned))
 			for target, text in outputs.items():
 				target = Path(target)
-				if any((p.is_symlink() or p.is_junction() for p in (target, *target.parents))):
+				if has_linked_ancestor(target):
 					issues.append({'file': str(target), 'message': 'Linked native configuration preserved'})
 					continue
 				payload = text.encode('utf-8')
 				actual = target.read_bytes() if target.exists() else None
 				key = str(target.resolve())
 				if actual != payload:
-					owned = previous.get(key)
-					owned = owned.get('sha256') if isinstance(owned, dict) else owned
+					owned = receipt_sha256(previous.get(key))
 					if None is not actual and owned != _digest(actual) and ((merge or {}).get(target) != actual):
 						issues.append({'file': key, 'message': 'Manual/unowned native configuration preserved'})
 					elif check:
@@ -53,14 +55,14 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 						preimages[target] = actual
 			for target in retire:
 				target = Path(target)
-				if any((p.is_symlink() or p.is_junction() for p in (target, *target.parents))):
+				if has_linked_ancestor(target):
 					issues.append({'file': str(target), 'message': 'Linked legacy file preserved'})
 					continue
 				target = target.resolve()
 				if not target.is_relative_to(root):
 					raise ValueError('Retirement must stay inside the configured root')
 				if target.exists():
-					if previous.get(str(target)) != _digest(target.read_bytes()):
+					if receipt_sha256(previous.get(str(target))) != _digest(target.read_bytes()):
 						issues.append({'file': str(target), 'message': 'Manual/unowned legacy file preserved'})
 					elif check:
 						issues.append({'file': str(target), 'message': 'Owned legacy file needs migration'})
@@ -69,17 +71,12 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 			if issues:
 				r = {'valid': False, 'issues': issues, 'written': []}
 			else:
-				if not check and not preflight:
+				if not check and (not preflight):
 					for target in removed:
 						payload = target.read_bytes()
-						if _digest(payload) != previous[str(target)]:
+						if _digest(payload) != receipt_sha256(previous[str(target)]):
 							raise ValueError('Legacy file changed before backup; external edit preserved')
-						backup = data_dir_for(root) / 'native-retired' / _digest(str(target).encode('utf-8')) / (_digest(payload) + '.bin')
-						backup.parent.mkdir(parents=True, exist_ok=True)
-						if not backup.exists():
-							create_bytes(backup, payload)
-						if backup.read_bytes() != payload:
-							raise ValueError('Retired native backup differs; configuration preserved')
+						store_content_backup(data_dir_for(root) / 'native-retired', target, payload, error_message='Retired native backup differs; configuration preserved')
 					for target, payload in planned.items():
 						if (target.read_bytes() if target.exists() else None) != preimages[target]:
 							raise ValueError('Native configuration changed during publication; external edit preserved')
@@ -88,7 +85,7 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 						previous.pop(key, None)
 					previous.update({str(Path(p).resolve()): _digest(text.encode('utf-8')) for p, text in outputs.items()})
 					for target in removed:
-						if _digest(target.read_bytes()) != previous[str(target)]:
+						if _digest(target.read_bytes()) != receipt_sha256(previous[str(target)]):
 							raise ValueError('Legacy file changed during migration')
 						target.unlink()
 						previous.pop(str(target), None)
@@ -96,7 +93,7 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 					if config in outputs:
 						if outputs[config].strip():
 							value = tomllib.loads(outputs[config]).get('developer_instructions', '')
-							previous[str(config)] = {'sha256': _digest(outputs[config].encode()), 'block_sha256': _digest(_managed_block(value).encode())}
+							previous[str(config)] = {'sha256': _digest(outputs[config].encode()), 'block_sha256': _digest(extract_managed_block(value).encode())}
 						else:
 							if config.read_bytes() != outputs[config].encode('utf-8'):
 								raise ValueError('Empty projection changed during retirement; external edit preserved')
@@ -157,21 +154,11 @@ def _toml_statements(text):
 START = '<!-- upwork-init:instructions:start -->'
 END = '<!-- upwork-init:instructions:end -->'
 def _managed_block(value):
-	if START not in value and END not in value:
-		r = ''
-	else:
-		if 1 != value.count(START) or 1 != value.count(END) or value.index(START) > value.index(END):
-			raise ValueError('Malformed managed developer instructions; configuration preserved')
-		r = value[value.index(START):value.index(END) + len(END)]
-	return r
+	return extract_managed_block(value)
 def _root_options(text, instructions=None, *, legacy_bytes=None, expected_block=None):
 	data = tomllib.loads(text) if text.strip() else {}
-	value = data.get('developer_instructions', '')
-	old_block = _managed_block(value)
 	block = START + '\n' + instructions.strip() + '\n' + END if instructions else ''
-	if old_block and old_block != block and (_digest(old_block.encode()) != expected_block):
-		raise ValueError('Managed developer instructions were manually edited; configuration preserved')
-	value = value.replace(old_block, block) if old_block else value + ('\n\n' if value and block else '') + block
+	value = replace_managed_block(data.get('developer_instructions', ''), block, expected_sha256=expected_block)
 	values = {'developer_instructions': json.dumps(value, ensure_ascii=False) if value.strip() else None} if 'developer_instructions' in data or block else {}
 	if None is not legacy_bytes:
 		names = data.get('project_doc_fallback_filenames', [])
@@ -194,22 +181,17 @@ def _root_options(text, instructions=None, *, legacy_bytes=None, expected_block=
 		text = text[:start] + replacement + text[end:]
 	text = ''.join((key + ' = ' + value + '\n' for key, value in values.items() if key not in found and None is not value)) + text
 	tomllib.loads(text)
-	r = text
-	return r
+	return text
 def _native_config(root, instructions=None):
 	config_path = root / '.codex/config.toml'
 	actual = config_path.read_bytes() if config_path.exists() else None
 	existing = actual.decode('utf-8') if None is not actual else ''
-	manifest = data_dir_for(root) / 'native-config.json'
-	receipt = json.loads(manifest.read_text(encoding='utf-8')) if manifest.exists() else {}
+	_, _, receipt = load_project_receipt(root)
 	owned = receipt.get(str(config_path), {})
 	legacy = root / 'CODEX.md'
-	legacy_bytes = None
-	if legacy.exists() and receipt.get(str(legacy)) == _digest(legacy.read_bytes()):
-		legacy_bytes = len(legacy.read_bytes())
+	legacy_bytes = len(legacy.read_bytes()) if legacy.exists() and receipt_sha256(receipt.get(str(legacy))) == _digest(legacy.read_bytes()) else None
 	wanted = _root_options(existing, instructions, legacy_bytes=legacy_bytes, expected_block=owned.get('block_sha256') if isinstance(owned, dict) else None)
-	r = (config_path, wanted, {config_path: actual})
-	return r
+	return (config_path, wanted, {config_path: actual})
 def _loader(primary, local=(), *, restore_global=True):
 	paths = [*sorted((primary / 'rules').glob('*.md')), primary / 'platforms/codex.md', *local]
 	lines = ['Read the listed canonical rule sources before executing the task.  ', 'Shared always_on rules and the Codex adapter are mandatory in every new chat, including child subagents.  ', 'For project-specific sources, honor the frontmatter trigger; links are not copies of the rules.  ']
@@ -243,30 +225,24 @@ def global_codex_instructions():
 def _project_rule_paths(root, primary):
 	agents = root / '.agents'
 	paths = list(sorted((agents / 'rules').glob('*.md')))
-	manifest = agents / 'rules.json'
-	if manifest.exists():
-		data = json.loads(manifest.read_text(encoding='utf-8-sig'))
-		if not isinstance(data, dict) or not isinstance(data.get('entries', []), list):
-			raise ValueError('rules.json needs an entries list')
-		if data.get('inherits'):
-			raise ValueError('Codex projection does not support rules.json inherits; preserve it and resolve explicitly')
-		for entry in data.get('entries', []):
-			if not isinstance(entry, dict) or not isinstance(entry.get('path'), str):
-				raise ValueError('Each rules.json entry needs a path')
-			if set(entry) - {'path'}:
-				raise ValueError('Codex projection does not support filtered rules.json entries; preserve them and resolve explicitly')
-			source = (agents / Path(entry['path']).expanduser()).resolve()
-			if source == (primary / 'rules').resolve():
-				continue
+	data = load_discovery_manifest(agents / 'rules.json', entries_error='rules.json needs an entries list')
+	if data.get('inherits'):
+		raise ValueError('Codex projection does not support rules.json inherits; preserve it and resolve explicitly')
+	shared = (primary / 'rules').resolve()
+	for entry in data.get('entries', []):
+		source, has_extra = resolve_manifest_entry(agents, entry)
+		if None is source:
+			raise ValueError('Each rules.json entry needs a path')
+		if has_extra:
+			raise ValueError('Codex projection does not support filtered rules.json entries; preserve them and resolve explicitly')
+		if source != shared:
 			if source.is_dir():
 				paths.extend(sorted(source.rglob('*.md')))
 			elif source.is_file() and '.md' == source.suffix:
 				paths.append(source)
 			else:
 				raise ValueError(f'Configured rule source is missing or unsupported: {source}')
-	shared = (primary / 'rules').resolve()
-	r = list(dict.fromkeys((path.resolve() for path in paths if not path.resolve().is_relative_to(shared))))
-	return r
+	return list(dict.fromkeys((path.resolve() for path in paths if not path.resolve().is_relative_to(shared))))
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -274,27 +250,30 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
 	from .native_profiles import legacy_project_projection_paths
 	root, primary = (Path(root).resolve(), Path(primary).resolve())
 	if root == Path(settings()['workspace_root']).resolve():
-		return {'valid': True, 'issues': [], 'written': []}
-	try:
-		paths = _project_rule_paths(root, primary)
-	except (ValueError, OSError) as exc:
-		if not check:
-			raise
-		return {'valid': False, 'issues': [{'file': str(root / '.agents/rules.json'), 'message': str(exc)}], 'written': []}
-	try:
-		native = root / '.codex/config.toml'
-		data = tomllib.loads(native.read_bytes().decode('utf-8')) if native.exists() else {}
-		current = data.get('developer_instructions', '')
-		manual = current.replace(_managed_block(current), '').strip()
-		path, text, merge = _native_config(root, _loader(primary, paths, restore_global=False) if manual else None)
-		result = _publish(root, {path: text} if text or path.exists() else {}, check=check, merge=merge, retire=[root / 'CODEX.md', *legacy_project_projection_paths(root, primary)])
-	except ValueError as exc:
-		if not check:
-			raise
-		return {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
-	if not check and (not result['valid']):
-		raise ValueError(result['issues'])
-	return result
+		r = {'valid': True, 'issues': [], 'written': []}
+	else:
+		r = None
+		try:
+			paths = _project_rule_paths(root, primary)
+		except (ValueError, OSError) as exc:
+			if not check:
+				raise
+			r = {'valid': False, 'issues': [{'file': str(root / '.agents/rules.json'), 'message': str(exc)}], 'written': []}
+		if None is r:
+			try:
+				native = root / '.codex/config.toml'
+				data = tomllib.loads(native.read_bytes().decode('utf-8')) if native.exists() else {}
+				current = data.get('developer_instructions', '')
+				manual = current.replace(extract_managed_block(current), '').strip()
+				path, text, merge = _native_config(root, _loader(primary, paths, restore_global=False) if manual else None)
+				r = _publish(root, {path: text} if text or path.exists() else {}, check=check, merge=merge, retire=[root / 'CODEX.md', *legacy_project_projection_paths(root, primary)])
+			except ValueError as exc:
+				if not check:
+					raise
+				r = {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
+			if not check and (not r['valid']):
+				raise ValueError(r['issues'])
+	return r
 def _frontmatter(path):
 	text = path.read_text(encoding='utf-8-sig')
 	match = re.match('^---\\r?\\n(.*?)\\r?\\n---\\r?\\n', text, re.S)
@@ -318,7 +297,7 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 	source_hash = _digest(b''.join((p.read_bytes() for p in source_paths)))
 	native = root / '.codex/config.toml'
 	current = tomllib.loads(native.read_bytes().decode('utf-8')).get('developer_instructions', '') if native.exists() else ''
-	old_block = _managed_block(current)
+	old_block = extract_managed_block(current)
 	restore_global = 'policy-instructions' in old_block if old_block else not bool(current.strip())
 	local_rules = _project_rule_paths(root, primary) if (root / '.agents/rules').is_dir() else ()
 	instructions = _loader(primary, local_rules, restore_global=restore_global)
@@ -329,17 +308,77 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 		outputs[path] = text
 		publication = {'merge': merge, 'retire': [root / 'CODEX.md', *legacy_project_projection_paths(root, primary)], 'disown': list(shared_native_outputs(primary))}
 		preflight = _publish(root, outputs, preflight=True, **publication) if not check else None
-		if preflight is not None and not preflight['valid']:
-			result = preflight
+		if None is not preflight and (not preflight['valid']):
+			r = preflight
 		else:
 			shared = build_shared_native(primary, check=check)
-			if not shared['valid'] and not check:
-				result = {'valid': False, 'issues': [], 'written': []}
+			if not shared['valid'] and (not check):
+				r = {'valid': False, 'issues': [], 'written': []}
 			else:
 				publication['disown'].extend(shared['removed'])
-				result = _publish(root, outputs, check=check, **publication)
-			result.update(valid=result['valid'] and shared['valid'], issues=[*shared['issues'], *result['issues']], written=[*shared['written'], *result['written']], removed=[*shared['removed'], *result.get('removed', [])], shared=shared)
+				r = _publish(root, outputs, check=check, **publication)
+			r.update(valid=r['valid'] and shared['valid'], issues=[*shared['issues'], *r['issues']], written=[*shared['written'], *r['written']], removed=[*shared['removed'], *r.get('removed', [])], shared=shared)
+		r.update(source_sha256=source_hash, policy_bytes=len(instructions.encode('utf-8')), canonical_runtime=str(primary / 'runtime.json'))
 	except ValueError as exc:
-		return {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
-	result.update(source_sha256=source_hash, policy_bytes=len(instructions.encode('utf-8')), canonical_runtime=str(primary / 'runtime.json'))
-	return result
+		r = {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
+	return r
+def extract_managed_block(value, start_marker=START, end_marker=END, *, error_message='Malformed managed developer instructions; configuration preserved'):
+	if start_marker not in value and end_marker not in value:
+		r = ''
+	elif 1 != value.count(start_marker) or 1 != value.count(end_marker) or value.index(start_marker) > value.index(end_marker):
+		raise ValueError(error_message)
+	else:
+		r = value[value.index(start_marker):value.index(end_marker) + len(end_marker)]
+	return r
+def has_linked_ancestor(path, *, include_self=True):
+	resolved = Path(os.path.abspath(path))
+	candidates = (resolved, *resolved.parents) if include_self else resolved.parents
+	return next((item for item in candidates if is_linked_path(item)), None)
+def is_linked_path(path):
+	candidate = Path(path)
+	return candidate.is_symlink() or bool(getattr(candidate, 'is_junction', lambda: False)())
+def load_discovery_manifest(path, *, missing_ok=True, entries_error='Manifest needs an entries list', check_inherits=False):
+	target = Path(path)
+	data = json.loads(target.read_text(encoding='utf-8-sig')) if target.exists() or (not missing_ok) else {}
+	if not isinstance(data, dict) or not isinstance(data.get('entries', []), list) or (check_inherits and (not isinstance(data.get('inherits', []), list))):
+		raise ValueError(entries_error)
+	return data
+def load_project_receipt(target, *, by_path=False, error_message='Project native ownership receipt must be an object; preserved'):
+	path = Path(target) if by_path else data_dir_for(target) / 'native-config.json'
+	raw = path.read_bytes() if path.exists() else None
+	data = json.loads(raw.decode('utf-8-sig')) if None is not raw else {}
+	if not isinstance(data, dict):
+		raise ValueError(error_message)
+	return (path, raw, data)
+def project_discovery_entries(primary, kind, *, require_dir=False):
+	shared = Path(primary) / kind
+	if require_dir and (not shared.is_dir()):
+		raise FileNotFoundError(shared)
+	return [{'path': shared.as_posix()}, *([{'path': 'rules'}] if 'rules' == kind else [])]
+def receipt_sha256(entry):
+	return entry.get('sha256') if isinstance(entry, dict) else entry
+def replace_managed_block(value, block, *, start_marker=START, end_marker=END, expected_sha256=None, malformed_message='Malformed managed developer instructions; configuration preserved', edited_message='Managed developer instructions were manually edited; configuration preserved'):
+	old_block = extract_managed_block(value, start_marker, end_marker, error_message=malformed_message)
+	if not old_block:
+		r = value + ('\n\n' if value and block else '') + block
+	else:
+		if old_block != block and (_digest(old_block.encode('utf-8')) != expected_sha256):
+			raise ValueError(edited_message)
+		index = value.index(start_marker)
+		r = value[:index] + block + value[index + len(old_block):]
+	return r
+def resolve_manifest_entry(agents_dir, entry):
+	if not isinstance(entry, dict) or not isinstance(entry.get('path'), str):
+		r = (None, False)
+	else:
+		r = ((Path(agents_dir) / Path(entry['path']).expanduser()).resolve(), bool(set(entry) - {'path'}))
+	return r
+def store_content_backup(backup_root, path, payload, *, error_message=None):
+	digest = _digest(payload)
+	backup = Path(backup_root) / _digest(str(path).encode('utf-8')) / (digest + '.bin')
+	backup.parent.mkdir(parents=True, exist_ok=True)
+	if not backup.exists():
+		create_bytes(backup, payload)
+	if backup.read_bytes() != payload:
+		raise ValueError(error_message or f'Backup hash collision or modification; preserved: {backup}')
+	return (backup, digest)

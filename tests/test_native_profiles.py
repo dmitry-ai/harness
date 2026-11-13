@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace per-profile Harness projections with shared native connections":
 # https://github.com/dmitry-ai/harness/issues/35
@@ -688,6 +691,29 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual((old / 'personal.txt').read_text(encoding='utf-8'), 'Concurrent replacement\n')
 		self.assertEqual(native._state_path(self.primary).read_bytes(), receipt)
 		self.assertTrue(Path(result['recovery_receipt']).is_file())
+	def test_unified_managed_link_and_manifest_helpers(self):
+		target_file = self.write(self.root / 'shared-role.toml', 'name = "aa"\n')
+		role_link_path = self.root / 'links/aa.toml'
+		role_link = native._ManagedLink(role_link_path, target_file, 'file-symlink', label='role')
+		self.assertIn('Shared role file link is missing', role_link.readonly_issue()['message'])
+		self.assertEqual('Obsolete owned role file link needs retirement', role_link.readonly_issue(retired=True)['message'])
+		role_link.create(self.primary)
+		role_link.verify_created()
+		self.assertEqual('file-symlink', role_link.identity_dict()['kind'])
+		role_link.remove_created()
+		self.assertFalse(native._exists(role_link_path))
+		manifest_path = self.write(self.root / 'manifest/rules.json', json.dumps({'entries': [{'path': '../rules'}]}))
+		loaded = configuration.load_discovery_manifest(manifest_path)
+		resolved, has_extra = configuration.resolve_manifest_entry(manifest_path.parent, loaded['entries'][0])
+		self.assertEqual((self.root / 'rules').resolve(), resolved)
+		self.assertFalse(has_extra)
+		self.assertEqual(2, len(configuration.project_discovery_entries(self.primary, 'rules', require_dir=True)))
+		block = f'{configuration.START}\nmanaged\n{configuration.END}'
+		merged = configuration.replace_managed_block('prefix', block)
+		self.assertEqual(block, configuration.extract_managed_block(merged))
+		backup, digest = configuration.store_content_backup(self.root / 'backups', target_file, b'payload')
+		self.assertEqual(b'payload', backup.read_bytes())
+		self.assertEqual(digest, configuration.receipt_sha256({'sha256': digest}))
 	def test_unknown_prior_link_record_is_preserved_during_skill_rename(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		unknown = self.homes['C2'] / 'custom/personal-skill'
