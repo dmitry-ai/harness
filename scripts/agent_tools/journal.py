@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
@@ -19,6 +22,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import uuid
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
 def digest(data: bytes) -> str:
@@ -31,15 +35,13 @@ def get_existing_step_ids(directory: Path) -> set[int]:
 	directory = Path(directory)
 	sources = [(directory / 'req', '.md'), (directory / 'res', '.md'), (state_dir(directory), '.json')]
 	ids = {int(p.stem) for folder, suffix in sources if folder.exists() for p in folder.glob(f'*{suffix}') if p.stem.isascii() and p.stem.isdigit()}
-	for file in (state_dir(directory) / 'answer-groups').glob('*.json'):
-		group = json.loads(file.read_text(encoding='utf-8'))
-		if group.get('journal') != str(directory.resolve()) or not isinstance(group.get('steps'), list) or any((type(x) is not int or x < 1 for x in group['steps'])):
+	for _, group in iter_answer_group_records(directory):
+		if group.get('journal') != str(directory.resolve()) or not isinstance(group.get('steps'), list) or any((int is not type(x) or 1 > x for x in group['steps'])):
 			raise ValueError('Damaged answer-group reservation')
 		ids.update(group['steps'])
 	r = ids
 	return r
 def _payload(request: str, response: str):
-	import re
 	for label, text in [('request', request), ('response', response)]:
 		if not isinstance(text, str) or not text.strip():
 			raise ValueError(f'Empty {label}')
@@ -140,16 +142,15 @@ def validate_step(journal_dir, step_num) -> bool:
 	r = not errors
 	return r
 def verify_answer(directory, requests, response, turn, request_ids=None):
-	import re
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn):
 		raise ValueError('Stable answer-group identity required')
 	directory = Path(directory).resolve()
 	file = state_dir(directory) / 'answer-groups' / (turn + '.json')
 	group = json.loads(file.read_text(encoding='utf-8'))
-	if group.get('status') != 'complete' or group.get('journal') != str(directory) or group.get('turn') != turn or group.get('requests') != requests or group.get('request_ids') != request_ids or group.get('response_sha256') != digest(response.encode('utf-8')):
+	if 'complete' != group.get('status') or group.get('journal') != str(directory) or group.get('turn') != turn or group.get('requests') != requests or group.get('request_ids') != request_ids or group.get('response_sha256') != digest(response.encode('utf-8')):
 		raise ValueError('Historical answer-group identity changed; preserve it')
 	steps = group.get('steps')
-	if not isinstance(steps, list) or len(steps) != len(requests) or len(set(steps)) != len(steps) or any((type(step) is not int or step < 1 for step in steps)):
+	if not isinstance(steps, list) or len(steps) != len(requests) or len(set(steps)) != len(steps) or any((int is not type(step) or 1 > step for step in steps)):
 		raise ValueError('Historical answer-group steps changed')
 	if not isinstance(group.get('tokens'), list) or len(group['tokens']) != len(steps) or any((not isinstance(token, str) or not token for token in group['tokens'])):
 		raise ValueError('Historical answer-group reservation identity changed')
@@ -160,8 +161,7 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 			if (directory / folder / f'{step}.md').read_bytes() != expected.encode('utf-8'):
 				raise ValueError('Historical journal bytes changed; preserve them')
 	return steps
-def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, allow_reprepare=False):
-	import re
+def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, admission_roots=None, allow_reprepare=False):
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn) or not isinstance(requests, list) or (not requests):
 		raise ValueError('Stable turn ID and nonempty exact request list required')
 	for request in requests:
@@ -171,7 +171,8 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 	directory = Path(directory).resolve()
 	from .admission import binding, capture, require_current
 	identity = binding(directory, requests, response, turn, request_ids)
-	capability = capture([directory], requests, response, identity) if admission is None else admission
+	roots = [Path(p).resolve() for p in (admission_roots or (directory,))]
+	capability = capture(roots, requests, response, identity) if None is admission else admission
 	proof = require_current(capability, identity)
 	journal_state = state_dir(directory)
 	groups = journal_state / 'answer-groups'
@@ -195,7 +196,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 						replace_bytes(res_file, response.encode('utf-8'))
 		else:
 			if None is not adopt_steps:
-				if not isinstance(adopt_steps, list) or len(adopt_steps) != len(requests) or any((type(x) is not int or x < 1 for x in adopt_steps)):
+				if not isinstance(adopt_steps, list) or len(adopt_steps) != len(requests) or any((int is not type(x) or 1 > x for x in adopt_steps)):
 					raise ValueError('Adopted journal steps must match the exact request list')
 				steps_to_use = list(adopt_steps)
 			else:
@@ -232,8 +233,7 @@ def answer_groups(directory, *, request_ids=None):
 	directory = Path(directory).resolve()
 	filter_ids = set(request_ids) if None is not request_ids else None
 	groups = []
-	for path in sorted((state_dir(directory) / 'answer-groups').glob('*.json')):
-		group = json.loads(path.read_text(encoding='utf-8'))
+	for _, group in iter_answer_group_records(directory):
 		if None is not filter_ids and (not set(group.get('request_ids') or []) & filter_ids):
 			continue
 		if group.get('journal') != str(directory) or 'complete' != group.get('status'):
@@ -249,3 +249,82 @@ def answer_groups(directory, *, request_ids=None):
 			groups.append(group)
 	r = groups
 	return r
+def completed_request_group_index(directory: Path) -> dict[str, tuple[dict, int]]:
+	r: dict[str, tuple[dict, int]] = {}
+	for _, group in iter_answer_group_records(directory, ignore_errors=True):
+		if 'complete' == group.get('status') and group.get('request_ids'):
+			for rid, st in zip(group['request_ids'], group.get('steps') or ()):
+				r[rid] = (group, st)
+	return r
+def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], response: str, native_ids: list[str]):
+	directory = Path(directory).resolve()
+	n = len(requests or [])
+	req_dir, res_dir = (directory / 'req', directory / 'res')
+	r = (None, None, None)
+	if 0 < n and req_dir.is_dir() and res_dir.is_dir():
+		norm_reqs = [norm_journal_text(req) for req in requests]
+		norm_resp = norm_journal_text(response)
+		claimed_by_step = {st: g_val for _, g_val in iter_answer_group_records(directory, ignore_errors=True) for st in (g_val.get('steps') or ()) if int is type(st)}
+		pair_ids = sorted({int(p.stem) for p in req_dir.glob('*.md') if p.stem.isascii() and p.stem.isdigit() and (res_dir / p.name).is_file()})
+		pair_set = set(pair_ids)
+		overwritten_conflict = None
+		j_state = state_dir(directory)
+		for start in pair_ids:
+			cand_steps = list(range(start, start + n))
+			if not all((st in pair_set for st in cand_steps)):
+				continue
+			try:
+				disk_reqs = [(req_dir / f'{st}.md').read_bytes().decode('utf-8') for st in cand_steps]
+				disk_resps = [(res_dir / f'{st}.md').read_bytes().decode('utf-8') for st in cand_steps]
+			except (OSError, UnicodeDecodeError):
+				continue
+			if 1 != len(set(disk_resps)) or [norm_journal_text(x) for x in disk_reqs] != norm_reqs or norm_journal_text(disk_resps[0]) != norm_resp:
+				continue
+			if all((st not in claimed_by_step and (not (j_state / f'{st}.json').exists()) for st in cand_steps)):
+				r = (cand_steps, disk_reqs, disk_resps[0])
+				overwritten_conflict = None
+				break
+			for st in cand_steps:
+				owner = claimed_by_step.get(st)
+				if owner and owner.get('request_ids') != native_ids:
+					o_steps = owner.get('steps') or []
+					o_reqs = owner.get('requests') or []
+					matches_owner = o_steps == cand_steps and len(o_reqs) == len(cand_steps) and all((d_req == o_req for d_req, o_req in zip(disk_reqs, o_reqs))) and (digest(disk_resps[0].encode('utf-8')) == owner.get('response_sha256'))
+					if not matches_owner and None is overwritten_conflict:
+						overwritten_conflict = (cand_steps, owner.get('turn'))
+		if None is not overwritten_conflict:
+			c_steps, o_turn = overwritten_conflict
+			raise ValueError(f'Journal step(s) {c_steps} match this native turn but are claimed by another answer group ({o_turn}); preserve the conflict')
+	return r
+def iter_answer_group_records(directory: Path, *, ignore_errors: bool=False) -> list[tuple[Path, dict]]:
+	groups_dir = state_dir(Path(directory).resolve()) / 'answer-groups'
+	r: list[tuple[Path, dict]] = []
+	if groups_dir.is_dir():
+		for path in sorted(groups_dir.glob('*.json')):
+			try:
+				val = json.loads(path.read_bytes().decode('utf-8'))
+			except (OSError, UnicodeDecodeError, ValueError):
+				if ignore_errors:
+					continue
+				raise
+			if not isinstance(val, dict):
+				if ignore_errors:
+					continue
+				raise ValueError('Completion metadata must be a JSON object: ' + str(path))
+			r.append((path, val))
+	return r
+def matching_group_response(directory: Path, req_ids: list[str], response: str) -> str | None:
+	directory = Path(directory).resolve()
+	r = None
+	for _, group in iter_answer_group_records(directory):
+		if group.get('request_ids') == req_ids and group.get('steps'):
+			res_path = directory / 'res' / f"{group['steps'][0]}.md"
+			res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
+			if res_text and norm_journal_text(res_text) == norm_journal_text(response):
+				r = res_text
+			break
+	return r
+def norm_journal_text(text: str) -> str:
+	return strip_local_file_scheme((text or '').replace('\r\n', '\n'))
+def strip_local_file_scheme(text: str) -> str:
+	return re.sub('file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')

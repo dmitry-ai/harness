@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/64
@@ -1685,6 +1688,42 @@ class TraceCommonTests(unittest.TestCase):
 		trace_common.record_normalized_tool_effects(Path('.'), 3, 'run_command', {'CommandLine': 'python harness.py collect-browser proj --url https://example.com'}, 'python harness.py collect-browser proj --url https://example.com', acc, track_turn_steps=True)
 		trace_common.record_normalized_tool_effects(Path('.'), 4, 'apply_patch', {}, '*** Begin Patch\n*** Update File: \ua616/KB/Module.md\n*** End Patch', acc, track_turn_steps=True)
 		self.assertEqual([3, 4], acc['kb_persistence_steps'])
+class TurnJournalReconcilerTests(unittest.TestCase):
+	def test_compacted_status5_steps_single_pass_authorize_and_group_helpers(self):
+		with tempfile.TemporaryDirectory() as temp:
+			base = Path(temp)
+			proj = base / 'proj'
+			(proj / '\ua616/data').mkdir(parents=True, exist_ok=True)
+			(proj / '\ua616/project.json').write_text('{"job_id":"~777"}', encoding='utf-8')
+			backend = base / 'ag'
+			cid = str(uuid.uuid4())
+			(backend / 'conversations').mkdir(parents=True)
+			(backend / 'brain' / cid / '.system_generated/logs').mkdir(parents=True)
+			sum_db = backend / 'conversation_summaries.db'
+			s_conn = sqlite3.connect(sum_db)
+			s_conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT,parent_conversation_id TEXT,status TEXT,not_fully_idle INTEGER,killed INTEGER,last_user_input_step_index INTEGER,workspace_uris TEXT,project_id TEXT)')
+			s_conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (cid, '', 'CASCADE_RUN_STATUS_IDLE', 0, 0, 0, json.dumps([proj.resolve().as_uri()]), ''))
+			s_conn.commit()
+			s_conn.close()
+			conv_db = backend / 'conversations' / f'{cid}.db'
+			c_conn = sqlite3.connect(conv_db)
+			c_conn.execute('CREATE TABLE steps(idx INTEGER,step_type INTEGER,status INTEGER,step_format INTEGER,step_payload BLOB)')
+			c_conn.execute('INSERT INTO steps VALUES(0,14,5,0,?)', (wire(19, wire(2, b'Compacted user request')),))
+			c_conn.execute('INSERT INTO steps VALUES(1,15,5,0,NULL)')
+			c_conn.commit()
+			c_conn.close()
+			log_path = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
+			log_path.write_text('\n'.join((json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Compacted user request'}), json.dumps({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': 'Final answer for compacted request.'}))) + '\n', encoding='utf-8')
+			scanned = antigravity.native_answers(proj, cid, backend=backend)
+			self.assertEqual(1, len(scanned['turns']))
+			self.assertTrue(scanned['turns'][0]['completed'])
+			reconciled = completion.TurnJournalReconciler(proj, cid, platform='antigravity', backend=backend).run()
+			self.assertTrue(reconciled['valid'])
+			self.assertEqual([1], reconciled['turns'][0]['journal_steps'])
+			j_dir = journal.resolve_journal_dir(proj)
+			idx = journal.completed_request_group_index(j_dir)
+			self.assertIn(f'{cid}-0', idx)
+			self.assertEqual('Final answer for compacted request.', journal.matching_group_response(j_dir, [f'{cid}-0'], 'Final answer for compacted request.'))
 class WatcherLifecycleTests(unittest.TestCase):
 	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
 		with tempfile.TemporaryDirectory() as temp:

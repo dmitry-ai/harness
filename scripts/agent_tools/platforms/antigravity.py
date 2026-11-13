@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/64
@@ -59,6 +62,7 @@ from .request_binding import native_project_fields
 from .trace_common import collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, iter_antigravity_subagents, merge_turn_accumulators, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
 ANTIGRAVITY_FOLDERS_JSON = Path(platform_settings('antigravity')['folders_json'])
+COMPLETED_STEP_STATUSES = (3, 5)
 class AntigravityTurnScanner:
 	def __init__(self, root, conversation_id, *, backend=None):
 		self.root = root
@@ -110,7 +114,7 @@ class AntigravityTurnScanner:
 	def _finalize_segment(self, start, end, segment, seg, visited_cids):
 		last = segment[-1] if segment else {}
 		final_step = last.get('step_index')
-		final = 'PLANNER_RESPONSE' == last.get('type') and (not last.get('tool_calls')) and bool(last.get('content', '').strip()) and ((15, 3) == self.statuses.get(final_step))
+		final = 'PLANNER_RESPONSE' == last.get('type') and (not last.get('tool_calls')) and bool(last.get('content', '').strip()) and (self.statuses.get(final_step) in ((15, 3), (15, 5)))
 		last_user_idx = self.summary.get('last_user_input_step_index')
 		last_db_user = max((idx for idx, (stype, _) in self.statuses.items() if 14 == stype), default=start)
 		idle = 'CASCADE_RUN_STATUS_IDLE' == self.summary.get('status') and 0 == self.summary.get('not_fully_idle') and (not self.summary.get('killed')) and (last_user_idx == start or (0 == start and -1 == last_user_idx)) and (last_db_user == start) and (final_step == max(self.statuses, default=-1))
@@ -131,7 +135,7 @@ class AntigravityTurnScanner:
 		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': seg['exec5_violations'], 'http_fetch_violations': seg['http_fetch_violations'], 'checkpoint_steps': seg['checkpoint_steps'], 'tool_steps': seg['tool_steps'], 'subagent_steps': seg['subagent_steps'], 'aa_subagent_steps': seg['aa_subagent_steps'], 'aa_partial_read_violations': seg['aa_partial_read_violations'], 'af_subagent_steps': seg['af_subagent_steps'], 'kb_persistence_steps': seg['kb_persistence_steps'], 'completion_service_steps': seg['completion_service_steps'], 'transcript_read_steps': seg['transcript_read_steps'], 'tool_records': seg['tool_records'], 'touched_files': seg['touched_files'], 'file_reads': seg['file_reads'], 'file_writes': seg['file_writes'], 'issue_actions': seg['issue_actions']}
 	def _load_context(self):
 		from .request_binding import completion_project_id
-		from ..journal import resolve_journal_dir, state_dir
+		from ..journal import completed_request_group_index, resolve_journal_dir
 		if not re.fullmatch('[a-f0-9-]{36}', self.conversation_id):
 			raise ValueError('Exact native Antigravity conversation UUID required')
 		connection = sqlite3.connect((self.backend / 'conversation_summaries.db').as_uri() + '?mode=ro', uri=True)
@@ -157,16 +161,7 @@ class AntigravityTurnScanner:
 		finally:
 			connection.close()
 		self.jdir = resolve_journal_dir(self.root_p)
-		sdir = state_dir(self.jdir)
-		if (sdir / 'answer-groups').is_dir():
-			for gpath in (sdir / 'answer-groups').glob('*.json'):
-				try:
-					g = json.loads(gpath.read_text(encoding='utf-8'))
-					if 'complete' == g.get('status') and g.get('request_ids'):
-						for rid, st in zip(g['request_ids'], g.get('steps', [])):
-							self.journal_groups[rid] = (g, st)
-				except Exception:
-					pass
+		self.journal_groups = completed_request_group_index(self.jdir)
 		self.boundaries = sorted((index for index, _ in self.inputs))
 	def _merge_pending(self, items):
 		return merge_turn_accumulators(items, allow_step_output_recovery=True)
@@ -375,7 +370,7 @@ def _model_metadata(backend, conversation_id):
 					sources.append({'native_file': str(path), 'table': table, 'row': index, 'protobuf_path': list(field_path), 'sha256': hashlib.sha256(blob or b'').hexdigest()})
 		columns = {row[1] for row in connection.execute('PRAGMA table_info(steps)')}
 		if 'metadata' in columns:
-			for index, blob in connection.execute('SELECT idx,metadata FROM steps WHERE step_type=15 AND status=3 ORDER BY idx'):
+			for index, blob in connection.execute('SELECT idx,metadata FROM steps WHERE step_type=15 AND status IN (3,5) ORDER BY idx'):
 				try:
 					history['model_ids'].extend(({'step': index, 'value': value} for field, kind, value in wire_fields(blob or b'') if 11 == field and 0 == kind and value))
 				except (ValueError, IndexError):
@@ -520,7 +515,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 		final = conn.execute('SELECT idx,step_type,status FROM steps ORDER BY idx DESC LIMIT 1').fetchone()
 	finally:
 		conn.close()
-	if not final or final[0] != last['step_index'] or 15 != final[1] or (3 != final[2]):
+	if not final or final[0] != last['step_index'] or 15 != final[1] or (final[2] not in COMPLETED_STEP_STATUSES):
 		raise ValueError('Native database reports an unfinished/failed later reviewer step')
 	parent_log = backend / 'brain' / parent_id / '.system_generated/logs/transcript_full.jsonl'
 	parent_inputs = [json.loads(line) for line in parent_log.read_text(encoding='utf-8').splitlines() if line.strip()]
@@ -562,7 +557,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 			if 'metadata' not in columns:
 				ids = set()
 			else:
-				metadata = connection.execute('SELECT metadata FROM steps WHERE step_type=15 AND status=3' + (' AND idx=?' if None is not step else ''), (step,) if None is not step else ()).fetchall()
+				metadata = connection.execute('SELECT metadata FROM steps WHERE step_type=15 AND status IN (3,5)' + (' AND idx=?' if None is not step else ''), (step,) if None is not step else ()).fetchall()
 				ids = set()
 				for blob, in metadata:
 					try:
@@ -621,7 +616,7 @@ def _native_inputs(backend, conversation_id):
 		raise ValueError('Exact current native conversation UUID required')
 	conn = sqlite3.connect((backend / 'conversations' / (conversation_id + '.db')).resolve().as_uri() + '?mode=ro', uri=True)
 	try:
-		rows = conn.execute('SELECT idx,step_format,step_payload FROM steps WHERE step_type=14 AND status=3 ORDER BY idx').fetchall()
+		rows = conn.execute('SELECT idx,step_format,step_payload FROM steps WHERE step_type=14 AND status IN (3,5) ORDER BY idx').fetchall()
 	finally:
 		conn.close()
 	inputs = []

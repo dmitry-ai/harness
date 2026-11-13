@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
@@ -45,11 +48,12 @@ def _target_bytes(path):
 def _document(root, name):
 	root = Path(root).resolve()
 	requested = root / name
-	for path in (requested, *requested.parents):
-		if path.is_relative_to(root) and (path.is_symlink() or (hasattr(path, 'is_junction') and path.is_junction())):
-			raise ValueError('Text target indirection changed; protected bytes preserved')
+	if _has_linked_ancestor(root, requested, require_exists=False):
+		raise ValueError('Text target indirection changed; protected bytes preserved')
 	r = inside(root, name)
 	return r
+def _has_linked_ancestor(root, target, *, require_exists=True):
+	return any((p.is_symlink() or (hasattr(p, 'is_junction') and p.is_junction()) for p in (target, *target.parents) if (not require_exists or p.exists()) and p.is_relative_to(root)))
 def _hash_or_none(value):
 	return digest(value) if None is not value else None
 def _find_registered(target):
@@ -99,12 +103,12 @@ def begin(root, spec):
 	if not isinstance(allowed, list) or any((not isinstance(x, str) or not x for x in allowed)):
 		raise ValueError('allow_sections is a list of exact section IDs or explicit inclusive ranges')
 	requested = root / spec.get('target', '')
-	if any((p.is_symlink() or (hasattr(p, 'is_junction') and p.is_junction()) for p in (requested, *requested.parents) if p.exists() and p.is_relative_to(root))):
+	if _has_linked_ancestor(root, requested):
 		raise ValueError('Text target indirections need an explicit resolved ordinary file')
 	target = inside(root, spec.get('target', ''))
-	if target == root or target.is_relative_to(root / 'ꘖ'):
+	if target == root or target.is_relative_to(root / '\ua616'):
 		raise ValueError('Choose an explicit user document outside agent service storage')
-	if any((p.is_symlink() or (hasattr(p, 'is_junction') and p.is_junction()) for p in (target, *target.parents) if p.exists() and p.is_relative_to(root))):
+	if _has_linked_ancestor(root, target):
 		raise ValueError('Text target indirections need an explicit resolved ordinary file')
 	current = _target_bytes(target)
 	if None is current and 'inspect' == spec['mode']:
@@ -603,7 +607,6 @@ def gate_requests(paths, requests, response, *, capture=False):
 	return r
 def record_answer(root, journal, requests, response, turn):
 	from .journal import record_answer as save
-	gate_requests([root], requests, response)
-	steps = save(Path(journal), requests, response, turn)
+	steps = save(Path(journal), requests, response, turn, admission_roots=[root, journal])
 	r = {'journal_steps': steps, 'response_sha256': digest(response.encode()), 'delivery_verified': False}
 	return r

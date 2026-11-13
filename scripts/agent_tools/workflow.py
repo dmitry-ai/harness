@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
@@ -276,40 +279,45 @@ def doc4_sentence_issues(text):
 			issues.append(f'DOC-4 violation on line {lineno}: multiple sentences on a single line (place each sentence on its own line)')
 	r = issues
 	return r
-def record_current_answer(root, response, *, journal_directory=None, request_ids=None):
+def record_current_answer(root, response, *, journal_directory=None, request_ids=None, preauthorized=None, recorded_steps=None, turn_token=None):
 	from .journal import record_answer, resolve_journal_dir
 	from .links import readable_link_issues
 	issues = readable_link_issues(response, allow_unencoded_file_uri=True)
 	if issues:
 		raise ValueError('\n'.join(issues))
-	analysis_path = Path(root).resolve() / 'ꘖ/KB/Analysis.json'
+	analysis_path = Path(root).resolve() / '\ua616/KB/Analysis.json'
 	if analysis_path.is_file():
 		try:
 			analysis_val = json.loads(analysis_path.read_text(encoding='utf-8-sig'))
 		except Exception:
 			analysis_val = None
-		if isinstance(analysis_val, dict) and analysis_val.get('red_flags') == [] and re.search('(?im)^\\s*#{1,6}\\s+Red Flags\\b', response):
+		if isinstance(analysis_val, dict) and [] == analysis_val.get('red_flags') and re.search('(?im)^\\s*#{1,6}\\s+Red Flags\\b', response):
 			raise ValueError('Do not include a Red Flags heading in the response when Analysis.json red_flags is empty (INIT-5)')
 	state = load(root)
 	from .review import authorize
-	approval = authorize(root, state, response=response)
 	filter_ids = set(request_ids) if None is not request_ids else None
+	auth_kw = {'response': response, **({'request_ids': filter_ids} if None is not filter_ids else {})}
+	approval = authorize(root, state, **auth_kw) if None is preauthorized else preauthorized
 	unanswered = [x for x in state['requests'] if not x.get('response_prepared') and (None is filter_ids or x['id'] in filter_ids)]
-	from .text_workflow import gate_requests
-	gate_requests([root], [x['text'] for x in unanswered], response)
 	if not unanswered:
 		raise ValueError('No unrecorded current requests; import exact native inputs or save the current request first')
-	turn = unanswered[-1]['id']
-	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn):
-		turn = 'native-' + hashlib.sha256(turn.encode('utf-8')).hexdigest()
 	directory = resolve_journal_dir(root, journal_directory)
-	steps = record_answer(directory, [x['text'] for x in unanswered], response, turn, [x['id'] for x in unanswered])
+	if None is not recorded_steps:
+		turn = turn_token or unanswered[-1]['id']
+		steps = list(recorded_steps)
+	else:
+		turn = turn_token or unanswered[-1]['id']
+		if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn):
+			turn = 'native-' + hashlib.sha256(turn.encode('utf-8')).hexdigest()
+		steps = record_answer(directory, [x['text'] for x in unanswered], response, turn, [x['id'] for x in unanswered], admission_roots=[root, directory])
 	ids = {x['id'] for x in unanswered}
-	def change(state):
-		authorize(root, state, response=response, package_path=approval['package'])
-		for request in state['requests']:
+	resp_sha = hashlib.sha256(response.encode()).hexdigest()
+	def change(locked_state):
+		if locked_state != state:
+			authorize(root, locked_state, package_path=approval['package'], **auth_kw)
+		for request in locked_state['requests']:
 			if request['id'] in ids:
-				request['response_prepared'] = {'turn': turn, 'steps': steps, 'journal': str(directory), 'sha256': hashlib.sha256(response.encode()).hexdigest(), 'review_approval': approval}
+				request['response_prepared'] = {'turn': turn, 'steps': steps, 'journal': str(directory), 'sha256': resp_sha, 'review_approval': approval}
 	result = update(root, {'action': 'reply_prepared', 'turn': turn, 'steps': steps}, change)
 	r = {**result, 'journal_steps': steps, 'delivery_verified': False}
 	return r
