@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
@@ -977,29 +980,24 @@ def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, j
 def reconcile_unprepared_delivery(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None):
 	return sync(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=True)
 def add_parser_arguments(parser, command):
+	from .cli_common import add_arg_specs
 	if 'journal-watch' == command:
-		parser.add_argument('--action', choices=('start', 'status', 'stop', 'once', 'run'), default='status')
-		parser.add_argument('--state-dir', type=Path)
-		parser.add_argument('--interval', type=float, default=5)
-		parser.add_argument('--token', help='Internal watcher ownership token')
-		parser.add_argument('--dry-run', action='store_true')
-		return
-	parser.add_argument('project', type=Path)
-	parser.add_argument('--conversation', help='Actual current native conversation UUID; Codex can use CODEX_THREAD_ID')
-	if 'recover-turn-violation' == command:
-		parser.add_argument('--reason', help='Audit note for retrospective turn violation recovery')
-	if command not in ('journal-unwatch', 'recover-checkpoint', 'recover-turn-violation'):
-		parser.add_argument('--journal', type=Path, help='User-selected journal; otherwise preserve the turn binding or use ꙮ/1 - Analysis')
-	if command in ('turn-begin', 'answer-prepare'):
-		parser.add_argument('--no-watch', action='store_true', help='Compatibility option; all completion operations are foreground-only')
-	if 'answer-prepare' == command:
-		parser.add_argument('--response-file', type=Path, required=True, help='Exact UTF-8 final response, or - for stdin')
-		parser.add_argument('--consume-input', action='store_true')
-		parser.add_argument('--expected-sha256', help='Optional expected SHA-256 hex digest of response file')
-	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
-		parser.add_argument('--from-step', type=int, default=0)
-	if 'journal-sync' == command:
-		parser.add_argument('--adopt-conflict', action='store_true', help='Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries')
+		add_arg_specs(parser, (('--action', {'choices': ('start', 'status', 'stop', 'once', 'run'), 'default': 'status'}), ('--state-dir', {'type': Path}), ('--interval', {'type': float, 'default': 5}), ('--token', {'help': 'Internal watcher ownership token'}), ('--dry-run', {'action': 'store_true'})))
+	else:
+		specs = [('project', {'type': Path}), ('--conversation', {'help': 'Actual current native conversation UUID; Codex can use CODEX_THREAD_ID'})]
+		if 'recover-turn-violation' == command:
+			specs.append(('--reason', {'help': 'Audit note for retrospective turn violation recovery'}))
+		if command not in ('journal-unwatch', 'recover-checkpoint', 'recover-turn-violation'):
+			specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
+		if command in ('turn-begin', 'answer-prepare'):
+			specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
+		if 'answer-prepare' == command:
+			specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
+		if command in ('journal-sync', 'reconcile-unprepared-delivery'):
+			specs.append(('--from-step', {'type': int, 'default': 0}))
+		if 'journal-sync' == command:
+			specs.append(('--adopt-conflict', {'action': 'store_true', 'help': 'Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries'}))
+		add_arg_specs(parser, specs)
 def execute(args):
 	if 'turn-begin' == args.command:
 		r = begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal)
@@ -1008,10 +1006,10 @@ def execute(args):
 	elif 'recover-turn-violation' == args.command:
 		r = recover_turn_violation(args.project, args.conversation, reason=args.reason)
 	elif 'answer-prepare' == args.command:
-		from .operations import _operation_input, _consumed
-		payload = _operation_input(args, args.response_file)
+		from .cli_common import consume_scratch_input, load_operation_input
+		payload = load_operation_input(args, args.response_file)
 		result = prepare(args.project, payload.decode('utf-8'), args.conversation, watch=not args.no_watch, journal_directory=args.journal)
-		r = _consumed(args, args.response_file, payload, result)
+		r = consume_scratch_input(args, args.response_file, payload, result)
 	elif 'reconcile-unprepared-delivery' == args.command:
 		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)
 	elif 'journal-sync' == args.command:

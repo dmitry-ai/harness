@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
 # https://github.com/dmitry-ai/harness/issues/49
@@ -16,340 +19,209 @@
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 # https://github.com/dmitry-ai/harness/issues/43
-from pathlib import Path
 import json
-import sys
+from pathlib import Path
+from .cli_common import add_arg_specs, consume_scratch_input, load_operation_input, read_input_bytes, read_input_json, read_input_text
 from .completion import COMMANDS as COMPLETION_COMMANDS
-COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'collect-browser', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-finish', 'question-handoff', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'unadopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
-def add_parsers(sub):
-	for command in COMMANDS:
-		parser = sub.add_parser(command, help={'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init', 'status': 'Read-only current stage and agent KB navigation', 'collect': 'Batch GET/DOM observations and extraction with persistent project cache', 'collect-http': 'Single-URL GET/DOM observation and extraction with persistent Evidence cache', 'collect-browser': 'Single-URL CDP browser DOM observation in the configured user browser profile', 'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions', 'check-project': 'All saved-source and local KB diagnostics; no network calls', 'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits'}.get(command, 'Internal ' + command + ' operation'))
-		if command in COMPLETION_COMMANDS:
-			from .completion import add_parser_arguments
-			add_parser_arguments(parser, command)
-			continue
-		if 'metrics' == command:
-			parser.add_argument('traces', nargs='+', type=Path)
-			parser.add_argument('--bindings', type=Path, help='conversation ID -> stage/first_step/last_step intervals')
-			parser.add_argument('--project', type=Path, help='Optional exact project: observed cache/search/review metrics')
-			continue
-		if 'render-analysis' == command:
-			parser.add_argument('input', type=Path)
-			parser.add_argument('--output', type=Path)
-			continue
-		if 'git-read' == command:
-			from .runtime import settings
-			parser.add_argument('project', nargs='?', type=Path, default=Path(settings()['workspace_root']).resolve())
-			parser.add_argument('git_subcommand', choices=('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files'), nargs='?', default='status')
-			parser.add_argument('--short', action='store_true')
-			parser.add_argument('--stat', action='store_true')
-			parser.add_argument('--check', action='store_true')
-			parser.add_argument('--arg', dest='git_args', action='append', default=[])
-			continue
-		parser.add_argument('project', type=Path, help='Exact existing project root from the current chat')
-		if command in ('record-answer', 'save-analysis', 'collect', 'question-add', 'sync-attachments', 'prepare-review', 'record-review', 'prepare-experiment', 'record-experiment'):
-			parser.add_argument('--consume-input', action='store_true', help='After success remove an unchanged input only from project ꘖ/data/scratch; use - for stdin')
-		if 'resume' == command:
-			parser.add_argument('--reason', required=True)
-			parser.add_argument('--request-file', type=Path, help='Exact current user message; kept in service state until final journal')
-		elif 'adopt-requests' == command:
-			parser.add_argument('--conversation', required=True)
-			parser.add_argument('--allow-finalized', action='store_true', help='Permit adopting requests even if initial analysis finalize stage is complete')
-		elif 'unadopt-requests' == command:
-			parser.add_argument('--conversation')
-			parser.add_argument('--request-id', action='append', default=[], help='Specific request ID(s) to unadopt')
-		elif 'record-answer' == command:
-			parser.add_argument('--response-file', required=True, type=Path)
-		elif 'save-analysis' == command:
-			parser.add_argument('--candidate', required=True)
-			parser.add_argument('--expected-sha256')
-		elif 'collect' == command:
-			parser.add_argument('--plan', required=True, type=Path)
-			parser.add_argument('--output', help='Optional project-owned result JSON')
-			parser.add_argument('--browser', choices=('auto', 'always', 'never'), default='auto', help='Browser CDP fallback mode (default: auto)')
-			parser.add_argument('--cdp-port', type=int, help='Optional explicit CDP port override')
-		elif 'collect-http' == command:
-			parser.add_argument('--url', required=True, help='Single HTTP(S) URL to fetch and persist in ꘖ/KB/Evidence/HTTP')
-			parser.add_argument('--profile', choices=('html', 'shopify', 'tracking', 'document', 'auto'), default='auto')
-			parser.add_argument('--scope', default='public')
-			parser.add_argument('--refresh-reason')
-			parser.add_argument('--browser', choices=('auto', 'always', 'never'), default='auto', help='Browser CDP fallback mode (default: auto)')
-			parser.add_argument('--cdp-port', type=int, help='Optional explicit CDP port override')
-		elif 'collect-browser' == command:
-			parser.add_argument('--url', required=True, help='Single HTTP(S) URL to capture via user browser CDP and persist in ꘖ/KB/Evidence/HTTP')
-			parser.add_argument('--profile', choices=('html', 'shopify', 'tracking', 'document', 'auto'), default='html')
-			parser.add_argument('--scope', default='public')
-			parser.add_argument('--refresh-reason')
-			parser.add_argument('--cdp-port', type=int, help='Optional explicit CDP port override')
-		elif 'capture-dom' == command:
-			parser.add_argument('--url', required=True)
-			parser.add_argument('--tab-id', required=True)
-			parser.add_argument('--session-id', required=True, help='Explicit authorized runtime text.browser.sessions entry')
-			parser.add_argument('--refresh-reason')
-		elif command in ('extract', 'extract-file'):
-			parser.add_argument('source')
-			parser.add_argument('--profile', choices=('html', 'shopify', 'tracking', 'document'), default='html' if 'extract' == command else 'document')
-		elif 'sync-attachments' == command:
-			parser.add_argument('--media-descriptions', type=Path, help='Optional JSON mapping attachment filename/sha256/video URL to Markdown transcription/analysis')
-			parser.add_argument('--no-fetch-videos', action='store_true', help='Skip network fetching for external video transcripts')
-		elif 'stage' == command:
-			from .workflow import STAGES
-			parser.add_argument('stage', choices=STAGES)
-			parser.add_argument('--input', action='append', required=True)
-			parser.add_argument('--output', action='append', required=True)
-			parser.add_argument('--note')
-		elif 'question-add' == command:
-			parser.add_argument('--spec', type=Path, required=True)
-		elif command.startswith('question-'):
-			parser.add_argument('id')
-			if 'question-handoff' != command:
-				parser.add_argument('--owner', required=True)
-			else:
-				parser.add_argument('--previous-owner', required=True)
-				parser.add_argument('--new-owner', required=True)
-				parser.add_argument('--reason', required=True)
-			if 'question-finish' == command:
-				parser.add_argument('--output', action='append', required=True)
-				parser.add_argument('--gap')
-				parser.add_argument('--results', required=True, type=Path, help='Structured experiment result list JSON; use - for stdin')
-			elif 'question-search' == command:
-				parser.add_argument('--query', required=True)
-				parser.add_argument('--useful', action='store_true')
-				parser.add_argument('--method-change')
-		elif 'prepare-review' == command:
-			parser.add_argument('--parent', required=True)
-			parser.add_argument('--spec', required=True, type=Path, help='Explicit risk/basis/request_scope/claim_ids/claims JSON')
-			parser.add_argument('--response-file', required=True, type=Path, help='Exact candidate response; use - for stdin')
-		elif 'review-input' == command:
-			parser.add_argument('--package', required=True)
-		elif command in ('native-review-proof', 'record-review'):
-			parser.add_argument('--parent', required=True)
-			parser.add_argument('--reviewer', required=True)
-			if 'record-review' == command:
-				parser.add_argument('--report', required=True)
-				parser.add_argument('--native-evidence', help='Separate native proof from the completed reviewer')
-		elif 'review-disposition' == command:
-			parser.add_argument('--review-id', required=True)
-			parser.add_argument('--finding-id', required=True)
-			parser.add_argument('--status', choices=('resolved', 'rejected'), required=True)
-			parser.add_argument('--basis', required=True)
-			parser.add_argument('--evidence', action='append', required=True)
-			parser.add_argument('--parent', required=True)
-		elif 'record-experiment' == command:
-			parser.add_argument('--spec', required=True, type=Path)
-		elif 'prepare-experiment' == command:
-			parser.add_argument('--spec', required=True, type=Path)
-			parser.add_argument('--amendment-of')
-			parser.add_argument('--amendment-reason')
-		elif 'native-executor-metadata' == command:
-			parser.add_argument('--conversation', required=True)
-			parser.add_argument('--save', action='store_true', help='Persist immutable native metadata; default is read-only')
-			parser.add_argument('--role', choices=('primary', 'AA', 'AF'), default='primary')
-			parser.add_argument('--parent')
-		elif 'source-ref' == command:
-			parser.add_argument('file')
-			parser.add_argument('--part', action='append', default=[])
-def analysis_root(file):
-	file = Path(file).resolve()
-	for parent in file.parents:
-		if 'ꘖ' == parent.name:
-			return parent.parent
-	return file.parent
-def _read_input(path):
-	return sys.stdin.buffer.read() if '-' == str(path) else Path(path).read_bytes()
-def _consumed(args, path, payload, result):
-	if not getattr(args, 'consume_input', False) or '-' == str(path):
+COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'collect-browser', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-handoff', 'question-finish', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'unadopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
+_COMMAND_HELP = {'check-project': 'All saved-source and local KB diagnostics; no network calls', 'collect': 'Batch GET/DOM observations and extraction with persistent project cache', 'collect-browser': 'Single-URL CDP browser DOM observation in the configured user browser profile', 'collect-http': 'Single-URL GET/DOM observation and extraction with persistent Evidence cache', 'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits', 'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init', 'status': 'Read-only current stage and agent KB navigation', 'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions'}
+_CONSUME_COMMANDS = {'collect', 'prepare-experiment', 'prepare-review', 'question-add', 'record-answer', 'record-experiment', 'record-review', 'save-analysis', 'sync-attachments'}
+_PROJECT_SPECS = {
+	'adopt-requests': (('--conversation', {'required': True}), ('--allow-finalized', {'action': 'store_true', 'help': 'Permit adopting requests even if initial analysis finalize stage is complete'})),
+	'capture-dom': (('--url', {'required': True}), ('--tab-id', {'required': True}), ('--session-id', {'required': True, 'help': 'Explicit authorized runtime text.browser.sessions entry'}), ('--refresh-reason', {})),
+	'collect': (('--plan', {'required': True, 'type': Path}), ('--output', {'help': 'Optional project-owned result JSON'}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'collect-browser': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to capture via user browser CDP and persist in \ua616/KB/Evidence/HTTP'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'html'}), ('--scope', {'default': 'public'}), ('--refresh-reason', {}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'collect-http': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to fetch and persist in \ua616/KB/Evidence/HTTP'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'auto'}), ('--scope', {'default': 'public'}), ('--refresh-reason', {}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'extract': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'html'})),
+	'extract-file': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'document'})),
+	'native-executor-metadata': (('--conversation', {'required': True}), ('--save', {'action': 'store_true', 'help': 'Persist immutable native metadata; default is read-only'}), ('--role', {'choices': ('primary', 'AA', 'AF'), 'default': 'primary'}), ('--parent', {})),
+	'native-review-proof': (('--parent', {'required': True}), ('--reviewer', {'required': True})),
+	'prepare-experiment': (('--spec', {'required': True, 'type': Path}), ('--amendment-of', {}), ('--amendment-reason', {})),
+	'prepare-review': (('--parent', {'required': True}), ('--spec', {'required': True, 'type': Path, 'help': 'Explicit risk/basis/request_scope/claim_ids/claims JSON'}), ('--response-file', {'required': True, 'type': Path, 'help': 'Exact candidate response; use - for stdin'})),
+	'question-add': (('--spec', {'required': True, 'type': Path}),),
+	'question-claim': (('id', {}), ('--owner', {'required': True})),
+	'question-finish': (('id', {}), ('--owner', {'required': True}), ('--output', {'action': 'append', 'required': True}), ('--gap', {}), ('--results', {'required': True, 'type': Path, 'help': 'Structured experiment result list JSON; use - for stdin'})),
+	'question-handoff': (('id', {}), ('--previous-owner', {'required': True}), ('--new-owner', {'required': True}), ('--reason', {'required': True})),
+	'question-search': (('id', {}), ('--owner', {'required': True}), ('--query', {'required': True}), ('--useful', {'action': 'store_true'}), ('--method-change', {})),
+	'record-answer': (('--response-file', {'required': True, 'type': Path}),),
+	'record-experiment': (('--spec', {'required': True, 'type': Path}),),
+	'record-review': (('--parent', {'required': True}), ('--reviewer', {'required': True}), ('--report', {'required': True}), ('--native-evidence', {'help': 'Separate native proof from the completed reviewer'})),
+	'resume': (('--reason', {'required': True}), ('--request-file', {'type': Path, 'help': 'Exact current user message; kept in service state until final journal'})),
+	'review-disposition': (('--review-id', {'required': True}), ('--finding-id', {'required': True}), ('--status', {'choices': ('resolved', 'rejected'), 'required': True}), ('--basis', {'required': True}), ('--evidence', {'action': 'append', 'required': True}), ('--parent', {'required': True})),
+	'review-input': (('--package', {'required': True}),),
+	'save-analysis': (('--candidate', {'required': True}), ('--expected-sha256', {})),
+	'source-ref': (('file', {}), ('--part', {'action': 'append', 'default': []})),
+	'sync-attachments': (('--media-descriptions', {'type': Path, 'help': 'Optional JSON mapping attachment filename/sha256/video URL to Markdown transcription/analysis'}), ('--no-fetch-videos', {'action': 'store_true', 'help': 'Skip network fetching for external video transcripts'})),
+	'unadopt-requests': (('--conversation', {}), ('--request-id', {'action': 'append', 'default': [], 'help': 'Specific request ID(s) to unadopt'})),
+}
+_consumed = consume_scratch_input
+_operation_input = load_operation_input
+_read_input = read_input_bytes
+def _execute_collect(args):
+	from .research import collect_plan, compute_site_summary, inside, json_data
+	payload = _operation_input(args, args.plan)
+	plan = json.loads(payload.decode('utf-8-sig'))
+	result = collect_plan(args.project, plan, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
+	if not args.output:
 		r = result
 	else:
-		from .storage import data_dir_for
-		target = Path(path).resolve()
-		scratch_dirs = [data_dir_for(args.project) / 'scratch', Path(args.project).resolve() / 'ꘖ/data/scratch']
-		if not any((target.is_relative_to(s) for s in scratch_dirs)) or Path(path).is_symlink() or any((p.is_junction() for p in (target, *target.parents) if p.exists())):
-			raise ValueError('Consumed input must be an ordinary file inside project ꘖ/data/scratch')
-		if 'conflict' == result.get('status') or False is result.get('complete') or False is result.get('valid'):
-			r = result
-		else:
-			if target.exists() and target.read_bytes() == payload:
-				target.unlink()
-				result['consumed_input'] = str(target)
-			r = result
+		from .analysis import digest, publish_owned
+		target = inside(args.project, args.output)
+		if not target.is_relative_to(Path(args.project).resolve() / '\ua616/KB/Evidence') or '/HTTP/' in target.as_posix() or '/Reviews/' in target.as_posix():
+			raise ValueError('Collection report must be a project Evidence file outside immutable HTTP/Reviews observations')
+		receipts_file = Path(args.project).resolve() / '\ua616/data/rendered.json'
+		if target.is_file() and receipts_file.is_file():
+			try:
+				receipts = json.loads(receipts_file.read_text(encoding='utf-8'))
+				raw_prev = target.read_bytes()
+				if receipts.get(str(target), {}).get('sha256') == digest(raw_prev):
+					prev_data = json.loads(raw_prev.decode('utf-8'))
+					if isinstance(prev_data, dict) and isinstance(prev_data.get('results'), list) and isinstance(result.get('results'), list):
+						new_keys = {item.get('request_key') or (item.get('url'), item.get('observation')) for item in result['results'] if isinstance(item, dict)}
+						kept = [item for item in prev_data['results'] if isinstance(item, dict) and (item.get('request_key') or (item.get('url'), item.get('observation'))) not in new_keys]
+						if kept:
+							merged_results = kept + result['results']
+							result = {**result, 'results': merged_results, 'site_summary': compute_site_summary(args.project, merged_results), 'complete': bool(prev_data.get('complete', True) and result.get('complete', True))}
+			except (OSError, ValueError):
+				pass
+		result['publication'] = publish_owned(target, json_data(result), source={'kind': 'collection-plan', 'sha256': digest(payload), 'plan': plan})
+		r = result if 'conflict' == result['publication']['status'] else _consumed(args, args.plan, payload, result)
 	return r
-def _operation_input(args, path):
-	if getattr(args, 'consume_input', False) and '-' != str(path):
-		from .storage import data_dir_for
-		target = Path(path).resolve()
-		scratch_dirs = [data_dir_for(args.project) / 'scratch', Path(args.project).resolve() / 'ꘖ/data/scratch']
-		if not any((target.is_relative_to(s) for s in scratch_dirs)) or Path(path).is_symlink() or any((p.is_junction() for p in (target, *target.parents) if p.exists())):
-			raise ValueError('Consumed input must be an ordinary file inside project ꘖ/data/scratch')
-	if 'answer-prepare' == getattr(args, 'command', None) and '-' != str(path):
-		from .storage import data_dir_for
-		target = Path(path).resolve()
-		if 'answer.md' == target.name.lower():
-			turns_dir = data_dir_for(args.project) / 'turns'
-			cur_conv = getattr(args, 'conversation', None)
-			if turns_dir.is_dir():
-				for tf in turns_dir.glob('*.json'):
-					if '-' in tf.stem:
-						continue
-					try:
-						tdata = json.loads(tf.read_text(encoding='utf-8'))
-					except (OSError, ValueError):
-						continue
-					if isinstance(tdata, dict) and tdata.get('status') in ('open', 'prepared', 'preparation_unverified') and (None is cur_conv or tdata.get('conversation_id') != cur_conv):
-						raise ValueError('Shared ꘖ/data/scratch/answer.md is prohibited when parallel turns are active; write to ꘖ/data/scratch/answer-<turn_key>.md')
-	r = _read_input(path)
-	expected_sha = getattr(args, 'expected_sha256', None)
-	if expected_sha:
-		import hashlib
-		actual_sha = hashlib.sha256(r).hexdigest().lower()
-		if actual_sha != str(expected_sha).strip().lower():
-			raise ValueError(f'Input SHA-256 mismatch against --expected-sha256: expected {expected_sha}, got {actual_sha}')
+def _load_consumed_json(args, path, fn, *extra_args, **extra_kwargs):
+	payload = _operation_input(args, path)
+	result = fn(*extra_args, json.loads(payload.decode('utf-8-sig')), **extra_kwargs)
+	return _consumed(args, path, payload, result)
+def add_parsers(sub):
+	from .completion import add_parser_arguments
+	from .runtime import settings
+	from .workflow import STAGES
+	standalone = {
+		'git-read': (('project', {'nargs': '?', 'type': Path, 'default': Path(settings()['workspace_root']).resolve()}), ('git_subcommand', {'choices': ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files'), 'nargs': '?', 'default': 'status'}), ('--short', {'action': 'store_true'}), ('--stat', {'action': 'store_true'}), ('--check', {'action': 'store_true'}), ('--arg', {'dest': 'git_args', 'action': 'append', 'default': []})),
+		'metrics': (('traces', {'nargs': '+', 'type': Path}), ('--bindings', {'type': Path, 'help': 'conversation ID -> stage/first_step/last_step intervals'}), ('--project', {'type': Path, 'help': 'Optional exact project: observed cache/search/review metrics'})),
+		'render-analysis': (('input', {'type': Path}), ('--output', {'type': Path})),
+	}
+	stage_specs = (('stage', {'choices': STAGES}), ('--input', {'action': 'append', 'required': True}), ('--output', {'action': 'append', 'required': True}), ('--note', {}))
+	for command in COMMANDS:
+		parser = sub.add_parser(command, help=_COMMAND_HELP.get(command, 'Internal ' + command + ' operation'))
+		if command in COMPLETION_COMMANDS:
+			add_parser_arguments(parser, command)
+		elif command in standalone:
+			add_arg_specs(parser, standalone[command])
+		else:
+			specs = [('project', {'type': Path, 'help': 'Exact existing project root from the current chat'})]
+			if command in _CONSUME_COMMANDS:
+				specs.append(('--consume-input', {'action': 'store_true', 'help': 'After success remove an unchanged input only from project \ua616/data/scratch; use - for stdin'}))
+			specs.extend(stage_specs if 'stage' == command else _PROJECT_SPECS.get(command, ()))
+			add_arg_specs(parser, specs)
+def analysis_root(file):
+	file = Path(file).resolve()
+	r = file.parent
+	for parent in file.parents:
+		if '\ua616' == parent.name:
+			r = parent.parent
+			break
 	return r
 def execute(args):
 	from . import workflow as flow
 	command = args.command
 	if command in COMPLETION_COMMANDS:
 		from .completion import execute as complete
-		return complete(args)
-	if 'status' == command:
-		return flow.status(args.project)
-	if 'resume' == command:
-		request = _read_input(args.request_file).decode('utf-8') if args.request_file else None
-		return flow.resume(args.project, args.reason, request)
-	if 'check-project' == command:
-		return flow.check_project(args.project)
-	if 'adopt-requests' == command:
-		return flow.adopt_requests(args.project, args.conversation, allow_finalized=getattr(args, 'allow_finalized', False))
-	if 'unadopt-requests' == command:
-		return flow.unadopt_requests(args.project, args.conversation, request_ids=args.request_id)
-	if 'record-answer' == command:
+		r = complete(args)
+	elif 'status' == command:
+		r = flow.status(args.project)
+	elif 'resume' == command:
+		r = flow.resume(args.project, args.reason, read_input_text(args.request_file, encoding='utf-8') if args.request_file else None)
+	elif 'check-project' == command:
+		r = flow.check_project(args.project)
+	elif 'adopt-requests' == command:
+		r = flow.adopt_requests(args.project, args.conversation, allow_finalized=getattr(args, 'allow_finalized', False))
+	elif 'unadopt-requests' == command:
+		r = flow.unadopt_requests(args.project, args.conversation, request_ids=args.request_id)
+	elif 'record-answer' == command:
 		payload = _operation_input(args, args.response_file)
-		result = flow.record_current_answer(args.project, payload.decode('utf-8'))
-		return _consumed(args, args.response_file, payload, result)
-	if 'save-analysis' == command:
+		r = _consumed(args, args.response_file, payload, flow.record_current_answer(args.project, payload.decode('utf-8')))
+	elif 'save-analysis' == command:
 		from .analysis import save_analysis
 		from .research import inside
-		candidate = args.candidate if '-' == str(args.candidate) else inside(args.project, args.candidate)
-		payload = _operation_input(args, candidate)
-		result = save_analysis(args.project, json.loads(payload.decode('utf-8-sig')), args.expected_sha256)
-		return _consumed(args, candidate, payload, result)
-	if 'collect' == command:
-		from .research import collect_plan, compute_site_summary, inside, json_data
-		payload = _operation_input(args, args.plan)
-		plan = json.loads(payload.decode('utf-8-sig'))
-		result = collect_plan(args.project, plan, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
-		if args.output:
-			from .analysis import publish_owned, digest
-			target = inside(args.project, args.output)
-			if not target.is_relative_to(Path(args.project).resolve() / 'ꘖ/KB/Evidence') or '/HTTP/' in target.as_posix() or '/Reviews/' in target.as_posix():
-				raise ValueError('Collection report must be a project Evidence file outside immutable HTTP/Reviews observations')
-			receipts_file = Path(args.project).resolve() / 'ꘖ/data/rendered.json'
-			if target.is_file() and receipts_file.is_file():
-				try:
-					receipts = json.loads(receipts_file.read_text(encoding='utf-8'))
-					raw_prev = target.read_bytes()
-					if receipts.get(str(target), {}).get('sha256') == digest(raw_prev):
-						prev_data = json.loads(raw_prev.decode('utf-8'))
-						if isinstance(prev_data, dict) and isinstance(prev_data.get('results'), list) and isinstance(result.get('results'), list):
-							new_keys = {r.get('request_key') or (r.get('url'), r.get('observation')) for r in result['results'] if isinstance(r, dict)}
-							kept = [r for r in prev_data['results'] if isinstance(r, dict) and (r.get('request_key') or (r.get('url'), r.get('observation'))) not in new_keys]
-							if kept:
-								merged_results = kept + result['results']
-								result = {**result, 'results': merged_results, 'site_summary': compute_site_summary(args.project, merged_results), 'complete': bool(prev_data.get('complete', True) and result.get('complete', True))}
-				except (OSError, ValueError):
-					pass
-			result['publication'] = publish_owned(target, json_data(result), source={'kind': 'collection-plan', 'sha256': digest(payload), 'plan': plan})
-			if 'conflict' == result['publication']['status']:
-				return result
-			return _consumed(args, args.plan, payload, result)
-		return result
-	if 'collect-http' == command:
+		cand = args.candidate if '-' == str(args.candidate) else inside(args.project, args.candidate)
+		r = _load_consumed_json(args, cand, lambda data: save_analysis(args.project, data, args.expected_sha256))
+	elif 'collect' == command:
+		r = _execute_collect(args)
+	elif 'collect-http' == command:
 		from .research import collect_http
-		return collect_http(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
-	if 'collect-browser' == command:
+		r = collect_http(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
+	elif 'collect-browser' == command:
 		from .research import collect_browser
-		return collect_browser(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
-	if 'extract' == command:
+		r = collect_browser(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
+	elif 'extract' == command:
 		from .research import extract_observation
-		return extract_observation(args.project, args.source, args.profile)
-	if 'capture-dom' == command:
+		r = extract_observation(args.project, args.source, args.profile)
+	elif 'capture-dom' == command:
 		from .research import capture_dom
-		return capture_dom(args.project, args.url, args.tab_id, session_id=args.session_id, refresh_reason=args.refresh_reason)
-	if 'extract-file' == command:
+		r = capture_dom(args.project, args.url, args.tab_id, session_id=args.session_id, refresh_reason=args.refresh_reason)
+	elif 'extract-file' == command:
 		from .research import extract_file
-		return extract_file(args.project, args.source, args.profile)
-	if 'sync-attachments' == command:
+		r = extract_file(args.project, args.source, args.profile)
+	elif 'sync-attachments' == command:
 		from .knowledge import sync_project_attachments_and_kb
-		descriptions, payload = (None, None)
-		if args.media_descriptions:
-			payload = _operation_input(args, args.media_descriptions)
-			descriptions = json.loads(payload.decode('utf-8-sig'))
-		result = sync_project_attachments_and_kb(args.project, descriptions, fetch_videos=not args.no_fetch_videos)
-		return _consumed(args, args.media_descriptions, payload, result) if args.media_descriptions else result
-	if 'stage' == command:
-		return flow.complete_stage(args.project, args.stage, args.input, args.output, note=args.note)
-	if 'question-add' == command:
-		payload = _operation_input(args, args.spec)
-		spec = json.loads(payload.decode('utf-8-sig'))
-		result = flow.add_question(args.project, spec['id'], spec['question'], spec['impact'], spec['done_when'], spec['inputs'], spec['outputs'], requirements=spec.get('requirements'))
-		return _consumed(args, args.spec, payload, result)
-	if 'question-claim' == command:
-		return flow.claim_question(args.project, args.id, args.owner)
-	if 'question-finish' == command:
-		return flow.finish_question(args.project, args.id, args.owner, args.output, args.gap, results=json.loads(_read_input(args.results).decode('utf-8-sig')))
-	if 'question-handoff' == command:
-		return flow.handoff(args.project, args.id, args.previous_owner, args.new_owner, args.reason)
-	if 'question-search' == command:
-		return flow.record_search(args.project, args.id, args.owner, args.query, args.useful, args.method_change)
-	if 'native-review-proof' == command:
+		if not args.media_descriptions:
+			r = sync_project_attachments_and_kb(args.project, None, fetch_videos=not args.no_fetch_videos)
+		else:
+			r = _load_consumed_json(args, args.media_descriptions, lambda desc: sync_project_attachments_and_kb(args.project, desc, fetch_videos=not args.no_fetch_videos))
+	elif 'stage' == command:
+		r = flow.complete_stage(args.project, args.stage, args.input, args.output, note=args.note)
+	elif 'question-add' == command:
+		r = _load_consumed_json(args, args.spec, lambda spec: flow.add_question(args.project, spec['id'], spec['question'], spec['impact'], spec['done_when'], spec['inputs'], spec['outputs'], requirements=spec.get('requirements')))
+	elif 'question-claim' == command:
+		r = flow.claim_question(args.project, args.id, args.owner)
+	elif 'question-finish' == command:
+		r = flow.finish_question(args.project, args.id, args.owner, args.output, args.gap, results=read_input_json(args.results))
+	elif 'question-handoff' == command:
+		r = flow.handoff(args.project, args.id, args.previous_owner, args.new_owner, args.reason)
+	elif 'question-search' == command:
+		r = flow.record_search(args.project, args.id, args.owner, args.query, args.useful, args.method_change)
+	elif 'native-review-proof' == command:
 		from .metrics import native_review_proof
-		return native_review_proof(args.project, args.parent, args.reviewer)
-	if 'prepare-review' == command:
+		r = native_review_proof(args.project, args.parent, args.reviewer)
+	elif 'prepare-review' == command:
 		if '-' == str(args.spec) and '-' == str(args.response_file):
 			raise ValueError('Only one prepare-review input may use stdin')
 		spec_payload = _operation_input(args, args.spec)
 		payload = _operation_input(args, args.response_file)
-		result = flow.prepare_review(args.project, args.parent, json.loads(spec_payload.decode('utf-8-sig')), payload.decode('utf-8'))
-		result = _consumed(args, args.spec, spec_payload, result)
-		return _consumed(args, args.response_file, payload, result)
-	if 'review-input' == command:
-		return flow.review_input(args.project, args.package)
-	if 'record-review' == command:
+		res = flow.prepare_review(args.project, args.parent, json.loads(spec_payload.decode('utf-8-sig')), payload.decode('utf-8'))
+		r = _consumed(args, args.response_file, payload, _consumed(args, args.spec, spec_payload, res))
+	elif 'review-input' == command:
+		r = flow.review_input(args.project, args.package)
+	elif 'record-review' == command:
 		payload = _operation_input(args, args.report)
-		result = flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence)
-		return _consumed(args, args.report, payload, result)
-	if 'review-disposition' == command:
-		return flow.record_review_disposition(args.project, args.review_id, args.finding_id, args.status, args.basis, args.evidence, args.parent)
-	if 'record-experiment' == command:
+		r = _consumed(args, args.report, payload, flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence))
+	elif 'review-disposition' == command:
+		r = flow.record_review_disposition(args.project, args.review_id, args.finding_id, args.status, args.basis, args.evidence, args.parent)
+	elif 'record-experiment' == command:
 		from .experiments import record_experiment
-		payload = _operation_input(args, args.spec)
-		result = record_experiment(args.project, json.loads(payload.decode('utf-8-sig')))
-		return _consumed(args, args.spec, payload, result)
-	if 'prepare-experiment' == command:
+		r = _load_consumed_json(args, args.spec, lambda spec: record_experiment(args.project, spec))
+	elif 'prepare-experiment' == command:
 		from .experiments import prepare_experiment
-		payload = _operation_input(args, args.spec)
-		result = prepare_experiment(args.project, json.loads(payload.decode('utf-8-sig')), amendment_of=args.amendment_of, amendment_reason=args.amendment_reason)
-		return _consumed(args, args.spec, payload, result)
-	if 'native-executor-metadata' == command:
+		r = _load_consumed_json(args, args.spec, lambda spec: prepare_experiment(args.project, spec, amendment_of=args.amendment_of, amendment_reason=args.amendment_reason))
+	elif 'native-executor-metadata' == command:
 		from .metrics import native_executor_metadata, record_executor_metadata
 		callback = record_executor_metadata if args.save else native_executor_metadata
-		return callback(args.project, args.conversation, role=args.role, parent_id=args.parent)
-	if 'metrics' == command:
-		from .metrics import summarize
-		bindings = json.loads(args.bindings.read_text(encoding='utf-8')) if args.bindings else None
-		result = summarize(args.traces, bindings)
+		r = callback(args.project, args.conversation, role=args.role, parent_id=args.parent)
+	elif 'metrics' == command:
+		from .metrics import project_metrics, summarize
+		r = summarize(args.traces, read_input_json(args.bindings, encoding='utf-8') if args.bindings else None)
 		if args.project:
-			from .metrics import project_metrics
-			result['project'] = project_metrics(args.project)
-		return result
-	if 'source-ref' == command:
+			r['project'] = project_metrics(args.project)
+	elif 'source-ref' == command:
 		from .evidence import source_reference
-		return {'source': source_reference(args.project, args.file, args.part)}
-	if 'render-analysis' == command:
+		r = {'source': source_reference(args.project, args.file, args.part)}
+	elif 'render-analysis' == command:
 		from .analysis import publish_analysis
-		return publish_analysis(args.input, args.output)
-	if 'git-read' == command:
+		r = publish_analysis(args.input, args.output)
+	elif 'git-read' != command:
+		raise ValueError('Unknown workflow command')
+	else:
 		from .git_gate import read_git
 		extra = [f'--{flag}' for flag in ('short', 'stat', 'check') if getattr(args, flag, False)] + list(args.git_args)
-		return read_git(args.project, args.git_subcommand, extra)
-	raise ValueError('Unknown workflow command')
+		r = read_git(args.project, args.git_subcommand, extra)
+	return r

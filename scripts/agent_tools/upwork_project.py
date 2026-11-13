@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
@@ -183,7 +186,8 @@ def install_global_customizations(config_dir=None, primary=PRIMARY_AGENTS_DIR):
 def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_root=DAILY_PROPOSALS_ROOT):
 	job_id, label, day = (normalize_job_id(job_id), validate_label(domain_or_topic), request_day(date_str))
 	daily = Path(daily_root).resolve()
-	state = HARNESS_META / 'ꘖ/data/upwork-projects' if daily == DAILY_PROPOSALS_ROOT and (not (daily / 'ꘖ/data/projects.json').exists()) else daily / 'ꘖ/data'
+	state = HARNESS_META / '\ua616/data/upwork-projects' if daily == DAILY_PROPOSALS_ROOT and (not (daily / '\ua616/data/projects.json').exists()) else daily / '\ua616/data'
+	r = None
 	with locked(state / 'projects.lock'):
 		index_file = state / 'projects.json'
 		index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {}
@@ -191,24 +195,28 @@ def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_
 			target = (daily / index[job_id]).resolve()
 			if not target.is_relative_to(daily) or not target.is_dir():
 				raise ValueError('Project registry points to a missing or external directory')
-			return target
-		parent = daily / f'{day.year:04d}' / f'{day.month:02d}' / f'{day.day:02d}'
-		parent.mkdir(parents=True, exist_ok=True)
-		numbers = []
-		for child in parent.iterdir():
-			match = re.match('^(\\d+) - ', child.name)
-			if child.is_dir() and match:
-				numbers.append(int(match[1]))
-				overview = child / '.md'
-				if overview.is_file() and canonical_job_url(job_id) in overview.read_text(encoding='utf-8'):
-					index[job_id] = child.relative_to(daily).as_posix()
-					replace_bytes(index_file, json_bytes(index))
-					return child
-		target = parent / f'{max(numbers, default=0) + 1} - {label}'
-		target.mkdir(exist_ok=False)
-		index[job_id] = target.relative_to(daily).as_posix()
-		replace_bytes(index_file, json_bytes(index))
-		return target
+			r = target
+		else:
+			parent = daily / f'{day.year:04d}' / f'{day.month:02d}' / f'{day.day:02d}'
+			parent.mkdir(parents=True, exist_ok=True)
+			numbers = []
+			for child in parent.iterdir():
+				match = re.match('^(\\d+) - ', child.name)
+				if child.is_dir() and match:
+					numbers.append(int(match[1]))
+					overview = child / '.md'
+					if overview.is_file() and canonical_job_url(job_id) in overview.read_text(encoding='utf-8'):
+						index[job_id] = child.relative_to(daily).as_posix()
+						replace_bytes(index_file, json_bytes(index))
+						r = child
+						break
+			if None is r:
+				target = parent / f'{max(numbers, default=0) + 1} - {label}'
+				target.mkdir(exist_ok=False)
+				index[job_id] = target.relative_to(daily).as_posix()
+				replace_bytes(index_file, json_bytes(index))
+				r = target
+	return r
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
@@ -292,123 +300,44 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
 	r['valid'] = r['global_customizations']['valid']
 	return r
 def main(argv=None):
+	from .cli_common import add_arg_specs
+	from .operations import add_parsers
 	parser = argparse.ArgumentParser(description=__doc__)
 	sub = parser.add_subparsers(dest='command', required=True)
-	inspect = sub.add_parser('inspect', help='Capture the selected tab once, including attachments')
-	inspect.add_argument('url')
-	inspect.add_argument('--output', required=True, type=Path)
-	inspect.add_argument('--tab-id')
-	inspect.add_argument('--cdp-port', type=int)
-	init = sub.add_parser('init', help='Initialize from an existing capture without browser requests')
-	init.add_argument('url')
-	init.add_argument('--from-json', required=True, type=Path)
-	init.add_argument('--domain')
-	init.add_argument('--date')
-	init.add_argument('--site-hypothesis', type=Path, help='Four-part identity hypothesis with evidence and expert probability')
-	init.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
-	init.add_argument('--no-register', action='store_true')
-	intake = sub.add_parser('intake-drain', help='Verify and commit managed staging evidence; dry-run unless --apply')
-	intake.add_argument('capture', nargs='?', type=Path, help='One immediate capture directory; default: all managed incoming')
-	intake.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
-	intake.add_argument('--apply', action='store_true', help='Drain only after durable evidence and receipt verification')
-	cleanup = sub.add_parser('cleanup', help='Remove empty native Upwork projects older than 72 hours; keep the entire daily archive')
-	cleanup.add_argument('--apply', action='store_true', help='Apply cleanup; default is a read-only preview')
-	cleanup.add_argument('--daily-root', type=Path, default=DAILY_PROPOSALS_ROOT)
-	cleanup_report = sub.add_parser('cleanup-report', help='Save the exact cleanup answer with an Istanbul timestamp in AI/log/cleanup')
-	cleanup_report.add_argument('--answer', default='-', help='Answer body as a UTF-8 file, or - for stdin')
-	config = sub.add_parser('configure', help='Create missing native manifests; preserve existing configuration')
-	config.add_argument('project', type=Path)
-	config.add_argument('--check', action='store_true', help='Check the project Codex projection without writing')
-	register = sub.add_parser('register', help='Ensure the same project and folder in both configured platforms')
-	register.add_argument('project', type=Path)
-	register.add_argument('--domain')
-	register.add_argument('--target', choices=tuple(settings()['platforms']), help='Repair one platform only; default: both')
-	validate = sub.add_parser('validate-analysis', help='Check all five analysis stages and their evidence graph')
-	validate.add_argument('input', type=Path)
-	validate.add_argument('--render', type=Path)
-	validate.add_argument('--format', choices=('text', 'json'), default='text')
-	validate.add_argument('--evidence', action='store_true', help='Verify saved sources and quotes without network requests')
-	sub.add_parser('doctor', help='Check discovery inputs, always_on rules, size and model settings')
-	install_global = sub.add_parser('install-global', help='Connect selected Antigravity/Codex profiles to shared native Harness sources')
-	install_global.add_argument('--target-profile', action='append', choices=tuple(settings()['platforms']['antigravity']['homes']) + tuple(settings()['platforms']['codex']['homes']), help='Profile to configure; repeat for a pilot, default: all configured profiles')
-	install_global.add_argument('--check', action='store_true', help='Verify shared sources, inherited manifests, directory links and role paths without writing')
-	build = sub.add_parser('build-native', help='Generate/check native projections from canonical policy and runtime')
-	build.add_argument('--root', type=Path)
-	build.add_argument('--check', action='store_true')
-	sub.add_parser('policy-instructions', help='Read only the current profile global developer_instructions key')
-	from .operations import COMMANDS, add_parsers, execute, analysis_root
+	all_profiles = tuple(settings()['platforms']['antigravity']['homes']) + tuple(settings()['platforms']['codex']['homes'])
+	subcommands = {
+		'inspect': ('Capture the selected tab once, including attachments', (('url', {}), ('--output', {'required': True, 'type': Path}), ('--tab-id', {}), ('--cdp-port', {'type': int}))),
+		'init': ('Initialize from an existing capture without browser requests', (('url', {}), ('--from-json', {'required': True, 'type': Path}), ('--domain', {}), ('--date', {}), ('--site-hypothesis', {'type': Path, 'help': 'Four-part identity hypothesis with evidence and expert probability'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--no-register', {'action': 'store_true'}))),
+		'intake-drain': ('Verify and commit managed staging evidence; dry-run unless --apply', (('capture', {'nargs': '?', 'type': Path, 'help': 'One immediate capture directory; default: all managed incoming'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--apply', {'action': 'store_true', 'help': 'Drain only after durable evidence and receipt verification'}))),
+		'cleanup': ('Remove empty native Upwork projects older than 72 hours; keep the entire daily archive', (('--apply', {'action': 'store_true', 'help': 'Apply cleanup; default is a read-only preview'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}))),
+		'cleanup-report': ('Save the exact cleanup answer with an Istanbul timestamp in AI/log/cleanup', (('--answer', {'default': '-', 'help': 'Answer body as a UTF-8 file, or - for stdin'}),)),
+		'configure': ('Create missing native manifests; preserve existing configuration', (('project', {'type': Path}), ('--check', {'action': 'store_true', 'help': 'Check the project Codex projection without writing'}))),
+		'register': ('Ensure the same project and folder in both configured platforms', (('project', {'type': Path}), ('--domain', {}), ('--target', {'choices': tuple(settings()['platforms']), 'help': 'Repair one platform only; default: both'}))),
+		'validate-analysis': ('Check all five analysis stages and their evidence graph', (('input', {'type': Path}), ('--render', {'type': Path}), ('--format', {'choices': ('text', 'json'), 'default': 'text'}), ('--evidence', {'action': 'store_true', 'help': 'Verify saved sources and quotes without network requests'}))),
+		'doctor': ('Check discovery inputs, always_on rules, size and model settings', ()),
+		'install-global': ('Connect selected Antigravity/Codex profiles to shared native Harness sources', (('--target-profile', {'action': 'append', 'choices': all_profiles, 'help': 'Profile to configure; repeat for a pilot, default: all configured profiles'}), ('--check', {'action': 'store_true', 'help': 'Verify shared sources, inherited manifests, directory links and role paths without writing'}))),
+		'build-native': ('Generate/check native projections from canonical policy and runtime', (('--root', {'type': Path}), ('--check', {'action': 'store_true'}))),
+		'policy-instructions': ('Read only the current profile global developer_instructions key', ()),
+	}
+	for cmd_name, (help_text, specs) in subcommands.items():
+		add_arg_specs(sub.add_parser(cmd_name, help=help_text), specs)
 	add_parsers(sub)
 	for child in sub.choices.values():
-		child.add_argument('--platform', choices=tuple(settings()['platforms']))
-		child.add_argument('--codex-profile', choices=tuple(settings()['platforms']['codex']['homes']))
+		add_arg_specs(child, (('--platform', {'choices': tuple(settings()['platforms'])}), ('--codex-profile', {'choices': tuple(settings()['platforms']['codex']['homes'])})))
 	args = parser.parse_args(argv)
 	with using(args.platform, args.codex_profile):
 		r = run(args)
 	return r
 def run(args):
-	from .operations import COMMANDS, execute, analysis_root
+	from .cli_common import dump_json, read_input_json, read_input_text, result_exit_code
+	from .operations import COMMANDS, analysis_root, execute
 	try:
 		if args.command in COMMANDS:
 			result = execute(args)
-			print(json.dumps(result, ensure_ascii=False, indent=2))
-			if False is result.get('valid') or False is result.get('complete') or False is result.get('content_available_for_all') or result.get('error') or result.get('extraction_error') or True is result.get('browser_check_required') or ('conflict' == result.get('status')) or ('conflict' == result.get('publication', {}).get('status')):
-				return 2
-			return 0
-		if 'doctor' == args.command:
-			result = doctor()
-		elif 'build-native' == args.command:
-			from .configuration import build_native
-			result = build_native(args.root, check=args.check)
-		elif 'policy-instructions' == args.command:
-			from .configuration import global_codex_instructions
-			result = global_codex_instructions()
-		elif 'install-global' == args.command:
-			from .native_profiles import install_native_profiles
-			result = install_native_profiles(args.target_profile, check=args.check)
-		elif 'configure' == args.command:
-			if args.check:
-				result = check_configuration(args.project)
-			else:
-				result = {'configuration': str(configure_project(args.project))}
-		elif 'register' == args.command:
-			if not args.project.is_dir():
-				raise FileNotFoundError(args.project)
-			if args.target:
-				result = register_project(args.project, args.domain, platform=args.target)
-			else:
-				from .registration import register_projects
-				result = register_projects(args.project, args.domain)
-		elif 'inspect' == args.command:
-			if args.output.exists():
-				raise FileExistsError('Capture exists; reuse it with init --from-json')
-			args.output.parent.mkdir(parents=True, exist_ok=True)
-			result = extract_upwork_job(args.url, cdp_port=args.cdp_port or platform_settings()['browser']['cdp_port'], tab_id=args.tab_id, attachments_dir=args.output.parent / 'attachments')
-			create_bytes(args.output, json_bytes(result))
-			result = {'capture': str(args.output), 'job_id': result['job_id'], 'coverage': result['coverage']}
-		elif 'init' == args.command:
-			data = json.loads(args.from_json.read_text(encoding='utf-8-sig'))
-			if not isinstance(data, dict):
-				raise ValueError('Capture must be a JSON object')
-			for asset in data.get('saved_attachments') or []:
-				if not Path(asset['path']).resolve().is_relative_to(args.from_json.parent.resolve()):
-					raise ValueError('Attachment must belong to the capture directory')
-			result = initialize_upwork_project(args.url, args.domain, date_str=args.date, daily_root=args.daily_root, extracted_data=data, site_hypothesis=json.loads(args.site_hypothesis.read_text(encoding='utf-8')) if args.site_hypothesis else None, register_native=False if args.no_register else None)
-			from .intake import INCOMING, commit_capture
-			capture = Path(os.path.abspath(args.from_json)).parent
-			if 'source.json' == args.from_json.name and capture.parent == Path(os.path.abspath(INCOMING)):
-				result['intake'] = commit_capture(capture, incoming_root=INCOMING, daily_root=args.daily_root, apply=True)
-		elif 'intake-drain' == args.command:
-			from .intake import INCOMING, drain_incoming
-			result = drain_incoming(args.capture, incoming_root=INCOMING, daily_root=args.daily_root, apply=args.apply)
-		elif 'cleanup' == args.command:
-			from .cleanup import cleanup_projects
-			result = cleanup_projects(apply=args.apply, daily_root=args.daily_root)
-		elif 'cleanup-report' == args.command:
-			from .cleanup import record_cleanup_answer
-			body = sys.stdin.read() if '-' == args.answer else Path(args.answer).read_bytes().decode('utf-8')
-			result = record_cleanup_answer(body)
+			dump_json(result)
+			r = result_exit_code(result, extra_failures=(False is result.get('content_available_for_all'), bool(result.get('error')), bool(result.get('extraction_error')), True is result.get('browser_check_required'), 'conflict' == (result.get('publication') or {}).get('status')))
 		elif 'validate-analysis' == args.command:
-			value = json.loads(args.input.read_text(encoding='utf-8-sig'))
+			value = read_input_json(args.input)
 			from .analysis import analysis_issues, publish_analysis
 			issues = analysis_issues(value)
 			if args.evidence and isinstance(value, dict):
@@ -419,26 +348,78 @@ def run(args):
 					issue['file'] = str(args.input.resolve())
 			result = {'valid': not issues, 'issues': issues, 'evidence_checked': args.evidence, 'semantic_truth_verified': False}
 			if issues:
-				if 'json' == args.format:
-					print(json.dumps(result, ensure_ascii=False, indent=2))
-				else:
+				if 'json' != args.format:
 					print('\n'.join((f"{x['code']} {x.get('claim_id', '')} {x['field']}: {x['message']}" for x in issues)))
-				return 1
-			if args.render:
-				result['publication'] = publish_analysis(args.input, args.render)
-				if 'conflict' == result['publication']['status']:
-					print(json.dumps(result, ensure_ascii=False, indent=2))
-					return 2
-			result['claims'] = sum((len(value[key]) for key in ('identity', 'concerns', 'misconceptions', 'causes', 'methods')))
-		print(json.dumps(result, ensure_ascii=False, indent=2))
-		if False is result.get('valid') or False is result.get('complete') or False is (result.get('registration') or {}).get('complete') or ('retained' == result.get('intake', {}).get('status')):
-			return 2
-		return 0
+				else:
+					dump_json(result)
+				r = 1
+			else:
+				if args.render:
+					result['publication'] = publish_analysis(args.input, args.render)
+				if args.render and 'conflict' == result['publication']['status']:
+					dump_json(result)
+					r = 2
+				else:
+					result['claims'] = sum((len(value[key]) for key in ('identity', 'concerns', 'misconceptions', 'causes', 'methods')))
+					dump_json(result)
+					r = 0
+		else:
+			if 'doctor' == args.command:
+				result = doctor()
+			elif 'build-native' == args.command:
+				from .configuration import build_native
+				result = build_native(args.root, check=args.check)
+			elif 'policy-instructions' == args.command:
+				from .configuration import global_codex_instructions
+				result = global_codex_instructions()
+			elif 'install-global' == args.command:
+				from .native_profiles import install_native_profiles
+				result = install_native_profiles(args.target_profile, check=args.check)
+			elif 'configure' == args.command:
+				result = check_configuration(args.project) if args.check else {'configuration': str(configure_project(args.project))}
+			elif 'register' == args.command:
+				if not args.project.is_dir():
+					raise FileNotFoundError(args.project)
+				from .registration import register_projects
+				result = register_project(args.project, args.domain, platform=args.target) if args.target else register_projects(args.project, args.domain)
+			elif 'inspect' == args.command:
+				if args.output.exists():
+					raise FileExistsError('Capture exists; reuse it with init --from-json')
+				args.output.parent.mkdir(parents=True, exist_ok=True)
+				captured = extract_upwork_job(args.url, cdp_port=args.cdp_port or platform_settings()['browser']['cdp_port'], tab_id=args.tab_id, attachments_dir=args.output.parent / 'attachments')
+				create_bytes(args.output, json_bytes(captured))
+				result = {'capture': str(args.output), 'job_id': captured['job_id'], 'coverage': captured['coverage']}
+			elif 'init' == args.command:
+				data = read_input_json(args.from_json)
+				if not isinstance(data, dict):
+					raise ValueError('Capture must be a JSON object')
+				for asset in data.get('saved_attachments') or []:
+					if not Path(asset['path']).resolve().is_relative_to(args.from_json.parent.resolve()):
+						raise ValueError('Attachment must belong to the capture directory')
+				result = initialize_upwork_project(args.url, args.domain, date_str=args.date, daily_root=args.daily_root, extracted_data=data, site_hypothesis=read_input_json(args.site_hypothesis, encoding='utf-8') if args.site_hypothesis else None, register_native=False if args.no_register else None)
+				from .intake import INCOMING, commit_capture
+				capture = Path(os.path.abspath(args.from_json)).parent
+				if 'source.json' == args.from_json.name and capture.parent == Path(os.path.abspath(INCOMING)):
+					result['intake'] = commit_capture(capture, incoming_root=INCOMING, daily_root=args.daily_root, apply=True)
+			elif 'intake-drain' == args.command:
+				from .intake import INCOMING, drain_incoming
+				result = drain_incoming(args.capture, incoming_root=INCOMING, daily_root=args.daily_root, apply=args.apply)
+			elif 'cleanup' == args.command:
+				from .cleanup import cleanup_projects
+				result = cleanup_projects(apply=args.apply, daily_root=args.daily_root)
+			elif 'cleanup-report' != args.command:
+				raise ValueError(f'Unknown command: {args.command}')
+			else:
+				from .cleanup import record_cleanup_answer
+				result = record_cleanup_answer(read_input_text(args.answer, encoding='utf-8'))
+			dump_json(result)
+			r = result_exit_code(result, extra_failures=(False is (result.get('registration') or {}).get('complete'), 'retained' == (result.get('intake') or {}).get('status')))
 	except (OSError, ValueError, KeyError, TypeError, RuntimeError, sqlite3.Error) as exc:
 		if args.command in COMMANDS or 'json' == getattr(args, 'format', None):
-			print(json.dumps({'valid': False, 'issues': [{'code': 'operation.input', 'field': '/', 'message': str(exc)}]}, ensure_ascii=False, indent=2))
+			dump_json({'valid': False, 'issues': [{'code': 'operation.input', 'field': '/', 'message': str(exc)}]})
 		else:
 			print(f'ERROR: {type(exc).__name__}: {exc}', file=sys.stderr)
-		return 1
+		r = 1
+	return r
 if '__main__' == __name__:
 	raise SystemExit(main())
