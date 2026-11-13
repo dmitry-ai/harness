@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -81,6 +84,199 @@ from .storage import create_bytes, data_dir_for, locked, replace_bytes
 COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch', 'reconcile-unprepared-delivery')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
+class AnswerPreparationRunner:
+	def __init__(self, root, response, result, native, turn):
+		self.root = root
+		self.response = response
+		self.sha = _hash(response.encode('utf-8'))
+		self.result = result
+		self.native = native
+		self.turn = turn
+		self.path, self.value = _state(root, native, turn)
+		self.allow_reprepare = False
+		self.workflow_path = root / '\ua616/data/workflow.json'
+		self.wf_state = None
+		self.wf_identifiers = set()
+		self.wf_covered = set()
+		self.is_finalized = False
+		self.has_substantive_hm = False
+		self.admission_check = None
+	def _audit_workflow_scope(self):
+		if self.workflow_path.exists():
+			from .workflow import load
+			self.wf_state = load(self.root)
+			self.wf_identifiers = {req['id'] for req in self.turn['requests']}
+			self.wf_covered = {req['id'] for req in self.wf_state['requests']} & self.wf_identifiers
+			self.is_finalized = 'complete' == self.wf_state.get('stages', {}).get('finalize', {}).get('status')
+			kb_scan = _factual_kb_note_issues(self.root, self.turn)
+			if kb_scan['issues']:
+				self._fail_gate('factual_kb_note', 'KB-2 / DOC-1 violation in factual research note: ' + '; '.join(kb_scan['issues']))
+			has_kb_or_issue_mutation = kb_scan['has_normative'] or bool(self.turn.get('issue_actions')) or bool(self.value.get('github_issues'))
+			touches_client_deliverable = any((any((seg in str(tf).replace('\\', '/').lower() for seg in ('/letters/', '/result/', '/defects/'))) and '/\ua616/' not in str(tf).replace('\\', '/').lower() for tf in (self.turn.get('touched_files') or [])))
+			has_hm_tags = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', self.response))
+			if self.is_finalized:
+				self.has_substantive_hm = kb_scan['has_analysis'] or (has_hm_tags and 0 == self.value['delegation_check'].get('aa_subagent_step_count', 0))
+			else:
+				self.has_substantive_hm = has_hm_tags or has_kb_or_issue_mutation or touches_client_deliverable
+			if self.wf_covered and self.wf_covered != self.wf_identifiers:
+				raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
+			if not self.wf_covered and (self.root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', req.get('text', '')) for req in self.turn['requests']))) and (not self.is_finalized or self.has_substantive_hm):
+				self._fail_gate('workflow_adoption', 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project')
+	def _authorize_and_sync_workflow(self):
+		if None is not self.wf_state and self.wf_covered:
+			if self.is_finalized and (not self.has_substantive_hm):
+				from .workflow import update
+				def change(s):
+					for req in s.get('requests', []):
+						if req['id'] in self.wf_identifiers and (not req.get('response_prepared') or self.allow_reprepare):
+							req['response_prepared'] = {'sha256': self.sha, 'prepared_at': _now()}
+				update(self.root, {'action': 'post_finalize_answer', 'request_ids': sorted(self.wf_identifiers)}, change)
+			else:
+				from .review import authorize
+				try:
+					authorize(self.root, self.wf_state, response=self.response, request_ids=self.wf_identifiers)
+				except (OSError, ValueError) as exc:
+					self._fail_gate('review_authorize', str(exc), cause=exc)
+				pending = {req['id'] for req in self.wf_state['requests'] if not req.get('response_prepared') and (req.get('native_conversation_id') in (None, self.native['conversation_id']) or req['id'] in self.wf_identifiers)}
+				if pending:
+					if pending != self.wf_identifiers:
+						raise ValueError('Align unanswered tracked requests with the exact current native turn before preparation')
+					from .workflow import record_current_answer
+					record_current_answer(self.root, self.response, journal_directory=self.value['journal'], request_ids=self.wf_identifiers)
+				elif any((req['response_prepared']['sha256'] != self.sha for req in self.wf_state['requests'] if req['id'] in self.wf_identifiers)):
+					if not self.allow_reprepare:
+						raise ValueError('Tracked analysis requests already have different prepared response bytes')
+					from .workflow import update
+					def update_reprepared(s):
+						for req in s.get('requests', []):
+							if req['id'] in self.wf_identifiers:
+								req['response_prepared'] = {'sha256': self.sha, 'prepared_at': _now()}
+					update(self.root, {'action': 'reprepare_before_delivery', 'request_ids': sorted(self.wf_identifiers)}, update_reprepared)
+	def _check_evicted_citations(self):
+		if self.value['compaction_check'].get('occurred') and self.value['compaction_check'].get('evicted_unreread_files'):
+			turn_key = self.result['turn_key']
+			scratch_ans = self.root / f'\ua616/data/scratch/answer-{turn_key}.md'
+			post_cp_w_low = {str(w).replace('\\', '/').lower() for w in (self.value['compaction_check'].get('post_checkpoint_written_files') or [])}
+			pre_cp_authored = False
+			if scratch_ans.is_file() and scratch_ans.resolve().as_posix().lower() not in post_cp_w_low:
+				try:
+					pre_cp_authored = scratch_ans.read_text(encoding='utf-8') == self.response
+				except OSError:
+					pre_cp_authored = False
+			if not pre_cp_authored:
+				from .source_grounding import extract_block_links, markdown_parser
+				ev_map = {p.replace('\\', '/').lower(): p for p in self.value['compaction_check']['evicted_unreread_files']}
+				unreread_cited = []
+				for blk in markdown_parser().parse(self.response):
+					if 'inline' == blk.type:
+						lpaths, _ = extract_block_links(blk, self.root, None)
+						for rp in lpaths:
+							rlow = rp.as_posix().lower()
+							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
+								unreread_cited.append(ev_map[rlow])
+				for ev_low, ev_orig in ev_map.items():
+					m_res = re.search('/res/(\\d+\\.md)$', ev_low)
+					if m_res and re.search(f'\\bres/{re.escape(m_res.group(1))}\\b', self.response, re.I) and (ev_orig not in unreread_cited):
+						unreread_cited.append(ev_orig)
+				if unreread_cited:
+					detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
+					self._fail_gate('evicted_citations', detail, extra={'cited_files': unreread_cited})
+	def _check_source_grounding(self):
+		source_issues = response_source_and_kb_issues(self.root, self.response, self.turn['requests'], touched_files=self.turn.get('touched_files'))
+		self.value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
+		if source_issues:
+			self._fail_gate('source_grounding', '; '.join(source_issues))
+	def _check_turn_hygiene(self):
+		if not self.value['exec5_check']['verified']:
+			commands = [cmd for item in self.value['exec5_check']['violations'] for cmd in item.get('commands', [])]
+			self._fail_gate('exec5', 'EXEC-5 violation in active turn (git read command without --no-optional-locks; run recover-turn-violation to record retrospective violation receipt before answer-prepare): ' + '; '.join(commands))
+		if not self.value['http_fetch_check']['verified']:
+			commands = [cmd for item in self.value['http_fetch_check']['violations'] for cmd in item.get('commands', [])]
+			self._fail_gate('http_fetch', 'KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection; use collect/collect-http or run recover-turn-violation to record retrospective violation receipt before answer-prepare): ' + '; '.join(commands))
+		if not self.value['compaction_check']['verified']:
+			unreread_src = self.value['compaction_check'].get('unreread_analysis_sources') or []
+			if unreread_src:
+				detail = 'COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md: ' + ', '.join(unreread_src)
+			else:
+				detail = 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
+			self._fail_gate('compaction', detail)
+		self._check_evicted_citations()
+		if not self.value['delegation_check']['verified']:
+			dc = self.value['delegation_check']
+			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={dc['tool_step_count']}, max_streak={dc.get('max_unpersisted_step_streak', 0)} > {dc['max_unpersisted_steps']}, or unpersisted_source_reads={dc.get('max_unpersisted_source_reads', 0)} >= {dc.get('max_allowed_unpersisted_source_reads', 10)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"
+			self._fail_gate('delegation', detail)
+		self.value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(self.root, self.turn, self.value, response=self.response)
+		if not self.value['code_lifecycle_check']['verified']:
+			self._fail_gate('code_lifecycle', 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(self.value['code_lifecycle_check']['violations']))
+		lang_issues = _intermediate_or_language_issues(self.turn['requests'], self.response)
+		self.value['language_and_stub_check'] = {'verified': not lang_issues, 'issues': lang_issues}
+		if lang_issues:
+			self._fail_gate('language_and_stub', '; '.join(lang_issues))
+		if self.value['prepared'] and self.value['prepared']['response_sha256'] != self.sha:
+			if None is not self.value.get('delivery') or 'delivered' == self.value.get('status') or self.turn.get('completed'):
+				raise ValueError('Prepared response bytes are immutable after delivery; preserve the earlier version and reconcile before a corrective turn')
+			self.allow_reprepare = True
+		if 'conflict' == self.value['status']:
+			raise ValueError('Resolve the native delivery conflict without overwriting journal history')
+		aa_part_errs = self.value['delegation_check'].get('aa_partial_read_violations') or []
+		if aa_part_errs:
+			self._fail_gate('aa_partial_read', 'REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(aa_part_errs))
+	def _fail_gate(self, gate_id, detail, *, admission_failed=False, status=None, extra=None, cause=None):
+		if admission_failed:
+			self.value['admission_failure'] = {'detail': detail, 'checked_at': _now()}
+		if None is not status:
+			self.value['status'] = status
+		rc = {'verified': False, 'gate_id': gate_id, 'checked_at': _now(), 'detail': detail}
+		if extra:
+			rc.update(extra)
+		self.value['readiness_check'] = rc
+		_persist(self.path, self.value)
+		if None is cause:
+			raise ValueError(detail)
+		else:
+			raise cause
+	def _record_journal_entry(self):
+		try:
+			self.value['prepared'], self.admission_check = _record(self.root, self.native, self.turn, self.response, self.value['journal'], existing=None if self.allow_reprepare else _recorded(self.value), allow_reprepare=self.allow_reprepare)
+		except (OSError, ValueError) as exc:
+			self._fail_gate('journal_admission', str(exc), admission_failed=True, cause=exc)
+		self.value.pop('admission_failure', None)
+	def _verify_delivered_fast_path(self):
+		if 'delivered' != self.value['status']:
+			r = None
+		else:
+			recorded = _recorded(self.value)
+			if not recorded or recorded['response_sha256'] != self.sha:
+				raise ValueError('Delivered response bytes are immutable; preserve the completed turn')
+			if not self.turn.get('completed') or self.value['delivery'].get('native_response_sha256') != _hash(self.turn['response'].encode('utf-8')):
+				raise ValueError('The saved native delivery requires foreground reconciliation before preparation')
+			recorded, admission_check = _record(self.root, self.native, self.turn, self.response, self.value['journal'], existing=recorded, purpose='observation')
+			r = {**self.result, **recorded, 'ready': True, 'status': 'delivered', 'delivery_verified': True, 'preparation_verified': self.value['delivery'].get('preparation_verified', False), 'admission_verification': admission_check}
+		return r
+	def run(self):
+		delivered = self._verify_delivered_fast_path()
+		if None is not delivered:
+			r = delivered
+		else:
+			self._check_turn_hygiene()
+			self._audit_workflow_scope()
+			self._check_source_grounding()
+			recorded_early = not self.workflow_path.exists() or self.is_finalized
+			if recorded_early:
+				self._record_journal_entry()
+			self._authorize_and_sync_workflow()
+			if not recorded_early:
+				self._record_journal_entry()
+			try:
+				_unchanged(self.root, self.native, self.turn)
+			except (OSError, ValueError, sqlite3.Error) as exc:
+				self._fail_gate('turn_unchanged', str(exc), status='preparation_unverified', cause=exc)
+			self.value['status'] = 'prepared'
+			if not self.value.get('readiness_check', {}).get('verified'):
+				self.value['readiness_check'] = {'verified': True, 'checked_at': _now()}
+			_persist(self.path, self.value)
+			r = {**self.result, **self.value['prepared'], 'ready': True, 'status': 'prepared', 'delivery_verified': False, 'admission_verification': self.admission_check}
+		return r
 def _now():
 	return datetime.now(timezone.utc).isoformat()
 def _hash(value):
@@ -100,18 +296,7 @@ def _turn_lock(root, key):
 def _journal_lock(root):
 	return _folder(root) / 'journal.lock'
 def _directory(root, selected=None):
-	root = Path(root).resolve()
-	if selected:
-		r = (root / selected).resolve()
-	elif (root / '_/ꙮ').is_dir():
-		r = (root / '_/ꙮ').resolve()
-	elif (root / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').is_dir() and (not (root / 'ꙮ/1 - Analysis').is_dir()):
-		r = (root / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').resolve()
-	elif (root / 'ꙮ/README.md').is_file() and (not (root / 'ꙮ/1 - Analysis').is_dir()):
-		r = (root / 'ꙮ').resolve()
-	else:
-		r = (root / 'ꙮ/1 - Analysis').resolve()
-	return r
+	return journal.resolve_journal_dir(root, selected)
 def _key(native, turn):
 	identity = [native['platform'], native['native_backend'], native['conversation_id'], turn['turn_id']]
 	r = _hash(_json(identity))[:40]
@@ -143,6 +328,62 @@ def _exec5_status(turn, root=None, key=None):
 	r = {'verified': not unrecovered, 'violations': violations}
 	if violations and (not unrecovered):
 		r['recovered_via_receipt'] = True
+	return r
+def _factual_kb_note_issues(root, turn):
+	from .knowledge import validate_kb_factual_note
+	r = {'has_normative': False, 'has_analysis': False, 'issues': []}
+	for tf in turn.get('touched_files') or []:
+		tf_norm = str(tf).replace('\\', '/').lower()
+		if ('/\ua616/kb/' in tf_norm or tf_norm.endswith('/kb/analysis.md') or tf_norm.endswith('/kb/analysis.json')) and '/\ua616/kb/evidence/' not in tf_norm:
+			basename = Path(tf).name.lower()
+			if basename in ('analysis.md', 'analysis.json'):
+				r['has_analysis'] = True
+				r['has_normative'] = True
+			elif basename in ('project.md', 'projects.md'):
+				r['has_normative'] = True
+			else:
+				fpath = Path(tf) if Path(tf).is_absolute() else (root / Path(tf))
+				if fpath.is_file():
+					try:
+						note_text = fpath.read_text(encoding='utf-8', errors='replace')
+						r['issues'].extend(validate_kb_factual_note(fpath, note_text))
+					except OSError:
+						pass
+	return r
+def _gate_resolved(root, turn, value):
+	rc = value.get('readiness_check') or {}
+	gid = str(rc.get('gate_id') or '')
+	rc_detail = str(rc.get('detail') or '')
+	root_p = Path(root).resolve()
+	if 'exec5' == gid or ('' == gid and rc_detail.startswith('EXEC-5 violation in active turn (git read')):
+		specific = bool(value.get('exec5_check', {}).get('verified'))
+	elif 'http_fetch' == gid or ('' == gid and rc_detail.startswith('KB-3 / EXEC-1 violation')):
+		specific = bool(value.get('http_fetch_check', {}).get('verified'))
+	elif 'compaction' == gid or ('' == gid and rc_detail.startswith('COMPACT-1 / KB-3 violation') and 'cited in response' not in rc_detail):
+		specific = bool(value.get('compaction_check', {}).get('verified'))
+	elif 'evicted_citations' == gid or ('' == gid and rc_detail.startswith('COMPACT-1 / KB-3 violation') and 'cited in response' in rc_detail):
+		cited = set(rc.get('cited_files') or ())
+		evicted = set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())
+		specific = bool(value.get('compaction_check', {}).get('verified')) and (not (cited & evicted if cited else evicted))
+	elif 'delegation' == gid or ('' == gid and rc_detail.startswith('REVIEW-1 / KB-3 violation')):
+		specific = bool(value.get('delegation_check', {}).get('verified'))
+	elif 'code_lifecycle' == gid or ('' == gid and rc_detail.startswith('EXEC-5 violation in active turn (code/issue')):
+		specific = bool(value.get('code_lifecycle_check', {}).get('verified'))
+	elif 'language_and_stub' == gid or ('' == gid and rc_detail.startswith(('TEXT-1:', 'FILE-3 / REVIEW-1:'))):
+		specific = bool(value.get('language_and_stub_check', {}).get('verified'))
+	elif 'aa_partial_read' == gid or ('' == gid and rc_detail.startswith('REVIEW-3 / REVIEW-4: Independent A.A reviewer')):
+		specific = not bool(value.get('delegation_check', {}).get('aa_partial_read_violations'))
+	elif 'factual_kb_note' == gid or ('' == gid and rc_detail.startswith('KB-2 / DOC-1 violation')):
+		specific = not bool(_factual_kb_note_issues(root_p, turn)['issues'])
+	elif 'workflow_adoption' == gid or ('' == gid and rc_detail.startswith('REVIEW-3 / REVIEW-4: Adopt current requests')):
+		specific = _workflow_gate_resolved(root_p, turn, 'workflow_adoption')
+	elif 'review_authorize' == gid:
+		specific = _workflow_gate_resolved(root_p, turn, 'review_authorize')
+	elif 'source_grounding' == gid or ('' == gid and rc_detail.startswith(('VERIFY-1', 'LINK-', 'KB-1 / KB-3:', 'DOC-1 / VERIFY-'))):
+		specific = bool(value.get('source_kb_check', {}).get('verified'))
+	else:
+		specific = False
+	r = bool(specific and all((value.get(k, {}).get('verified', True) for k in ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'code_lifecycle_check', 'language_and_stub_check', 'source_kb_check'))))
 	return r
 def _http_fetch_status(turn, root=None, key=None):
 	violations = list(turn.get('http_fetch_violations') or [])
@@ -298,17 +539,7 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 	elif 'code_lifecycle_check' not in value:
 		value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []}
 	if value.get('readiness_check', {}).get('verified') is False and (not value.get('admission_failure')):
-		rc_detail = str(value.get('readiness_check', {}).get('detail') or '')
-		resolved_gate = (
-			(rc_detail.startswith('EXEC-5 violation in active turn (git read') and value.get('exec5_check', {}).get('verified'))
-			or (rc_detail.startswith('KB-3 / EXEC-1 violation') and value.get('http_fetch_check', {}).get('verified'))
-			or (rc_detail.startswith('COMPACT-1 / KB-3 violation') and value.get('compaction_check', {}).get('verified'))
-			or (rc_detail.startswith('REVIEW-1 / KB-3 violation') and value.get('delegation_check', {}).get('verified'))
-			or (rc_detail.startswith('EXEC-5 violation in active turn (code/issue') and value.get('code_lifecycle_check', {}).get('verified'))
-			or (rc_detail.startswith(('TEXT-1:', 'FILE-3 / REVIEW-1:')) and value.get('language_and_stub_check', {}).get('verified'))
-			or (rc_detail.startswith(('VERIFY-1', 'LINK-', 'KB-1 / KB-3:')) and value.get('source_kb_check', {}).get('verified'))
-		)
-		if resolved_gate and all((value.get(k, {}).get('verified', True) for k in ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'code_lifecycle_check', 'language_and_stub_check', 'source_kb_check'))):
+		if _gate_resolved(root, turn, value):
 			value.pop('readiness_check', None)
 	saved_directory = _directory(root, value['journal'])
 	if strict_journal and None is not journal_directory and (saved_directory != _directory(root, journal_directory)):
@@ -360,7 +591,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		result['execution_mode'] = 'foreground-only'
 		if any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) for t in native.get('turns', []))):
 			try:
-				result['native_reconciliation'] = sync(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'], journal_directory=value['journal'])
+				result['native_reconciliation'] = sync(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'], journal_directory=value['journal'], _preloaded_native=native)
 				current = next((item for item in result['native_reconciliation']['turns'] if item['turn_key'] == value['key']), None)
 				if current:
 					result['status'] = current['status']
@@ -600,6 +831,18 @@ def _unchanged(root, native, turn):
 	current = _active(latest)
 	if None is current or _key(latest, current) != _key(native, turn) or current['requests'] != turn['requests']:
 		raise ValueError('The active native turn or requests changed during preparation; readiness was not granted')
+def _workflow_gate_resolved(root_p, turn, kind):
+	wf_file = root_p / '\ua616/data/workflow.json'
+	if not wf_file.is_file():
+		r = True
+	elif 'workflow_adoption' == kind:
+		from .workflow import load
+		r = {req['id'] for req in turn.get('requests') or []}.issubset({req['id'] for req in load(root_p).get('requests') or []})
+	else:
+		from .review import approval_current
+		from .workflow import load
+		r = bool(approval_current(root_p, load(root_p)))
+	return r
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
@@ -613,230 +856,14 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 	result = begin(root, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory)
 	if not result['journal_required']:
 		raise ValueError('A child executor cannot prepare the primary user journal')
-	root = Path(root).resolve()
-	native = _native(root, conversation, platform=platform, backend=backend)
-	turn = _active(native)
-	if None is turn or _key(native, turn) != result['turn_key'] or _hash(_json(turn['requests'])) != result['native_requests_sha256']:
-		raise ValueError('The active native turn changed during preparation; no answer was recorded')
-	with locked(_turn_lock(root, result['turn_key'])):
-		_unchanged(root, native, turn)
-		path, value = _state(root, native, turn)
-		if 'delivered' == value['status']:
-			recorded = _recorded(value)
-			if not recorded or recorded['response_sha256'] != _hash(response.encode('utf-8')):
-				raise ValueError('Delivered response bytes are immutable; preserve the completed turn')
-			if not turn.get('completed') or value['delivery'].get('native_response_sha256') != _hash(turn['response'].encode('utf-8')):
-				raise ValueError('The saved native delivery requires foreground reconciliation before preparation')
-			recorded, admission_check = _record(root, native, turn, response, value['journal'], existing=recorded, purpose='observation')
-			return {**result, **recorded, 'ready': True, 'status': 'delivered', 'delivery_verified': True, 'preparation_verified': value['delivery'].get('preparation_verified', False), 'admission_verification': admission_check}
-		if not value['exec5_check']['verified']:
-			commands = [cmd for item in value['exec5_check']['violations'] for cmd in item.get('commands', [])]
-			detail = 'EXEC-5 violation in active turn (git read command without --no-optional-locks; run recover-turn-violation to record retrospective violation receipt before answer-prepare): ' + '; '.join(commands)
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		if not value['http_fetch_check']['verified']:
-			commands = [cmd for item in value['http_fetch_check']['violations'] for cmd in item.get('commands', [])]
-			detail = 'KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection; use collect/collect-http or run recover-turn-violation to record retrospective violation receipt before answer-prepare): ' + '; '.join(commands)
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		if not value['compaction_check']['verified']:
-			unreread_src = value['compaction_check'].get('unreread_analysis_sources') or []
-			if unreread_src:
-				detail = 'COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md: ' + ', '.join(unreread_src)
-			else:
-				detail = 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		if value['compaction_check'].get('occurred') and value['compaction_check'].get('evicted_unreread_files'):
-			scratch_ans = root / f'\ua616/data/scratch/answer-{result["turn_key"]}.md'
-			post_cp_w_low = {str(w).replace('\\', '/').lower() for w in (value['compaction_check'].get('post_checkpoint_written_files') or [])}
-			pre_cp_authored = False
-			if scratch_ans.is_file() and scratch_ans.resolve().as_posix().lower() not in post_cp_w_low:
-				try:
-					pre_cp_authored = scratch_ans.read_text(encoding='utf-8') == response
-				except OSError:
-					pre_cp_authored = False
-			if not pre_cp_authored:
-				from .source_grounding import extract_block_links, markdown_parser
-				ev_map = {p.replace('\\', '/').lower(): p for p in value['compaction_check']['evicted_unreread_files']}
-				unreread_cited = []
-				for blk in markdown_parser().parse(response):
-					if 'inline' == blk.type:
-						lpaths, _ = extract_block_links(blk, root, None)
-						for rp in lpaths:
-							rlow = rp.as_posix().lower()
-							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
-								unreread_cited.append(ev_map[rlow])
-				for ev_low, ev_orig in ev_map.items():
-					m_res = re.search('/res/(\\d+\\.md)$', ev_low)
-					if m_res and re.search(f'\\bres/{re.escape(m_res.group(1))}\\b', response, re.I) and (ev_orig not in unreread_cited):
-						unreread_cited.append(ev_orig)
-				if unreread_cited:
-					detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
-					value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-					_persist(path, value)
-					raise ValueError(detail)
-		if not value['delegation_check']['verified']:
-			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={value['delegation_check']['tool_step_count']}, max_streak={value['delegation_check'].get('max_unpersisted_step_streak', 0)} > {value['delegation_check']['max_unpersisted_steps']}, or unpersisted_source_reads={value['delegation_check'].get('max_unpersisted_source_reads', 0)} >= {value['delegation_check'].get('max_allowed_unpersisted_source_reads', 10)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value, response=response)
-		if not value['code_lifecycle_check']['verified']:
-			detail = 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(value['code_lifecycle_check']['violations'])
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		lang_issues = _intermediate_or_language_issues(turn['requests'], response)
-		value['language_and_stub_check'] = {'verified': not lang_issues, 'issues': lang_issues}
-		if lang_issues:
-			detail = '; '.join(lang_issues)
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		sha = _hash(response.encode('utf-8'))
-		allow_reprepare = False
-		if value['prepared'] and value['prepared']['response_sha256'] != sha:
-			if None is not value.get('delivery') or 'delivered' == value.get('status') or turn.get('completed'):
-				raise ValueError('Prepared response bytes are immutable after delivery; preserve the earlier version and reconcile before a corrective turn')
-			allow_reprepare = True
-		if 'conflict' == value['status']:
-			raise ValueError('Resolve the native delivery conflict without overwriting journal history')
-		aa_part_errs = value['delegation_check'].get('aa_partial_read_violations') or []
-		if aa_part_errs:
-			detail = 'REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(aa_part_errs)
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		workflow = root / '\ua616/data/workflow.json'
-		wf_state = None
-		wf_identifiers = set()
-		wf_covered = set()
-		is_finalized = False
-		has_substantive_hm = False
-		if workflow.exists():
-			from .workflow import load
-			wf_state = load(root)
-			wf_identifiers = {r['id'] for r in turn['requests']}
-			wf_covered = {r['id'] for r in wf_state['requests']} & wf_identifiers
-			is_finalized = wf_state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
-			has_normative_kb_mutation = False
-			has_analysis_kb_mutation = False
-			factual_kb_issues = []
-			from .knowledge import validate_kb_factual_note
-			for tf in turn.get('touched_files') or []:
-				tf_norm = str(tf).replace('\\', '/').lower()
-				if ('/\ua616/kb/' in tf_norm or tf_norm.endswith('/kb/analysis.md') or tf_norm.endswith('/kb/analysis.json')) and '/\ua616/kb/evidence/' not in tf_norm:
-					basename = Path(tf).name.lower()
-					if basename in ('analysis.md', 'analysis.json'):
-						has_analysis_kb_mutation = True
-						has_normative_kb_mutation = True
-					elif basename in ('project.md', 'projects.md'):
-						has_normative_kb_mutation = True
-					else:
-						fpath = Path(tf)
-						if not fpath.is_absolute():
-							fpath = root / fpath
-						if fpath.is_file():
-							try:
-								note_text = fpath.read_text(encoding='utf-8', errors='replace')
-								issues = validate_kb_factual_note(fpath, note_text)
-								if issues:
-									factual_kb_issues.extend(issues)
-							except OSError:
-								pass
-			if factual_kb_issues:
-				detail = 'KB-2 / DOC-1 violation in factual research note: ' + '; '.join(factual_kb_issues)
-				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-				_persist(path, value)
-				raise ValueError(detail)
-			has_kb_or_issue_mutation = has_normative_kb_mutation or bool(turn.get('issue_actions')) or bool(value.get('github_issues'))
-			touches_client_deliverable = any((any((seg in str(tf).replace('\\', '/').lower() for seg in ('/letters/', '/result/', '/defects/'))) and '/\ua616/' not in str(tf).replace('\\', '/').lower() for tf in (turn.get('touched_files') or [])))
-			has_hm_tags = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response))
-			if is_finalized:
-				has_substantive_hm = has_analysis_kb_mutation or (has_hm_tags and 0 == value['delegation_check'].get('aa_subagent_step_count', 0))
-			else:
-				has_substantive_hm = has_hm_tags or has_kb_or_issue_mutation or touches_client_deliverable
-			if wf_covered and wf_covered != wf_identifiers:
-				raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
-			if not wf_covered and (root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', r.get('text', '')) for r in turn['requests']))) and (not is_finalized or has_substantive_hm):
-				detail = 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project'
-				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-				_persist(path, value)
-				raise ValueError(detail)
-		source_issues = response_source_and_kb_issues(root, response, turn['requests'], touched_files=turn.get('touched_files'))
-		value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
-		if source_issues:
-			detail = '; '.join(source_issues)
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': detail}
-			_persist(path, value)
-			raise ValueError(detail)
-		recorded_early = False
-		if not workflow.exists() or is_finalized:
-			try:
-				value['prepared'], admission_check = _record(root, native, turn, response, value['journal'], existing=None if allow_reprepare else _recorded(value), allow_reprepare=allow_reprepare)
-				recorded_early = True
-			except (OSError, ValueError) as exc:
-				value['admission_failure'] = {'detail': str(exc), 'checked_at': _now()}
-				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
-				_persist(path, value)
-				raise
-			value.pop('admission_failure', None)
-		if None is not wf_state and wf_covered:
-			if not is_finalized or has_substantive_hm:
-				from .review import authorize
-				try:
-					authorize(root, wf_state, response=response, request_ids=wf_identifiers)
-				except (OSError, ValueError) as exc:
-					value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
-					_persist(path, value)
-					raise
-				pending = {r['id'] for r in wf_state['requests'] if not r.get('response_prepared') and (r.get('native_conversation_id') in (None, native['conversation_id']) or r['id'] in wf_identifiers)}
-				if pending:
-					if pending != wf_identifiers:
-						raise ValueError('Align unanswered tracked requests with the exact current native turn before preparation')
-					from .workflow import record_current_answer
-					record_current_answer(root, response, journal_directory=value['journal'], request_ids=wf_identifiers)
-				elif any((r['response_prepared']['sha256'] != sha for r in wf_state['requests'] if r['id'] in wf_identifiers)):
-					if not allow_reprepare:
-						raise ValueError('Tracked analysis requests already have different prepared response bytes')
-					from .workflow import update
-					def update_reprepared(s):
-						for req in s.get('requests', []):
-							if req['id'] in wf_identifiers:
-								req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
-					update(root, {'action': 'reprepare_before_delivery', 'request_ids': sorted(wf_identifiers)}, update_reprepared)
-			else:
-				from .workflow import update
-				def change(s):
-					for req in s.get('requests', []):
-						if req['id'] in wf_identifiers and (not req.get('response_prepared') or allow_reprepare):
-							req['response_prepared'] = {'sha256': sha, 'prepared_at': _now()}
-				update(root, {'action': 'post_finalize_answer', 'request_ids': sorted(wf_identifiers)}, change)
-		if not recorded_early:
-			try:
-				value['prepared'], admission_check = _record(root, native, turn, response, value['journal'], existing=None if allow_reprepare else _recorded(value), allow_reprepare=allow_reprepare)
-			except (OSError, ValueError) as exc:
-				value['admission_failure'] = {'detail': str(exc), 'checked_at': _now()}
-				value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
-				_persist(path, value)
-				raise
-			value.pop('admission_failure', None)
-		try:
-			_unchanged(root, native, turn)
-		except (OSError, ValueError, sqlite3.Error) as exc:
-			value['status'] = 'preparation_unverified'
-			value['readiness_check'] = {'verified': False, 'checked_at': _now(), 'detail': str(exc)}
-			_persist(path, value)
-			raise
-		value['status'] = 'prepared'
-		if not value.get('readiness_check', {}).get('verified'):
-			value['readiness_check'] = {'verified': True, 'checked_at': _now()}
-		_persist(path, value)
-	return {**result, **value['prepared'], 'ready': True, 'status': 'prepared', 'delivery_verified': False, 'admission_verification': admission_check}
+	root_p = Path(root).resolve()
+	with locked(_turn_lock(root_p, result['turn_key'])):
+		native = _native(root_p, conversation, platform=platform, backend=backend)
+		turn = _active(native)
+		if None is turn or _key(native, turn) != result['turn_key'] or _hash(_json(turn['requests'])) != result['native_requests_sha256']:
+			raise ValueError('The active native turn changed during preparation; no answer was recorded')
+		r = AnswerPreparationRunner(root_p, response, result, native, turn).run()
+	return r
 def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
 	payload = response.encode('utf-8')
 	evidence = _folder(root) / 'conflicts' / (value['key'] + '-' + _hash(payload) + '.txt')
@@ -860,11 +887,11 @@ def _strip_local_file_scheme(text: str) -> str:
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
-def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False):
+def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, _preloaded_native=None):
 	if type(from_step) is not int or from_step < 0:
 		raise ValueError('Native from-step must be a nonnegative integer')
 	root = Path(root).resolve()
-	native = _native(root, conversation, platform=platform, backend=backend)
+	native = _preloaded_native if None is not _preloaded_native else _native(root, conversation, platform=platform, backend=backend)
 	if not native['primary']:
 		raise ValueError('A child executor has no primary user journal to synchronize')
 	if not any((turn['owned'] for turn in native['turns'])):

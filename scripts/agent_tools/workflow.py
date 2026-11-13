@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
@@ -206,7 +209,7 @@ def resume(root, reason, request=None):
 # https://github.com/dmitry-ai/harness/issues/43
 def adopt_requests(root, conversation_id, *, allow_finalized=False, backend=None, platform=None):
 	from .metrics import native_requests
-	from .journal import answer_groups
+	from .journal import answer_groups, resolve_journal_dir
 	state = load(root)
 	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
 	if is_finalized and not allow_finalized:
@@ -214,7 +217,7 @@ def adopt_requests(root, conversation_id, *, allow_finalized=False, backend=None
 	requests = native_requests(root, conversation_id, backend=backend, platform=platform)
 	req_ids = {x['id'] for x in requests}
 	saved_answers = {}
-	j_dir = Path(root) / ('ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437' if (Path(root) / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').exists() and (not (Path(root) / 'ꙮ/1 - Analysis').exists()) else 'ꙮ/1 - Analysis')
+	j_dir = resolve_journal_dir(root)
 	for group in answer_groups(j_dir, request_ids=req_ids):
 		for ident in group.get('request_ids') or []:
 			saved_answers[ident] = {'turn': group['turn'], 'steps': group['steps'], 'sha256': group['response_sha256']}
@@ -274,7 +277,7 @@ def doc4_sentence_issues(text):
 	r = issues
 	return r
 def record_current_answer(root, response, *, journal_directory=None, request_ids=None):
-	from .journal import record_answer
+	from .journal import record_answer, resolve_journal_dir
 	from .links import readable_link_issues
 	issues = readable_link_issues(response, allow_unencoded_file_uri=True)
 	if issues:
@@ -299,8 +302,7 @@ def record_current_answer(root, response, *, journal_directory=None, request_ids
 	turn = unanswered[-1]['id']
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn):
 		turn = 'native-' + hashlib.sha256(turn.encode('utf-8')).hexdigest()
-	default_j = 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437' if (Path(root).resolve() / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').exists() and (not (Path(root).resolve() / 'ꙮ/1 - Analysis').exists()) else 'ꙮ/1 - Analysis'
-	directory = (Path(root).resolve() / (journal_directory or default_j)).resolve()
+	directory = resolve_journal_dir(root, journal_directory)
 	steps = record_answer(directory, [x['text'] for x in unanswered], response, turn, [x['id'] for x in unanswered])
 	ids = {x['id'] for x in unanswered}
 	def change(state):
@@ -599,7 +601,7 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
 		if 'kb_review' == stage and (not note):
 			raise ValueError('Record the result of the semantic KB consistency review')
 		if 'finalize' == stage:
-			from .journal import get_existing_step_ids, step_errors
+			from .journal import get_existing_step_ids, resolve_journal_dir, step_errors
 			from .text_workflow import gate_paths
 			gate_paths([Path(root) / name for name in outputs])
 			from .context import generate
@@ -607,8 +609,7 @@ def complete_stage(root, stage, inputs, outputs, *, note=None):
 			if scratch_dir.is_dir() and any((p.is_file() for p in scratch_dir.rglob('*'))):
 				raise ValueError('Clean or consume all temporary files in ꘖ/data/scratch before finalizing')
 			prepared = state['requests'][-1].get('response_prepared', {}) if state['requests'] else {}
-			default_j = 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437' if (Path(root) / 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437').exists() and (not (Path(root) / 'ꙮ/1 - Analysis').exists()) else 'ꙮ/1 - Analysis'
-			journal = Path(root) / prepared.get('journal', default_j)
+			journal = resolve_journal_dir(root, prepared.get('journal'))
 			ids = get_existing_step_ids(journal)
 			if not ids or any((step_errors(journal, ident) for ident in ids)):
 				raise ValueError('Complete exact req/res journal pairs before external export')

@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
 # https://github.com/dmitry-ai/harness/issues/49
@@ -98,6 +101,19 @@ def recover_step(directory: Path, step: int, token: str):
 			if digest(state[key].encode('utf-8')) != state[key + '_sha256']:
 				raise ValueError(f'Damaged reservation: {key}')
 		_publish(directory, step, state, recovering=True)
+def resolve_journal_dir(root: Path, selected=None) -> Path:
+	root_p = Path(root).resolve()
+	if selected:
+		r = (root_p / selected).resolve()
+	elif (root_p / '_/\ua66e').is_dir():
+		r = (root_p / '_/\ua66e').resolve()
+	elif (root_p / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437').is_dir() and (not (root_p / '\ua66e/1 - Analysis').is_dir()):
+		r = (root_p / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437').resolve()
+	elif (root_p / '\ua66e/README.md').is_file() and (not (root_p / '\ua66e/1 - Analysis').is_dir()):
+		r = (root_p / '\ua66e').resolve()
+	else:
+		r = (root_p / '\ua66e/1 - Analysis').resolve()
+	return r
 def step_errors(directory: Path, step: int) -> list[str]:
 	directory = Path(directory)
 	if type(step) is not int or step < 1:

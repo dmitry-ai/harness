@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -124,6 +127,61 @@ def foreground_once_preserves_admitted_delivery(case, *, platform, backend):
 		case.assertEqual(journal_watch.once(state_dir=watch_dir), first)
 	after = {path.relative_to(case.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in case.root.rglob('*') if path.is_file()}
 	case.assertEqual(after, before)
+class AnswerPreparationRunnerTests(unittest.TestCase):
+	def test_gate_id_auto_clearing_and_resolve_journal_dir(self):
+		with tempfile.TemporaryDirectory() as temp:
+			base = Path(temp)
+			meta = base / 'meta'
+			(meta / '_/ꙮ').mkdir(parents=True, exist_ok=True)
+			root_j = base / 'root_j'
+			(root_j / 'ꙮ').mkdir(parents=True, exist_ok=True)
+			(root_j / 'ꙮ/README.md').write_text('# Journal\n', encoding='utf-8')
+			proj = base / 'proj'
+			(proj / 'ꘖ/KB').mkdir(parents=True, exist_ok=True)
+			(proj / 'ꘖ/data').mkdir(parents=True, exist_ok=True)
+			(proj / 'ꘖ/project.json').write_text('{"job_id":"p1"}', encoding='utf-8')
+			self.assertEqual((meta / '_/ꙮ').resolve(), journal.resolve_journal_dir(meta))
+			self.assertEqual((root_j / 'ꙮ').resolve(), journal.resolve_journal_dir(root_j))
+			self.assertEqual((proj / 'ꙮ/1 - Analysis').resolve(), journal.resolve_journal_dir(proj))
+			note = proj / 'ꘖ/KB/Notes.md'
+			note.write_text('Unregistered H-1 hypothesis.\n', encoding='utf-8')
+			wf_path = proj / 'ꘖ/data/workflow.json'
+			wf_base = {'schema_version': 1, 'project_root': str(proj.resolve()), 'job_id': 'p1', 'stages': {}, 'questions': {}, 'reviews': [], 'events': []}
+			wf_path.write_text(json.dumps({**wf_base, 'requests': []}), encoding='utf-8')
+			req = {'id': 'r-1', 'text': 'Check system behavior', 'native_step': 1}
+			turn = {'turn_id': 't-1', 'start_step': 1, 'owned': True, 'aborted': False, 'completed': False, 'requests': [req], 'touched_files': [str(note)]}
+			native = {'platform': 'antigravity', 'native_backend': str(base), 'conversation_id': str(uuid.uuid4()), 'primary': True, 'active_turn_id': 't-1', 'turns': [turn], 'source_file': 'trace.jsonl'}
+			with patch.object(completion, '_native', return_value=native):
+				res_begin = completion.begin(proj, native['conversation_id'], platform='antigravity', backend=base)
+				with self.assertRaisesRegex(ValueError, 'KB-2 / DOC-1 violation'):
+					completion.AnswerPreparationRunner(proj.resolve(), 'Verified answer text for user request.', res_begin, native, turn).run()
+				state_path = proj / 'ꘖ/data/turns' / (res_begin['turn_key'] + '.json')
+				saved = json.loads(state_path.read_text(encoding='utf-8'))
+				self.assertEqual('factual_kb_note', saved['readiness_check']['gate_id'])
+				note.write_text('Purely factual observation note.\n', encoding='utf-8')
+				_, cleared = completion._state(proj, native, turn)
+				self.assertNotIn('readiness_check', cleared)
+				completion._persist(state_path, cleared)
+				with self.assertRaisesRegex(ValueError, 'Adopt current requests'):
+					completion.AnswerPreparationRunner(proj.resolve(), 'Verified answer text for user request.', res_begin, native, turn).run()
+				saved_wf = json.loads(state_path.read_text(encoding='utf-8'))
+				self.assertEqual('workflow_adoption', saved_wf['readiness_check']['gate_id'])
+				wf_path.write_text(json.dumps({**wf_base, 'requests': [req]}), encoding='utf-8')
+				_, cleared_wf = completion._state(proj, native, turn)
+				self.assertNotIn('readiness_check', cleared_wf)
+				completion._persist(state_path, cleared_wf)
+				src_doc = proj / 'ꘖ/KB/Module.md'
+				src_doc.write_text('Fact line.\n', encoding='utf-8')
+				ev_turn = {**turn, 'compaction': {'occurred': True, 'last_checkpoint_step': 5, 'checkpoint_steps': [5], 'pre_checkpoint_tool_steps': [2], 'recovered_in_trace': True, 'evicted_unreread_files': [src_doc.resolve().as_posix()]}}
+				ev_native = {**native, 'turns': [ev_turn]}
+				cite_resp = f'Confirmed in [Module.md](file:///{src_doc.resolve().as_posix()}).'
+				with self.assertRaisesRegex(ValueError, 'cited in response without re-reading'):
+					completion.AnswerPreparationRunner(proj.resolve(), cite_resp, res_begin, ev_native, ev_turn).run()
+				_, still_blocked = completion._state(proj, ev_native, ev_turn)
+				self.assertEqual('evicted_citations', still_blocked['readiness_check']['gate_id'])
+				reread_turn = {**ev_turn, 'compaction': {**ev_turn['compaction'], 'evicted_unreread_files': []}}
+				_, cleared_ev = completion._state(proj, {**native, 'turns': [reread_turn]}, reread_turn)
+				self.assertNotIn('readiness_check', cleared_ev)
 class CompletionCase(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()

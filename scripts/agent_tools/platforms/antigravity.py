@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
 # https://github.com/dmitry-ai/harness/issues/58
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -153,7 +156,7 @@ class AntigravityTurnScanner:
 		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'exec5_violations': seg['violations'], 'http_fetch_violations': seg['http_violations'], 'checkpoint_steps': seg['checkpoint_steps'], 'tool_steps': seg['tool_steps'], 'subagent_steps': seg['subagent_steps'], 'aa_subagent_steps': seg['aa_subagent_steps'], 'aa_partial_read_violations': seg['aa_partial_read_violations'], 'af_subagent_steps': seg['af_subagent_steps'], 'kb_persistence_steps': seg['kb_persistence_steps'], 'completion_service_steps': seg['completion_service_steps'], 'transcript_read_steps': seg['transcript_read_steps'], 'tool_records': seg['tool_records'], 'touched_files': seg['touched_files'], 'file_reads': seg['file_reads'], 'file_writes': seg['file_writes'], 'issue_actions': seg['issue_actions']}
 	def _load_context(self):
 		from .request_binding import completion_project_id
-		from ..journal import state_dir
+		from ..journal import resolve_journal_dir, state_dir
 		if not re.fullmatch('[a-f0-9-]{36}', self.conversation_id):
 			raise ValueError('Exact native Antigravity conversation UUID required')
 		connection = sqlite3.connect((self.backend / 'conversation_summaries.db').as_uri() + '?mode=ro', uri=True)
@@ -178,7 +181,7 @@ class AntigravityTurnScanner:
 			self.statuses = {index: (kind, status) for index, kind, status in connection.execute('SELECT idx,step_type,status FROM steps')}
 		finally:
 			connection.close()
-		self.jdir = (self.root_p / '_/\ua66e').resolve() if (self.root_p / '_/\ua66e').is_dir() else (self.root_p / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437').resolve() if (self.root_p / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437').is_dir() and (not (self.root_p / '\ua66e/1 - Analysis').is_dir()) else (self.root_p / '\ua66e').resolve() if (self.root_p / '\ua66e/README.md').is_file() and (not (self.root_p / '\ua66e/1 - Analysis').is_dir()) else (self.root_p / '\ua66e/1 - Analysis').resolve()
+		self.jdir = resolve_journal_dir(self.root_p)
 		sdir = state_dir(self.jdir)
 		if (sdir / 'answer-groups').is_dir():
 			for gpath in (sdir / 'answer-groups').glob('*.json'):
