@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+# https://github.com/dmitry-ai/harness/issues/53
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
@@ -137,12 +140,10 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 			continue
 	return removed
 def git(root: Path, *args) -> bytes:
-	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	result = subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env, creationflags=_NO_WINDOW)
-	if result.returncode:
+	result = run_git_read(root, list(args), check=False)
+	if 0 != result.returncode:
 		raise RuntimeError(result.stderr.decode('utf-8', errors='replace').strip())
-	r = result.stdout
-	return r
+	return result.stdout
 def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[str]=()) -> dict:
 	if subcommand not in READ_SUBCOMMANDS:
 		raise ValueError(f'Unsupported read-only Git subcommand: {subcommand}')
@@ -151,26 +152,38 @@ def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[
 	output = git(resolved, subcommand, *extra)
 	r = {'valid': True, 'repo': str(resolved), 'subcommand': subcommand, 'args': extra, 'command': ['git', '--no-optional-locks', '-C', str(resolved), subcommand, *extra], 'git_optional_locks': '0', 'stdout': output.decode('utf-8', errors='replace')}
 	return r
-def classify_git_argv(argv: list[str] | tuple[str, ...]) -> tuple[str | None, bool]:
+def _scan_git_global_opts(argv: list[str] | tuple[str, ...], *, base_dir: Path | None=None) -> tuple[int | None, bool, Path | None]:
 	has_flag = False
-	index = 0
+	sub_idx = None
+	target_dir = base_dir
 	tokens = list(argv)
-	while index < len(tokens):
-		token = tokens[index]
-		if '--' == token:
+	idx = 0
+	while idx < len(tokens):
+		tok = tokens[idx]
+		if '--' == tok:
 			break
-		if '--no-optional-locks' == token:
+		if '--no-optional-locks' == tok:
 			has_flag = True
-			index += 1
-		elif token in _VALUE_GLOBAL_OPTS:
-			index += 2
-		elif token.startswith('-'):
-			index += 1
+			idx += 1
+		elif tok in ('-C', '--work-tree') and idx + 1 < len(tokens):
+			if None is not target_dir:
+				cand = normalize_host_path(tokens[idx + 1])
+				target_dir = cand.resolve() if cand.is_absolute() else (target_dir / cand).resolve()
+			idx += 2
+		elif tok in _VALUE_GLOBAL_OPTS:
+			idx += 2
+		elif tok.startswith('-'):
+			idx += 1
 		else:
-			return (token, has_flag)
-	return (None, has_flag)
+			sub_idx = idx
+			break
+	return (sub_idx, has_flag, target_dir)
+def classify_git_argv(argv: list[str] | tuple[str, ...]) -> tuple[str | None, bool]:
+	tokens = list(argv)
+	sub_idx, has_flag, _ = _scan_git_global_opts(tokens)
+	return (tokens[sub_idx] if None is not sub_idx else None, has_flag)
 def _unquote(token: str) -> str:
-	if not (len(token) >= 2 and token[0] == token[-1] and (token[0] in ('"', "'"))):
+	if not (2 <= len(token) and token[0] == token[-1] and (token[0] in ('"', "'"))):
 		r = token
 	else:
 		inner = token[1:-1]
@@ -191,8 +204,17 @@ def _split_shell_segments(cmd: str) -> list[str]:
 	seg = ''.join(curr).strip()
 	if seg:
 		segments.append(seg)
-	r = segments
-	return r
+	return segments
+def _iter_shell_git_segments(candidate: str) -> list[tuple[str, list[str]]]:
+	cleaned = re.sub('@\'[\\s\\S]*?\'@|@\\"[\\s\\S]*?\\"@', '""', candidate)
+	cleaned = re.sub('(\\bpython(?:3)?(?:\\.exe)?\\s+(?:-[A-Za-z]+\\s+)*-c\\s+)(?:"(?:\\\\.|[^"\\\\])*"|\\\'(?:\\\'\\\'|[^\\\'])*\\\')', '\\1""', cleaned)
+	items: list[tuple[str, list[str]]] = []
+	for segment in _split_shell_segments(cleaned):
+		m = re.match('^\\s*(?:&\\s*)?(?:["\\\']?[A-Za-z]:[\\\\/][^"\\\'\\s]*[\\\\/])?git(?:\\.exe)?(?:\\s+|$)(?P<rest>.*)$', segment)
+		if m:
+			raw_tokens = re.findall('"(?:\\\\.|[^"])*"|\\\'(?:\\\\.|[^\\\'])*\\\'|\\S+', m.group('rest'))
+			items.append((segment, [_unquote(tok) for tok in raw_tokens]))
+	return items
 def unflagged_git_read_commands(text: str) -> list[str]:
 	if not isinstance(text, str) or 'git' not in text:
 		r = []
@@ -221,36 +243,37 @@ def unflagged_git_read_commands(text: str) -> list[str]:
 					exec_cmds.append(_unquote(raw_lit))
 		candidates = exec_cmds if exec_cmds else [text]
 		for candidate in candidates:
-			if re.search('(?:\\$env:)?GIT_OPTIONAL_LOCKS\\s*=\\s*["\']?0["\']?', candidate):
-				continue
-			cleaned = re.sub('@\'[\\s\\S]*?\'@|@\\"[\\s\\S]*?\\"@', '""', candidate)
-			cleaned = re.sub('(\\bpython(?:3)?(?:\\.exe)?\\s+(?:-[A-Za-z]+\\s+)*-c\\s+)(?:"(?:\\\\.|[^"\\\\])*"|\\\'(?:\\\'\\\'|[^\\\'])*\\\')', '\\1""', cleaned)
-			for segment in _split_shell_segments(cleaned):
-				m = re.match('^\\s*(?:&\\s*)?(?:["\\\']?[A-Za-z]:[\\\\/][^"\\\'\\s]*[\\\\/])?git(?:\\.exe)?(?:\\s+|$)(?P<rest>.*)$', segment)
-				if not m:
-					continue
-				raw_tokens = re.findall('"(?:\\\\.|[^"])*"|\\\'(?:\\\\.|[^\\\'])*\\\'|\\S+', m.group('rest'))
-				tokens = [_unquote(tok) for tok in raw_tokens]
-				subcommand, has_flag = classify_git_argv(tokens)
-				if subcommand in READ_SUBCOMMANDS and (not has_flag):
-					normalized = ' '.join(segment.strip().split())
-					if normalized not in violations:
-						violations.append(normalized)
+			if not re.search('(?:\\$env:)?GIT_OPTIONAL_LOCKS\\s*=\\s*["\']?0["\']?', candidate):
+				for segment, tokens in _iter_shell_git_segments(candidate):
+					subcommand, has_flag = classify_git_argv(tokens)
+					if subcommand in READ_SUBCOMMANDS and (not has_flag):
+						normalized = ' '.join(segment.strip().split())
+						if normalized not in violations:
+							violations.append(normalized)
 		r = violations
 	return r
 _EXTERNAL_URL_RE = re.compile('https?://(?!(?:localhost|127\\.0\\.0\\.1|\\[::1\\])\\b)[A-Za-z0-9.-]+', re.I)
 _ADHOC_HTTP_CLIENT_RE = re.compile('(?:\\burllib\\.request\\b|\\burlopen\\s*\\(|\\brequests\\.(?:get|post|head|request|Session)\\b|\\bhttpx\\.(?:get|post|Client)\\b|\\bInvoke-(?:WebRequest|RestMethod)\\b|\\b(?:iwr|irm|curl(?:\\.exe)?|wget(?:\\.exe)?)\\s+)', re.I)
 _SANCTIONED_HTTP_RUNNER_RE = re.compile('(?:harness\\.py|upwork_project\\.py|validate_links\\.py|df_github_issue\\.py|\\bunittest\\b|\\bpytest\\b)', re.I)
 _GITHUB_ISSUE_URL_RE = re.compile('https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\\d+\\b')
-_COMMIT_MESSAGE_ISSUE_URL_RE = re.compile('^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\\d+$')
+_COMMIT_MESSAGE_ISSUE_URL_RE = re.compile('^https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)$')
 _ISSUE_LINKED_CODE_SUFFIXES = ('.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.cs', '.ps1', '.sh', '.bash', '.cmd', '.bat', '.vbs')
+def extract_comment_issue_urls(text: str) -> set[str]:
+	urls: set[str] = set()
+	for line in (text or '').splitlines():
+		if re.match('^\\s*(?:#|//|REM\\b|/\\*|\\*)', line, re.I):
+			urls.update(_GITHUB_ISSUE_URL_RE.findall(line))
+	return urls
 def extract_issue_urls(text: str) -> list[str]:
 	return list(dict.fromkeys(_GITHUB_ISSUE_URL_RE.findall(text or '')))
 def is_code_file(rel_path: str | Path) -> bool:
 	return Path(rel_path).suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES
-def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True):
+def parse_issue_url(url: str) -> tuple[str, int] | None:
+	m = _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch((url or '').strip())
+	return (m.group(1), int(m.group(2))) if m else None
+def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
+	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], input=input_bytes, capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
 def _main_repo_for_worktree(root: Path) -> Path:
 	resolved = normalize_host_path(root).resolve()
 	dot_git = resolved / '.git'
@@ -287,94 +310,65 @@ def ensure_repo_hooks(root: Path) -> Path | None:
 	except OSError:
 		return None
 	return HOOKS_DIR
+def _check_blob_size_limits(rel_posix: str, size: int, *, kind: str, sha: str='') -> None:
+	if rel_posix and _EXTRACTED_DERIVED_RE.search(rel_posix) and (EXTRACTED_MAX_BYTES < size):
+		label = f'{rel_posix} ({sha[:12]})' if sha else rel_posix
+		noun = 'derived extraction blob' if sha else 'derived extraction file'
+		raise ValueError(f'{kind} {noun} {label} is {size} bytes, exceeding MAX_BYTES ({EXTRACTED_MAX_BYTES} bytes)')
+	if GITHUB_MAX_BLOB_BYTES < size:
+		label = (f'{rel_posix} ({sha[:12]})' if rel_posix else sha[:12]) if sha else rel_posix
+		raise ValueError(f'{kind} Git blob {label} is {size} bytes, exceeding GitHub GH001 hard limit ({GITHUB_MAX_BLOB_BYTES} bytes)')
 def verify_staged_blob_sizes(root: Path, staged_paths: list[str] | None=None) -> None:
 	resolved = normalize_host_path(root).resolve()
-	if not (resolved / '.git').exists():
-		return
-	paths = list(staged_paths) if None is not staged_paths else [x.decode('utf-8') for x in git(resolved, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
-	if not paths:
-		return
-	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	batch_in = ''.join((f':{p}\n' for p in paths)).encode('utf-8')
-	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objecttype) %(objectsize)'], input=batch_in, capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
-	if 0 != proc.returncode:
-		return
-	lines = proc.stdout.decode('utf-8', errors='replace').splitlines()
-	for rel_raw, line in zip(paths, lines):
-		parts = line.strip().split()
-		if len(parts) < 2 or 'blob' != parts[0] or (not parts[1].isdigit()):
-			continue
-		size = int(parts[1])
-		rel_posix = rel_raw.replace('\\', '/')
-		if _EXTRACTED_DERIVED_RE.search(rel_posix) and size > EXTRACTED_MAX_BYTES:
-			raise ValueError(f'Staged derived extraction file {rel_posix} is {size} bytes, exceeding MAX_BYTES ({EXTRACTED_MAX_BYTES} bytes)')
-		if size > GITHUB_MAX_BLOB_BYTES:
-			raise ValueError(f'Staged Git blob {rel_posix} is {size} bytes, exceeding GitHub GH001 hard limit ({GITHUB_MAX_BLOB_BYTES} bytes)')
+	if (resolved / '.git').exists():
+		paths = list(staged_paths) if None is not staged_paths else [x.decode('utf-8') for x in git(resolved, 'diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
+		if paths:
+			batch_in = ''.join((f':{p}\n' for p in paths)).encode('utf-8')
+			proc = run_git_read(resolved, ['cat-file', '--batch-check=%(objecttype) %(objectsize)'], check=False, input_bytes=batch_in)
+			if 0 == proc.returncode:
+				lines = proc.stdout.decode('utf-8', errors='replace').splitlines()
+				for rel_raw, line in zip(paths, lines):
+					parts = line.strip().split()
+					if 2 <= len(parts) and 'blob' == parts[0] and parts[1].isdigit():
+						_check_blob_size_limits(rel_raw.replace('\\', '/'), int(parts[1]), kind='Staged')
 def verify_push_blob_sizes(root: Path, stdin_lines: list[str] | None=None) -> None:
 	resolved = normalize_host_path(root).resolve()
-	if not (resolved / '.git').exists():
-		return
-	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	rev_args: list[str] = []
-	if None is not stdin_lines:
-		zero_re = re.compile('^0+$')
-		for raw_line in stdin_lines:
-			parts = raw_line.strip().split()
-			if len(parts) < 4:
-				continue
-			local_sha, remote_sha = (parts[1], parts[3])
-			if zero_re.match(local_sha):
-				continue
-			if zero_re.match(remote_sha):
-				rev_args.extend([local_sha, '--not', '--remotes'])
-			else:
-				rev_args.append(f'{remote_sha}..{local_sha}')
-		if not rev_args:
-			return
-	else:
-		head_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-parse', '--verify', 'HEAD'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
-		if 0 != head_proc.returncode:
-			return
-		rev_args = ['HEAD', '--not', '--remotes']
-	rev_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'rev-list', '--objects', *rev_args], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
-	if 0 != rev_proc.returncode or not rev_proc.stdout.strip():
-		return
-	cat_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(resolved), 'cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)'], input=rev_proc.stdout, capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
-	if 0 != cat_proc.returncode:
-		return
-	for line in cat_proc.stdout.decode('utf-8', errors='replace').splitlines():
-		parts = line.strip().split(' ', 3)
-		if len(parts) < 3 or 'blob' != parts[1] or (not parts[2].isdigit()):
-			continue
-		sha = parts[0]
-		size = int(parts[2])
-		rel_posix = (parts[3] if len(parts) > 3 else '').replace('\\', '/')
-		if rel_posix and _EXTRACTED_DERIVED_RE.search(rel_posix) and (size > EXTRACTED_MAX_BYTES):
-			raise ValueError(f'Unpushed derived extraction blob {rel_posix} ({sha[:12]}) is {size} bytes, exceeding MAX_BYTES ({EXTRACTED_MAX_BYTES} bytes)')
-		if size > GITHUB_MAX_BLOB_BYTES:
-			label = f'{rel_posix} ({sha[:12]})' if rel_posix else sha[:12]
-			raise ValueError(f'Unpushed Git blob {label} is {size} bytes, exceeding GitHub GH001 hard limit ({GITHUB_MAX_BLOB_BYTES} bytes)')
+	if (resolved / '.git').exists():
+		rev_args: list[str] = []
+		if None is stdin_lines:
+			if 0 == run_git_read(resolved, ['rev-parse', '--verify', 'HEAD'], check=False).returncode:
+				rev_args = ['HEAD', '--not', '--remotes']
+		else:
+			zero_re = re.compile('^0+$')
+			for raw_line in stdin_lines:
+				parts = raw_line.strip().split()
+				if 4 <= len(parts) and (not zero_re.match(parts[1])):
+					if zero_re.match(parts[3]):
+						rev_args.extend([parts[1], '--not', '--remotes'])
+					else:
+						rev_args.append(f'{parts[3]}..{parts[1]}')
+		if rev_args:
+			rev_proc = run_git_read(resolved, ['rev-list', '--objects', *rev_args], check=False)
+			if 0 == rev_proc.returncode and rev_proc.stdout.strip():
+				cat_proc = run_git_read(resolved, ['cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)'], check=False, input_bytes=rev_proc.stdout)
+				if 0 == cat_proc.returncode:
+					for line in cat_proc.stdout.decode('utf-8', errors='replace').splitlines():
+						parts = line.strip().split(' ', 3)
+						if 3 <= len(parts) and 'blob' == parts[1] and parts[2].isdigit():
+							rel_posix = (parts[3] if 3 < len(parts) else '').replace('\\', '/')
+							_check_blob_size_limits(rel_posix, int(parts[2]), kind='Unpushed', sha=parts[0])
 def _extract_added_diff_urls(root: Path, rel_name: str) -> tuple[set[str], set[str]]:
 	added_urls: set[str] = set()
 	head_urls: set[str] = set()
-	if not (Path(root) / '.git').exists():
-		return (added_urls, head_urls)
-	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	diff_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(root), 'diff', '--cached', '-U0', '--', f':(literal){rel_name}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
-	if 0 == diff_proc.returncode and diff_proc.stdout:
-		diff_text = diff_proc.stdout.decode('utf-8', errors='replace')
-		for line in diff_text.splitlines():
-			if line.startswith('+') and (not line.startswith('+++')):
-				body = line[1:]
-				if re.match('^\\s*(?:#|//|REM\\b|/\\*|\\*)', body, re.I):
-					added_urls.update(_GITHUB_ISSUE_URL_RE.findall(body))
-	if added_urls:
-		show_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(root), 'show', f'HEAD:{rel_name}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
-		if 0 == show_proc.returncode and show_proc.stdout:
-			head_text = show_proc.stdout.decode('utf-8', errors='replace')
-			for hline in head_text.splitlines():
-				if re.match('^\\s*(?:#|//|REM\\b|/\\*|\\*)', hline, re.I):
-					head_urls.update(_GITHUB_ISSUE_URL_RE.findall(hline))
+	if (Path(root) / '.git').exists():
+		diff_proc = run_git_read(root, ['diff', '--cached', '-U0', '--', f':(literal){rel_name}'], check=False)
+		if 0 == diff_proc.returncode and diff_proc.stdout:
+			added_lines = [line[1:] for line in diff_proc.stdout.decode('utf-8', errors='replace').splitlines() if line.startswith('+') and (not line.startswith('+++'))]
+			added_urls.update(extract_comment_issue_urls('\n'.join(added_lines)))
+		if added_urls:
+			show_proc = run_git_read(root, ['show', f'HEAD:{rel_name}'], check=False)
+			if 0 == show_proc.returncode and show_proc.stdout:
+				head_urls.update(extract_comment_issue_urls(show_proc.stdout.decode('utf-8', errors='replace')))
 	return (added_urls, head_urls)
 def verify_issue_workflow(root: Path, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 	if not agent_context:
@@ -407,42 +401,17 @@ def verify_issue_workflow(root: Path, relative: list[str], message: str | None=N
 	if len(all_new_diff_urls) > 1:
 		raise ValueError(f'Staged files mix changes from multiple GitHub Issues: {sorted(all_new_diff_urls)}')
 def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> Path | None:
-	target_dir = normalize_host_path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
-	tokens = list(argv)
-	idx = 0
-	while idx < len(tokens):
-		tok = tokens[idx]
-		if '--' == tok:
-			break
-		if tok in ('-C', '--work-tree') and idx + 1 < len(tokens):
-			cand = normalize_host_path(tokens[idx + 1])
-			target_dir = cand.resolve() if cand.is_absolute() else (target_dir / cand).resolve()
-			idx += 2
-		elif tok in _VALUE_GLOBAL_OPTS:
-			idx += 2
-		elif tok.startswith('-'):
-			idx += 1
-		else:
-			break
+	base_dir = normalize_host_path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
+	_, _, target_dir = _scan_git_global_opts(argv, base_dir=base_dir)
+	r = None
 	for anc in (target_dir, *target_dir.parents):
 		if (anc / '.git').exists():
-			return anc
-	return None
+			r = anc
+			break
+	return r
 def _parse_commit_subcommand_args(argv: list[str] | tuple[str, ...]) -> tuple[list[str], str | None, str | None, bool, bool, list[str]]:
 	tokens = list(argv)
-	idx = 0
-	sub_idx = None
-	while idx < len(tokens):
-		tok = tokens[idx]
-		if '--' == tok:
-			break
-		if tok in _VALUE_GLOBAL_OPTS:
-			idx += 2
-		elif tok.startswith('-'):
-			idx += 1
-		else:
-			sub_idx = idx
-			break
+	sub_idx, _, _ = _scan_git_global_opts(tokens)
 	if None is sub_idx or 'commit' != tokens[sub_idx]:
 		return ([], None, None, False, False, [])
 	rest = tokens[sub_idx + 1:]
@@ -566,28 +535,23 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 					verify_issue_workflow(repo_root, clean_specs, message=msg, agent_context=True)
 def prohibited_git_write_commands(text: str) -> list[str]:
 	if not isinstance(text, str) or 'git' not in text:
-		return []
-	violations: list[str] = []
-	cleaned = re.sub('@\'[\\s\\S]*?\'@|@\\"[\\s\\S]*?\\"@', '""', text)
-	cleaned = re.sub('(\\bpython(?:3)?(?:\\.exe)?\\s+(?:-[A-Za-z]+\\s+)*-c\\s+)(?:"(?:\\\\.|[^"\\\\])*"|\\\'(?:\\\'\\\'|[^\\\'])*\\\')', '\\1""', cleaned)
-	for segment in _split_shell_segments(cleaned):
-		m = re.match('^\\s*(?:&\\s*)?(?:["\\\']?[A-Za-z]:[\\\\/][^"\\\'\\s]*[\\\\/])?git(?:\\.exe)?(?:\\s+|$)(?P<rest>.*)$', segment)
-		if not m:
-			continue
-		raw_tokens = re.findall('"(?:\\\\.|[^"])*"|\\\'(?:\\\\.|[^\\\'])*\\\'|\\S+', m.group('rest'))
-		tokens = [_unquote(tok) for tok in raw_tokens]
-		subcommand, _ = classify_git_argv(tokens)
-		if 'filter-branch' == subcommand:
-			violations.append(f'git filter-branch is prohibited ({segment.strip()})')
-		elif 'commit' == subcommand:
-			_, msg, _, no_verify, all_flag, _ = _parse_commit_subcommand_args(tokens)
-			if no_verify:
-				violations.append(f'git commit --no-verify/-n is prohibited ({segment.strip()})')
-			if all_flag:
-				violations.append(f'git commit -a/--all is prohibited ({segment.strip()})')
-			if None is not msg and (not _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch(msg.strip())) and ('$' not in msg):
-				violations.append(f'git commit message must contain only the GitHub Issue URL ({segment.strip()})')
-	return violations
+		r = []
+	else:
+		violations: list[str] = []
+		for segment, tokens in _iter_shell_git_segments(text):
+			subcommand, _ = classify_git_argv(tokens)
+			if 'filter-branch' == subcommand:
+				violations.append(f'git filter-branch is prohibited ({segment.strip()})')
+			elif 'commit' == subcommand:
+				_, msg, _, no_verify, all_flag, _ = _parse_commit_subcommand_args(tokens)
+				if no_verify:
+					violations.append(f'git commit --no-verify/-n is prohibited ({segment.strip()})')
+				if all_flag:
+					violations.append(f'git commit -a/--all is prohibited ({segment.strip()})')
+				if None is not msg and (not _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch(msg.strip())) and ('$' not in msg):
+					violations.append(f'git commit message must contain only the GitHub Issue URL ({segment.strip()})')
+		r = violations
+	return r
 def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path | None=None, *, stdin_text: str | None=None, agent_context: bool | None=None) -> int:
 	cleanup_stale_credential_locks()
 	repo_root = resolve_git_repo_from_argv((), cwd=cwd)
@@ -800,14 +764,13 @@ def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int) -
 	commit_sha = git(code_repo, 'log', f'--grep={issue_url}', '--fixed-strings', '-n', '1', '--format=%H').decode('utf-8', errors='replace').strip()
 	if not commit_sha:
 		raise ValueError(f'EXEC-5 violation: no commit in {code_repo} references {issue_url}; commit and push changes before closing the issue as completed')
-	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	up_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(code_repo), 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
+	up_proc = run_git_read(code_repo, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], check=False)
 	pushed = True
 	if 0 == up_proc.returncode:
-		anc_proc = subprocess.run(['git', '--no-optional-locks', '-C', str(code_repo), 'merge-base', '--is-ancestor', commit_sha, '@{u}'], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
+		anc_proc = run_git_read(code_repo, ['merge-base', '--is-ancestor', commit_sha, '@{u}'], check=False)
 		unpushed_str = git(code_repo, 'rev-list', '--count', '@{u}..HEAD').decode('utf-8', errors='replace').strip()
 		unpushed = int(unpushed_str) if unpushed_str.isdigit() else 0
-		if 0 != anc_proc.returncode or unpushed > 0:
+		if 0 != anc_proc.returncode or 0 < unpushed:
 			pushed = False
 			raise ValueError(f'EXEC-5 violation: commit {commit_sha[:12]} referencing {issue_url} in {code_repo} has not been pushed to upstream (run git push before df_github_issue.py close)')
 	return {'verified': True, 'repo': str(code_repo), 'issue_url': issue_url, 'commit_sha': commit_sha, 'pushed': pushed}

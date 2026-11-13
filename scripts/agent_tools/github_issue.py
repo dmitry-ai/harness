@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+# https://github.com/dmitry-ai/harness/issues/53
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-github-issue skill and df_github_issue.py CLI with UTF-8 file input and mandatory API read-back verification":
 # https://github.com/dmitry-ai/harness/issues/20
@@ -165,6 +168,7 @@ def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
 		return False
 	return bool(re.search(f'github\\.com[:/]{re.escape(repo)}(?:\\.git)?/?(?:\\s|$)', cfg_text, re.I))
 def _find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> Path | None:
+	r = None
 	candidates: list[Path] = []
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
@@ -178,21 +182,24 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 		candidates.extend([anc, anc / 'code'])
 	seen: set[Path] = set()
 	for cand in candidates:
-		if cand in seen:
-			continue
-		seen.add(cand)
-		if cand.is_dir() and _repo_matches_github_slug(cand, repo):
-			return cand
-	ai_root = HARNESS_META.parents[1] if len(HARNESS_META.parents) >= 2 else None
-	if None is not ai_root and ai_root.is_dir():
-		try:
-			for cfg in ai_root.glob('**/code/.git/config'):
-				code_dir = cfg.parent.parent.resolve()
-				if code_dir not in seen and _repo_matches_github_slug(code_dir, repo):
-					return code_dir
-		except OSError:
-			pass
-	return None
+		if cand not in seen:
+			seen.add(cand)
+			if cand.is_dir() and _repo_matches_github_slug(cand, repo):
+				r = cand
+				break
+	if None is r:
+		ai_root = HARNESS_META.parents[1] if 2 <= len(HARNESS_META.parents) else None
+		if None is not ai_root and ai_root.is_dir():
+			try:
+				for cfg in ai_root.glob('**/code/.git/config'):
+					code_dir = cfg.parent.parent.resolve()
+					if code_dir not in seen and _repo_matches_github_slug(code_dir, repo):
+						r = code_dir
+						break
+			except OSError:
+				pass
+	return r
+find_local_code_repo = _find_local_code_repo
 def _meta_dir_for_project_root(proj_root: Path) -> Path | None:
 	proj_root = proj_root.resolve()
 	if (proj_root / '_/ꘖ').is_dir() or (proj_root / '_').is_dir():

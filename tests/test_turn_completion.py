@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+# https://github.com/dmitry-ai/harness/issues/53
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
@@ -1468,6 +1471,49 @@ class CausalBasisTests(unittest.TestCase):
 		bad = 'equal percentages mean there is no evidentiary basis'
 		for text in ['> ' + bad, '```text\n' + bad + '\n```', 'The source writes: «' + bad + '».', 'Absence of data does not mean equal probabilities.', 'Equal prior probabilities are given by the symmetric experiment condition.']:
 			self.assertFalse(unsupported_probability_claims(text), text)
+class IssueLifecycleTests(unittest.TestCase):
+	def test_mixed_multi_commit_closed_issues_and_open_backlog_issue(self):
+		import subprocess
+		from agent_tools import issue_lifecycle
+		with tempfile.TemporaryDirectory() as temp:
+			base = Path(temp)
+			bare = base / 'remote.git'
+			subprocess.run(['git', 'init', '--bare', str(bare)], check=True, capture_output=True)
+			project = base / 'proj'
+			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
+			code_repo = project / 'code'
+			code_repo.mkdir(parents=True, exist_ok=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', f'url.{bare.as_posix()}.insteadOf', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			url_a = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/901'
+			url_b = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/902'
+			url_backlog = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/903'
+			file_a = code_repo / 'a.py'
+			file_b = code_repo / 'b.py'
+			file_a.write_text('# ' + url_a + '\nx = 1\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'a.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_a], cwd=code_repo, check=True, capture_output=True)
+			file_b.write_text('# ' + url_b + '\ny = 2\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'b.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_b], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
+			ev_dir = project / '_/\ua616/KB/Evidence/GitHub/dmitry-ai__antigravity-addons'
+			ev_dir.mkdir(parents=True, exist_ok=True)
+			(ev_dir / 'issue-901.json').write_text(json.dumps({'url': url_a, 'issue': {'number': 901, 'state': 'OPEN', 'title': 'Fix A', 'body': '# Scope\nDetails.\n'}}), encoding='utf-8')
+			(ev_dir / 'issue-902.json').write_text(json.dumps({'url': url_b, 'issue': {'number': 902, 'state': 'CLOSED', 'title': 'Fix B', 'body': '# Scope\nDetails.\n'}}), encoding='utf-8')
+			(ev_dir / 'issue-903.json').write_text(json.dumps({'url': url_backlog, 'issue': {'number': 903, 'state': 'OPEN', 'title': 'Backlog C', 'body': '# Scope\nFuture refactoring.\n'}}), encoding='utf-8')
+			turn = {'touched_files': [str(file_a), str(file_b)], 'issue_actions': [{'action': 'close', 'repo': 'dmitry-ai/antigravity-addons', 'number': 902, 'url': url_b, 'state': 'closed'}, {'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 903, 'url': url_backlog, 'state': 'open'}]}
+			unclosed_first = issue_lifecycle.code_and_issue_lifecycle_status(project, turn, turn_state={})
+			self.assertFalse(unclosed_first['verified'])
+			self.assertTrue(any(('issues/901 remains open' in v for v in unclosed_first['violations'])), unclosed_first['violations'])
+			self.assertFalse(any(('issues/903 remains open' in v for v in unclosed_first['violations'])), unclosed_first['violations'])
+			(ev_dir / 'issue-901.json').write_text(json.dumps({'url': url_a, 'issue': {'number': 901, 'state': 'CLOSED', 'title': 'Fix A', 'body': '# Scope\nDetails.\n'}}), encoding='utf-8')
+			verified = issue_lifecycle.code_and_issue_lifecycle_status(project, turn, turn_state={})
+			self.assertTrue(verified['verified'], verified['violations'])
 class WatcherLifecycleTests(unittest.TestCase):
 	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
 		with tempfile.TemporaryDirectory() as temp:
