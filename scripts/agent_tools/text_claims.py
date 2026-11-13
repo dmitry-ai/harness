@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -10,7 +13,7 @@ from urllib.parse import urldefrag, urlsplit
 import hashlib
 import json
 import re
-from .claims import all_claims, claim_locations, claim_index, claim_digest, contract_issues, evidence_contract_issues, standalone_numbers
+from .claims import all_claims, claim_digest, claim_index, claim_locations, collect_claim_closure, contract_issues, evidence_contract_issues, standalone_numbers
 from .research import inside, json_data
 from .storage import create_bytes, replace_bytes, locked
 def digest(data):
@@ -32,39 +35,30 @@ def subset(value, identifiers):
 	ids = [c.get('id') for c in claims]
 	if any((not isinstance(x, str) for x in ids)) or len(ids) != len(set(ids)):
 		raise ValueError('Claim IDs must be unique throughout the registry')
-	index, needed, pending = (claim_index(value), set(), list(identifiers))
-	while pending:
-		ident = pending.pop()
-		if ident in needed:
-			continue
-		if ident not in index:
-			raise ValueError('Unknown text claim: ' + str(ident))
-		needed.add(ident)
-		item = index[ident]
-		pending.extend((d.get('claim_id') for d in item.get('derived_from', []) if isinstance(d, dict)))
-		pending.extend(item.get('addresses', []))
-	result = {'schema_version': 3, 'facts': []}
+	needed = set(collect_claim_closure(identifiers, claim_index(value), include_addresses=True, unknown_prefix='Unknown text claim: '))
+	r = {'schema_version': 3, 'facts': []}
 	for _, section, item in claim_locations(value):
 		if item['id'] in needed:
-			result.setdefault(section, []).append(item)
-	r = result
+			r.setdefault(section, []).append(item)
 	return r
 def primary_numbers(claim, index, seen=None):
 	seen = set() if None is seen else seen
-	if claim['id'] in seen:
+	ident = claim.get('id')
+	if ident in seen:
 		r = set()
 	else:
-		seen = seen | {claim['id']}
-		corpus = '\n'.join((str(ref.get('quote', '')) for ref in claim.get('evidence', [])))
-		calculation = claim.get('calculation')
-		if isinstance(calculation, dict):
-			corpus += '\n' + str(calculation.get('result', ''))
-		values = {v.replace(',', '.') for v in re.findall('(?<![\\w])\\d+(?:[.,]\\d+)*', corpus)}
-		for value in list(values):
-			values.update(value.split('.'))
-		for dep in claim.get('derived_from', []):
-			if dep.get('claim_id') in index:
-				values.update(primary_numbers(index[dep['claim_id']], index, seen))
+		dep_ids = [d.get('claim_id') for d in claim.get('derived_from', []) if isinstance(d, dict) and d.get('claim_id') not in seen]
+		closure_claims = [claim] + [index[cid] for cid in collect_claim_closure(dep_ids, index) if cid != ident and cid not in seen]
+		values = set()
+		for item in closure_claims:
+			corpus = '\n'.join((str(ref.get('quote', '')) for ref in item.get('evidence', [])))
+			calculation = item.get('calculation')
+			if isinstance(calculation, dict):
+				corpus += '\n' + str(calculation.get('result', ''))
+			for tok in re.findall('(?<![\\w])\\d+(?:[.,]\\d+)*', corpus):
+				norm = tok.replace(',', '.')
+				values.add(norm)
+				values.update(norm.split('.'))
 		r = values
 	return r
 def evidence_inputs(root, value):
@@ -173,7 +167,7 @@ def validate_map(root, text, kind, manifest):
 				value = subset(whole, all_ids)
 				issues.extend(contract_issues(value))
 				if not issues:
-					issues.extend(evidence_contract_issues(root, value))
+					issues.extend(evidence_contract_issues(root, value, skip_structural=True))
 				inputs[registry.relative_to(Path(root).resolve()).as_posix()] = digest(registry.read_bytes())
 				index = claim_index(value)
 				if not issues:
@@ -242,7 +236,9 @@ def save_registry(root, candidate, *, expected_sha256=None, reference='ꘖ/KB/Te
 				for dep in index[ident].get('derived_from', []):
 					if dep.get('claim_id') in index:
 						dep['sha256'] = claim_digest(index[dep['claim_id']])
-		issues = contract_issues(value) + evidence_contract_issues(root, value)
+		issues = contract_issues(value)
+		if not issues:
+			issues = evidence_contract_issues(root, value, skip_structural=True)
 		if issues:
 			raise ValueError(json.dumps(issues, ensure_ascii=False))
 		payload = json_data(value)

@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -134,7 +137,7 @@ def save_analysis(root, candidate, expected_sha256=None):
 	validate_analysis(value)
 	require_current_contract(value)
 	from .evidence import evidence_issues
-	require_valid(evidence_issues(root, value))
+	require_valid(evidence_issues(root, value, skip_structural=True))
 	payload = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode()
 	target = root / 'ꘖ/KB/Analysis.json'
 	target.parent.mkdir(parents=True, exist_ok=True)
@@ -245,7 +248,7 @@ def publish_analysis(source, target=None):
 		raise ValueError('Publish a reconciled schema 3 candidate from its project ꘖ/KB/Analysis.json')
 	from .evidence import evidence_issues
 	validate_analysis(value)
-	require_valid(evidence_issues(source.parents[2], value))
+	require_valid(evidence_issues(source.parents[2], value, skip_structural=True))
 	result = publish_owned(target or source.with_suffix('.md'), render_analysis(value), source=source)
 	if 'conflict' == result['status']:
 		r = result

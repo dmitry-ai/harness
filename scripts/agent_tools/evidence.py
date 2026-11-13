@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -153,7 +156,7 @@ def contains_quote(text, quote, mode='exact'):
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-def evidence_issues(root, value):
+def evidence_issues(root, value, *, skip_structural=False):
 	if not isinstance(value, dict):
 		r = [problem('analysis.object', '/', 'Analysis must be a JSON object')]
 	else:
@@ -161,25 +164,14 @@ def evidence_issues(root, value):
 		for ident, field, argument, source in iter_arguments(value):
 			if not isinstance(source, str) or not isinstance(argument.get('quote'), str):
 				continue
-			locator = argument.get('anchor_exception') if isinstance(argument.get('anchor_exception'), dict) else {}
+			exception = argument.get('anchor_exception') if isinstance(argument.get('anchor_exception'), dict) else {}
 			try:
-				saved = saved_source(root, source, argument.get('observation') or locator.get('observation'))
-				quote, mode = (argument['quote'], argument.get('quote_match', 'exact'))
-				expected_hash = argument.get('source_sha256')
-				actual_hash = saved.get('sha256') or saved.get('meta', {}).get('body_sha256')
-				if expected_hash and expected_hash != actual_hash:
-					raise ValueError('Source hash differs from the referenced observation')
-				if 'html' == saved['kind']:
-					verify_html_quote_scope(saved, quote, mode, documentation=bool(argument.get('documentation')), exception=locator)
-				elif not contains_quote(saved['text'], quote, mode):
-					raise ValueError('Quote is absent from the referenced source fragment')
-				elif argument.get('documentation') and (not saved.get('fragment')):
-					raise ValueError('No-anchor documentation exception requires a verifiable saved HTML section')
+				verify_saved_quote(root, source, argument['quote'], mode=argument.get('quote_match', 'exact'), expected_hash=argument.get('source_sha256'), observation=argument.get('observation') or exception.get('observation'), documentation=bool(argument.get('documentation')), exception=exception)
 			except (OSError, ValueError, KeyError, IndexError, TypeError, UnicodeError) as exc:
 				issues.append(problem('evidence.unconfirmed', field, str(exc), claim_id=ident, hint='Use the exact saved source and locator; keep the claim unverified until resolved'))
 		for section in SECTIONS:
 			for index, claim in enumerate(value.get(section, []) if isinstance(value.get(section), list) else []):
-				if not isinstance(claim, dict) or claim.get('against') != []:
+				if not isinstance(claim, dict) or [] != claim.get('against'):
 					continue
 				gap = claim.get('counterevidence', {})
 				reviewed = gap.get('reviewed_sources', []) if isinstance(gap, dict) else []
@@ -191,16 +183,16 @@ def evidence_issues(root, value):
 							saved_source(root, source)
 						else:
 							file = local_file(root, source)
-							if 'observation.json' == file.name:
+							if 'observation.json' != file.name and (not file.is_file()):
+								raise FileNotFoundError(source)
+							elif 'observation.json' == file.name:
 								observation = load_observation(root, source)
 								if 'not_found' == gap.get('status') and (observation.get('error') or ('http' == observation.get('kind', 'http') and (not 200 <= observation['status'] < 300))):
 									raise ValueError('An unavailable observation establishes unavailable, not a completed search for counterevidence')
-							elif not file.is_file():
-								raise FileNotFoundError(source)
 					except (OSError, ValueError, KeyError, TypeError) as exc:
 						issues.append(problem('counterevidence.unconfirmed', f'/{section}/{index}/counterevidence', str(exc), claim_id=claim.get('id')))
 		from .claims import evidence_contract_issues
-		issues.extend(evidence_contract_issues(root, value))
+		issues.extend(evidence_contract_issues(root, value, skip_structural=skip_structural))
 		r = issues
 	return r
 def source_reference(root, file, parts=()):
@@ -236,4 +228,28 @@ def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, 
 		if not contains_quote(matches[0]['content'], quote, mode):
 			raise ValueError('Quote does not match the documented section')
 		r = matches[0]['content']
+	return r
+def verify_saved_quote(root, source, quote, *, mode='exact', expected_hash=None, require_hash=False, observation=None, documentation=False, exception=None, locator=None, require_bound_observation=False, hash_error='Source hash differs from the referenced observation', absent_error='Quote is absent from the referenced source fragment'):
+	r = saved_source(root, source, observation)
+	actual_hash = r.get('sha256') or r.get('meta', {}).get('body_sha256')
+	if (require_hash or expected_hash) and expected_hash != actual_hash:
+		raise ValueError(hash_error)
+	if 'html' == r['kind']:
+		text = verify_html_quote_scope(r, quote, mode, documentation=documentation, exception=exception, observation=observation, require_bound_observation=require_bound_observation)
+	else:
+		text = r['text']
+		if documentation and (not r.get('fragment')) and (None is not locator or contains_quote(text, quote, mode)):
+			raise ValueError('No-anchor documentation exception requires a verifiable saved HTML section')
+	r['quantity_context'] = r['data']['text'] if 'html' == r['kind'] and (not r.get('fragment')) and (not documentation) else text
+	if isinstance(locator, dict) and 'text' == locator.get('type'):
+		if not contains_quote(text, locator['value'], mode):
+			raise ValueError('Exact text locator is absent from primary source')
+		text = locator['value']
+	elif isinstance(locator, dict) and 'lines' == locator.get('type'):
+		match = re.fullmatch('([1-9][0-9]*)-([1-9][0-9]*)', locator['value'])
+		if not match or int(match[2]) < int(match[1]) or int(match[2]) > len(text.splitlines()):
+			raise ValueError('Line locator must name an existing inclusive line range')
+		text = '\n'.join(text.splitlines()[int(match[1]) - 1:int(match[2])])
+	if not contains_quote(text, quote, mode):
+		raise ValueError(absent_error)
 	return r

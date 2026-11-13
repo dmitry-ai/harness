@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -72,31 +75,29 @@ def load_verified_claims_cache(root) -> dict:
 			pass
 	return {'version': 1, 'claims': {}}
 def _claim_evidence_pairs(claim_id: str, index: dict, evidence_inputs: dict | None = None, _visited: set | None = None) -> list[tuple[str, str]]:
+	from .claims import collect_claim_closure
 	visited = set() if None is _visited else _visited
 	if not _text(claim_id) or claim_id in visited:
-		return []
-	visited.add(claim_id)
-	claim = index.get(claim_id) or {}
-	ev_map = evidence_inputs if isinstance(evidence_inputs, dict) else {}
-	pairs: dict[str, str] = {}
-	refs = list(claim.get('evidence') or []) + list(claim.get('primary_evidence') or [])
-	for ref in refs:
-		if not isinstance(ref, dict):
-			continue
-		for key in ('source', 'observation', 'manifest'):
-			val = ref.get(key)
-			if _text(val):
-				s = val.strip()
-				sha = ev_map.get(s) or (str(ref.get('source_sha256') or '') if 'source' == key else '')
-				if s not in pairs or (not pairs[s] and sha):
-					pairs[s] = sha
-	for dep in claim.get('derived_from') or []:
-		dep_id = dep.get('claim_id') if isinstance(dep, dict) else None
-		if _text(dep_id) and dep_id in index:
-			for s, sha in _claim_evidence_pairs(dep_id, index, ev_map, visited):
-				if s not in pairs or (not pairs[s] and sha):
-					pairs[s] = sha
-	return sorted(pairs.items())
+		r = []
+	else:
+		ev_map = evidence_inputs if isinstance(evidence_inputs, dict) else {}
+		pairs: dict[str, str] = {}
+		for cid in collect_claim_closure([claim_id], index):
+			if cid in visited:
+				continue
+			claim = index.get(cid) or {}
+			for ref in list(claim.get('evidence') or []) + list(claim.get('primary_evidence') or []):
+				if not isinstance(ref, dict):
+					continue
+				for key in ('source', 'observation', 'manifest'):
+					val = ref.get(key)
+					if _text(val):
+						s = val.strip()
+						sha = ev_map.get(s) or (str(ref.get('source_sha256') or '') if 'source' == key else '')
+						if s not in pairs or (not pairs[s] and sha):
+							pairs[s] = sha
+		r = sorted(pairs.items())
+	return r
 def _claim_evidence_sources(claim_id: str, index: dict) -> list[str]:
 	return [s for s, _ in _claim_evidence_pairs(claim_id, index, {})]
 def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> str:
@@ -114,8 +115,8 @@ def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> 
 	})
 	return digest(payload)
 def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence_inputs: dict) -> dict:
-	from .claims import all_claims
-	index = {c['id']: c for c in all_claims(value) if isinstance(c, dict) and _text(c.get('id'))}
+	from .claims import claim_index
+	index = claim_index(value)
 	cache = load_verified_claims_cache(root).get('claims', {})
 	cached_ids = []
 	unverified_ids = []
@@ -165,7 +166,7 @@ def resolve_addressed_reviews(root, data, package, independent, existing_reviews
 			raise ValueError('Duplicate addressed review verdict')
 	return (addressed, extra_proofs)
 def update_verified_claims_cache(root, package: dict, value: dict | None = None) -> dict:
-	from .claims import all_claims
+	from .claims import claim_index
 	root_p = Path(root).resolve()
 	val = value
 	if None is val:
@@ -173,10 +174,10 @@ def update_verified_claims_cache(root, package: dict, value: dict | None = None)
 			val = _analysis(root_p)
 		except (OSError, ValueError):
 			val = {}
-	index = {c['id']: c for c in all_claims(val) if isinstance(c, dict) and is_nonempty_text(c.get('id'))} if isinstance(val, dict) else {}
+	index = claim_index(val)
 	ev_inputs = package.get('evidence_inputs') or {}
-	cache_data = load_verified_claims_cache(root_p)
-	claims_map = cache_data.setdefault('claims', {})
+	r = load_verified_claims_cache(root_p)
+	claims_map = r.setdefault('claims', {})
 	for item in package.get('claims') or []:
 		if isinstance(item, dict) and is_nonempty_text(item.get('claim_id')):
 			ident = item['claim_id']
@@ -185,24 +186,24 @@ def update_verified_claims_cache(root, package: dict, value: dict | None = None)
 			claims_map[ident] = {'claim_id': ident, 'claim_sha256': item.get('claim_sha256', ''), 'knowledge_type': item.get('knowledge_type') or claim_obj.get('knowledge_type') or '', 'verification_status': item.get('verification_status') or claim_obj.get('verification_status') or '', 'tier0_evidence_hashes': dict(_claim_evidence_pairs(ident, index, ev_inputs)), 'merkle_sha256': m_hash, 'response_sha256': (package.get('response') or {}).get('sha256', '')}
 	path = root_p / 'ꘖ/data/verified-claims.json'
 	if path.parent.is_dir() or (root_p / 'ꘖ').is_dir():
-		replace_bytes(path, json_data(cache_data))
-	return cache_data
+		replace_bytes(path, json_data(r))
+	return r
 def build_blind_verification_predicates(manifest: list[dict], value: dict) -> list[dict]:
-	from .claims import all_claims
-	index = {c['id']: c for c in all_claims(value) if isinstance(c, dict) and _text(c.get('id'))}
-	predicates = []
+	from .claims import claim_index
+	index = claim_index(value)
+	r = []
 	for item in manifest:
 		ident = item['claim_id']
 		raw_essence = str(item.get('essence') or '')
 		clean_predicate = re.sub('(?:\\s*\\(\\d{1,3}%\\)|\\s+with\\s+\\d{1,3}%\\s+(?:confidence|probability|plausibility|score)|\\s*[—–-]\\s*\\d{1,3}%)', '', raw_essence, flags=re.I).strip()
-		predicates.append({
+		r.append({
 			'claim_id': ident,
 			'knowledge_type': item.get('knowledge_type'),
 			'atomic_predicate': clean_predicate,
 			'primary_sources': _claim_evidence_sources(ident, index),
 			'question': f'Does the Tier 0 primary evidence directly entail or falsify the atomic statement for {ident}: "{clean_predicate}"?',
 		})
-	return predicates
+	return r
 def _immutable(path, payload):
 	return write_immutable_bytes(path, payload, diff_error='Immutable review artifact differs; preserve the original and create a new attempt')
 def request_snapshot(state):
@@ -214,21 +215,20 @@ def _analysis(root):
 	value = json.loads(path.read_text(encoding='utf-8-sig'))
 	if not isinstance(value, dict) or 3 != value.get('schema_version'):
 		raise ValueError('New review and publication require Analysis schema 3; legacy files remain readable')
-	if analysis_issues(value) or evidence_issues(root, value):
+	if analysis_issues(value) or evidence_issues(root, value, skip_structural=True):
 		raise ValueError('Resolve Analysis schema 3 and evidence diagnostics before preparing or accepting review')
 	r = value
 	return r
 def _approved_digests(root, state, *, exclude_package=None):
-	from .claims import all_claims
+	from .claims import claim_index
 	from .workflow import evidence_paths, hashes, receipt_current
-	result = set()
+	r = set()
 	is_finalized = 'complete' == state.get('stages', {}).get('finalize', {}).get('status')
 	cur_ev_hashes = hashes(root, evidence_paths(root))
 	index = None
 	if is_finalized:
 		try:
-			val = _analysis(root)
-			index = {c['id']: c for c in all_claims(val) if isinstance(c, dict) and is_nonempty_text(c.get('id'))}
+			index = claim_index(_analysis(root))
 		except (OSError, ValueError):
 			index = {}
 	for entry in state['reviews']:
@@ -249,16 +249,16 @@ def _approved_digests(root, state, *, exclude_package=None):
 		if not quorum_satisfied(root, state, package, latest, matching):
 			continue
 		if ev_exact:
-			result.update(((c['claim_id'], c['claim_sha256']) for c in package['claims']))
+			r.update(((c['claim_id'], c['claim_sha256']) for c in package['claims']))
 		else:
 			for c in package['claims']:
 				cid = c['claim_id']
 				c_pairs = _claim_evidence_pairs(cid, index or {}, pkg_ev)
 				if all((cur_ev_hashes.get(s) == sha for s, sha in c_pairs if sha)):
-					result.add((cid, c['claim_sha256']))
-	return result
+					r.add((cid, c['claim_sha256']))
+	return r
 def classification(root, state, spec, response, value, *, exclude_package=None):
-	from .claims import all_claims, claim_digest, claim_locations, standalone_numbers, grounded_numbers_for_claim
+	from .claims import claim_digest, claim_index, claim_locations, grounded_numbers_for_claim, standalone_numbers
 	if not isinstance(spec, dict) or spec.get('risk') not in ('routine', 'significant'):
 		raise ValueError('Explicit review spec risk routine/significant is required; no default risk')
 	if not _text(spec.get('basis')) or not _text(spec.get('request_scope')):
@@ -271,8 +271,8 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 	claim_ids = spec['claim_ids']
 	if any((not _text(x) for x in claim_ids)) or len(set(claim_ids)) != len(claim_ids):
 		raise ValueError('Review claim_ids must be unique existing claim IDs')
-	is_finalized = state.get('stages', {}).get('finalize', {}).get('status') == 'complete'
-	index = {item['id']: item for item in all_claims(value)}
+	is_finalized = 'complete' == state.get('stages', {}).get('finalize', {}).get('status')
+	index = claim_index(value)
 	section_by_id = {claim['id']: section for _, section, claim in claim_locations(value) if isinstance(claim, dict) and _text(claim.get('id'))}
 	previously_approved = _approved_digests(root, state, exclude_package=exclude_package)
 	manifest, seen, reasons, required_flags = ([], set(), [], set())
@@ -468,7 +468,7 @@ def significant_findings(root, state, subject):
 				break
 	return r
 def read_package(root, package, *, state=None, require_current=True):
-	from .claims import all_claims, claim_digest
+	from .claims import claim_digest, claim_index
 	from .workflow import evidence_paths, hashes, kb_paths, load
 	_, peek = read_addressed_json(inside(Path(root).resolve(), package), suffix='-inputs.json', error_msg='Immutable answer-bound review package schema 2 is required')
 	if 'client_text' == peek.get('kind'):
@@ -485,7 +485,7 @@ def read_package(root, package, *, state=None, require_current=True):
 			if data.get('requests') != request_snapshot(cur_state):
 				raise ValueError('Review package does not cover the exact current requests')
 			value = _analysis(root_p)
-			index = {c['id']: c for c in all_claims(value)}
+			index = claim_index(value)
 			is_finalized = 'complete' == cur_state.get('stages', {}).get('finalize', {}).get('status')
 			if any(((c['claim_id'] not in index and (not is_finalized)) or (c['claim_id'] in index and c['claim_sha256'] != claim_digest(index[c['claim_id']])) for c in data['claims'])):
 				raise ValueError('Reviewed response claim version changed')

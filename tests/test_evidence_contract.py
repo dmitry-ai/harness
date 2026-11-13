@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -47,6 +50,46 @@ def v3_analysis(project, legacy=None):
 				claim.update(applicability=['Confirm the cause in the authorized admin first.'], validation='Repeat the same scenario after the change; compare output and regressions.')
 	r = value
 	return r
+class ClaimGraphValidatorTests(TemporaryCase):
+	def setUp(self):
+		super().setUp()
+		self.project = self.root / 'project'
+		self.project.mkdir()
+	def test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache(self):
+		from agent_tools.claims import ClaimGraphValidator
+		value = v3_analysis(self.project)
+		base = value['facts'][0]
+		left = deepcopy(base)
+		left.update(id='F-LEFT', evidence=[], derived_from=[{'claim_id': 'F-PRIMARY-1', 'sha256': claim_digest(base)}], essence='NXDOMAIN check A.')
+		right = deepcopy(base)
+		right.update(id='F-RIGHT', evidence=[], derived_from=[{'claim_id': 'F-PRIMARY-1', 'sha256': claim_digest(base)}], essence='NXDOMAIN check B.')
+		top = deepcopy(base)
+		top.update(id='F-TOP', evidence=[], derived_from=[{'claim_id': 'F-LEFT', 'sha256': claim_digest(left)}, {'claim_id': 'F-RIGHT', 'sha256': claim_digest(right)}])
+		value['facts'].extend([left, right, top])
+		validator = ClaimGraphValidator(value, root=self.project)
+		self.assertEqual([], validator.structural_issues())
+		issues = validator.evidence_issues(skip_structural=True)
+		self.assertEqual({'claim.unverified_dns'}, {i['code'] for i in issues})
+		self.assertIn('F-PRIMARY-1', validator.inherited_memo)
+		self.assertIn('F-TOP', validator.inherited_memo)
+		self.assertIs(False, validator.http_dns_error_cached)
+	def test_collect_claim_closure_and_save_registry_single_structural_pass(self):
+		from agent_tools.claims import collect_claim_closure
+		from agent_tools.text_claims import save_registry
+		value = v3_analysis(self.project)
+		base = value['facts'][0]
+		mid = deepcopy(base)
+		mid.update(id='F-MID', evidence=[], derived_from=[{'claim_id': 'F-PRIMARY-1', 'sha256': claim_digest(base)}])
+		value['facts'].append(mid)
+		idx = claim_index(value)
+		self.assertEqual(['F-MID', 'F-PRIMARY-1'], collect_claim_closure(['F-MID'], idx))
+		bad = deepcopy(value)
+		bad['facts'][0]['essence'] = ''
+		with self.assertRaises(ValueError) as ctx:
+			save_registry(self.project, bad)
+		parsed = json.loads(str(ctx.exception))
+		req_issues = [i for i in parsed if 'claim.required' == i['code']]
+		self.assertEqual(1, len(req_issues))
 class EvidenceContractTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
