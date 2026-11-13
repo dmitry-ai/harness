@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
+# https://github.com/dmitry-ai/harness/issues/56
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
 # https://github.com/dmitry-ai/harness/issues/53
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1514,6 +1517,29 @@ class IssueLifecycleTests(unittest.TestCase):
 			(ev_dir / 'issue-901.json').write_text(json.dumps({'url': url_a, 'issue': {'number': 901, 'state': 'CLOSED', 'title': 'Fix A', 'body': '# Scope\nDetails.\n'}}), encoding='utf-8')
 			verified = issue_lifecycle.code_and_issue_lifecycle_status(project, turn, turn_state={})
 			self.assertTrue(verified['verified'], verified['violations'])
+class ResponseEvidenceAuditorTests(unittest.TestCase):
+	def test_stage_isolation_extracts_refs_and_validates_observation_bundle(self):
+		from agent_tools.response_grounding import ResponseEvidenceAuditor
+		with tempfile.TemporaryDirectory() as temp:
+			project = Path(temp) / 'proj'
+			obs_dir = project / '\ua616/KB/Evidence/HTTP/obs-1'
+			obs_dir.mkdir(parents=True, exist_ok=True)
+			(project / '\ua616/project.json').write_text('{"id":"p1"}', encoding='utf-8')
+			(project / '\ua616/KB/Module.md').write_text('Source: https://example.com/guide#sec-1\n', encoding='utf-8')
+			(obs_dir / 'observation.json').write_text(json.dumps({'url': 'https://example.com/guide', 'status': 200, 'content_type': 'text/html'}), encoding='utf-8')
+			(obs_dir / 'extracted-1.json').write_text(json.dumps({'title': 'Example Platform Guide', 'anchors': ['sec-1'], 'text': 'Exact documented platform behavior for checkout hooks.', 'word_count': 7}), encoding='utf-8')
+			resp = 'See [Example Platform Guide](https://example.com/guide#sec-1): \u00abExact documented platform behavior for checkout hooks.\u00bb'
+			auditor = ResponseEvidenceAuditor(project, resp, [{'text': 'Check checkout hooks'}])
+			auditor._extract_markdown_refs()
+			self.assertEqual([('Example Platform Guide', 'https://example.com/guide#sec-1')], auditor.authored_links)
+			self.assertEqual([('https://example.com/guide#sec-1', 'Exact documented platform behavior for checkout hooks.')], auditor.attributed_quotes)
+			auditor.authored_links.clear()
+			auditor.authored_urls.clear()
+			auditor.attributed_quotes.clear()
+			self.assertEqual([], auditor.validate())
+			bad_auditor = ResponseEvidenceAuditor(project, 'See [Example Platform Guide](https://example.com/guide#missing-anchor).', [{'text': 'Check checkout hooks'}])
+			errs = bad_auditor.validate()
+			self.assertTrue(any(('missing-anchor' in e for e in errs)), errs)
 class WatcherLifecycleTests(unittest.TestCase):
 	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
 		with tempfile.TemporaryDirectory() as temp:
