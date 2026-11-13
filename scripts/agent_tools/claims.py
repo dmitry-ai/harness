@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -205,6 +208,22 @@ def _enum(value, allowed):
 	return isinstance(value, str) and value in allowed
 def _dependencies(claim):
 	return claim.get('derived_from', []) if isinstance(claim.get('derived_from'), list) else []
+def source_numeric_tokens(raw_text: str) -> set[str]:
+	r: set[str] = set()
+	for sp_tok in re.findall('\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+(?:[.,]\\d+)?', raw_text or ''):
+		compact = re.sub('[ \\u00a0\\u202f]', '', sp_tok)
+		r.add(compact.replace(',', '.'))
+		r.add(compact.replace(',', ''))
+	for tok in re.findall('\\d+(?:[.,]\\d+)*', raw_text or ''):
+		norm_dot = tok.replace(',', '.')
+		no_comma = tok.replace(',', '')
+		r.add(norm_dot)
+		r.add(no_comma)
+		r.update(norm_dot.split('.'))
+		r.update(no_comma.split('.'))
+		if '.' in no_comma:
+			r.add(no_comma.rstrip('0').rstrip('.') or '0')
+	return r
 def standalone_numbers(text):
 	if not isinstance(text, str) or not text:
 		r = set()
@@ -255,9 +274,7 @@ def grounded_numbers_for_claim(claim, index=None, visited=None):
 						texts.append(str(arg.get('argument', '')))
 						texts.append(str(arg.get('quote', '')))
 			corpus = '\n'.join(texts)
-			numbers = {t.replace(',', '.') for t in re.findall('\\d+(?:[.,]\\d+)*', corpus)}
-			for token in list(numbers):
-				numbers.update(token.split('.'))
+			numbers = source_numeric_tokens(corpus)
 			if isinstance(index, dict):
 				for dep in _dependencies(claim):
 					dep_id = dep.get('claim_id') if isinstance(dep, dict) else None
@@ -372,9 +389,7 @@ def contract_issues(value):
 		if 'verified' == claim.get('verification_status') and _enum(claim.get('knowledge_type'), {'observation', 'client_report'}) and (not claim.get('calculation')) and (not _dependencies(claim)) and isinstance(evidence, list) and evidence:
 			essence_nums = standalone_numbers(claim.get('essence', ''))
 			ev_corpus = '\n'.join((str(ref.get('quote', '')) + '\n' + str((ref.get('locator') or {}).get('value', '')) for ref in evidence if isinstance(ref, dict)))
-			ev_nums = {t.replace(',', '.') for t in re.findall('\\d+(?:[.,]\\d+)*', ev_corpus)}
-			for token in list(ev_nums):
-				ev_nums.update(token.split('.'))
+			ev_nums = source_numeric_tokens(ev_corpus)
 			derived_ok, calc_errs = extract_verified_inline_calc_numbers(claim.get('essence', ''), ev_nums)
 			ev_nums.update(derived_ok)
 			for c_err in calc_errs:
@@ -530,41 +545,19 @@ def _with_locator(source, locator):
 		r = base + '#' + locator['value']
 	return r
 def _verify_quote(root, ref, *, observation=None):
-	from .evidence import saved_source, contains_quote
+	from .evidence import contains_quote, saved_source, verify_html_quote_scope
 	locator = ref['locator']
 	saved = saved_source(root, _with_locator(ref['source'], locator), observation)
 	actual_hash = saved.get('sha256') or saved.get('meta', {}).get('body_sha256')
 	if actual_hash != ref['source_sha256']:
 		raise ValueError('Primary source bytes changed from source_sha256')
-	if 'html' != saved['kind']:
+	mode = ref.get('quote_match', 'exact')
+	if 'html' == saved['kind']:
+		text = verify_html_quote_scope(saved, ref['quote'], mode, documentation=bool(ref.get('documentation')), exception=ref.get('anchor_exception', {}), observation=observation, require_bound_observation=True)
+	else:
 		text = saved['text']
 		if ref.get('documentation') and (not saved.get('fragment')):
 			raise ValueError('No-anchor documentation exception requires a verifiable saved HTML section')
-	else:
-		data, fragment = (saved['data'], saved.get('fragment'))
-		if data.get('browser_check_required') or re.search('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__', data['text'] + saved['raw'][:8000]):
-			raise ValueError('A challenge page cannot establish the intended page content')
-		if fragment:
-			if fragment not in data['anchors'] or fragment in data.get('ambiguous_anchors', []):
-				raise ValueError('Primary anchor is absent or ambiguous')
-			scopes = [h['content'] for h in data['sections'] if h.get('anchor') == fragment] or data['anchor_content'].get(fragment, [])
-			if not scopes or not any((contains_quote(text, ref['quote'], ref.get('quote_match', 'exact')) for text in scopes)):
-				raise ValueError('Quote does not belong to the primary anchor')
-			text = '\n'.join(scopes)
-		elif not ref.get('documentation'):
-			text = data['text'] + '\n' + saved['raw']
-		else:
-			exception = ref.get('anchor_exception', {})
-			if not isinstance(exception, dict):
-				raise ValueError('Documentation without an anchor needs a named saved section')
-			if not observation or exception.get('observation') != observation:
-				raise ValueError('Documentation anchor exception must bind the exact primary observation')
-			matches = [section for section in data['sections'] if section['text'] == exception.get('section')]
-			if 1 != len(matches):
-				raise ValueError('Documentation section is missing or ambiguous')
-			if matches[0].get('anchor') or matches[0].get('ancestor_anchors'):
-				raise ValueError('Documentation section has an available anchor; use its verified address')
-			text = matches[0]['content']
 	saved['quantity_context'] = saved['data']['text'] if 'html' == saved['kind'] and (not saved.get('fragment')) and (not ref.get('documentation')) else text
 	if 'lines' == locator['type']:
 		match = re.fullmatch('([1-9][0-9]*)-([1-9][0-9]*)', locator['value'])

@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
 # https://github.com/dmitry-ai/harness/issues/56
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1518,6 +1521,24 @@ class IssueLifecycleTests(unittest.TestCase):
 			verified = issue_lifecycle.code_and_issue_lifecycle_status(project, turn, turn_state={})
 			self.assertTrue(verified['verified'], verified['violations'])
 class ResponseEvidenceAuditorTests(unittest.TestCase):
+	def test_multi_segment_quote_and_thousand_grouped_numeric_tokens(self):
+		from agent_tools.claims import source_numeric_tokens
+		from agent_tools.response_grounding import ResponseEvidenceAuditor
+		self.assertIn('12345', source_numeric_tokens('Processed 12,345 orders and 67 890 events.'))
+		self.assertIn('67890', source_numeric_tokens('Processed 12,345 orders and 67 890 events.'))
+		with tempfile.TemporaryDirectory() as temp:
+			project = Path(temp) / 'proj'
+			obs_dir = project / '\ua616/KB/Evidence/HTTP/obs-1'
+			obs_dir.mkdir(parents=True, exist_ok=True)
+			(project / '\ua616/project.json').write_text('{"id":"p1"}', encoding='utf-8')
+			(project / '\ua616/KB/Module.md').write_text('Source: https://example.com/guide\n', encoding='utf-8')
+			(obs_dir / 'observation.json').write_text(json.dumps({'url': 'https://example.com/guide', 'status': 200, 'content_type': 'text/html'}), encoding='utf-8')
+			(obs_dir / 'extracted-1.json').write_text(json.dumps({'title': 'Example Guide', 'anchors': [], 'text': 'Exact documented platform behavior for checkout hooks and webhooks.', 'word_count': 9}), encoding='utf-8')
+			good = 'See [guide](https://example.com/guide): \u00abExact documented platform behavior [...] checkout hooks and webhooks.\u00bb'
+			bad = 'See [guide](https://example.com/guide): \u00abExact documented platform behavior [...] completely fabricated tail segment.\u00bb'
+			self.assertEqual([], ResponseEvidenceAuditor(project, good, [{'text': 'Check'}]).validate())
+			errs = ResponseEvidenceAuditor(project, bad, [{'text': 'Check'}]).validate()
+			self.assertTrue(any(('Verbatim quote' in e for e in errs)), errs)
 	def test_stage_isolation_extracts_refs_and_validates_observation_bundle(self):
 		from agent_tools.response_grounding import ResponseEvidenceAuditor
 		with tempfile.TemporaryDirectory() as temp:

@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
@@ -448,8 +451,8 @@ def _report_object(text):
 	r = result
 	return r
 def report_issues(data, package):
-	from .claims import standalone_numbers
-	from .source_grounding import _quote_segments_present, classify_provenance_tier, norm_quote_text
+	from .claims import source_numeric_tokens, standalone_numbers
+	from .source_grounding import classify_provenance_tier, norm_quote_text, quote_segments_present
 	issues = []
 	if data.get('schema_version') != REVIEW_SCHEMA:
 		issues.append('Review report schema_version 2 is required')
@@ -489,7 +492,7 @@ def report_issues(data, package):
 					elif src_cand.is_file() and _text(quote_str):
 						try:
 							raw_src = src_cand.read_text(encoding='utf-8', errors='replace')
-							if not _quote_segments_present(quote_str, norm_quote_text(raw_src), 8):
+							if not quote_segments_present(quote_str, norm_quote_text(raw_src), 8):
 								issues.append(f"disproved_claims[{cid_val or '?'}]: verbatim_quote_from_source is absent from Tier 0 source {src_str}")
 						except OSError:
 							pass
@@ -536,9 +539,7 @@ def report_issues(data, package):
 					claim_nums = standalone_numbers(str(pkg_claim.get('essence', '')) + '\n' + str(pkg_claim.get('response_excerpt', '')))
 					if claim_nums:
 						obs_corpus = str(item.get('observed', '')) + '\n' + str((alignment or {}).get('tested_claim', ''))
-						obs_nums = {t.replace(',', '.') for t in re.findall('\\d+(?:[.,]\\d+)*', obs_corpus)}
-						for token in list(obs_nums):
-							obs_nums.update(token.split('.'))
+						obs_nums = source_numeric_tokens(obs_corpus)
 						missing_nums = sorted(claim_nums - obs_nums)
 						if missing_nums:
 							issues.append(f'{ident}: claim/response numeric figures {missing_nums} are not confirmed in reviewer observed/tested_claim')

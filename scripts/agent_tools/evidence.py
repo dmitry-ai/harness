@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
@@ -167,33 +170,7 @@ def evidence_issues(root, value):
 				if expected_hash and expected_hash != actual_hash:
 					raise ValueError('Source hash differs from the referenced observation')
 				if 'html' == saved['kind']:
-					data, fragment = (saved['data'], saved.get('fragment'))
-					if data.get('browser_check_required'):
-						raise ValueError('Challenge page requires browser verification; it is not the intended source')
-					if re.search('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__', data['text'] + saved['raw'][:8000]):
-						raise ValueError('Challenge page requires browser verification')
-					if fragment:
-						if fragment not in data['anchors']:
-							raise ValueError('Anchor not found in saved source HTML; rendered DOM needs separate evidence')
-						if fragment in data.get('ambiguous_anchors', []):
-							raise ValueError('Anchor occurs more than once; use an unambiguous source locator')
-						heading = [h for h in data['sections'] if h.get('anchor') == fragment]
-						scopes = [h['content'] for h in heading] or data['anchor_content'].get(fragment, [])
-						if not scopes:
-							raise ValueError('Named anchor scope requires a separate section locator')
-						if not any((contains_quote(s, quote, mode) for s in scopes)):
-							raise ValueError('Quote does not match the referenced anchor section')
-					elif argument.get('documentation'):
-						section = locator.get('section')
-						matches = [h for h in data['sections'] if h['text'] == section]
-						if 1 != len(matches):
-							raise ValueError('Documentation section is missing or ambiguous')
-						if matches[0].get('anchor') or matches[0].get('ancestor_anchors'):
-							raise ValueError('Section has an available anchor; use its verified address')
-						if not contains_quote(matches[0]['content'], quote, mode):
-							raise ValueError('Quote does not match the documented section')
-					elif not (contains_quote(data['text'], quote, mode) or contains_quote(saved['raw'], quote, mode)):
-						raise ValueError('Quote is absent from the saved page')
+					verify_html_quote_scope(saved, quote, mode, documentation=bool(argument.get('documentation')), exception=locator)
 				elif not contains_quote(saved['text'], quote, mode):
 					raise ValueError('Quote is absent from the referenced source fragment')
 				elif argument.get('documentation') and (not saved.get('fragment')):
@@ -229,4 +206,34 @@ def evidence_issues(root, value):
 def source_reference(root, file, parts=()):
 	file = inside(Path(root) / 'ꘖ/KB', file)
 	r = file.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix() + ('#' + pointer(*parts) if parts else '')
+	return r
+def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, exception=None, observation=None, require_bound_observation=False) -> str:
+	from .research import _CHALLENGE_RE
+	data, fragment = (saved['data'], saved.get('fragment'))
+	if data.get('browser_check_required') or _CHALLENGE_RE.search(data['text'] + saved['raw'][:8000]):
+		raise ValueError('Challenge page requires browser verification; it cannot establish the intended page content')
+	if fragment:
+		if fragment not in data['anchors'] or fragment in data.get('ambiguous_anchors', []):
+			raise ValueError('Primary anchor is absent or ambiguous')
+		scopes = [h['content'] for h in data['sections'] if h.get('anchor') == fragment] or data['anchor_content'].get(fragment, [])
+		if not scopes or not any((contains_quote(s, quote, mode) for s in scopes)):
+			raise ValueError('Quote does not belong to the primary anchor')
+		r = '\n'.join(scopes)
+	elif not documentation:
+		if not (contains_quote(data['text'], quote, mode) or contains_quote(saved['raw'], quote, mode) or contains_quote(data['text'] + '\n' + saved['raw'], quote, mode)):
+			raise ValueError('Quote is absent from the saved page')
+		r = data['text'] + '\n' + saved['raw']
+	else:
+		if not isinstance(exception, dict):
+			raise ValueError('Documentation without an anchor needs a named saved section')
+		if require_bound_observation and (not observation or exception.get('observation') != observation):
+			raise ValueError('Documentation anchor exception must bind the exact primary observation')
+		matches = [section for section in data['sections'] if section['text'] == exception.get('section')]
+		if 1 != len(matches):
+			raise ValueError('Documentation section is missing or ambiguous')
+		if matches[0].get('anchor') or matches[0].get('ancestor_anchors'):
+			raise ValueError('Documentation section has an available anchor; use its verified address')
+		if not contains_quote(matches[0]['content'], quote, mode):
+			raise ValueError('Quote does not match the documented section')
+		r = matches[0]['content']
 	return r

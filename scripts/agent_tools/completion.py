@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
 # https://github.com/dmitry-ai/harness/issues/56
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -508,26 +511,15 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 	return (key, native_ids)
 def _recorded(value):
 	return next((receipt for receipt in (value.get('prepared'), value.get('journal_record'), value.get('delivery')) if isinstance(receipt, dict) and 'journal_steps' in receipt), None)
-def _strip_code_and_urls(text: str) -> str:
-	clean = re.sub('```[\\s\\S]*?```', ' ', text or '')
-	clean = re.sub('`[^`\\n]+`', ' ', clean)
-	clean = re.sub('https?://\\S+', ' ', clean)
-	return clean
 def _intermediate_or_language_issues(requests, response: str) -> list[str]:
-	from .source_grounding import detect_prose_locale, extract_authored_prose
-	issues = []
+	from .source_grounding import verify_target_locale
+	r = []
 	if re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', response or ''):
-		issues.append('FILE-3 / REVIEW-1: Response is an intermediate subagent/task waiting status stub rather than a complete final response')
-	req_raw = '\n'.join((r.get('text', '') if isinstance(r, dict) else str(r) for r in requests or []))
-	req_info = detect_prose_locale(extract_authored_prose(req_raw))
-	resp_info = detect_prose_locale(extract_authored_prose(response or ''))
-	english_requested = bool(re.search('(?i)\\b(?:in\\s+english|translate\\s+to\\s+english|\\u043d\\u0430\\s+\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u043e\\u043c|\\u043f\\u043e-\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u0438)\\b', req_raw))
-	req_script = req_info['dominant_script']
-	if req_script not in ('NONE', 'LATIN') and req_info['script_counts'].get(req_script, 0) >= 6 and (not english_requested):
-		resp_target_chars = resp_info['script_counts'].get(req_script, 0)
-		if 0 == resp_target_chars and resp_info['total_alpha'] >= 20:
-			issues.append(f'TEXT-1: Request dominant script is {req_script}, but the response authored prose contains zero {req_script} characters (dominant: {resp_info["dominant_script"]})')
-	return issues
+		r.append('FILE-3 / REVIEW-1: Response is an intermediate subagent/task waiting status stub rather than a complete final response')
+	req_raw = '\n'.join((req.get('text', '') if isinstance(req, dict) else str(req) for req in requests or []))
+	for err in verify_target_locale(response or '', target_locale='und', container_text=req_raw, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20):
+		r.append(err['message'])
+	return r
 def _record(root, native, turn, response, directory, *, existing=None, purpose='publication', allow_reprepare=False):
 	if purpose not in ('publication', 'observation'):
 		raise ValueError('Choose publication admission or historical observation')
@@ -668,16 +660,12 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 				except OSError:
 					pre_cp_authored = False
 			if not pre_cp_authored:
-				from markdown_it import MarkdownIt
-				from .source_grounding import _extract_block_links
+				from .source_grounding import extract_block_links, markdown_parser
 				ev_map = {p.replace('\\', '/').lower(): p for p in value['compaction_check']['evicted_unreread_files']}
 				unreread_cited = []
-				md_parser = MarkdownIt('commonmark', {'html': True})
-				md_parser.normalizeLink = lambda v: v
-				md_parser.validateLink = lambda v: True
-				for blk in md_parser.parse(response):
+				for blk in markdown_parser().parse(response):
 					if 'inline' == blk.type:
-						lpaths, _ = _extract_block_links(blk, root, None)
+						lpaths, _ = extract_block_links(blk, root, None)
 						for rp in lpaths:
 							rlow = rp.as_posix().lower()
 							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):

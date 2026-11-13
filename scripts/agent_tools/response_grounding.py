@@ -1,14 +1,16 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
 # https://github.com/dmitry-ai/harness/issues/56
 import json
 from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
-from markdown_it import MarkdownIt
 from .links import _bare_urls, readable_link_issues
 from .research import MAX_BYTES, _CHALLENGE_RE
-from .source_grounding import _is_normative_harness_doc, local_source_grounding_issues
+from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
 class ResponseEvidenceAuditor:
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None):
 		self.root = Path(root).resolve()
@@ -55,10 +57,8 @@ class ResponseEvidenceAuditor:
 		for href, q_raw in self.attributed_quotes:
 			nu = _norm_url(href)
 			if nu not in self.client_urls and nu in self.observed_texts and self.observed_texts[nu]:
-				obs_blob = ' '.join((_norm_quote_text(t) for t in self.observed_texts[nu]))
-				segments = [_norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[\\u2026\\]|\\(\\u2026\\)|\\.{3,}|\\u2026', q_raw)]
-				segments = [s for s in segments if 15 <= len(s)]
-				if segments and (not any((s in obs_blob for s in segments))):
+				obs_blob = ' '.join((norm_quote_text(t) for t in self.observed_texts[nu]))
+				if not quote_segments_present(q_raw, obs_blob, 15):
 					preview = ' '.join(q_raw.split())[:80]
 					self.errors.append(f'VERIFY-1 / LINK-1: Verbatim quote \u00ab{preview}\u00bb attributed to {href} is absent from the saved observation in \ua616/KB/Evidence')
 	def _check_kb_membership(self) -> None:
@@ -93,7 +93,7 @@ class ResponseEvidenceAuditor:
 		for tf in self.touched_files or []:
 			tf_str = str(tf).strip()
 			tf_norm = '/' + tf_str.replace('\\', '/').lower().lstrip('/')
-			if tf_str and tf_norm.endswith('.md') and ('/req/' not in tf_norm) and ('/res/' not in tf_norm) and ('/source/' not in tf_norm) and (not tf_norm.endswith('/source.md')) and (not _is_normative_harness_doc(Path(tf_norm))):
+			if tf_str and tf_norm.endswith('.md') and ('/req/' not in tf_norm) and ('/res/' not in tf_norm) and ('/source/' not in tf_norm) and (not tf_norm.endswith('/source.md')) and (not is_normative_harness_doc(Path(tf_norm))):
 				try:
 					tf_path = Path(tf_str)
 					tf_path = tf_path.resolve() if tf_path.is_absolute() else (self.root / tf_path).resolve()
@@ -117,9 +117,7 @@ class ResponseEvidenceAuditor:
 				except OSError:
 					pass
 	def _extract_markdown_refs(self) -> None:
-		parser = MarkdownIt('commonmark', {'html': True})
-		parser.normalizeLink = lambda value: value
-		parser.validateLink = lambda value: True
+		parser = markdown_parser()
 		quote_depth = 0
 		last_para_ext_href = None
 		for block in parser.parse(self.response):
@@ -134,15 +132,8 @@ class ResponseEvidenceAuditor:
 					bq_ext_hrefs = [tok.attrGet('href') or '' for tok in (block.children or []) if 'link_open' == tok.type and (tok.attrGet('href') or '').startswith(('http://', 'https://'))]
 					target_href = bq_ext_hrefs[-1] if bq_ext_hrefs else last_para_ext_href
 					if target_href:
-						guillemets = re.findall('\u00ab([^\u00bb]{20,})\u00bb', block.content)
-						backtick_quotes = re.findall('`"([^"\\n]{20,})"`', block.content)
-						if guillemets or backtick_quotes:
-							for gq in guillemets + backtick_quotes:
-								self.attributed_quotes.append((target_href, gq))
-						else:
-							m_orig = re.search('(?:\\u041e\\u0440\\u0438\\u0433\\u0438\\u043d\\u0430\\u043b|Original)\\s*:\\s*["\u00ab]?(.{20,})["\u00bb]?$', block.content.strip(), re.I | re.S)
-							if m_orig:
-								self.attributed_quotes.append((target_href, m_orig.group(1).strip(' "\u00ab\u00bb')))
+						for gq in extract_blockquote_quotes(block.content, min_guillemet_len=20, allow_backtick_quotes=True, min_orig_len=20):
+							self.attributed_quotes.append((target_href, gq))
 			elif block.children:
 				children = block.children
 				ext_in_block: list[str] = []
@@ -359,10 +350,6 @@ def _is_descriptive_title_label(label: str, href: str) -> bool:
 			words = re.findall('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u04510-9]{2,}', text)
 			r = not (len(text.split()) < 3 or len(words) < 3 or len(text) < 15)
 	return r
-def _norm_quote_text(value: str) -> str:
-	cleaned = re.sub('[`*_~]+', '', value or '')
-	cleaned = cleaned.replace('\u00a0', ' ').replace('\u2014', '-').replace('\u2013', '-').replace('\u2019', "'").replace('\u2018', "'").replace('\u201c', '"').replace('\u201d', '"')
-	return ' '.join(cleaned.split()).lower()
 def _norm_url(url: str) -> str:
 	return urldefrag(url.strip())[0].rstrip('/')
 def _titles_compatible(claimed: str, observed: str) -> bool:

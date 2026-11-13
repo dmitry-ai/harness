@@ -1,3 +1,6 @@
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
@@ -21,7 +24,7 @@ import re
 import unicodedata
 from urllib.parse import unquote, urldefrag, urlsplit
 from markdown_it import MarkdownIt
-from .claims import extract_verified_inline_calc_numbers, standalone_numbers
+from .claims import extract_verified_inline_calc_numbers, source_numeric_tokens, standalone_numbers
 META_REFUTATION_RE = re.compile(
 	'(?:^|\\b)(?:'
 	'\\u044f\\s+(?:\\u0432\\u044b\\u0434\\u0443\\u043c\\u0430\\u043b|\\u043f\\u0440\\u0438\\u0434\\u0443\\u043c\\u0430\\u043b|\\u0443\\u043a\\u0430\\u0437\\u0430\\u043b|\\u043e\\u0448\\u0438\\u0431\\u043e\\u0447\\u043d\\u043e|\\u043f\\u0440\\u0438\\u043f\\u0438\\u0441\\u0430\\u043b)|'
@@ -89,7 +92,7 @@ def extract_authored_prose(text: str, *, is_title: bool = False) -> str:
 		clean = re.sub('\\u00ab[^\\u00bb]*\\u00bb|\u201c[^\u201d]*\u201d|"[^"]*"', ' ', clean)
 		clean = re.sub('https?://\\S+|file://\\S+', ' ', clean)
 		return ' '.join(clean.split())
-	parser = MarkdownIt('commonmark', {'html': True})
+	parser = markdown_parser()
 	quote_depth = 0
 	chunks = []
 	for token in parser.parse(text):
@@ -154,49 +157,43 @@ def detect_prose_locale(prose: str) -> dict:
 		'diacritic_words': diacritic_words,
 		'locale_family': locale_family,
 	}
-def verify_target_locale(text: str, *, target_locale: str = 'en-US', container_text: str | None = None, is_title: bool = False) -> list[dict]:
-	errors: list[dict] = []
+def verify_target_locale(text: str, *, target_locale: str = 'en-US', container_text: str | None = None, is_title: bool = False, allow_explicit_english_request: bool = False, min_target_ratio: float = 0.35, min_alpha: int = 15) -> list[dict]:
+	r: list[dict] = []
 	eff_target = (target_locale or 'en-US').strip()
 	if container_text and isinstance(container_text, str) and container_text.strip():
-		c_prose = extract_authored_prose(container_text, is_title=False)
-		c_info = detect_prose_locale(c_prose)
-		if c_info['total_alpha'] >= 12 and 'NONE' != c_info['dominant_script']:
-			if 'LATIN' == c_info['dominant_script'] and 'en' == c_info['locale_family']:
-				eff_target = 'en-US'
-			elif 'LATIN' != c_info['dominant_script']:
-				eff_target = c_info['dominant_script'].lower()
-	prose = extract_authored_prose(text, is_title=is_title)
-	info = detect_prose_locale(prose)
-	if 0 == info['total_alpha']:
-		return errors
-	if eff_target.lower().startswith('en'):
-		non_latin = {sc: cnt for sc, cnt in info['script_counts'].items() if 'LATIN' != sc and cnt >= 2}
-		if non_latin:
-			bad_scripts = ', '.join((f'{sc} ({cnt} chars)' for sc, cnt in sorted(non_latin.items())))
-			errors.append({
-				'code': 'LOCALE_MISMATCH',
-				'target_locale': eff_target,
-				'detected_scripts': non_latin,
-				'message': f'TEXT-1: Authored prose contains non-Latin script characters [{bad_scripts}] in a target "{eff_target}" container; write in {eff_target} and place foreign logs/quotes inside fenced code blocks or blockquotes',
-			})
-		elif 'latin-non-en' == info['locale_family'] and info['word_count'] >= 6:
-			errors.append({
-				'code': 'LOCALE_MISMATCH',
-				'target_locale': eff_target,
-				'detected_locale': info['locale_family'],
-				'message': f'TEXT-1: Authored prose is in a non-English Latin language (en_hits={info["en_hits"]}, non_en_hits={info["non_en_hits"]}, diacritic_words={info["diacritic_words"]}) in a target "{eff_target}" container',
-			})
-	else:
-		expected_script = eff_target.upper()
-		target_chars = info['script_counts'].get(expected_script, 0)
-		if info['total_alpha'] >= 15 and target_chars / info['total_alpha'] < 0.35:
-			errors.append({
-				'code': 'LOCALE_MISMATCH',
-				'target_locale': eff_target,
-				'detected_script': info['dominant_script'],
-				'message': f'TEXT-1: Target container/request script is {expected_script}, but authored prose is predominantly {info["dominant_script"]} ({target_chars}/{info["total_alpha"]} target script chars)',
-			})
-	return errors
+		if allow_explicit_english_request and re.search('(?i)\\b(?:in\\s+english|translate\\s+to\\s+english|\\u043d\\u0430\\s+\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u043e\\u043c|\\u043f\\u043e-\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u043e\\u043c|\\u043f\\u043e-\\u0430\\u043d\\u0433\\u043b\\u0438\\u0439\\u0441\\u043a\\u0438)\\b', container_text):
+			eff_target = 'und'
+		else:
+			c_info = detect_prose_locale(extract_authored_prose(container_text, is_title=False))
+			if 'und' == eff_target.lower():
+				c_dom = c_info['dominant_script']
+				if c_dom not in ('NONE', 'LATIN') and 6 <= c_info['script_counts'].get(c_dom, 0):
+					eff_target = c_dom.lower()
+			elif 12 <= c_info['total_alpha'] and 'NONE' != c_info['dominant_script']:
+				if 'LATIN' == c_info['dominant_script'] and 'en' == c_info['locale_family']:
+					eff_target = 'en-US'
+				elif 'LATIN' != c_info['dominant_script']:
+					eff_target = c_info['dominant_script'].lower()
+	info = detect_prose_locale(extract_authored_prose(text, is_title=is_title))
+	if 0 < info['total_alpha'] and 'und' != eff_target.lower():
+		if not eff_target.lower().startswith('en'):
+			expected_script = eff_target.upper()
+			target_chars = info['script_counts'].get(expected_script, 0)
+			if min_alpha <= info['total_alpha'] and target_chars / info['total_alpha'] < min_target_ratio:
+				r.append({'code': 'LOCALE_MISMATCH', 'target_locale': eff_target, 'detected_script': info['dominant_script'], 'message': f'TEXT-1: Target container/request script is {expected_script}, but authored prose is predominantly {info["dominant_script"]} ({target_chars}/{info["total_alpha"]} target script chars)'})
+		else:
+			non_latin = {sc: cnt for sc, cnt in info['script_counts'].items() if 'LATIN' != sc and 2 <= cnt}
+			if non_latin:
+				bad_scripts = ', '.join((f'{sc} ({cnt} chars)' for sc, cnt in sorted(non_latin.items())))
+				r.append({'code': 'LOCALE_MISMATCH', 'target_locale': eff_target, 'detected_scripts': non_latin, 'message': f'TEXT-1: Authored prose contains non-Latin script characters [{bad_scripts}] in a target "{eff_target}" container; write in {eff_target} and place foreign logs/quotes inside fenced code blocks or blockquotes'})
+			elif 'latin-non-en' == info['locale_family'] and 6 <= info['word_count']:
+				r.append({'code': 'LOCALE_MISMATCH', 'target_locale': eff_target, 'detected_locale': info['locale_family'], 'message': f'TEXT-1: Authored prose is in a non-English Latin language (en_hits={info["en_hits"]}, non_en_hits={info["non_en_hits"]}, diacritic_words={info["diacritic_words"]}) in a target "{eff_target}" container'})
+	return r
+def markdown_parser() -> MarkdownIt:
+	r = MarkdownIt('commonmark', {'html': True})
+	r.normalizeLink = lambda value: value
+	r.validateLink = lambda value: True
+	return r
 def norm_quote_text(value: str) -> str:
 	cleaned = re.sub('[`*_~]+', '', value or '')
 	cleaned = cleaned.replace('\u00a0', ' ').replace('\u2014', '-').replace('\u2013', '-').replace('\u2019', "'").replace('\u2018', "'").replace('\u201c', '"').replace('\u201d', '"')
@@ -231,11 +228,10 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None = None) -> P
 		except OSError:
 			continue
 	return None
-def _is_normative_harness_doc(path: Path) -> bool:
+def is_normative_harness_doc(path: Path) -> bool:
 	norm = '/' + path.as_posix().lower().lstrip('/')
-	if '/.agents/rules/' in norm:
-		return False
-	return any((seg in norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/')))
+	return '/.agents/rules/' not in norm and any((seg in norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/')))
+_is_normative_harness_doc = is_normative_harness_doc
 def classify_provenance_tier(path: Path, root: Path | None = None) -> str:
 	norm = '/' + path.as_posix().lower().lstrip('/')
 	name = path.name.lower()
@@ -614,22 +610,7 @@ def _json_scalar_strings(obj, out: list[str]):
 		out.append(str(obj))
 	elif None is not obj:
 		out.append(str(obj))
-def _source_numeric_tokens(raw_text: str) -> set[str]:
-	nums = set()
-	for sp_tok in re.findall('\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+(?:[.,]\\d+)?', raw_text or ''):
-		compact = re.sub('[ \\u00a0\\u202f]', '', sp_tok)
-		nums.add(compact.replace(',', '.'))
-		nums.add(compact.replace(',', ''))
-	for tok in re.findall('\\d+(?:[.,]\\d+)*', raw_text or ''):
-		norm_dot = tok.replace(',', '.')
-		no_comma = tok.replace(',', '')
-		nums.add(norm_dot)
-		nums.add(no_comma)
-		nums.update(norm_dot.split('.'))
-		nums.update(no_comma.split('.'))
-		if '.' in no_comma:
-			nums.add(no_comma.rstrip('0').rstrip('.') or '0')
-	return nums
+_source_numeric_tokens = source_numeric_tokens
 def _load_local_source_info(path: Path, cache: dict | None = None) -> dict:
 	key = str(path)
 	if None is not cache and key in cache:
@@ -688,22 +669,26 @@ def _load_local_source_info(path: Path, cache: dict | None = None) -> dict:
 	if None is not cache:
 		cache[key] = info
 	return info
-def _quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int = 12) -> bool:
-	parts = [norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[\\u2026\\]|\\(\\u2026\\)|\\.{3,}|\\u2026', q_raw)]
-	segs = [s for s in parts if len(s) >= min_seg_len]
-	if not segs:
-		whole = norm_quote_text(q_raw)
-		r = len(whole) < 8 or whole in obs_norm
-	else:
+def quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int = 12) -> bool:
+	raw_parts = [norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[\\u2026\\]|\\(\\u2026\\)|\\.{3,}|\\u2026', q_raw)]
+	segs = [s for s in raw_parts if min_seg_len <= len(s)]
+	if segs:
 		r = all((s in obs_norm for s in segs))
+	elif 1 < len(raw_parts):
+		short_segs = [s for s in raw_parts if 4 <= len(s)]
+		r = not short_segs or all((s in obs_norm for s in short_segs))
+	else:
+		whole = raw_parts[0] if raw_parts else ''
+		r = len(whole) < 8 or whole in obs_norm
 	return r
+_quote_segments_present = quote_segments_present
 def _filter_primary_sources(paths: list[Path]) -> list[Path]:
 	src_dirs = {p.parent for p in paths if 'source.md' == p.name.lower()}
 	non_analysis = [p for p in paths if not ('analysis.md' == p.name.lower() and p.parent in src_dirs)]
 	if any(('tier_2' != classify_provenance_tier(p) for p in non_analysis)):
 		non_analysis = [p for p in non_analysis if 'tier_2' != classify_provenance_tier(p)]
 	return non_analysis
-def _extract_block_links(block, root: Path, doc_path: Path | None):
+def extract_block_links(block, root: Path, doc_path: Path | None):
 	local_all = []
 	ext_urls = []
 	line_locator_nums = set()
@@ -719,7 +704,18 @@ def _extract_block_links(block, root: Path, doc_path: Path | None):
 				rp = resolve_local_href(root, href, doc_path)
 				if None is not rp and rp not in local_all:
 					local_all.append(rp)
-	return (local_all, ext_urls)
+	r = (local_all, ext_urls)
+	return r
+_extract_block_links = extract_block_links
+def extract_blockquote_quotes(content: str, *, min_guillemet_len: int = 8, allow_backtick_quotes: bool = False, min_orig_len: int = 12) -> list[str]:
+	r = list(re.findall(f'\\u00ab([^\\u00bb]{{{min_guillemet_len},}})\\u00bb', content or ''))
+	if allow_backtick_quotes:
+		r.extend(re.findall(f'`"([^"\\n]{{{min_guillemet_len},}})"`', content or ''))
+	if not r:
+		m_orig = re.search(f'(?:\\u041e\\u0440\\u0438\\u0433\\u0438\\u043d\\u0430\\u043b|Original)\\s*:\\s*["\\u00ab]?(.{{{min_orig_len},}})["\\u00bb]?$', (content or '').strip(), re.I | re.S)
+		if m_orig:
+			r.append(m_orig.group(1).strip(' "\u00ab\u00bb'))
+	return r
 def _line_grounded_numbers_check(sline: str, ev_nums: set[str], valid_msg_nums: set[int], bound_ticket_ids: set[str], is_ticket: bool) -> list[str]:
 	missing = []
 	if is_ticket:
@@ -777,9 +773,7 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 	default_sources = []
 	if None is not doc_path and (doc_path.parent / 'source.md').is_file() and 'source.md' != doc_path.name.lower():
 		default_sources = [(doc_path.parent / 'source.md').resolve()]
-	parser = MarkdownIt('commonmark', {'html': True})
-	parser.normalizeLink = lambda value: value
-	parser.validateLink = lambda value: True
+	parser = markdown_parser()
 	section_sources = list(default_sources)
 	section_all_locals = list(default_sources)
 	section_ext_urls = []
@@ -876,13 +870,8 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 		if quote_depth > 0:
 			if META_REFUTATION_RE.search(block.content):
 				continue
-			bq_quotes = re.findall('\\u00ab([^\\u00bb]{8,})\\u00bb', block.content)
-			if not bq_quotes:
-				m_orig = re.search('(?:\\u041e\\u0440\\u0438\\u0433\\u0438\\u043d\\u0430\\u043b|Original)\\s*:\\s*["\\u00ab]?(.{12,})["\\u00bb]?$', block.content.strip(), re.I | re.S)
-				if m_orig:
-					bq_quotes = [m_orig.group(1).strip(' "\u00ab\u00bb')]
-			for bq in bq_quotes:
-				if not _quote_segments_present(bq, combined_norm, 12):
+			for bq in extract_blockquote_quotes(block.content):
+				if not quote_segments_present(bq, combined_norm, 12):
 					preview = ' '.join(bq.split())[:80]
 					errors.append(f'VERIFY-1 / LINK-1: Blockquote \u00ab{preview}\u00bb attributed to {src_label} is absent from the primary source')
 			continue
