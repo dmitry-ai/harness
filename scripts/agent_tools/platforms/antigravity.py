@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract AntigravityTurnScanner class from native_answers in platforms/antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/55
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -47,7 +50,7 @@ from ..research import json_data
 from ..knowledge import json_bytes
 from ..storage import create_bytes, replace_bytes, locked
 from .request_binding import native_project_fields
-from .trace_common import collect_prompt_bias_issues, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, reviewer_isolation_issues, verify_review_proof_core
+from .trace_common import collect_prompt_bias_issues, collect_shell_violations, current_turn_requests, finalize_executor_checks, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_canonical_path, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
 ANTIGRAVITY_FOLDERS_JSON = Path(platform_settings('antigravity')['folders_json'])
 class AntigravityTurnScanner:
@@ -203,51 +206,8 @@ class AntigravityTurnScanner:
 		f_reads = [fr for item in items for fr in item.get('file_reads', [])]
 		f_writes = [fw for item in items for fw in item.get('file_writes', [])]
 		i_actions = [a for item in items for a in item.get('issue_actions', [])]
-		last_cp = max(cp_steps) if cp_steps else None
-		pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
-		post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]
-		pre_cp_records = [rec for rec in records if None is not last_cp and rec['step'] < last_cp]
-		pre_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st < last_cp)))
-		post_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st > last_cp)))
-		post_cp_writes = list(dict.fromkeys((p for st, p in f_writes if None is not last_cp and st > last_cp)))
-		post_cp_lower = {p.lower() for p in post_cp_reads}
-		recovered_step_nums = set()
-		for pr in post_cp_reads:
-			m_rec = re.search('(?:/steps/(\\d+)/output\\.txt|/step-(\\d+)\\.txt)$', pr, re.I)
-			if m_rec:
-				recovered_step_nums.add(m_rec.group(1) or m_rec.group(2))
-		evicted_unreread = []
-		for p in pre_cp_reads:
-			if p.lower() in post_cp_lower:
-				continue
-			m_ev_step = re.search('/\\.system_generated/steps/(\\d+)/output\\.txt$', p, re.I)
-			if m_ev_step and m_ev_step.group(1) in recovered_step_nums:
-				continue
-			evicted_unreread.append(p)
-		reads_by_step = {}
-		for st, p in f_reads:
-			reads_by_step.setdefault(st, []).append(p)
-		cur_streak = 0
-		max_streak = 0
-		cur_src_reads = set()
-		max_src_reads = 0
-		persist_or_sub = set(sub_steps) | set(kb_steps)
-		for st in t_steps:
-			if st in svc_steps:
-				continue
-			if st in persist_or_sub:
-				cur_streak = 0
-				cur_src_reads.clear()
-			else:
-				cur_streak += 1
-				if cur_streak > max_streak:
-					max_streak = cur_streak
-				for rp in reads_by_step.get(st, ()):
-					if rp.lower().endswith('/kb/source.md'):
-						cur_src_reads.add(rp.lower())
-				if len(cur_src_reads) > max_src_reads:
-					max_src_reads = len(cur_src_reads)
-		r = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [req for item in items for req in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}, 'delegation': {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'aa_partial_read_violations': aa_part_errs, 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads}}
+		compaction, delegation = summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, svc_steps=svc_steps, aa_part_errs=aa_part_errs, allow_step_output_recovery=True)
+		r = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [req for item in items for req in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'compaction': compaction, 'delegation': delegation}
 		for k in ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'completion_service_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes'):
 			r.pop(k, None)
 		return r
@@ -272,7 +232,7 @@ class AntigravityTurnScanner:
 			pass
 		return (parent_mismatch, child_agent_name, db_grandchildren)
 	def _record_subagent_calls(self, child_cid, c_rows, anchor_step, seg):
-		from ..git_gate import extract_issue_actions_from_outputs, unflagged_git_read_commands, unpersisted_http_fetch_commands
+		from ..git_gate import extract_issue_actions_from_outputs
 		for c_pos, c_ev in enumerate(c_rows):
 			if not isinstance(c_ev, dict):
 				continue
@@ -284,73 +244,39 @@ class AntigravityTurnScanner:
 				seg['issue_actions'].append({**act_item, 'step': anchor_step, 'subagent_id': child_cid})
 			for c_call in c_calls:
 				c_name = c_call.get('name', '')
-				c_args = c_call.get('args', {})
-				if isinstance(c_args, str):
-					try:
-						c_args = json.loads(c_args)
-					except ValueError:
-						c_args = {}
-				if 'run_command' == c_name and isinstance(c_args, dict):
-					c_cmd = c_args.get('CommandLine', '')
-					bad_g = unflagged_git_read_commands(c_cmd)
-					if bad_g:
-						seg['violations'].append({'step': anchor_step, 'subagent_id': child_cid, 'commands': bad_g})
-					bad_h = unpersisted_http_fetch_commands(c_cmd)
-					if bad_h:
-						seg['http_violations'].append({'step': anchor_step, 'subagent_id': child_cid, 'commands': bad_h})
-				c_target = str(c_args.get('Path') or c_args.get('TargetFile') or c_args.get('AbsolutePath') or c_args.get('path') or '' if isinstance(c_args, dict) else '').strip()
-				if c_name in ('read_file', 'view_file') and c_target:
-					try:
-						crp = Path(c_target)
-						norm_crp = (crp.resolve() if crp.is_absolute() else (self.root_p / crp).resolve()).as_posix()
-					except OSError:
-						norm_crp = c_target.replace('\\', '/')
-					seg['file_reads'].append((anchor_step, norm_crp))
-				if c_name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and c_target:
-					if c_target not in seg['touched_files']:
-						seg['touched_files'].append(c_target)
-					try:
-						cwp = Path(c_target)
-						norm_cwp = (cwp.resolve() if cwp.is_absolute() else (self.root_p / cwp).resolve()).as_posix()
-					except OSError:
-						norm_cwp = c_target.replace('\\', '/')
-					seg['file_writes'].append((anchor_step, norm_cwp))
+				c_args = parse_tool_args(c_call.get('args', {}))
+				if 'run_command' == c_name:
+					collect_shell_violations(c_args.get('CommandLine', ''), anchor_step, seg['violations'], seg['http_violations'], extra={'subagent_id': child_cid})
+				c_target = str(c_args.get('Path') or c_args.get('TargetFile') or c_args.get('AbsolutePath') or c_args.get('path') or '').strip()
+				if c_name in ('read_file', 'view_file', 'write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and c_target:
+					record_canonical_path(self.root_p, anchor_step, c_target, c_name in ('read_file', 'view_file'), seg['file_reads'], seg['file_writes'], seg['touched_files'])
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
-		from ..git_gate import extract_issue_actions_from_outputs, unflagged_git_read_commands, unpersisted_http_fetch_commands
+		from ..git_gate import extract_issue_actions_from_outputs
 		seg['tool_steps'].append(step_idx)
 		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
 		for act_item in extract_issue_actions_from_outputs(outputs):
 			seg['issue_actions'].append({**act_item, 'step': step_idx})
 		for call in calls:
 			name = call.get('name', '')
-			args = call.get('args', {})
-			if isinstance(args, str):
-				try:
-					args = json.loads(args)
-				except ValueError:
-					args = {}
-			args_text = json.dumps(args, ensure_ascii=False) if isinstance(args, dict) else str(args)
+			raw_args = call.get('args', {})
+			args = parse_tool_args(raw_args)
+			args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
 			if 'run_command' == name:
-				cmd = args.get('CommandLine', '') if isinstance(args, dict) else ''
-				bad = unflagged_git_read_commands(cmd)
-				if bad:
-					seg['violations'].append({'step': step_idx, 'commands': bad})
-				bad_http = unpersisted_http_fetch_commands(cmd)
-				if bad_http:
-					seg['http_violations'].append({'step': step_idx, 'commands': bad_http})
+				cmd = args.get('CommandLine', '')
+				collect_shell_violations(cmd, step_idx, seg['violations'], seg['http_violations'])
 				if re.search('\\banswer-prepare\\b', cmd):
 					seg['answer_prepared_in_segment'] = True
 			if any((tok in args_text for tok in ('transcript_full.jsonl', 'transcript.jsonl', 'recover-checkpoint'))) and step_idx not in seg['transcript_read_steps']:
 				seg['transcript_read_steps'].append(step_idx)
 			if 'invoke_subagent' == name:
 				seg['spawned_subagents'] += 1
-				subs = args.get('Subagents', []) if isinstance(args, dict) else []
+				subs = args.get('Subagents', [])
 				if isinstance(subs, str):
 					try:
 						subs = json.loads(subs)
 					except ValueError:
 						subs = []
-				if not subs and isinstance(args, dict):
+				if not subs and args:
 					subs = [args]
 				for sub in subs if isinstance(subs, list) else []:
 					if isinstance(sub, dict):
@@ -360,23 +286,9 @@ class AntigravityTurnScanner:
 							target_steps.append(step_idx)
 			if name in ('invoke_subagent', 'send_message') and step_idx not in seg['subagent_steps']:
 				seg['subagent_steps'].append(step_idx)
-			target_path = str(args.get('Path') or args.get('TargetFile') or args.get('AbsolutePath') or args.get('path') or '' if isinstance(args, dict) else '').strip()
-			if name in ('read_file', 'view_file') and target_path:
-				try:
-					rp = Path(target_path)
-					norm_rp = (rp.resolve() if rp.is_absolute() else (self.root_p / rp).resolve()).as_posix()
-				except OSError:
-					norm_rp = target_path.replace('\\', '/')
-				seg['file_reads'].append((step_idx, norm_rp))
-			if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and target_path:
-				if target_path not in seg['touched_files']:
-					seg['touched_files'].append(target_path)
-				try:
-					wp = Path(target_path)
-					norm_wp = (wp.resolve() if wp.is_absolute() else (self.root_p / wp).resolve()).as_posix()
-				except OSError:
-					norm_wp = target_path.replace('\\', '/')
-				seg['file_writes'].append((step_idx, norm_wp))
+			target_path = str(args.get('Path') or args.get('TargetFile') or args.get('AbsolutePath') or args.get('path') or '').strip()
+			if name in ('read_file', 'view_file', 'write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and target_path:
+				record_canonical_path(self.root_p, step_idx, target_path, name in ('read_file', 'view_file'), seg['file_reads'], seg['file_writes'], seg['touched_files'])
 			if (name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and (any((tok in target_path for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or target_path.replace('\\', '/').lower().endswith('/kb/analysis.md')) or ('run_command' == name and re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', args_text))) and step_idx not in seg['kb_persistence_steps']:
 				seg['kb_persistence_steps'].append(step_idx)
 			if (('run_command' == name and re.search('\\b(?:turn-begin|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b', args_text)) or (name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') and any((tok in target_path.replace('\\', '/') for tok in ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md'))))) and step_idx not in seg['completion_service_steps']:
@@ -617,19 +529,8 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 				requested['effort'] = parent_observed['effort']
 				requested['executor_model'] = parent_observed['executor_model']
 			requested.update(selection='inherit', source=source)
-	checks = {}
-	for key in ('model', 'effort'):
-		checks[key] = 'unverified' if not requested.get(key) or not observed.get(key) else 'verified' if requested[key] == observed[key] else 'mismatch'
-	if 'inherit' == requested.get('selection'):
-		if requested.get('executor_model') and observed.get('executor_model') and (requested['executor_model'] != observed['executor_model']):
-			checks['model'] = 'mismatch'
-		elif observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])):
-			checks['model'] = 'mismatch'
-	elif observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])):
-		checks['model'] = 'mismatch'
-	status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if set(checks.values()) == {'verified'} else 'unverified'
-	r = {'schema_version': 1, 'surface': 'antigravity-ui', 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': 'Native generation model and executor configuration fields; exact API execution internals and missing modes are not inferred from runtime'}}
-	return r
+	force_mismatch = ('inherit' == requested.get('selection') and bool(requested.get('executor_model') and observed.get('executor_model') and (requested['executor_model'] != observed['executor_model']))) or bool(observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])))
+	return finalize_executor_checks('antigravity-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native generation model and executor configuration fields; exact API execution internals and missing modes are not inferred from runtime', force_model_mismatch=force_mismatch)
 def native_tool_trace(root, request):
 	backend = Path.home() / '.gemini/antigravity'
 	conversation_id = request.get('conversation_id', '')
@@ -893,17 +794,11 @@ def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, i
 def native_requests(root, conversation_id, *, backend=None):
 	backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
 	selected, _, _ = _request_scope(root, conversation_id, backend)
-	if not selected:
-		raise ValueError('Native requests do not identify this project; say "Continue analysis. Project root: `<absolute path>`"')
-	r = [{'id': f'{conversation_id}-{index}', 'text': text, 'native_conversation_id': conversation_id, 'native_step': index, 'surface': 'antigravity-ui', 'project_binding': binding} for index, text, binding in selected]
-	return r
+	return current_turn_requests(selected, conversation_id, 'antigravity-ui', 'Native requests do not identify this project; say "Continue analysis. Project root: `<absolute path>`"')
 def require_current_binding(root, conversation_id, *, backend=None, inputs=None, until=None):
 	backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
 	selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until)
-	if not selected or not active:
-		raise ValueError('Native Antigravity conversation is currently bound to another project or no exact project root')
-	r = binding
-	return r
+	return require_turn_binding(selected, active, binding, 'Native Antigravity conversation is currently bound to another project or no exact project root')
 def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 	found: list[str] = []
 	rows_list = rows_slice if isinstance(rows_slice, list) else []

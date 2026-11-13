@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/52
 import hashlib
@@ -17,14 +20,14 @@ def _iter_normalized_tool_calls(rows):
 				if pay.get('type') in ('function_call', 'custom_tool_call'):
 					raw_in = pay.get('arguments', pay.get('input', {}))
 					raw_cmd = raw_in if isinstance(raw_in, str) else json.dumps(raw_in, ensure_ascii=False)
-					yield (str(pay.get('name') or ''), _parse_tool_args(raw_in), raw_cmd, [])
+					yield (str(pay.get('name') or ''), parse_tool_args(raw_in), raw_cmd, [])
 			else:
 				calls = row.get('tool_calls') if isinstance(row.get('tool_calls'), list) else []
 				nxt_texts = [str(nxt.get('content') or '') for nxt in rows_list[pos + 1:pos + 4] if isinstance(nxt, dict) and 'GENERIC' == nxt.get('type')]
 				for call in calls:
 					if isinstance(call, dict):
 						raw_args = call.get('args', {})
-						args = _parse_tool_args(raw_args)
+						args = parse_tool_args(raw_args)
 						cmd = str(args.get('CommandLine') or '')
 						yield (str(call.get('name') or ''), args, cmd, nxt_texts)
 def _merge_line_intervals(intervals):
@@ -35,14 +38,6 @@ def _merge_line_intervals(intervals):
 		else:
 			merged[-1][1] = max(merged[-1][1], e_val)
 	return merged
-def _parse_tool_args(raw):
-	parsed = raw
-	if isinstance(raw, str):
-		try:
-			parsed = json.loads(raw)
-		except ValueError:
-			parsed = {}
-	return parsed if isinstance(parsed, dict) else {}
 def collect_prompt_bias_issues(prompts):
 	issues = []
 	for prompt_text in prompts or ():
@@ -50,6 +45,34 @@ def collect_prompt_bias_issues(prompts):
 			if issue not in issues:
 				issues.append(issue)
 	return issues
+def collect_shell_violations(cmd, step_idx, exec5_violations, http_violations, *, extra=None):
+	from ..git_gate import unflagged_git_read_commands, unpersisted_http_fetch_commands
+	meta = extra or {}
+	bad = unflagged_git_read_commands(cmd)
+	if bad:
+		exec5_violations.append({'step': step_idx, **meta, 'commands': bad})
+	bad_http = unpersisted_http_fetch_commands(cmd)
+	if bad_http:
+		http_violations.append({'step': step_idx, **meta, 'commands': bad_http})
+def current_turn_requests(selected, conversation_id, surface, error_msg, *, id_fmt='{cid}-{idx}', extra=None):
+	if not selected:
+		raise ValueError(error_msg)
+	meta = extra or {}
+	return [{'id': id_fmt.format(cid=conversation_id, idx=index), 'text': text, 'native_conversation_id': conversation_id, 'native_step': index, 'surface': surface, **meta, 'project_binding': binding} for index, text, binding in selected]
+def finalize_executor_checks(surface, role, conversation_id, parent_id, requested, observed, history, sources, detail, *, force_model_mismatch=False):
+	checks = {key: 'unverified' if not requested.get(key) or not observed.get(key) else 'verified' if requested[key] == observed[key] else 'mismatch' for key in ('model', 'effort')}
+	if force_model_mismatch:
+		checks['model'] = 'mismatch'
+	status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if {'verified'} == set(checks.values()) else 'unverified'
+	return {'schema_version': 1, 'surface': surface, 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': detail}}
+def parse_tool_args(raw):
+	parsed = raw
+	if isinstance(raw, str):
+		try:
+			parsed = json.loads(raw)
+		except ValueError:
+			parsed = {}
+	return parsed if isinstance(parsed, dict) else {}
 def partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 	issues = []
 	candidate_reads: dict[str, dict] = {}
@@ -136,6 +159,24 @@ def prompt_bias_issues(prompt_text):
 			issues.append('prompt hardcodes empty findings=[] without specifying finding object fields')
 		r = issues
 	return r
+def record_canonical_path(root_p, step_idx, raw_path, is_read, file_reads, file_writes, touched_files):
+	cleaned = str(raw_path or '').strip()
+	if cleaned:
+		try:
+			p_obj = Path(cleaned)
+			norm_p = (p_obj.resolve() if p_obj.is_absolute() else (Path(root_p) / p_obj).resolve()).as_posix()
+		except OSError:
+			norm_p = cleaned.replace('\\', '/')
+		if is_read:
+			file_reads.append((step_idx, norm_p))
+		else:
+			if cleaned not in touched_files:
+				touched_files.append(cleaned)
+			file_writes.append((step_idx, norm_p))
+def require_turn_binding(selected, active, binding, error_msg):
+	if not selected or not active:
+		raise ValueError(error_msg)
+	return binding
 def reviewer_isolation_issues(root, rows):
 	project_root = Path(root).resolve()
 	daily_root = next((p for p in project_root.parents if 'daily' == p.name), project_root.parent)
@@ -159,6 +200,55 @@ def reviewer_isolation_issues(root, rows):
 				issues.append(f'reviewer accessed sibling project path {candidate}')
 	issues.extend(partial_candidate_read_issues(project_root, rows))
 	return issues
+def summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, *, svc_steps=(), aa_part_errs=None, allow_step_output_recovery=False):
+	last_cp = max(cp_steps) if cp_steps else None
+	pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
+	post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]
+	pre_cp_records = [rec for rec in records if None is not last_cp and rec['step'] < last_cp]
+	pre_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st < last_cp)))
+	post_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st > last_cp)))
+	post_cp_writes = list(dict.fromkeys((p for st, p in f_writes if None is not last_cp and st > last_cp)))
+	post_cp_lower = {p.lower() for p in post_cp_reads}
+	recovered_step_nums = set()
+	if allow_step_output_recovery:
+		for pr in post_cp_reads:
+			m_rec = re.search('(?:/steps/(\\d+)/output\\.txt|/step-(\\d+)\\.txt)$', pr, re.I)
+			if m_rec:
+				recovered_step_nums.add(m_rec.group(1) or m_rec.group(2))
+	evicted_unreread = []
+	for p in pre_cp_reads:
+		if p.lower() in post_cp_lower:
+			continue
+		if allow_step_output_recovery:
+			m_ev_step = re.search('/\\.system_generated/steps/(\\d+)/output\\.txt$', p, re.I)
+			if m_ev_step and m_ev_step.group(1) in recovered_step_nums:
+				continue
+		evicted_unreread.append(p)
+	reads_by_step = {}
+	for st, p in f_reads:
+		reads_by_step.setdefault(st, []).append(p)
+	cur_streak = 0
+	max_streak = 0
+	cur_src_reads = set()
+	max_src_reads = 0
+	persist_or_sub = set(sub_steps) | set(kb_steps)
+	svc_set = set(svc_steps or ())
+	for st in t_steps:
+		if st in svc_set and st not in persist_or_sub:
+			continue
+		if st in persist_or_sub:
+			cur_streak = 0
+			cur_src_reads.clear()
+		else:
+			cur_streak += 1
+			if cur_streak > max_streak:
+				max_streak = cur_streak
+			for rp in reads_by_step.get(st, ()):
+				if rp.lower().endswith('/kb/source.md'):
+					cur_src_reads.add(rp.lower())
+			if len(cur_src_reads) > max_src_reads:
+				max_src_reads = len(cur_src_reads)
+	return ({'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}, {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'aa_partial_read_violations': list(aa_part_errs or []), 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads})
 def verify_review_proof_core(root, native, result, fields, *, trace_error='Review proof differs from the current native trace', identity_error='Review proof has a different explicit project identity', allow_legacy_generation_model=False):
 	for field in fields:
 		if native.get(field) != result.get(field):

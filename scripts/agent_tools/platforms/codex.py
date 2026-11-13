@@ -1,4 +1,7 @@
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
+# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/52
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -26,7 +29,7 @@ from ..runtime import platform_settings, profile_name
 from ..research import json_data
 from ..storage import create_bytes
 from .request_binding import native_project_fields
-from .trace_common import collect_prompt_bias_issues, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, reviewer_isolation_issues, verify_review_proof_core
+from .trace_common import collect_prompt_bias_issues, collect_shell_violations, current_turn_requests, finalize_executor_checks, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_canonical_path, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
 def _local_path(value):
 	path = str(Path(value).resolve())
 	if path.startswith('\\\\?\\UNC\\'):
@@ -132,40 +135,25 @@ def native_requests(root, conversation_id, *, backend=None):
 	home = _home(backend)
 	_, _, _, rows = _trace(home, conversation_id)
 	selected, _, _ = _request_scope(root, rows)
-	if not selected:
-		raise ValueError('Native Codex requests do not identify this project; use its exact project root or /upwork-init URL')
-	r = [{'id': f'codex:{conversation_id}:{index}', 'text': text, 'native_conversation_id': conversation_id, 'native_step': index, 'surface': 'codex-ui', 'native_profile_home': str(home), 'project_binding': binding} for index, text, binding in selected]
-	return r
+	return current_turn_requests(selected, conversation_id, 'codex-ui', 'Native Codex requests do not identify this project; use its exact project root or /upwork-init URL', id_fmt='codex:{cid}:{idx}', extra={'native_profile_home': str(home)})
 def require_current_binding(root, conversation_id, *, backend=None, rows=None, until=None):
 	if None is rows:
 		rows = _trace(_home(backend), conversation_id)[3]
 	selected, active, binding = _request_scope(root, rows, until=until)
-	if not selected or not active:
-		raise ValueError('Native Codex conversation is currently bound to another project or no exact project root')
-	r = binding
-	return r
+	return require_turn_binding(selected, active, binding, 'Native Codex conversation is currently bound to another project or no exact project root')
 def _extract_codex_target_subagents(raw_args) -> list[str]:
-	if isinstance(raw_args, str):
-		try:
-			raw_args = json.loads(raw_args)
-		except ValueError:
-			raw_args = {}
-	if not isinstance(raw_args, dict):
-		return []
+	parsed_args = parse_tool_args(raw_args)
 	candidates: list[str] = []
 	for key in ('id', 'Recipient', 'agent_id', 'subagent_id'):
-		val = raw_args.get(key)
+		val = parsed_args.get(key)
 		if isinstance(val, str):
 			candidates.append(val.strip().lower())
-	ids_val = raw_args.get('ids')
+	ids_val = parsed_args.get('ids')
 	if isinstance(ids_val, list):
 		for item in ids_val:
 			if isinstance(item, str):
 				candidates.append(item.strip().lower())
-	return [
-		u for u in dict.fromkeys(candidates)
-		if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)
-	]
+	return [u for u in dict.fromkeys(candidates) if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)]
 def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 	if not isinstance(out_text, str) or not out_text.strip():
 		return []
@@ -197,7 +185,7 @@ def native_answers(root, conversation_id, *, backend=None):
 	child = isinstance(meta.get('source'), dict) and bool(meta['source'].get('subagent'))
 	selected, _, _ = _request_scope(root, rows, identifier=completion_project_id(root))
 	requests = {index: {'id': f'codex:{conversation_id}:{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
-	from ..git_gate import extract_issue_actions_from_outputs, unflagged_git_read_commands, unpersisted_http_fetch_commands
+	from ..git_gate import extract_issue_actions_from_outputs
 	root_p = Path(root).resolve()
 	turns, current = ([], None)
 	for index, item in rows:
@@ -223,15 +211,9 @@ def native_answers(root, conversation_id, *, backend=None):
 			if payload.get('call_id'):
 				current['_pending_calls'][payload['call_id']] = rec
 			if 'exec' == name or name.endswith(('exec_command', 'run_command')):
-				bad = unflagged_git_read_commands(raw_cmd)
-				if bad:
-					current['exec5_violations'].append({'step': index, 'call_id': payload.get('call_id'), 'commands': bad})
-				bad_http = unpersisted_http_fetch_commands(raw_cmd)
-				if bad_http:
-					current['http_fetch_violations'].append({'step': index, 'call_id': payload.get('call_id'), 'commands': bad_http})
-			if any((tok in raw_cmd for tok in ('recover-checkpoint', str(path.name), 'transcript_full.jsonl'))):
-				if index not in current['transcript_read_steps']:
-					current['transcript_read_steps'].append(index)
+				collect_shell_violations(raw_cmd, index, current['exec5_violations'], current['http_fetch_violations'], extra={'call_id': payload.get('call_id')})
+			if any((tok in raw_cmd for tok in ('recover-checkpoint', str(path.name), 'transcript_full.jsonl'))) and index not in current['transcript_read_steps']:
+				current['transcript_read_steps'].append(index)
 			if name.endswith(('spawn_agent', 'invoke_subagent', 'send_input', 'send_message', 'wait', 'wait_agent')) or 'spawn_agent' in raw_cmd:
 				if index not in current['subagent_steps']:
 					current['subagent_steps'].append(index)
@@ -243,37 +225,11 @@ def native_answers(root, conversation_id, *, backend=None):
 						current['aa_subagent_steps'].append(index)
 			patch_list = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', raw_cmd, flags=re.M) if 'apply_patch' in name else []
 			for pt in patch_list:
-				pt_s = pt.strip()
-				if pt_s:
-					if pt_s not in current['touched_files']:
-						current['touched_files'].append(pt_s)
-					try:
-						wp = Path(pt_s)
-						norm_wp = (wp.resolve() if wp.is_absolute() else (root_p / wp).resolve()).as_posix()
-					except OSError:
-						norm_wp = pt_s.replace('\\', '/')
-					current['file_writes'].append((index, norm_wp))
+				record_canonical_path(root_p, index, pt, False, current['file_reads'], current['file_writes'], current['touched_files'])
 			if name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
-				args_raw = payload.get('arguments', payload.get('input', {}))
-				if isinstance(args_raw, str):
-					try:
-						args_raw = json.loads(args_raw)
-					except ValueError:
-						args_raw = {}
-				if isinstance(args_raw, dict):
-					p_arg = str(args_raw.get('Path') or args_raw.get('TargetFile') or args_raw.get('path') or '').strip()
-					if p_arg:
-						try:
-							rp = Path(p_arg)
-							norm_rp = (rp.resolve() if rp.is_absolute() else (root_p / rp).resolve()).as_posix()
-						except OSError:
-							norm_rp = p_arg.replace('\\', '/')
-						if name.endswith(('read_file', 'view_file')):
-							current['file_reads'].append((index, norm_rp))
-						else:
-							if p_arg not in current['touched_files']:
-								current['touched_files'].append(p_arg)
-							current['file_writes'].append((index, norm_rp))
+				args_raw = parse_tool_args(payload.get('arguments', payload.get('input', {})))
+				p_arg = args_raw.get('Path') or args_raw.get('TargetFile') or args_raw.get('path') or ''
+				record_canonical_path(root_p, index, p_arg, name.endswith(('read_file', 'view_file')), current['file_reads'], current['file_writes'], current['touched_files'])
 			patch_targets = '\n'.join(patch_list)
 			kb_target_text = patch_targets if 'apply_patch' in name else '' if 'answer-prepare' in raw_cmd else raw_cmd
 			if any((tok in kb_target_text for tok in ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB'))) or '/kb/analysis.md' in kb_target_text.replace('\\', '/').lower() or re.search('\\b(?:save-analysis|collect|collect-http|extract|extract-file|capture-dom)\\b', raw_cmd):
@@ -418,45 +374,14 @@ def native_answers(root, conversation_id, *, backend=None):
 									queued_pairs.add((t_uid, sub_id))
 									queue_ids.append((t_uid, sub_id))
 						if 'exec' == s_name or s_name.endswith(('exec_command', 'run_command')):
-							bad = unflagged_git_read_commands(s_raw)
-							if bad:
-								turn['exec5_violations'].append({'step': sub_step_anchor, 'subagent_id': sub_id, 'commands': bad})
-							bad_http = unpersisted_http_fetch_commands(s_raw)
-							if bad_http:
-								turn['http_fetch_violations'].append({'step': sub_step_anchor, 'subagent_id': sub_id, 'commands': bad_http})
+							collect_shell_violations(s_raw, sub_step_anchor, turn['exec5_violations'], turn['http_fetch_violations'], extra={'subagent_id': sub_id})
 						s_patches = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', s_raw, flags=re.M) if 'apply_patch' in s_name else []
 						for pt in s_patches:
-							pt_s = pt.strip()
-							if pt_s:
-								if pt_s not in turn['touched_files']:
-									turn['touched_files'].append(pt_s)
-								try:
-									wp = Path(pt_s)
-									norm_wp = (wp.resolve() if wp.is_absolute() else (root_p / wp).resolve()).as_posix()
-								except OSError:
-									norm_wp = pt_s.replace('\\', '/')
-								f_writes.append((sub_step_anchor, norm_wp))
+							record_canonical_path(root_p, sub_step_anchor, pt, False, f_reads, f_writes, turn['touched_files'])
 						if s_name.endswith(('read_file', 'view_file', 'write_file', 'edit_file')):
-							s_args = s_pay.get('arguments', s_pay.get('input', {}))
-							if isinstance(s_args, str):
-								try:
-									s_args = json.loads(s_args)
-								except ValueError:
-									s_args = {}
-							if isinstance(s_args, dict):
-								p_arg = str(s_args.get('Path') or s_args.get('TargetFile') or s_args.get('path') or '').strip()
-								if p_arg:
-									try:
-										rp = Path(p_arg)
-										norm_rp = (rp.resolve() if rp.is_absolute() else (root_p / rp).resolve()).as_posix()
-									except OSError:
-										norm_rp = p_arg.replace('\\', '/')
-									if s_name.endswith(('read_file', 'view_file')):
-										f_reads.append((sub_step_anchor, norm_rp))
-									else:
-										if p_arg not in turn['touched_files']:
-											turn['touched_files'].append(p_arg)
-										f_writes.append((sub_step_anchor, norm_rp))
+							s_args = parse_tool_args(s_pay.get('arguments', s_pay.get('input', {})))
+							p_arg = s_args.get('Path') or s_args.get('TargetFile') or s_args.get('path') or ''
+							record_canonical_path(root_p, sub_step_anchor, p_arg, s_name.endswith(('read_file', 'view_file')), f_reads, f_writes, turn['touched_files'])
 					elif 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
 						out = s_pay.get('output')
 						out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
@@ -473,38 +398,7 @@ def native_answers(root, conversation_id, *, backend=None):
 		completed_turn_sub_ids.update(visited_sub_ids - {conversation_id})
 		for r in records:
 			r.pop('target_subagents', None)
-		last_cp = max(cp_steps) if cp_steps else None
-		pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
-		post_cp_rec = [s for s in tr_steps if None is not last_cp and s > last_cp]
-		pre_cp_records = [r for r in records if None is not last_cp and r['step'] < last_cp]
-		pre_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st < last_cp)))
-		post_cp_reads = list(dict.fromkeys((p for st, p in f_reads if None is not last_cp and st > last_cp)))
-		post_cp_writes = list(dict.fromkeys((p for st, p in f_writes if None is not last_cp and st > last_cp)))
-		post_cp_lower = {p.lower() for p in post_cp_reads}
-		evicted_unreread = [p for p in pre_cp_reads if p.lower() not in post_cp_lower]
-		reads_by_step = {}
-		for st, p in f_reads:
-			reads_by_step.setdefault(st, []).append(p)
-		cur_streak = 0
-		max_streak = 0
-		cur_src_reads = set()
-		max_src_reads = 0
-		persist_or_sub = set(sub_steps) | set(kb_steps)
-		for st in t_steps:
-			if st in persist_or_sub:
-				cur_streak = 0
-				cur_src_reads.clear()
-			else:
-				cur_streak += 1
-				if cur_streak > max_streak:
-					max_streak = cur_streak
-				for rp in reads_by_step.get(st, ()):
-					if rp.lower().endswith('/kb/source.md'):
-						cur_src_reads.add(rp.lower())
-				if len(cur_src_reads) > max_src_reads:
-					max_src_reads = len(cur_src_reads)
-		turn['compaction'] = {'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}
-		turn['delegation'] = {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'aa_partial_read_violations': aa_partial_read_violations, 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads}
+		turn['compaction'], turn['delegation'] = summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, aa_part_errs=aa_partial_read_violations)
 	return {'platform': 'codex', 'conversation_id': conversation_id, 'native_backend': str(home), 'source_file': str(path), 'primary': not child, 'turns': turns, 'active_turn_id': current['turn_id'] if current and (not current['completion_step']) else None}
 def _model(rows, before=None):
 	contexts = [item['payload'] for index, item in rows if 'turn_context' == item.get('type') and (None is before or index <= before)]
@@ -570,12 +464,7 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 		requested['source'] = {'native_file': str(parent_path), 'kind': 'spawn_agent', 'step': invocation[0], 'call_id': invocation[1]}
 	elif meta.get('model'):
 		requested.update(model=meta['model'], effort=meta.get('reasoning_effort'), selection='native-session-selection', source={'native_file': str(path), 'kind': 'session_meta', 'step': rows[0][0]})
-	checks = {}
-	for key in ('model', 'effort'):
-		checks[key] = 'unverified' if not requested.get(key) or not observed.get(key) else 'verified' if requested[key] == observed[key] else 'mismatch'
-	status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if set(checks.values()) == {'verified'} else 'unverified'
-	r = {'schema_version': 1, 'surface': 'codex-ui', 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': 'Native turn_context reports selected model/effort; missing fields remain unknown; server execution internals are not inferred'}}
-	return r
+	return finalize_executor_checks('codex-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native turn_context reports selected model/effort; missing fields remain unknown; server execution internals are not inferred')
 def native_tool_trace(root, request):
 	home = _home(request.get('native_profile_home'))
 	if request.get('native_profile_home') and home not in [Path(value).resolve() for value in platform_settings('codex')['homes'].values()]:
