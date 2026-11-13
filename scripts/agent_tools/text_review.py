@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
@@ -14,7 +17,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 from .research import inside, json_data
-from .review import REPORT_CONTRACT, REVIEW_SCHEMA, digest, findings_closed, has_unhandled_verdicts, is_nonempty_text, latest_for_subject, parse_report_object, prepare_verdict_record, quorum_satisfied, read_package_envelope, report_issues, resolve_addressed_reviews, significant_findings, subject_digest, verify_entry_native_proof
+from .review import REPORT_CONTRACT, REVIEW_SCHEMA, ReviewClassifier, ReviewQuorumEvaluator, ReviewReportValidator, digest, is_nonempty_text, parse_report_object, prepare_verdict_record, read_package_envelope, register_package_handler, resolve_addressed_reviews, subject_digest, verify_entry_native_proof
 from .storage import locked, replace_bytes, write_immutable_bytes
 from .text_workflow import _folder, operation, refresh_check
 SCOPES = ('format', 'scope', 'evidence', 'relevance', 'kb_consistency', 'response')
@@ -48,14 +51,14 @@ def prepare(root, check, parent_id, spec=None):
 	flags = spec_d.get('task_flags', [])
 	if not isinstance(flags, list) or any((not is_nonempty_text(x) for x in flags)):
 		raise ValueError('task_flags must name the current task changes')
-	significant = any(('significant' == c['materiality'] for c in checked['claims'])) or bool(set(flags) & {'new_causal_analysis', 'architecture_change', 'pricing_change', 'admin_configuration', 'business_impact', 'material_analysis'})
+	significant = ReviewClassifier.has_significant_flags(checked['claims'], flags)
 	if spec_d.get('risk') not in (None, 'routine', 'significant'):
 		raise ValueError('Review risk must be routine or significant')
 	risk = 'significant' if significant or 'significant' == spec_d.get('risk') else 'routine'
 	inputs = checked['inputs']
 	value = {'schema_version': REVIEW_SCHEMA, 'kind': 'client_text', 'project_root': str(root_p), **native_project_fields(root_p), 'parent_id': parent_id, 'operation': op['id'], 'check': check, 'scope': list(SCOPES), 'goal': op['goal'], 'requests': op['requests'], 'target': op['target'], 'response': {'file': checked['candidate'], 'sha256': digest(candidate.encode()), 'bytes': len(candidate.encode())}, 'baseline': {'file': (_folder(root_p) / 'operations' / op['id'] / 'base.bin').relative_to(root_p).as_posix(), 'sha256': digest((_folder(root_p) / 'operations' / op['id'] / 'base.bin').read_bytes())}, 'diff': checked['diff'], 'manifest': checked['manifest'], 'claims': checked['claims'], 'claim_versions': checked['claim_versions'], 'kb_inputs': {p: s for p, s in inputs.items() if p.endswith('.json') and '/Evidence/' not in p}, 'evidence_inputs': {p: s for p, s in inputs.items() if not (p.endswith('.json') and '/Evidence/' not in p)}, 'source_checks': checked['source_checks'], 'risk': risk, 'risk_basis': spec_d.get('basis', 'Computed from the actual referenced claim types and current task flags.'), 'task_flags': flags}
 	value['subject_sha256'] = subject_digest(value)
-	if significant_findings(root_p, _state(root_p), value['subject_sha256']):
+	if ReviewQuorumEvaluator(root_p, _state(root_p)).significant_findings(value['subject_sha256']):
 		value['risk'] = 'significant'
 	raw = json_data(value)
 	path = write_immutable_bytes(_folder(root_p) / 'reviews' / (digest(raw) + '-inputs.json'), raw, diff_error='Immutable text review artifact differs')
@@ -72,7 +75,7 @@ def read_package(root, reference, *, require_current=True, applied=False):
 		op, _ = operation(root_p, checked['operation'])
 		if checked['inputs'] != {**value['kb_inputs'], **value['evidence_inputs']} or checked['claims'] != value['claims'] or checked['manifest'] != value['manifest'] or (checked['diff'] != value['diff']) or (op['requests'] != value['requests']):
 			raise ValueError('Review no longer covers the exact request, diff, claim map or primary versions')
-		if 'routine' == value['risk'] and significant_findings(root_p, _state(root_p), value['subject_sha256']):
+		if 'routine' == value['risk'] and ReviewQuorumEvaluator(root_p, _state(root_p)).significant_findings(value['subject_sha256']):
 			raise ValueError('Significant finding requires a new significant package and two independent reviewers')
 	return value
 def _source_reviews(root, data, package, candidate):
@@ -96,18 +99,8 @@ def _source_reviews(root, data, package, candidate):
 		raise ValueError('Approval needs a receipt-bound assessment of every external source')
 	return inputs
 def _issues(data, package, candidate, *, root=None):
-	issues = report_issues(data, package, candidate=candidate)
-	for item in data.get('claim_reviews', []):
-		if isinstance(item, dict):
-			checks = item.get('text_checks')
-			if not isinstance(checks, dict) or any((not is_nonempty_text(checks.get(key)) for key in TEXT_CHECKS)):
-				issues.append(str(item.get('claim_id')) + ': assess source applicability, scope, role, relevance, deduplication and numerical provenance')
-	if None is not root:
-		try:
-			_source_reviews(root, data, package, candidate)
-		except (OSError, ValueError, KeyError, TypeError) as exc:
-			issues.append(str(exc))
-	return issues
+	reviewer = (lambda d, p: _source_reviews(root, d, p, candidate)) if None is not root else None
+	return ReviewReportValidator(package, candidate=candidate, text_checks=TEXT_CHECKS, source_reviewer=reviewer).validate(data)
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
@@ -130,8 +123,8 @@ def record(root, report, *, parent_id, reviewer_id, native_evidence):
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def authorize(root, check, *, applied=False):
-	from .workflow import receipt_current
 	root_p, state = (Path(root).resolve(), _state(root))
+	evaluator = ReviewQuorumEvaluator(root_p, state)
 	checked, _ = refresh_check(root_p, check, applied=applied)
 	groups, diagnostics = ({}, [])
 	for entry in state['reviews']:
@@ -139,28 +132,22 @@ def authorize(root, check, *, applied=False):
 			package = read_package(root_p, entry['package'], applied=applied)
 			if package['check'] != check or package['operation'] != checked['operation'] or package['response']['sha256'] != checked['candidate_sha256']:
 				continue
-			if not receipt_current(root_p, {'inputs': entry['proof']}) or not entry.get('independent'):
+			if not evaluator.entry_proof_current(entry) or (not entry.get('independent')):
 				raise ValueError('Independent native review proof changed or is missing')
 			data = parse_report_object(inside(root_p, entry['report']).read_text(encoding='utf-8'))
 			if _issues(data, package, inside(root_p, package['response']['file']).read_text(encoding='utf-8'), root=root_p):
 				raise ValueError('Reviewer assessment is incomplete')
 			verify_entry_native_proof(root_p, entry)
-			if 'approved' != entry['result'] or not findings_closed(root_p, entry):
+			if 'approved' != entry['result'] or not evaluator.findings_closed(entry):
 				continue
 			groups.setdefault(entry['package'], (package, []))[1].append(entry)
 		except (OSError, ValueError, KeyError, TypeError) as exc:
 			diagnostics.append(str(exc))
-	r = None
-	for reference, (package, reviews) in reversed(list(groups.items())):
-		latest = latest_for_subject(state, package)
-		if not has_unhandled_verdicts(root_p, state, package, latest):
-			eligible = [entry for entry in reviews if latest[entry['reviewer_id']]['id'] == entry['id']]
-			if quorum_satisfied(root_p, state, package, latest, eligible, allow_falsifier_or_cached=False):
-				r = {'package': reference, 'package_sha256': digest(inside(root_p, reference).read_bytes()), 'risk': package['risk'], 'subject_sha256': package['subject_sha256'], 'review_ids': [entry['id'] for entry in eligible]}
-				break
-	if None is r:
+	selected = evaluator.select_authorized_group(groups, allow_routine_self=False, allow_falsifier_or_cached=False)
+	if None is selected:
 		raise ValueError('Current independent text approval is required; significant claims need two reviewers' + (': ' + '; '.join(dict.fromkeys(diagnostics)) if diagnostics else ''))
-	return r
+	reference, package, eligible = selected
+	return {'package': reference, 'package_sha256': digest(inside(root_p, reference).read_bytes()), 'risk': package['risk'], 'subject_sha256': package['subject_sha256'], 'review_ids': [entry['id'] for entry in eligible]}
 def approval_integrity(root, approval, *, versioned_inputs=(), require_live_proof=True):
 	root_p = Path(root).resolve()
 	if not isinstance(approval, dict) or not isinstance(approval.get('review_ids'), list):
@@ -201,6 +188,7 @@ def approval_integrity(root, approval, *, versioned_inputs=(), require_live_proo
 					pass
 		eligible.add(entry['reviewer_id'])
 		reviews.append(deepcopy(entry))
-	if len(eligible) < (2 if 'significant' == package['risk'] else 1):
+	if (2 if 'significant' == package['risk'] else 1) > len(eligible):
 		raise ValueError('Saved publication approval lacks its required independent reviewers')
 	return {'files': inputs, 'reviews': reviews}
+register_package_handler('client_text', package_reader=read_package, contract_factory=report_contract)

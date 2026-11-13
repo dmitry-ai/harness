@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
@@ -415,3 +418,62 @@ class ReviewContractTests(ProjectCase):
 		bad_name = self.put_project('ꘖ/data/receipts/0000-check.json', payload.decode('utf-8'))
 		with self.assertRaisesRegex(ValueError, 'bad receipt'):
 			read_addressed_json(bad_name, suffix='-check.json', error_msg='bad receipt')
+class ReviewDecompositionTests(ProjectCase):
+	def setUp(self):
+		super().setUp()
+		self.value = self.valid_review_analysis()
+		self.parent = str(uuid.uuid4())
+		flow.resume(self.project, 'decomposition fixture', 'Show the saved client title.')
+		self.answer = 'Client task\n'
+		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'}]
+	def test_classifier_has_significant_flags_and_post_finalize_synthetic_claims(self):
+		self.assertFalse(review.ReviewClassifier.has_significant_flags([{'materiality': 'routine'}], []))
+		self.assertTrue(review.ReviewClassifier.has_significant_flags([{'materiality': 'significant'}], []))
+		self.assertTrue(review.ReviewClassifier.has_significant_flags([{'materiality': 'routine'}], ['pricing_change']))
+		state = flow.load(self.project)
+		state['stages']['finalize'] = {'status': 'complete', 'time': '2026-11-14T00:00:00Z'}
+		cls = review.ReviewClassifier(self.project, state, self.value)
+		spec = {'risk': 'routine', 'task_flags': [], 'basis': 'Post-finalize follow-up.', 'request_scope': 'Follow-up.', 'claim_ids': ['F-POST-1'], 'claims': [{'claim_id': 'F-POST-1', 'response_excerpt': 'Client task', 'novelty': 'new'}]}
+		classified = cls.classify(spec, self.answer)
+		self.assertEqual('routine', classified['risk'])
+		self.assertEqual('F-POST-1', classified['claims'][0]['claim_id'])
+	def test_package_handler_registry_dispatches_custom_kind(self):
+		calls = []
+		def fake_reader(root, pkg, *, require_current=True):
+			calls.append((Path(root).resolve(), pkg, require_current))
+			return {'kind': 'custom_test_kind', 'job_id': '~021', 'parent_id': self.parent, 'kb_inputs': {}, 'evidence_inputs': {}, 'requests': [], 'response': {'file': 'x', 'sha256': '0' * 64}, 'claims': [], 'risk': 'routine'}
+		review.register_package_handler('custom_test_kind', package_reader=fake_reader, contract_factory=lambda: {'custom_contract': True})
+		self.addCleanup(lambda: review.PACKAGE_HANDLERS.pop('custom_test_kind', None))
+		payload = json_data({'kind': 'custom_test_kind'})
+		pkg_path = self.put_project(f'ꘖ/KB/Evidence/Reviews/{review.digest(payload)}-inputs.json', payload)
+		pkg_rel = pkg_path.relative_to(self.project).as_posix()
+		self.assertEqual('custom_test_kind', review.read_package(self.project, pkg_rel)['kind'])
+		receipt = review.input_receipt(self.project, pkg_rel)
+		self.assertTrue(receipt['report_contract']['custom_contract'])
+		self.assertEqual(2, len(calls))
+	def test_quorum_evaluator_selects_authorized_group_and_checks_approval_current(self):
+		spec = {'risk': 'routine', 'task_flags': [], 'basis': 'Literal title.', 'request_scope': 'Current request.', 'claim_ids': ['F-TITLE'], 'claims': self.manifest}
+		package = flow.prepare_review(self.project, self.parent, spec, self.answer)
+		report = self.review_report(package, self_review=True)
+		with patch('agent_tools.platforms.adapter'):
+			flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent)
+		state = flow.load(self.project)
+		evaluator = review.ReviewQuorumEvaluator(self.project, state)
+		pkg_data = review.read_package(self.project, package['package'], state=state)
+		selected = evaluator.select_authorized_group({package['package']: (pkg_data, state['reviews'])})
+		self.assertIsNotNone(selected)
+		self.assertIsNone(evaluator.select_authorized_group({package['package']: (pkg_data, state['reviews'])}, allow_routine_self=False))
+		approval = {'package': package['package'], 'package_sha256': package['package_sha256'], 'review_ids': [state['reviews'][0]['id']]}
+		self.assertTrue(evaluator.approval_current(approval))
+	def test_report_validator_covers_falsifier_and_text_checks(self):
+		spec = {'risk': 'routine', 'task_flags': [], 'basis': 'Literal title.', 'request_scope': 'Current request.', 'claim_ids': ['F-TITLE'], 'claims': self.manifest}
+		package = flow.prepare_review(self.project, self.parent, spec, self.answer)
+		validator = review.ReviewReportValidator(package, candidate=self.answer, text_checks=('role_and_coverage',))
+		std_report = self.review_report(package, self_review=True)
+		issues = validator.validate(std_report)
+		self.assertTrue(any(('assess source applicability' in x for x in issues)))
+		std_report['claim_reviews'][0]['text_checks'] = {'role_and_coverage': 'Checked role and coverage.'}
+		self.assertEqual([], validator.validate(std_report))
+		falsifier_report = {'schema_version': review.REVIEW_SCHEMA, 'review_mode': 'falsifier', 'result': 'approved', 'scope': list(review.SCOPES), 'disproved_claims': [], 'findings': []}
+		self.assertTrue(review.ReviewReportValidator.is_falsifier_report(falsifier_report))
+		self.assertEqual([], review.ReviewReportValidator(package, candidate=self.answer).validate(falsifier_report))
