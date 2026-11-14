@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose text_workflow.py into ClientTextWorkspace and TextIntegrityVerifier classes":
+# https://github.com/dmitry-ai/harness/issues/78
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -201,6 +204,35 @@ class TextTransactionTests(TextWorkspaceCase):
 		target.write_bytes(b'1. Direct shell overwrite.\n')
 		with self.assertRaisesRegex(ValueError, 'without a current apply receipt'):
 			text_workflow.gate(self.project)
+	def test_workspace_and_integrity_verifier_single_pass_invariants(self):
+		from unittest.mock import patch
+		original = '1. The queue refers to §3.\n\n3. The handler runs.\n'
+		_, op = self.start(original, changes='renumber', requests=['req-78-a'])
+		ws = text_workflow.ClientTextWorkspace(self.project)
+		self.assertEqual(op['id'], ws.operation_meta(op['id'])['id'])
+		candidate = '1. The queue refers to §2.\n\n2. The handler runs.\n'
+		scope_calls = []
+		orig_scope = text_workflow.ClientTextWorkspace.scope_issues
+		def spy_scope(o, b, c):
+			scope_calls.append(o['id'])
+			return orig_scope(o, b, c)
+		with patch.object(text_workflow.ClientTextWorkspace, 'scope_issues', staticmethod(spy_scope)):
+			checked = ws.check(op['id'], candidate)
+		self.assertEqual([op['id']], scope_calls)
+		ws.apply(checked['check'])
+		base_bin = ws.folder / 'operations' / op['id'] / 'base.bin'
+		orig_read_bytes = type(base_bin).read_bytes
+		def forbid_base_read(p):
+			if p.resolve() == base_bin.resolve():
+				raise AssertionError('gate_requests must not read base.bin')
+			return orig_read_bytes(p)
+		with patch.object(type(base_bin), 'read_bytes', forbid_base_read):
+			gated = text_workflow.gate_requests([self.project], ['req-78-a'], 'Done.', capture=False)
+		self.assertEqual(1, len(gated))
+		self.assertTrue(gated[0]['valid'])
+		verifier = text_workflow.TextIntegrityVerifier(ws)
+		snap = verifier.snapshot(ws.index()['targets'])
+		self.assertEqual('original_admitted_artifacts', verifier.verify(snap)['scope'])
 class TextMechanicalScopeTests(TextWorkspaceCase):
 	def scope(self, base, candidate, *, kind='proposal', changes='renumber'):
 		operation = {'kind': kind, 'mode': 'edit', 'changes': changes, 'allow_sections': []}
