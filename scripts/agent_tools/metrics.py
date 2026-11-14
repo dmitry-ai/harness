@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
@@ -11,6 +14,7 @@ from collections import Counter
 from pathlib import Path
 import json
 import re
+from .platforms.trace_common import parse_tool_args, summarize_token_records
 def summarize(paths, bindings=None):
 	formats = []
 	for path in paths:
@@ -21,67 +25,39 @@ def summarize(paths, bindings=None):
 		if not all(formats):
 			raise ValueError('Summarize native Codex and Antigravity traces separately; their accounting formats differ')
 		from .platforms.codex import summarize as summarize_codex
-		return summarize_codex(paths, bindings)
-	records, seen, duplicates = ([], set(), 0)
-	tools, phases, urls, queries = (Counter(), {}, Counter(), Counter())
-	error_results = 0
-	totals = Counter()
-	missing = Counter()
-	for path in paths:
-		path = Path(path)
-		cid = path.parents[2].parent.name if path.name.startswith('transcript') else path.stem
-		if 'logs' == path.parent.name and '.system_generated' == path.parent.parent.name:
-			cid = path.parent.parent.parent.name
-		for line in path.read_text(encoding='utf-8').splitlines():
-			if not line.strip():
-				continue
-			record = json.loads(line)
-			key = (cid, record.get('step_index'))
-			if key in seen:
-				duplicates += 1
-				continue
-			seen.add(key)
-			if 'GENERIC' == record.get('type') and re.search('Encountered error in step execution|failed to read file|cannot find the file', record.get('content', ''), re.I):
-				error_results += 1
-			for call in record.get('tool_calls', []):
-				tools[call['name']] += 1
-				args = call.get('args', {})
-				if isinstance(args, str):
-					try:
-						args = json.loads(args)
-					except ValueError:
-						args = {}
-				if not isinstance(args, dict):
+		r = summarize_codex(paths, bindings)
+	else:
+		events, seen, error_results = ([], set(), 0)
+		tools, urls, queries = (Counter(), Counter(), Counter())
+		for raw_path in paths:
+			path = Path(raw_path)
+			cid = path.parent.parent.parent.name if 'logs' == path.parent.name and '.system_generated' == path.parent.parent.name else (path.parents[2].parent.name if path.name.startswith('transcript') else path.stem)
+			for line in path.read_text(encoding='utf-8').splitlines():
+				if not line.strip():
 					continue
-				if 'read_url_content' == call['name']:
-					target = args.get('Url') or args.get('URL') or args.get('url')
-					if isinstance(target, str):
-						urls[target] += 1
-				if 'search_web' == call['name']:
-					query = args.get('query') or args.get('Query') or args.get('SearchQuery')
-					if isinstance(query, str):
-						queries[' '.join(query.casefold().split())] += 1
-			if 'PLANNER_RESPONSE' != record.get('type'):
-				continue
-			stage = 'unassigned'
-			for interval in (bindings or {}).get(cid, []):
-				if interval['first_step'] <= record['step_index'] <= interval['last_step']:
-					stage = interval['stage']
-					break
-			group = phases.setdefault(stage, {'known': Counter(), 'missing': Counter(), 'generations': 0})
-			group['generations'] += 1
-			for field in ('input_tokens', 'cache_read_tokens', 'output_tokens'):
-				value = record.get(field)
-				if type(value) is int and value >= 0:
-					totals[field] += value
-					group['known'][field] += value
-				else:
-					missing[field] += 1
-					group['missing'][field] += 1
-			records.append({'conversation_id': cid, 'step': record['step_index'], 'stage': stage})
-	def result(known, unavailable):
-		return {field: {'known_sum': known[field], 'unreported_records': unavailable[field], 'complete_total': known[field] if not unavailable[field] else None} for field in ('input_tokens', 'cache_read_tokens', 'output_tokens')}
-	return {'generations': len(records), 'duplicate_records_ignored': duplicates, 'tokens': result(totals, missing), 'tools': dict(tools), 'phases': {stage: {'generations': g['generations'], 'tokens': result(g['known'], g['missing'])} for stage, g in phases.items()}, 'observed_error_results': error_results, 'repeated_read_url_calls': sum((n - 1 for n in urls.values())), 'repeated_exact_search_queries': sum((n - 1 for n in queries.values())), 'interpretation': 'Observed native log counters; not quota percentage, currency or proof of content quality'}
+				record = json.loads(line)
+				key = (cid, record.get('step_index'))
+				if key in seen:
+					events.append(('duplicate',))
+					continue
+				seen.add(key)
+				if 'GENERIC' == record.get('type') and re.search('Encountered error in step execution|failed to read file|cannot find the file', record.get('content', ''), re.I):
+					error_results += 1
+				for call in record.get('tool_calls', []):
+					tools[call['name']] += 1
+					args = parse_tool_args(call.get('args', {}))
+					if 'read_url_content' == call['name']:
+						target = args.get('Url') or args.get('URL') or args.get('url')
+						if isinstance(target, str):
+							urls[target] += 1
+					elif 'search_web' == call['name']:
+						query = args.get('query') or args.get('Query') or args.get('SearchQuery')
+						if isinstance(query, str):
+							queries[' '.join(query.casefold().split())] += 1
+				if 'PLANNER_RESPONSE' == record.get('type'):
+					events.append(('generation', cid, record['step_index'], record))
+		r = summarize_token_records(events, bindings, tools=tools, extra={'observed_error_results': error_results, 'repeated_read_url_calls': sum((n - 1 for n in urls.values())), 'repeated_exact_search_queries': sum((n - 1 for n in queries.values())), 'interpretation': 'Observed native log counters; not quota percentage, currency or proof of content quality'})
+	return r
 def project_metrics(root):
 	from .workflow import load, stage_statuses
 	root = Path(root).resolve()
@@ -90,10 +66,7 @@ def project_metrics(root):
 	uses = json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
 	from .research import bounded_metrics
 	collector = None if None is uses else {**bounded_metrics(uses)['totals'], 'scope': 'Only recorded collector operations since instrumentation; earlier requests unknown'}
-	questions = []
-	for question in state['questions'].values():
-		searches = question.get('searches', [])
-		questions.append({'id': question['id'], 'status': question['status'], 'searches': len(searches), 'unsuccessful_searches': sum((not s['useful'] for s in searches)), 'method_changes': sum((bool(s.get('method_change')) for s in searches)), 'gap': question.get('gap')})
+	questions = [{'id': q['id'], 'status': q['status'], 'searches': len(q.get('searches', [])), 'unsuccessful_searches': sum((not s['useful'] for s in q.get('searches', []))), 'method_changes': sum((bool(s.get('method_change')) for s in q.get('searches', []))), 'gap': q.get('gap')} for q in state['questions'].values()]
 	reviews = []
 	for review in state['reviews']:
 		report = json.loads((root / review['report']).read_text(encoding='utf-8'))
@@ -113,19 +86,16 @@ def project_metrics(root):
 				executors.append({key: native.get(key) for key in ('conversation_id', 'parent_id', 'role', 'surface', 'requested', 'observed', 'verification')})
 		except (OSError, ValueError, KeyError, TypeError):
 			executor_issues.append('Executor registry/snapshot is missing, invalid or changed; preserve and inspect')
-	r = {'collector': collector, 'questions': questions, 'reviews': reviews, 'executors': executors, 'executor_issues': executor_issues, 'stages': stage_statuses(root, state), 'semantic_quality_verified': False, 'unrecorded_activity': 'unknown'}
-	return r
+	return {'collector': collector, 'questions': questions, 'reviews': reviews, 'executors': executors, 'executor_issues': executor_issues, 'stages': stage_statuses(root, state), 'semantic_quality_verified': False, 'unrecorded_activity': 'unknown'}
 def native_requests(root, conversation_id, *, backend=None, platform=None):
 	from .platforms import adapter
-	r = adapter(platform).native_requests(root, conversation_id, backend=backend)
-	return r
+	return adapter(platform).native_requests(root, conversation_id, backend=backend)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None):
 	from .platforms import adapter
-	r = adapter(platform).native_review_proof(root, parent_id, reviewer_id, backend=backend, write=write)
-	return r
+	return adapter(platform).native_review_proof(root, parent_id, reviewer_id, backend=backend, write=write)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -133,18 +103,13 @@ def verify_native_proof(root, native, package=None):
 	from .platforms import adapter
 	if not isinstance(native, dict) or not native.get('surface'):
 		raise ValueError('Native review proof must declare its actual surface')
-	r = adapter(surface=native.get('surface')).verify_native_proof(root, native, package=package)
-	return r
+	return adapter(surface=native.get('surface')).verify_native_proof(root, native, package=package)
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, write=False):
 	from .platforms import adapter
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Executor role must be primary, AA or AF')
 	result = adapter(platform).native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, backend=backend)
-	if write:
-		r = _save_executor_metadata(root, result)
-	else:
-		r = result
-	return r
+	return _save_executor_metadata(root, result) if write else result
 def _save_executor_metadata(root, result):
 	import hashlib
 	from .research import json_data
@@ -162,20 +127,16 @@ def _save_executor_metadata(root, result):
 		if not any((item.get('sha256') == sha for item in index['snapshots'])):
 			index['snapshots'].append(receipt)
 			replace_bytes(index_file, json_data(index))
-	r = {**result, **receipt}
-	return r
+	return {**result, **receipt}
 def record_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None):
 	return native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, platform=platform, backend=backend, write=True)
 def native_tool_trace(root, request):
 	from .platforms import adapter
 	if not isinstance(request, dict) or not request.get('surface') or 'events' in request:
 		raise ValueError('Native trace needs a surface/session/selection; supplied events are not evidence')
-	allowed = {'surface', 'conversation_id', 'call_ids', 'step_indices', 'native_profile_home'}
-	if set(request) - allowed:
+	if set(request) - {'surface', 'conversation_id', 'call_ids', 'step_indices', 'native_profile_home'}:
 		raise ValueError('Native trace accepts only exact native source selectors')
-	r = adapter(surface=request['surface']).native_tool_trace(root, request)
-	return r
+	return adapter(surface=request['surface']).native_tool_trace(root, request)
 def wire_fields(data):
 	from .platforms.antigravity import wire_fields as decode
-	r = decode(data)
-	return r
+	return decode(data)

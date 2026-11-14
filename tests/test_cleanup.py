@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 # https://github.com/dmitry-ai/harness/issues/8
@@ -424,6 +427,16 @@ class CleanupTests(TemporaryCase):
 		self.assertIsNotNone(datetime.fromisoformat(state['created_at']).tzinfo)
 		up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.daily, extracted_data=source(), register_native=False)
 		self.assertEqual(json.loads((root / 'ꘖ/project.json').read_text(encoding='utf-8'))['created_at'], state['created_at'])
+	def test_project_cleanup_scanner_reuses_single_pass_history_index_in_dry_run(self):
+		self.project(1)
+		_, kept_native, _ = self.project(2)
+		self.project(3)
+		self.connection(self.backend / 'conversation_summaries.db', 'INSERT INTO conversation_summaries VALUES (?,?)', (kept_native.stem, '[]'))
+		with patch.object(cleanup, '_load_conversation_index', wraps=cleanup._load_conversation_index) as loader:
+			preview = self.run_cleanup(apply=False)
+		self.assertEqual(loader.call_count, 1)
+		self.assertEqual(preview['counts']['eligible'], 2)
+		self.assertEqual(preview['counts']['preserved'], 1)
 class CleanupReportTests(TemporaryCase):
 	def test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight(self):
 		body = 'Cleanup completed.\n\n[History](<C:/work/upwork/code/proposals/daily>)\n'

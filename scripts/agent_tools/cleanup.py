@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 # https://github.com/dmitry-ai/harness/issues/8
@@ -8,14 +11,15 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 import base64
 import json
-import os
 from pathlib import Path
 import re
 import sqlite3
-from urllib.parse import unquote, urlsplit
 from zoneinfo import ZoneInfo
+from .platforms.trace_common import extract_resource_uri, local_uri_to_path, open_readonly_sqlite
+from .research import json_data
 from .runtime import HARNESS_META, LEGACY_PRIMARY, PRIMARY, platform_name, settings
 from .storage import create_bytes, locked, replace_bytes
+_STATUS_NAMES = ('recent', 'preserved', 'eligible', 'removed', 'pending', 'blocked', 'already-absent')
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 # https://github.com/dmitry-ai/harness/issues/8
@@ -50,38 +54,17 @@ def record_cleanup_answer(body, *, now=None, log_root=None):
 			number += 1
 	if target.read_bytes() != payload:
 		raise OSError('Cleanup answer log read-back mismatch')
-	r = {'path': str(target), 'timestamp': timestamp, 'answer': answer}
-	return r
+	return {'path': str(target), 'timestamp': timestamp, 'answer': answer}
 def path_key(value):
-	if isinstance(value, os.PathLike):
-		value = os.fspath(value)
-	if not isinstance(value, str) or not value:
-		raise ValueError('Missing workspace path')
-	if value.startswith('file:'):
-		uri = urlsplit(value)
-		value = unquote(uri.path)
-		host = unquote(uri.netloc)
-		if re.fullmatch('[A-Za-z]:', host):
-			value = host + value
-		elif host and 'localhost' != host.casefold():
-			value = '//' + host + value
-		if re.match('^/[A-Za-z]:/', value):
-			value = value[1:]
-	if value.startswith('\\\\?\\'):
-		value = '\\\\' + value[8:] if value.startswith('\\\\?\\UNC\\') else value[4:]
-	if not Path(value).is_absolute():
-		raise ValueError('Workspace path must be absolute')
-	r = str(Path(value).resolve()).replace('\\', '/').rstrip('/').casefold()
-	return r
+	return str(local_uri_to_path(value, require_absolute=True)).replace('\\', '/').rstrip('/').casefold()
 def linked(path):
 	return any((p.is_symlink() or p.is_junction() for p in (path, *path.parents)))
 def _json(path):
 	if linked(path):
 		raise ValueError(f'Linked store preserved: {path}')
-	value = json.loads(path.read_text(encoding='utf-8-sig'))
-	if not isinstance(value, dict):
+	r = json.loads(path.read_text(encoding='utf-8-sig'))
+	if not isinstance(r, dict):
 		raise ValueError(f'Expected a JSON object: {path}')
-	r = value
 	return r
 def _age(root, state, config):
 	if state.get('created_at'):
@@ -92,11 +75,59 @@ def _age(root, state, config):
 	else:
 		day = datetime.fromisoformat(state['request_date']).replace(tzinfo=ZoneInfo(config['timezone']))
 		birth = getattr(root.stat(), 'st_birthtime', None)
-		if None is not birth:
-			r = (max(day, datetime.fromtimestamp(birth, timezone.utc)), 'legacy-directory-birthtime')
-		else:
-			r = (day + timedelta(days=1), 'legacy-request-day-upper-bound')
+		r = (max(day, datetime.fromtimestamp(birth, timezone.utc)), 'legacy-directory-birthtime') if None is not birth else (day + timedelta(days=1), 'legacy-request-day-upper-bound')
 	return r
+def _belongs_cached(raw_path, wanted, prefix, key_cache):
+	key = key_cache.get(raw_path) if isinstance(raw_path, str) else None
+	if None is key:
+		key = path_key(raw_path)
+		if isinstance(raw_path, str):
+			key_cache[raw_path] = key
+	return key == wanted or key.startswith(prefix)
+def _collect_folder_ancestors(by_id, assignments, project_ids, error_msg):
+	r = set()
+	for ident in project_ids:
+		folder = assignments.get(ident)
+		seen = set()
+		while None is not folder:
+			if folder in seen or folder not in by_id:
+				raise ValueError(error_msg)
+			seen.add(folder)
+			r.add(folder)
+			folder = by_id[folder].get('parentId')
+	return r
+def _count_indexed_conversations(root, ag_projects, homes, catalog, index):
+	wanted = path_key(root)
+	prefix = wanted + '/'
+	ag_rows, codex_rows, key_cache = index
+	ag_ids = {p['id'] for p in ag_projects}
+	r = {'antigravity': sum((proj_id in ag_ids or any((_belongs_cached(uri, wanted, prefix, key_cache) for uri in uris)) for proj_id, uris in ag_rows))}
+	for profile in homes:
+		cx_ids = {p['bindings'][profile] for p in catalog}
+		r['codex:' + profile] = len({tid for tid, proj_id, cwd in codex_rows[profile] if proj_id in cx_ids or _belongs_cached(cwd, wanted, prefix, key_cache)})
+	return r
+def _guard_history_db(database):
+	if not database.is_file() or linked(database):
+		raise ValueError(f'Native history unavailable: {database}')
+def _load_conversation_index(backend, homes):
+	ag_rows = []
+	with open_readonly_sqlite(backend / 'conversation_summaries.db', guard=_guard_history_db, query_only=True, row_factory=sqlite3.Row, timeout=5) as conn:
+		for row in conn.execute('SELECT project_id, workspace_uris FROM conversation_summaries'):
+			uris = json.loads(row['workspace_uris']) if row['workspace_uris'] else []
+			if not isinstance(uris, list):
+				raise ValueError('Unknown Antigravity workspace_uris format')
+			ag_rows.append((row['project_id'], uris))
+	codex_rows = {}
+	for profile, home in homes.items():
+		databases = list(home.glob('state_*.sqlite'))
+		if not databases:
+			raise ValueError(f'Native Codex history unavailable: {profile}')
+		p_rows = []
+		for database in databases:
+			with open_readonly_sqlite(database, guard=_guard_history_db, query_only=True, row_factory=sqlite3.Row, timeout=5) as conn:
+				p_rows.extend(((row['id'], row['project_id'], row['cwd']) for row in conn.execute('SELECT id, project_id, cwd FROM threads')))
+		codex_rows[profile] = p_rows
+	return (ag_rows, codex_rows, {})
 def legacy_initialization(root):
 	agents = root / '.agents'
 	rule = agents / 'rules/90-project.md'
@@ -134,108 +165,63 @@ def candidates(daily, config, now):
 			if linked(marker) or not root.resolve().is_relative_to(daily):
 				raise ValueError('Linked or escaped archive entry preserved')
 			state = _json(marker) if marker.exists() else legacy_initialization(root)
-			if None is state:
-				continue
-			if True is not state.get('initialized') or not re.fullmatch('~\\d+', state.get('job_id', '')):
+			if None is state or True is not state.get('initialized') or not re.fullmatch('~\\d+', state.get('job_id', '')):
 				continue
 			created, basis = _age(root, state, config)
 			values.append({'root': str(root.resolve()), 'job_id': state['job_id'], 'initialization_basis': 'project.json' if marker.exists() else 'legacy-manifests-rule-and-kb', 'created_at': created.isoformat(), 'age_basis': basis, 'old_enough': now - created > timedelta(days=3)})
 		except (OSError, ValueError, TypeError, KeyError) as exc:
 			issues.append({'root': str(root), 'error': str(exc)})
-	r = (values, issues)
-	return r
+	return (values, issues)
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
 def _resource_uri(res):
-	if not isinstance(res, dict):
-		return None
-	r = res.get('folderUri') or (res.get('gitFolder') or {}).get('folderUri') or (res.get('folder') or {}).get('folderUri')
-	return r if isinstance(r, str) and r.strip() else None
+	return extract_resource_uri(res)
 def antigravity_projects(directory, root):
-	matches = []
+	target_key = path_key(root)
+	r = []
 	for path in sorted(directory.glob('*.json')):
 		value = _json(path)
 		resources = (value.get('projectResources') or {}).get('resources') or []
 		roots = [path_key(_resource_uri(res)) for res in resources if _resource_uri(res)]
-		if path_key(root) in roots:
-			if roots != [path_key(root)]:
+		if target_key in roots:
+			if roots != [target_key]:
 				raise ValueError('Antigravity multi-root project preserved')
 			if not value.get('id') or path.stem != value['id']:
 				raise ValueError('Antigravity project identity is ambiguous')
-			matches.append({'id': value['id'], 'file': str(path), 'sha': path.read_bytes()})
+			r.append({'id': value['id'], 'file': str(path), 'sha': path.read_bytes()})
 	pending_file = directory / 'ꘖ/data/cleanup-pending.json'
 	pending = _json(pending_file) if pending_file.exists() else {}
-	for saved in pending.get(path_key(root), {}).get('projects', []):
+	for saved in pending.get(target_key, {}).get('projects', []):
 		ident = saved['id']
 		if not isinstance(ident, str) or not re.fullmatch('[a-f0-9-]{36}', ident):
 			raise ValueError('Invalid pending Antigravity cleanup identity')
 		path = directory / (ident + '.json')
-		if not any((p['id'] == ident for p in matches)):
+		if not any((p['id'] == ident for p in r)):
 			if path.exists():
 				raise ValueError('Pending Antigravity project changed its workspace')
 			payload = base64.b64decode(saved['payload'], validate=True)
 			restored = json.loads(payload.decode('utf-8-sig'))
-			roots = [path_key(_resource_uri(r)) for r in restored['projectResources']['resources'] if _resource_uri(r)]
-			if restored.get('id') != ident or roots != [path_key(root)]:
+			roots = [path_key(_resource_uri(res)) for res in restored['projectResources']['resources'] if _resource_uri(res)]
+			if restored.get('id') != ident or roots != [target_key]:
 				raise ValueError('Pending Antigravity payload changed identity')
-			matches.append({'id': ident, 'file': str(path), 'sha': None, 'restore': payload})
-	return matches
-def _connection(database):
-	if not database.is_file() or linked(database):
-		raise ValueError(f'Native history unavailable: {database}')
-	connection = sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)
-	connection.row_factory = sqlite3.Row
-	connection.execute('PRAGMA query_only=ON')
-	r = connection
+			r.append({'id': ident, 'file': str(path), 'sha': None, 'restore': payload})
 	return r
 def conversations(root, ag_projects, backend, homes, catalog):
-	wanted = path_key(root)
-	def belongs(path):
-		key = path_key(path)
-		r = key == wanted or key.startswith(wanted + '/')
-		return r
-	counts = {}
-	connection = _connection(backend / 'conversation_summaries.db')
-	try:
-		ids = {p['id'] for p in ag_projects}
-		count = 0
-		for row in connection.execute('SELECT project_id, workspace_uris FROM conversation_summaries'):
-			uris = json.loads(row['workspace_uris']) if row['workspace_uris'] else []
-			if not isinstance(uris, list):
-				raise ValueError('Unknown Antigravity workspace_uris format')
-			if row['project_id'] in ids or any((belongs(uri) for uri in uris)):
-				count += 1
-		counts['antigravity'] = count
-	finally:
-		connection.close()
-	for profile, home in homes.items():
-		ids = {p['bindings'][profile] for p in catalog}
-		databases = list(home.glob('state_*.sqlite'))
-		if not databases:
-			raise ValueError(f'Native Codex history unavailable: {profile}')
-		found = set()
-		for database in databases:
-			connection = _connection(database)
-			try:
-				for row in connection.execute('SELECT id, project_id, cwd FROM threads'):
-					if row['project_id'] in ids or belongs(row['cwd']):
-						found.add(row['id'])
-			finally:
-				connection.close()
-		counts['codex:' + profile] = len(found)
-	return counts
+	return _count_indexed_conversations(root, ag_projects, homes, catalog, _load_conversation_index(backend, homes))
+_DEFAULT_CONVERSATIONS = conversations
 def catalog_projects(catalog, root, homes):
 	if not isinstance(catalog, dict) or not isinstance(catalog.get('projects'), dict) or (not isinstance(catalog.get('profiles'), dict)):
 		raise ValueError('Shared-Projects catalogue unavailable')
 	if set(catalog['profiles']) != set(homes):
 		raise ValueError('Configured Codex profiles differ from Shared-Projects')
-	matches = []
+	target_key = path_key(root)
+	r = []
 	for ident, project in catalog['projects'].items():
 		roots = [path_key(path) for path in project['rootPaths']]
-		if path_key(root) not in roots:
+		if target_key not in roots:
 			continue
-		if roots != [path_key(root)]:
+		if roots != [target_key]:
 			raise ValueError('Codex multi-root project preserved')
 		bindings = {}
 		for profile, data in catalog['profiles'].items():
@@ -243,10 +229,9 @@ def catalog_projects(catalog, root, homes):
 			if not binding or not binding.get('desktopId'):
 				raise ValueError('Codex profile binding is missing')
 			bindings[profile] = binding['desktopId']
-		matches.append({'id': ident, 'bindings': bindings, 'cleanup_hold': bool(project.get('cleanupHold'))})
-	if len(matches) > 1:
+		r.append({'id': ident, 'bindings': bindings, 'cleanup_hold': bool(project.get('cleanupHold'))})
+	if 1 < len(r):
 		raise ValueError('Ambiguous Shared-Projects root')
-	r = matches
 	return r
 def prune_folders(value, removed_ids):
 	nodes, assignments = (value['folders'], value['projectFolderMap'])
@@ -255,42 +240,31 @@ def prune_folders(value, removed_ids):
 	by_id = {node['id']: node for node in nodes}
 	if len(by_id) != len(nodes):
 		raise ValueError('Duplicate Folders identities')
-	affected = set()
-	for ident in removed_ids:
-		folder = assignments.get(ident)
-		seen = set()
-		while None is not folder:
-			if folder in seen or folder not in by_id:
-				raise ValueError('Broken Folders ancestry')
-			seen.add(folder)
-			affected.add(folder)
-			folder = by_id[folder].get('parentId')
+	affected = _collect_folder_ancestors(by_id, assignments, removed_ids, 'Broken Folders ancestry')
 	for ident in removed_ids:
 		assignments.pop(ident, None)
-	removed = []
+	r = []
 	while True:
 		empty = {ident for ident in affected if ident in by_id and ident not in assignments.values() and (not any((n.get('parentId') == ident for n in by_id.values())))}
 		if not empty:
 			break
 		for ident in empty:
-			removed.append(ident)
+			r.append(ident)
 			del by_id[ident]
 	value['folders'] = [n for n in nodes if n['id'] in by_id]
 	for key in ('collapsedFolders', 'collapsedFolderIds'):
 		if key in value:
-			value[key] = [ident for ident in value[key] if ident not in removed]
-	r = removed
+			value[key] = [ident for ident in value[key] if ident not in r]
 	return r
 def _finish_pending(directory, root):
 	path = directory / 'ꘖ/data/cleanup-pending.json'
-	if not path.exists():
-		return
-	pending = _json(path)
-	pending.pop(path_key(root), None)
-	if not pending:
-		path.unlink()
-	else:
-		replace_bytes(path, (json.dumps(pending, ensure_ascii=False, indent=2) + '\n').encode())
+	if path.exists():
+		pending = _json(path)
+		pending.pop(path_key(root), None)
+		if not pending:
+			path.unlink()
+		else:
+			replace_bytes(path, json_data(pending))
 def restore_antigravity(root, directory, folders):
 	with locked(directory / 'ꘖ/data/registration.lock'):
 		path = directory / 'ꘖ/data/cleanup-pending.json'
@@ -322,7 +296,7 @@ def restore_antigravity(root, directory, folders):
 					raise ValueError('Restored Folders ancestry is incomplete')
 				if folders.read_bytes() != before:
 					raise ValueError('Folders changed during restoration')
-				replace_bytes(folders, (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode())
+				replace_bytes(folders, json_data(value))
 				_finish_pending(directory, root)
 				r = {'complete': True, 'restored_projects': restored}
 	return r
@@ -340,19 +314,9 @@ def remove_antigravity(root, directory, folders, expected, check):
 			raise ValueError('Folders changed; retry cleanup')
 		pending_file = directory / 'ꘖ/data/cleanup-pending.json'
 		pending = _json(pending_file) if pending_file.exists() else {}
-		by_id = {node['id']: node for node in original['folders']}
-		ancestry = set()
-		for project in current:
-			ancestor = original['projectFolderMap'].get(project['id'])
-			seen = set()
-			while None is not ancestor:
-				if ancestor in seen or ancestor not in by_id:
-					raise ValueError('Invalid pending Folders ancestry')
-				seen.add(ancestor)
-				ancestry.add(ancestor)
-				ancestor = by_id[ancestor].get('parentId')
+		ancestry = _collect_folder_ancestors({node['id']: node for node in original['folders']}, original['projectFolderMap'], (p['id'] for p in current), 'Invalid pending Folders ancestry')
 		pending.setdefault(path_key(root), {'projects': [{'id': p['id'], 'payload': base64.b64encode(p['sha'] if None is not p['sha'] else p['restore']).decode('ascii')} for p in current], 'folders': [node for node in original['folders'] if node['id'] in ancestry], 'assignments': {p['id']: original['projectFolderMap'][p['id']] for p in current if p['id'] in original['projectFolderMap']}})
-		replace_bytes(pending_file, (json.dumps(pending, ensure_ascii=False, indent=2) + '\n').encode())
+		replace_bytes(pending_file, json_data(pending))
 		removed = []
 		for project in current:
 			path = Path(project['file'])
@@ -368,133 +332,159 @@ def remove_antigravity(root, directory, folders, expected, check):
 		check()
 		if folders.read_bytes() != before:
 			raise ValueError('Folders changed after native deletion; retry cleanup')
-		payload = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode()
+		payload = json_data(value)
 		replace_bytes(folders, payload)
 		if folders.read_bytes() != payload:
 			raise ValueError('Folders did not confirm cleanup; retry')
 		r = {'complete': True, 'removed_projects': removed, 'removed_folders': pruned, 'awaiting_commit': True}
 	return r
-# 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
-# https://github.com/dmitry-ai/harness/issues/8
-def cleanup_projects(*, apply=False, daily_root=None, now=None, config=None, ag_directory=None, ag_backend=None, folders=None, control=None):
-	config = config or settings()
-	daily = Path(daily_root or Path(config['workspace_root']) / config['daily_root']).absolute()
-	if linked(daily) or not daily.is_dir():
-		raise ValueError('Daily archive must be an existing unlinked directory')
-	daily = daily.resolve()
-	now = now or datetime.now(timezone.utc)
-	if None is now.tzinfo:
-		raise ValueError('Cleanup time must include a timezone')
-	directory = Path(ag_directory or Path.home() / '.gemini/config/projects').absolute()
-	backend = Path(ag_backend or Path.home() / '.gemini/antigravity').absolute()
-	folder_file = Path(folders or config['platforms']['antigravity']['folders_json']).absolute()
-	homes = {name: Path(home) for name, home in config['platforms']['codex']['homes'].items()}
-	if not directory.is_dir() or linked(directory) or linked(folder_file):
-		raise ValueError('Antigravity native stores unavailable or linked')
-	if directory.is_relative_to(daily) or folder_file.is_relative_to(daily):
-		raise ValueError('Native stores must be outside the preserved daily archive')
-	if None is control:
-		from .platforms.codex import shared_control
-		control = shared_control
-	result = {'complete': True, 'mode': 'apply' if apply else 'dry-run', 'platform': platform_name(), 'cutoff': (now - timedelta(days=3)).isoformat(), 'archive_preserved': str(daily), 'projects': [], 'issues': []}
-	lock = HARNESS_META / 'ꘖ/data/cleanup.lock'
-	with locked(lock) if apply else nullcontext():
-		found, issues = candidates(daily, config, now)
-		result['discovery'] = {'verified_projects': len(found), 'modern_projects': sum(('project.json' == p['initialization_basis'] for p in found)), 'legacy_projects': sum(('project.json' != p['initialization_basis'] for p in found)), 'excluded_with_conversations': 0, 'unresolved_entries': len(issues)}
-		try:
-			catalog = control({'command': 'shared-catalog'})
-			if not isinstance(catalog, dict):
-				raise RuntimeError('Shared-Projects is initializing; retry cleanup')
-			_json(folder_file)
-		except (OSError, ValueError, RuntimeError) as exc:
-			result.update(complete=False, issues=[*issues, {'error': str(exc)}])
-			return result
-		def recover_preserved(entry, root, cx):
-			if not apply:
-				return
-			try:
-				entry['antigravity_recovery'] = restore_antigravity(root, directory, folder_file)
-				if cx:
-					current_cx = catalog_projects(control({'command': 'shared-catalog'}), root, homes)
-					if any((p['cleanup_hold'] for p in current_cx)):
-						entry['recovery'] = control({'command': 'shared-cleanup-project', 'preserve': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings']})
-						if True is not entry['recovery'].get('complete'):
-							result['complete'] = False
-			except (OSError, ValueError, RuntimeError) as recovery_error:
-				entry['recovery_error'] = str(recovery_error)
-				result['complete'] = False
-		for issue in issues:
-			root = Path(issue['root'])
-			try:
-				if linked(root) or not root.resolve().is_relative_to(daily):
-					raise ValueError('Linked or escaped archive entry preserved')
-				ag = antigravity_projects(directory, root)
-				cx = catalog_projects(catalog, root, homes)
-				counts = conversations(root, ag, backend, homes, cx)
-				if any(counts.values()):
-					entry = {'root': str(root), 'status': 'preserved', 'conversations': counts}
-					result['projects'].append(entry)
-					result['discovery']['excluded_with_conversations'] += 1
-					recover_preserved(entry, root, cx)
-					continue
-			except (OSError, ValueError, RuntimeError, KeyError, TypeError, sqlite3.Error):
-				pass
-			result['issues'].append(issue)
-		result['discovery']['unresolved_entries'] = len(result['issues'])
-		for item in found:
-			root = Path(item['root'])
-			entry = {**item, 'status': 'recent' if not item['old_enough'] else 'checking'}
-			result['projects'].append(entry)
-			if not item['old_enough']:
-				continue
+class ProjectCleanupScanner:
+	def __init__(self, *, apply=False, daily_root=None, now=None, config=None, ag_directory=None, ag_backend=None, folders=None, control=None):
+		self.apply = apply
+		self.config = config or settings()
+		daily = Path(daily_root or Path(self.config['workspace_root']) / self.config['daily_root']).absolute()
+		if linked(daily) or not daily.is_dir():
+			raise ValueError('Daily archive must be an existing unlinked directory')
+		self.daily = daily.resolve()
+		self.now = now or datetime.now(timezone.utc)
+		if None is self.now.tzinfo:
+			raise ValueError('Cleanup time must include a timezone')
+		self.directory = Path(ag_directory or Path.home() / '.gemini/config/projects').absolute()
+		self.backend = Path(ag_backend or Path.home() / '.gemini/antigravity').absolute()
+		self.folder_file = Path(folders or self.config['platforms']['antigravity']['folders_json']).absolute()
+		self.homes = {name: Path(home) for name, home in self.config['platforms']['codex']['homes'].items()}
+		if not self.directory.is_dir() or linked(self.directory) or linked(self.folder_file):
+			raise ValueError('Antigravity native stores unavailable or linked')
+		if self.directory.is_relative_to(self.daily) or self.folder_file.is_relative_to(self.daily):
+			raise ValueError('Native stores must be outside the preserved daily archive')
+		if None is control:
+			from .platforms.codex import shared_control
+			control = shared_control
+		self.control = control
+		self.catalog = None
+		self._history = None
+		self.result = {'complete': True, 'mode': 'apply' if apply else 'dry-run', 'platform': platform_name(), 'cutoff': (self.now - timedelta(days=3)).isoformat(), 'archive_preserved': str(self.daily), 'projects': [], 'issues': []}
+	def _apply_removal(self, entry, root, ag, cx, live_check):
+		live_check()
+		ag_meta = {'database': str(self.backend / 'conversation_summaries.db'), 'projectIds': [p['id'] for p in ag]}
+		proceed = True
+		if cx:
+			entry['codex'] = self.control({'command': 'shared-cleanup-project', 'deferCommit': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings'], 'antigravity': ag_meta})
+			if True is not entry['codex'].get('complete'):
+				entry['status'], self.result['complete'], proceed = ('pending', False, False)
+		if proceed and ag:
+			entry['antigravity'] = remove_antigravity(root, self.directory, self.folder_file, ag, live_check)
+		if proceed and cx:
+			entry['codex_commit'] = self.control({'command': 'shared-cleanup-project', 'commit': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings'], 'antigravity': ag_meta})
+			if True is not entry['codex_commit'].get('complete'):
+				entry['status'], self.result['complete'], proceed = ('pending', False, False)
+		if proceed:
+			with locked(self.directory / 'ꘖ/data/registration.lock'):
+				_finish_pending(self.directory, root)
+			entry['status'] = 'removed'
+			self.catalog = self.control({'command': 'shared-catalog'})
+	def _discover_conversations(self, root, ag, cx):
+		if conversations is not _DEFAULT_CONVERSATIONS:
+			r = conversations(root, ag, self.backend, self.homes, cx)
+		else:
+			if None is self._history:
+				self._history = _load_conversation_index(self.backend, self.homes)
+			r = _count_indexed_conversations(root, ag, self.homes, cx, self._history)
+		return r
+	def _inspect_candidate(self, item):
+		root = Path(item['root'])
+		entry = {**item, 'status': 'recent' if not item['old_enough'] else 'checking'}
+		self.result['projects'].append(entry)
+		if item['old_enough']:
 			cx, ag = ([], [])
 			try:
-				ag = antigravity_projects(directory, root)
-				cx = catalog_projects(catalog, root, homes)
-				def check():
-					counts = conversations(root, ag, backend, homes, cx)
-					entry['conversations'] = counts
-					if any(counts.values()):
-						raise ValueError('Project has conversations')
-				check()
-				if not ag and (not cx):
+				ag = antigravity_projects(self.directory, root)
+				cx = catalog_projects(self.catalog, root, self.homes)
+				counts = self._discover_conversations(root, ag, cx)
+				entry['conversations'] = counts
+				if not ag and (not cx) and (not any(counts.values())):
 					entry['status'] = 'already-absent'
-					continue
-				entry['status'] = 'eligible'
-				entry['native_projects'] = {'antigravity': [p['id'] for p in ag], 'codex': [p['id'] for p in cx]}
-				if not apply:
-					continue
-				check()
-				if cx:
-					entry['codex'] = control({'command': 'shared-cleanup-project', 'deferCommit': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings'], 'antigravity': {'database': str(backend / 'conversation_summaries.db'), 'projectIds': [p['id'] for p in ag]}})
-					if True is not entry['codex'].get('complete'):
-						entry['status'] = 'pending'
-						result['complete'] = False
-						continue
-				if ag:
-					entry['antigravity'] = remove_antigravity(root, directory, folder_file, ag, check)
-				if cx:
-					entry['codex_commit'] = control({'command': 'shared-cleanup-project', 'commit': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings'], 'antigravity': {'database': str(backend / 'conversation_summaries.db'), 'projectIds': [p['id'] for p in ag]}})
-					if True is not entry['codex_commit'].get('complete'):
-						entry['status'] = 'pending'
-						result['complete'] = False
-						continue
-				with locked(directory / 'ꘖ/data/registration.lock'):
-					_finish_pending(directory, root)
-				entry['status'] = 'removed'
-				catalog = control({'command': 'shared-catalog'})
+				elif any(counts.values()):
+					entry.update(status='preserved', error='Project has conversations')
+					self._recover_preserved(entry, root, cx)
+				else:
+					entry['status'] = 'eligible'
+					entry['native_projects'] = {'antigravity': [p['id'] for p in ag], 'codex': [p['id'] for p in cx]}
+					if self.apply:
+						def live_check():
+							live = conversations(root, ag, self.backend, self.homes, cx)
+							entry['conversations'] = live
+							if any(live.values()):
+								raise ValueError('Project has conversations')
+						self._apply_removal(entry, root, ag, cx, live_check)
 			except (OSError, ValueError, RuntimeError, KeyError, TypeError, sqlite3.Error) as exc:
 				try:
-					entry['conversations'] = conversations(root, ag, backend, homes, cx)
+					entry['conversations'] = conversations(root, ag, self.backend, self.homes, cx)
 				except (OSError, ValueError, TypeError, sqlite3.Error):
 					pass
 				entry.update(status='preserved' if any(entry.get('conversations', {}).values()) else 'blocked', error=str(exc))
 				if 'preserved' == entry['status']:
-					recover_preserved(entry, root, cx)
-				if 'blocked' == entry['status']:
-					result['complete'] = False
-		if result['issues']:
-			result['complete'] = False
-	result['counts'] = {name: sum((p['status'] == name for p in result['projects'])) for name in ('recent', 'preserved', 'eligible', 'removed', 'pending', 'blocked', 'already-absent')}
-	return result
+					self._recover_preserved(entry, root, cx)
+				elif 'blocked' == entry['status']:
+					self.result['complete'] = False
+	def _inspect_unresolved(self, issues):
+		for issue in issues:
+			root = Path(issue['root'])
+			preserved = False
+			try:
+				if linked(root) or not root.resolve().is_relative_to(self.daily):
+					raise ValueError('Linked or escaped archive entry preserved')
+				ag = antigravity_projects(self.directory, root)
+				cx = catalog_projects(self.catalog, root, self.homes)
+				counts = self._discover_conversations(root, ag, cx)
+				if any(counts.values()):
+					entry = {'root': str(root), 'status': 'preserved', 'conversations': counts}
+					self.result['projects'].append(entry)
+					self.result['discovery']['excluded_with_conversations'] += 1
+					self._recover_preserved(entry, root, cx)
+					preserved = True
+			except (OSError, ValueError, RuntimeError, KeyError, TypeError, sqlite3.Error):
+				pass
+			if not preserved:
+				self.result['issues'].append(issue)
+		self.result['discovery']['unresolved_entries'] = len(self.result['issues'])
+	def _recover_preserved(self, entry, root, cx):
+		if self.apply:
+			try:
+				entry['antigravity_recovery'] = restore_antigravity(root, self.directory, self.folder_file)
+				if cx:
+					current_cx = catalog_projects(self.control({'command': 'shared-catalog'}), root, self.homes)
+					if any((p['cleanup_hold'] for p in current_cx)):
+						entry['recovery'] = self.control({'command': 'shared-cleanup-project', 'preserve': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings']})
+						if True is not entry['recovery'].get('complete'):
+							self.result['complete'] = False
+			except (OSError, ValueError, RuntimeError) as recovery_error:
+				entry['recovery_error'] = str(recovery_error)
+				self.result['complete'] = False
+	def run(self):
+		lock = HARNESS_META / 'ꘖ/data/cleanup.lock'
+		with locked(lock) if self.apply else nullcontext():
+			found, issues = candidates(self.daily, self.config, self.now)
+			self.result['discovery'] = {'verified_projects': len(found), 'modern_projects': sum(('project.json' == p['initialization_basis'] for p in found)), 'legacy_projects': sum(('project.json' != p['initialization_basis'] for p in found)), 'excluded_with_conversations': 0, 'unresolved_entries': len(issues)}
+			ready = True
+			try:
+				self.catalog = self.control({'command': 'shared-catalog'})
+				if not isinstance(self.catalog, dict):
+					raise RuntimeError('Shared-Projects is initializing; retry cleanup')
+				_json(self.folder_file)
+			except (OSError, ValueError, RuntimeError) as exc:
+				self.result.update(complete=False, issues=[*issues, {'error': str(exc)}])
+				ready = False
+			if ready:
+				self._inspect_unresolved(issues)
+				for item in found:
+					self._inspect_candidate(item)
+				if self.result['issues']:
+					self.result['complete'] = False
+				self.result['counts'] = {name: sum((p['status'] == name for p in self.result['projects'])) for name in _STATUS_NAMES}
+		return self.result
+# 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
+# https://github.com/dmitry-ai/harness/issues/8
+def cleanup_projects(*, apply=False, daily_root=None, now=None, config=None, ag_directory=None, ag_backend=None, folders=None, control=None):
+	return ProjectCleanupScanner(apply=apply, daily_root=daily_root, now=now, config=config, ag_directory=ag_directory, ag_backend=ag_backend, folders=folders, control=control).run()

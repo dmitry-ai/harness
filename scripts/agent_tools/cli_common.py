@@ -1,4 +1,7 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
 # https://github.com/dmitry-ai/harness/issues/69
 import hashlib
@@ -58,7 +61,12 @@ def load_operation_input(args, path) -> bytes:
 			raise ValueError(f'Input SHA-256 mismatch against --expected-sha256: expected {expected_sha}, got {actual_sha}')
 	return r
 def read_input_bytes(path) -> bytes:
-	return sys.stdin.buffer.read() if '-' == str(path) else Path(path).read_bytes()
+	if '-' != str(path):
+		r = Path(path).read_bytes()
+	else:
+		buf = getattr(sys.stdin, 'buffer', None)
+		r = buf.read() if None is not buf else sys.stdin.read().encode('utf-8')
+	return r
 def read_input_json(path, *, encoding: str='utf-8-sig'):
 	return json.loads(read_input_text(path, encoding=encoding)) if None is not path else None
 def read_input_text(path, *, encoding: str='utf-8-sig') -> str:

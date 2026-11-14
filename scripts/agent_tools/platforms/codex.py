@@ -1,4 +1,7 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -31,6 +34,7 @@
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
+from collections import Counter
 import hashlib
 import json
 from pathlib import Path
@@ -40,9 +44,8 @@ import subprocess
 from ..runtime import platform_settings, profile_name
 from ..research import json_data
 from ..shell_audit import extract_issue_actions_from_outputs
-from ..storage import create_bytes, iter_embedded_json_objects
-from .request_binding import native_project_fields
-from .trace_common import collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
+from ..storage import iter_embedded_json_objects
+from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, local_uri_to_path, make_tool_trace_event, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_token_records, summarize_turn_activity, verify_review_proof_core
 class CodexTurnScanner:
 	def __init__(self, root, conversation_id, *, backend=None):
 		self.root = root
@@ -68,14 +71,9 @@ class CodexTurnScanner:
 			if acc['subagent_steps'] or (is_last_turn and unclaimed):
 				seeds = [(cid, False, self.conversation_id) for cid in unclaimed] if is_last_turn else []
 				for rec in acc['tool_records']:
-					for t_uid in rec.get('target_subagents', []):
-						if t_uid != self.conversation_id:
-							seeds.append((t_uid, False, self.conversation_id))
+					seeds.extend(((t_uid, False, self.conversation_id) for t_uid in rec.get('target_subagents', []) if t_uid != self.conversation_id))
 					if any((str(t).endswith(('spawn_agent', 'invoke_subagent')) for t in rec.get('tools', []))):
-						for out in rec.get('outputs', []):
-							for m_uuid in _extract_codex_spawn_output_uuids(str(out)):
-								if m_uuid != self.conversation_id:
-									seeds.append((m_uuid, False, self.conversation_id))
+						seeds.extend(((m_uuid, False, self.conversation_id) for out in rec.get('outputs', []) for m_uuid in _extract_codex_spawn_output_uuids(str(out)) if m_uuid != self.conversation_id))
 				anchor = acc['subagent_steps'][-1] if acc['subagent_steps'] else (acc['tool_steps'][-1] if acc['tool_steps'] else turn['start_step'])
 				visited_sub_ids = collect_subagent_bfs(self.conversation_id, self.root_p, seeds, lambda sid, depth, hint, parent: self._resolve_subagent_child(sid, parent, anchor, turn, acc), acc['aa_partial_read_violations'])
 		self.completed_turn_sub_ids.update(visited_sub_ids - {self.conversation_id})
@@ -93,17 +91,12 @@ class CodexTurnScanner:
 				_SUBAGENT_PARENT_CACHE.clear()
 			for db_file in sorted(self.home.glob('state_*.sqlite')):
 				try:
-					conn = sqlite3.connect(db_file.as_uri() + '?mode=ro', uri=True)
-					conn.row_factory = sqlite3.Row
-					try:
+					with open_readonly_sqlite(db_file, row_factory=sqlite3.Row) as conn:
 						t_rows = conn.execute('SELECT id, rollout_path FROM threads').fetchall()
-					finally:
-						conn.close()
 				except sqlite3.Error:
 					continue
 				for tr in t_rows:
-					tid = tr['id']
-					r_path = tr['rollout_path']
+					tid, r_path = (tr['id'], tr['rollout_path'])
 					if not tid or tid == self.conversation_id or not r_path:
 						continue
 					try:
@@ -120,9 +113,7 @@ class CodexTurnScanner:
 								continue
 							first_obj = json.loads(first_ln)
 							src_meta = (first_obj.get('payload') or {}).get('source') if isinstance(first_obj, dict) and isinstance(first_obj.get('payload'), dict) else None
-							sub_meta = src_meta.get('subagent') if isinstance(src_meta, dict) else None
-							spawn_meta = sub_meta.get('thread_spawn') if isinstance(sub_meta, dict) else None
-							raw_parent = spawn_meta.get('parent_thread_id') if isinstance(spawn_meta, dict) else None
+							raw_parent = ((src_meta.get('subagent') if isinstance(src_meta, dict) else None) or {}).get('thread_spawn', {}).get('parent_thread_id') if isinstance(src_meta, dict) and isinstance(src_meta.get('subagent'), dict) and isinstance(src_meta['subagent'].get('thread_spawn'), dict) else None
 							p_tid = raw_parent if isinstance(raw_parent, str) and raw_parent else ''
 							_SUBAGENT_PARENT_CACHE[cache_key] = (st.st_mtime_ns, st.st_size, p_tid)
 						self.thread_parent_map[tid] = p_tid
@@ -146,8 +137,7 @@ class CodexTurnScanner:
 			try:
 				sub_db_row, _, _, sub_rows = _trace(self.home, sub_id)
 				sub_agent_path = str((sub_db_row or {}).get('agent_path') or '')
-				is_aa = not re.search('\\baf\\b', sub_agent_path, flags=re.I) and bool(acc['aa_subagent_steps'] or sub_agent_path)
-				r = (sub_rows, is_aa, pre_children, lambda sid, rows: self._visit_subagent_rows(sid, rows, anchor, turn, acc))
+				r = (sub_rows, not re.search('\\baf\\b', sub_agent_path, flags=re.I) and bool(acc['aa_subagent_steps'] or sub_agent_path), pre_children, lambda sid, rows: self._visit_subagent_rows(sid, rows, anchor, turn, acc))
 			except (ValueError, OSError):
 				r = ([], False, pre_children, None)
 		return r
@@ -155,8 +145,7 @@ class CodexTurnScanner:
 		current, acc = (None, None)
 		for index, item in self.rows:
 			payload = item.get('payload', {})
-			kind = item.get('type')
-			ptype = payload.get('type')
+			kind, ptype = (item.get('type'), payload.get('type'))
 			if None is not current and (kind in ('compacted', 'context_compacted', 'checkpoint') or (kind in ('event_msg', 'response_item') and ptype in ('context_compacted', 'compacted', 'checkpoint'))):
 				acc['checkpoint_steps'].append(index)
 			elif None is not current and 'response_item' == kind and ptype in ('function_call_output', 'custom_tool_call_output'):
@@ -172,8 +161,7 @@ class CodexTurnScanner:
 				acc = init_turn_accumulator(extra={'all_request_steps': [], 'pending_calls': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files']})
 				self.turn_entries.append((current, acc))
 			elif None is not current and 'event_msg' == kind and ptype in ('task_complete', 'turn_aborted') and payload.get('turn_id') == current['turn_id']:
-				current['completion_step'] = index
-				current['aborted'] = 'turn_aborted' == ptype
+				current['completion_step'], current['aborted'] = (index, 'turn_aborted' == ptype)
 				if not current['aborted']:
 					native_final = payload.get('last_agent_message')
 					if None is not current['response'] and isinstance(native_final, str) and (native_final != current['response']):
@@ -196,20 +184,16 @@ class CodexTurnScanner:
 				raw_in = payload.get('input', payload.get('arguments', ''))
 				raw_cmd = raw_in if isinstance(raw_in, str) else json.dumps(raw_in, ensure_ascii=False)
 				acc['tool_steps'].append(index)
-				target_subs = _extract_codex_target_subagents(raw_args) if name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')) else []
-				rec = {'step': index, 'tools': [name], 'outputs': [], 'target_subagents': target_subs}
+				rec = {'step': index, 'tools': [name], 'outputs': [], 'target_subagents': _extract_codex_target_subagents(raw_args) if name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')) else []}
 				acc['tool_records'].append(rec)
 				if payload.get('call_id'):
 					acc['pending_calls'][payload['call_id']] = rec
 				record_normalized_tool_effects(self.root_p, index, name, raw_args, raw_cmd, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True, transcript_tokens=(str(self.path.name),))
 		self.current_turn = current
 	def _visit_subagent_rows(self, sub_id, sub_rows, anchor, turn, acc):
-		r = []
-		sub_outputs = []
-		sub_spawn_call_ids = set()
+		r, sub_outputs, sub_spawn_call_ids = ([], [], set())
 		for _, s_item in sub_rows:
-			s_kind = s_item.get('type')
-			s_pay = s_item.get('payload', {})
+			s_kind, s_pay = (s_item.get('type'), s_item.get('payload', {}))
 			if 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
 				out = s_pay.get('output')
 				out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
@@ -236,17 +220,10 @@ class CodexTurnScanner:
 		self._scan_primary_turns()
 		for t_idx, (turn, acc) in enumerate(self.turn_entries):
 			self._finalize_turn(t_idx, turn, acc)
-		turns = [turn for turn, _ in self.turn_entries]
-		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home), 'source_file': str(self.path), 'primary': not self.child, 'turns': turns, 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None}
+		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home), 'source_file': str(self.path), 'primary': not self.child, 'turns': [turn for turn, _ in self.turn_entries], 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None}
 _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 def _local_path(value):
-	path = str(Path(value).resolve())
-	if path.startswith('\\\\?\\UNC\\'):
-		path = '\\\\' + path[8:]
-	elif path.startswith('\\\\?\\') and re.match('^[A-Za-z]:\\\\', path[4:]):
-		path = path[4:]
-	r = Path(path)
-	return r
+	return local_uri_to_path(value)
 def _home(backend=None, profile=None):
 	if None is not backend:
 		r = Path(backend).resolve()
@@ -261,17 +238,12 @@ def _trace(home, conversation_id):
 	home = _local_path(home)
 	if not re.fullmatch('[a-f0-9-]{36}', conversation_id):
 		raise ValueError('Exact native Codex thread UUID required')
-	databases = sorted(home.glob('state_*.sqlite'))
 	found = []
-	for database in databases:
-		connection = sqlite3.connect(database.as_uri() + '?mode=ro', uri=True)
-		connection.row_factory = sqlite3.Row
-		try:
+	for database in sorted(home.glob('state_*.sqlite')):
+		with open_readonly_sqlite(database, row_factory=sqlite3.Row) as connection:
 			row = connection.execute('SELECT * FROM threads WHERE id=?', (conversation_id,)).fetchone()
 			if row:
 				found.append(dict(row))
-		finally:
-			connection.close()
 	if 1 != len(found):
 		raise ValueError('Native Codex thread is missing or ambiguous in this profile')
 	row = found[0]
@@ -287,27 +259,24 @@ def _trace(home, conversation_id):
 			value = json.loads(line)
 		except ValueError as exc:
 			raise ValueError('Native Codex trace has a partial record; retry after it is flushed') from exc
-		kind = value.get('type')
-		payload = value.get('payload', {})
+		kind, payload = (value.get('type'), value.get('payload', {}))
 		if kind in ('session_meta', 'turn_context') or ('response_item' == kind and 'reasoning' != payload.get('type')) or ('event_msg' == kind and payload.get('type') in ('task_started', 'task_complete', 'turn_aborted')):
 			rows.append((index, value))
 		elif kind in ('compacted', 'context_compacted', 'checkpoint') or ('event_msg' == kind and payload.get('type') in ('context_compacted', 'compacted', 'checkpoint')):
 			rows.append((index, {'type': 'event_msg', 'payload': {'type': 'context_compacted', 'turn_id': payload.get('turn_id')}}))
 	if not rows or 'session_meta' != rows[0][1].get('type') or rows[0][1]['payload'].get('id') != conversation_id:
 		raise ValueError('Codex trace identity differs from native database')
-	r = (row, path, raw, rows)
-	return r
+	return (row, path, raw, rows)
 def _messages(rows, role):
 	for index, item in rows:
 		payload = item.get('payload', {})
-		if 'response_item' != item.get('type') or 'message' != payload.get('type') or payload.get('role') != role:
-			continue
-		content = payload.get('content', [])
-		if not isinstance(content, list):
-			raise ValueError('Unsupported native Codex message content')
-		texts = [part['text'] for part in content if part.get('type') in ('input_text', 'output_text') and isinstance(part.get('text'), str)]
-		if texts:
-			yield (index, ''.join(texts), payload)
+		if 'response_item' == item.get('type') and 'message' == payload.get('type') and payload.get('role') == role:
+			content = payload.get('content', [])
+			if not isinstance(content, list):
+				raise ValueError('Unsupported native Codex message content')
+			texts = [part['text'] for part in content if part.get('type') in ('input_text', 'output_text') and isinstance(part.get('text'), str)]
+			if texts:
+				yield (index, ''.join(texts), payload)
 def _actual_user_input(text, payload):
 	kinds = payload.get('internal_chat_message_metadata_passthrough', {}).get('content_item_kinds', [])
 	if 'user.text' in kinds:
@@ -331,38 +300,27 @@ def _request_scope(root, rows, *, until=None, identifier=None):
 	roots.extend(((index, str(_local_path(value['cwd'])), 'codex-turn-cwd') for index, value in contexts))
 	inputs = []
 	for index, text, payload in _messages(visible, 'user'):
-		if not _actual_user_input(text, payload):
-			continue
-		turn = payload.get('internal_chat_message_metadata_passthrough', {}).get('turn_id')
-		matching = [(step, value) for step, value in contexts if turn and value.get('turn_id') == turn]
-		if matching and (not any((step <= index for step, _ in matching))):
-			roots.append((index, str(_local_path(matching[0][1]['cwd'])), 'codex-turn-cwd'))
-		inputs.append((index, text))
-	r = scoped_inputs(root, job_id, inputs, roots, until=until)
-	return r
+		if _actual_user_input(text, payload):
+			turn = payload.get('internal_chat_message_metadata_passthrough', {}).get('turn_id')
+			matching = [(step, value) for step, value in contexts if turn and value.get('turn_id') == turn]
+			if matching and (not any((step <= index for step, _ in matching))):
+				roots.append((index, str(_local_path(matching[0][1]['cwd'])), 'codex-turn-cwd'))
+			inputs.append((index, text))
+	return scoped_inputs(root, job_id, inputs, roots, until=until)
 def native_requests(root, conversation_id, *, backend=None):
 	home = _home(backend)
-	_, _, _, rows = _trace(home, conversation_id)
-	selected, _, _ = _request_scope(root, rows)
+	selected, _, _ = _request_scope(root, _trace(home, conversation_id)[3])
 	return current_turn_requests(selected, conversation_id, 'codex-ui', 'Native Codex requests do not identify this project; use its exact project root or /upwork-init URL', id_fmt='codex:{cid}:{idx}', extra={'native_profile_home': str(home)})
 def require_current_binding(root, conversation_id, *, backend=None, rows=None, until=None):
-	if None is rows:
-		rows = _trace(_home(backend), conversation_id)[3]
-	selected, active, binding = _request_scope(root, rows, until=until)
+	selected, active, binding = _request_scope(root, _trace(_home(backend), conversation_id)[3] if None is rows else rows, until=until)
 	return require_turn_binding(selected, active, binding, 'Native Codex conversation is currently bound to another project or no exact project root')
 def _extract_codex_target_subagents(raw_args) -> list[str]:
 	parsed_args = parse_tool_args(raw_args)
-	candidates: list[str] = []
-	for key in ('id', 'Recipient', 'agent_id', 'subagent_id'):
-		val = parsed_args.get(key)
-		if isinstance(val, str):
-			candidates.append(val.strip().lower())
+	candidates = [val.strip().lower() for key in ('id', 'Recipient', 'agent_id', 'subagent_id') for val in [parsed_args.get(key)] if isinstance(val, str)]
 	ids_val = parsed_args.get('ids')
 	if isinstance(ids_val, list):
-		for item in ids_val:
-			if isinstance(item, str):
-				candidates.append(item.strip().lower())
-	return [u for u in dict.fromkeys(candidates) if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)]
+		candidates.extend((item.strip().lower() for item in ids_val if isinstance(item, str)))
+	return [u for u in dict.fromkeys(candidates) if re.fullmatch(UUID_PATTERN, u)]
 def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 	r = []
 	if isinstance(out_text, str) and out_text.strip():
@@ -371,14 +329,13 @@ def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 		except ValueError:
 			parsed = None
 		if not isinstance(parsed, dict):
-			r = [m.lower() for m in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_text, flags=re.I)]
+			r = [m.lower() for m in re.findall(f'\\b({UUID_PATTERN})\\b', out_text, flags=re.I)]
 		else:
-			id_vals = [str(parsed[k]).strip().lower() for k in ('agent_id', 'conversationId', 'subagent_id', 'id', 'thread_id') if isinstance(parsed.get(k), str)]
-			matched = [u for u in dict.fromkeys(id_vals) if re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', u)]
+			matched = [u for u in dict.fromkeys((str(parsed[k]).strip().lower() for k in ('agent_id', 'conversationId', 'subagent_id', 'id', 'thread_id') if isinstance(parsed.get(k), str))) if re.fullmatch(UUID_PATTERN, u)]
 			if matched or any((k in parsed for k in ('output', 'message', 'response', 'content'))):
 				r = matched
 			else:
-				r = [m.lower() for m in re.findall('\\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\b', out_text, flags=re.I)]
+				r = [m.lower() for m in re.findall(f'\\b({UUID_PATTERN})\\b', out_text, flags=re.I)]
 	return r
 def native_answers(root, conversation_id, *, backend=None):
 	return CodexTurnScanner(root, conversation_id, backend=backend).scan()
@@ -386,30 +343,18 @@ def _model(rows, before=None):
 	contexts = [item['payload'] for index, item in rows if 'turn_context' == item.get('type') and (None is before or index <= before)]
 	if not contexts or not contexts[-1].get('model') or (not contexts[-1].get('effort')):
 		raise ValueError('Actual Codex model/effort is unavailable in native turn context')
-	r = {key: contexts[-1][key] for key in ('model', 'effort')}
-	return r
+	return {key: contexts[-1][key] for key in ('model', 'effort')}
 def _spawn(parent_rows, child_meta):
-	path = child_meta['source']['subagent']['thread_spawn'].get('agent_path', '')
-	matches = []
-	created = child_meta.get('timestamp')
+	path, created, matches = (child_meta['source']['subagent']['thread_spawn'].get('agent_path', ''), child_meta.get('timestamp'), [])
 	for index, item in parent_rows:
 		payload = item.get('payload', {})
-		if 'response_item' != item.get('type') or not payload.get('name', '').endswith('spawn_agent'):
-			continue
-		if created and item.get('timestamp') and (item['timestamp'] > created):
-			continue
-		value = payload.get('arguments', payload.get('input', '{}'))
-		if isinstance(value, str):
-			try:
-				value = json.loads(value)
-			except ValueError:
-				continue
-		if isinstance(value, dict) and value.get('task_name') and path.endswith('/' + value['task_name']):
-			matches.append((index, payload.get('call_id'), value))
+		if 'response_item' == item.get('type') and payload.get('name', '').endswith('spawn_agent') and (not (created and item.get('timestamp') and (item['timestamp'] > created))):
+			value = parse_tool_args(payload.get('arguments', payload.get('input', '{}')))
+			if value.get('task_name') and path.endswith('/' + value['task_name']):
+				matches.append((index, payload.get('call_id'), value))
 	if not matches:
 		raise ValueError('Native parent spawn call and its model selection are not established')
-	r = matches[-1]
-	return r
+	return matches[-1]
 def _selection(parent_rows, child_meta, invocation=None):
 	index, call_id, arguments = invocation or _spawn(parent_rows, child_meta)
 	parent = _model(parent_rows, before=index)
@@ -417,8 +362,7 @@ def _selection(parent_rows, child_meta, invocation=None):
 	effort = arguments.get('reasoning_effort') or arguments.get('model_reasoning_effort')
 	if None is effort and model == parent['model']:
 		effort = parent['effort']
-	r = {'model': model, 'effort': effort, 'invocation_call_id': call_id, 'task_name': arguments['task_name'], 'selection': 'explicit-parent-spawn' if arguments.get('model') or arguments.get('reasoning_effort') else 'inherit'}
-	return r
+	return {'model': model, 'effort': effort, 'invocation_call_id': call_id, 'task_name': arguments['task_name'], 'selection': 'explicit-parent-spawn' if arguments.get('model') or arguments.get('reasoning_effort') else 'inherit'}
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None):
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Unknown executor role')
@@ -432,7 +376,10 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 	meta = rows[0][1]['payload']
 	source = meta.get('source')
 	spawn = source.get('subagent', {}).get('thread_spawn', {}) if isinstance(source, dict) else {}
-	if 'primary' != role:
+	if 'primary' == role:
+		if meta.get('model'):
+			requested.update(model=meta['model'], effort=meta.get('reasoning_effort'), selection='native-session-selection', source={'native_file': str(path), 'kind': 'session_meta', 'step': rows[0][0]})
+	else:
 		if not parent_id or spawn.get('parent_thread_id') != parent_id or parent_id == conversation_id:
 			raise ValueError('Native parent/child relationship required for AA/AF metadata')
 		_, parent_path, _, parent_rows = _trace(home, parent_id)
@@ -444,8 +391,6 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 			arguments = invocation[2]
 			requested.update(model=arguments.get('model'), effort=arguments.get('reasoning_effort') or arguments.get('model_reasoning_effort'), selection='explicit-parent-spawn' if arguments.get('model') else 'inherit')
 		requested['source'] = {'native_file': str(parent_path), 'kind': 'spawn_agent', 'step': invocation[0], 'call_id': invocation[1]}
-	elif meta.get('model'):
-		requested.update(model=meta['model'], effort=meta.get('reasoning_effort'), selection='native-session-selection', source={'native_file': str(path), 'kind': 'session_meta', 'step': rows[0][0]})
 	return finalize_executor_checks('codex-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native turn_context reports selected model/effort; missing fields remain unknown; server execution internals are not inferred')
 def native_tool_trace(root, request):
 	home = _home(request.get('native_profile_home'))
@@ -459,17 +404,16 @@ def native_tool_trace(root, request):
 	calls, outputs = ({}, {})
 	for index, item in rows:
 		payload = item.get('payload', {})
-		if 'response_item' != item.get('type') or payload.get('call_id') not in ids:
-			continue
-		call_id, kind = (payload['call_id'], payload.get('type'))
-		if kind in ('function_call', 'custom_tool_call'):
-			if call_id in calls:
-				raise ValueError('Ambiguous native tool invocation')
-			calls[call_id] = (index, payload, item.get('timestamp'))
-		elif kind in ('function_call_output', 'custom_tool_call_output'):
-			if call_id in outputs:
-				raise ValueError('Ambiguous native tool output')
-			outputs[call_id] = (index, payload, item.get('timestamp'))
+		if 'response_item' == item.get('type') and payload.get('call_id') in ids:
+			call_id, kind = (payload['call_id'], payload.get('type'))
+			if kind in ('function_call', 'custom_tool_call'):
+				if call_id in calls:
+					raise ValueError('Ambiguous native tool invocation')
+				calls[call_id] = (index, payload, item.get('timestamp'))
+			elif kind in ('function_call_output', 'custom_tool_call_output'):
+				if call_id in outputs:
+					raise ValueError('Ambiguous native tool output')
+				outputs[call_id] = (index, payload, item.get('timestamp'))
 	events = []
 	for call_id in ids:
 		if call_id not in calls or call_id not in outputs or outputs[call_id][0] <= calls[call_id][0]:
@@ -483,60 +427,49 @@ def native_tool_trace(root, request):
 			except ValueError:
 				arguments = {'code': arguments} if 'custom_tool_call' == call.get('type') else {}
 		result = output.get('output')
-		error = True is output.get('isError')
-		if isinstance(result, dict):
-			error |= True is result.get('isError')
-		elif isinstance(result, str):
+		error = True is output.get('isError') or (isinstance(result, dict) and True is result.get('isError'))
+		if isinstance(result, str):
 			try:
 				error |= True is json.loads(result).get('isError')
 			except (ValueError, AttributeError):
 				pass
-		events.append({'id': call_id, 'step': index, 'output_step': output_index, 'name': call.get('name', ''), 'arguments': arguments, 'result': result, 'successful': not error, 'created_at': created_at, 'completed_at': completed_at, 'native_event_sha256': hashlib.sha256(json_data([call, output])).hexdigest()})
-		if None is not call.get('namespace'):
-			events[-1]['namespace'] = call['namespace']
-	r = {'surface': 'codex-ui', 'conversation_id': conversation_id, 'native_profile_home': str(home), 'call_ids': ids, 'native_log': str(path), 'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
-	return r
+		events.append(make_tool_trace_event(call_id, index, output_index, call.get('name', ''), arguments, result, not error, created_at, completed_at, [call, output], namespace=call.get('namespace')))
+	return {'surface': 'codex-ui', 'conversation_id': conversation_id, 'native_profile_home': str(home), 'call_ids': ids, 'native_log': str(path), 'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
 def _assignment_source(rows, meta, assignment):
-	spawn = meta['source']['subagent']['thread_spawn']
-	path = spawn['agent_path']
+	r = None
+	path = meta['source']['subagent']['thread_spawn']['agent_path']
 	for _, item in rows:
 		payload = item.get('payload', {})
-		if 'response_item' != item.get('type') or 'agent_message' != payload.get('type') or payload.get('recipient') != path:
-			continue
-		parts = payload.get('content', [])
-		if not any((part.get('text', '').startswith('Message Type: NEW_TASK') for part in parts)):
-			continue
-		if any((part.get('encrypted_content') == assignment for part in parts if 'encrypted_content' == part.get('type'))):
-			return 'matching-native-spawn-and-child-ciphertext'
-	if assignment.startswith('gAAAAA'):
-		raise ValueError('Encrypted native spawn does not match the child assignment')
-	return 'native-parent-spawn.message'
+		if 'response_item' == item.get('type') and 'agent_message' == payload.get('type') and payload.get('recipient') == path:
+			parts = payload.get('content', [])
+			if any((part.get('text', '').startswith('Message Type: NEW_TASK') for part in parts)) and any((part.get('encrypted_content') == assignment for part in parts if 'encrypted_content' == part.get('type'))):
+				r = 'matching-native-spawn-and-child-ciphertext'
+				break
+	if None is r:
+		if assignment.startswith('gAAAAA'):
+			raise ValueError('Encrypted native spawn does not match the child assignment')
+		r = 'native-parent-spawn.message'
+	return r
 def _json_objects(value):
 	return iter_embedded_json_objects(value, parse_root=False)
 def _review_inputs(root, rows, parent_id, reviewer_id):
-	calls, receipts = ({}, [])
+	calls, r, root_p = ({}, [], Path(root).resolve())
 	for index, item in rows:
 		payload = item.get('payload', {})
-		if 'response_item' != item.get('type'):
-			continue
-		call_id, kind = (payload.get('call_id'), payload.get('type'))
-		if kind in ('function_call', 'custom_tool_call'):
-			arguments = payload.get('input', payload.get('arguments', ''))
-			if isinstance(arguments, str) and 'review-input' in arguments:
-				calls[call_id] = arguments
-		elif kind in ('function_call_output', 'custom_tool_call_output') and call_id in calls:
-			for receipt in _json_objects(payload.get('output')):
-				if 1 != receipt.get('upwork_review_input') or True is not receipt.get('verified'):
-					continue
-				if receipt.get('reviewer_id') != reviewer_id or receipt.get('parent_id') != parent_id or receipt.get('project_root') != str(Path(root).resolve()):
-					continue
-				package = Path(root).resolve() / receipt.get('package', '')
-				if not package.resolve().is_relative_to(Path(root).resolve()) or not package.is_file() or package.name not in calls[call_id] or (hashlib.sha256(package.read_bytes()).hexdigest() != receipt.get('package_sha256')):
-					continue
-				receipts.append({'package': receipt['package'], 'package_sha256': receipt['package_sha256'], 'call_id': call_id, 'output_step': index})
-	if not receipts:
+		if 'response_item' == item.get('type'):
+			call_id, kind = (payload.get('call_id'), payload.get('type'))
+			if kind in ('function_call', 'custom_tool_call'):
+				arguments = payload.get('input', payload.get('arguments', ''))
+				if isinstance(arguments, str) and 'review-input' in arguments:
+					calls[call_id] = arguments
+			elif kind in ('function_call_output', 'custom_tool_call_output') and call_id in calls:
+				for receipt in _json_objects(payload.get('output')):
+					if 1 == receipt.get('upwork_review_input') and True is receipt.get('verified') and (receipt.get('reviewer_id') == reviewer_id) and (receipt.get('parent_id') == parent_id) and (receipt.get('project_root') == str(root_p)):
+						package = root_p / receipt.get('package', '')
+						if package.resolve().is_relative_to(root_p) and package.is_file() and (package.name in calls[call_id]) and (hashlib.sha256(package.read_bytes()).hexdigest() == receipt.get('package_sha256')):
+							r.append({'package': receipt['package'], 'package_sha256': receipt['package_sha256'], 'call_id': call_id, 'output_step': index})
+	if not r:
 		raise ValueError('Native reviewer has no successful review-input execution for this immutable package')
-	r = receipts
 	return r
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
@@ -572,34 +505,22 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 		if 'response_item' == p_item.get('type') and p_pay.get('type') in ('function_call', 'custom_tool_call') and str(p_pay.get('name') or '').endswith(('send_input', 'send_message')):
 			p_args = p_pay.get('arguments', p_pay.get('input', {}))
 			if reviewer_id.lower() in _extract_codex_target_subagents(p_args):
-				p_dict = json.loads(p_args) if isinstance(p_args, str) and p_args.lstrip().startswith('{') else p_args
-				if isinstance(p_dict, dict):
-					msg_txt = p_dict.get('message') or p_dict.get('Message') or p_dict.get('input')
-					if isinstance(msg_txt, str) and msg_txt.strip():
-						matched_prompts.append(msg_txt)
-	bias_issues = collect_prompt_bias_issues(matched_prompts)
-	if bias_issues:
-		raise ValueError('Reviewer prompt biases verdict or omits negative schema outcomes: ' + '; '.join(bias_issues))
-	isolation_issues = reviewer_isolation_issues(root, rows)
-	if isolation_issues:
-		raise ValueError('Independent reviewer isolation violated: ' + '; '.join(isolation_issues))
-	assignment_source = _assignment_source(rows, meta, assignment)
-	review_inputs = _review_inputs(root, rows, parent_id, reviewer_id)
-	digest = hashlib.sha256(raw).hexdigest()
-	proof = {'surface': 'codex-ui', 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'status': 'completed', 'agent_name': spawn.get('agent_path'), 'native_profile_home': str(home), 'native_log': str(path), 'parent_log': str(parent_path), 'native_log_sha256': digest, 'final_step': final_index, 'final_response_sha256': hashlib.sha256(final['last_agent_message'].encode()).hexdigest(), 'final_response': final['last_agent_message'], 'assignment_sha256': hashlib.sha256(assignment.encode()).hexdigest(), 'assignment_source': assignment_source, 'review_inputs': review_inputs, **native_project_fields(root), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}
-	return persist_review_proof(root, reviewer_id, digest, final['last_agent_message'], proof, write=write, diff_error='Existing Codex proof differs; preserve both versions')
+				parsed = parse_tool_args(p_args)
+				msg_txt = parsed.get('message') or parsed.get('Message') or parsed.get('input')
+				if isinstance(msg_txt, str) and msg_txt.strip():
+					matched_prompts.append(msg_txt)
+	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def verify_native_proof(root, native, package=None):
 	home = Path(native.get('native_profile_home', '')).resolve()
-	allowed = [Path(value).resolve() for value in platform_settings('codex')['homes'].values()]
-	if home not in allowed:
+	if home not in [Path(value).resolve() for value in platform_settings('codex')['homes'].values()]:
 		raise ValueError('Saved Codex proof names an unconfigured profile')
-	result = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, write=False), ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'), trace_error='Codex review proof differs from the actual native trace', identity_error='Codex review proof has a different explicit project identity')
-	if package and (not any((Path(item['package']).name == package for item in result['review_inputs']))):
+	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, write=False), ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'), trace_error='Codex review proof differs from the actual native trace', identity_error='Codex review proof has a different explicit project identity')
+	if package and (not any((Path(item['package']).name == package for item in r['review_inputs']))):
 		raise ValueError('Codex reviewer did not verify this immutable KB review package')
-	return result
+	return r
 def shared_control(request):
 	config = platform_settings('codex')
 	script = 'import {controlWithHelper as control} from ' + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
@@ -609,34 +530,22 @@ def shared_control(request):
 		raise RuntimeError('Shared-Projects timed out; the request may have been accepted. Repeat the same idempotent command to recover.') from exc
 	if result.returncode:
 		raise RuntimeError('Shared-Projects request failed: ' + (result.stderr.strip() or result.stdout.strip()))
-	r = json.loads(result.stdout)
-	return r
+	return json.loads(result.stdout)
 def register(project_dir, domain_or_topic, date_str=None):
 	from ..runtime import request_day, registration_profile_name
 	from ..registration import validate_registration
-	profile = registration_profile_name()
-	day = request_day(date_str)
-	request = {'command': 'shared-ensure-project', 'profile': profile, 'project': {'name': f'{domain_or_topic} - U.P.{day:%Y.%m.%d}', 'trustPolicy': 'upwork-daily', 'rootPaths': [str(Path(project_dir).resolve())], 'folderPath': ['Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}']}}
-	receipt = shared_control(request)
-	if not receipt.get('complete') and receipt.get('shared_id'):
-		accounts = receipt.get('accounts') or {}
-		if any((isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in accounts.values())):
-			import time
-			for _ in range(8):
-				time.sleep(0.4)
-				receipt = shared_control({'command': 'shared-registration', 'sharedId': receipt['shared_id'], 'profile': profile})
-				if receipt.get('complete'):
-					break
-				accounts = receipt.get('accounts') or {}
-				if not any((isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in accounts.values())):
-					break
-	r = validate_registration(project_dir, domain_or_topic, day.isoformat(), 'codex', {**receipt, 'surface': 'codex-ui', 'profile': profile})
-	return r
+	profile, day = (registration_profile_name(), request_day(date_str))
+	receipt = shared_control({'command': 'shared-ensure-project', 'profile': profile, 'project': {'name': f'{domain_or_topic} - U.P.{day:%Y.%m.%d}', 'trustPolicy': 'upwork-daily', 'rootPaths': [str(Path(project_dir).resolve())], 'folderPath': ['Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}']}})
+	if not receipt.get('complete') and receipt.get('shared_id') and any((isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in (receipt.get('accounts') or {}).values())):
+		import time
+		for _ in range(8):
+			time.sleep(0.4)
+			receipt = shared_control({'command': 'shared-registration', 'sharedId': receipt['shared_id'], 'profile': profile})
+			if receipt.get('complete') or not any((isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in (receipt.get('accounts') or {}).values())):
+				break
+	return validate_registration(project_dir, domain_or_topic, day.isoformat(), 'codex', {**receipt, 'surface': 'codex-ui', 'profile': profile})
 def summarize(paths, bindings=None):
-	from collections import Counter
-	tools, totals, missing = (Counter(), Counter(), Counter())
-	generations, duplicates, seen, phases = (0, 0, set(), {})
-	fields = {'input_tokens': 'input_tokens', 'cache_read_tokens': 'cached_input_tokens', 'output_tokens': 'output_tokens'}
+	tools, events, seen = (Counter(), [], set())
 	for path in paths:
 		cid = None
 		for index, line in enumerate(Path(path).read_text(encoding='utf-8').splitlines()):
@@ -646,26 +555,12 @@ def summarize(paths, bindings=None):
 				cid = payload['id']
 			if 'response_item' == item.get('type') and payload.get('type') in ('custom_tool_call', 'function_call'):
 				tools[payload.get('name', 'unknown')] += 1
-			if 'token_usage_record' != item.get('type'):
-				continue
-			owner = payload.get('thread_id') or cid
-			key = (owner, payload.get('turn_id'), payload.get('response_id', index))
-			if key in seen:
-				duplicates += 1
-				continue
-			seen.add(key)
-			generations += 1
-			phase = next((part['stage'] for part in (bindings or {}).get(owner, []) if part['first_step'] <= index <= part['last_step']), 'unassigned')
-			group = phases.setdefault(phase, {'known': Counter(), 'missing': Counter(), 'generations': 0})
-			group['generations'] += 1
-			for field, native in fields.items():
-				value = payload.get('usage', {}).get(native)
-				if type(value) is int and value >= 0:
-					totals[field] += value
-					group['known'][field] += value
+			if 'token_usage_record' == item.get('type'):
+				owner = payload.get('thread_id') or cid
+				key = (owner, payload.get('turn_id'), payload.get('response_id', index))
+				if key in seen:
+					events.append(('duplicate',))
 				else:
-					missing[field] += 1
-					group['missing'][field] += 1
-	def counts(known, unavailable):
-		return {key: {'known_sum': known[key], 'unreported_records': unavailable[key], 'complete_total': None if unavailable[key] else known[key]} for key in fields}
-	return {'surface': 'codex-ui', 'generations': generations, 'duplicate_records_ignored': duplicates, 'tokens': counts(totals, missing), 'tools': dict(tools), 'phases': {name: {'generations': value['generations'], 'tokens': counts(value['known'], value['missing'])} for name, value in phases.items()}, 'interpretation': 'Observed native token_usage_record counters; not quota percentage, currency or proof of quality'}
+					seen.add(key)
+					events.append(('generation', owner, index, payload.get('usage') or {}))
+	return summarize_token_records(events, bindings, prefix={'surface': 'codex-ui'}, field_map={'input_tokens': 'input_tokens', 'cache_read_tokens': 'cached_input_tokens', 'output_tokens': 'output_tokens'}, tools=tools, extra={'interpretation': 'Observed native token_usage_record counters; not quota percentage, currency or proof of quality'})

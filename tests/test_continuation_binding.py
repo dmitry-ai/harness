@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -228,3 +231,25 @@ class AntigravityContinuationTests(ProjectCase):
 		requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
 		self.assertEqual(requests[0]['project_binding']['kind'], 'antigravity-project-id')
 		self.assertEqual(Path(requests[0]['project_binding']['root']).resolve(), self.project.resolve())
+	def test_status_five_compacted_step_recovers_nested_protobuf_and_transcript_fallback(self):
+		db_file = self.backend / 'conversations' / (self.parent + '.db')
+		conn = sqlite3.connect(db_file)
+		try:
+			conn.execute('DELETE FROM steps')
+			conn.execute('INSERT INTO steps VALUES(0,14,5,0,?,NULL)', (wire(19, wire(3, wire(1, b'First compacted request'))),))
+			conn.execute('INSERT INTO steps VALUES(2,14,5,0,?,NULL)', (b'',))
+			conn.commit()
+		finally:
+			conn.close()
+		log = self.backend / 'brain' / self.parent / '.system_generated/logs/transcript_full.jsonl'
+		log.write_text('\n'.join((json.dumps(row, ensure_ascii=False) for row in [{'step_index': 0, 'type': 'USER_INPUT', 'content': '<USER_REQUEST>\nFirst compacted request\n</USER_REQUEST>'}, {'step_index': 2, 'type': 'USER_INPUT', 'content': '<USER_REQUEST>\nSecond compacted request\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\nmeta\n</ADDITIONAL_METADATA>'}])) + '\n', encoding='utf-8')
+		requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		self.assertEqual([item['text'] for item in requests], ['First compacted request', 'Second compacted request'])
+		conn = sqlite3.connect(db_file)
+		try:
+			conn.execute('INSERT INTO steps VALUES(4,14,3,0,?,NULL)', (b'',))
+			conn.commit()
+		finally:
+			conn.close()
+		with self.assertRaises(ValueError):
+			antigravity.native_requests(self.project, self.parent, backend=self.backend)
