@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/64
@@ -15,6 +18,7 @@ import json
 from pathlib import Path
 import re
 from ..research import json_data
+from ..shell_audit import unflagged_git_read_commands, unpersisted_http_fetch_commands
 from ..storage import write_immutable_bytes
 _ACCUMULATOR_INTERNAL_KEYS = ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'completion_service_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes')
 _KB_PATH_TOKENS = ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB')
@@ -61,7 +65,6 @@ def collect_prompt_bias_issues(prompts):
 				issues.append(issue)
 	return issues
 def collect_shell_violations(cmd, step_idx, exec5_violations, http_violations, *, extra=None):
-	from ..git_gate import unflagged_git_read_commands, unpersisted_http_fetch_commands
 	meta = extra or {}
 	bad = unflagged_git_read_commands(cmd)
 	if bad:

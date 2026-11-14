@@ -1,4 +1,7 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -57,6 +60,7 @@ import uuid
 from ..runtime import platform_settings, request_day
 from ..research import json_data
 from ..knowledge import json_bytes
+from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import create_bytes, replace_bytes, locked
 from .request_binding import native_project_fields
 from .trace_common import collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, iter_antigravity_subagents, merge_turn_accumulators, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
@@ -186,7 +190,6 @@ class AntigravityTurnScanner:
 			pass
 		return (parent_mismatch, child_agent_name, db_grandchildren)
 	def _record_subagent_calls(self, child_cid, c_rows, anchor_step, seg):
-		from ..git_gate import extract_issue_actions_from_outputs
 		for c_pos, c_ev in enumerate(c_rows):
 			if isinstance(c_ev, dict):
 				c_calls = [c for c in c_ev.get('tool_calls') or [] if isinstance(c, dict)]
@@ -198,7 +201,6 @@ class AntigravityTurnScanner:
 						record_normalized_tool_effects(self.root_p, anchor_step, c_call.get('name', ''), c_call.get('args', {}), '', seg, extra_violation={'subagent_id': child_cid})
 		return ()
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
-		from ..git_gate import extract_issue_actions_from_outputs
 		seg['tool_steps'].append(step_idx)
 		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
 		for act_item in extract_issue_actions_from_outputs(outputs):

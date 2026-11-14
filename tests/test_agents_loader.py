@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
@@ -162,3 +165,37 @@ class AgentsLoaderTests(TemporaryCase):
 		log_msg = subprocess.run(['git', '--no-optional-locks', 'log', '-1', '--format=%B'], cwd=code_repo, check=True, capture_output=True, text=True).stdout.strip()
 		self.assertEqual(log_msg, 'https://github.com/dmitry-ai/harness/issues/26')
 		self.assertTrue(dirty_other.exists())
+	def test_shell_audit_inspector_and_single_pass_repo_gate_commit(self):
+		import subprocess
+		from unittest.mock import patch
+		from agent_tools import git_gate, shell_audit
+		self.assertNotIn('subprocess', shell_audit.__dict__)
+		inspector = shell_audit.ShellCommandInspector()
+		self.assertEqual(inspector.unpersisted_http_fetch_commands('curl https://example.com/a'), ['curl https://example.com/a'])
+		self.assertEqual(inspector.unpersisted_http_fetch_commands('python harness.py collect-http p https://example.com/a'), [])
+		self.assertEqual(shell_audit.normalize_commit_message('# comment\nhttps://github.com/dmitry-ai/harness/issues/67\n# trailing'), 'https://github.com/dmitry-ai/harness/issues/67')
+		actions = inspector.extract_issue_actions(['{"ok": true, "action": "edit", "repo": "dmitry-ai/harness", "number": 67, "state": "open"}'])
+		self.assertEqual(1, len(actions))
+		self.assertEqual(67, actions[0]['number'])
+		code_repo = self.root / 'sp_proj/code'
+		(self.root / 'sp_proj/_').mkdir(parents=True)
+		code_repo.mkdir(parents=True)
+		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+		mod = code_repo / 'mod.py'
+		mod.write_text('# https://github.com/dmitry-ai/harness/issues/67\nx = 1\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		gate = git_gate.GitRepoGate(code_repo, strict=True)
+		gate.verify_issue_workflow(['mod.py'], message='https://github.com/dmitry-ai/harness/issues/67\n# git comment')
+		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
+			gate.verify_issue_workflow(['mod.py'], message='# https://github.com/dmitry-ai/harness/issues/67')
+		calls = []
+		orig_check = git_gate.GitRepoGate.check_commit
+		def spy_check(inst, paths, *, message=None):
+			calls.append((inst.root, list(paths), message))
+			return orig_check(inst, paths, message=message)
+		with patch.object(git_gate.GitRepoGate, 'check_commit', spy_check):
+			gate.commit(['mod.py'], 'https://github.com/dmitry-ai/harness/issues/67', execute=True)
+		self.assertEqual(1, len(calls))
+		self.assertEqual('https://github.com/dmitry-ai/harness/issues/67', calls[0][2])

@@ -1,4 +1,7 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
 # https://github.com/dmitry-ai/harness/issues/72
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -36,6 +39,7 @@ import sqlite3
 import subprocess
 from ..runtime import platform_settings, profile_name
 from ..research import json_data
+from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import create_bytes, iter_embedded_json_objects
 from .request_binding import native_project_fields
 from .trace_common import collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_turn_activity, verify_review_proof_core
@@ -76,7 +80,6 @@ class CodexTurnScanner:
 				visited_sub_ids = collect_subagent_bfs(self.conversation_id, self.root_p, seeds, lambda sid, depth, hint, parent: self._resolve_subagent_child(sid, parent, anchor, turn, acc), acc['aa_partial_read_violations'])
 		self.completed_turn_sub_ids.update(visited_sub_ids - {self.conversation_id})
 	def _finalize_turn(self, t_idx, turn, acc):
-		from ..git_gate import extract_issue_actions_from_outputs
 		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(acc['all_request_steps'])
 		turn['issue_actions'] = extract_issue_actions_from_outputs([out for rec in acc['tool_records'] for out in rec.get('outputs', [])])
 		self._collect_subagent_bfs(t_idx, turn, acc)
@@ -201,7 +204,6 @@ class CodexTurnScanner:
 				record_normalized_tool_effects(self.root_p, index, name, raw_args, raw_cmd, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True, transcript_tokens=(str(self.path.name),))
 		self.current_turn = current
 	def _visit_subagent_rows(self, sub_id, sub_rows, anchor, turn, acc):
-		from ..git_gate import extract_issue_actions_from_outputs
 		r = []
 		sub_outputs = []
 		sub_spawn_call_ids = set()
