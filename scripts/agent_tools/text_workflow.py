@@ -1,4 +1,7 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -19,11 +22,10 @@ import difflib
 import json
 import re
 import uuid
-from urllib.parse import unquote
 from .research import inside, json_data
 from .storage import create_bytes, data_dir_for, locked, read_addressed_json, replace_bytes, write_immutable_bytes
-from .text_claims import digest, validate_map, blocks
-KINDS = ('article', 'proposal', 'letter')
+from .text_claims import digest, validate_map
+from .text_sections import TEXT_KINDS as KINDS, lint_document as _lint, mechanical_projection as _mechanical_projection, scope_blocks as _scope_blocks
 def _folder(root):
 	return Path(root).resolve() / 'ꘖ/data/texts'
 def _read(path):
@@ -165,89 +167,6 @@ def operation(root, ident):
 		raise ValueError('Captured baseline bytes changed')
 	r = (result, base)
 	return r
-def _mechanical_projection(text, kind, mode):
-	from .text_core import scan
-	from .text_core import normalize_external_refs, external_section_ref
-	from .article import parse_sections, ANCHOR_LINK, SECTION_LABEL, part_at
-	lines = scan(text)
-	if 'article' == kind:
-		sections = parse_sections(lines)
-		identities = {s.key: str(i) for i, s in enumerate(sections)}
-	elif 'proposal' != kind:
-		identities = {}
-	else:
-		from .proposal import parse_blocks
-		sections = parse_blocks(lines)
-		identities = {str(s.key): str(i) for i, s in enumerate(sections)}
-	def prose(value, current):
-		protected = '`+[^`]*`+|«[^»]*»|“[^”]*”|(?<!\\w)"[^"\\n]+"'
-		if 'renumber' == mode:
-			protected += '|!?\\[[^\\]\\n]*\\]\\(<?https?://[^)]+\\)|<https?://[^>]+>|https?://[^\\s<>"\\x27]+'
-		parts = re.split('(' + protected + ')', value)
-		for i in range(0, len(parts), 2):
-			item = parts[i]
-			if 'links' == mode:
-				from .links import _bare_urls
-				def link(match):
-					label, url = match.groups()
-					visible = unquote(re.sub('[*`]', '', label))
-					address = unquote(re.sub('^https?://', '', url.rstrip('>')))
-					r = 'URL' if visible.rstrip('/') in (address.rstrip('/'), url.rstrip('>')) else label + '(URL)'
-					return r
-				item = re.sub('\\[([^\\]]+)\\]\\(<?(https?://[^)]+)\\)', link, item)
-				def bare(match):
-					url = next(_bare_urls(match.group()))
-					r = 'URL' + match.group()[len(url):]
-					return r
-				item = re.sub('https?://\\S+', bare, item)
-			else:
-				item = normalize_external_refs(item)
-				item = ANCHOR_LINK.sub(lambda m: 'REF:' + identities.get(m[2].lstrip('§'), 'MISSING:' + m[2]), item)
-				def ref(match):
-					if external_section_ref(item, match):
-						r = match.group()
-					else:
-						target = match.group(1)
-						if 'article' == kind and (not re.match('^[IVXLC]+\\.', target)):
-							target = current + '.' + target
-						r = 'REF:' + identities.get(target, 'MISSING:' + target)
-					return r
-				item = re.sub('§+([IVXLC]+\\.\\d+(?:\\.\\d+)*|\\d+(?:\\.\\d+)*)', ref, item)
-				if 'proposal' == kind:
-					item = re.sub('^\\s*\\d+(?:\\.\\d+)*\\.\\s*', '', item)
-			parts[i] = item
-		r = ''.join(parts)
-		return r
-	out = []
-	for line, raw in zip(lines, text.splitlines(True)):
-		ending = raw[len(line.raw):]
-		if 'renumber' == mode and 'anchor' == line.kind:
-			continue
-		if 'renumber' == mode and 'heading' == line.kind:
-			value = re.sub('^(#{2,6}\\s+)\\d+(?:\\.\\d+)*\\.?\\s*', '\\1', line.raw)
-			out.append(value + ending)
-			continue
-		out.append((prose(line.raw, part_at(lines, line.no)) if 'prose' == line.kind else line.raw) + ending)
-	return ''.join(out)
-def _scope_blocks(text, kind):
-	from .text_core import scan
-	if 'letter' == kind:
-		r = blocks(text, kind)
-	else:
-		from .article import parse_sections
-		from .proposal import parse_blocks
-		lines = scan(text)
-		parsed = parse_sections(lines) if 'article' == kind else parse_blocks(lines)
-		starts = {node.line: node.key for node in parsed}
-		output, key = ({}, 'preface')
-		for line, raw in zip(lines, text.splitlines(True)):
-			if line.no in starts:
-				key = starts[line.no]
-			elif 'article' == kind and re.match('^#\\s+[IVXLC]+\\.', line.raw):
-				key = '$part:' + line.raw
-			output[key] = output.get(key, '') + raw
-		r = [{'section': key, 'text': value} for key, value in output.items()]
-	return r
 def scope_issues(op, base, candidate):
 	issues = []
 	if 'inspect' == op['mode'] and candidate != base.decode('utf-8'):
@@ -279,14 +198,6 @@ def scope_issues(op, base, candidate):
 			if name not in permit and (not any((name.startswith(parent + '.') for parent in permit))):
 				issues.append({'code': 'text.outside_scope', 'message': 'Added section outside scope: ' + name})
 	r = issues
-	return r
-def _lint(text, kind, path, profile=None):
-	if 'proposal' == kind:
-		from .proposal import lint_text
-		r = lint_text(text, path=path, profile=profile)
-	else:
-		from .article import lint_text
-		r = lint_text(text, kind=kind, path=path, **{'link_style': profile['link_style']} if (profile or {}).get('link_style') else {})
 	return r
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":

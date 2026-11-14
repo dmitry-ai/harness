@@ -1,4 +1,7 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
 # https://github.com/dmitry-ai/harness/issues/69
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -14,6 +17,7 @@ from pathlib import Path
 import re
 import sys
 from .cli_common import add_arg_specs, dump_json, read_input_json, read_input_text
+from .text_sections import keyed_engine, lint_document
 data = read_input_json
 read = read_input_text
 _DOC_SPECS = {
@@ -85,13 +89,7 @@ def main(argv=None, *, default_kind='article'):
 				text = read(target)
 				bans = data(args.bans)
 				bans = bans.get('bans', []) if isinstance(bans, dict) else bans
-				profile = data(args.profile)
-				if 'proposal' == args.kind:
-					from .proposal import lint_text
-					findings = lint_text(text, path=target, lang=args.lang, bans=bans, profile=profile)
-				else:
-					from .article import lint_text
-					findings = lint_text(text, kind=args.kind, path=target, lang=args.lang, bans=bans, **{'link_style': profile['link_style']} if (profile or {}).get('link_style') else {})
+				findings = lint_document(text, args.kind, path=target, lang=args.lang, bans=bans, profile=data(args.profile))
 				if args.network:
 					from .text_sources import probe_links
 					if None is args.project or not target.resolve().is_relative_to(args.project.resolve()):
@@ -99,10 +97,7 @@ def main(argv=None, *, default_kind='article'):
 					findings.extend(probe_links(args.project, text)['findings'])
 				r |= findings_output([f for f in findings if not args.errors_only or 'error' == f.severity], target, args.json)
 		elif command in ('source', 'render'):
-			if args.kind not in ('article', 'proposal'):
-				raise ValueError('Keyed numbering is available for article or proposal; a letter preserves its own form')
-			from . import article, proposal
-			engine = proposal if 'proposal' == args.kind else article
+			engine = keyed_engine(args.kind)
 			original = read(args.target)
 			previous = read(args.previous) if 'render' == command and args.previous else None
 			if 'source' == command:
@@ -125,44 +120,27 @@ def main(argv=None, *, default_kind='article'):
 					dump_json({**flow.write_candidate_output(args.output, value.encode(), expected_sha256=args.expected_sha256), 'changes': report})
 				r = 0
 		else:
-			if command in ('begin', 'guard'):
-				result = flow.begin(args.project, data(args.spec))
-			elif 'check' == command:
-				result = flow.check(args.project, args.operation, read(args.candidate), data(args.manifest), run_replay=args.run_replay, replay_record=args.replay_record, warning_dispositions=data(args.warnings))
-			elif 'apply' == command:
-				result = flow.apply(args.project, args.check)
-			elif 'diagnose' == command:
-				from .text_diagnostics import diagnose_sources
-				result = diagnose_sources(args.project, platform=args.platform, profile=args.profile)
-			elif 'browser-check' == command:
-				from .text_browser import preflight
-				result = preflight(data(args.spec))
-			elif 'claims-save' == command:
-				from .text_claims import save_registry
-				result = save_registry(args.project, data(args.candidate), expected_sha256=args.expected_sha256, **{'reference': args.registry} if args.registry else {})
-			elif 'sources' == command:
-				from .text_sources import check_claim_sources
-				result = check_claim_sources(args.project, args.claim, reference=args.registry or '\ua616/KB/TextClaims.json')
-			elif 'source-check' == command:
-				from .text_sources import save_source_check
-				result = save_source_check(args.project, read(args.candidate), data(args.spec))
-			elif 'review-input' == command:
-				from .review import input_receipt
-				result = input_receipt(args.project, args.package)
-			elif command.startswith('review-'):
-				from . import text_review
-				if 'review-prepare' == command:
-					result = text_review.prepare(args.project, args.check, args.parent, data(args.spec))
-				elif 'review-record' != command:
-					result = text_review.authorize(args.project, args.check)
-				else:
-					result = text_review.record(args.project, args.report, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence)
-			elif 'record-answer' == command:
-				result = flow.record_answer(args.project, args.journal, [read(p) for p in args.request_file], read(args.response_file), args.turn)
-			elif 'finalize' != command:
+			from . import review, text_browser, text_claims, text_diagnostics, text_review, text_sources
+			handlers = {
+				'apply': lambda: flow.apply(args.project, args.check),
+				'begin': lambda: flow.begin(args.project, data(args.spec)),
+				'browser-check': lambda: text_browser.preflight(data(args.spec)),
+				'check': lambda: flow.check(args.project, args.operation, read(args.candidate), data(args.manifest), run_replay=args.run_replay, replay_record=args.replay_record, warning_dispositions=data(args.warnings)),
+				'claims-save': lambda: text_claims.save_registry(args.project, data(args.candidate), expected_sha256=args.expected_sha256, **({'reference': args.registry} if args.registry else {})),
+				'diagnose': lambda: text_diagnostics.diagnose_sources(args.project, platform=args.platform, profile=args.profile),
+				'finalize': lambda: flow.gate(args.project, publication=args.publication),
+				'guard': lambda: flow.begin(args.project, data(args.spec)),
+				'record-answer': lambda: flow.record_answer(args.project, args.journal, [read(p) for p in args.request_file], read(args.response_file), args.turn),
+				'review-input': lambda: review.input_receipt(args.project, args.package),
+				'review-prepare': lambda: text_review.prepare(args.project, args.check, args.parent, data(args.spec)),
+				'review-record': lambda: text_review.record(args.project, args.report, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence),
+				'review-status': lambda: text_review.authorize(args.project, args.check),
+				'source-check': lambda: text_sources.save_source_check(args.project, read(args.candidate), data(args.spec)),
+				'sources': lambda: text_sources.check_claim_sources(args.project, args.claim, reference=args.registry or '\ua616/KB/TextClaims.json'),
+			}
+			if command not in handlers:
 				raise ValueError('Unknown client-text operation')
-			else:
-				result = flow.gate(args.project, publication=args.publication)
+			result = handlers[command]()
 			dump_json(result)
 			r = int(False is result.get('valid'))
 	except (OSError, ValueError, KeyError, TypeError, re.error) as exc:

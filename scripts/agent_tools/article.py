@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -9,18 +12,15 @@ from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import re
-from .text_core import ABBREVIATIONS, ANCHOR, ARROW_CONNECTIVE, BANS, BOLD_LEADIN, FENCE, Finding, HEADING, KEPT, LEXICON, LIST_MARK, Line, REMOVAL, REPLACED, THRESHOLDS, _excerpt, _plain, bold_spans, check_code, check_prose, check_response, clean, default_shell, detect_language, find_bans, load_lexicon, normalized, replay, scan, sentences
-from .text_core import author_text, transform_prose, command_blocks, changed_command_lines, check_markdown_lists, INLINE_LITERAL, external_section_ref, normalize_external_refs
-PART = re.compile('^([IVXLC]+)\\.\\s+\\S')
+from .text_core import ABBREVIATIONS, ANCHOR, ARROW_CONNECTIVE, BANS, BOLD_LEADIN, FENCE, Finding, HEADING, INLINE_LITERAL, KEPT, LEXICON, LIST_MARK, Line, REMOVAL, REPLACED, THRESHOLDS, _excerpt, _plain, author_text, bold_spans, changed_command_lines, check_code, check_markdown_lists, check_prose, check_response, clean, command_blocks, default_shell, detect_language, external_section_ref, find_bans, load_lexicon, normalize_external_refs, normalized, replay, scan, sentences, transform_prose
+from .text_sections import ANCHOR_LINK, ARTICLE_NUMBER_KEY, AddressedSection, KEYED_REF as SOURCE_REF, PART, assign_tree_numbers, build_render_report, close_spans as _close, lint_document, part_at, rewrite_keyed_prose, section_at, validate_ref_range
 NUMBERED = re.compile('^(\\d+(?:\\.\\d+)*)\\.?(?:\\s+(.*))?$')
 KEYED = re.compile('^@([\\w.\\-]+)(?:\\s+(.*))?$')
-ANCHOR_LINK = re.compile('\\[([^\\]\\n]*)\\]\\(#([^)\\s]+)\\)')
 SECTION_LABEL = re.compile('^§{1,2}\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*)(?:\\s*[-–]\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*))?$')
-SOURCE_REF = re.compile('(§§?)@([\\w.\\-]+?)(?:-@([\\w.\\-]+))?(?=[^\\w.\\-]|\\.(?:\\s|$)|$)')
 BARE_REF = re.compile('(?<![\\w@])(§{1,2})\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*)(?:\\s*[-–]\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*))?(?!\\w)')
 SOURCE_META = re.compile('^\\s*<!-- df-article: (\\{.*\\}) -->\\s*$')
 @dataclass
-class Section:
+class Section(AddressedSection):
 	part: str
 	number: tuple
 	title: str | None
@@ -31,47 +31,32 @@ class Section:
 	end: int = 0
 	anchor: str | None = None
 	name: str = ''
-	@property
-	def dotted(self) -> str:
-		return '.'.join(map(str, self.number))
-	@property
-	def key(self) -> str:
-		return f'{self.part}.{self.dotted}' if self.part else self.dotted
-	def lineage(self):
-		node = self
-		while node:
-			yield node
-			node = node.parent
-	def descendants(self):
-		for child in self.children:
-			yield child
-			yield from child.descendants()
-def detect_kind(path: Path | None, text: str) -> str:
-	if None is not path and 'res' == path.parent.name:
-		r = 'response'
-	else:
-		r = 'article'
-	return r
-def parse_sections(lines: list[Line], findings: list[Finding] | None=None):
-	findings = findings if None is not findings else []
-	part, sections, by_key, roots = ('', [], {}, {})
+def _iter_headings(lines: list[Line]):
+	part = ''
 	for index, line in enumerate(lines):
 		if 'heading' != line.kind:
 			continue
 		hashes, text = HEADING.match(line.raw).groups()
-		if 1 == len(hashes):
+		if 1 != len(hashes):
+			yield (index, line, len(hashes), text, part)
+		else:
 			match = PART.match(text)
 			part = match.group(1) if match else part
-			continue
+def detect_kind(path: Path | None, text: str) -> str:
+	return 'response' if None is not path and 'res' == path.parent.name else 'article'
+def parse_sections(lines: list[Line], findings: list[Finding] | None=None):
+	findings = findings if None is not findings else []
+	r, by_key, roots = ([], {}, {})
+	for index, line, level, text, part in _iter_headings(lines):
 		match = NUMBERED.match(text)
 		if not match:
 			continue
 		number = tuple((int(x) for x in match.group(1).split('.')))
-		section = Section(part, number, match.group(2), line.no, len(hashes))
-		if len(hashes) != len(number) + 1:
-			findings.append(Finding('warning', 'STRUCT-LEVEL', line.no, f"heading level {len(hashes)} does not match number depth {len(number)} (expected {'#' * (len(number) + 1)})", line.raw))
-		section.parent = by_key.get((part, number[:-1])) if len(number) > 1 else None
-		if len(number) > 1 and None is section.parent:
+		section = Section(part, number, match.group(2), line.no, level)
+		if level != len(number) + 1:
+			findings.append(Finding('warning', 'STRUCT-LEVEL', line.no, f"heading level {level} does not match number depth {len(number)} (expected {'#' * (len(number) + 1)})", line.raw))
+		section.parent = by_key.get((part, number[:-1])) if 1 < len(number) else None
+		if 1 < len(number) and None is section.parent:
 			findings.append(Finding('error', 'STRUCT-PARENT', line.no, f"no parent section {'.'.join(map(str, number[:-1]))}", line.raw))
 		siblings = section.parent.children if section.parent else roots.setdefault(part, [])
 		if number[-1] != len(siblings) + 1:
@@ -83,27 +68,18 @@ def parse_sections(lines: list[Line], findings: list[Finding] | None=None):
 		following = next((x for x in lines[index + 1:] if 'blank' != x.kind), None)
 		if None is not following and 'anchor' == following.kind:
 			section.anchor = ANCHOR.match(following.raw).group(1)
-		sections.append(section)
-	_close(sections, lines)
-	r = sections
+		r.append(section)
+	_close(r, lines)
 	return r
 def parse_keyed(lines: list[Line], findings: list[Finding]):
-	part, sections, roots = ('', [], {})
-	for line in lines:
-		if 'heading' != line.kind:
-			continue
-		hashes, text = HEADING.match(line.raw).groups()
-		if 1 == len(hashes):
-			match = PART.match(text)
-			part = match.group(1) if match else part
-			continue
+	sections, roots = ([], {})
+	for _, line, level, text, part in _iter_headings(lines):
 		match = KEYED.match(text)
 		if not match:
 			if NUMBERED.match(text):
 				findings.append(Finding('error', 'KEY-NUMBERED', line.no, 'numbered heading inside a keyed view: use `@key`', line.raw))
 			continue
-		section = Section(part, (), match.group(2), line.no, len(hashes))
-		section.name = match.group(1)
+		section = Section(part, (), match.group(2), line.no, level, name=match.group(1))
 		for previous in reversed(sections):
 			if previous.part != part:
 				break
@@ -116,36 +92,10 @@ def parse_keyed(lines: list[Line], findings: list[Finding]):
 		(section.parent.children if section.parent else roots.setdefault(part, [])).append(section)
 		sections.append(section)
 	_close(sections, lines)
-	r = (sections, roots)
-	return r
-def _close(sections, lines):
-	last = lines[-1].no if lines else 0
-	for current, nxt in zip(sections, sections[1:] + [None]):
-		current.end = nxt.line - 1 if nxt else last
-def section_at(sections, line_no):
-	found = None
-	for section in sections:
-		if section.line <= line_no:
-			found = section
-		else:
-			break
-	r = found
-	return r
-def part_at(lines, line_no):
-	part = ''
-	for line in lines:
-		if line.no > line_no:
-			break
-		if 'heading' == line.kind:
-			hashes, text = HEADING.match(line.raw).groups()
-			match = PART.match(text) if 1 == len(hashes) else None
-			part = match.group(1) if match else part
-	r = part
-	return r
+	return (sections, roots)
 def check_structure(lines, sections, findings):
-	part_headings = [(line, PART.match(HEADING.match(line.raw).group(2))) for line in lines if 'heading' == line.kind and '#' == HEADING.match(line.raw).group(1)]
-	parts = [match.group(1) for _, match in part_headings if match]
-	if parts != ['I', 'II']:
+	parts = [m.group(1) for line in lines if 'heading' == line.kind and '#' == HEADING.match(line.raw).group(1) for m in (PART.match(HEADING.match(line.raw).group(2)),) if m]
+	if ['I', 'II'] != parts:
 		findings.append(Finding('error', 'STRUCT-PARTS', 1, 'article requires exactly two ordered parts: # I. Analysis and # II. Recommendations'))
 	if not sections:
 		findings.append(Finding('error', 'STRUCT-EMPTY', 1, 'article has no addressed numbered sections'))
@@ -169,16 +119,15 @@ def check_structure(lines, sections, findings):
 			findings.append(Finding('error', 'ANCHOR-MISMATCH', section.line, f'anchor {section.anchor} does not match section {section.key}'))
 		title = section.title
 		if title:
-			plain = clean(title)
-			plain = re.sub('\\(\\s*\\d+[^)]*\\)', '', plain).strip()
+			plain = re.sub('\\(\\s*\\d+[^)]*\\)', '', clean(title)).strip()
 			words = re.findall("[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451][\\w'’-]*", plain)
 			if ',' in plain and re.search('\\band\\b|&|\\b\\u0438\\b', plain):
 				findings.append(Finding('error', 'HEADING-ENUM', section.line, 'heading enumerates several topics: one section — one claim; split it', title))
 			if len(words) > THRESHOLDS['heading_words']:
 				findings.append(Finding('warning', 'HEADING-LONG', section.line, f'{len(words)} words in a heading; 2725 uses a bare number or a short group label', title))
-			capital = [w for w in words[1:] if len(w) > 3 and w[0].isupper() and (not w.isupper())]
-			long_words = [w for w in words[1:] if len(w) > 3]
-			if len(capital) >= 2 and len(capital) * 2 > len(long_words):
+			capital = [w for w in words[1:] if 3 < len(w) and w[0].isupper() and (not w.isupper())]
+			long_words = [w for w in words[1:] if 3 < len(w)]
+			if 2 <= len(capital) and len(capital) * 2 > len(long_words):
 				findings.append(Finding('warning', 'HEADING-TITLECASE', section.line, 'Title Case heading (WP:AITITLECASE)', title))
 	by_key = {section.key: section for section in sections}
 	for line in lines:
@@ -198,18 +147,14 @@ def check_structure(lines, sections, findings):
 				if not parsed:
 					findings.append(Finding('error', 'REF-LABEL', line.no, 'unparseable § label', match.group(0)))
 					continue
-				current = part_at(lines, line.no)
-				label_part = parsed.group(1) or current
+				label_part = parsed.group(1) or part_at(lines, line.no)
 				expected = f'{label_part}.{parsed.group(2)}' if label_part else parsed.group(2)
 				if expected != target.removeprefix('§'):
 					findings.append(Finding('error', 'REF-LABEL', line.no, f'label points to {expected}, link goes to #{target}', match.group(0)))
 				if parsed.group(4):
 					end_part = parsed.group(3) or label_part
 					endpoint = f'{end_part}.{parsed.group(4)}' if end_part else parsed.group(4)
-					if endpoint not in by_key:
-						findings.append(Finding('error', 'REF-DANGLING', line.no, f'range endpoint §{endpoint} does not exist', match.group(0)))
-					elif expected in by_key and by_key[expected].line > by_key[endpoint].line:
-						findings.append(Finding('error', 'REF-RANGE', line.no, 'range endpoints are in reverse document order', match.group(0)))
+					validate_ref_range(expected, endpoint, by_key, findings, line.no, match.group(0), order_key=lambda k: by_key[k].line, allow_same=True, start_checked=True, end_prefix='range endpoint §')
 				if 'heading' != line.kind and (not any((a < match.start() < b for a, b in spans))):
 					findings.append(Finding('warning', 'REF-BOLD', line.no, 'section reference is not bold: **[§N](#P.N)**', match.group(0)))
 		for match in BARE_REF.finditer(visible):
@@ -234,8 +179,7 @@ def check_group_counts(lines, sections, findings):
 		if None is not actual and actual != expected:
 			findings.append(Finding('error', 'GROUP-COUNT', section.line, f'heading declares {expected} objects, displayed group contains {actual}', section.title or ''))
 def check_graph(lines, sections, findings):
-	parts = {s.part for s in sections}
-	if not {'I', 'II'} <= parts:
+	if not {'I', 'II'} <= {s.part for s in sections}:
 		return
 	by_key = {s.key: s for s in sections}
 	refs = {s.key: set() for s in sections}
@@ -260,8 +204,7 @@ def check_graph(lines, sections, findings):
 					if endpoint in by_key:
 						refs[section.key].update((s.key for s in sections if by_key[target].line <= s.line <= by_key[endpoint].line))
 			if re.search('\\]\\(<?https?://|https?://', line.raw):
-				external[section.key] = True
-				primary[section.key] = True
+				external[section.key] = primary[section.key] = True
 	used, expanded = (set(), set())
 	queue = [(s.key, False) for s in sections if 'II' == s.part]
 	while queue:
@@ -278,47 +221,32 @@ def check_graph(lines, sections, findings):
 		own_body = [line for line in lines if section.line < line.no <= section.end and line.kind in ('prose', 'quote', 'code')]
 		if 'I' == section.part and section.key not in used and (own_body or not section.children):
 			findings.append(Finding('note', 'GRAPH-ORPHAN', section.line, f'§{section.key} is not a premise of any recommendation (directly or transitively): keep it only if it serves the goal of the text'))
-	grounded = {}
-	changed = True
+	grounded, changed = ({}, True)
 	while changed:
 		changed = False
 		for section in sections:
-			if 'II' != section.part or grounded.get(section.key):
-				continue
-			chain = list(section.lineage())
-			ok = any((external[s.key] or any((t.startswith('I.') or grounded.get(t) for t in refs[s.key])) for s in chain))
-			if ok:
+			if 'II' == section.part and (not grounded.get(section.key)) and any((external[s.key] or any((t.startswith('I.') or grounded.get(t) for t in refs[s.key])) for s in section.lineage())):
 				grounded[section.key] = changed = True
 	for section in sections:
-		if 'II' == section.part and (not section.children) and (not grounded.get(section.key)):
-			findings.append(Finding('warning', 'GRAPH-BASELESS', section.line, f'recommendation §{section.key} has no premise in part I and no documentation link'))
-	for section in sections:
-		if 'II' != section.part:
-			continue
-		body_prose = [l for l in lines if section.line < l.no <= section.end and 'prose' == l.kind]
-		for line in body_prose:
-			visible = author_text(line.raw).strip()
-			if re.match('^(?:If|\\u0415\\u0441\\u043b\\u0438|\\u0412 \\u0441\\u043b\\u0443\\u0447\\u0430\\u0435 \\u0435\\u0441\\u043b\\u0438)\\b', visible, re.I):
-				prefix = visible.split('→', 1)[0]
-				has_part2_branch = False
-				has_part1_cond = False
-				for match in ANCHOR_LINK.finditer(prefix):
-					target = match.group(2).removeprefix('§')
-					if target.startswith('II.') or (target in by_key and 'II' == by_key[target].part):
-						has_part2_branch = True
-					elif target.startswith('I.') or (target in by_key and 'I' == by_key[target].part):
-						has_part1_cond = True
-				if has_part1_cond and (not has_part2_branch):
-					findings.append(Finding('error', 'GRAPH-CONDITIONAL-STEP', line.no, f'conditional recommendation §{section.key} conditions on an established Part I fact; it must branch from a Part II diagnostic step (like §II.12.2 from §II.12.1 in 2725.md)', line.raw[:100]))
-				elif not has_part2_branch:
-					findings.append(Finding('warning', 'GRAPH-CONDITIONAL-STEP', line.no, f'conditional recommendation §{section.key} has no Part II diagnostic premise; branch from an explicit measurement step', line.raw[:100]))
-	for section in sections:
-		if 'I' != section.part or section.children:
-			continue
-		body = [l for l in lines if section.line < l.no <= section.end and l.kind not in ('blank', 'anchor')]
-		has_proof = any((l.kind in ('code', 'fence', 'quote') for l in body)) or external[section.key] or refs[section.key] or (section.parent and any((l.kind in ('code', 'fence') for l in lines if section.parent.line < l.no < section.line)))
-		if not has_proof:
-			findings.append(Finding('note', 'PROOF-MISSING', section.line, f'§{section.key} states a fact without a command, quote, link or premise'))
+		if 'I' == section.part and (not section.children):
+			body = [l for l in lines if section.line < l.no <= section.end and l.kind not in ('blank', 'anchor')]
+			has_proof = any((l.kind in ('code', 'fence', 'quote') for l in body)) or external[section.key] or refs[section.key] or (section.parent and any((l.kind in ('code', 'fence') for l in lines if section.parent.line < l.no < section.line)))
+			if not has_proof:
+				findings.append(Finding('note', 'PROOF-MISSING', section.line, f'§{section.key} states a fact without a command, quote, link or premise'))
+		elif 'II' == section.part:
+			if not section.children and (not grounded.get(section.key)):
+				findings.append(Finding('warning', 'GRAPH-BASELESS', section.line, f'recommendation §{section.key} has no premise in part I and no documentation link'))
+			for line in (l for l in lines if section.line < l.no <= section.end and 'prose' == l.kind):
+				visible = author_text(line.raw).strip()
+				if re.match('^(?:If|\\u0415\\u0441\\u043b\\u0438|\\u0412 \\u0441\\u043b\\u0443\\u0447\\u0430\\u0435 \\u0435\\u0441\\u043b\\u0438)\\b', visible, re.I):
+					targets = [m.group(2).removeprefix('§') for m in ANCHOR_LINK.finditer(visible.split('→', 1)[0])]
+					has_part2 = any((t.startswith('II.') or (t in by_key and 'II' == by_key[t].part) for t in targets))
+					has_part1 = any((t.startswith('I.') or (t in by_key and 'I' == by_key[t].part) for t in targets))
+					if not has_part2:
+						if not has_part1:
+							findings.append(Finding('warning', 'GRAPH-CONDITIONAL-STEP', line.no, f'conditional recommendation §{section.key} has no Part II diagnostic premise; branch from an explicit measurement step', line.raw[:100]))
+						else:
+							findings.append(Finding('error', 'GRAPH-CONDITIONAL-STEP', line.no, f'conditional recommendation §{section.key} conditions on an established Part I fact; it must branch from a Part II diagnostic step (like §II.12.2 from §II.12.1 in 2725.md)', line.raw[:100]))
 	grounded = {s.key for s in sections if any((primary[a.key] for a in s.lineage()))}
 	changed = True
 	while changed:
@@ -339,24 +267,22 @@ def check_graph(lines, sections, findings):
 				low[key] = min(low[key], low[target])
 			elif target in on_stack:
 				low[key] = min(low[key], indexes[target])
-		if low[key] != indexes[key]:
-			return
-		component = []
-		while True:
-			member = stack.pop()
-			on_stack.remove(member)
-			component.append(member)
-			if member == key:
-				break
-		if (len(component) > 1 or key in refs[key]) and (not any((member in grounded for member in component))):
-			first = min((by_key[member] for member in component), key=lambda node: node.line)
-			findings.append(Finding('error', 'GRAPH-CYCLE', first.line, 'circular premises without primary evidence: ' + ', '.join(('§' + member for member in sorted(component)))))
+		if low[key] == indexes[key]:
+			component = []
+			while True:
+				member = stack.pop()
+				on_stack.remove(member)
+				component.append(member)
+				if member == key:
+					break
+			if (1 < len(component) or key in refs[key]) and (not any((member in grounded for member in component))):
+				first = min((by_key[member] for member in component), key=lambda node: node.line)
+				findings.append(Finding('error', 'GRAPH-CYCLE', first.line, 'circular premises without primary evidence: ' + ', '.join(('§' + member for member in sorted(component)))))
 	for key in refs:
 		if key not in indexes:
 			visit(key)
 def check_proposal(lines, findings):
-	from . import proposal
-	findings.extend(proposal.lint_text('\n'.join((line.raw for line in lines)), lexicon=[], bans=[]))
+	findings.extend(lint_document('\n'.join((line.raw for line in lines)), 'proposal', lexicon=[], bans=[]))
 def check_link_style(lines, findings, link_style):
 	if 'formatted' != link_style:
 		return
@@ -387,12 +313,8 @@ def check_link_style(lines, findings, link_style):
 def lint_text(text: str, *, kind: str | None=None, lang: str | None=None, path: Path | None=None, lexicon=None, bans=None, link_style=None) -> list[Finding]:
 	kind = kind or detect_kind(path, text)
 	if 'proposal' == kind:
-		from . import proposal
-		r = proposal.lint_text(text, lang=lang, path=path, lexicon=lexicon, bans=bans)
+		r = lint_document(text, 'proposal', path=path, lang=lang, lexicon=lexicon, bans=bans)
 	else:
-		lang = lang or detect_language(text)
-		lexicon = load_lexicon() if None is lexicon else lexicon
-		bans = find_bans(path) if None is bans else bans
 		lines = scan(text)
 		findings: list[Finding] = []
 		if 'article' == kind:
@@ -402,13 +324,12 @@ def lint_text(text: str, *, kind: str | None=None, lang: str | None=None, path: 
 			check_code(lines, findings)
 			check_markdown_lists(lines, findings)
 			check_link_style(lines, findings, link_style)
-		check_prose(lines, kind, lang, findings, lexicon, bans)
+		check_prose(lines, kind, lang or detect_language(text), findings, load_lexicon() if None is lexicon else lexicon, find_bans(path) if None is bans else bans)
 		r = sorted(findings, key=lambda f: (f.line, 'error' != f.severity, f.rule))
 	return r
 def to_source(text: str) -> str:
 	lines = scan(text)
-	findings = []
-	sections = parse_sections(lines, findings)
+	sections = parse_sections(lines, [])
 	by_line = {s.line: s for s in sections}
 	aliases = {s.anchor or s.key: s.key for s in sections}
 	standalone = {ANCHOR.match(line.raw).group(1) for line in lines if 'anchor' == line.kind} - set(aliases)
@@ -416,9 +337,7 @@ def to_source(text: str) -> str:
 	prefixes = {s.key: '§' if (s.anchor or '').startswith('§') else '' for s in sections}
 	default = '§' if prefixes and all(prefixes.values()) else ''
 	overrides = {key: prefix for key, prefix in prefixes.items() if prefix != default}
-	metadata = {'anchor_prefix': default}
-	if overrides:
-		metadata['anchor_prefixes'] = overrides
+	metadata = {'anchor_prefix': default, **({'anchor_prefixes': overrides} if overrides else {})}
 	out = ['<!-- df-article: ' + json.dumps(metadata, ensure_ascii=False, separators=(',', ':')) + ' -->']
 	for line in lines:
 		if line.no in by_line:
@@ -460,11 +379,8 @@ def to_source(text: str) -> str:
 						endpoint = f'{end_part}.{end_number}' if end_part else end_number
 						r = f'{marks}@{start}-@{endpoint}'
 				return r
-			def convert(value):
-				return BARE_REF.sub(bare, ANCHOR_LINK.sub(replace, value))
-			out.append(transform_prose(line.raw, convert))
-	r = '\n'.join(out) + ('\n' if text.endswith('\n') else '')
-	return r
+			out.append(transform_prose(line.raw, lambda value: BARE_REF.sub(bare, ANCHOR_LINK.sub(replace, value))))
+	return '\n'.join(out) + ('\n' if text.endswith('\n') else '')
 def render(source: str, previous: str | None=None):
 	lines = scan(source)
 	findings: list[Finding] = []
@@ -481,17 +397,7 @@ def render(source: str, previous: str | None=None):
 			except (ValueError, TypeError, AttributeError) as exc:
 				findings.append(Finding('error', 'KEY-METADATA', line.no, str(exc)))
 	sections, roots = parse_keyed(lines, findings)
-	numbers, mapping = ({}, {})
-	def assign(nodes, prefix):
-		for index, node in enumerate(nodes, 1):
-			node.number = (*prefix, index)
-			if node.name in mapping:
-				findings.append(Finding('error', 'KEY-DUP', node.line, f'duplicate key @{node.name}'))
-			mapping[node.name] = node.key
-			numbers[node.line] = node
-			assign(node.children, node.number)
-	for nodes in roots.values():
-		assign(nodes, ())
+	numbers, mapping = assign_tree_numbers(roots, findings)
 	if not sections:
 		findings.append(Finding('error', 'KEY-EMPTY', 1, 'keyed source has no addressed sections'))
 	old_sections = parse_sections(scan(previous)) if None is not previous else []
@@ -515,61 +421,24 @@ def render(source: str, previous: str | None=None):
 		current = part_at(lines, line.no)
 		def label(anchor):
 			part, _, number = anchor.partition('.') if re.match('^[IVXLC]+\\.', anchor) else ('', '', anchor)
-			r = number if part == current else anchor
-			return r
-		def replace(match):
-			marks, start, end = match.groups()
-			suffix = ''
-			if end and end.endswith('.') and (end not in mapping) and (end[:-1] in mapping):
-				end, suffix = (end[:-1], '.')
-			if start not in mapping:
-				findings.append(Finding('error', 'KEY-DANGLING', line.no, f'§@{start} does not exist (deleted premise: delete or re-ground the dependent claim)', line.raw[:80]))
-				r = match.group(0)
-			elif not end:
-				r = f'[{marks}{label(mapping[start])}](#{anchors[start]})'
-			elif end in mapping:
-				r = f'[{marks}{label(mapping[start])}-{label(mapping[end])}](#{anchors[start]})' + suffix
-			else:
-				findings.append(Finding('error', 'KEY-DANGLING', line.no, f'§@{end} does not exist', line.raw[:80]))
-				r = match.group(0)
-			return r
-		def anchor_ref(match):
-			key = match.group(1)
-			if key in mapping:
-				r = f'(#{anchors[key]})'
-			else:
-				findings.append(Finding('error', 'KEY-DANGLING', line.no, f'#@{key} does not exist', line.raw[:80]))
-				r = match.group(0)
-			return r
-		def convert(value):
-			result = re.sub('\\(#@([\\w.\\-]+)\\)', anchor_ref, SOURCE_REF.sub(replace, value))
-			result = normalize_external_refs(result, changes=external_changes, line=line.no)
-			if re.search('§§?@|\\(#@', result) and (not any((f.line == line.no and 'KEY-DANGLING' == f.rule for f in findings))):
-				findings.append(Finding('error', 'KEY-SYNTAX', line.no, 'unparseable or unresolved keyed reference', result[:80]))
-			r = result
-			return r
-		out.append(transform_prose(line.raw, convert))
+			return number if part == current else anchor
+		def format_ref(marks, start, end):
+			left = label(mapping[start])
+			return f'[{marks}{left}-{label(mapping[end])}](#{anchors[start]})' if end else f'[{marks}{left}](#{anchors[start]})'
+		out.append(rewrite_keyed_prose(line.raw, line.no, mapping, findings, external_changes, format_ref=format_ref, anchors=anchors, dangling_hint=' (deleted premise: delete or re-ground the dependent claim)'))
 	markdown = '\n'.join(out) + ('\n' if source.endswith('\n') else '')
-	report = {'renumbered': [[k, v] for k, v in mapping.items() if k != v and re.match('^(?:[IVXLC]+\\.)?\\d', k)], 'added': [k for k in mapping if not re.match('^(?:[IVXLC]+\\.)?\\d+(?:\\.\\d+)*$', k)]}
-	if external_changes:
-		report['external_references_normalized'] = external_changes
-	if None is not previous:
-		old = [s.key for s in old_sections]
-		report['removed'] = [key for key in old if key not in mapping]
+	report = build_render_report(mapping, ARTICLE_NUMBER_KEY, external_changes, [s.key for s in old_sections] if None is not previous else None)
+	rendered_lines = scan(markdown)
 	reference_findings = []
-	check_structure(scan(markdown), parse_sections(scan(markdown)), reference_findings)
+	check_structure(rendered_lines, parse_sections(rendered_lines), reference_findings)
 	findings.extend((f for f in reference_findings if f.rule in ('REF-DANGLING', 'REF-LABEL', 'REF-RANGE', 'REF-BARE', 'KEY-UNRENDERED', 'ANCHOR-DUP')))
-	r = (markdown, report, findings)
-	return r
+	return (markdown, report, findings)
 def render_map(source: str, markdown: str | None=None):
 	source_sections, _ = parse_keyed(scan(source), [])
 	if None is markdown:
 		markdown, _, _ = render(source)
 	rendered = parse_sections(scan(markdown))
-	def span(node):
-		return {'start': node.line, 'end': node.end, 'subtree_end': max([node.end] + [child.end for child in node.descendants()])}
-	return [{'key': original.name, 'number': current.key, 'part': current.part, 'anchor': current.anchor, 'source': span(original), 'rendered': span(current)} for original, current in zip(source_sections, rendered)]
+	return [{'key': original.name, 'number': current.key, 'part': current.part, 'anchor': current.anchor, 'source': original.span_dict(), 'rendered': current.span_dict()} for original, current in zip(source_sections, rendered)]
 def main(argv=None) -> int:
 	from .text_cli import main as common_main
-	r = common_main(argv, default_kind='article')
-	return r
+	return common_main(argv, default_kind='article')

@@ -1,3 +1,6 @@
+# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
@@ -16,6 +19,7 @@ import re
 from .claims import all_claims, claim_digest, claim_index, claim_locations, collect_claim_closure, contract_issues, evidence_contract_issues, standalone_numbers
 from .research import inside, json_data
 from .storage import create_bytes, replace_bytes, locked
+from .text_sections import content_blocks as blocks
 def digest(data):
 	return hashlib.sha256(data).hexdigest()
 def _nonempty(value):
@@ -87,45 +91,6 @@ def evidence_inputs(root, value):
 							if artifact.get('path'):
 								add(inside(root, artifact['path']))
 	r = result
-	return r
-def blocks(text, kind):
-	if 'article' == kind:
-		from .article import scan, parse_sections
-		lines = scan(text)
-		sections = parse_sections(lines)
-		result = []
-		for section in sections:
-			body = [line for line in lines if section.line < line.no <= section.end and line.kind not in ('heading', 'anchor', 'blank')]
-			if not body:
-				continue
-			raw = '\n'.join((line.raw for line in body))
-			prose = '\n'.join((line.raw for line in body if 'prose' == line.kind))
-			result.append({'section': section.key, 'line': section.line, 'text': raw, 'prose': prose})
-		r = result
-	elif 'proposal' != kind:
-		if 'letter' != kind:
-			raise ValueError('Choose article, proposal or letter')
-		result = []
-		for index, match in enumerate(re.finditer('(?ms)\\S.*?(?=\\n\\s*\\n|\\Z)', text), 1):
-			result.append({'section': str(index), 'line': text.count('\n', 0, match.start()) + 1, 'text': match.group(), 'prose': match.group()})
-		r = result
-	else:
-		from .proposal import parse_blocks
-		from .text_core import scan
-		lines = scan(text)
-		parsed = parse_blocks(lines)
-		result = []
-		first = parsed[0].line if parsed else len(lines) + 1
-		preface = [line for line in lines if line.no < first and 'blank' != line.kind]
-		if preface:
-			result.append({'section': 'preface', 'line': preface[0].no, 'text': '\n'.join((line.raw for line in preface)), 'prose': '\n'.join((line.raw for line in preface if 'prose' == line.kind))})
-		for block in parsed:
-			own = [line for line in lines if block.line <= line.no <= block.end and 'blank' != line.kind]
-			raw = '\n'.join((line.raw for line in own))
-			prose = '\n'.join((block.body if line.no == block.line else line.raw for line in own if 'prose' == line.kind))
-			if raw:
-				result.append({'section': block.key, 'line': block.line, 'text': raw, 'prose': prose})
-		r = result
 	return r
 def validate_map(root, text, kind, manifest):
 	issues, inputs, mapped, assessment = ([], {}, {}, [])
