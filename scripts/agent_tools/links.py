@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
@@ -6,6 +9,7 @@
 # https://github.com/dmitry-ai/harness/issues/26
 from collections import Counter
 from dataclasses import dataclass
+import html as html_lib
 from html.parser import HTMLParser
 from pathlib import Path
 import re
@@ -189,23 +193,67 @@ def validate_content(content: str, *, local_anchors: bool=False, unique_urls: bo
 		errors.extend(readable_link_issues(content))
 	r = errors
 	return r
-def heading_anchors(content: str) -> set[str]:
+def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str], str]:
 	from markdown_it import MarkdownIt
-	tokens = MarkdownIt('commonmark').parse(content)
-	used = set()
+	raw_lines = content.splitlines(keepends=True)
+	fm_title = ''
+	body_text = content
+	line_offset = 0
+	fm_match = re.match('\\A---[ \\t]*\\r?\\n([^\\r\\n]+(?:\\r?\\n.*?)?)\\r?\\n(?:---|\\.\\.\\.)[ \\t]*(?:\\r?\\n|$)', content)
+	if fm_match:
+		fm_lines = fm_match.group(1).splitlines()
+		valid_yaml = bool(fm_lines) and (not fm_lines[0].lstrip().startswith('#')) and all((re.match('^(?:[A-Za-z0-9_.-]+\\s*:.*|[ \\t]+(?:-|\\S).*|-\\s+.*|[ \\t]*#.*|[ \\t]*)$', ln) for ln in fm_lines)) and any((re.match('^[A-Za-z0-9_.-]+\\s*:', ln) for ln in fm_lines))
+		if valid_yaml:
+			for fm_line in fm_lines:
+				tm = re.match('^title:\\s*(.+?)\\s*$', fm_line)
+				if tm:
+					fm_title = tm.group(1).strip().strip('"\'')
+					break
+			line_offset = content[:fm_match.end()].count('\n')
+			body_text = ''.join(raw_lines[line_offset:])
+	tokens = MarkdownIt('commonmark').parse(body_text)
+	explicit_counts: Counter = Counter()
+	parsed_rows: list[tuple[int, str, str | None, str, int]] = []
 	for index, token in enumerate(tokens):
 		if 'heading_open' != token.type:
 			continue
 		inline = tokens[index + 1]
-		text = ''.join((t.content for t in inline.children or [] if t.type in ('text', 'code_inline', 'image')))
-		slug = re.sub('[^\\w\\- ]', '', text.lower()).replace(' ', '-')
-		anchor, number = (slug, 0)
-		while anchor in used:
-			number += 1
-			anchor = f'{slug}-{number}'
-		used.add(anchor)
-	r = used
-	return r
+		raw_title = ''.join((t.content for t in inline.children or [] if t.type in ('text', 'code_inline', 'image')))
+		unesc_title = html_lib.unescape(raw_title).strip()
+		attr_match = re.search('\\s*\\{#([^\\s}]+)\\}\\s*$', unesc_title)
+		explicit_id = attr_match.group(1) if attr_match else None
+		clean_title = unesc_title[:attr_match.start()].strip() if attr_match else html_lib.unescape(raw_title)
+		slug = re.sub('[^\\w\\- ]', '', clean_title.lower()).replace(' ', '-')
+		if explicit_id:
+			explicit_counts[explicit_id] += 1
+		start_line = (token.map[0] if token.map else 0) + line_offset
+		parsed_rows.append((int(token.tag[1]), clean_title.strip(), explicit_id, slug, start_line))
+	used_slugs: set[str] = set(explicit_counts.keys())
+	all_anchors: set[str] = set(explicit_counts.keys())
+	headings: list[dict] = []
+	for level, clean_title, explicit_id, slug, start_line in parsed_rows:
+		sec_anchors: list[str] = []
+		if explicit_id:
+			sec_anchors.append(explicit_id)
+		if slug:
+			if slug == explicit_id:
+				if slug not in sec_anchors:
+					sec_anchors.append(slug)
+			else:
+				anchor, number = (slug, 0)
+				while anchor in used_slugs:
+					number += 1
+					anchor = f'{slug}-{number}'
+				used_slugs.add(anchor)
+				all_anchors.add(anchor)
+				if anchor not in sec_anchors:
+					sec_anchors.append(anchor)
+		headings.append({'level': level, 'text': clean_title, 'anchor': explicit_id or (sec_anchors[0] if sec_anchors else None), 'section_anchors': sec_anchors, 'start_line': start_line})
+	ambiguous = {aid for aid, cnt in explicit_counts.items() if 1 < cnt}
+	doc_title = fm_title or next((h['text'] for h in headings if 1 == h['level'] and h['text']), '') or next((h['text'] for h in headings if h['text']), '')
+	return (headings, all_anchors, ambiguous, doc_title)
+def heading_anchors(content: str) -> set[str]:
+	return parse_markdown_headings(content)[1]
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
@@ -261,7 +309,7 @@ class Page:
 def fetch_page(url: str, timeout: float=15) -> Page:
 	if urlsplit(url).scheme not in ('http', 'https'):
 		raise ValueError('Only HTTP(S) fetching is supported')
-	request = Request(url, headers={'User-Agent': 'ProjectLinkCheck/1.0'})
+	request = Request(url, headers={'User-Agent': 'ProjectLinkCheck/1.0', 'Accept': 'text/html,application/xhtml+xml,text/markdown;q=0.9,*/*;q=0.8'})
 	try:
 		response = urlopen(request, timeout=timeout)
 	except HTTPError as exc:
@@ -298,7 +346,15 @@ def check_network(urls: list[str], *, anchors: bool=False, timeout: float=15, fe
 		if not 200 <= page.status < 300:
 			status = 'http-error'
 		elif anchors:
-			if page.content_type not in ('text/html', 'application/xhtml+xml'):
+			if page.content_type in ('text/markdown', 'text/x-markdown'):
+				from .research import extract_markdown
+				md_info = extract_markdown(page.text)
+				md_all = set(md_info['anchors']) - set(md_info['ambiguous_anchors'])
+				status = 'found-in-source' if unquote(fragment) in md_all else 'not-found-in-source'
+				if 'not-found-in-source' == status:
+					avail = sorted(md_all)
+					details = {'available_anchors': avail[:100], 'anchor_count': len(avail), 'source_bytes': len(page.text.encode('utf-8'))}
+			elif page.content_type not in ('text/html', 'application/xhtml+xml'):
 				status = 'not-html'
 			elif ':~:text=' in fragment:
 				status = 'browser-check-required'

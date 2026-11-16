@@ -1,4 +1,7 @@
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -18,6 +21,7 @@
 # https://github.com/dmitry-ai/harness/issues/38
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import html as html_lib
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urldefrag, urlsplit
@@ -37,7 +41,49 @@ MAX_BYTES = 16 * 1024 * 1024
 PROFILES = ('html', 'shopify', 'tracking', 'document')
 BROWSER_MODES = ('auto', 'always', 'never')
 VOID_ELEMENTS = ('area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr')
-_CHALLENGE_RE = re.compile('(?i)verify you are human|checking your browser|__LS_SEQ_LOADER__|enable javascript and cookies|name=["\\\'](?:js_challenge|jsc_token)["\\\']|cf-browser-verification|cf_chl_opt|challenge-platform|<noscript>[^<]*enable javascript')
+HTTP_DEFAULT_ACCEPT = 'text/html,application/xhtml+xml,text/markdown;q=0.9,*/*;q=0.8'
+_CHALLENGE_RE = re.compile('(?i)__LS_SEQ_LOADER__|name=["\\\']?(?:js_challenge|jsc_token|cf_captcha_kind|md_challenge)\\b|id=["\\\']?(?:challenge-form|challenge-running|cf-challenge-running|challenge-error-text|trk_jschal_js)\\b|class=["\\\'][^"\\\']*\\bcf-browser-verification\\b')
+_CHALLENGE_DOM_RE = re.compile('(?is)__LS_SEQ_LOADER__|<[^>]+\\b(?:name=["\\\']?(?:js_challenge|jsc_token|cf_captcha_kind|md_challenge)\\b|id=["\\\']?(?:challenge-form|challenge-running|cf-challenge-running|challenge-error-text|trk_jschal_js)\\b|class=["\\\'][^"\\\']*\\bcf-browser-verification\\b)')
+_CHALLENGE_ACTIVE_SCRIPT_RE = re.compile('(?is)<script\\b[^>]*>[^<]*\\b_cf_chl_opt\\s*=|<iframe\\b[^>]*\\bsrc=["\\\'][^"\\\']*challenges\\.cloudflare\\.com/cdn-cgi/challenge-platform/')
+_PASSIVE_JSD_SCRIPT_RE = re.compile('(?is)<script\\b[^>]*\\bsrc=["\\\'][^"\\\']*/cdn-cgi/challenge-platform/[^"\\\']*/(?:jsd|precursor)/[^"\\\']*["\\\'][^>]*>\\s*</script>')
+_CHALLENGE_TITLE_RE = re.compile('(?i)^(?:just a moment\\.{0,3}|attention required!\\s*\\|\\s*cloudflare|verify you are human|checking your (?:browser|site connection)(?:\\.{0,3}| before accessing.*)|one more step|ddos-guard|security check|access denied)$')
+_CHALLENGE_COPY_RE = re.compile('(?i)verify you are human|checking your browser|checking if the site connection is secure|enable javascript and cookies to continue|please stand by,? while we are checking your browser')
+_CHALLENGE_TOKEN_RE = re.compile('(?i)_cf_chl_opt|challenge-platform|challenges\\.cloudflare\\.com/turnstile|cf-chl-bypass|ray id')
+def extractor_version():
+	return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
+def classify_html_challenge(raw_html: str, *, parsed: dict | None=None, status: int | None=None) -> bool:
+	if not isinstance(raw_html, str):
+		return False
+	if None is not parsed and None is not parsed.get('sitemap'):
+		return False
+	stripped = raw_html.lstrip()
+	if None is parsed and (stripped.startswith('<?xml') or '<urlset' in stripped[:1500] or '<sitemapindex' in stripped[:1500]) and (None is not _extract_sitemap(raw_html)):
+		return False
+	no_comments = re.sub('<!--.*?-->', ' ', raw_html, flags=re.S)
+	visible_html = re.sub('(?is)<(?:script|style|noscript|template)\\b[^>]*>.*?</(?:script|style|noscript|template)>', ' ', no_comments)
+	visible_plain = re.sub('(?is)<(?:head|title)\\b[^>]*>.*?</(?:head|title)>|<[^>]+>', ' ', visible_html)
+	visible_words = len(re.findall('\\w+', html_lib.unescape(visible_plain)))
+	if 0 == visible_words or (None is not parsed and None is parsed.get('sitemap') and (0 == parsed.get('word_count', 0))):
+		return True
+	non_code_raw = _PASSIVE_JSD_SCRIPT_RE.sub(' ', re.sub('(?is)<(?:code|pre)\\b[^>]*>.*?</(?:code|pre)>', ' ', no_comments))
+	if _CHALLENGE_ACTIVE_SCRIPT_RE.search(non_code_raw):
+		return True
+	non_code_html = re.sub('(?is)<(?:script|style|noscript|template)\\b[^>]*>.*?</(?:script|style|noscript|template)>', ' ', non_code_raw)
+	non_code_plain = re.sub('(?is)<(?:head|title)\\b[^>]*>.*?</(?:head|title)>|<[^>]+>', ' ', non_code_html)
+	if _CHALLENGE_DOM_RE.search(non_code_html) or ('__LS_SEQ_LOADER__' in non_code_raw and visible_words < 200):
+		return True
+	title_str = (parsed.get('title') or '').strip() if isinstance(parsed, dict) else ''
+	if not title_str:
+		m_title = re.search('<title\\b[^>]*>(.*?)</title>', no_comments[:16000], flags=re.I | re.S)
+		if m_title:
+			title_str = ' '.join(html_lib.unescape(re.sub('<[^>]+>', ' ', m_title.group(1))).split())
+	if title_str and _CHALLENGE_TITLE_RE.fullmatch(title_str):
+		return True
+	if status in (401, 403, 429, 503) and (_CHALLENGE_TOKEN_RE.search(non_code_raw) or _CHALLENGE_COPY_RE.search(non_code_plain)):
+		return True
+	if visible_words < 160 and _CHALLENGE_COPY_RE.search(non_code_plain) and (_CHALLENGE_TOKEN_RE.search(non_code_raw) or visible_words < 60):
+		return True
+	return False
 def classify_network_error(exc):
 	cause = exc.reason if isinstance(exc, URLError) and None is not getattr(exc, 'reason', None) else exc
 	if isinstance(cause, socket.gaierror):
@@ -173,26 +219,33 @@ def observed_use(root, result):
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_reason=None, timeout=15, fetcher=None, observation_kind='http', context=None):
+def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_reason=None, timeout=15, fetcher=None, observation_kind='http', context=None, extra_meta=None):
 	root = Path(root).resolve()
 	if max_age < 0 or timeout <= 0 or (not isinstance(scope, str)) or (not scope.strip()):
 		raise ValueError('Nonnegative max_age, positive timeout and explicit request scope required')
-	headers = {'User-Agent': 'UpworkResearch/2.0', **(headers or {})}
+	caller_headers = dict(headers or {})
+	if not all((isinstance(k, str) and isinstance(v, str) for k, v in caller_headers.items())):
+		raise ValueError('Request headers must contain string keys and values')
+	has_accept = any(('accept' == k.lower() for k in caller_headers))
+	headers = {'User-Agent': 'UpworkResearch/2.0', **caller_headers}
+	legacy_headers = dict(headers) if 'http' == observation_kind and (not has_accept) else None
+	if 'http' == observation_kind and (not has_accept):
+		headers['Accept'] = HTTP_DEFAULT_ACCEPT
 	if observation_kind not in ('http', 'dom') or ('dom' == observation_kind and None is fetcher):
 		raise ValueError('DOM observation needs an explicit read-only browser capture')
-	if not all((isinstance(k, str) and isinstance(v, str) for k, v in headers.items())):
-		raise ValueError('Request headers must contain string keys and values')
 	context = request_context(context)
 	url, key = request_key(url, headers, scope + ':' + observation_kind, context)
+	legacy_key = request_key(url, legacy_headers, scope + ':' + observation_kind, context)[1] if None is not legacy_headers else None
 	data_dir = root / 'ꘖ/data'
 	index_file = data_dir / 'http-index.json'
 	with locked(data_dir / ('http-' + key[:24] + '.lock'), timeout=max(30, timeout + 15)):
 		index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {}
-		entry = index.get(key)
+		entry = index.get(key) or (index.get(legacy_key) if legacy_key else None)
 		if entry and (not refresh_reason) and (max_age > 0):
 			meta = load_observation(root, entry['observation'])
+			needs_dom_identity = 'dom' == observation_kind and isinstance(extra_meta, dict) and (not meta.get('cdp_identity'))
 			ttl = min(max_age, 300) if meta.get('error') or (None is not meta.get('status') and meta.get('status', 0) >= 400) else max_age
-			if time.time() - datetime.fromisoformat(meta['observed_at']).timestamp() <= ttl:
+			if (not needs_dom_identity) and time.time() - datetime.fromisoformat(meta['observed_at']).timestamp() <= ttl:
 				return observed_use(root, {'cached': True, 'observation': entry['observation'], **meta})
 		if None is not refresh_reason and (not refresh_reason.strip()):
 			raise ValueError('Refresh needs a reason for the new measurement')
@@ -213,6 +266,10 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 		folder.mkdir(parents=True, exist_ok=False)
 		create_bytes(folder / 'response.bin', response.body)
 		meta = {'schema_version': 1, 'kind': observation_kind, 'request_key': key, 'url': url, 'final_url': response.url, 'method': 'GET' if 'http' == observation_kind else 'READ_DOM', 'request_scope': scope, 'observed_at': when, 'status': response.status if 'http' == observation_kind else None, 'http_status_verified': 'http' == observation_kind and response.status > 0, 'content_type': response.content_type, 'charset': response.charset, 'redirects': list(response.redirects), 'body_sha256': hashlib.sha256(response.body).hexdigest(), 'body_bytes': len(response.body), 'refresh_reason': refresh_reason, 'error': error, 'error_kind': error_kind, 'dns_resolved': dns_resolved, 'conditions': {'header_names': sorted((k.lower() for k in headers)), 'values_fingerprint': key, 'reported_context': context, 'context_fingerprint': _fingerprint(context)}, 'collector': 'read-only-http' if 'http' == observation_kind else 'read-only-dom', 'interaction_checked': False}
+		if isinstance(extra_meta, dict):
+			for k in ('cdp_identity', 'cdp_identity_sha256'):
+				if isinstance(extra_meta.get(k), str) and extra_meta[k]:
+					meta[k] = extra_meta[k]
 		create_bytes(folder / 'observation.json', json_data(meta))
 		reference = (folder / 'observation.json').relative_to(root / 'ꘖ/KB').as_posix()
 		with locked(data_dir / 'http-index.lock'):
@@ -242,10 +299,18 @@ class HTMLData(HTMLParser):
 	def handle_starttag(self, tag, attrs):
 		attrs = dict(attrs)
 		is_void = tag in VOID_ELEMENTS
+		hidden_ctx = bool({f['tag'] for f in self.stack} & {'head', 'script', 'style', 'noscript', 'template', 'svg'}) or tag in ('head', 'script', 'style', 'noscript', 'template', 'svg')
+		parent_frame = self.stack[-1] if self.stack else None
 		anchor = attrs.get('id') or (attrs.get('name') if 'a' == tag else None)
 		if anchor:
 			self.anchors.append(anchor)
-			self.anchor_ranges.setdefault(anchor, []).append({'start': self.position, 'end': self.position if is_void else None})
+			self.anchor_ranges.setdefault(anchor, []).append({'start': self.position, 'end': self.position if is_void else None, 'tag': tag, 'parent': parent_frame, 'hidden': hidden_ctx})
+			if not hidden_ctx:
+				for frame in self.stack:
+					if not frame['hidden']:
+						frame['anchors'].append(anchor)
+				if self.heading:
+					self.heading['_child_anchors'].append(anchor)
 		if 'a' == tag and attrs.get('href'):
 			self.link = {'href': attrs['href'], 'text': ''}
 		if 'img' == tag:
@@ -263,15 +328,15 @@ class HTMLData(HTMLParser):
 			self.script = {'src': attrs.get('src'), 'type': attrs.get('type'), 'text': ''}
 			if attrs.get('src'):
 				self.scripts.append(attrs['src'])
-		if re.fullmatch('h[1-6]', tag):
+		if re.fullmatch('h[1-6]', tag) and (not hidden_ctx):
 			position = self.position
 			for section in self.section_ranges:
 				if None is section['end'] and section['level'] >= int(tag[1]):
 					section['end'] = position
-			self.heading = {'level': int(tag[1]), 'text': '', 'anchor': attrs.get('id'), 'ancestor_anchors': [x[1] for x in self.stack if x[1]], 'start': position, 'end': None}
+			self.heading = {'level': int(tag[1]), 'text': '', 'anchor': attrs.get('id'), 'ancestor_anchors': [x['anchor'] for x in self.stack if x['anchor'] and (not x['hidden'])], 'start': position, 'end': None, '_head_end': None, '_frames': list(self.stack), '_child_anchors': [anchor] if anchor else []}
 			self.section_ranges.append(self.heading)
 		if not is_void:
-			self.stack.append((tag, anchor))
+			self.stack.append({'tag': tag, 'anchor': anchor if not hidden_ctx else None, 'raw_anchor': anchor, 'hidden': hidden_ctx, 'start': self.position, 'end': None, 'anchors': [anchor] if anchor and (not hidden_ctx) else []})
 	def handle_endtag(self, tag):
 		if 'a' == tag and None is not self.link:
 			self.link['text'] = ' '.join(self.link['text'].split())
@@ -279,6 +344,7 @@ class HTMLData(HTMLParser):
 			self.link = None
 		if self.heading and re.fullmatch('h[1-6]', tag):
 			self.heading['text'] = ' '.join(self.heading['text'].split())
+			self.heading['_head_end'] = self.position
 			self.headings.append(self.heading)
 			self.heading = None
 		if 'script' == tag and self.script:
@@ -289,8 +355,10 @@ class HTMLData(HTMLParser):
 					self.json_ld.append({'parse_error': True, 'raw': self.script['text']})
 			self.script = None
 		for i in range(len(self.stack) - 1, -1, -1):
-			if self.stack[i][0] == tag:
-				for _, anchor in self.stack[i:]:
+			if self.stack[i]['tag'] == tag:
+				for frame in self.stack[i:]:
+					frame['end'] = self.position
+					anchor = frame['raw_anchor']
 					if anchor:
 						for span in self.anchor_ranges.get(anchor, []):
 							if None is span['end']:
@@ -301,7 +369,7 @@ class HTMLData(HTMLParser):
 			self.text.append('\n')
 			self.position += 1
 	def handle_data(self, value):
-		tags = {tag for tag, _ in self.stack}
+		tags = {frame['tag'] for frame in self.stack}
 		if self.script:
 			self.script['text'] += value
 		if 'title' in tags:
@@ -318,8 +386,106 @@ class HTMLData(HTMLParser):
 		plain_len = len(plain)
 		clean_text = '\n'.join((x.strip() for x in plain.splitlines() if x.strip()))
 		title_str = ' '.join(self.title.split())
-		sections = [{**h, 'end': plain_len if None is h['end'] else h['end'], 'content': plain[h['start']:h['end']]} for h in self.section_ranges]
-		anchor_ranges = {anchor: [[x['start'], plain_len if None is x['end'] else x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}
+		raw_anchor_ranges = {anchor: [[x['start'], plain_len if None is x['end'] else x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}
+		ambiguous_set = {anchor for anchor, ranges in raw_anchor_ranges.items() if len(ranges) > 1}
+		def _strip_glyphs(seg):
+			return re.sub('[#\u00b6\u00a7\U0001f517\\s]+', '', seg)
+		sec_anchor_lists = [[] for _ in self.section_ranges]
+		container_anchor_lists = [[] for _ in self.section_ranges]
+		claimed_anchors = set()
+		for idx, h in enumerate(self.section_ranges):
+			head_end = h['start'] if None is h.get('_head_end') else h['_head_end']
+			sec_end = plain_len if None is h['end'] else h['end']
+			cands = []
+			cont_cands = []
+			if h.get('anchor'):
+				cands.append(h['anchor'])
+				claimed_anchors.add(h['anchor'])
+			for ca in h.get('_child_anchors') or []:
+				if ca not in cands:
+					cands.append(ca)
+				claimed_anchors.add(ca)
+			for frame in h.get('_frames') or []:
+				if frame.get('hidden') or not frame.get('anchor'):
+					continue
+				f_start = frame['start']
+				f_end = plain_len if None is frame['end'] else frame['end']
+				top_heading_only = all((oh is h or oh['level'] > h['level'] for oh in self.section_ranges if f_start <= oh['start'] and (oh['start'] if None is oh.get('_head_end') else oh['_head_end']) <= f_end))
+				is_full_doc = '' == _strip_glyphs(plain[:f_start]) and '' == _strip_glyphs(plain[f_end:])
+				if top_heading_only and frame['tag'] not in ('html', 'body', 'main', 'footer', 'nav', 'aside') and (not (is_full_doc and frame['tag'] not in ('section', 'article'))) and ('' == _strip_glyphs(plain[f_start:h['start']])) and ('' == _strip_glyphs(plain[head_end:f_end])):
+					if frame['anchor'] not in cands:
+						cands.append(frame['anchor'])
+					claimed_anchors.add(frame['anchor'])
+				elif top_heading_only and (frame['tag'] not in ('html', 'body', 'main', 'header', 'footer', 'nav', 'aside')) and (not (is_full_doc and frame['tag'] not in ('section', 'article'))) and ('' == _strip_glyphs(plain[f_start:h['start']])):
+					if '' == _strip_glyphs(plain[min(f_end, sec_end):max(f_end, sec_end)]):
+						if frame['anchor'] not in cands:
+							cands.append(frame['anchor'])
+						claimed_anchors.add(frame['anchor'])
+					elif head_end < f_end <= sec_end:
+						if frame['anchor'] not in cont_cands:
+							cont_cands.append(frame['anchor'])
+			sec_anchor_lists[idx] = cands
+			container_anchor_lists[idx] = cont_cands
+		for anchor, span_objs in self.anchor_ranges.items():
+			if anchor in ambiguous_set or anchor in claimed_anchors or 1 != len(span_objs):
+				continue
+			sp = span_objs[0]
+			if sp.get('hidden') or sp.get('tag') not in ('a', 'span'):
+				continue
+			a_start = sp['start']
+			a_end = plain_len if None is sp['end'] else sp['end']
+			seg = plain[a_start:a_end]
+			if '' != _strip_glyphs(seg):
+				continue
+			has_glyph = '' != seg.strip()
+			if has_glyph:
+				prev_idx = next((idx for idx in range(len(self.section_ranges) - 1, -1, -1) if (self.section_ranges[idx]['start'] if None is self.section_ranges[idx].get('_head_end') else self.section_ranges[idx]['_head_end']) <= a_start and '' == plain[self.section_ranges[idx]['start'] if None is self.section_ranges[idx].get('_head_end') else self.section_ranges[idx]['_head_end']:a_start].strip() and (sp.get('parent') is (self.section_ranges[idx]['_frames'][-1] if self.section_ranges[idx].get('_frames') else None))), None)
+				if None is not prev_idx and anchor not in sec_anchor_lists[prev_idx]:
+					sec_anchor_lists[prev_idx].append(anchor)
+				continue
+			next_idx = next((idx for idx, h in enumerate(self.section_ranges) if a_end <= h['start'] and '' == plain[a_end:h['start']].strip() and (sp.get('parent') is (h['_frames'][-1] if h.get('_frames') else None))), None)
+			if None is not next_idx:
+				if anchor not in sec_anchor_lists[next_idx]:
+					sec_anchor_lists[next_idx].append(anchor)
+				continue
+			for idx, h in enumerate(self.section_ranges):
+				head_end = h['start'] if None is h.get('_head_end') else h['_head_end']
+				sec_end = plain_len if None is h['end'] else h['end']
+				if head_end <= a_start < sec_end and '' == plain[head_end:a_start].strip() and (sp.get('parent') is (h['_frames'][-1] if h.get('_frames') else None)):
+					if anchor not in sec_anchor_lists[idx]:
+						sec_anchor_lists[idx].append(anchor)
+					break
+		anchor_ranges = dict(raw_anchor_ranges)
+		anchor_content = {anchor: [plain[s:e] for s, e in ranges] for anchor, ranges in raw_anchor_ranges.items()}
+		all_anchors = set(self.anchors)
+		gh_aliases = {}
+		for anchor in sorted(set(self.anchors)):
+			if anchor.startswith('user-content-') and len(anchor) > 13:
+				gh_aliases.setdefault(anchor[13:], []).append(anchor)
+		for alias, sources in gh_aliases.items():
+			if alias not in raw_anchor_ranges:
+				all_anchors.add(alias)
+				merged_ranges = [rng for src in sources for rng in raw_anchor_ranges.get(src, [])]
+				anchor_ranges[alias] = merged_ranges
+				anchor_content[alias] = [plain[s:e] for s, e in merged_ranges]
+				if len(merged_ranges) > 1 or any((src in ambiguous_set for src in sources)):
+					ambiguous_set.add(alias)
+		sections = []
+		clean_headings = []
+		for idx, h in enumerate(self.section_ranges):
+			sec_end = plain_len if None is h['end'] else h['end']
+			expanded = []
+			for a in sec_anchor_lists[idx]:
+				if a not in ambiguous_set and a not in expanded:
+					expanded.append(a)
+				if a.startswith('user-content-') and len(a) > 13:
+					alias = a[13:]
+					if (alias not in raw_anchor_ranges or alias in sec_anchor_lists[idx]) and alias not in ambiguous_set and (alias not in expanded):
+						expanded.append(alias)
+			cont_valid = [a for a in container_anchor_lists[idx] if a not in ambiguous_set]
+			base_h = {k: v for k, v in h.items() if not k.startswith('_')}
+			clean_headings.append({**base_h, 'end': sec_end, 'section_anchors': expanded, 'container_anchors': cont_valid})
+			sections.append({**base_h, 'end': sec_end, 'section_anchors': expanded, 'container_anchors': cont_valid, 'content': plain[h['start']:sec_end]})
 		word_count = len(re.findall('\\w+', clean_text))
 		site_name = (self.meta.get('og:site_name') or '').strip()
 		total_imgs = len(self.images)
@@ -327,14 +493,69 @@ class HTMLData(HTMLParser):
 		filename_alt = sum((1 for img in self.images if (img.get('alt') or '').strip() and re.search('(?i)\\.(?:jpe?g|png|gif|webp|avif|svg|bmp|tiff?)\\b', (img.get('alt') or '').strip())))
 		repeated_site_alt = sum((1 for img in self.images if site_name and (img.get('alt') or '').strip().lower() == site_name.lower()))
 		descriptive_alt = max(0, total_imgs - empty_alt - filename_alt - repeated_site_alt)
-		h1_count = sum((1 for h in self.headings if 1 == h.get('level')))
+		h1_count = sum((1 for h in clean_headings if 1 == h.get('level')))
 		meta_desc = self.meta.get('description', '')
 		spaced_brand = bool(re.search('\\b(?:[A-Za-z]\\s+){3,}[A-Za-z]\\b', (self.meta.get('og:site_name') or '') + ' ' + json.dumps(self.json_ld, ensure_ascii=False)))
 		json_ld_types = [item.get('@type') for item in self.json_ld if isinstance(item, dict) and item.get('@type')]
 		empty_json_ld_desc = any((isinstance(item, dict) and 'description' in item and (not str(item.get('description') or '').strip()) for item in self.json_ld))
 		insecure_json_ld_img = any((isinstance(item, dict) and isinstance(item.get('image'), str) and (item['image'].startswith('http://') or item['image'].startswith('//') or item['image'].startswith('/')) for item in self.json_ld))
-		r = {'title': title_str, 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical, 'headings': self.headings, 'anchors': sorted(set(self.anchors)), 'links': self.links, 'scripts': self.scripts, 'images': self.images, 'image_alt_summary': {'total': total_imgs, 'empty_alt': empty_alt, 'filename_like_alt': filename_alt, 'repeated_site_name_alt': repeated_site_alt, 'descriptive_alt': descriptive_alt}, 'embeds': self.embeds, 'word_count': word_count, 'seo_diagnostics': {'h1_count': h1_count, 'missing_h1': 0 == h1_count, 'multiple_h1': h1_count > 1, 'title_length': len(title_str), 'overlong_title': len(title_str) > 65, 'meta_description_length': len(meta_desc), 'missing_meta_description': not bool(meta_desc.strip()), 'spaced_brand_name': spaced_brand, 'json_ld_types': json_ld_types, 'empty_json_ld_description': empty_json_ld_desc, 'insecure_or_relative_json_ld_image': insecure_json_ld_img}, 'json_ld': self.json_ld, 'sections': sections, 'anchor_ranges': anchor_ranges, 'anchor_content': {anchor: [plain[x['start']:x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}, 'ambiguous_anchors': sorted((anchor for anchor, ranges in self.anchor_ranges.items() if len(ranges) > 1)), 'text': clean_text}
+		r = {'title': title_str, 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical, 'headings': clean_headings, 'anchors': sorted(all_anchors), 'links': self.links, 'scripts': self.scripts, 'images': self.images, 'image_alt_summary': {'total': total_imgs, 'empty_alt': empty_alt, 'filename_like_alt': filename_alt, 'repeated_site_name_alt': repeated_site_alt, 'descriptive_alt': descriptive_alt}, 'embeds': self.embeds, 'word_count': word_count, 'seo_diagnostics': {'h1_count': h1_count, 'missing_h1': 0 == h1_count, 'multiple_h1': h1_count > 1, 'title_length': len(title_str), 'overlong_title': len(title_str) > 65, 'meta_description_length': len(meta_desc), 'missing_meta_description': not bool(meta_desc.strip()), 'spaced_brand_name': spaced_brand, 'json_ld_types': json_ld_types, 'empty_json_ld_description': empty_json_ld_desc, 'insecure_or_relative_json_ld_image': insecure_json_ld_img}, 'json_ld': self.json_ld, 'sections': sections, 'anchor_ranges': anchor_ranges, 'anchor_content': anchor_content, 'ambiguous_anchors': sorted(ambiguous_set), 'text': clean_text}
 		return r
+def extract_markdown(text: str) -> dict:
+	from collections import Counter
+	from markdown_it import MarkdownIt
+	from .links import parse_markdown_headings, references
+	headings_meta, md_anchors, md_ambiguous, doc_title = parse_markdown_headings(text)
+	doc_links, html_anchors = references(text)
+	raw_lines = text.splitlines(keepends=True)
+	line_offsets = [0]
+	for ln in raw_lines:
+		line_offsets.append(line_offsets[-1] + len(ln))
+	masked_lines = list(raw_lines)
+	for tok in MarkdownIt('commonmark', {'html': True}).parse(text):
+		if tok.type in ('fence', 'code_block') and tok.map:
+			for li in range(max(0, tok.map[0]), min(len(masked_lines), tok.map[1])):
+				masked_lines[li] = ' ' * len(masked_lines[li])
+	masked_text = re.sub('`+[^`]*`+', lambda m: ' ' * len(m.group(0)), ''.join(masked_lines))
+	html_counts = Counter(html_anchors)
+	ambiguous_set = set(md_ambiguous) | {a for a, cnt in html_counts.items() if 1 < cnt} | (set(html_anchors) & set(md_anchors))
+	all_anchors = set(md_anchors) | set(html_anchors)
+	clean_headings = []
+	sections = []
+	anchor_ranges = {}
+	anchor_content = {}
+	for idx, h in enumerate(headings_meta):
+		start_line = h['start_line']
+		end_line = next((nh['start_line'] for nh in headings_meta[idx + 1:] if nh['level'] <= h['level']), len(raw_lines))
+		c_start = line_offsets[min(start_line, len(raw_lines))]
+		c_end = line_offsets[min(end_line, len(raw_lines))]
+		raw_sec = ''.join(raw_lines[start_line:end_line])
+		unesc_sec = html_lib.unescape(raw_sec)
+		sec_text = raw_sec if unesc_sec == raw_sec else raw_sec + '\n' + unesc_sec
+		sec_anchors = [a for a in h['section_anchors'] if a not in ambiguous_set]
+		entry = {'level': h['level'], 'text': h['text'], 'anchor': h['anchor'] if h['anchor'] not in ambiguous_set else None, 'ancestor_anchors': [], 'section_anchors': sec_anchors, 'container_anchors': [], 'start': c_start, 'end': c_end}
+		clean_headings.append(entry)
+		sections.append({**entry, 'content': sec_text})
+		for a in h['section_anchors']:
+			anchor_ranges.setdefault(a, []).append([c_start, c_end])
+			anchor_content.setdefault(a, []).append(sec_text)
+	for ha in sorted(set(html_anchors)):
+		if ha not in md_anchors:
+			pat = re.compile('\\b(?:id|name)=["\\\']' + re.escape(ha) + '["\\\']')
+			for m in pat.finditer(masked_text):
+				pos = m.start()
+				enclosing = next((s for s in reversed(sections) if s['start'] <= pos < s['end']), None)
+				s_end = enclosing['end'] if enclosing else len(text)
+				seg = text[pos:s_end]
+				unesc_seg = html_lib.unescape(seg)
+				anchor_ranges.setdefault(ha, []).append([pos, s_end])
+				anchor_content.setdefault(ha, []).append(seg if unesc_seg == seg else seg + '\n' + unesc_seg)
+			if 1 < len(anchor_ranges.get(ha, [])):
+				ambiguous_set.add(ha)
+	unesc_full = html_lib.unescape(text)
+	word_count = len(re.findall('\\w+', unesc_full))
+	h1_count = sum((1 for h in clean_headings if 1 == h.get('level')))
+	return {'title': doc_title, 'meta': {}, 'meta_all': {}, 'canonical': [], 'headings': clean_headings, 'anchors': sorted(all_anchors), 'links': [{'href': u, 'text': ''} for u in doc_links], 'scripts': [], 'images': [], 'image_alt_summary': {'total': 0, 'empty_alt': 0, 'filename_like_alt': 0, 'repeated_site_name_alt': 0, 'descriptive_alt': 0}, 'embeds': [], 'word_count': word_count, 'seo_diagnostics': {'h1_count': h1_count, 'missing_h1': 0 == h1_count, 'multiple_h1': h1_count > 1, 'title_length': len(doc_title), 'overlong_title': len(doc_title) > 65, 'meta_description_length': 0, 'missing_meta_description': True, 'spaced_brand_name': False, 'json_ld_types': [], 'empty_json_ld_description': False, 'insecure_or_relative_json_ld_image': False}, 'json_ld': [], 'sections': sections, 'anchor_ranges': anchor_ranges, 'anchor_content': anchor_content, 'ambiguous_anchors': sorted(ambiguous_set), 'browser_check_required': 0 == word_count, 'text': unesc_full}
 def _extract_sitemap(text):
 	stripped = text.lstrip()
 	if not (stripped.startswith('<?xml') or '<urlset' in stripped[:1500] or '<sitemapindex' in stripped[:1500]):
@@ -422,7 +643,7 @@ def _summarize_json_collections(value):
 		summary[name] = {'record_count': len(items), 'timestamp_ranges': ts_summary, 'field_counts': filtered_cats}
 	return summary
 def _write_cached_extraction(target, legacy_pattern, sha_key, sha_value, build_fn):
-	version = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
+	version = extractor_version()
 	target.parent.mkdir(parents=True, exist_ok=True)
 	r = None
 	if target.is_file():
@@ -447,9 +668,11 @@ def _write_cached_extraction(target, legacy_pattern, sha_key, sha_value, build_f
 			except OSError:
 				pass
 	return r
-def extract_bytes(body, content_type, profile, charset='utf-8'):
+def extract_bytes(body, content_type, profile, charset='utf-8', *, status=None):
 	if profile not in PROFILES:
 		raise ValueError(f'Unknown profile: {profile}; choose {PROFILES}')
+	ct_low = (content_type or '').split(';', 1)[0].strip().lower()
+	is_md = ct_low in ('text/markdown', 'text/x-markdown')
 	if 'document' == profile and body.startswith(b'%PDF-'):
 		from .upwork_data import extract_pdf_markdown
 		md = extract_pdf_markdown(body)
@@ -462,9 +685,15 @@ def extract_bytes(body, content_type, profile, charset='utf-8'):
 			if not isinstance(value, dict) or not any((k in value for k in ('product', 'products', 'variants', 'id'))):
 				raise ValueError('Expected Shopify product/collection JSON')
 			r = {'data': value, 'summary': _summarize_json_collections(value), 'text': text, 'scope': 'public JSON response; not Merchant Center feed or admin configuration'}
-		elif 'document' == profile and content_type not in ('text/html', 'application/xhtml+xml'):
+		elif is_md and 'html' == profile:
+			r = extract_markdown(text)
+		elif 'document' == profile and ct_low not in ('text/html', 'application/xhtml+xml'):
 			out = {'paragraphs': text.splitlines(), 'text': text, 'layout_checked': False}
-			if 'application/json' == content_type or text.lstrip().startswith(('{', '[')):
+			if is_md:
+				md_info = extract_markdown(text)
+				for k in ('title', 'headings', 'anchors', 'ambiguous_anchors', 'word_count', 'browser_check_required'):
+					out[k] = md_info[k]
+			elif 'application/json' == ct_low or text.lstrip().startswith(('{', '[')):
 				try:
 					parsed = json.loads(text)
 					if isinstance(parsed, (dict, list)):
@@ -498,7 +727,7 @@ def extract_bytes(body, content_type, profile, charset='utf-8'):
 				result['embedded_json'] = configs
 				result['embedded_json_unparsed'] = parse_failures
 				result['execution_checked'] = False
-			result['browser_check_required'] = bool(_CHALLENGE_RE.search(result['text'] + '\n' + text) or (None is result.get('sitemap') and 0 == result.get('word_count', 0)))
+			result['browser_check_required'] = classify_html_challenge(text, parsed=result, status=status)
 			r = result
 	else:
 		import io
@@ -534,7 +763,7 @@ def extract_observation(root, reference, profile='html'):
 	if meta.get('error') or ('http' == meta.get('kind', 'http') and (not 200 <= meta['status'] < 300)):
 		raise ValueError('Observation is unavailable; preserve it and choose a different check method')
 	target = folder / f'extracted-{profile}.json'
-	data = _write_cached_extraction(target, f'extracted-{profile}-*.json', 'body_sha256', meta['body_sha256'], lambda version: {'profile': profile, 'extractor_version': version, 'observation': reference, 'body_sha256': meta['body_sha256'], 'observed_at': meta['observed_at'], **compact_extraction_for_disk(extract_bytes((folder / 'response.bin').read_bytes(), meta['content_type'], profile, meta.get('charset') or 'utf-8'))})
+	data = _write_cached_extraction(target, f'extracted-{profile}-*.json', 'body_sha256', meta['body_sha256'], lambda version: {'profile': profile, 'extractor_version': version, 'observation': reference, 'body_sha256': meta['body_sha256'], 'observed_at': meta['observed_at'], **compact_extraction_for_disk(extract_bytes((folder / 'response.bin').read_bytes(), meta['content_type'], profile, meta.get('charset') or 'utf-8', status=meta.get('status')))})
 	r = {'extraction': target.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix(), 'observation': reference, 'profile': profile, 'observed_at': meta['observed_at']}
 	if 'browser_check_required' in data:
 		r['browser_check_required'] = bool(data['browser_check_required'])
@@ -584,7 +813,7 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 		if not isinstance(data, dict) or not isinstance(data.get('html'), str) or urldefrag(data.get('url', ''))[0] != urldefrag(target)[0]:
 			raise ValueError('Tab navigated or DOM capture does not match the intended resource')
 		return Response(data['url'], 0, 'text/html', data['html'].encode('utf-8'))
-	observation = collect(root, url, scope=f'CDP-session:{session_id}:tab:{tab_id}:identity:{identity_ref}', max_age=0, refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom', context=observed_context)
+	observation = collect(root, url, scope=f'CDP-session:{session_id}:tab:{tab_id}:identity:{identity_ref}', max_age=0, refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom', context=observed_context, extra_meta={'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash})
 	extra = {} if observation['error'] else extract_observation(root, observation['observation'])
 	return {**observation, **extra, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
 def collect_browser(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None, headless_shell=None):
@@ -607,8 +836,8 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 		cdp_meta.update(capture)
 		r = Response(capture.get('url') or target, 0, 'text/html', capture['html'].encode('utf-8'))
 		return r
-	observation = collect(root, url, scope=effective_scope, max_age=max_age, refresh_reason=refresh_reason, timeout=timeout, fetcher=read_dom, observation_kind='dom', context=observed_context or None)
-	item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
+	observation = collect(root, url, scope=effective_scope, max_age=max_age, refresh_reason=refresh_reason, timeout=timeout, fetcher=read_dom, observation_kind='dom', context=observed_context or None, extra_meta=cdp_meta)
+	item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved', 'cdp_identity', 'cdp_identity_sha256') if None is not observation.get(k) or k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
 	for key in ('cdp_identity', 'cdp_identity_sha256', 'target_id', 'target_mode', 'closed_after_capture', 'endpoint'):
 		if key in cdp_meta:
 			item[key] = cdp_meta[key]

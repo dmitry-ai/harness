@@ -1,4 +1,7 @@
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -35,7 +38,7 @@ from urllib.error import URLError
 from urllib.parse import urldefrag, urlsplit
 from urllib.request import urlopen
 import uuid
-from .research import _CHALLENGE_RE as _CDP_CHALLENGE_RE
+from .research import classify_html_challenge
 from .runtime import HARNESS_META, platform_settings, settings
 from .storage import locked, write_immutable_bytes
 _LOCKS, _LOCKS_GUARD = ({}, threading.Lock())
@@ -581,8 +584,8 @@ def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 				html_str = val['html']
 				cur_url = val.get('url') or ''
 				ready = val.get('readyState') in ('complete', 'interactive') and cur_url not in ('', 'about:blank') and (not cur_url.startswith('about:blank#'))
-				has_text = 0 < (val.get('textLen') or 0) or bool(re.sub('<(?is)(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', '', html_str).strip())
-				is_challenge = bool(_CDP_CHALLENGE_RE.search(html_str))
+				has_text = 0 < (val.get('textLen') or 0) or bool(re.sub('(?is)<(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', '', html_str).strip())
+				is_challenge = classify_html_challenge(html_str)
 				if single_pass or (ready and has_text and (not is_challenge)):
 					break
 				if is_challenge and 'complete' == val.get('readyState'):

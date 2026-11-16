@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
@@ -593,5 +596,24 @@ class EvidenceContractTests(TemporaryCase):
 		mod_fact['comparison'] = {'relation': 'modified_from', 'operand_a_evidence_id': 'E-MOD-A', 'operand_b_evidence_id': 'E-BASELINE-CLEAN'}
 		self.assertNotIn('claim.relational_arity', self.codes(evidence_issues(self.project, value)))
 		self.assertNotIn('comparison.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	def test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract(self):
+		value = v3_analysis(self.project)
+		html_obs = collect(self.project, 'https://example.org/meta-capi', fetcher=lambda *a: Response(a[0], 200, 'text/html', b'<div id="testEvents"><h2>Test Events Tool</h2></div><p>Verify server payloads with test_event_code.</p>'))
+		md_obs = collect(self.project, 'https://example.org/consent-md', fetcher=lambda *a: Response(a[0], 200, 'text/markdown', b'---\ntitle: Consent Guide\n---\n## Consent Signals &#123;#consent-signals&#125;\nGoogle tags read ad_storage and analytics_storage.\n'))
+		fact = value['facts'][0]
+		fact['essence'] = 'Server payloads use test_event_code and Google tags read ad_storage and analytics_storage.'
+		fact['scope']['sample'] = ['https://example.org/meta-capi', 'https://example.org/consent-md']
+		fact['evidence'] = [
+			{'id': 'E-WRAPPER', 'kind': 'observation', 'source': 'https://example.org/meta-capi#testEvents', 'observation': html_obs['observation'], 'source_sha256': html_obs['body_sha256'], 'documentation': True, 'quote': 'Verify server payloads with test_event_code.', 'locator': {'type': 'anchor', 'value': 'testEvents'}},
+			{'id': 'E-MD-ID', 'kind': 'observation', 'source': 'https://example.org/consent-md#consent-signals', 'observation': md_obs['observation'], 'source_sha256': md_obs['body_sha256'], 'documentation': True, 'quote': 'Google tags read ad_storage and analytics_storage.', 'locator': {'type': 'anchor', 'value': 'consent-signals'}},
+		]
+		self.assertEqual(evidence_issues(self.project, value), [])
+		from agent_tools.evidence import saved_source
+		local_md = self.project / 'ꘖ/KB/Evidence/local-guide.md'
+		local_md.parent.mkdir(parents=True, exist_ok=True)
+		local_md.write_text('# Guide\n## Custom Section {#custom-sec}\nExact local Markdown quote.\n## Next\nOther text.\n', encoding='utf-8')
+		sec_loaded = saved_source(self.project, 'Evidence/local-guide.md#custom-sec')
+		self.assertIn('Exact local Markdown quote.', sec_loaded['text'])
+		self.assertNotIn('Other text.', sec_loaded['text'])
 if '__main__' == __name__:
 	unittest.main()

@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
@@ -1674,6 +1677,39 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 			bad_auditor = ResponseEvidenceAuditor(project, 'See [Example Platform Guide](https://example.com/guide#missing-anchor).', [{'text': 'Check checkout hooks'}])
 			errs = bad_auditor.validate()
 			self.assertTrue(any(('missing-anchor' in e for e in errs)), errs)
+	def test_m2_m3_m5_response_grounding_markdown_stale_extraction_and_canonical_upwork_job_urls(self):
+		from agent_tools.response_grounding import ResponseEvidenceAuditor
+		with tempfile.TemporaryDirectory() as temp:
+			project = Path(temp) / 'proj'
+			job_id = '~021989674775509080169'
+			(project / '\ua616/KB/Evidence/HTTP/obs-md').mkdir(parents=True, exist_ok=True)
+			(project / '\ua616/KB/Evidence/HTTP/obs-dom').mkdir(parents=True, exist_ok=True)
+			(project / '\ua616/project.json').write_text(json.dumps({'initialized': True, 'job_id': job_id, 'url': f'https://www.upwork.com/jobs/{job_id}'}), encoding='utf-8')
+			(project / '\ua616/KB/Module.md').write_text('Sources: https://example.com/consent-md#signals and https://www.upwork.com/freelancers/~01abcdef\n', encoding='utf-8')
+			md_dir = project / '\ua616/KB/Evidence/HTTP/obs-md'
+			(md_dir / 'observation.json').write_text(json.dumps({'url': 'https://example.com/consent-md', 'status': 200, 'content_type': 'text/markdown; charset=utf-8'}), encoding='utf-8')
+			(md_dir / 'response.bin').write_bytes(b'---\ntitle: Consent Mode Reference\n---\n## Signals &#123;#signals&#125;\nGoogle tags inspect ad_storage and analytics_storage.\n')
+			dom_dir = project / '\ua616/KB/Evidence/HTTP/obs-dom'
+			(dom_dir / 'observation.json').write_text(json.dumps({'url': 'https://www.upwork.com/freelancers/~01abcdef', 'kind': 'dom', 'content_type': 'text/html'}), encoding='utf-8')
+			(dom_dir / 'response.bin').write_bytes(b'<!DOCTYPE html><html><head><title>Daniel M. Profile</title></head><body><main id="hist"><h1>History</h1><p>Delivered GTM Server-Side container version 12.</p></main><script src="/cdn-cgi/challenge-platform/h/b/scripts/jsd/main.js"></script></body></html>')
+			(dom_dir / 'extracted-html.json').write_text(json.dumps({'extractor_version': '0000000000000000', 'browser_check_required': True, 'title': 'Daniel M. Profile', 'anchors': ['hist'], 'text': 'History\nDelivered GTM Server-Side container version 12.', 'word_count': 8}), encoding='utf-8')
+			good_resp = (
+				f'Job [post](https://upwork.com/jobs/GTM-Audit_{job_id}), '
+				'[Consent Mode Reference](https://example.com/consent-md#signals) (\u00abGoogle tags inspect ad_storage and analytics_storage.\u00bb), '
+				'and [Daniel M. Profile](https://www.upwork.com/freelancers/~01abcdef#hist) (\u00abDelivered GTM Server-Side container version 12.\u00bb).'
+			)
+			self.assertEqual([], ResponseEvidenceAuditor(project, good_resp, [{'text': 'Audit'}]).validate())
+			foreign_job = 'Foreign [job](https://www.upwork.com/jobs/~029999999999999999999).'
+			foreign_errs = ResponseEvidenceAuditor(project, foreign_job, [{'text': 'Audit'}]).validate()
+			self.assertTrue(any(('missing from \ua616/KB' in e or 'no saved observation' in e for e in foreign_errs)), foreign_errs)
+			chal_dir = project / '\ua616/KB/Evidence/HTTP/obs-stale-chal'
+			chal_dir.mkdir(parents=True, exist_ok=True)
+			(project / '\ua616/KB/Module.md').write_text('Sources: https://example.com/consent-md#signals and https://www.upwork.com/freelancers/~01abcdef and https://example.com/gated\n', encoding='utf-8')
+			(chal_dir / 'observation.json').write_text(json.dumps({'url': 'https://example.com/gated', 'kind': 'dom', 'content_type': 'text/html'}), encoding='utf-8')
+			(chal_dir / 'response.bin').write_bytes(b'<!DOCTYPE html><html><head><title>Un instant...</title></head><body><p>V\xc3\xa9rification de la connexion.</p><script>window._cf_chl_opt={cvId:"3"};</script></body></html>')
+			(chal_dir / 'extracted-html.json').write_text(json.dumps({'extractor_version': '0000000000000000', 'browser_check_required': False, 'title': 'Un instant...', 'anchors': [], 'text': 'Verification', 'word_count': 4}), encoding='utf-8')
+			stale_chal_errs = ResponseEvidenceAuditor(project, 'Blocked [page](https://example.com/gated).', [{'text': 'Audit'}]).validate()
+			self.assertTrue(any(('no valid saved observation' in e for e in stale_chal_errs)), stale_chal_errs)
 class TraceCommonTests(unittest.TestCase):
 	def test_iter_antigravity_subagents_and_kb_persistence_parity(self):
 		from agent_tools.platforms import trace_common

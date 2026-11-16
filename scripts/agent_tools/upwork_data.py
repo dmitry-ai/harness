@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
@@ -15,6 +18,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from urllib.parse import urldefrag, urlsplit
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
 import zipfile
@@ -459,6 +463,18 @@ def normalize_job_id(url_or_id: str) -> str:
 	return match.group(1)
 def canonical_job_url(url_or_id: str) -> str:
 	return f'https://upwork.com/jobs/{normalize_job_id(url_or_id)}'
+def extract_upwork_job_url_id(url: str, *, allow_query_or_fragment: bool=False) -> str | None:
+	r = None
+	if isinstance(url, str) and url.strip():
+		raw = url.strip()
+		base, frag = urldefrag(raw)
+		parsed = urlsplit(base)
+		segments = parsed.path.split('/')
+		if parsed.scheme.lower() in ('http', 'https') and (parsed.hostname or '').lower() in ('upwork.com', 'www.upwork.com') and (not parsed.username) and (not parsed.password) and ('.' not in segments) and ('..' not in segments) and (allow_query_or_fragment or ((not frag) and (not parsed.query))):
+			m = re.match('^/(?:jobs/|freelance-jobs/(?:apply/)?)(?:[^/]*?_)?(~0[12][0-9a-zA-Z]+)/?$', parsed.path)
+			if m:
+				r = m.group(1)
+	return r
 def resolve_nuxt_devalue(arr: list, idx: int=0, seen: set[int] | None=None):
 	if None is seen:
 		seen = set()

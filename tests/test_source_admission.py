@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
@@ -203,7 +206,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 	def test_valid_dom_capture_identity_can_resolve_the_http_channel_failure(self):
 		from agent_tools.storage import create_bytes
 		text_sources.probe_links(self.project, self.candidate, fetcher=lambda *args: Response(args[0], 403, 'text/html', b'Forbidden'))
-		identity = {'schema_version': 1, 'session_id': 'fixture-session', 'target_id': 'fixture-tab', 'browser_websocket': 'ws://127.0.0.1/fixture', 'profile': {'name': 'fixture'}, 'account': None, 'observed_at': datetime.now(timezone.utc).isoformat()}
+		identity = {'schema_version': 1, 'session_id': 'fixture-session', 'target_id': 'fixture-tab', 'browser_websocket': 'ws://127.0.0.1/fixture', 'profile': {'name': 'fixture', 'status': 'verified'}, 'account': None, 'observed_at': datetime.now(timezone.utc).isoformat()}
 		raw = json_data(identity)
 		path = self.project / 'ꘖ/KB/Evidence/CDPSessions' / (digest(raw) + '.json')
 		path.parent.mkdir(parents=True)
@@ -214,6 +217,14 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		result = self.saved(spec)
 		self.assertTrue(result['valid'], result['issues'])
 		self.assertTrue(self.checked([result['source_check']])['valid'])
+		unver_id = {**identity, 'profile': {'name': 'fixture'}}
+		unver_raw = json_data(unver_id)
+		unver_path = self.project / 'ꘖ/KB/Evidence/CDPSessions' / (digest(unver_raw) + '.json')
+		create_bytes(unver_path, unver_raw)
+		unver_ref = unver_path.relative_to(self.project / 'ꘖ/KB').as_posix()
+		unver_obs = collect(self.project, self.url, max_age=0, observation_kind='dom', scope=f'CDP-session:fixture-session:tab:fixture-tab:identity:{unver_ref}', context={'session_id': 'fixture-session'}, fetcher=lambda *args: Response(args[0], 0, 'text/html', b'<h2 id="p">Rule</h2><p>Exact legal text.</p>'))
+		unver_spec = {**spec, 'cdp_identity': unver_ref, 'evidence': {**spec['evidence'], 'observation': unver_obs['observation'], 'source_sha256': unver_obs['body_sha256']}}
+		self.assertFalse(self.saved(unver_spec)['valid'])
 	def test_reviewer_approval_needs_a_receipt_bound_assessment_for_each_url(self):
 		saved = self.saved()
 		package = {'source_checks': [saved['source_check']]}
@@ -301,5 +312,291 @@ class SourceAdmissionTests(TextWorkspaceCase):
 			server.shutdown()
 			thread.join()
 			server.server_close()
+	def test_m1_heading_band_wrapper_child_sentinel_and_github_user_content_anchors(self):
+		html_body = (
+			'<div id="testEvents"><h2>Test Events Tool</h2></div>'
+			'<p>Use the Test Events tool to verify server events with test_event_code.</p>'
+			'<div class="markdown-heading"><h2 class="heading-element">Empty Header</h2><a id="user-content-empty-header" class="anchor" href="#empty-header">#</a></div>'
+			'<div class="markdown-heading"><h2 class="heading-element">Server Events</h2><a id="user-content-server-events" class="anchor" href="#server-events">#</a></div>'
+			'<p>Send Conversions API events directly from your backend.</p>'
+			'<h2><a id="child-id"></a>Child Heading</h2><p>Child section quote.</p>'
+			'<a name="legacy-id"></a><h2>Legacy Heading</h2><p>Legacy section quote.</p>'
+			'<h2>Post Heading</h2><a id="post-id"></a><p>Post section quote.</p>'
+		).encode('utf-8')
+		for frag, quote in (
+			('testEvents', 'Use the Test Events tool to verify server events with test_event_code.'),
+			('server-events', 'Send Conversions API events directly from your backend.'),
+			('user-content-server-events', 'Send Conversions API events directly from your backend.'),
+			('child-id', 'Child section quote.'),
+			('legacy-id', 'Legacy section quote.'),
+			('post-id', 'Post section quote.'),
+		):
+			url = f'https://example.org/docs#{frag}'
+			cand = f'1. Read {url}.\n'
+			spec = self.spec(url=url, body=html_body)
+			spec['evidence']['quote'] = quote
+			spec['evidence']['locator'] = {'type': 'anchor', 'value': frag}
+			res = self.saved(spec, cand)
+			self.assertTrue(res['valid'], (frag, res['issues']))
+		wrong_url = 'https://example.org/docs#testEvents'
+		wrong_cand = f'1. Read {wrong_url}.\n'
+		wrong_spec = self.spec(url=wrong_url, body=html_body)
+		wrong_spec['evidence']['quote'] = 'Send Conversions API events directly from your backend.'
+		wrong_spec['evidence']['locator'] = {'type': 'anchor', 'value': 'testEvents'}
+		self.assertFalse(self.saved(wrong_spec, wrong_cand)['valid'])
+		no_frag_url = 'https://example.org/docs'
+		no_frag_cand = f'1. Read [docs]({no_frag_url}).\n'
+		exc_spec = self.spec(url=no_frag_url, body=html_body)
+		exc_spec['evidence']['quote'] = 'Use the Test Events tool to verify server events with test_event_code.'
+		exc_spec['evidence']['locator'] = {'type': 'text', 'value': exc_spec['evidence']['quote']}
+		exc_spec['evidence']['anchor_exception'] = {'section': 'Test Events Tool', 'observation': exc_spec['evidence']['observation']}
+		exc_res = self.saved(exc_spec, no_frag_cand)
+		self.assertFalse(exc_res['valid'])
+		self.assertIn('available anchor', ' '.join(exc_res['issues']))
+		root_wrapped_html = b'<html id="facebook"><body id="mount_0_0"><main id="doc-root"><h1>Overview</h1><p>Intro text.</p><h2>Unanchored Section</h2><p>Truly unanchored section text.</p><section id="wrapped-sec"><h2>Wrapped Section</h2><p>Wrapped section text.</p></section></main></body></html>'
+		unanchored_spec = self.spec(url=no_frag_url, body=root_wrapped_html)
+		unanchored_spec['evidence']['quote'] = 'Truly unanchored section text.'
+		unanchored_spec['evidence']['locator'] = {'type': 'text', 'value': 'Truly unanchored section text.'}
+		unanchored_spec['evidence']['anchor_exception'] = {'section': 'Unanchored Section', 'observation': unanchored_spec['evidence']['observation']}
+		self.assertTrue(self.saved(unanchored_spec, no_frag_cand)['valid'])
+		wrapped_exc = self.spec(url=no_frag_url, body=root_wrapped_html)
+		wrapped_exc['evidence']['quote'] = 'Wrapped section text.'
+		wrapped_exc['evidence']['locator'] = {'type': 'text', 'value': 'Wrapped section text.'}
+		wrapped_exc['evidence']['anchor_exception'] = {'section': 'Wrapped Section', 'observation': wrapped_exc['evidence']['observation']}
+		self.assertFalse(self.saved(wrapped_exc, no_frag_cand)['valid'])
+		edge_html = (
+			'<head><style id="jss">body{}</style></head><body>'
+			'<div id="fb-root"></div>'
+			'<header id="hero"><h1>Title</h1><p>Subtitle</p></header>'
+			'<h2>Pricing</h2><p>Secret pricing text.</p>'
+			'<section id="sec-a"><h2>Section A</h2><p>Inside section A.</p><article id="c1"><p>Narrow comment.</p></article></section><p>Outside section A.</p>'
+			'<h2>Section 1</h2><p>Prose <a id="p1-end"></a></p><div id="mount"></div>'
+			'<div class="markdown-heading"><h2>Empty</h2><a id="post-empty">#</a></div>'
+			'<h2>Section 2</h2><p>Sec 2 quote.</p>'
+			'<div id="foo"><p>Sidebar</p></div><div class="markdown-heading"><h2>Foo</h2><a id="user-content-foo">#</a></div><p>Main foo body.</p>'
+			'</body>'
+		).encode('utf-8')
+		for bad_frag, bad_q in (('hero', 'Secret pricing text.'), ('sec-a', 'Outside section A.'), ('c1', 'Inside section A.'), ('p1-end', 'Sec 2 quote.'), ('post-empty', 'Sec 2 quote.'), ('foo', 'Main foo body.')):
+			b_url = f'https://example.org/edge#{bad_frag}'
+			b_spec = self.spec(url=b_url, body=edge_html)
+			b_spec['evidence'].update(quote=bad_q, locator={'type': 'anchor', 'value': bad_frag})
+			self.assertFalse(self.saved(b_spec, f'1. {b_url}\n')['valid'], bad_frag)
+		for ok_frag, ok_q in (('sec-a', 'Inside section A.'), ('c1', 'Narrow comment.'), ('user-content-foo', 'Main foo body.')):
+			g_url = f'https://example.org/edge#{ok_frag}'
+			g_spec = self.spec(url=g_url, body=edge_html)
+			g_spec['evidence'].update(quote=ok_q, locator={'type': 'anchor', 'value': ok_frag})
+			self.assertTrue(self.saved(g_spec, f'1. {g_url}\n')['valid'], ok_frag)
+		edge_base = 'https://example.org/edge'
+		edge_cand = f'1. Read [edge]({edge_base}).\n'
+		outside_exc = self.spec(url=edge_base, body=edge_html)
+		outside_exc['evidence'].update(quote='Outside section A.', locator={'type': 'text', 'value': 'Outside section A.'}, anchor_exception={'section': 'Section A', 'observation': outside_exc['evidence']['observation']})
+		self.assertTrue(self.saved(outside_exc, edge_cand)['valid'])
+		inside_exc = self.spec(url=edge_base, body=edge_html)
+		inside_exc['evidence'].update(quote='Inside section A.', locator={'type': 'text', 'value': 'Inside section A.'}, anchor_exception={'section': 'Section A', 'observation': inside_exc['evidence']['observation']})
+		self.assertFalse(self.saved(inside_exc, edge_cand)['valid'])
+		head_mount_html = b'<html><head><style id="jss">body{}</style><script id="boot"></script></head><body><div id="fb-root"></div><h1>Overview</h1><p>Unanchored overview text.</p></body></html>'
+		hm_spec = self.spec(url=edge_base, body=head_mount_html)
+		hm_spec['evidence'].update(quote='Unanchored overview text.', locator={'type': 'text', 'value': 'Unanchored overview text.'}, anchor_exception={'section': 'Overview', 'observation': hm_spec['evidence']['observation']})
+		self.assertTrue(self.saved(hm_spec, edge_cand)['valid'])
+	def test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids(self):
+		from agent_tools.links import Page, check_network
+		seen_headers = {}
+		md_body = (
+			'---\ntitle: Consent Mode Guide\n---\n'
+			'# Consent Mode Guide\n'
+			'---\n'
+			'## Server Events &#123;#test-events&#125;\n'
+			'Verify payloads using &#96;test_event_code&#96; in Events Manager.\n'
+			'```html\n<div id="fenced-fake">Fake</div>\n```\n'
+			'---\n'
+			'## Intro {#setup}\n'
+			'Explicit setup section quote.\n'
+			'## Setup\n'
+			'Auto-deduplicated setup-1 section quote.\n'
+			'## Implementation {#implementation}\n'
+			'Configure default consent states before tags fire.\n'
+		).encode('utf-8')
+		def md_fetcher(req_url, headers, timeout):
+			seen_headers.update(headers)
+			return Response(req_url, 200, 'text/markdown', md_body)
+		for frag, quote in (
+			('test-events', 'Verify payloads using `test_event_code` in Events Manager.'),
+			('server-events', 'Verify payloads using `test_event_code` in Events Manager.'),
+			('setup', 'Explicit setup section quote.'),
+			('setup-1', 'Auto-deduplicated setup-1 section quote.'),
+			('implementation', 'Configure default consent states before tags fire.'),
+		):
+			url = f'https://example.org/consent#{frag}'
+			cand = f'1. See {url}.\n'
+			obs = collect(self.project, url, max_age=0, fetcher=md_fetcher)
+			self.assertIn('text/markdown', seen_headers.get('Accept', ''))
+			spec = {'url': url, 'currency': 'current', 'currency_basis': 'Current Markdown documentation.', 'evidence': {'source': url, 'observation': obs['observation'], 'source_sha256': obs['body_sha256'], 'quote': quote, 'documentation': True, 'locator': {'type': 'anchor', 'value': frag}}}
+			res = self.saved(spec, cand)
+			self.assertTrue(res['valid'], (frag, res['issues']))
+		wrong_sec_spec = {'url': 'https://example.org/consent#setup', 'currency': 'current', 'currency_basis': 'Wrong section.', 'evidence': {'source': 'https://example.org/consent#setup', 'observation': obs['observation'], 'source_sha256': obs['body_sha256'], 'quote': 'Auto-deduplicated setup-1 section quote.', 'documentation': True, 'locator': {'type': 'anchor', 'value': 'setup'}}}
+		self.assertFalse(self.saved(wrong_sec_spec, '1. See https://example.org/consent#setup.\n')['valid'])
+		fenced_spec = {'url': 'https://example.org/consent#fenced-fake', 'currency': 'current', 'currency_basis': 'Code block fake id.', 'evidence': {'source': 'https://example.org/consent#fenced-fake', 'observation': obs['observation'], 'source_sha256': obs['body_sha256'], 'quote': 'Fake', 'documentation': True, 'locator': {'type': 'anchor', 'value': 'fenced-fake'}}}
+		self.assertFalse(self.saved(fenced_spec, '1. See https://example.org/consent#fenced-fake.\n')['valid'])
+		dom_seen = {}
+		def dom_hdr_fetcher(req_url, headers, timeout):
+			dom_seen.update(headers)
+			return Response(req_url, 0, 'text/html', b'<h1>DOM</h1>')
+		collect(self.project, 'https://example.org/dom-hdr', max_age=0, observation_kind='dom', fetcher=dom_hdr_fetcher)
+		self.assertNotIn('Accept', dom_seen)
+		net_res = check_network(['https://example.org/consent#test-events', 'https://example.org/consent#fenced-fake'], anchors=True, fetcher=lambda u, t: Page(u, 200, 'text/markdown', md_body.decode('utf-8')))
+		self.assertEqual({r['url']: r['status'] for r in net_res}, {'https://example.org/consent#test-events': 'found-in-source', 'https://example.org/consent#fenced-fake': 'not-found-in-source'})
+		probe = text_sources.probe_links(self.project, '[ok](https://example.org/consent#test-events) [bad](https://example.org/consent#missing)', fetcher=md_fetcher)
+		statuses = {item['url']: item['status'] for item in probe['results']}
+		self.assertEqual(statuses['https://example.org/consent#test-events'], 'http-ok')
+		self.assertEqual(statuses['https://example.org/consent#missing'], 'anchor-unverified')
+	def test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked(self):
+		from agent_tools.research import classify_html_challenge
+		passive_cf_html = (
+			'<!DOCTYPE html><html><head><title>Daniel M. - GTM & Meta CAPI Specialist</title></head><body>'
+			'<noscript>Enable JavaScript and cookies to continue</noscript>'
+			'<main id="history"><h1>Work History</h1><p>Completed server-side GTM and Meta Conversions API setup with 5.0 rating.</p></main>'
+			'<script src="/cdn-cgi/challenge-platform/h/b/scripts/jsd/991413702c0a/main.js"></script>'
+			'<script>window.__CF$cv$params={r:"99a1b2c3",t:"MTc2"};</script>'
+			'</body></html>'
+		).encode('utf-8')
+		prof_url = 'https://example.org/freelancers/~01abcdef#history'
+		prof_cand = f'1. Profile: {prof_url}.\n'
+		prof_spec = self.spec(url=prof_url, body=passive_cf_html)
+		prof_spec['evidence'].update(documentation=False, quote='Completed server-side GTM and Meta Conversions API setup with 5.0 rating.', locator={'type': 'anchor', 'value': 'history'})
+		prof_res = self.saved(prof_spec, prof_cand)
+		self.assertTrue(prof_res['valid'], prof_res['issues'])
+		doc_about_cf = (
+			'<!DOCTYPE html><html><head><title>Troubleshooting Anti-Bot Challenges</title></head><body>'
+			'<h1 id="guide">Handling Cloudflare Interstitials</h1>'
+			'<p>When an origin returns an interstitial page containing <code>window._cf_chl_opt</code>, <code>challenge-platform</code>, or <code>Verify you are human</code>, capture the rendered DOM via headless browser.</p>'
+			'</body></html>'
+		).encode('utf-8')
+		doc_url = 'https://example.org/cf-guide#guide'
+		doc_cand = f'1. Guide: {doc_url}.\n'
+		doc_spec = self.spec(url=doc_url, body=doc_about_cf)
+		doc_spec['evidence'].update(documentation=True, quote='capture the rendered DOM via headless browser.', locator={'type': 'anchor', 'value': 'guide'})
+		self.assertTrue(self.saved(doc_spec, doc_cand)['valid'])
+		real_challenge = (
+			'<!DOCTYPE html><html><head><title>Just a moment...</title></head><body>'
+			'<div id="history"><div id="challenge-running">Checking your browser before accessing example.org.</div></div>'
+			'<script>window._cf_chl_opt={cvId:"3"};</script>'
+			'</body></html>'
+		).encode('utf-8')
+		chal_spec = self.spec(url=prof_url, body=real_challenge)
+		chal_spec['evidence'].update(documentation=False, quote='Checking your browser', locator={'type': 'anchor', 'value': 'history'})
+		chal_res = self.saved(chal_spec, prof_cand)
+		self.assertFalse(chal_res['valid'])
+		self.assertIn('Challenge page', ' '.join(chal_res['issues']))
+		self.assertTrue(classify_html_challenge('<html><body><div id="app"></div><noscript>Enable JavaScript to run this app.</noscript></body></html>'))
+		self.assertFalse(classify_html_challenge('<html><body><pre>{"event_name":"Purchase","value":120}</pre></body></html>'))
+		self.assertTrue(classify_html_challenge('<html><head><title>Un instant...</title></head><body><p>V\u00e9rification de la s\u00e9curit\u00e9 de votre connexion avant d\'acc\u00e9der au site.</p><script>window._cf_chl_opt={cvId:"3"};</script></body></html>', status=None))
+	def test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance(self):
+		from agent_tools.research import collect_browser, load_observation
+		from agent_tools.text_browser import save_cdp_identity
+		pub_url = 'https://example.org/public-dom#sec'
+		pub_cand = f'1. Public DOM: {pub_url}.\n'
+		collect(self.project, pub_url, scope='public', observation_kind='dom', fetcher=lambda *a: Response(a[0], 0, 'text/html', b'<h2 id="sec">Section</h2><p>Legacy cached without cdp_identity.</p>'))
+		def fake_headless_fetcher(proj_root, target, **kwargs):
+			id_ref, id_sha = save_cdp_identity(proj_root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(), 'endpoint': 'http://127.0.0.1:54321', 'browser': 'HeadlessChrome/139.0', 'browser_websocket': 'ws://127.0.0.1:54321/devtools/browser/1', 'target_id': 'HEADLESS-TAB-1', 'target_mode': 'ephemeral_headless_context', 'closed_after_capture': True, 'profile': {'status': 'verified', 'mode': 'ephemeral_headless_shell'}})
+			return {'url': target, 'html': '<h2 id="sec">Section</h2><p>Rendered headless quote.</p>', 'title': 'Public DOM', 'target_id': 'HEADLESS-TAB-1', 'target_mode': 'ephemeral_headless_context', 'closed_after_capture': True, 'cdp_identity': id_ref, 'cdp_identity_sha256': id_sha, 'endpoint': 'http://127.0.0.1:54321'}
+		dom_obs = collect_browser(self.project, pub_url, cdp_fetcher=fake_headless_fetcher)
+		self.assertFalse(dom_obs['cached'])
+		cached_obs = collect_browser(self.project, pub_url, cdp_fetcher=fake_headless_fetcher)
+		self.assertTrue(cached_obs['cached'])
+		self.assertEqual(cached_obs.get('cdp_identity'), dom_obs['cdp_identity'])
+		self.assertEqual(load_observation(self.project, dom_obs['observation']).get('cdp_identity'), dom_obs['cdp_identity'])
+		pub_spec = {'url': pub_url, 'currency': 'current', 'currency_basis': 'Current isolated headless DOM capture.', 'cdp_identity': dom_obs['cdp_identity'], 'evidence': {'source': pub_url, 'observation': dom_obs['observation'], 'source_sha256': load_observation(self.project, dom_obs['observation'])['body_sha256'], 'documentation': True, 'quote': 'Rendered headless quote.', 'locator': {'type': 'anchor', 'value': 'sec'}}}
+		pub_res = self.saved(pub_spec, pub_cand)
+		self.assertTrue(pub_res['valid'], pub_res['issues'])
+		self.assertTrue(text_sources.source_integrity(self.project, pub_cand, pub_res['source_check'])['source_check'])
+		self.assertTrue(text_review._source_reviews(self.project, {'result': 'approved', 'source_reviews': [{'url': pub_url, 'receipt': pub_res['source_check'], 'assessment': 'Verified isolated DOM receipt.', 'outcome': 'supported'}]}, {'source_checks': [pub_res['source_check']]}, pub_cand))
+		auth_url = 'https://example.org/auth-dom#sec'
+		auth_cand = f'1. Auth DOM: {auth_url}.\n'
+		def fake_auth_fetcher(proj_root, target, **kwargs):
+			id_ref, id_sha = save_cdp_identity(proj_root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(), 'session_id': 'chrome-default', 'endpoint': 'http://127.0.0.1:9222', 'browser': 'Chrome/142.0', 'browser_websocket': 'ws://127.0.0.1:9222/devtools/browser/2', 'target_id': 'AUTH-TAB-2', 'target_mode': 'm2a_extension_background_tab', 'closed_after_capture': True, 'profile': {'status': 'verified', 'name': 'Default'}})
+			return {'url': target, 'html': '<h2 id="sec">Auth</h2><p>Authenticated profile quote.</p>', 'title': 'Auth DOM', 'target_id': 'AUTH-TAB-2', 'target_mode': 'm2a_extension_background_tab', 'closed_after_capture': True, 'cdp_identity': id_ref, 'cdp_identity_sha256': id_sha, 'endpoint': 'http://127.0.0.1:9222'}
+		auth_obs = collect_browser(self.project, auth_url, session_id='chrome-default', cdp_fetcher=fake_auth_fetcher)
+		auth_spec = {'url': auth_url, 'currency': 'current', 'currency_basis': 'Current authenticated Default profile DOM capture.', 'cdp_identity': auth_obs['cdp_identity'], 'evidence': {'source': auth_url, 'observation': auth_obs['observation'], 'source_sha256': load_observation(self.project, auth_obs['observation'])['body_sha256'], 'documentation': True, 'quote': 'Authenticated profile quote.', 'locator': {'type': 'anchor', 'value': 'sec'}}}
+		auth_res = self.saved(auth_spec, auth_cand)
+		self.assertTrue(auth_res['valid'], auth_res['issues'])
+		wrong_id_spec = deepcopy(auth_spec)
+		wrong_id_spec['cdp_identity'] = dom_obs['cdp_identity']
+		self.assertFalse(self.saved(wrong_id_spec, auth_cand)['valid'])
+		unverified_ref, _ = save_cdp_identity(self.project, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(), 'endpoint': 'http://127.0.0.1:54321', 'browser_websocket': 'ws://127.0.0.1:54321/devtools/browser/1', 'target_id': 'HEADLESS-TAB-1', 'target_mode': 'ephemeral_headless_context', 'profile': {'status': 'unverified'}})
+		bad_prof_spec = deepcopy(pub_spec)
+		bad_prof_spec['cdp_identity'] = unverified_ref
+		self.assertFalse(self.saved(bad_prof_spec, pub_cand)['valid'])
+	def test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation(self):
+		job_id = '~021989674775509080169'
+		snapshot_obj = {'job_id': job_id, 'captured_at': '2026-11-10T09:00:00+00:00', 'description': 'Need GTM Server-Side and Meta CAPI audit.', 'client': {'recent_history': [{'freelancer_feedback_text': 'Clear communication throughout the GTM audit.'}]}}
+		snap_bytes = json_data(snapshot_obj)
+		snap_sha = digest(snap_bytes)
+		snap_path = self.project / f'ꘖ/KB/Evidence/{snap_sha}.json'
+		snap_path.parent.mkdir(parents=True, exist_ok=True)
+		snap_path.write_bytes(snap_bytes)
+		(self.project / 'ꘖ/project.json').write_text(json.dumps({'initialized': True, 'job_id': job_id, 'snapshot': f'ꘖ/KB/Evidence/{snap_sha}.json'}), encoding='utf-8')
+		for job_url in (f'https://www.upwork.com/jobs/{job_id}', f'https://upwork.com/jobs/Meta-CAPI-Audit_{job_id}'):
+			self.candidate = f'1. Read {job_url}.\n'
+			text_sources.probe_links(self.project, self.candidate, fetcher=lambda *args: Response(args[0], 403, 'text/html', b'<title>Just a moment...</title>'))
+			spec = {'url': job_url, 'currency': 'current', 'currency_basis': 'Immutable project intake job snapshot.', 'evidence': {'kind': 'intake', 'source': job_url, 'manifest': f'Evidence/{snap_sha}.json', 'source_sha256': snap_sha, 'documentation': False, 'quote': 'Clear communication throughout the GTM audit.', 'locator': {'type': 'json_pointer', 'value': '/client/recent_history/0/freelancer_feedback_text'}}}
+			saved = self.saved(spec, self.candidate)
+			self.assertTrue(saved['valid'], saved['issues'])
+			self.assertEqual(saved['method'], 'INTAKE_SNAPSHOT')
+			checked = self.checked([saved['source_check']])
+			self.assertTrue(checked['valid'], checked['issues'])
+			self.assertIn(f'ꘖ/KB/Evidence/{snap_sha}.json', checked['inputs'])
+			self.assertNotIn('ꘖ/project.json', checked['inputs'])
+		freelancer_url = 'https://www.upwork.com/freelancers/~0123456789abcdef'
+		f_cand = f'1. Freelancer: {freelancer_url}.\n'
+		bad_freelancer = {'url': freelancer_url, 'currency': 'current', 'currency_basis': 'Wrong entity kind.', 'evidence': {'kind': 'intake', 'source': freelancer_url, 'manifest': f'Evidence/{snap_sha}.json', 'source_sha256': snap_sha, 'documentation': False, 'quote': 'Clear communication throughout the GTM audit.', 'locator': {'type': 'json_pointer', 'value': '/client/recent_history/0/freelancer_feedback_text'}}}
+		self.assertFalse(self.saved(bad_freelancer, f_cand)['valid'])
+		other_job_url = 'https://www.upwork.com/jobs/~029999999999999999999'
+		o_cand = f'1. Other job: {other_job_url}.\n'
+		bad_other_job = deepcopy(bad_freelancer)
+		bad_other_job['url'] = other_job_url
+		bad_other_job['evidence']['source'] = other_job_url
+		self.assertFalse(self.saved(bad_other_job, o_cand)['valid'])
+		class Later(datetime):
+			@classmethod
+			def now(cls, tz=None):
+				return datetime.now(timezone.utc) + timedelta(days=5)
+		canon_url = f'https://www.upwork.com/jobs/{job_id}'
+		canon_cand = f'1. Read {canon_url}.\n'
+		canon_spec = {'url': canon_url, 'currency': 'current', 'currency_basis': 'Immutable project intake job snapshot.', 'evidence': {'kind': 'intake', 'source': canon_url, 'manifest': f'Evidence/{snap_sha}.json', 'source_sha256': snap_sha, 'documentation': False, 'quote': 'Clear communication throughout the GTM audit.', 'locator': {'type': 'json_pointer', 'value': '/client/recent_history/0/freelancer_feedback_text'}}}
+		with patch('agent_tools.text_sources.datetime', Later):
+			aged_res = self.saved(canon_spec, canon_cand)
+			self.assertTrue(aged_res['valid'], aged_res['issues'])
+			self.assertTrue(text_sources.source_integrity(self.project, canon_cand, aged_res['source_check'])['source_check'])
+			self.assertTrue(text_review._source_reviews(self.project, {'result': 'approved', 'source_reviews': [{'url': canon_url, 'receipt': aged_res['source_check'], 'assessment': 'Immutable intake snapshot.', 'outcome': 'supported'}]}, {'source_checks': [aged_res['source_check']]}, canon_cand))
+		for rejected_url in (f'{canon_url}#frag', f'{canon_url}?foo=1', f'https://www.upwork.com/jobs/../freelancers/{job_id}'):
+			rej_cand = f'1. Bad URL: {rejected_url}.\n'
+			rej_spec = deepcopy(canon_spec)
+			rej_spec['url'] = rejected_url
+			rej_spec['evidence']['source'] = rejected_url
+			self.assertFalse(self.saved(rej_spec, rej_cand)['valid'], rejected_url)
+		from test_intake import IntakeTests
+		intake_fx = IntakeTests()
+		intake_fx.setUp()
+		self.addCleanup(intake_fx.doCleanups)
+		intake_fx.initialize()
+		intake_fx.capture_file('request.txt', b'User request\n')
+		self.assertEqual(intake_fx.commit()['status'], 'drained')
+		receipt_file = intake_fx.manifest()
+		receipt_doc = json.loads(receipt_file.read_text(encoding='utf-8'))
+		src_entry = next((e for e in receipt_doc['entries'] if 'source.json' == e['original_relative_provenance']))
+		req_entry = next((e for e in receipt_doc['entries'] if 'request.txt' == e['original_relative_provenance']))
+		fx_url = f"https://www.upwork.com/jobs/{intake_fx.source['job_id']}"
+		fx_cand = f'1. Intake job: {fx_url}.\n'
+		fx_target = intake_fx.project / 'result/proposal.md'
+		fx_target.parent.mkdir(parents=True, exist_ok=True)
+		fx_target.write_bytes(fx_cand.encode('utf-8'))
+		fx_op = text_workflow.begin(intake_fx.project, {'kind': 'proposal', 'mode': 'edit', 'changes': 'links', 'target': 'result/proposal.md', 'goal': 'Check intake link.', 'requests': ['Check intake link.']})
+		fx_manifest = receipt_file.relative_to(intake_fx.project / 'ꘖ/KB').as_posix()
+		fx_spec = {'url': fx_url, 'currency': 'current', 'currency_basis': 'Registered Intake receipt source.json.', 'evidence': {'kind': 'intake', 'source': fx_url, 'manifest': fx_manifest, 'source_sha256': src_entry['sha256'], 'documentation': False, 'quote': 'Exact source\n', 'locator': {'type': 'json_pointer', 'value': '/description'}}}
+		fx_saved = text_sources.save_source_check(intake_fx.project, fx_cand, fx_spec)
+		self.assertTrue(fx_saved['valid'], fx_saved['issues'])
+		self.assertTrue(text_workflow.check(intake_fx.project, fx_op['id'], fx_cand, {'source_checks': [fx_saved['source_check']]})['valid'])
+		bad_req_txt = {'url': fx_url, 'currency': 'current', 'currency_basis': 'Request note is not job snapshot.', 'evidence': {'kind': 'intake', 'source': (intake_fx.project / req_entry['durable_file']).relative_to(intake_fx.project / 'ꘖ/KB').as_posix(), 'manifest': fx_manifest, 'source_sha256': req_entry['sha256'], 'documentation': False, 'quote': 'User request', 'locator': {'type': 'text', 'value': 'User request'}}}
+		self.assertFalse(text_sources.save_source_check(intake_fx.project, fx_cand, bad_req_txt)['valid'])
 if '__main__' == __name__:
 	unittest.main()

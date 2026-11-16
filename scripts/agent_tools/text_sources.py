@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
@@ -13,7 +16,7 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urldefrag
+from urllib.parse import urldefrag, urlsplit
 from .claims import contract_issues, evidence_contract_issues
 from .links import check_network, references, readable_reference
 from .storage import locked, read_addressed_json, replace_bytes, write_immutable_bytes
@@ -50,18 +53,71 @@ def source_urls(text):
 	r = list(dict.fromkeys((readable_reference(url) for url in references(prose)[0] if url.startswith(('http://', 'https://')))))
 	return r
 def _evaluate(root, candidate, spec):
-	from .claims import _verify_quote
+	from .claims import _manifest_primary, _verify_quote
+	from .evidence import local_file
 	from .research import load_observation, inside
 	from .text_claims import digest
+	from .upwork_data import extract_upwork_job_url_id
 	if not isinstance(spec, dict) or not isinstance(spec.get('url'), str) or readable_reference(spec['url']) not in source_urls(candidate):
 		raise ValueError('Source check must name an exact external URL in this candidate')
-	ref = spec.get('evidence')
-	if not isinstance(ref, dict) or not isinstance(ref.get('source'), str) or readable_reference(ref['source']) != readable_reference(spec['url']) or (not isinstance(ref.get('quote'), str)) or (not ref['quote'].strip()) or (not isinstance(ref.get('locator'), dict)) or (ref['locator'].get('type') not in ('text', 'anchor', 'lines', 'json_pointer')) or (not isinstance(ref['locator'].get('value'), str)) or (not ref['locator']['value']) or (type(ref.get('documentation')) is not bool) or (not ref.get('observation')):
-		raise ValueError('Use exact URL, quote, locator, explicit documentation flag and saved HTTP/DOM observation')
 	if spec.get('currency') not in ('current', 'historical') or not isinstance(spec.get('currency_basis'), str) or (not spec['currency_basis'].strip()):
 		raise ValueError('Declare current/historical currency and its applicability basis')
 	if 'historical' == spec['currency'] and (not isinstance(spec.get('edition'), str) or not spec['edition'].strip()):
 		raise ValueError('A historical source requires its explicit edition; it is not a current-source fallback')
+	ref = spec.get('evidence')
+	if isinstance(ref, dict) and 'intake' == ref.get('kind'):
+		url_base, url_frag = urldefrag(spec['url'].strip())
+		if url_frag or urlsplit(url_base).query:
+			raise ValueError('Intake job snapshot cannot verify URL query parameters or HTML fragments')
+		cited_job_id = extract_upwork_job_url_id(spec['url'])
+		if not cited_job_id:
+			raise ValueError('Intake source-check provenance applies only to the registered Upwork job URL of this project')
+		state_file = Path(root).resolve() / 'ꘖ/project.json'
+		state = json.loads(state_file.read_text(encoding='utf-8-sig')) if state_file.is_file() else {}
+		if not isinstance(state, dict) or True is not state.get('initialized') or state.get('job_id') != cited_job_id:
+			raise ValueError('Cited Upwork job URL does not match the registered initialized project job_id')
+		if not isinstance(ref.get('manifest'), str) or not ref['manifest'].strip() or (not isinstance(ref.get('source_sha256'), str)) or (not ref['source_sha256'].strip()) or (not isinstance(ref.get('quote'), str)) or (not ref['quote'].strip()) or (not isinstance(ref.get('locator'), dict)) or (ref['locator'].get('type') not in ('json_pointer', 'text', 'lines')) or (not isinstance(ref['locator'].get('value'), str)) or (not ref['locator']['value']) or (False is not ref.get('documentation', False)):
+			raise ValueError('Intake source-check requires manifest, source_sha256, quote, non-documentation flag and json_pointer/text/lines locator')
+		root_resolved = Path(root).resolve()
+		manifest_file = local_file(root, ref['manifest'])
+		manifest_doc = json.loads(manifest_file.read_text(encoding='utf-8-sig'))
+		raw_src = ref.get('source')
+		if isinstance(raw_src, str) and urlsplit(raw_src).scheme.lower() in ('http', 'https'):
+			if readable_reference(raw_src) != readable_reference(spec['url']):
+				raise ValueError('Intake evidence URL differs from the exact cited resource')
+			local_source = None
+		elif isinstance(raw_src, str) and raw_src.strip():
+			local_source = raw_src
+		else:
+			local_source = None
+		if None is local_source:
+			if isinstance(manifest_doc, dict) and isinstance(manifest_doc.get('entries'), list):
+				matched_entry = next((e for e in manifest_doc['entries'] if isinstance(e, dict) and 'identity' == e.get('transform') and 'source.json' == e.get('original_relative_provenance') and (e.get('sha256') == ref['source_sha256']) and isinstance(e.get('durable_file'), str)), None)
+				if not matched_entry:
+					raise ValueError('Intake receipt has no matching source.json entry for this Upwork job snapshot')
+				local_source = inside(root_resolved, matched_entry['durable_file']).relative_to(root_resolved / 'ꘖ/KB').as_posix()
+			else:
+				local_source = ref['manifest']
+		src_file = local_file(root, local_source)
+		if '.json' != src_file.suffix.lower():
+			raise ValueError('Intake source-check for an Upwork job URL requires the JSON job snapshot, not plain-text request notes')
+		snap_file = inside(root_resolved, state['snapshot']) if isinstance(state.get('snapshot'), str) and state['snapshot'].strip() else None
+		if manifest_file != snap_file and isinstance(manifest_doc, dict) and isinstance(manifest_doc.get('entries'), list):
+			matched_src = next((e for e in manifest_doc['entries'] if isinstance(e, dict) and isinstance(e.get('durable_file'), str) and (inside(root_resolved, e['durable_file']) == src_file) and (e.get('sha256') == ref['source_sha256'])), None)
+			if not matched_src or 'source.json' != matched_src.get('original_relative_provenance'):
+				raise ValueError('Intake source-check for an Upwork job URL requires source.json provenance')
+		local_ref = {**ref, 'kind': 'intake', 'source': local_source, 'documentation': False}
+		_manifest_primary(root, local_ref)
+		_verify_quote(root, local_ref)
+		inputs = evidence_inputs(root, {'facts': [{'evidence': [local_ref]}]})
+		snap_doc = json.loads(src_file.read_text(encoding='utf-8-sig'))
+		if not isinstance(snap_doc, dict) or snap_doc.get('job_id') != cited_job_id:
+			raise ValueError('Intake job snapshot job_id differs from the cited Upwork job URL')
+		snap_observed = snap_doc.get('captured_at') or snap_doc.get('observed_at')
+		base_cited = urldefrag(readable_reference(spec['url']))[0]
+		return {'url': readable_reference(spec['url']), 'requested_url': base_cited, 'final_url': base_cited, 'method': 'INTAKE_SNAPSHOT', 'http_status': None, 'observed_at': snap_observed if isinstance(snap_observed, str) and snap_observed else None, 'body_sha256': local_ref['source_sha256'], 'currency': spec['currency'], 'edition': spec.get('edition'), 'inputs': inputs}
+	if not isinstance(ref, dict) or not isinstance(ref.get('source'), str) or readable_reference(ref['source']) != readable_reference(spec['url']) or (not isinstance(ref.get('quote'), str)) or (not ref['quote'].strip()) or (not isinstance(ref.get('locator'), dict)) or (ref['locator'].get('type') not in ('text', 'anchor', 'lines', 'json_pointer')) or (not isinstance(ref['locator'].get('value'), str)) or (not ref['locator']['value']) or (type(ref.get('documentation')) is not bool) or (not ref.get('observation')):
+		raise ValueError('Use exact URL, quote, locator, explicit documentation flag and saved HTTP/DOM observation')
 	if ref['documentation'] and (not urldefrag(spec['url'])[1]) and ('anchor' == ref['locator']['type']):
 		raise ValueError('Put the verified documentation anchor in the cited URL itself')
 	meta = load_observation(root, ref['observation'])
@@ -84,11 +140,21 @@ def _evaluate(root, candidate, spec):
 	inputs = evidence_inputs(root, {'facts': [{'evidence': [ref]}]})
 	if 'dom' == meta.get('kind'):
 		identity = spec.get('cdp_identity')
-		if not isinstance(identity, str):
+		if not isinstance(identity, str) or not identity.strip():
 			raise ValueError('DOM fallback requires its captured CDP identity receipt')
 		path = inside(Path(root).resolve() / 'ꘖ/KB', identity)
 		raw, data = read_addressed_json(path, stem_match=True, error_msg='DOM identity does not bind this exact observation')
-		if 1 != data.get('schema_version') or any((not isinstance(data.get(key), str) or not data[key] for key in ('session_id', 'target_id', 'browser_websocket', 'observed_at'))) or ('read-only-dom' != meta.get('collector')) or ('READ_DOM' != meta.get('method')) or (meta.get('conditions', {}).get('reported_context', {}).get('session_id') != data['session_id']) or (meta.get('request_scope') != f"CDP-session:{data.get('session_id')}:tab:{data.get('target_id')}:identity:{identity}"):
+		prof = data.get('profile')
+		if 1 != data.get('schema_version') or any((not isinstance(data.get(key), str) or not data[key] for key in ('target_id', 'browser_websocket', 'observed_at'))) or ('read-only-dom' != meta.get('collector')) or ('READ_DOM' != meta.get('method')) or (not isinstance(prof, dict)) or ('verified' != prof.get('status')):
+			raise ValueError('DOM identity does not bind this exact observation')
+		sid = data.get('session_id')
+		req_scope = meta.get('request_scope') or ''
+		ctx_sid = meta.get('conditions', {}).get('reported_context', {}).get('session_id')
+		expected_tab_scope = f"CDP-session:{sid}:tab:{data.get('target_id')}:identity:{identity}"
+		mode_tab = isinstance(sid, str) and bool(sid) and (ctx_sid == sid) and (req_scope == expected_tab_scope) and (meta.get('cdp_identity') in (None, identity)) and (meta.get('cdp_identity_sha256') in (None, digest(raw)))
+		mode_auth = isinstance(sid, str) and bool(sid) and (ctx_sid == sid) and (req_scope == f'CDP-session:{sid}' or (not req_scope.startswith('CDP-session:'))) and (data.get('target_mode') in ('hidden_session_target', 'm2a_extension_background_tab')) and (meta.get('cdp_identity') == identity) and (meta.get('cdp_identity_sha256') in (None, digest(raw)))
+		mode_public = (None is sid) and (None is ctx_sid) and bool(req_scope) and (not req_scope.startswith('CDP-session:')) and (data.get('target_mode') in ('ephemeral_headless_context', 'hidden_session_target')) and (meta.get('cdp_identity') == identity) and (meta.get('cdp_identity_sha256') in (None, digest(raw)))
+		if not (mode_tab or mode_auth or mode_public):
 			raise ValueError('DOM identity does not bind this exact observation')
 		inputs[path.relative_to(Path(root).resolve()).as_posix()] = digest(raw)
 	return {'url': readable_reference(spec['url']), 'requested_url': meta['url'], 'final_url': meta['final_url'], 'method': meta['method'], 'http_status': meta['status'], 'observed_at': meta['observed_at'], 'body_sha256': meta['body_sha256'], 'currency': spec['currency'], 'edition': spec.get('edition'), 'inputs': inputs}
@@ -104,7 +170,7 @@ def save_source_check(root, candidate, spec):
 	raw = json_data(result)
 	path = write_immutable_bytes(_folder(root) / 'sources' / (digest(raw) + '-source.json'), raw, diff_error='Immutable source receipt differs')
 	try:
-		if isinstance(spec, dict) and isinstance(spec.get('url'), str) and (readable_reference(spec['url']) in source_urls(candidate)):
+		if isinstance(spec, dict) and isinstance(spec.get('url'), str) and isinstance(spec.get('evidence'), dict) and ('intake' != spec['evidence'].get('kind')) and spec['evidence'].get('observation') and (readable_reference(spec['url']) in source_urls(candidate)):
 			_attempt(root, candidate, spec['url'], spec['evidence']['observation'], path.relative_to(Path(root).resolve()).as_posix())
 	except (OSError, ValueError, KeyError, TypeError):
 		pass
@@ -121,17 +187,18 @@ def probe_links(root, candidate, *, fetcher=None):
 			observed[base] = collect(root, base, scope='client-text-source', max_age=0, refresh_reason='Explicit network check of the exact client-text candidate', fetcher=fetcher)
 		meta = observed[base]
 		status = 'http-ok'
+		ct_low = (meta.get('content_type') or '').split(';', 1)[0].strip().lower()
 		if meta.get('error') or not 200 <= (meta.get('status') or 0) < 300:
 			status = 'unavailable'
 		elif urldefrag(meta['final_url'])[0] != base:
 			status = 'redirect-unverified'
-		elif meta['content_type'] not in ('text/html', 'application/xhtml+xml'):
+		elif ct_low not in ('text/html', 'application/xhtml+xml', 'text/markdown', 'text/x-markdown'):
 			if fragment:
 				status = 'anchor-unverified'
 		else:
 			from .evidence import local_file
 			body = local_file(root, meta['observation']).with_name('response.bin').read_bytes()
-			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8')
+			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
 			if data.get('browser_check_required'):
 				status = 'browser-check-required'
 			elif fragment and (unquote(fragment) not in data['anchors'] or unquote(fragment) in data.get('ambiguous_anchors', [])):

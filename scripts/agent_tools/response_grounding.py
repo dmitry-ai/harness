@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
@@ -9,8 +12,9 @@ from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
 from .links import _bare_urls, readable_link_issues
-from .research import MAX_BYTES, _CHALLENGE_RE
+from .research import MAX_BYTES, classify_html_challenge, extract_markdown, extractor_version
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
+from .upwork_data import extract_upwork_job_url_id
 class ResponseEvidenceAuditor:
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None):
 		self.root = Path(root).resolve()
@@ -106,16 +110,37 @@ class ResponseEvidenceAuditor:
 				except OSError:
 					pass
 	def _collect_client_urls(self) -> None:
+		job_ids: set[str] = set()
 		for req in self.requests or []:
 			for u in _bare_urls(req.get('text', '') if isinstance(req, dict) else str(req)):
 				self.client_urls.add(_norm_url(u))
-		for pfile in (self.root / '\ua616/project.json', self.root / 'KB/Project.md', self.root / '\ua616/KB/Project.md'):
+				jid = extract_upwork_job_url_id(u, allow_query_or_fragment=True)
+				if jid:
+					job_ids.add(jid)
+		pjson = self.root / '\ua616/project.json'
+		if pjson.is_file():
+			try:
+				pdata = json.loads(pjson.read_text(encoding='utf-8-sig'))
+				if isinstance(pdata, dict) and isinstance(pdata.get('job_id'), str) and pdata['job_id'].startswith('~0'):
+					job_ids.add(pdata['job_id'].strip())
+			except (OSError, ValueError):
+				pass
+		for pfile in (pjson, self.root / 'KB/Project.md', self.root / '\ua616/KB/Project.md'):
 			if pfile.is_file():
 				try:
 					for u in _bare_urls(pfile.read_text(encoding='utf-8')):
 						self.client_urls.add(_norm_url(u))
+						jid = extract_upwork_job_url_id(u, allow_query_or_fragment=True)
+						if jid:
+							job_ids.add(jid)
 				except OSError:
 					pass
+		for jid in job_ids:
+			self.client_urls.add(_norm_url(f'https://upwork.com/jobs/{jid}'))
+			self.client_urls.add(_norm_url(f'https://www.upwork.com/jobs/{jid}'))
+			for u in self.authored_urls:
+				if extract_upwork_job_url_id(u) == jid:
+					self.client_urls.add(_norm_url(u))
 	def _extract_markdown_refs(self) -> None:
 		parser = markdown_parser()
 		quote_depth = 0
@@ -255,6 +280,10 @@ class ResponseEvidenceAuditor:
 		ext_anchors: set[str] = set()
 		ext_texts: list[str] = []
 		has_html_anchors = False
+		resp_bin = jfile.parent / 'response.bin'
+		has_resp_bin = resp_bin.is_file()
+		cur_ext_ver = extractor_version()
+		recheck_challenge = False
 		ext_files = list(jfile.parent.glob('extracted-*.json'))
 		for ext_file in ext_files:
 			try:
@@ -262,7 +291,10 @@ class ResponseEvidenceAuditor:
 			except (OSError, ValueError):
 				continue
 			if isinstance(ext, dict):
-				if True is ext.get('browser_check_required'):
+				ext_current = ext.get('extractor_version') == cur_ext_ver
+				if not ext_current and has_resp_bin:
+					recheck_challenge = True
+				elif True is ext.get('browser_check_required'):
 					is_shell_or_empty = True
 					shell_reason = 'browser_check_required=True (JS/anti-bot challenge or empty SPA shell)'
 				elif 'headings' in ext and None is ext.get('sitemap') and (0 == ext.get('word_count', 0)):
@@ -277,25 +309,43 @@ class ResponseEvidenceAuditor:
 					ext_titles.append(t)
 				if isinstance(ext.get('anchors'), list):
 					has_html_anchors = True
-					ext_anchors.update((str(a) for a in ext['anchors'] if a))
+					for raw_a in ext['anchors']:
+						if raw_a:
+							a_str = str(raw_a)
+							ext_anchors.add(a_str)
+							if a_str.startswith('user-content-') and 13 < len(a_str):
+								ext_anchors.add(a_str[13:])
 				if isinstance(ext.get('text'), str) and ext['text'].strip():
 					ext_texts.append(ext['text'])
-		resp_bin = jfile.parent / 'response.bin'
-		if resp_bin.is_file():
+		if has_resp_bin:
 			try:
 				if resp_bin.stat().st_size <= MAX_BYTES:
 					raw_text = resp_bin.read_bytes().decode(data.get('charset') or 'utf-8', errors='replace')
-					ctype = (data.get('content_type') or '').lower()
-					is_html = 'html' in ctype or '<title' in raw_text[:4000].lower() or raw_text.lstrip().lower().startswith(('<!doctype html', '<html'))
-					if is_html:
-						if not ext_files:
-							body_plain = re.sub('<(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', ' ', raw_text, flags=re.I | re.S)
-							if _CHALLENGE_RE.search(raw_text) or not re.findall('\\w+', body_plain):
+					ctype = (data.get('content_type') or '').split(';', 1)[0].strip().lower()
+					is_md = ctype in ('text/markdown', 'text/x-markdown')
+					is_html = (not is_md) and ('html' in ctype or '<title' in raw_text[:4000].lower() or raw_text.lstrip().lower().startswith(('<!doctype html', '<html')))
+					if is_md:
+						md_info = extract_markdown(raw_text)
+						if 0 == md_info.get('word_count', 0):
+							is_shell_or_empty = True
+							shell_reason = 'word_count=0 (empty Markdown response)'
+						if md_info.get('title'):
+							ext_titles.append(md_info['title'])
+						has_html_anchors = True
+						ext_anchors.update((str(a) for a in md_info.get('anchors') or [] if a))
+						if md_info.get('text'):
+							ext_texts.append(md_info['text'])
+					elif is_html:
+						if (not ext_files) or recheck_challenge:
+							if classify_html_challenge(raw_text, status=data.get('status')):
 								is_shell_or_empty = True
 								shell_reason = 'unextracted HTML JS challenge or empty shell'
 						has_html_anchors = True
 						for m_id in re.finditer('\\b(?:id|name)=["\\\']([^"\\\']+)["\\\']', raw_text, re.I):
-							ext_anchors.add(m_id.group(1))
+							aid = m_id.group(1)
+							ext_anchors.add(aid)
+							if aid.startswith('user-content-') and 13 < len(aid):
+								ext_anchors.add(aid[13:])
 						m_t = re.search('<title[^>]*>(.*?)</title>', raw_text[:16000], re.I | re.S)
 						if m_t:
 							t = ' '.join(m_t.group(1).split())

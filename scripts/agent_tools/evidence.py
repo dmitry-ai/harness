@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
 # https://github.com/dmitry-ai/harness/issues/72
@@ -16,6 +19,7 @@
 from pathlib import Path
 from urllib.parse import unquote, urldefrag, urlsplit
 import hashlib
+import html as html_lib
 import json
 import re
 from .analysis import iter_arguments, SECTIONS
@@ -67,27 +71,20 @@ def local_file(root, reference):
 	r = target
 	return r
 def _markdown_section(text: str, fragment: str) -> str:
-	from markdown_it import MarkdownIt
-	tokens = MarkdownIt('commonmark').parse(text)
-	lines, headings, used = (text.splitlines(keepends=True), [], set())
-	for index, token in enumerate(tokens):
-		if 'heading_open' != token.type:
-			continue
-		inline = tokens[index + 1]
-		title = ''.join((t.content for t in inline.children or [] if t.type in ('text', 'code_inline', 'image')))
-		slug = re.sub('[^\\w\\- ]', '', title.lower()).replace(' ', '-')
-		ident, number = (slug, 0)
-		while ident in used:
-			number += 1
-			ident = f'{slug}-{number}'
-		used.add(ident)
-		headings.append((ident, int(token.tag[1]), token.map[0]))
-	match = next((i for i, h in enumerate(headings) if h[0] == unquote(fragment)), None)
+	from .links import parse_markdown_headings
+	headings, _, ambiguous, _ = parse_markdown_headings(text)
+	target = unquote(fragment)
+	if target in ambiguous:
+		raise ValueError('Markdown section anchor is ambiguous')
+	match = next((i for i, h in enumerate(headings) if target in h['section_anchors']), None)
 	if None is match:
 		raise ValueError('Markdown section anchor is absent')
+	lines = text.splitlines(keepends=True)
 	heading = headings[match]
-	end = next((h[2] for h in headings[match + 1:] if h[1] <= heading[1]), len(lines))
-	r = ''.join(lines[heading[2]:end])
+	end = next((h['start_line'] for h in headings[match + 1:] if h['level'] <= heading['level']), len(lines))
+	raw_sec = ''.join(lines[heading['start_line']:end])
+	unesc_sec = html_lib.unescape(raw_sec)
+	r = raw_sec if unesc_sec == raw_sec else raw_sec + '\n' + unesc_sec
 	return r
 def saved_source(root, source, observation=None):
 	base, fragment = urldefrag(source)
@@ -135,12 +132,17 @@ def saved_source(root, source, observation=None):
 			raise ValueError('Saved HTTP result is unavailable; use a different verification method')
 		file = local_file(root, observation).parent / 'response.bin'
 		body = file.read_bytes()
-		if meta['content_type'] in ('text/html', 'application/xhtml+xml'):
-			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8')
+		ct_low = (meta['content_type'] or '').split(';', 1)[0].strip().lower()
+		if ct_low in ('text/html', 'application/xhtml+xml'):
+			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
 			r = {'kind': 'html', 'data': data, 'raw': body.decode(meta.get('charset') or 'utf-8', errors='replace'), 'fragment': unquote(fragment), 'meta': meta}
+		elif ct_low in ('text/markdown', 'text/x-markdown'):
+			raw_str = body.decode(meta.get('charset') or 'utf-8', errors='replace')
+			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
+			r = {'kind': 'html', 'is_markdown': True, 'data': data, 'raw': raw_str, 'fragment': unquote(fragment), 'meta': meta}
 		else:
 			text = body.decode(meta.get('charset') or 'utf-8', errors='replace')
-			if not ('application/json' == meta['content_type'] or meta['content_type'].endswith('+json')):
+			if not ('application/json' == ct_low or ct_low.endswith('+json')):
 				if fragment:
 					raise ValueError('This source format does not support a verified fragment locator')
 				r = {'kind': 'text', 'text': text, 'fragment': unquote(fragment), 'meta': meta}
@@ -204,21 +206,28 @@ def source_reference(root, file, parts=()):
 	r = file.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix() + ('#' + pointer(*parts) if parts else '')
 	return r
 def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, exception=None, observation=None, require_bound_observation=False) -> str:
-	from .research import _CHALLENGE_RE
+	from .research import classify_html_challenge
 	data, fragment = (saved['data'], saved.get('fragment'))
-	if data.get('browser_check_required') or _CHALLENGE_RE.search(data['text'] + saved['raw'][:8000]):
+	is_md = bool(saved.get('is_markdown'))
+	meta_status = (saved.get('meta') or {}).get('status')
+	if data.get('browser_check_required') or ((not is_md) and classify_html_challenge(saved['raw'], parsed=data, status=meta_status)):
 		raise ValueError('Challenge page requires browser verification; it cannot establish the intended page content')
 	if fragment:
 		if fragment not in data['anchors'] or fragment in data.get('ambiguous_anchors', []):
 			raise ValueError('Primary anchor is absent or ambiguous')
-		scopes = [h['content'] for h in data['sections'] if h.get('anchor') == fragment] or data['anchor_content'].get(fragment, [])
+		scopes = [h['content'] for h in data['sections'] if fragment in (h.get('section_anchors') or ([h['anchor']] if h.get('anchor') else []))] or data['anchor_content'].get(fragment, [])
 		if not scopes or not any((contains_quote(s, quote, mode) for s in scopes)):
 			raise ValueError('Quote does not belong to the primary anchor')
 		r = '\n'.join(scopes)
 	elif not documentation:
-		if not (contains_quote(data['text'], quote, mode) or contains_quote(saved['raw'], quote, mode) or contains_quote(data['text'] + '\n' + saved['raw'], quote, mode)):
-			raise ValueError('Quote is absent from the saved page')
-		r = data['text'] + '\n' + saved['raw']
+		if is_md:
+			if not (contains_quote(saved['raw'], quote, mode) or contains_quote(data['text'], quote, mode)):
+				raise ValueError('Quote is absent from the saved page')
+			r = saved['raw'] if contains_quote(saved['raw'], quote, mode) else data['text']
+		else:
+			if not (contains_quote(data['text'], quote, mode) or contains_quote(saved['raw'], quote, mode) or contains_quote(data['text'] + '\n' + saved['raw'], quote, mode)):
+				raise ValueError('Quote is absent from the saved page')
+			r = data['text'] + '\n' + saved['raw']
 	else:
 		if not isinstance(exception, dict):
 			raise ValueError('Documentation without an anchor needs a named saved section')
@@ -227,7 +236,7 @@ def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, 
 		matches = [section for section in data['sections'] if section['text'] == exception.get('section')]
 		if 1 != len(matches):
 			raise ValueError('Documentation section is missing or ambiguous')
-		if matches[0].get('anchor') or matches[0].get('ancestor_anchors'):
+		if matches[0].get('section_anchors') or matches[0].get('anchor') or any((contains_quote(s, quote, mode) for ca in matches[0].get('container_anchors') or [] for s in data['anchor_content'].get(ca, []))):
 			raise ValueError('Documentation section has an available anchor; use its verified address')
 		if not contains_quote(matches[0]['content'], quote, mode):
 			raise ValueError('Quote does not match the documented section')
