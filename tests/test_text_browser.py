@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
@@ -270,7 +273,7 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertFalse(errors)
 		self.assertEqual(maximum, 1)
 		self.assertEqual([method for _, method, _ in self.native.calls], ['Browser.getBrowserCommandLine', 'DOM.getDocument'] * 2)
-	def test_collect_browser_reuses_open_user_tab_or_opens_and_closes_background_tab(self):
+	def test_collect_browser_never_hijacks_open_user_tab_without_tab_id_and_uses_hidden_target(self):
 		from agent_tools.research import collect_browser
 		native = NativeFixture()
 		reddit_url = 'https://www.reddit.com/r/GoogleGeminiAI/comments/1abc/post/'
@@ -289,14 +292,15 @@ class TextBrowserTests(unittest.TestCase):
 		close_calls = [params for _, method, params in native.calls if 'Target.closeTarget' == method]
 		self.assertEqual(len(create_calls), 1)
 		self.assertTrue(create_calls[0].get('background'))
+		self.assertTrue(create_calls[0].get('hidden'))
 		self.assertFalse(create_calls[0].get('newWindow', False))
 		self.assertEqual(close_calls, [{'targetId': 'owned'}])
 		native.calls.clear()
 		native.targets[0]['url'] = reddit_url
-		obs_user = collect_browser(self.root, reddit_url, cdp_port=9222, http_get=native.get, cdp_call=call, refresh_reason='verify user tab reuse')
+		obs_user = collect_browser(self.root, reddit_url, cdp_port=9222, http_get=native.get, cdp_call=call, refresh_reason='verify open user tab is untouched')
 		self.assertEqual(obs_user['kind'], 'dom')
-		self.assertFalse(any(('Target.createTarget' == m for _, m, _ in native.calls)))
-		self.assertFalse(any(('Target.closeTarget' == m for _, m, _ in native.calls)))
+		self.assertTrue(any(('Target.createTarget' == m and p.get('hidden') for _, m, p in native.calls)))
+		self.assertFalse(any(('ws://127.0.0.1:9222/devtools/page/selected' == ep and 'Runtime.evaluate' == m for ep, m, _ in native.calls)))
 	def test_collect_http_auto_fallback_to_browser_on_reddit_js_challenge_shell(self):
 		from agent_tools.research import Response, collect_http
 		native = NativeFixture()
@@ -358,5 +362,204 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertEqual('document', batch['results'][0]['profile'])
 		self.assertEqual('dom', batch['results'][1]['kind'])
 		self.assertTrue(batch['results'][1]['browser_fallback_from_http'])
+	def test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation(self):
+		import base64
+		import hashlib as _hl
+		from agent_tools.runtime import PRIMARY, settings as rt_settings
+		from agent_tools.research import collect_browser
+		ext_dir = PRIMARY / 'browser_extension'
+		manifest = json.loads((ext_dir / 'manifest.json').read_text(encoding='utf-8'))
+		self.assertEqual(manifest['manifest_version'], 3)
+		self.assertEqual(manifest['permissions'], ['offscreen'])
+		self.assertNotIn('host_permissions', manifest)
+		der = base64.b64decode(manifest['key'])
+		computed_id = ''.join((chr(97 + int(c, 16)) for c in _hl.sha256(der).hexdigest()[:32]))
+		cfg_session = rt_settings()['text']['browser']['sessions']['chrome-default']
+		ext_id = cfg_session['profile']['extension_id']
+		self.assertEqual(computed_id, ext_id)
+		active_port = self.root / 'DevToolsActivePort'
+		active_port.write_text('9222\n/devtools/browser/live\n', encoding='utf-8')
+		cfg = {'workspace_root': str(self.root), 'platforms': {'antigravity': {'browser': {'cdp_port': 9222}}}, 'text': {'browser': {'primary_session_id': 'chrome-default', 'sessions': {'chrome-default': {'surface': 'browser', 'devtools_active_port': str(active_port), 'profile': {'path': str(self.root), 'argument': '--user-data-dir', 'extension_id': ext_id, 'sentinel_origin': 'https://harness-profile.invalid'}, 'target_url_patterns': ['https://*', 'http://*'], 'allowed_operations': ['read', 'screenshot', 'create', 'navigate', 'write', 'close']}}}}}
+		targets = [
+			{'id': 'tab-default', 'targetId': 'tab-default', 'type': 'page', 'url': 'https://example.invalid/default', 'title': 'Default Tab', 'browserContextId': 'ctx-default', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/tab-default'},
+			{'id': 'tab-prof7', 'targetId': 'tab-prof7', 'type': 'page', 'url': 'https://example.invalid/prof7', 'title': 'Profile 7 Tab', 'browserContextId': 'ctx-prof7', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/tab-prof7'},
+			{'id': 'ext-offscreen', 'targetId': 'ext-offscreen', 'type': 'background_page', 'url': f'chrome-extension://{ext_id}/offscreen.html', 'title': 'Offscreen', 'browserContextId': 'ctx-default', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/ext-offscreen'},
+		]
+		state = {'secondary_focused': True, 'no_default_windows': False, 'removed_tabs': []}
+		def get(url):
+			if url.endswith('/json/version'):
+				return {'Browser': 'Chrome/139.0.7258.155', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/browser/live'}
+			if url.endswith('/json/list'):
+				return deepcopy(targets)
+			raise AssertionError(url)
+		def call(ws_url, method, params):
+			if 'Browser.getBrowserCommandLine' == method:
+				raise RuntimeError('Command line not returned because --enable-automation not set.')
+			if 'Target.getTargets' == method:
+				return {'targetInfos': deepcopy(targets)}
+			if 'Target.attachToTarget' == method:
+				return {'sessionId': 'sid-' + params['targetId']}
+			if 'Target.detachFromTarget' == method:
+				return {}
+			if 'Target.createTarget' == method:
+				if state['secondary_focused']:
+					raise RuntimeError('InvalidParams: Failed to find browser context with id ' + str(params.get('browserContextId')))
+				targets.append({'id': 'hidden-1', 'targetId': 'hidden-1', 'type': 'page', 'url': params['url'], 'title': 'Hidden', 'browserContextId': 'ctx-default', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/hidden-1'})
+				return {'targetId': 'hidden-1'}
+			if 'Target.closeTarget' == method:
+				tid = params.get('targetId')
+				targets[:] = [t for t in targets if t.get('id') != tid]
+				return {'success': True}
+			if 'Page.navigate' == method:
+				for t in targets:
+					if ws_url.endswith(t['id']):
+						t['url'] = params['url']
+				return {'frameId': 'main'}
+			if 'Runtime.evaluate' == method:
+				expr = params.get('expression', '')
+				if '__harnessBroker' in expr:
+					payload = json.loads(expr.split('__harnessBroker(', 1)[1].rsplit(')', 1)[0])
+					if 'createBackgroundTab' == payload['action']:
+						if state['no_default_windows']:
+							return {'result': {'value': {'ok': False, 'error': 'Primary Chrome profile Default has no open normal non-incognito window'}}}
+						targets.append({'id': 'broker-tab', 'targetId': 'broker-tab', 'type': 'page', 'url': payload['url'], 'title': '', 'browserContextId': 'ctx-default', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/broker-tab'})
+						return {'result': {'value': {'ok': True, 'tabId': 77, 'windowId': 1}}}
+					if 'removeTab' == payload['action']:
+						state['removed_tabs'].append(payload['tabId'])
+						targets[:] = [t for t in targets if 'broker-tab' != t.get('id')]
+						return {'result': {'value': {'ok': True, 'removed': True, 'tabId': payload['tabId']}}}
+				return {'result': {'value': {'url': 'https://portal.example.invalid/dashboard', 'html': '<html><body><h1>Default Portal</h1></body></html>', 'title': 'Portal', 'readyState': 'complete', 'textLen': 14}}}
+			return {'ok': True}
+		bad_guard = GuardedCDP(self.root, {'session_id': 'chrome-default', 'target_id': 'tab-prof7'}, config=cfg, http_get=get, cdp_call=call)
+		with self.assertRaises(PermissionError):
+			bad_guard.call('DOM.getDocument')
+		ok_guard = GuardedCDP(self.root, {'session_id': 'chrome-default', 'target_id': 'tab-default'}, config=cfg, http_get=get, cdp_call=call)
+		self.assertEqual(ok_guard.call('DOM.getDocument'), {'ok': True})
+		auth_obs = collect_browser(self.root, 'https://portal.example.invalid/dashboard', session_id='chrome-default', config=cfg, http_get=get, cdp_call=call)
+		self.assertEqual(auth_obs['kind'], 'dom')
+		self.assertEqual(auth_obs['target_mode'], 'm2a_extension_background_tab')
+		self.assertTrue(auth_obs['closed_after_capture'])
+		self.assertEqual(state['removed_tabs'], [77])
+		saved_id = json.loads((self.root / 'ꘖ/KB' / auth_obs['cdp_identity']).read_text(encoding='utf-8'))
+		self.assertEqual(saved_id['profile']['status'], 'verified')
+		self.assertEqual(saved_id['profile']['evidence_method'], 'M-2A:extension-offscreen-anchor')
+		self.assertEqual(saved_id['profile']['browser_context_id'], 'ctx-default')
+		state['no_default_windows'] = True
+		with self.assertRaises(PermissionError):
+			collect_browser(self.root, 'https://portal.example.invalid/other', session_id='chrome-default', config=cfg, http_get=get, cdp_call=call)
+	def test_m2b_zero_extension_sentinel_skips_discarded_tabs_never_enumerates_cookies_and_guards_upwork_extract(self):
+		from agent_tools.upwork_extract import extract_upwork_job
+		cfg = {'workspace_root': str(self.root), 'platforms': {'antigravity': {'browser': {'cdp_port': 9222}}}, 'text': {'browser': {'primary_session_id': 'chrome-default', 'sessions': {'chrome-default': {'surface': 'browser', 'endpoint': 'http://127.0.0.1:9222', 'profile': {'path': str(self.root), 'argument': '--user-data-dir', 'sentinel_origin': 'https://harness-profile.invalid', 'sentinel_cookie_name': '__harness_primary_profile'}, 'target_url_patterns': ['https://*', 'http://*'], 'allowed_operations': ['read', 'screenshot', 'create', 'navigate', 'write', 'close']}}}}}
+		nuxt_payload = json.dumps([{'vuex': 1}, {'jobDetails': 2}, {'job': 3, 'buyer': 6, 'workHistory': 7, 'openJobs': 8}, {'ciphertext': 4, 'title': 5, 'description': 5}, '~021234567890', 'Verified Default Upwork Job', {}, [], []])
+		targets = [
+			{'id': 'discarded-def', 'targetId': 'discarded-def', 'type': 'page', 'url': 'https://example.invalid/discarded', 'title': 'Discarded', 'browserContextId': 'ctx-default', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/discarded-def'},
+			{'id': 'upwork-def', 'targetId': 'upwork-def', 'type': 'page', 'url': 'https://www.upwork.com/jobs/~021234567890', 'title': 'Upwork Default', 'browserContextId': 'ctx-default', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/upwork-def'},
+			{'id': 'upwork-prof2', 'targetId': 'upwork-prof2', 'type': 'page', 'url': 'https://www.upwork.com/jobs/~021234567890', 'title': 'Upwork Profile 2', 'browserContextId': 'ctx-prof2', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/upwork-prof2'},
+		]
+		called_methods = []
+		def get(url):
+			if url.endswith('/json/version'):
+				return {'Browser': 'Chrome/139', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/browser/live'}
+			if url.endswith('/json/list'):
+				return deepcopy(targets)
+			raise AssertionError(url)
+		def call(ws_url, method, params):
+			called_methods.append((ws_url, method, deepcopy(params)))
+			if 'Browser.getBrowserCommandLine' == method:
+				raise RuntimeError('No --enable-automation')
+			if 'Target.getTargets' == method:
+				return {'targetInfos': deepcopy(targets)}
+			if 'Target.attachToTarget' == method:
+				return {'sessionId': 'sid:' + params['targetId']}
+			if 'Target.detachFromTarget' == method:
+				return {}
+			if 'Storage.getUsageAndQuota' == method:
+				self.assertEqual(params, {'origin': 'https://harness-profile.invalid'})
+				if ws_url.endswith('discarded-def'):
+					raise RuntimeError('InternalError: Partition not available')
+				return {'usage': 1024 if ws_url.endswith('upwork-def') else 0, 'quota': 100000}
+			if 'Runtime.evaluate' == method:
+				return {'result': {'value': {'nuxt': nuxt_payload, 'title': 'Job', 'heading': 'Job', 'body': 'Body', 'readyState': 'complete'}}}
+			return {'ok': True}
+		with self.assertRaises(PermissionError):
+			extract_upwork_job('~021234567890', cdp_port=9222, fetch_related=False, tab_id='upwork-prof2', config=cfg, http_get=get, cdp_call=call)
+		captured = extract_upwork_job('~021234567890', cdp_port=9222, fetch_related=False, config=cfg, http_get=get, cdp_call=call)
+		self.assertEqual(captured['source_tab']['id'], 'upwork-def')
+		self.assertEqual(captured['coverage']['cdp_profile']['status'], 'verified')
+		self.assertEqual(captured['coverage']['cdp_profile']['evidence_method'], 'M-2B:sentinel-origin')
+		self.assertNotIn('Storage.getCookies', {m for _, m, _ in called_methods})
+	def test_m1_live_headless_shell_public_isolation_and_h_chs_6_static_skip(self):
+		from http.server import BaseHTTPRequestHandler, HTTPServer
+		from agent_tools.research import Response, collect_browser, collect_http, collect_plan
+		from agent_tools.text_browser import resolve_headless_shell
+		with self.assertRaises(PermissionError):
+			collect_browser(self.root, 'https://example.invalid/public', scope='public', cdp_port=9222)
+		json_obs = collect_http(self.root, 'https://example.invalid/api.json', fetcher=lambda u, h, t: Response(u, 200, 'application/json', b'{"ok":true}'), browser='auto')
+		self.assertEqual(json_obs['kind'], 'http')
+		self.assertFalse(json_obs.get('browser_fallback'))
+		try:
+			resolve_headless_shell()
+		except FileNotFoundError:
+			self.skipTest('chrome-headless-shell not installed on host')
+		class SpaHandler(BaseHTTPRequestHandler):
+			def log_message(self, *args):
+				pass
+			def do_GET(self):
+				self.send_response(200)
+				self.send_header('Content-Type', 'text/html; charset=utf-8')
+				self.end_headers()
+				html = '<!DOCTYPE html><html><head><title>SPA</title><style>' + ('body{}' * 1400) + '</style></head><body><noscript>Enable JavaScript</noscript><script>document.body.innerHTML="<h1>Headless Rendered</h1><p>Clean isolated public DOM capture.</p>";</script></body></html>'
+				self.wfile.write(html.encode('utf-8'))
+		server = HTTPServer(('127.0.0.1', 0), SpaHandler)
+		thread = threading.Thread(target=server.serve_forever, daemon=True)
+		thread.start()
+		try:
+			spa_url = f'http://127.0.0.1:{server.server_port}/spa'
+			batch = collect_plan(self.root, {'requests': [{'url': spa_url, 'profile': 'html'}]}, browser='auto')
+			self.assertTrue(batch['complete'], batch)
+			item = batch['results'][0]
+			self.assertEqual(item['kind'], 'dom')
+			self.assertTrue(item.get('browser_fallback_from_http'))
+			self.assertEqual(item.get('target_mode'), 'ephemeral_headless_context')
+			self.assertGreater(item.get('word_count', 0), 0)
+			saved_id = json.loads((self.root / 'ꘖ/KB' / item['cdp_identity']).read_text(encoding='utf-8'))
+			self.assertEqual(saved_id['profile']['status'], 'verified')
+			self.assertEqual(saved_id['profile']['mode'], 'ephemeral_headless_shell')
+			self.assertIn('HeadlessChrome/', saved_id['browser'])
+		finally:
+			server.shutdown()
+			server.server_close()
+	def test_m4_cdp_bypass_gate_and_m5_browser_mcp_gate(self):
+		from check_rules_and_server_gate import check_browser_mcp_gate, check_cdp_bypass_gate
+		from agent_tools.shell_audit import prohibited_cdp_bypass_commands, unpersisted_http_fetch_commands
+		for bad_cmd in (
+			'curl.exe -s http://127.0.0.1:9222/json',
+			'python -c "import urllib.request; urllib.request.urlopen(\'http://127.0.0.1:9222/json/list\')"',
+			'node -e "new WebSocket(\'ws://127.0.0.1:9222/devtools/page/abc\')"',
+			'Get-Content C:/ChromeU/DevToolsActivePort',
+			'npx chrome-devtools-mcp --autoConnect',
+		):
+			self.assertTrue(prohibited_cdp_bypass_commands(bad_cmd), bad_cmd)
+			self.assertTrue(unpersisted_http_fetch_commands(bad_cmd), bad_cmd)
+			self.assertIsNotNone(check_cdp_bypass_gate('run_command', {'CommandLine': bad_cmd}), bad_cmd)
+		for allowed_cmd in (
+			'python C:/work/research/provision/code/AI/harness/code/scripts/harness.py collect-browser C:/proj --url https://example.com',
+			'python C:/work/research/provision/code/AI/harness/code/scripts/df_text.py browser-check C:/proj --spec s.json',
+			'python -m unittest discover -s C:/work/research/provision/code/AI/harness/code/tests',
+		):
+			self.assertEqual(prohibited_cdp_bypass_commands(allowed_cmd), [], allowed_cmd)
+			self.assertIsNone(check_cdp_bypass_gate('run_command', {'CommandLine': allowed_cmd}), allowed_cmd)
+		self.assertIsNotNone(check_cdp_bypass_gate('read_file', {'Path': 'C:/ChromeU/DevToolsActivePort'}))
+		self.assertIsNotNone(check_cdp_bypass_gate('read_file', {'Path': 'C:/ChromeU/Default/Network/Cookies'}))
+		self.assertIsNotNone(check_cdp_bypass_gate('write_file', {'Path': str(self.root / 'bypass.py'), 'Content': 'urllib.request.urlopen("http://127.0.0.1:9222/json/list")\n'}))
+		self.assertIsNone(check_cdp_bypass_gate('write_file', {'Path': str(self.root / 'notes.md'), 'Content': 'Discussing `/json/list` in Markdown prose.\n'}))
+		transcript = self.root / 'transcript.jsonl'
+		transcript.write_text(json.dumps({'type': 'USER_INPUT', 'content': 'go'}) + '\n', encoding='utf-8')
+		self.assertIsNotNone(check_browser_mcp_gate('mcp_chrome-devtools_new_page', {'url': 'https://example.com'}, {'transcriptPath': str(transcript)}))
+		self.assertIsNone(check_browser_mcp_gate('mcp_chrome-devtools_new_page', {'url': 'https://example.com', 'background': True}, {'transcriptPath': str(transcript)}))
+		self.assertIsNotNone(check_browser_mcp_gate('mcp_chrome-devtools_navigate_page', {'url': 'https://example.com'}, {'transcriptPath': str(transcript)}))
+		transcript.write_text(json.dumps({'type': 'USER_INPUT', 'content': 'go'}) + '\n' + json.dumps({'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'mcp_chrome-devtools_new_page', 'args': {'url': 'about:blank', 'background': True}}]}) + '\n', encoding='utf-8')
+		self.assertIsNone(check_browser_mcp_gate('mcp_chrome-devtools_navigate_page', {'url': 'https://example.com'}, {'transcriptPath': str(transcript)}))
+		self.assertIsNotNone(check_browser_mcp_gate('write_file', {'Path': str(self.root / 'mcp_config.json'), 'Content': '{"mcpServers":{"chrome-devtools":{"args":["--autoConnect"]}}}'}, {}))
 if '__main__' == __name__:
 	unittest.main()

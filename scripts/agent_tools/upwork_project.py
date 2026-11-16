@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
@@ -114,7 +117,7 @@ UNDECLARED_ANTIGRAVITY_HOME = 'current-undeclared'
 # https://github.com/dmitry-ai/harness/issues/33
 def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR):
 	primary = Path(primary)
-	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_markdown_slop.py').as_posix()}", 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_rules_and_server_gate.py').as_posix()}", 'timeout': 10}]}]}, 'final-turn-gate': {'Stop': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_stop_gate.py').as_posix()}", 'timeout': 15}]}}
+	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_markdown_slop.py').as_posix()}", 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_rules_and_server_gate.py').as_posix()}", 'timeout': 10}]}]}, 'final-turn-gate': {'Stop': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_stop_gate.py').as_posix()}", 'timeout': 15}]}}
 	return r
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
@@ -292,7 +295,8 @@ def main(argv=None):
 	sub = parser.add_subparsers(dest='command', required=True)
 	all_profiles = tuple(settings()['platforms']['antigravity']['homes']) + tuple(settings()['platforms']['codex']['homes'])
 	subcommands = {
-		'inspect': ('Capture the selected tab once, including attachments', (('url', {}), ('--output', {'required': True, 'type': Path}), ('--tab-id', {}), ('--cdp-port', {'type': int}))),
+		'inspect': ('Capture the selected tab once, including attachments', (('url', {}), ('--output', {'required': True, 'type': Path}), ('--tab-id', {}), ('--session-id', {'help': 'Authorized runtime text.browser.sessions entry (default: primary session)'}), ('--cdp-port', {'type': int}))),
+		'browser-anchor': ('Verify primary Chrome profile M-2A/M-2B isolation or initialize M-2B sentinel on an explicit Default tab', (('--session-id', {}), ('--init-sentinel-tab', {'help': 'Explicit Default profile tab_id on which to set the isolated https://harness-profile.invalid sentinel cookie'}))),
 		'init': ('Initialize from an existing capture without browser requests', (('url', {}), ('--from-json', {'required': True, 'type': Path}), ('--domain', {}), ('--date', {}), ('--site-hypothesis', {'type': Path, 'help': 'Four-part identity hypothesis with evidence and expert probability'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--no-register', {'action': 'store_true'}))),
 		'intake-drain': ('Verify and commit managed staging evidence; dry-run unless --apply', (('capture', {'nargs': '?', 'type': Path, 'help': 'One immediate capture directory; default: all managed incoming'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--apply', {'action': 'store_true', 'help': 'Drain only after durable evidence and receipt verification'}))),
 		'cleanup': ('Remove empty native Upwork projects older than 72 hours; keep the entire daily archive', (('--apply', {'action': 'store_true', 'help': 'Apply cleanup; default is a read-only preview'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}))),
@@ -372,9 +376,12 @@ def run(args):
 				if args.output.exists():
 					raise FileExistsError('Capture exists; reuse it with init --from-json')
 				args.output.parent.mkdir(parents=True, exist_ok=True)
-				captured = extract_upwork_job(args.url, cdp_port=args.cdp_port or platform_settings()['browser']['cdp_port'], tab_id=args.tab_id, attachments_dir=args.output.parent / 'attachments')
+				captured = extract_upwork_job(args.url, cdp_port=args.cdp_port or platform_settings()['browser']['cdp_port'], tab_id=args.tab_id, session_id=getattr(args, 'session_id', None), attachments_dir=args.output.parent / 'attachments')
 				create_bytes(args.output, json_bytes(captured))
 				result = {'capture': str(args.output), 'job_id': captured['job_id'], 'coverage': captured['coverage']}
+			elif 'browser-anchor' == args.command:
+				from .text_browser import browser_anchor_status
+				result = browser_anchor_status(session_id=args.session_id, init_sentinel_tab=args.init_sentinel_tab)
 			elif 'init' == args.command:
 				data = read_input_json(args.from_json)
 				if not isinstance(data, dict):

@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
 # https://github.com/dmitry-ai/harness/issues/69
@@ -29,9 +32,9 @@ _CONSUME_COMMANDS = {'collect', 'prepare-experiment', 'prepare-review', 'questio
 _PROJECT_SPECS = {
 	'adopt-requests': (('--conversation', {'required': True}), ('--allow-finalized', {'action': 'store_true', 'help': 'Permit adopting requests even if initial analysis finalize stage is complete'})),
 	'capture-dom': (('--url', {'required': True}), ('--tab-id', {'required': True}), ('--session-id', {'required': True, 'help': 'Explicit authorized runtime text.browser.sessions entry'}), ('--refresh-reason', {})),
-	'collect': (('--plan', {'required': True, 'type': Path}), ('--output', {'help': 'Optional project-owned result JSON'}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
-	'collect-browser': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to capture via user browser CDP and persist in \ua616/KB/Evidence/HTTP'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'html'}), ('--scope', {'default': 'public'}), ('--refresh-reason', {}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
-	'collect-http': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to fetch and persist in \ua616/KB/Evidence/HTTP'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'auto'}), ('--scope', {'default': 'public'}), ('--refresh-reason', {}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'collect': (('--plan', {'required': True, 'type': Path}), ('--output', {'help': 'Optional project-owned result JSON'}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'}), ('--session-id', {'help': 'Optional authorized runtime text.browser.sessions entry'})),
+	'collect-browser': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to capture via managed headless shell (public) or verified primary session (--session-id)'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'html'}), ('--scope', {'default': 'public'}), ('--session-id', {'help': 'Explicit authorized runtime text.browser.sessions entry for authenticated capture'}), ('--refresh-reason', {}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'collect-http': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to fetch and persist in \ua616/KB/Evidence/HTTP'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'auto'}), ('--scope', {'default': 'public'}), ('--session-id', {'help': 'Optional authorized runtime text.browser.sessions entry'}), ('--refresh-reason', {}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
 	'extract': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'html'})),
 	'extract-file': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'document'})),
 	'native-executor-metadata': (('--conversation', {'required': True}), ('--save', {'action': 'store_true', 'help': 'Persist immutable native metadata; default is read-only'}), ('--role', {'choices': ('primary', 'AA', 'AF'), 'default': 'primary'}), ('--parent', {})),
@@ -61,7 +64,7 @@ def _execute_collect(args):
 	from .research import collect_plan, compute_site_summary, inside, json_data
 	payload = _operation_input(args, args.plan)
 	plan = json.loads(payload.decode('utf-8-sig'))
-	result = collect_plan(args.project, plan, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
+	result = collect_plan(args.project, plan, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None), session_id=getattr(args, 'session_id', None))
 	if not args.output:
 		r = result
 	else:
@@ -149,10 +152,10 @@ def execute(args):
 		r = _execute_collect(args)
 	elif 'collect-http' == command:
 		from .research import collect_http
-		r = collect_http(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
+		r = collect_http(args.project, args.url, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
 	elif 'collect-browser' == command:
 		from .research import collect_browser
-		r = collect_browser(args.project, args.url, profile=args.profile, scope=args.scope, refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
+		r = collect_browser(args.project, args.url, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
 	elif 'extract' == command:
 		from .research import extract_observation
 		r = extract_observation(args.project, args.source, args.profile)

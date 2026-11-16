@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-10-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 # https://github.com/dmitry-ai/harness/issues/17
@@ -22,6 +25,8 @@ import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_tools.git_gate import prohibited_git_write_commands
+from agent_tools.runtime import PRIMARY
+from agent_tools.shell_audit import _CDP_PROTOCOL_RE, is_code_file, prohibited_cdp_bypass_commands, protected_browser_perimeter
 MAX_UNPERSISTED_SOURCE_READS = 10
 def check_rules_budget(name: str, args: dict) -> str | None:
 	r = None
@@ -184,6 +189,86 @@ def check_external_write_gate(name: str, args: dict) -> str | None:
 					if req_text.strip() and (not EXTERNAL_WRITE_INTENT_RE.search(req_text)):
 						return 'SCOPE-2 / EXEC-5: Uninstructed external GitHub write (df_github_issue.py create/edit/comment/close) during a read-only analysis turn is prohibited without an explicit user instruction.'
 	return None
+def _is_inside_harness_code(raw_path: str) -> bool:
+	if not raw_path:
+		return False
+	try:
+		return Path(raw_path).resolve().is_relative_to(PRIMARY.resolve())
+	except OSError:
+		return False
+def check_cdp_bypass_gate(name: str, args: dict) -> str | None:
+	if 'run_command' == name:
+		cmd = args.get('CommandLine') or ''
+		bad = prohibited_cdp_bypass_commands(cmd)
+		if bad:
+			return 'EXEC-1 / EXEC-3 / M-4: Direct loopback CDP / browser profile access bypassing harness.py or df_text.py GuardedCDP is prohibited: ' + '; '.join(bad)
+	elif 'read_file' == name:
+		raw_p = (args.get('Path') or '').strip()
+		if raw_p and (not _is_inside_harness_code(raw_p)):
+			norm_p = raw_p.replace('\\', '/').casefold()
+			perim = protected_browser_perimeter()
+			if norm_p.endswith('/devtoolsactiveport') or norm_p in perim['active_port_files']:
+				return 'EXEC-1 / EXEC-3 / M-4: Direct read_file of DevToolsActivePort is prohibited; use harness.py or df_text.py GuardedCDP.'
+			for pdir in perim['profile_dirs']:
+				if pdir and (norm_p == pdir or norm_p.startswith(pdir + '/')) and re.search('/(?:local state|cookies|login data|web data)$', norm_p):
+					return 'EXEC-3 / EXEC-6 / M-4: Direct read_file of protected Chrome profile storage/state is prohibited.'
+	elif name in ('write_file', 'edit_file'):
+		raw_p = (args.get('Path') or '').strip()
+		content = args.get('Content') if 'write_file' == name else args.get('Replacement')
+		if raw_p and isinstance(content, str) and content and (not _is_inside_harness_code(raw_p)) and is_code_file(raw_p):
+			if _CDP_PROTOCOL_RE.search(content):
+				return 'EXEC-1 / EXEC-3 / M-4: Writing external scripts that directly access loopback CDP endpoints (/json, /devtools/page/, /devtools/browser/, DevToolsActivePort) outside AI/harness/code is prohibited; use harness.py or df_text.py.'
+	return None
+def _turn_has_background_mcp_new_page(payload: dict) -> bool:
+	t_path_raw = payload.get('transcriptPath') or ''
+	if not t_path_raw:
+		return False
+	t_path = Path(t_path_raw)
+	if not t_path.is_file():
+		return False
+	try:
+		rows = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
+	except Exception:
+		return False
+	last_user = -1
+	for idx, row in enumerate(rows):
+		if isinstance(row, dict) and 'USER_INPUT' == row.get('type'):
+			last_user = idx
+	for row in rows[last_user + 1:]:
+		if not isinstance(row, dict):
+			continue
+		for call in row.get('tool_calls') or []:
+			if not isinstance(call, dict):
+				continue
+			cname = str(call.get('name') or '')
+			if cname.startswith('mcp_') and cname.endswith('new_page'):
+				cargs = call.get('args') or {}
+				if isinstance(cargs, str):
+					try:
+						cargs = json.loads(cargs)
+					except ValueError:
+						cargs = {}
+				if isinstance(cargs, dict) and (True is cargs.get('background') or bool(cargs.get('isolatedContext'))):
+					return True
+	return False
+def check_browser_mcp_gate(name: str, args: dict, payload: dict) -> str | None:
+	if name.startswith('mcp_') and re.search('(?:chrome|devtools|browser|playwright|page)', name, re.I):
+		if name.endswith('new_page'):
+			if True is not args.get('background') and (not args.get('isolatedContext')):
+				return 'EXEC-3 / M-5: Browser MCP new_page must set background=true (or isolatedContext) so user browser windows are never focused or hijacked.'
+		elif name.endswith(('navigate_page', 'close_page', 'select_page')):
+			if not _turn_has_background_mcp_new_page(payload):
+				return 'EXEC-3 / M-5: Calling navigate_page/close_page/select_page without first creating an agent-owned background page via new_page(background=true) in this turn is prohibited; user tabs are strictly read-only.'
+	elif 'invoke_subagent' == name:
+		prompt_text = str(args.get('Prompt') or '')
+		if 'browser' == str(args.get('TypeName') or '').strip().lower() and _CDP_PROTOCOL_RE.search(prompt_text):
+			return 'EXEC-3 / M-5: Instructing browser subagent to attach to loopback CDP endpoints is prohibited.'
+	elif name in ('write_file', 'edit_file'):
+		norm_p = (args.get('Path') or '').replace('\\', '/').lower()
+		content = args.get('Content') if 'write_file' == name else args.get('Replacement')
+		if norm_p.endswith('/mcp_config.json') and isinstance(content, str) and re.search('chrome-devtools', content, re.I) and re.search('(?:--autoConnect|--browser-url|--browserUrl)', content, re.I):
+			return 'EXEC-3 / M-5: Configuring chrome-devtools-mcp with --autoConnect or --browser-url against the user Chrome session is prohibited; bind it to chrome-headless-shell with --headless and --isolated.'
+	return None
 def main():
 	decision = {'decision': 'allow'}
 	try:
@@ -201,6 +286,8 @@ def main():
 				('FILE-3-JOURNAL-GATE', lambda: check_journal_write_gate(name, args)),
 				('VERIFY-1-BATCH-SYNTHESIS-GATE', lambda: check_batch_analysis_generator(name, args)),
 				('REVIEW-1-BULK-SOURCE-GATE', lambda: check_bulk_source_read_streak(name, args, payload)),
+				('CDP-BYPASS-GATE', lambda: check_cdp_bypass_gate(name, args)),
+				('M-5-BROWSER-MCP-GATE', lambda: check_browser_mcp_gate(name, args, payload)),
 			):
 				err = check_fn()
 				if err:

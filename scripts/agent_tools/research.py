@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
@@ -200,6 +203,8 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 			if len(response.body) > MAX_BYTES:
 				raise ValueError('Response exceeds 16 MiB')
 			dns_resolved = True if 'http' == observation_kind and (response.status or 0) > 0 else None
+		except PermissionError:
+			raise
 		except (OSError, ValueError, RuntimeError) as exc:
 			response = Response(url, 0, 'application/octet-stream', b'')
 			error = type(exc).__name__
@@ -582,20 +587,27 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 	observation = collect(root, url, scope=f'CDP-session:{session_id}:tab:{tab_id}:identity:{identity_ref}', max_age=0, refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom', context=observed_context)
 	extra = {} if observation['error'] else extract_observation(root, observation['observation'])
 	return {**observation, **extra, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
-def collect_browser(root, url, *, profile='html', scope='public', refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None):
+def collect_browser(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None, headless_shell=None):
 	from .text_browser import collect_cdp_dom
 	effective_profile = 'document' if 'auto' == profile else profile
 	if effective_profile not in PROFILES:
 		raise ValueError(f'Unknown extraction profile: {profile}')
+	effective_scope = f'CDP-session:{session_id.strip()}' if isinstance(session_id, str) and session_id.strip() and ('public' == scope) else scope
+	observed_context = dict(context or {})
+	if isinstance(session_id, str) and session_id.strip():
+		observed_context.setdefault('session_id', session_id.strip())
 	cdp_meta = {}
 	def read_dom(target, headers, fetch_timeout):
-		capture = (cdp_fetcher or collect_cdp_dom)(root, target, cdp_port=cdp_port, timeout=fetch_timeout, config=config, http_get=http_get, cdp_call=cdp_call)
+		if None is not cdp_fetcher:
+			capture = cdp_fetcher(root, target, cdp_port=cdp_port, timeout=fetch_timeout, config=config, http_get=http_get, cdp_call=cdp_call)
+		else:
+			capture = collect_cdp_dom(root, target, cdp_port=cdp_port, session_id=session_id, timeout=fetch_timeout, config=config, http_get=http_get, cdp_call=cdp_call, headless_shell=headless_shell)
 		if not isinstance(capture, dict) or not isinstance(capture.get('html'), str):
 			raise ValueError('CDP DOM capture did not return HTML payload')
 		cdp_meta.update(capture)
 		r = Response(capture.get('url') or target, 0, 'text/html', capture['html'].encode('utf-8'))
 		return r
-	observation = collect(root, url, scope=scope, max_age=max_age, refresh_reason=refresh_reason, timeout=timeout, fetcher=read_dom, observation_kind='dom', context=context)
+	observation = collect(root, url, scope=effective_scope, max_age=max_age, refresh_reason=refresh_reason, timeout=timeout, fetcher=read_dom, observation_kind='dom', context=observed_context or None)
 	item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
 	for key in ('cdp_identity', 'cdp_identity_sha256', 'target_id', 'target_mode', 'closed_after_capture', 'endpoint'):
 		if key in cdp_meta:
@@ -659,27 +671,32 @@ def compute_site_summary(root, results):
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
-def collect_http(root, url, *, profile='html', scope='public', refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
+def collect_http(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None, headless_shell=None):
 	if browser not in BROWSER_MODES:
 		raise ValueError(f'Unknown browser mode: {browser}; choose {BROWSER_MODES}')
 	effective_profile = 'document' if 'auto' == profile else profile
 	if effective_profile not in PROFILES:
 		raise ValueError(f'Unknown extraction profile: {profile}')
 	if 'always' == browser:
-		r = collect_browser(root, url, profile=profile, scope=scope, refresh_reason=refresh_reason, max_age=max_age, cdp_port=cdp_port, context=context, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+		r = collect_browser(root, url, profile=profile, scope=scope, session_id=session_id, refresh_reason=refresh_reason, max_age=max_age, cdp_port=cdp_port, context=context, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call, headless_shell=headless_shell)
 	else:
 		observation = collect(root, url, headers=headers, scope=scope, max_age=max_age, refresh_reason=refresh_reason, fetcher=fetcher, context=context)
 		r = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
+		ct_low = (observation.get('content_type') or '').lower()
 		if not observation.get('error') and 200 <= (observation.get('status') or 0) < 300:
-			chosen = 'document' if profile in ('html', 'auto') and 'application/json' == (observation.get('content_type') or '').lower() else effective_profile
+			chosen = 'document' if profile in ('html', 'auto') and 'application/json' == ct_low else effective_profile
 			try:
 				r.update(extract_observation(root, observation['observation'], chosen))
 			except (OSError, ValueError, KeyError, TypeError, LookupError) as exc:
 				r['extraction_error'] = type(exc).__name__
 				r['detail'] = 'Response saved; inspect the source or choose another extraction profile, without fetching it again'
-		needs_browser = observation.get('status') in (401, 403, 429) or bool(r.get('browser_check_required'))
+		is_static_non_html = 200 <= (observation.get('status') or 0) < 300 and any((ct_low.startswith(p) for p in ('application/json', 'application/xml', 'text/xml', 'application/pdf', 'application/zip', 'application/vnd.openxmlformats')))
+		needs_browser = (not is_static_non_html) and (observation.get('status') in (401, 403, 429) or bool(r.get('browser_check_required')))
 		if 'auto' == browser and needs_browser and (None is fetcher or any((None is not x for x in (cdp_fetcher, http_get, cdp_call)))):
-			dom_item = collect_browser(root, url, profile=profile, scope=scope, refresh_reason=refresh_reason or 'browser fallback after HTTP challenge or empty body', max_age=max_age, cdp_port=cdp_port, context=context, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+			try:
+				dom_item = collect_browser(root, url, profile=profile, scope=scope, session_id=session_id, refresh_reason=refresh_reason or 'browser fallback after HTTP challenge or empty body', max_age=max_age, cdp_port=cdp_port, context=context, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call, headless_shell=headless_shell)
+			except PermissionError as exc:
+				dom_item = {'error': 'PermissionError', 'detail': str(exc)}
 			if dom_item.get('error') or dom_item.get('extraction_error'):
 				r['browser_fallback_attempted'] = True
 				r['browser_fallback_error'] = dom_item.get('error') or dom_item.get('extraction_error')
@@ -693,20 +710,33 @@ def collect_http(root, url, *, profile='html', scope='public', refresh_reason=No
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
+def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, session_id=None, cdp_fetcher=None, http_get=None, cdp_call=None):
 	if browser not in BROWSER_MODES:
 		raise ValueError(f'Unknown browser mode: {browser}; choose {BROWSER_MODES}')
 	if not isinstance(plan, dict) or not isinstance(plan.get('requests'), list) or (not plan['requests']):
 		raise ValueError('Plan needs a nonempty requests list')
 	results = []
-	for entry in plan['requests']:
-		try:
-			if not isinstance(entry, dict):
-				raise ValueError('Each request must be an object')
-			profile = entry.get('profile', 'html')
-			if profile not in PROFILES:
-				raise ValueError('Unknown extraction profile')
-			results.append(collect_http(root, entry['url'], profile=profile, scope=entry.get('scope', 'public'), refresh_reason=entry.get('refresh_reason'), max_age=entry.get('max_age', 86400), headers=entry.get('headers'), context=entry.get('context'), fetcher=fetcher, browser=entry.get('browser', browser), cdp_port=cdp_port, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call))
-		except (OSError, ValueError, KeyError, TypeError) as exc:
-			results.append({'error': type(exc).__name__, 'detail': 'Invalid or unavailable input; check this plan entry', 'request_index': len(results)})
+	shared_shell = {'instance': None}
+	def _lazy_headless_fetcher(proj_root, target, *, cdp_port=None, timeout=15, config=None, http_get=None, cdp_call=None):
+		from .text_browser import ManagedHeadlessShell, collect_cdp_dom
+		if None is shared_shell['instance']:
+			shared_shell['instance'] = ManagedHeadlessShell(config).__enter__()
+		return collect_cdp_dom(proj_root, target, cdp_port=cdp_port, timeout=timeout, config=config, headless_shell=shared_shell['instance'])
+	use_lazy_shell = None is cdp_fetcher and None is http_get and (None is cdp_call) and (None is cdp_port)
+	try:
+		for entry in plan['requests']:
+			try:
+				if not isinstance(entry, dict):
+					raise ValueError('Each request must be an object')
+				profile = entry.get('profile', 'html')
+				if profile not in PROFILES:
+					raise ValueError('Unknown extraction profile')
+				entry_sid = entry.get('session_id', session_id)
+				eff_cdp_fetcher = _lazy_headless_fetcher if use_lazy_shell and (not entry_sid) else cdp_fetcher
+				results.append(collect_http(root, entry['url'], profile=profile, scope=entry.get('scope', 'public'), session_id=entry_sid, refresh_reason=entry.get('refresh_reason'), max_age=entry.get('max_age', 86400), headers=entry.get('headers'), context=entry.get('context'), fetcher=fetcher, browser=entry.get('browser', browser), cdp_port=cdp_port, cdp_fetcher=eff_cdp_fetcher, http_get=http_get, cdp_call=cdp_call))
+			except (OSError, ValueError, KeyError, TypeError) as exc:
+				results.append({'error': type(exc).__name__, 'detail': 'Invalid or unavailable input; check this plan entry', 'request_index': len(results)})
+	finally:
+		if None is not shared_shell['instance']:
+			shared_shell['instance'].close()
 	return {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and ('dom' == x.get('kind') or 0 < (x.get('status') or 0)) for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and ('dom' == x.get('kind') or 200 <= (x.get('status') or 0) < 300) and (not x.get('browser_check_required')) for x in results)), 'detail': 'A saved HTTP 403/404 is a completed observation, not a reason to repeat the same request blindly'}

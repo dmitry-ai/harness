@@ -1,18 +1,62 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
+import json
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 from .storage import iter_embedded_json_objects
 READ_SUBCOMMANDS = ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files')
 _ADHOC_HTTP_CLIENT_RE = re.compile('(?:\\burllib\\.request\\b|\\burlopen\\s*\\(|\\brequests\\.(?:get|post|head|request|Session)\\b|\\bhttpx\\.(?:get|post|Client)\\b|\\bInvoke-(?:WebRequest|RestMethod)\\b|\\b(?:iwr|irm|curl(?:\\.exe)?|wget(?:\\.exe)?)\\s+)', re.I)
+_CDP_PROTOCOL_RE = re.compile('(?:(?:https?|wss?)://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?(?:/json(?:/|$|["\'\\s?])|/devtools/(?:page|browser)(?:/|$|["\'\\s?]))|(?:/json/(?:list|version|new|activate|close|protocol)\\b|/devtools/(?:page|browser)/[A-Za-z0-9_-]*)|\\bDevToolsActivePort\\b|\\bchrome-remote-interface\\b|\\bchrome-devtools-mcp\\b[^\\r\\n]*(?:--browser-url|--browserUrl|--autoConnect)\\b)', re.I)
 _COMMIT_MESSAGE_ISSUE_URL_RE = re.compile('^https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)$')
 _CYGDRIVE_RE = re.compile('^/(?:cygdrive|mnt)/([a-zA-Z])(?:/(.*))?$')
 _EXTERNAL_URL_RE = re.compile('https?://(?!(?:localhost|127\\.0\\.0\\.1|\\[::1\\])\\b)[A-Za-z0-9.-]+', re.I)
 _GITHUB_ISSUE_URL_RE = re.compile('https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\\d+\\b')
+_INLINE_EXEC_RE = re.compile('\\b(?:python(?:3)?(?:\\.exe)?\\s+(?:-[A-Za-z]+\\s+)*-c|node(?:\\.exe)?\\s+(?:--[A-Za-z-]+(?:=\\S+)?\\s+)*-e)\\b', re.I)
 _ISSUE_LINKED_CODE_SUFFIXES = ('.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.cs', '.ps1', '.sh', '.bash', '.cmd', '.bat', '.vbs')
+_SANCTIONED_CDP_RUNNER_RE = re.compile('(?:harness\\.py|upwork_project\\.py|df_text\\.py|df_article\\.py|df_proposal\\.py|df_github_issue\\.py|validate_links\\.py|safe_commit\\.py|\\bunittest\\b|\\bpytest\\b)', re.I)
 _SANCTIONED_HTTP_RUNNER_RE = re.compile('(?:harness\\.py|upwork_project\\.py|validate_links\\.py|df_github_issue\\.py|\\bunittest\\b|\\bpytest\\b)', re.I)
 _VALUE_GLOBAL_OPTS = ('-C', '--git-dir', '--work-tree', '-c', '--exec-path', '--namespace', '--super-prefix', '--config-env')
+def protected_browser_perimeter(config=None) -> dict:
+	cfg = config
+	if None is cfg:
+		try:
+			from .runtime import settings
+			cfg = settings()
+		except Exception:
+			cfg = {}
+	ports: set[int] = set()
+	profile_dirs: set[str] = set()
+	active_port_files: set[str] = set()
+	for plat_cfg in ((cfg or {}).get('platforms') or {}).values():
+		if isinstance(plat_cfg, dict) and isinstance(plat_cfg.get('browser'), dict):
+			p = plat_cfg['browser'].get('cdp_port')
+			if isinstance(p, int) and 0 < p < 65536:
+				ports.add(p)
+	sessions = ((cfg or {}).get('text') or {}).get('browser', {}).get('sessions') or {}
+	if isinstance(sessions, dict):
+		for sess in sessions.values():
+			if not isinstance(sess, dict):
+				continue
+			for ep_key in ('endpoint', 'fallback_endpoint'):
+				ep_val = sess.get(ep_key)
+				if isinstance(ep_val, str) and ep_val.strip():
+					parsed = urlsplit(ep_val.strip())
+					if parsed.port:
+						ports.add(int(parsed.port))
+			dap = sess.get('devtools_active_port')
+			if isinstance(dap, str) and dap.strip():
+				norm_dap = dap.strip().replace('\\', '/').rstrip('/')
+				active_port_files.add(norm_dap.casefold())
+			prof = sess.get('profile')
+			if isinstance(prof, dict) and isinstance(prof.get('path'), str) and prof['path'].strip():
+				norm_prof = prof['path'].strip().replace('\\', '/').rstrip('/')
+				profile_dirs.add(norm_prof.casefold())
+	return {'ports': sorted(ports), 'profile_dirs': sorted(profile_dirs), 'active_port_files': sorted(active_port_files)}
 class ShellCommandInspector:
 	def _iter_git_segments(self, candidate: str) -> list[tuple[str, list[str]]]:
 		cleaned = re.sub('@\'[\\s\\S]*?\'@|@"[\\s\\S]*?"@', '""', candidate)
@@ -207,11 +251,43 @@ class ShellCommandInspector:
 							if normalized not in r:
 								r.append(normalized)
 		return r
+	def prohibited_cdp_bypass_commands(self, text: str, *, config=None) -> list[str]:
+		if not isinstance(text, str) or not text.strip():
+			return []
+		perim = protected_browser_perimeter(config)
+		port_alt = '|'.join((str(p) for p in perim['ports']))
+		port_re = re.compile(f'(?:(?:https?|wss?)://)?(?:127\\.0\\.0\\.1|localhost|\\[::1\\]):(?:{port_alt})\\b', re.I) if port_alt else None
+		r: list[str] = []
+		for seg in self._split_segments(text):
+			is_sanctioned = bool(_SANCTIONED_CDP_RUNNER_RE.search(seg)) and (not bool(_INLINE_EXEC_RE.search(seg)))
+			if is_sanctioned:
+				continue
+			seg_norm = seg.replace('\\\\', '/').replace('\\', '/').casefold()
+			hit = bool(_CDP_PROTOCOL_RE.search(seg))
+			if not hit and None is not port_re and port_re.search(seg):
+				if re.search('(?:\\b(?:urlopen|urllib|requests|httpx|websockets|WebSocket|curl|wget|iwr|irm|Invoke-WebRequest|Invoke-RestMethod|TcpClient|netstat|Get-NetTCPConnection)\\b)', seg, re.I):
+					hit = True
+			if not hit:
+				for apf in perim['active_port_files']:
+					if apf and apf in seg_norm:
+						hit = True
+						break
+			if not hit:
+				for pdir in perim['profile_dirs']:
+					if pdir and pdir in seg_norm and re.search('(?:devtoolsactiveport|local\\s+state|/cookies\\b|/login\\s+data\\b|/web\\s+data\\b)', seg_norm):
+						hit = True
+						break
+			if hit:
+				snippet = ' '.join(seg.strip().split())[:240]
+				if snippet not in r:
+					r.append(snippet)
+		return r
 	def unpersisted_http_fetch_commands(self, text: str) -> list[str]:
-		if not isinstance(text, str) or not text.strip() or _SANCTIONED_HTTP_RUNNER_RE.search(text) or (not (_EXTERNAL_URL_RE.search(text) and _ADHOC_HTTP_CLIENT_RE.search(text))):
-			r = []
-		else:
-			r = [' '.join(text.strip().split())[:240]]
+		r = list(self.prohibited_cdp_bypass_commands(text))
+		if isinstance(text, str) and text.strip() and (not _SANCTIONED_HTTP_RUNNER_RE.search(text)) and _EXTERNAL_URL_RE.search(text) and _ADHOC_HTTP_CLIENT_RE.search(text):
+			snippet = ' '.join(text.strip().split())[:240]
+			if snippet not in r:
+				r.append(snippet)
 		return r
 _INSPECTOR = ShellCommandInspector()
 def _iter_shell_git_segments(candidate: str) -> list[tuple[str, list[str]]]:
@@ -253,6 +329,8 @@ def normalize_host_path(value: str | Path) -> Path:
 def parse_issue_url(url: str) -> tuple[str, int] | None:
 	m = _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch((url or '').strip())
 	return (m.group(1), int(m.group(2))) if m else None
+def prohibited_cdp_bypass_commands(text: str, *, config=None) -> list[str]:
+	return _INSPECTOR.prohibited_cdp_bypass_commands(text, config=config)
 def prohibited_git_write_commands(text: str) -> list[str]:
 	return _INSPECTOR.prohibited_git_write_commands(text)
 def unflagged_git_read_commands(text: str) -> list[str]:

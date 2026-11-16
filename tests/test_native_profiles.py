@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
@@ -727,3 +730,26 @@ class NativeProfileTests(TemporaryCase):
 		self.assertTrue(self.install(('C2',))['valid'])
 		self.assertTrue(unknown.samefile(personal))
 		self.assertEqual(native._load_state(self.primary)['profiles']['C2']['links'][str(unknown)], str(personal))
+	def test_m4_and_m5_scrub_antigravity_cdp_grant_mcp_hooks_and_codex_chrome_plugin(self):
+		self.write(self.gravity['A6'] / 'config.json', json.dumps({'userSettings': {'globalPermissionGrants': {'allow': ['command(curl.exe -s http://127.0.0.1:9222/json)', 'read_url(*)']}}}))
+		fake_hs = self.write(self.root / 'tools/chrome-headless-shell.exe', 'binary')
+		cfg_with_hs = deepcopy(self.config)
+		cfg_with_hs['text'] = {'browser': {'headless_shell': {'executable': str(fake_hs)}}}
+		self.write(self.primary / 'runtime.json', json.dumps(cfg_with_hs))
+		self.write(self.gravity['A6'] / 'mcp_config.json', json.dumps({'mcpServers': {'chrome-devtools': {'command': 'npx', 'args': ['-y', 'chrome-devtools-mcp', '--autoConnect', '--browser-url=http://127.0.0.1:9222']}}}))
+		self.write(self.homes['C2'] / 'config.toml', 'model = "mine"\n\n[plugins."chrome@openai-bundled"]\nenabled = true\n\n[plugins."browser@openai-bundled"]\nenabled = true\n')
+		result = self.install(('A6', 'C2'))
+		self.assertTrue(result['valid'], result)
+		hooks = json.loads((self.gravity['A6'] / 'hooks.json').read_text(encoding='utf-8'))
+		self.assertIn('mcp_.*|invoke_subagent', hooks['rules-and-server-gate']['PreToolUse'][0]['matcher'])
+		ag_cfg = json.loads((self.gravity['A6'] / 'config.json').read_text(encoding='utf-8'))
+		self.assertEqual(ag_cfg['userSettings']['globalPermissionGrants']['allow'], ['read_url(*)'])
+		mcp_cfg = json.loads((self.gravity['A6'] / 'mcp_config.json').read_text(encoding='utf-8'))
+		mcp_args = mcp_cfg['mcpServers']['chrome-devtools']['args']
+		self.assertIn('--headless', mcp_args)
+		self.assertIn('--isolated', mcp_args)
+		self.assertFalse(any((a.startswith(('--autoConnect', '--browser-url')) for a in mcp_args)))
+		codex_cfg = tomllib.loads((self.homes['C2'] / 'config.toml').read_text(encoding='utf-8'))
+		self.assertFalse(codex_cfg['plugins']['chrome@openai-bundled']['enabled'])
+		self.assertTrue(codex_cfg['plugins']['browser@openai-bundled']['enabled'])
+		self.assertTrue(self.install(('A6', 'C2'), check=True)['valid'])

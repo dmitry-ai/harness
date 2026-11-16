@@ -36,7 +36,9 @@
       "folders_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Folders/folders.json",
       "browser": {
         "cdp_port": 9222,
-        "owned_window_bounds": null
+        "owned_window_bounds": null,
+        "primary_session_id": "chrome-default",
+        "headless_shell": "C:/tools/chrome-headless-shell/139.0.7258.155/chrome-headless-shell.exe"
       }
     },
     "codex": {
@@ -70,7 +72,47 @@
       "ui_manage": "C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons/code/UI/manage.mjs",
       "browser": {
         "cdp_port": 9222,
-        "owned_window_bounds": null
+        "owned_window_bounds": null,
+        "primary_session_id": "chrome-default",
+        "headless_shell": "C:/tools/chrome-headless-shell/139.0.7258.155/chrome-headless-shell.exe"
+      }
+    }
+  },
+  "text": {
+    "browser": {
+      "node": "C:/tools/nodejs/node.exe",
+      "primary_session_id": "chrome-default",
+      "headless_shell": {
+        "executable": "C:/tools/chrome-headless-shell/139.0.7258.155/chrome-headless-shell.exe",
+        "fallback_glob": "C:/tools/chrome-headless-shell/*/chrome-headless-shell.exe"
+      },
+      "sessions": {
+        "chrome-default": {
+          "surface": "browser",
+          "devtools_active_port": "C:/ChromeU/DevToolsActivePort",
+          "fallback_endpoint": "http://127.0.0.1:9222",
+          "profile": {
+            "path": "C:/ChromeU",
+            "argument": "--user-data-dir",
+            "profile_directory": "Default",
+            "extension_id": "ijadacmfoiadhndncikfnnpcmhkfdbhf",
+            "extension_path": "C:/work/research/provision/code/AI/harness/code/browser_extension",
+            "sentinel_origin": "https://harness-profile.invalid",
+            "sentinel_cookie_name": "__harness_primary_profile"
+          },
+          "target_url_patterns": [
+            "https://*",
+            "http://*"
+          ],
+          "allowed_operations": [
+            "read",
+            "screenshot",
+            "create",
+            "navigate",
+            "write",
+            "close"
+          ]
+        }
       }
     }
   },

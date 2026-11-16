@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Harness Profile Anchor",
+  "version": "1.0.0",
+  "description": "Maintains a non-focusable offscreen DevTools target and background tab broker pinned to the primary Chrome profile.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAssiyCPqb3bAXUGRosRThKWgGbLc9igSsF61zFMgbQg60+AgZqpUZtOdhs5y8dVN9UEmnGrO4h54BkfZ6OJT7+SlkBKE3gIuTP8hx8r3ND6hVQu0oqvuI7B/FrH/Spxj9zqjh2K1bzM1w+OUwLgJmAp879MhFGfrk8GK8CJggvt2gZ329WAau5xcWpkqEePaXb3xvqyEQgivP4tLUVkBGjF/Ers5mwFQwXXbEpgwJnsdybGMDJMQpol/T0jcsCRsi4WzgaQkxkRYVbfQ8tvFZMWSI1FxLmQsIZXrYxq0x1YuUsU87BDT0jUhX3n3xr8myFtbPSD4gryJR6/7Cqc0JVQIDAQAB",
+  "permissions": [
+    "offscreen"
+  ],
+  "background": {
+    "service_worker": "sw.js"
+  }
+}

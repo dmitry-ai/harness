@@ -1,3 +1,6 @@
+# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
@@ -362,6 +365,45 @@ def _antigravity_plan(plan, name, config, primary, state):
 		profile['files'][str(path)] = _hash(wanted)
 	except (ValueError, OSError) as exc:
 		plan.issue(path, str(exc))
+	cfg_json = config / 'config.json'
+	if cfg_json.is_file():
+		try:
+			raw_cfg = cfg_json.read_bytes()
+			parsed_cfg = json.loads(raw_cfg.decode('utf-8-sig'))
+			allows = (((parsed_cfg.get('userSettings') or {}).get('globalPermissionGrants') or {}).get('allow')) if isinstance(parsed_cfg, dict) else None
+			if isinstance(allows, list):
+				filtered = [item for item in allows if not (isinstance(item, str) and re.search('(?i)(?:127\\.0\\.0\\.1|localhost|\\[::1\\]):\\d+/json\\b|/devtools/(?:page|browser)/', item))]
+				if filtered != allows:
+					parsed_cfg['userSettings']['globalPermissionGrants']['allow'] = filtered
+					wanted_cfg = _json(parsed_cfg)
+					plan.file(cfg_json, wanted_cfg)
+					profile['files'][str(cfg_json)] = _hash(wanted_cfg)
+				elif str(cfg_json) in previous.get('files', {}):
+					profile['files'][str(cfg_json)] = _hash(raw_cfg)
+		except (ValueError, OSError) as exc:
+			plan.issue(cfg_json, str(exc))
+	mcp_json = config / 'mcp_config.json'
+	if mcp_json.is_file() and mcp_json.read_text(encoding='utf-8-sig').strip():
+		try:
+			raw_mcp = mcp_json.read_bytes()
+			parsed_mcp = json.loads(raw_mcp.decode('utf-8-sig'))
+			servers = parsed_mcp.get('mcpServers') if isinstance(parsed_mcp, dict) else None
+			changed_mcp = False
+			if isinstance(servers, dict):
+				from .text_browser import headless_mcp_args
+				for sname, scfg in servers.items():
+					if isinstance(scfg, dict) and isinstance(scfg.get('args'), list) and ('chrome-devtools' in sname.lower() or any(('chrome-devtools-mcp' in str(a) for a in scfg['args']))):
+						old_args = [str(a) for a in scfg['args']]
+						if any((a.startswith(('--autoConnect', '--browser-url', '--browserUrl')) for a in old_args)):
+							kept = [a for a in old_args if not a.startswith(('--autoConnect', '--browser-url', '--browserUrl', '--headless', '--isolated', '--executablePath'))]
+							scfg['args'] = kept + headless_mcp_args(_configuration(primary))
+							changed_mcp = True
+			if changed_mcp:
+				wanted_mcp = _json(parsed_mcp)
+				plan.file(mcp_json, wanted_mcp)
+				profile['files'][str(mcp_json)] = _hash(wanted_mcp)
+		except (ValueError, OSError) as exc:
+			plan.issue(mcp_json, str(exc))
 	plan.profiles[name] = profile
 def _legacy_role_config(text, definitions):
 	data = tomllib.loads(text) if text.strip() else {}
@@ -440,6 +482,18 @@ def _plan_codex_link(plan, profile, link, active_valid, active_error, retire_pat
 		link.legacy_dir = 'directory' == link.kind
 		plan.file(retire_path, None)
 		plan.managed_links[path] = link
+def _disable_codex_bundled_chrome_plugin(text):
+	data = tomllib.loads(text) if text.strip() else {}
+	plugins = data.get('plugins')
+	if not isinstance(plugins, dict) or not isinstance(plugins.get('chrome@openai-bundled'), dict) or True is not plugins['chrome@openai-bundled'].get('enabled'):
+		return text
+	updated = re.sub('(?m)^(\\[plugins\\.(?:"chrome@openai-bundled"|\'chrome@openai-bundled\')\\]\\r?\\n(?:[^\\[\\r\\n]*\\r?\\n)*?\\s*enabled\\s*=\\s*)true(\\s*(?:#.*)?)$', '\\1false\\2', text, count=1)
+	if updated == text:
+		raise ValueError('Could not disable plugins."chrome@openai-bundled" cleanly; preserved')
+	verify = tomllib.loads(updated)
+	if False is not verify.get('plugins', {}).get('chrome@openai-bundled', {}).get('enabled'):
+		raise ValueError('Disabling plugins."chrome@openai-bundled" did not parse as false; preserved')
+	return updated
 def _codex_plan(plan, name, home, primary, state):
 	home = _absolute(home)
 	previous = _profile_state(state, name, home)
@@ -460,7 +514,7 @@ def _codex_plan(plan, name, home, primary, state):
 	path = home / 'config.toml'
 	try:
 		actual = path.read_bytes() if path.is_file() else b''
-		wanted = _role_config(actual.decode('utf-8-sig'), definitions, previous, state, path, primary).encode('utf-8')
+		wanted = _disable_codex_bundled_chrome_plugin(_role_config(actual.decode('utf-8-sig'), definitions, previous, state, path, primary)).encode('utf-8')
 		if actual.startswith(b'\xef\xbb\xbf'):
 			wanted = b'\xef\xbb\xbf' + wanted
 		if actual or wanted or path.exists():

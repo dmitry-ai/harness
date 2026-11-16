@@ -145,7 +145,7 @@ python <scripts>/df_text.py finalize <root> --publication
 Turn initialization and foreground native delivery verification are documented in the [shared turn completion contract](../turn-completion.md#native-verification).  
 No autonomous verifier runs after publication; actual delivery is reconciled on the next foreground working call.  
 New publication requires current source checks and semantic approval; answer preparation records the applicable checks for its linked operation so later integrity verification does not reauthorize historical text solely because sources have aged.  
-<!-- https://github.com/dmitry-ai/harness/issues/41 -->
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->  
 Low-level `df_text.py record-answer <root> --journal <journal> --request-file <request> --response-file <answer> --turn <stable-turn-id>` remains available for compatibility and recovery; multiple `--request-file` flags bind several requests to one response, and retries are allowed only with identical bytes.  
 Standard `record_step`, `record-answer`, analysis `finalize`, and `safe_commit` invoke the same gates for target files linked to the current instruction or explicit commit list.  
 `finalize` validates registered documents in the explicitly selected text root; `--publication` additionally requires an active substantive clearance.  
@@ -157,8 +157,8 @@ Primary evidence remains in `KB/Evidence`; temporary inputs may be deleted once 
 
 `browser-check <root> --spec <session.json>` reads live `/json/version` and `/json/list` endpoints, verifies the profile and target via native CDP, and returns `unknown` when proof is unavailable.  
 Specification fields: `session_id`, current `target_id`, and optional exact `target_url`.  
-Permitted sessions are defined exclusively in `runtime.json → text.browser.sessions`; each entry specifies surface (`browser|codex|antigravity`), loopback endpoint or Antigravity `devtools_active_port`, profile with an observable command-line argument, and `target_url_patterns`.  
+Permitted sessions are defined exclusively in `runtime.json → text.browser.sessions`; each entry specifies surface (`browser|codex|antigravity`), loopback endpoint or `devtools_active_port` (with optional `fallback_endpoint`), profile verification (`Browser.getBrowserCommandLine` when `--enable-automation` is set, or single-directory `Default` `browserContextId` isolation via `M-2A` unpacked MV3 `offscreen.html` anchor and `M-2B` `https://harness-profile.invalid` sentinel), and `target_url_patterns`.  
 The client window and account are selected according to the instruction and live observation; this document never authorizes picking an arbitrary profile.  
 Profiles C1/C2 use the reference `profile: {platform: codex, name: C1|C2, argument: --codex-home}` only when that exact argument is observable in the running build; otherwise the status remains `unknown`.  
-`GuardedCDP` is a cooperative adapter rather than a global lock across external tools.  
+Direct loopback CDP access (`/json`, `/devtools/page/`, `/devtools/browser/`, `DevToolsActivePort`) outside `harness.py` and `df_text.py` is blocked by `CDP-BYPASS-GATE` (`M-4`), and external browser MCP mutations require a session-owned background page (`M-5`).  
 Do not use native Codex/Antigravity UI automation as a workaround for a rejected CDP check.  
