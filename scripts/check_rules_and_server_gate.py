@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/87
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -168,13 +171,13 @@ def check_external_write_gate(name: str, args: dict) -> str | None:
 	if 'run_command' != name:
 		return None
 	cmd = args.get('CommandLine') or ''
-	if re.search('(?:^|[;|\\n&]|\\s)gh\\s+issue\\s+(?:create|edit|comment|close|reopen|delete)\\b', cmd, re.I):
+	if re.search('(?:^|[;|\\n&]|\\s)gh(?:\\.exe)?\\s+issue\\s+(?:create|edit|comment|close|reopen|delete)\\b', cmd, re.I):
 		return 'EXEC-5 / SCOPE-2: Direct gh issue write commands in the shell are prohibited; use df_github_issue.py with UTF-8 file input and mandatory API read-back verification.'
-	if re.search('(?:^|[;|\\n&]|\\s)gh\\s+api\\b[^;|\\n]*(?:--method|-X)\\s*(?:POST|PATCH|PUT|DELETE)\\b', cmd, re.I):
+	if re.search('(?:^|[;|\\n&]|\\s)gh(?:\\.exe)?\\s+api\\b[^;|\\n]*(?:--method(?:\\s+|=)|-X\\s*)(?:POST|PATCH|PUT|DELETE)\\b', cmd, re.I):
 		return 'EXEC-5 / SCOPE-2: Direct mutating gh api calls (POST/PATCH/PUT/DELETE) in the shell are prohibited; use df_github_issue.py.'
-	for gh_m in re.finditer('(?:^|[;|\\n&]|\\s)(gh\\s+api\\b[^;|\\n]*)', cmd, re.I):
+	for gh_m in re.finditer('(?:^|[;|\\n&]|\\s)(gh(?:\\.exe)?\\s+api\\b[^;|\\n]*)', cmd, re.I):
 		gh_seg = gh_m.group(1)
-		if re.search('(?:--input|-f|--raw-field|-F|--field)(?:\\s|=|$)', gh_seg) and (not re.search('(?:--method|-X)\\s*GET\\b', gh_seg, re.I)):
+		if re.search('(?:--input|-f|--raw-field|-F|--field)(?:\\s|=|$)', gh_seg) and (not re.search('(?:--method(?:\\s+|=)|-X\\s*)GET\\b', gh_seg, re.I)):
 			return 'EXEC-5 / SCOPE-2: Direct mutating gh api calls with input/field arguments are prohibited; use df_github_issue.py.'
 	if re.search('\\bdf_github_issue\\.py\\s+(?:create|edit|comment|close)\\b', cmd, re.I):
 		proj_root = _upwork_project_root_for_command(cmd)

@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/87
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -167,6 +170,9 @@ class TestGitHubIssueTool(unittest.TestCase):
 			'Route A / B / C requests',
 			'Исправить X, Y и Z в модуле',
 			'Unify `a.py`, `b.py`, and `c.py`',
+			'Fix `X, Y, and Z`',
+			'Fix feature A + feature B + feature C',
+			'Route path A / path B / path C',
 			'Fix gates (X, Y, and Z)',
 			'When closing parent issues, verify X, Y and Z',
 		)
@@ -177,9 +183,16 @@ class TestGitHubIssueTool(unittest.TestCase):
 		clean_titles = (
 			'Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)',
 			'In text_browser.py, validate A and reject B',
+			'In text_browser.py, validate A, and reject B',
+			'When closing parent issues, verify X, and check Y',
+			'For parent issues with children, verify A and reject B',
+			'Fix A, B: handle C and D',
 			'Fix `f(a, b)` and `g(c, d)`',
+			'Fix `foo(a, b, c)` crash',
 			'Process 1,000 events in `research.py`',
 			'Reject enumerated multi-item issue titles in df_github_issue.py and active turn lifecycle checks',
+			'Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates',
+			'Document parent-child issue decomposition and enumerated title ban in EXEC-5 and df-github-issue',
 		)
 		for title in clean_titles:
 			self.assertFalse(has_enumerated_slop_title(title), title)
@@ -194,14 +207,23 @@ class TestGitHubIssueTool(unittest.TestCase):
 		from agent_tools.git_gate import verify_repo_issue_ready_for_close
 		bundled_body = '## Solution\n1. M-1 Isolate public captures.\n1. M-2 Enforce primary profile check.\n'
 		self.assertIn('BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', {e['code'] for e in lint_issue_markdown(bundled_body)})
+		verb_bundled_body = '## Solution\n- Implement M-1 in `github_issue.py`.\n- Implement M-2 in `git_gate.py`.\n'
+		self.assertIn('BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', {e['code'] for e in lint_issue_markdown(verb_bundled_body)})
+		dup_link_body = '## Solution\n1. M-1 (see #41)\n1. M-2 (see #41)\n'
+		self.assertIn('BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', {e['code'] for e in lint_issue_markdown(dup_link_body)})
+		indented_distinct_body = 'Parent: #40\n\n## Plan\n1. M-1 First\n   - See #41\n1. M-2 Second\n   - See #42\n'
+		self.assertEqual(lint_issue_markdown(indented_distinct_body, parent_number=40, repo='smokeday-com/m', self_number=40), [])
 		parent_diag_body = '## Problem\n1. `H-1` — missing check.\n1. `H-2` — fallback bypass.\n1. `H-3` — stale cache.\n'
 		self.assertEqual(lint_issue_markdown(parent_diag_body), [])
-		child_family_body = 'Parent: #40\n\n## Subtask Scope\n1. `M-2A` — extension offscreen anchor.\n1. `M-2B` — sentinel fallback.\n'
+		child_family_body = '**Parent:** #40\n\n## Subtask Scope\n1. `M-2A` — extension offscreen anchor.\n1. `M-2B` — sentinel fallback.\n'
 		self.assertEqual(lint_issue_markdown(child_family_body, parent_number=40, repo='smokeday-com/m'), [])
 		unlinked_child_body = '## Subtask Scope\nImplement `M-1` only.\n'
 		self.assertIn('MISSING_PARENT_ISSUE_LINK', {e['code'] for e in lint_issue_markdown(unlinked_child_body, parent_number=40, repo='smokeday-com/m')})
 		self.assertIsNotNone(gate_hook.check_external_write_gate('run_command', {'CommandLine': 'gh api repos/x/y/issues -f title=foo'}))
+		self.assertIsNotNone(gate_hook.check_external_write_gate('run_command', {'CommandLine': 'gh.exe api repos/x/y/issues -f title=foo'}))
+		self.assertIsNotNone(gate_hook.check_external_write_gate('run_command', {'CommandLine': 'gh api repos/x/y/issues --method=DELETE'}))
 		self.assertIsNone(gate_hook.check_external_write_gate('run_command', {'CommandLine': 'gh api repos/x/y/issues -X GET -f state=open'}))
+		self.assertIsNone(gate_hook.check_external_write_gate('run_command', {'CommandLine': 'gh api repos/x/y/issues --method=GET -f state=open'}))
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'proj'
 			code_repo = proj / 'code'
@@ -233,10 +255,13 @@ class TestGitHubIssueTool(unittest.TestCase):
 					return {'linked': True}
 				if 'PATCH' == method and '/issues/' in endpoint:
 					num = int(endpoint.rsplit('/', 1)[-1])
+					self.assertTrue(bool(payload), 'Must not send an empty PATCH')
 					issues_db[num].update(payload)
 					return issues_db[num]
 				if 'GET' == method and '/issues/' in endpoint:
 					num = int(endpoint.rsplit('/', 1)[-1])
+					if num not in issues_db:
+						raise RuntimeError('404 Not Found')
 					return issues_db[num]
 				raise AssertionError(f'Unexpected {method} {endpoint}')
 			b41 = proj / '_/\ua616/data/scratch/b41.md'
@@ -244,10 +269,17 @@ class TestGitHubIssueTool(unittest.TestCase):
 			b41.write_text(f'Parent: [Issue #40]({url40})\n\n## Scope\nFix H-1.\n', encoding='utf-8')
 			b42 = proj / '_/\ua616/data/scratch/b42.md'
 			b42.write_text('Parent: #40\n\n## Scope\nFix H-2.\n', encoding='utf-8')
+			b43_bad = proj / '_/\ua616/data/scratch/b43_bad.md'
+			b43_bad.write_text('Parent: #999999\n\n## Scope\nOrphan parent ref.\n', encoding='utf-8')
+			issues_db[43] = {'number': 43, 'id': 4043, 'title': 'Fix H-3 child check', 'body': '**Parent:** #40\n\n## Scope\nLinked via edit --parent.\n', 'state': 'open', 'state_reason': None, 'html_url': 'https://github.com/smokeday-com/m/' + 'issues/43'}
 			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
+				self.assertEqual(main(['create', '--repo', 'smokeday-com/m', '--title', 'Bad parent body ref', '--body-file', str(b43_bad), '--project-root', str(proj)]), 1)
+				self.assertEqual(main(['edit', '--repo', 'smokeday-com/m', '--issue', '43', '--parent', '40', '--project-root', str(proj)]), 0)
+				ev_dir = proj / '_/\ua616/KB/Evidence/GitHub/smokeday-com__m'
+				ev43 = json.loads((ev_dir / 'issue-43.json').read_text(encoding='utf-8'))
+				self.assertEqual(ev43['parent_number'], 40)
 				self.assertEqual(main(['create', '--repo', 'smokeday-com/m', '--parent', '40', '--title', 'Fix H-1 check', '--body-file', str(b41), '--project-root', str(proj), '--consume-input']), 0)
 				self.assertEqual(main(['create', '--repo', 'smokeday-com/m', '--parent', url40, '--title', 'Fix H-2 fallback', '--body-file', str(b42), '--project-root', str(proj), '--consume-input']), 0)
-				ev_dir = proj / '_/\ua616/KB/Evidence/GitHub/smokeday-com__m'
 				ev41 = json.loads((ev_dir / 'issue-41.json').read_text(encoding='utf-8'))
 				self.assertEqual(ev41['parent_number'], 40)
 				self.assertEqual(ev41['parent_url'], url40)
@@ -263,6 +295,12 @@ class TestGitHubIssueTool(unittest.TestCase):
 				subprocess.run(['git', 'add', 'mod42.py'], cwd=code_repo, check=True, capture_output=True)
 				subprocess.run(['git', 'commit', '-m', url42], cwd=code_repo, check=True, capture_output=True)
 				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '42', '--project-root', str(proj)]), 0)
+				url43 = 'https://github.com/smokeday-com/m/' + 'issues/43'
+				f43 = code_repo / 'mod43.py'
+				f43.write_text('# ' + url43 + '\nx = 43\n', encoding='utf-8')
+				subprocess.run(['git', 'add', 'mod43.py'], cwd=code_repo, check=True, capture_output=True)
+				subprocess.run(['git', 'commit', '-m', url43], cwd=code_repo, check=True, capture_output=True)
+				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '43', '--project-root', str(proj)]), 0)
 				f40_mono = code_repo / 'mod40.py'
 				f40_mono.write_text('# ' + url40 + '\nx = 40\n', encoding='utf-8')
 				subprocess.run(['git', 'add', 'mod40.py'], cwd=code_repo, check=True, capture_output=True)

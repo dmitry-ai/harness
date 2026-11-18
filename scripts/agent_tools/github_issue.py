@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/87
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -37,6 +40,7 @@
 from __future__ import annotations
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -50,13 +54,13 @@ REPO_RE = re.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
 _COMMON_TAIL_SPECS = (('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete input file(s) after verified publication.'}))
 _REPO_SPEC = (('--repo', '-R'), {'required': True, 'help': 'Target repository in owner/repo format.'})
 _TITLE_INTRO_SUBORD_RE = re.compile('^(?:when|if|unless|while|after|before|once|where|whenever|although|though|since|because|\\u0435\\u0441\\u043b\\u0438|\\u043a\\u043e\\u0433\\u0434\\u0430|\\u043f\\u043e\\u0441\\u043b\\u0435|\\u043f\\u043e\\u043a\\u0430)\\b[^,]*,\\s+', re.I)
-_TITLE_INTRO_PREP_RE = re.compile('^(?:in|on|at|with|without|under|during|upon|inside|outside|\\u0432|\\u0432\\u043e|\\u043d\\u0430|\\u043f\\u0440\\u0438|\\u0431\\u0435\\u0437)\\s+(?:the\\s+)?[A-Za-z0-9_\\u0400-\\u04ff./:-]+(?:\\s+[A-Za-z0-9_\\u0400-\\u04ff./:-]+){0,2},\\s+', re.I)
+_TITLE_INTRO_PREP_RE = re.compile('^(?:in|on|at|for|from|to|by|with|without|under|during|upon|inside|outside|across|via|through|per|\\u0432|\\u0432\\u043e|\\u043d\\u0430|\\u043f\\u0440\\u0438|\\u0431\\u0435\\u0437|\\u0434\\u043b\\u044f|\\u0438\\u0437|\\u043f\\u043e|\\u0447\\u0435\\u0440\\u0435\\u0437)\\s+(?:the\\s+)?[A-Za-z0-9_\\u0400-\\u04ff./:-]+(?:\\s+[A-Za-z0-9_\\u0400-\\u04ff./:-]+){0,6},\\s+', re.I)
 _TITLE_OXFORD_TRIPLE_RE = re.compile('[^,;]+,\\s*[^,;]+,\\s*(?:and|or|&|\\u0438|\\u0438\\u043b\\u0438)(?:\\s|$)', re.I)
-_TITLE_NON_OXFORD_TRIPLE_RE = re.compile('[^,;]+,\\s*[^,;]+?\\s+(?:and|or|&|\\u0438|\\u0438\\u043b\\u0438)\\s+\\S', re.I)
-_TITLE_PLUS_SLASH_TRIPLE_RE = re.compile('(?:\\S+\\s+\\+\\s+\\S+\\s+\\+\\s+\\S+|\\S+\\s+/\\s+\\S+\\s+/\\s+\\S+)')
+_TITLE_NON_OXFORD_TRIPLE_RE = re.compile('[^,;]+,\\s*(?!\\s*(?:and|or|&|\\u0438|\\u0438\\u043b\\u0438)\\b)[^,;]+?\\s+(?:and|or|&|\\u0438|\\u0438\\u043b\\u0438)\\s+\\S', re.I)
+_TITLE_PLUS_SLASH_TRIPLE_RE = re.compile('(?:\\S+\\s+\\+\\s+[^+;:,]+?\\s+\\+\\s+\\S+|\\S+\\s+/\\s+[^/;:,]+?\\s+/\\s+\\S+)')
 _PARENT_ARG_URL_RE = re.compile('^https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)/?$')
-_PARENT_DECL_RE = re.compile('(?im)^\\s*(?:[-*+]\\s+)?(?:\\*\\*|__)?(?:parent(?:\\s+issue)?|subtask\\s+of|child\\s+of|part\\s+of)(?:\\*\\*|__)?\\s*[:\\u2014-]\\s*(?:(?:\\[[^\\]]*\\]\\()?https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)\\)?|#(\\d+)\\b)')
-_M_SUBTASK_LINE_RE = re.compile('^(?:\\s*#{1,6}\\s+(?:\\d+(?:\\.\\d+)*\\.?\\s*)?|\\s*(?:[-*+]|\\d+[.)])\\s+)(?:\\*\\*|__|`|\\u00ab|"|\\\')*(?P<mid>M-(?:[A-Za-z]+-)*\\d+)[A-Za-z]?\\b', re.M)
+_PARENT_DECL_RE = re.compile('(?im)^\\s*(?:[-*+]\\s+)?(?:\\*\\*|__)?(?:parent(?:\\s+issue)?|subtask\\s+of|child\\s+of|part\\s+of)(?:(?:\\*\\*|__)\\s*[:\\u2014-]|\\s*[:\\u2014-]\\s*(?:\\*\\*|__)?)\\s*(?:(?:\\[[^\\]]*\\]\\()?https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)\\)?|#(\\d+)\\b)')
+_M_SUBTASK_LINE_RE = re.compile('^(?:\\s*#{1,6}\\s+(?:\\d+(?:\\.\\d+)*\\.?\\s*)?|\\s*(?:[-*+]|\\d+[.)])\\s+)(?:\\*\\*|__|`|\\u00ab|"|\\\')*(?:(?i:implement|fix|add|enforce|update|resolve|subtask|method|\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\u043e\\u0432\\u0430\\u0442\\u044c|\\u0438\\u0441\\u043f\\u0440\\u0430\\u0432\\u0438\\u0442\\u044c|\\u0434\\u043e\\u0431\\u0430\\u0432\\u0438\\u0442\\u044c|\\u043f\\u043e\\u0434\\u0437\\u0430\\u0434\\u0430\\u0447\\u0430|\\u043c\\u0435\\u0442\\u043e\\u0434)\\s+)?(?:\\*\\*|__|`|\\u00ab|"|\\\')*(?P<mid>M-(?:[A-Za-z]+-)*\\d+)[A-Za-z]?\\b', re.M)
 _consume_files = consume_unchanged_files
 def _strip_fenced_blocks(text: str) -> str:
 	return re.sub('```[\\s\\S]*?```', '', text or '')
@@ -99,33 +103,57 @@ def body_references_parent_issue(body: str, repo: str | None, parent_number: int
 	if repo and re.search(f'https://github\\.com/{re.escape(repo)}/issues/{pnum}(?![0-9])', clean, re.I):
 		return True
 	return bool(re.search(f'(?<![A-Za-z0-9_/])#{pnum}\\b', clean))
-def extract_unlinked_m_subtask_roots(body: str) -> list[str]:
+def extract_unlinked_m_subtask_roots(body: str, *, self_number: int | None=None, parent_number: int | None=None) -> list[str]:
 	clean = _strip_fenced_blocks(body)
-	r: list[str] = []
+	by_root: dict[str, list[str]] = {}
+	cur_root: str | None = None
 	for line in clean.splitlines():
 		m = _M_SUBTASK_LINE_RE.match(line)
-		if not m:
+		if m:
+			cur_root = m.group('mid').upper()
+			by_root.setdefault(cur_root, []).append(line)
 			continue
-		if re.search('(?:#\\d+\\b|https://github\\.com/[^\\s)]+/issues/\\d+\\b)', line):
-			continue
-		root_id = m.group('mid').upper()
-		if root_id not in r:
-			r.append(root_id)
-	return r
+		if None is not cur_root:
+			if line[:1] in (' ', '\t') and line.strip() and (not re.match('^\\s*#{1,6}\\s+', line)):
+				by_root[cur_root].append(line)
+			else:
+				cur_root = None
+	roots = list(by_root)
+	if 2 > len(roots):
+		return []
+	excluded = {int(n) for n in (self_number, parent_number) if None is not n}
+	unlinked: list[str] = []
+	all_child_refs: set[int] = set()
+	for root_id, root_lines in by_root.items():
+		group_text = '\n'.join(root_lines)
+		refs = {int(rm.group(1) or rm.group(2)) for rm in re.finditer('(?:#(\\d+)\\b|https://github\\.com/[^\\s)]+/issues/(\\d+)\\b)', group_text)} - excluded
+		if not refs:
+			unlinked.append(root_id)
+		all_child_refs.update(refs)
+	if 2 <= len(unlinked):
+		return unlinked
+	distinct_slots = len(all_child_refs) + (1 if unlinked else 0)
+	if distinct_slots < len(roots):
+		return roots
+	return []
 def _clause_has_triple_enumeration(clause: str) -> bool:
 	c = clause.strip()
 	if not c:
 		return False
-	if 2 <= c.count(';') or _TITLE_OXFORD_TRIPLE_RE.search(c) or _TITLE_PLUS_SLASH_TRIPLE_RE.search(c):
+	if 2 <= c.count(';') or bool(_TITLE_PLUS_SLASH_TRIPLE_RE.search(c)):
 		return True
 	rest = _TITLE_INTRO_SUBORD_RE.sub('', c, count=1)
 	if rest == c:
 		rest = _TITLE_INTRO_PREP_RE.sub('', c, count=1)
-	return 2 <= rest.count(',') or bool(_TITLE_NON_OXFORD_TRIPLE_RE.search(rest))
+	return 2 <= rest.count(',') or bool(_TITLE_OXFORD_TRIPLE_RE.search(rest)) or bool(_TITLE_NON_OXFORD_TRIPLE_RE.search(rest))
 def has_enumerated_slop_title(title: str) -> bool:
 	s = ' '.join((title or '').strip().split())
 	if not s:
 		return False
+	for m_bt in re.finditer('`([^`]+)`', s):
+		inner_bt = m_bt.group(1)
+		if 2 <= inner_bt.count(';') or bool(_TITLE_OXFORD_TRIPLE_RE.search(inner_bt)) or bool(_TITLE_NON_OXFORD_TRIPLE_RE.search(inner_bt)):
+			return True
 	s = re.sub('`[^`]+`', 'CODE', s)
 	s = re.sub('(?<=\\d),(?=\\d{3}\\b)', '', s)
 	while True:
@@ -136,13 +164,11 @@ def has_enumerated_slop_title(title: str) -> bool:
 		if _clause_has_triple_enumeration(inner):
 			return True
 		s = s[:m.start()] + 'GROUP' + s[m.end():]
-	if _clause_has_triple_enumeration(s):
-		return True
 	return any((_clause_has_triple_enumeration(part) for part in re.split('\\s*(?::|\\u2014|--)\\s*', s)))
-def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, expected_body: str | None, write_fn, read_fn, kind: str, id_key: str, consume_input: bool, project_root: str | Path | None, parent_number: int | None=None, check_structure_policy: bool=True, post_write_fn=None) -> int:
+def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, expected_body: str | None, write_fn, read_fn, kind: str, id_key: str, consume_input: bool, project_root: str | Path | None, parent_number: int | None=None, self_number: int | None=None, check_structure_policy: bool=True, post_write_fn=None) -> int:
 	eff_structure = check_structure_policy and ('comment' != kind)
 	title_errors = lint_issue_markdown(expected_title, is_title=True, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure) if None is not expected_title else []
-	body_errors = lint_issue_markdown(expected_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure, parent_number=parent_number, repo=repo) if None is not expected_body else []
+	body_errors = lint_issue_markdown(expected_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure, parent_number=parent_number, repo=repo, self_number=self_number) if None is not expected_body else []
 	if title_errors or body_errors:
 		err_out: dict[str, Any] = {'ok': False, 'action': action, 'stage': 'pre_flight_lint', 'repo': repo, 'body_errors': body_errors}
 		if 'comment' != kind:
@@ -154,14 +180,14 @@ def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Pat
 		fetched = read_fn(ident)
 		remote_title = fetched.get('title') or ''
 		remote_body = fetched.get('body') or ''
+		eff_self = self_number if None is not self_number else ident if 'issue' == kind and isinstance(ident, int) else None
 		post_title_errors = lint_issue_markdown(remote_title, is_title=True, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure) if None is not expected_title else []
-		post_body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure, parent_number=parent_number, repo=repo) if None is not expected_body else []
+		post_body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure, parent_number=parent_number, repo=repo, self_number=eff_self) if None is not expected_body else []
 		title_match = True if None is expected_title else normalize_newlines(remote_title) == normalize_newlines(expected_title)
 		body_match = True if None is expected_body else normalize_newlines(remote_body) == normalize_newlines(expected_body)
 		exact_match = title_match and body_match
 		if exact_match and (not post_title_errors) and (not post_body_errors):
-			if None is not post_write_fn:
-				post_write_fn(ident, fetched)
+			extra_out = post_write_fn(ident, fetched) if None is not post_write_fn else None
 			_persist_issue_evidence(consumable, repo, fetched, kind=kind, action=action, project_root=project_root, parent_number=parent_number)
 			removed = _consume_files(consumable) if consume_input else []
 			out_payload: dict[str, Any] = {'ok': True, 'action': action, 'repo': repo, id_key: ident, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}
@@ -170,6 +196,8 @@ def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Pat
 				if None is not eff_parent and eff_parent != ident:
 					out_payload['parent_number'] = int(eff_parent)
 					out_payload['parent_url'] = f'https://github.com/{repo}/issues/{int(eff_parent)}'
+			if isinstance(extra_out, dict):
+				out_payload.update(extra_out)
 			dump_json(out_payload)
 			r = 0
 		else:
@@ -191,7 +219,7 @@ def read_utf8_no_bom_file(path_str: str) -> tuple[Path, bytes, str]:
 	except UnicodeDecodeError as exc:
 		raise ValueError(f'File {path} is not valid UTF-8: {exc}') from exc
 	return (path, raw, text)
-def lint_issue_markdown(text: str, *, is_title: bool=False, target_locale: str='en-US', container_text: str | None=None, check_structure_policy: bool=True, parent_number: int | None=None, repo: str | None=None) -> list[dict[str, Any]]:
+def lint_issue_markdown(text: str, *, is_title: bool=False, target_locale: str='en-US', container_text: str | None=None, check_structure_policy: bool=True, parent_number: int | None=None, repo: str | None=None, self_number: int | None=None) -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
 	if not isinstance(text, str) or not text.strip():
 		r.append({'code': 'EMPTY_TEXT', 'message': 'Text is empty or whitespace-only'})
@@ -242,7 +270,7 @@ def lint_issue_markdown(text: str, *, is_title: bool=False, target_locale: str='
 			if None is not parent_number and (not body_references_parent_issue(text, repo, parent_number)):
 				r.append({'code': 'MISSING_PARENT_ISSUE_LINK', 'message': f'Child subtask issue body must explicitly link to parent issue #{parent_number} (e.g. "Parent: https://github.com/{repo or "<owner>/<repo>"}/issues/{parent_number}")'})
 			if check_structure_policy:
-				m_roots = extract_unlinked_m_subtask_roots(text)
+				m_roots = extract_unlinked_m_subtask_roots(text, self_number=self_number, parent_number=parent_number)
 				if 2 <= len(m_roots):
 					r.append({'code': 'BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', 'message': f'Issue body bundles multiple autonomous remediation subtasks ({", ".join(m_roots)}); document the original problem in a parent issue and create a separate child issue (--parent <N>) with its own commit for each autonomous subtask'})
 		r.extend(verify_target_locale(text, target_locale=target_locale, container_text=container_text, is_title=is_title))
@@ -371,6 +399,9 @@ def _record_issue_in_open_turns(meta_dir: Path, repo: str, record: dict[str, Any
 			issue_num = int(m.group(1))
 	if turns_dir.is_dir() and None is not issue_num:
 		issue_url = f'https://github.com/{repo}/issues/{issue_num}'
+		codex_tid = (os.environ.get('CODEX_THREAD_ID') or '').strip()
+		has_non_codex_open = False
+		loaded_turns: list[tuple[Path, dict[str, Any]]] = []
 		for tfile in turns_dir.glob('*.json'):
 			if tfile.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json')):
 				continue
@@ -379,6 +410,17 @@ def _record_issue_in_open_turns(meta_dir: Path, repo: str, record: dict[str, Any
 			except (OSError, ValueError):
 				continue
 			if not isinstance(tdata, dict) or 'open' != tdata.get('status'):
+				continue
+			loaded_turns.append((tfile, tdata))
+			if 'codex' != str(tdata.get('platform') or '').strip().lower():
+				has_non_codex_open = True
+		for tfile, tdata in loaded_turns:
+			t_plat = str(tdata.get('platform') or '').strip().lower()
+			t_cid = str(tdata.get('conversation_id') or '').strip()
+			if codex_tid:
+				if t_cid != codex_tid:
+					continue
+			elif has_non_codex_open and 'codex' == t_plat:
 				continue
 			gh_issues = tdata.setdefault('github_issues', {})
 			prev = gh_issues.get(issue_url) if isinstance(gh_issues.get(issue_url), dict) else {}
@@ -392,6 +434,11 @@ def _record_issue_in_open_turns(meta_dir: Path, repo: str, record: dict[str, Any
 				actions.append(act_name)
 			parent_num = record.get('parent_number') if isinstance(record.get('parent_number'), int) else prev.get('parent_number')
 			entry: dict[str, Any] = {'repo': repo, 'number': issue_num, 'url': issue_url, 'state': state, 'state_reason': record.get('state_reason') or prev.get('state_reason'), 'last_action': act_name, 'actions': actions, 'comment_ids': comment_ids}
+			if codex_tid:
+				entry['recorded_conversation_id'] = codex_tid
+				entry['recorded_platform'] = 'codex'
+			elif has_non_codex_open:
+				entry['recorded_platform'] = 'non_codex'
 			if isinstance(parent_num, int) and parent_num != issue_num:
 				entry['parent_number'] = parent_num
 				entry['parent_url'] = f'https://github.com/{repo}/issues/{parent_num}'
@@ -580,6 +627,7 @@ def cmd_create(args: argparse.Namespace) -> int:
 		raise ValueError('Issue title is required (--title or --title-file)')
 	b_path, b_raw, body = read_utf8_no_bom_file(args.body_file)
 	consumable.append((b_path, b_raw))
+	eff_parent = parent_num if None is not parent_num else extract_parent_issue_number(body, repo)
 	payload: dict[str, Any] = {'title': title, 'body': body}
 	if args.label:
 		labels = [lbl.strip() for item in args.label for lbl in item.split(',') if lbl.strip()]
@@ -592,13 +640,14 @@ def cmd_create(args: argparse.Namespace) -> int:
 	if None is not args.milestone:
 		payload['milestone'] = args.milestone
 	def _write_issue() -> int:
-		if None is not parent_num:
-			_verify_and_persist_parent_issue(consumable, repo, parent_num, project_root=project_root)
+		if None is not eff_parent:
+			_verify_and_persist_parent_issue(consumable, repo, eff_parent, project_root=project_root)
 		return _gh_api(f'repos/{repo}/issues', method='POST', payload=payload)['number']
-	def _after_create(_ident: int, fetched: dict[str, Any]) -> None:
-		if None is not parent_num:
-			_try_link_github_sub_issue(repo, parent_num, fetched.get('id'))
-	return _run_verified_mutation(action='create', repo=repo, consumable=consumable, target_locale=target_locale, container_text=None, expected_title=title, expected_body=body, write_fn=_write_issue, read_fn=lambda num: _gh_api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=parent_num, post_write_fn=_after_create)
+	def _after_create(_ident: int, fetched: dict[str, Any]) -> dict[str, Any] | None:
+		if None is not eff_parent:
+			return {'sub_issue_linked': _try_link_github_sub_issue(repo, eff_parent, fetched.get('id'))}
+		return None
+	return _run_verified_mutation(action='create', repo=repo, consumable=consumable, target_locale=target_locale, container_text=None, expected_title=title, expected_body=body, write_fn=_write_issue, read_fn=lambda num: _gh_api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=eff_parent, post_write_fn=_after_create)
 def cmd_edit(args: argparse.Namespace) -> int:
 	repo = _validate_repo(args.repo)
 	number = args.issue
@@ -615,37 +664,44 @@ def cmd_edit(args: argparse.Namespace) -> int:
 		consumable.append((b_path, b_raw))
 	if None is title and None is body and (None is args.state) and (None is parent_num):
 		raise ValueError('At least one of --title/--title-file, --body-file, --state, or --parent must be provided')
-	eff_parent = parent_num if None is not parent_num else _saved_issue_parent_number(consumable, repo, number, project_root=project_root)
+	body_parent = extract_parent_issue_number(body, repo) if None is not body else None
+	if None is not body_parent and int(body_parent) == int(number):
+		raise ValueError(f'Issue #{number} cannot reference itself as --parent')
+	active_parent = parent_num if None is not parent_num else body_parent
+	eff_parent = active_parent if None is not active_parent else _saved_issue_parent_number(consumable, repo, number, project_root=project_root)
 	if None is title and None is body and (None is args.state) and (None is not parent_num):
 		fetched = _gh_api(f'repos/{repo}/issues/{number}', method='GET')
+		remote_title = fetched.get('title') or ''
 		remote_body = fetched.get('body') or ''
-		body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, parent_number=parent_num, repo=repo)
-		if body_errors:
-			dump_json({'ok': False, 'action': 'edit', 'stage': 'pre_flight_lint', 'repo': repo, 'number': number, 'body_errors': body_errors})
+		title_errors = lint_issue_markdown(remote_title, is_title=True, target_locale=target_locale)
+		body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, parent_number=parent_num, repo=repo, self_number=number)
+		if title_errors or body_errors:
+			dump_json({'ok': False, 'action': 'edit', 'stage': 'pre_flight_lint', 'repo': repo, 'number': number, 'title_errors': title_errors, 'body_errors': body_errors})
 			return 2
 		_verify_and_persist_parent_issue(consumable, repo, parent_num, self_number=number, project_root=project_root)
-		_try_link_github_sub_issue(repo, parent_num, fetched.get('id'))
+		linked = _try_link_github_sub_issue(repo, parent_num, fetched.get('id'))
 		_persist_issue_evidence(consumable, repo, fetched, kind='issue', action='edit', project_root=project_root, parent_number=parent_num)
-		dump_json({'ok': True, 'action': 'edit', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'parent_number': int(parent_num), 'parent_url': f'https://github.com/{repo}/issues/{int(parent_num)}', 'body_chars': len(remote_body), 'consumed_files': []})
+		dump_json({'ok': True, 'action': 'edit', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'parent_number': int(parent_num), 'parent_url': f'https://github.com/{repo}/issues/{int(parent_num)}', 'sub_issue_linked': linked, 'body_chars': len(remote_body), 'consumed_files': []})
 		return 0
 	if None is not parent_num and None is body:
 		current_remote = _gh_api(f'repos/{repo}/issues/{number}', method='GET')
 		remote_body = current_remote.get('body') or ''
-		body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, parent_number=parent_num, repo=repo)
+		body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, parent_number=parent_num, repo=repo, self_number=number)
 		if body_errors:
 			dump_json({'ok': False, 'action': 'edit', 'stage': 'pre_flight_lint', 'repo': repo, 'number': number, 'body_errors': body_errors})
 			return 2
 	container_text = _load_saved_issue_container_text(consumable, repo, number, project_root=project_root)
 	payload = {k: v for k, v in (('title', title), ('body', body), ('state', args.state)) if None is not v}
 	def _write_edit() -> int:
-		if None is not parent_num:
-			_verify_and_persist_parent_issue(consumable, repo, parent_num, self_number=number, project_root=project_root)
+		if None is not active_parent:
+			_verify_and_persist_parent_issue(consumable, repo, active_parent, self_number=number, project_root=project_root)
 		_gh_api(f'repos/{repo}/issues/{number}', method='PATCH', payload=payload)
 		return number
-	def _after_edit(_ident: int, fetched: dict[str, Any]) -> None:
-		if None is not parent_num:
-			_try_link_github_sub_issue(repo, parent_num, fetched.get('id'))
-	return _run_verified_mutation(action='edit', repo=repo, consumable=consumable, target_locale=target_locale, container_text=container_text, expected_title=title, expected_body=body, write_fn=_write_edit, read_fn=lambda num: _gh_api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=eff_parent, post_write_fn=_after_edit)
+	def _after_edit(_ident: int, fetched: dict[str, Any]) -> dict[str, Any] | None:
+		if None is not active_parent:
+			return {'sub_issue_linked': _try_link_github_sub_issue(repo, active_parent, fetched.get('id'))}
+		return None
+	return _run_verified_mutation(action='edit', repo=repo, consumable=consumable, target_locale=target_locale, container_text=container_text, expected_title=title, expected_body=body, write_fn=_write_edit, read_fn=lambda num: _gh_api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=eff_parent, self_number=number, post_write_fn=_after_edit)
 def cmd_comment(args: argparse.Namespace) -> int:
 	repo = _validate_repo(args.repo)
 	b_path, b_raw, body = read_utf8_no_bom_file(args.body_file)

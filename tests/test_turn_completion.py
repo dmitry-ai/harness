@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/87
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1698,6 +1701,67 @@ class IssueLifecycleTests(unittest.TestCase):
 			}
 			ok_res = issue_lifecycle.code_and_issue_lifecycle_status(project, decomposed_turn, turn_state={}, response=multi_resp)
 			self.assertTrue(ok_res['verified'], ok_res['violations'])
+	def test_post_audit_turn_isolation_diagnostic_parent_and_unclosed_parent_checks(self):
+		import subprocess
+		from agent_tools import issue_lifecycle
+		with tempfile.TemporaryDirectory() as temp:
+			base = Path(temp)
+			bare = base / 'remote.git'
+			subprocess.run(['git', 'init', '--bare', str(bare)], check=True, capture_output=True)
+			project = base / 'proj'
+			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
+			code_repo = project / 'code'
+			code_repo.mkdir(parents=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', f'url.{bare.as_posix()}.insteadOf', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			url_single = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/931'
+			url_backlog = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/932'
+			url_foreign = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/999'
+			f_single = code_repo / 'single.py'
+			f_single.write_text('# ' + url_single + '\nx = 1\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'single.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_single], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
+			ev_dir = project / '_/\ua616/KB/Evidence/GitHub/dmitry-ai__antigravity-addons'
+			ev_dir.mkdir(parents=True)
+			(ev_dir / 'issue-931.json').write_text(json.dumps({'url': url_single, 'issue': {'number': 931, 'state': 'CLOSED', 'title': 'Single bugfix', 'body': '## Problem\nSingle fix.\n'}}), encoding='utf-8')
+			(ev_dir / 'issue-932.json').write_text(json.dumps({'url': url_backlog, 'issue': {'number': 932, 'state': 'OPEN', 'title': 'Separate backlog note', 'body': '## Problem\nBacklog.\n'}}), encoding='utf-8')
+			turn_single = {'touched_files': [str(f_single)], 'issue_actions': [{'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 931, 'url': url_single, 'state': 'closed'}, {'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 932, 'url': url_backlog, 'state': 'open'}]}
+			tstate = {'platform': 'antigravity', 'conversation_id': 'conv-1', 'github_issues': {url_foreign: {'repo': 'dmitry-ai/antigravity-addons', 'number': 999, 'url': url_foreign, 'state': 'open', 'last_action': 'create', 'actions': ['create'], 'recorded_platform': 'codex', 'recorded_conversation_id': 'conv-other'}}}
+			deferred_resp = 'Fixed single bug.\n\n## Deferred\n\n### M-3: Future work\n\n1. M-4 Deferred bullet.\n'
+			self.assertEqual(issue_lifecycle._extract_implemented_m_roots_from_response(deferred_resp), [])
+			res_single = issue_lifecycle.code_and_issue_lifecycle_status(project, turn_single, turn_state=tstate, response=deferred_resp)
+			self.assertTrue(res_single['verified'], res_single['violations'])
+			diag_resp = '## Diagnosis\n1. `H-1` in `single.py`.\n1. `M-1` in `single.py`.\n'
+			(ev_dir / 'issue-940.json').write_text(json.dumps({'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/940', 'number': 940, 'state': 'OPEN', 'title': 'Diagnostic parent issue', 'body': '## Problem\nRoot causes.\n'}), encoding='utf-8')
+			(ev_dir / 'issue-941.json').write_text(json.dumps({'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/941', 'number': 941, 'parent_number': 940, 'state': 'OPEN', 'title': 'Diagnostic child issue', 'body': 'Parent: #940\n\n## Scope\nChild only.\n'}), encoding='utf-8')
+			diag_child_turn = {'touched_files': [], 'issue_actions': [{'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 941, 'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/941', 'state': 'open', 'parent_number': 940}]}
+			self.assertFalse(issue_lifecycle.code_and_issue_lifecycle_status(project, diag_child_turn, turn_state={}, response=diag_resp)['verified'])
+			diag_parent_turn = {'touched_files': [], 'issue_actions': [{'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 940, 'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/940', 'state': 'open'}]}
+			self.assertTrue(issue_lifecycle.code_and_issue_lifecycle_status(project, diag_parent_turn, turn_state={}, response=diag_resp)['verified'])
+			url_p = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/950'
+			url_c1 = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/951'
+			url_c2 = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/952'
+			f_c1 = code_repo / 'c1.py'
+			f_c2 = code_repo / 'c2.py'
+			f_c1.write_text('# ' + url_c1 + '\na = 1\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'c1.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True)
+			f_c2.write_text('# ' + url_c2 + '\nb = 2\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'c2.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_c2], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True)
+			(ev_dir / 'issue-950.json').write_text(json.dumps({'url': url_p, 'number': 950, 'state': 'OPEN', 'title': 'Parent problem issue', 'body': '## Problem\nRoot.\n'}), encoding='utf-8')
+			(ev_dir / 'issue-951.json').write_text(json.dumps({'url': url_c1, 'number': 951, 'parent_number': 950, 'state': 'CLOSED', 'title': 'Child 1', 'body': 'Parent: #950\n\n## Scope\nA.\n'}), encoding='utf-8')
+			(ev_dir / 'issue-952.json').write_text(json.dumps({'url': url_c2, 'number': 952, 'parent_number': 950, 'state': 'CLOSED', 'title': 'Child 2', 'body': 'Parent: #950\n\n## Scope\nB.\n'}), encoding='utf-8')
+			open_parent_turn = {'touched_files': [str(f_c1), str(f_c2)], 'issue_actions': [{'action': 'close', 'repo': 'dmitry-ai/antigravity-addons', 'number': 951, 'url': url_c1, 'state': 'closed', 'parent_number': 950}, {'action': 'close', 'repo': 'dmitry-ai/antigravity-addons', 'number': 952, 'url': url_c2, 'state': 'closed', 'parent_number': 950}]}
+			open_parent_res = issue_lifecycle.code_and_issue_lifecycle_status(project, open_parent_turn, turn_state={}, response='1. M-1 Done\n1. M-2 Done\n')
+			self.assertFalse(open_parent_res['verified'])
+			self.assertTrue(any(('remains open after all tracked child subtask issues are closed' in v for v in open_parent_res['violations'])), open_parent_res['violations'])
 class ResponseEvidenceAuditorTests(unittest.TestCase):
 	def test_multi_segment_quote_and_thousand_grouped_numeric_tokens(self):
 		from agent_tools.claims import source_numeric_tokens
