@@ -14,16 +14,27 @@ Never pass Markdown issue bodies or comments via command-line arguments or an un
 - Prohibited: passing a variable `--body $body` to the native `gh.exe` process: in Windows PowerShell 5.1 (`Legacy` argument passing), embedded double quotes `"` are not escaped when assembling the command line, so `CommandLineToArgvW` strips quotes from XML/HTML attributes (`<argument name="session">` becomes `<argument name=session>`) or breaks argument splitting on spaces.  
 - Prohibited: piping `@'...'@ | gh issue create --body-file -` or `@'...'@ | python -` without prior UTF-8-no-BOM configuration: by default, `$OutputEncoding` in Windows PowerShell 5.1 is `US-ASCII`, which replaces dashes `–`/`—`, guillemets `«»`, and `§` with `?`, while UTF-8 with preamble prepends `U+FEFF` (`UTF-8 BOM`) to the body and breaks a first-line heading (`\ufeff### Problem`).  
 
+## Prohibited Enumerated Titles and Monolithic Bundling
+
+Never write three-or-more-item enumerated issue titles (`"X, Y, and Z"`, `"X, Y and Z"`, `"X; Y; Z"`, `"X, Y, Z"`); `df_github_issue.py` rejects them with `ENUMERATED_SLOP_TITLE`.  
+Never bundle multiple autonomous `M-...` subtasks into a single issue or a single commit (`BUNDLED_SUBTASKS_IN_SINGLE_ISSUE`).  
+
+## Parent Problem Issues and Per-Subtask Child Issues
+
+1. Document the original problem and root causes in a single parent issue without bundling `M-...` implementations or committing code directly against the parent issue.  
+1. For each autonomous subtask (such as each `M-...` recommendation), create a separate child issue via `df_github_issue.py create --parent <parent_number>` and start its body with `Parent: [Issue #<parent_number>](https://github.com/<owner>/<repo>/issues/<parent_number>)`.  
+1. Commit each child issue in its own separate Git commit whose message is only `https://github.com/<owner>/<repo>/issues/<child_number>`, push, close each child issue via `df_github_issue.py close`, and close the parent issue only after all child subtasks are completed.  
+
 ## Mandatory Workflow
 
 1. Write the complete Markdown body or comment to a UTF-8 file without BOM inside `ꘖ/data/scratch/` (or the conversation's scratch directory) using the native `write_file` tool.  
 2. Run the required operation via `df_github_issue.py`:  
    - Pre-flight syntax check of the Markdown file without network calls:  
-     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" lint --title "<title>" --body-file "<path/to/body.md>"`  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" lint --title "<title>" --body-file "<path/to/body.md>" [--repo <owner/repo>] [--parent <N>]`  
    - Create an issue with pre-flight syntax checking, UTF-8 stdin JSON transport to `gh api`, and byte-exact read-back verification from GitHub:  
-     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" create --repo <owner/repo> --title "<title>" --body-file "<path/to/body.md>" [--label "<labels>"] --consume-input`  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" create --repo <owner/repo> [--parent <N>] --title "<title>" --body-file "<path/to/body.md>" [--label "<labels>"] --consume-input`  
    - Edit an existing issue with full read-back verification:  
-     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" edit --repo <owner/repo> --issue <N> --body-file "<path/to/body.md>" [--title "<new-title>"] --consume-input`  
+     `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" edit --repo <owner/repo> --issue <N> [--parent <P>] [--body-file "<path/to/body.md>"] [--title "<new-title>"] --consume-input`  
    - Add or update an issue comment:  
      `python "C:/work/research/provision/code/AI/harness/code/scripts/df_github_issue.py" comment --repo <owner/repo> (--issue <N> | --comment-id <ID>) --body-file "<path/to/comment.md>" --consume-input`  
    - Close an issue with a verified closing comment:  
