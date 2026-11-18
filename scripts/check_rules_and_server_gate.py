@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -169,6 +172,10 @@ def check_external_write_gate(name: str, args: dict) -> str | None:
 		return 'EXEC-5 / SCOPE-2: Direct gh issue write commands in the shell are prohibited; use df_github_issue.py with UTF-8 file input and mandatory API read-back verification.'
 	if re.search('(?:^|[;|\\n&]|\\s)gh\\s+api\\b[^;|\\n]*(?:--method|-X)\\s*(?:POST|PATCH|PUT|DELETE)\\b', cmd, re.I):
 		return 'EXEC-5 / SCOPE-2: Direct mutating gh api calls (POST/PATCH/PUT/DELETE) in the shell are prohibited; use df_github_issue.py.'
+	for gh_m in re.finditer('(?:^|[;|\\n&]|\\s)(gh\\s+api\\b[^;|\\n]*)', cmd, re.I):
+		gh_seg = gh_m.group(1)
+		if re.search('(?:--input|-f|--raw-field|-F|--field)(?:\\s|=|$)', gh_seg) and (not re.search('(?:--method|-X)\\s*GET\\b', gh_seg, re.I)):
+			return 'EXEC-5 / SCOPE-2: Direct mutating gh api calls with input/field arguments are prohibited; use df_github_issue.py.'
 	if re.search('\\bdf_github_issue\\.py\\s+(?:create|edit|comment|close)\\b', cmd, re.I):
 		proj_root = _upwork_project_root_for_command(cmd)
 		if None is not proj_root:

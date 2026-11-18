@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/84
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reject enumerated multi-item issue titles in df_github_issue.py and active turn lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/83
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -186,5 +189,86 @@ class TestGitHubIssueTool(unittest.TestCase):
 			body_path.write_text('## Problem\nSingle problem description.\n', encoding='utf-8')
 			rc = main(['create', '--repo', 'smokeday-com/m', '--title', slop_titles[0], '--body-file', str(body_path), '--project-root', str(tmp)])
 			self.assertEqual(rc, 2)
+	def test_parent_child_issue_linking_bundled_subtasks_and_parent_closure(self):
+		import check_rules_and_server_gate as gate_hook
+		from agent_tools.git_gate import verify_repo_issue_ready_for_close
+		bundled_body = '## Solution\n1. M-1 Isolate public captures.\n1. M-2 Enforce primary profile check.\n'
+		self.assertIn('BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', {e['code'] for e in lint_issue_markdown(bundled_body)})
+		parent_diag_body = '## Problem\n1. `H-1` — missing check.\n1. `H-2` — fallback bypass.\n1. `H-3` — stale cache.\n'
+		self.assertEqual(lint_issue_markdown(parent_diag_body), [])
+		child_family_body = 'Parent: #40\n\n## Subtask Scope\n1. `M-2A` — extension offscreen anchor.\n1. `M-2B` — sentinel fallback.\n'
+		self.assertEqual(lint_issue_markdown(child_family_body, parent_number=40, repo='smokeday-com/m'), [])
+		unlinked_child_body = '## Subtask Scope\nImplement `M-1` only.\n'
+		self.assertIn('MISSING_PARENT_ISSUE_LINK', {e['code'] for e in lint_issue_markdown(unlinked_child_body, parent_number=40, repo='smokeday-com/m')})
+		self.assertIsNotNone(gate_hook.check_external_write_gate('run_command', {'CommandLine': 'gh api repos/x/y/issues -f title=foo'}))
+		self.assertIsNone(gate_hook.check_external_write_gate('run_command', {'CommandLine': 'gh api repos/x/y/issues -X GET -f state=open'}))
+		with tempfile.TemporaryDirectory() as tmp:
+			proj = Path(tmp) / 'proj'
+			code_repo = proj / 'code'
+			(proj / '_/\ua616').mkdir(parents=True)
+			code_repo.mkdir(parents=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/smokeday-com/m.git'], cwd=code_repo, check=True, capture_output=True)
+			url40 = 'https://github.com/smokeday-com/m/' + 'issues/40'
+			url41 = 'https://github.com/smokeday-com/m/' + 'issues/41'
+			url42 = 'https://github.com/smokeday-com/m/' + 'issues/42'
+			url46 = 'https://github.com/smokeday-com/m/' + 'issues/46'
+			f46 = code_repo / 'mod46.py'
+			f46.write_text('# ' + url46 + '\nx = 46\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'mod46.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url46], cwd=code_repo, check=True, capture_output=True)
+			with self.assertRaisesRegex(ValueError, 'no commit in'):
+				verify_repo_issue_ready_for_close(code_repo, 'smokeday-com/m', 4, project_root=proj)
+			next_num = [40]
+			issues_db = {40: {'number': 40, 'id': 4000, 'title': 'Root problem in parser', 'body': parent_diag_body, 'state': 'open', 'state_reason': None, 'html_url': url40}}
+			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
+				if 'POST' == method and endpoint.endswith('/issues'):
+					next_num[0] += 1
+					num = next_num[0]
+					issues_db[num] = {'number': num, 'id': 4000 + num, 'title': payload['title'], 'body': payload['body'], 'state': 'open', 'state_reason': None, 'html_url': 'https://github.com/smokeday-com/m/' + f'issues/{num}'}
+					return issues_db[num]
+				if 'POST' == method and endpoint.endswith('/sub_issues'):
+					return {'linked': True}
+				if 'PATCH' == method and '/issues/' in endpoint:
+					num = int(endpoint.rsplit('/', 1)[-1])
+					issues_db[num].update(payload)
+					return issues_db[num]
+				if 'GET' == method and '/issues/' in endpoint:
+					num = int(endpoint.rsplit('/', 1)[-1])
+					return issues_db[num]
+				raise AssertionError(f'Unexpected {method} {endpoint}')
+			b41 = proj / '_/\ua616/data/scratch/b41.md'
+			b41.parent.mkdir(parents=True)
+			b41.write_text(f'Parent: [Issue #40]({url40})\n\n## Scope\nFix H-1.\n', encoding='utf-8')
+			b42 = proj / '_/\ua616/data/scratch/b42.md'
+			b42.write_text('Parent: #40\n\n## Scope\nFix H-2.\n', encoding='utf-8')
+			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
+				self.assertEqual(main(['create', '--repo', 'smokeday-com/m', '--parent', '40', '--title', 'Fix H-1 check', '--body-file', str(b41), '--project-root', str(proj), '--consume-input']), 0)
+				self.assertEqual(main(['create', '--repo', 'smokeday-com/m', '--parent', url40, '--title', 'Fix H-2 fallback', '--body-file', str(b42), '--project-root', str(proj), '--consume-input']), 0)
+				ev_dir = proj / '_/\ua616/KB/Evidence/GitHub/smokeday-com__m'
+				ev41 = json.loads((ev_dir / 'issue-41.json').read_text(encoding='utf-8'))
+				self.assertEqual(ev41['parent_number'], 40)
+				self.assertEqual(ev41['parent_url'], url40)
+				f41 = code_repo / 'mod41.py'
+				f41.write_text('# ' + url41 + '\nx = 1\n', encoding='utf-8')
+				subprocess.run(['git', 'add', 'mod41.py'], cwd=code_repo, check=True, capture_output=True)
+				subprocess.run(['git', 'commit', '-m', url41], cwd=code_repo, check=True, capture_output=True)
+				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '41', '--project-root', str(proj)]), 0)
+				self.assertEqual(json.loads((ev_dir / 'issue-41.json').read_text(encoding='utf-8'))['parent_number'], 40)
+				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '40', '--project-root', str(proj)]), 2)
+				f42 = code_repo / 'mod42.py'
+				f42.write_text('# ' + url42 + '\nx = 2\n', encoding='utf-8')
+				subprocess.run(['git', 'add', 'mod42.py'], cwd=code_repo, check=True, capture_output=True)
+				subprocess.run(['git', 'commit', '-m', url42], cwd=code_repo, check=True, capture_output=True)
+				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '42', '--project-root', str(proj)]), 0)
+				f40_mono = code_repo / 'mod40.py'
+				f40_mono.write_text('# ' + url40 + '\nx = 40\n', encoding='utf-8')
+				subprocess.run(['git', 'add', 'mod40.py'], cwd=code_repo, check=True, capture_output=True)
+				subprocess.run(['git', 'commit', '-m', url40], cwd=code_repo, check=True, capture_output=True)
+				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '40', '--project-root', str(proj)]), 2)
+				subprocess.run(['git', 'reset', '--hard', 'HEAD~1'], cwd=code_repo, check=True, capture_output=True)
+				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '40', '--project-root', str(proj)]), 0)
 if '__main__' == __name__:
 	unittest.main()

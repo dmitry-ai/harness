@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -126,7 +129,10 @@ class ShellCommandInspector:
 							if m:
 								num = int(m.group(1))
 						if isinstance(num, int):
-							r.append({'action': act, 'repo': repo, 'number': num, 'url': f'https://github.com/{repo}/issues/{num}', 'ok': bool(obj.get('ok', True)), 'state': obj.get('state')})
+							entry = {'action': act, 'repo': repo, 'number': num, 'url': f'https://github.com/{repo}/issues/{num}', 'ok': bool(obj.get('ok', True)), 'state': obj.get('state')}
+							if isinstance(obj.get('parent_number'), int) and (not isinstance(obj.get('parent_number'), bool)):
+								entry['parent_number'] = obj['parent_number']
+							r.append(entry)
 		return r
 	def parse_commit_subcommand_args(self, argv: list[str] | tuple[str, ...]) -> tuple[list[str], str | None, str | None, bool, bool, list[str]]:
 		tokens = list(argv)

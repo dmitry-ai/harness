@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -1636,6 +1639,65 @@ class IssueLifecycleTests(unittest.TestCase):
 			(ev_dir / 'issue-901.json').write_text(json.dumps({'url': url_a, 'issue': {'number': 901, 'state': 'CLOSED', 'title': 'Fix A', 'body': '# Scope\nDetails.\n'}}), encoding='utf-8')
 			verified = issue_lifecycle.code_and_issue_lifecycle_status(project, turn, turn_state={})
 			self.assertTrue(verified['verified'], verified['violations'])
+	def test_multi_subtask_parent_and_child_commits_enforced_in_lifecycle(self):
+		import subprocess
+		from agent_tools import issue_lifecycle
+		with tempfile.TemporaryDirectory() as temp:
+			base = Path(temp)
+			bare = base / 'remote.git'
+			subprocess.run(['git', 'init', '--bare', str(bare)], check=True, capture_output=True)
+			project = base / 'proj'
+			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
+			code_repo = project / 'code'
+			code_repo.mkdir(parents=True, exist_ok=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'config', f'url.{bare.as_posix()}.insteadOf', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			url_mono = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/910'
+			url_p = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/920'
+			url_c1 = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/921'
+			url_c2 = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/922'
+			f_mono = code_repo / 'mono.py'
+			f_mono.write_text('# ' + url_mono + '\nx = 1\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'mono.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_mono], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
+			ev_dir = project / '_/\ua616/KB/Evidence/GitHub/dmitry-ai__antigravity-addons'
+			ev_dir.mkdir(parents=True, exist_ok=True)
+			(ev_dir / 'issue-910.json').write_text(json.dumps({'url': url_mono, 'issue': {'number': 910, 'state': 'CLOSED', 'title': 'Monolithic fix', 'body': '## Problem\nSingle issue.\n'}}), encoding='utf-8')
+			multi_resp = 'Implemented both recommendations:\n1. **M-1**: First subtask.\n1. **M-2**: Second subtask.\n'
+			mono_turn = {'touched_files': [str(f_mono)], 'issue_actions': [{'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 910, 'url': url_mono, 'state': 'open'}, {'action': 'close', 'repo': 'dmitry-ai/antigravity-addons', 'number': 910, 'url': url_mono, 'state': 'closed'}]}
+			mono_res = issue_lifecycle.code_and_issue_lifecycle_status(project, mono_turn, turn_state={}, response=multi_resp)
+			self.assertFalse(mono_res['verified'])
+			self.assertTrue(any(('autonomous M-* subtasks' in v for v in mono_res['violations'])), mono_res['violations'])
+			f_c1 = code_repo / 'c1.py'
+			f_c2 = code_repo / 'c2.py'
+			f_c1.write_text('# ' + url_c1 + '\na = 1\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'c1.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True)
+			f_c2.write_text('# ' + url_c2 + '\nb = 2\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'c2.py'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_c2], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True)
+			(ev_dir / 'issue-920.json').write_text(json.dumps({'url': url_p, 'issue': {'number': 920, 'state': 'CLOSED', 'title': 'Parent problem report', 'body': '## Problem\nRoot causes.\n'}}), encoding='utf-8')
+			(ev_dir / 'issue-921.json').write_text(json.dumps({'url': url_c1, 'number': 921, 'parent_number': 920, 'state': 'CLOSED', 'title': 'Implement M-1', 'body': f'Parent: #920\n\n## Scope\nFirst subtask.\n'}), encoding='utf-8')
+			(ev_dir / 'issue-922.json').write_text(json.dumps({'url': url_c2, 'number': 922, 'parent_number': 920, 'state': 'CLOSED', 'title': 'Implement M-2', 'body': f'Parent: #920\n\n## Scope\nSecond subtask.\n'}), encoding='utf-8')
+			decomposed_turn = {
+				'touched_files': [str(f_c1), str(f_c2)],
+				'issue_actions': [
+					{'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 920, 'url': url_p, 'state': 'open'},
+					{'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 921, 'url': url_c1, 'state': 'open', 'parent_number': 920},
+					{'action': 'close', 'repo': 'dmitry-ai/antigravity-addons', 'number': 921, 'url': url_c1, 'state': 'closed', 'parent_number': 920},
+					{'action': 'create', 'repo': 'dmitry-ai/antigravity-addons', 'number': 922, 'url': url_c2, 'state': 'open', 'parent_number': 920},
+					{'action': 'close', 'repo': 'dmitry-ai/antigravity-addons', 'number': 922, 'url': url_c2, 'state': 'closed', 'parent_number': 920},
+					{'action': 'close', 'repo': 'dmitry-ai/antigravity-addons', 'number': 920, 'url': url_p, 'state': 'closed'},
+				],
+			}
+			ok_res = issue_lifecycle.code_and_issue_lifecycle_status(project, decomposed_turn, turn_state={}, response=multi_resp)
+			self.assertTrue(ok_res['verified'], ok_res['violations'])
 class ResponseEvidenceAuditorTests(unittest.TestCase):
 	def test_multi_segment_quote_and_thousand_grouped_numeric_tokens(self):
 		from agent_tools.claims import source_numeric_tokens

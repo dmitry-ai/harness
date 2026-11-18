@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
@@ -203,7 +206,8 @@ class GitRepoGate:
 	def run_read(self, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 		env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 		return subprocess.run(['git', '--no-optional-locks', '-C', str(self.root), *args], input=input_bytes, capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
-	def verify_issue_ready_for_close(self, repo: str, number: int) -> dict:
+	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None) -> dict:
+		from .github_issue import find_tracked_child_issues
 		issue_url = f'https://github.com/{repo}/issues/{number}'
 		status_out = self.git('status', '--porcelain', '-z').decode('utf-8', errors='replace')
 		dirty_referencing = []
@@ -218,14 +222,40 @@ class GitRepoGate:
 			fpath = self.root / rel_path
 			if fpath.is_file() and fpath.suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES:
 				try:
-					if issue_url in fpath.read_text(encoding='utf-8', errors='replace'):
+					if issue_url in extract_issue_urls(fpath.read_text(encoding='utf-8', errors='replace')):
 						dirty_referencing.append(rel_path)
 				except OSError:
 					pass
 			idx += 1
 		if dirty_referencing:
 			raise ValueError(f'EXEC-5 violation: uncommitted file(s) in {self.root} still reference {issue_url}: {", ".join(dirty_referencing)}; commit and push before closing the issue')
-		commit_sha = self.git('log', f'--grep={issue_url}', '--fixed-strings', '-n', '1', '--format=%H').decode('utf-8', errors='replace').strip()
+		commit_sha = ''
+		log_proc = self.run_read(['log', f'--grep={issue_url}', '--fixed-strings', '--format=%H%x1f%B%x1e'], check=False)
+		if 0 == log_proc.returncode and log_proc.stdout:
+			for rec in log_proc.stdout.decode('utf-8', errors='replace').split('\x1e'):
+				if '\x1f' in rec:
+					sha_cand, msg_cand = rec.split('\x1f', 1)
+					if issue_url in extract_issue_urls(msg_cand):
+						commit_sha = sha_cand.strip()
+						break
+		children = find_tracked_child_issues(repo, number, project_root=project_root, code_repo=self.root)
+		visiting = set(_visiting or ())
+		if children and int(number) not in visiting:
+			visiting.add(int(number))
+			if commit_sha:
+				raise ValueError(f'EXEC-5 violation: parent issue {issue_url} has child subtask issues and must document the original problem without direct monolithic code commits ({commit_sha[:12]})')
+			open_children = [c['url'] for c in children if 'closed' != c['state']]
+			if open_children:
+				raise ValueError(f'EXEC-5 violation: parent issue {issue_url} cannot be closed as completed while child issue(s) remain open: {", ".join(open_children)}')
+			completed_children = [c for c in children if 'closed' == c['state'] and 'not_planned' != str(c.get('state_reason') or '').lower() and c['number'] not in visiting]
+			if not completed_children:
+				raise ValueError(f'EXEC-5 violation: parent issue {issue_url} has no completed child issues with verified commits')
+			child_shas: list[str] = []
+			for child in completed_children:
+				c_res = self.verify_issue_ready_for_close(repo, child['number'], project_root=project_root, _visiting=visiting)
+				if c_res.get('commit_sha'):
+					child_shas.append(c_res['commit_sha'])
+			return {'verified': True, 'repo': str(self.root), 'issue_url': issue_url, 'commit_sha': child_shas[0] if child_shas else '', 'child_issues': [c['number'] for c in completed_children], 'pushed': True}
 		if not commit_sha:
 			raise ValueError(f'EXEC-5 violation: no commit in {self.root} references {issue_url}; commit and push changes before closing the issue as completed')
 		up_proc = self.run_read(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], check=False)
@@ -538,5 +568,5 @@ def commit_in_worktree(root: Path, paths: list[str], message: str) -> list[str]:
 # https://github.com/dmitry-ai/harness/issues/17
 def commit(root: Path, paths: list[str], message: str, execute=False, *, worktree: bool=False):
 	return GitRepoGate(root, strict=True).commit(paths, message, execute=execute, worktree=worktree)
-def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int) -> dict:
-	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number)
+def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int, *, project_root: str | Path | None=None) -> dict:
+	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number, project_root=project_root)
