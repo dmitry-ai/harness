@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reject enumerated multi-item issue titles in df_github_issue.py and active turn lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/83
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-github-issue skill and df_github_issue.py CLI with UTF-8 file input and mandatory API read-back verification":
 # https://github.com/dmitry-ai/harness/issues/20
@@ -22,7 +25,7 @@ import unittest
 from unittest.mock import patch
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from agent_tools.github_issue import lint_issue_markdown, main
+from agent_tools.github_issue import has_enumerated_slop_title, lint_issue_markdown, main
 class TestGitHubIssueTool(unittest.TestCase):
 	def test_clean_markdown_passes(self):
 		clean = '## 1. Root Cause\nIn `Magento\\PageCache\\Model\\Cache\\Warmer` (`vendor/magento/module-page-cache/Model/Cache/Warmer.php`, lines 122–125 — see §6.1):\n```php\n$identifier = $this->cookieManager->getCookie(\'affiliate_identifier\') ?: null;\nif ($identifier && $this->customerSession->getId()) {\n    $this->accountService->ensureCustomerRelation((string)$identifier, `0`);\n}\n```\n```xml\n    <type name="Magento\\Framework\\Data\\Form\\FormKey">\n        <arguments>\n            <argument name="session" xsi:type="object">Magento\\Framework\\Session\\Generic\\Proxy</argument>\n        </arguments>\n    </type>\n```\nPaginated URLs like `/water-pipes.html?p=2` work across «Customers» in `0.131–0.325` seconds.\n'
@@ -147,5 +150,41 @@ class TestGitHubIssueTool(unittest.TestCase):
 				self.assertEqual(rc_dup, 2)
 				rc_edit = main(['comment', '--repo', 'smokeday-com/m', '--comment-id', '4345628095', '--body-file', str(body_path), '--project-root', str(proj)])
 				self.assertEqual(rc_edit, 0)
+	def test_enumerated_slop_titles_rejected_and_clean_titles_accepted(self):
+		slop_titles = (
+			'Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses',
+			'Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance',
+			'Fix X, Y and Z in parser',
+			'Fix A, B, C, and D across modules',
+			'Support X, Y, or Z',
+			'Unify X, Y, & Z',
+			'Refactor X; Y; Z',
+			'Validate X, Y, Z',
+			'Add A + B + C support',
+			'Route A / B / C requests',
+			'Исправить X, Y и Z в модуле',
+			'Unify `a.py`, `b.py`, and `c.py`',
+			'Fix gates (X, Y, and Z)',
+			'When closing parent issues, verify X, Y and Z',
+		)
+		for title in slop_titles:
+			self.assertTrue(has_enumerated_slop_title(title), title)
+			errs = lint_issue_markdown(title, is_title=True, target_locale='und')
+			self.assertIn('ENUMERATED_SLOP_TITLE', {e['code'] for e in errs}, title)
+		clean_titles = (
+			'Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)',
+			'In text_browser.py, validate A and reject B',
+			'Fix `f(a, b)` and `g(c, d)`',
+			'Process 1,000 events in `research.py`',
+			'Reject enumerated multi-item issue titles in df_github_issue.py and active turn lifecycle checks',
+		)
+		for title in clean_titles:
+			self.assertFalse(has_enumerated_slop_title(title), title)
+			self.assertEqual(lint_issue_markdown(title, is_title=True), [], title)
+		with tempfile.TemporaryDirectory() as tmp:
+			body_path = Path(tmp) / 'body.md'
+			body_path.write_text('## Problem\nSingle problem description.\n', encoding='utf-8')
+			rc = main(['create', '--repo', 'smokeday-com/m', '--title', slop_titles[0], '--body-file', str(body_path), '--project-root', str(tmp)])
+			self.assertEqual(rc, 2)
 if '__main__' == __name__:
 	unittest.main()

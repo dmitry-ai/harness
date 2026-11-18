@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reject enumerated multi-item issue titles in df_github_issue.py and active turn lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/83
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
 # https://github.com/dmitry-ai/harness/issues/69
@@ -43,7 +46,39 @@ from .source_grounding import verify_target_locale
 REPO_RE = re.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
 _COMMON_TAIL_SPECS = (('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete input file(s) after verified publication.'}))
 _REPO_SPEC = (('--repo', '-R'), {'required': True, 'help': 'Target repository in owner/repo format.'})
+_TITLE_INTRO_SUBORD_RE = re.compile('^(?:when|if|unless|while|after|before|once|where|whenever|although|though|since|because|\\u0435\\u0441\\u043b\\u0438|\\u043a\\u043e\\u0433\\u0434\\u0430|\\u043f\\u043e\\u0441\\u043b\\u0435|\\u043f\\u043e\\u043a\\u0430)\\b[^,]*,\\s+', re.I)
+_TITLE_INTRO_PREP_RE = re.compile('^(?:in|on|at|with|without|under|during|upon|inside|outside|\\u0432|\\u0432\\u043e|\\u043d\\u0430|\\u043f\\u0440\\u0438|\\u0431\\u0435\\u0437)\\s+(?:the\\s+)?[A-Za-z0-9_\\u0400-\\u04ff./:-]+(?:\\s+[A-Za-z0-9_\\u0400-\\u04ff./:-]+){0,2},\\s+', re.I)
+_TITLE_OXFORD_TRIPLE_RE = re.compile('[^,;]+,\\s*[^,;]+,\\s*(?:and|or|&|\\u0438|\\u0438\\u043b\\u0438)(?:\\s|$)', re.I)
+_TITLE_NON_OXFORD_TRIPLE_RE = re.compile('[^,;]+,\\s*[^,;]+?\\s+(?:and|or|&|\\u0438|\\u0438\\u043b\\u0438)\\s+\\S', re.I)
+_TITLE_PLUS_SLASH_TRIPLE_RE = re.compile('(?:\\S+\\s+\\+\\s+\\S+\\s+\\+\\s+\\S+|\\S+\\s+/\\s+\\S+\\s+/\\s+\\S+)')
 _consume_files = consume_unchanged_files
+def _clause_has_triple_enumeration(clause: str) -> bool:
+	c = clause.strip()
+	if not c:
+		return False
+	if 2 <= c.count(';') or _TITLE_OXFORD_TRIPLE_RE.search(c) or _TITLE_PLUS_SLASH_TRIPLE_RE.search(c):
+		return True
+	rest = _TITLE_INTRO_SUBORD_RE.sub('', c, count=1)
+	if rest == c:
+		rest = _TITLE_INTRO_PREP_RE.sub('', c, count=1)
+	return 2 <= rest.count(',') or bool(_TITLE_NON_OXFORD_TRIPLE_RE.search(rest))
+def has_enumerated_slop_title(title: str) -> bool:
+	s = ' '.join((title or '').strip().split())
+	if not s:
+		return False
+	s = re.sub('`[^`]+`', 'CODE', s)
+	s = re.sub('(?<=\\d),(?=\\d{3}\\b)', '', s)
+	while True:
+		m = re.search('\\(([^()]*)\\)|\\[([^\\[\\]]*)\\]', s)
+		if not m:
+			break
+		inner = m.group(1) if None is not m.group(1) else m.group(2)
+		if _clause_has_triple_enumeration(inner):
+			return True
+		s = s[:m.start()] + 'GROUP' + s[m.end():]
+	if _clause_has_triple_enumeration(s):
+		return True
+	return any((_clause_has_triple_enumeration(part) for part in re.split('\\s*(?::|\\u2014|--)\\s*', s)))
 def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, expected_body: str | None, write_fn, read_fn, kind: str, id_key: str, consume_input: bool, project_root: str | Path | None) -> int:
 	title_errors = lint_issue_markdown(expected_title, is_title=True, target_locale=target_locale, container_text=container_text) if None is not expected_title else []
 	body_errors = lint_issue_markdown(expected_body, is_title=False, target_locale=target_locale, container_text=container_text) if None is not expected_body else []
@@ -87,11 +122,13 @@ def read_utf8_no_bom_file(path_str: str) -> tuple[Path, bytes, str]:
 	except UnicodeDecodeError as exc:
 		raise ValueError(f'File {path} is not valid UTF-8: {exc}') from exc
 	return (path, raw, text)
-def lint_issue_markdown(text: str, *, is_title: bool=False, target_locale: str='en-US', container_text: str | None=None) -> list[dict[str, Any]]:
+def lint_issue_markdown(text: str, *, is_title: bool=False, target_locale: str='en-US', container_text: str | None=None, check_structure_policy: bool=True) -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
 	if not isinstance(text, str) or not text.strip():
 		r.append({'code': 'EMPTY_TEXT', 'message': 'Text is empty or whitespace-only'})
 	else:
+		if is_title and check_structure_policy and has_enumerated_slop_title(text):
+			r.append({'code': 'ENUMERATED_SLOP_TITLE', 'message': 'Issue title uses a multi-item enumeration ("X, Y, and Z"); state a single cohesive problem (parent issue) or a single autonomous subtask (child issue) instead of bundling multiple items'})
 		if '\ufeff' in text:
 			r.append({'code': 'UTF8_BOM', 'message': 'Contains UTF-8 BOM (U+FEFF), which breaks ATX Markdown headings at the start of a file'})
 		if '\ufffd' in text:
@@ -469,14 +506,15 @@ def cmd_close(args: argparse.Namespace) -> int:
 def cmd_audit_repo(args: argparse.Namespace) -> int:
 	repo = _validate_repo(args.repo)
 	target_locale = getattr(args, 'target_locale', 'en-US') or 'en-US'
+	strict_structure = bool(getattr(args, 'strict_structure', False))
 	raw_items = _gh_api(f'repos/{repo}/issues?state={args.state}&per_page=100', method='GET', paginate=True) or []
 	issues = sorted((item for item in raw_items if 'pull_request' not in item), key=lambda x: x['number'])
 	corrupted_issues: list[dict[str, Any]] = []
 	issue_containers: dict[int, str] = {}
 	for iss in issues:
 		issue_containers[iss['number']] = f"{iss.get('title') or ''}\n{iss.get('body') or ''}".strip()
-		t_errs = lint_issue_markdown(iss.get('title') or '', is_title=True, target_locale=target_locale)
-		b_errs = lint_issue_markdown(iss.get('body') or '', is_title=False, target_locale=target_locale)
+		t_errs = lint_issue_markdown(iss.get('title') or '', is_title=True, target_locale=target_locale, check_structure_policy=strict_structure)
+		b_errs = lint_issue_markdown(iss.get('body') or '', is_title=False, target_locale=target_locale, check_structure_policy=strict_structure)
 		if t_errs or b_errs:
 			corrupted_issues.append({'number': iss['number'], 'title': iss.get('title'), 'html_url': iss.get('html_url'), 'title_errors': t_errs, 'body_errors': b_errs})
 	corrupted_comments: list[dict[str, Any]] = []
@@ -501,7 +539,7 @@ def build_parser() -> argparse.ArgumentParser:
 		('edit', 'Update a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_edit, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), (('--title', '-t'), {'help': 'Updated issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing updated issue title.'}), (('--body-file', '-F'), {'help': 'UTF-8 file containing updated issue Markdown body.'}), ('--state', {'choices': ['open', 'closed'], 'help': 'Optional state change.'}), *_COMMON_TAIL_SPECS)),
 		('comment', 'Add or edit an issue comment from a UTF-8 file and verify via API read-back.', cmd_comment, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'help': 'Issue number (for creating a new comment).'}), (('--comment-id', '-c'), {'type': int, 'help': 'Comment ID (for editing an existing comment).'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing comment Markdown body.'}), ('--allow-additional-comment', {'action': 'store_true', 'help': 'Explicitly allow creating an additional comment on an issue that already has a tracked comment.'}), *_COMMON_TAIL_SPECS)),
 		('close', 'Close a GitHub issue with optional verified comment from a UTF-8 file.', cmd_close, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), (('--reason', '-r'), {'choices': ['completed', 'not_planned'], 'default': 'completed', 'help': 'Closure reason.'}), (('--comment-file', '-F'), {'help': 'Optional UTF-8 file containing closing comment Markdown.'}), *_COMMON_TAIL_SPECS)),
-		('audit-repo', 'Audit all issues and comments in a repository for syntax/encoding corruption.', cmd_audit_repo, (_REPO_SPEC, ('--state', {'choices': ['all', 'open', 'closed'], 'default': 'all', 'help': 'Issue state filter.'}), ('--include-comments', {'action': 'store_true', 'default': True, 'help': 'Audit issue comments as well.'}), ('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}))),
+		('audit-repo', 'Audit all issues and comments in a repository for syntax/encoding corruption.', cmd_audit_repo, (_REPO_SPEC, ('--state', {'choices': ['all', 'open', 'closed'], 'default': 'all', 'help': 'Issue state filter.'}), ('--include-comments', {'action': 'store_true', 'default': True, 'help': 'Audit issue comments as well.'}), ('--strict-structure', {'action': 'store_true', 'help': 'Also flag historical issues with enumerated titles or bundled subtask bodies.'}), ('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}))),
 	)
 	for name, help_text, fn, specs in sub_defs:
 		p = sub.add_parser(name, help=help_text)
