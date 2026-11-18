@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
@@ -13,8 +14,8 @@ def _is_tracked_workspace(root: Path) -> bool:
 	return (root / '\ua616/project.json').is_file() or (root / '_/\ua66e').is_dir() or (root / '\ua66e').is_dir()
 def _turns_dir(root: Path) -> Path:
 	return (root / '_/\ua616/data/turns') if (root / '_/\ua616').is_dir() else (root / '\ua616/data/turns')
-def _is_child_conversation(backend: Path, conversation_id: str) -> bool:
-	db_path = backend / 'conversation_summaries.db'
+def _is_child_conversation(backend: Path, conversation_id: str, *, conversations_db: Path | None = None) -> bool:
+	db_path = Path(conversations_db) if None is not conversations_db else Path(backend) / 'conversation_summaries.db'
 	if not db_path.is_file():
 		return False
 	conn = sqlite3.connect(db_path.resolve().as_uri() + '?mode=ro', uri=True)
@@ -25,6 +26,52 @@ def _is_child_conversation(backend: Path, conversation_id: str) -> bool:
 		return False
 	finally:
 		conn.close()
+def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_override: Path | None = None) -> tuple[Path, Path, Path]:
+	scripts_dir = str(Path(__file__).resolve().parent)
+	if scripts_dir not in sys.path:
+		sys.path.insert(0, scripts_dir)
+	resolved = None
+	try:
+		from agent_tools.runtime import platform_instances, resolve_antigravity_paths, settings
+		if None is not backend_override:
+			resolved = resolve_antigravity_paths(backend=backend_override, conversation_id=session_id)
+		elif None is not t_path:
+			cfg = settings()
+			ag_insts = platform_instances('antigravity', config=cfg, include_disabled=True) if 'antigravity' in (cfg.get('platforms') or {}) else {}
+			t_res = t_path.resolve()
+			for inst in ag_insts.values():
+				sp = inst['system_paths']
+				for key in ('brain_dir', 'backend_dir'):
+					val = sp.get(key)
+					if val and t_res.is_relative_to(Path(val).resolve()):
+						resolved = resolve_antigravity_paths(backend=sp.get('backend_dir'), instance=inst['id'], conversation_id=session_id, config=cfg)
+						break
+				if None is not resolved:
+					break
+		if None is resolved and None is t_path:
+			resolved = resolve_antigravity_paths(conversation_id=session_id)
+	except Exception:
+		resolved = None
+	if None is not resolved:
+		return (Path(resolved['backend_dir']).resolve(), Path(resolved['brain_dir']).resolve(), Path(resolved['conversations_db']).resolve())
+	if None is not backend_override:
+		backend = Path(backend_override).resolve()
+		return (backend, backend / 'brain', backend / 'conversation_summaries.db')
+	if None is not t_path:
+		if len(t_path.parents) >= 5 and 'brain' == t_path.parents[3].name:
+			backend = t_path.parents[4]
+			brain_dir = t_path.parents[3]
+		elif len(t_path.parents) >= 4:
+			backend = t_path.parents[3]
+			brain_dir = backend / 'brain'
+		else:
+			backend = t_path.parent
+			brain_dir = backend / 'brain'
+		return (backend, brain_dir, backend / 'conversation_summaries.db')
+	backend = (Path.home() / '.gemini/antigravity').resolve()
+	return (backend, backend / 'brain', backend / 'conversation_summaries.db')
+def _resolve_backend_fallback(session_id: str) -> Path:
+	return _resolve_stop_paths(session_id)[0]
 def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None) -> dict:
 	if not isinstance(payload, dict):
 		return {'decision': 'allow'}
@@ -39,11 +86,13 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	if not _is_tracked_workspace(root):
 		return {'decision': 'allow'}
 	t_path = Path(t_path_raw).resolve() if t_path_raw else None
-	backend = Path(backend_override).resolve() if None is not backend_override else (t_path.parents[3] if None is not t_path and len(t_path.parents) >= 4 else (Path.home() / '.gemini/antigravity'))
-	if _is_child_conversation(backend, session_id):
+	backend, brain_dir, conversations_db = _resolve_stop_paths(session_id, t_path=t_path, backend_override=backend_override)
+	if _is_child_conversation(backend, session_id, conversations_db=conversations_db):
 		return {'decision': 'allow'}
-	full_t = t_path.parent / 'transcript_full.jsonl' if None is not t_path else (backend / 'brain' / session_id / '.system_generated/logs/transcript_full.jsonl')
-	log_file = full_t if full_t.is_file() else t_path
+	logs_dir = t_path.parent if None is not t_path else (brain_dir / session_id / '.system_generated/logs')
+	full_t = logs_dir / 'transcript_full.jsonl'
+	compact_t = logs_dir / 'transcript.jsonl'
+	log_file = full_t if full_t.is_file() else (t_path if None is not t_path and t_path.is_file() else compact_t)
 	if None is log_file or (not log_file.is_file()):
 		return {'decision': 'allow'}
 	try:

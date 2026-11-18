@@ -32,7 +32,7 @@ New projects use these same mechanisms right after `init` to record the initial 
 `status` reports stage states and KB hashes; completion is never inferred merely from the existence of `Analysis.json`.  
 Active registration is mandatory for working `daily` projects; a `pending` status or missing receipt for the active platform prevents completing `identity_init`.  
 When switching platforms, run `configure` and `register` on the existing project root without re-running `init`.  
-By default, `register` services both platforms; `--target` repairs a single platform registration.  
+By default, `register` services all active environments configured in `runtime.registration.targets`; `--target` repairs a single environment registration.  
 A new initial-analysis request without a recorded response clears `finalize` completion.  
 `resume` does not run `inspect`/`init`, does not spawn workers, and does not read `Context.md`.  
 When resuming a legacy project, all stages beyond a mechanically verified `capture` require verification; read what was already created rather than starting over from scratch.  
@@ -210,7 +210,7 @@ The minimum risk category is recomputed from new typed claims; `routine` cannot 
 A `restatement` requires a previously approved, unchanged version of the claim and its evidence; `significant` requires two independent A.A auditors.  
 Delegate using the platform's native subagent tool: in Antigravity call `invoke_subagent` with `TypeName: self` and `Model: inherit`; in Codex call `spawn_agent` with role A.A and the parent-selected model/effort.  
 Pass the exact project root and full `package` path returned by `prepare-review`; the v2 package binds the current requests, exact response bytes, claim map, KB, primary Evidence, and manual inputs.  
-In both platforms, the auditor first runs `review-input <project> --package <path> --platform <platform>` to obtain the neutral `report_contract` listing all valid field values (`approved`/`needs_changes`, `supported`/`qualified`/`unsupported`, `direct`/`proxy`/`irrelevant`, and `findings` schema); in Codex, this receipt also binds an encrypted spawn assignment to the package.  
+Across configured environments, the auditor first runs `review-input <project> --package <path> --platform <platform>` to obtain the neutral `report_contract` listing all valid field values (`approved`/`needs_changes`, `supported`/`qualified`/`unsupported`, `direct`/`proxy`/`irrelevant`, and `findings` schema); in Codex, this receipt also binds an encrypted spawn assignment to the package.  
 State a neutral goal: audit the five stages, primary evidence, alternatives, KB consistency, and the exact response candidate, including completeness of its claim map.  
 Never pass a desired verdict, a one-sided JSON template (containing only `"approved"`, `"supported"`, `"direct"`, or `"findings": []`), or another reviewer's report to the auditor; the reviewer operates strictly read-only inside the current project root without calling write tools, generating JSON via external scripts, or reading neighboring `daily` folders.  
 The independent auditor returns its `schema_version: 2` JSON report in its final native message: `package`, `package_sha256`, `scope` (five stages + `kb_consistency` + `response`), `result` (`approved|needs_changes`), `claim_reviews`, and `findings`.  

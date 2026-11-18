@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -100,7 +101,7 @@ def add_parsers(sub):
 	from .workflow import STAGES
 	standalone = {
 		'git-read': (('project', {'nargs': '?', 'type': Path, 'default': Path(settings()['workspace_root']).resolve()}), ('git_subcommand', {'choices': ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files'), 'nargs': '?', 'default': 'status'}), ('--short', {'action': 'store_true'}), ('--stat', {'action': 'store_true'}), ('--check', {'action': 'store_true'}), ('--arg', {'dest': 'git_args', 'action': 'append', 'default': []})),
-		'metrics': (('traces', {'nargs': '+', 'type': Path}), ('--bindings', {'type': Path, 'help': 'conversation ID -> stage/first_step/last_step intervals'}), ('--project', {'type': Path, 'help': 'Optional exact project: observed cache/search/review metrics'})),
+		'metrics': (('traces', {'nargs': '*', 'type': Path}), ('--bindings', {'type': Path, 'help': 'conversation ID -> stage/first_step/last_step intervals'}), ('--project', {'type': Path, 'help': 'Optional exact project: observed cache/search/review metrics'}), ('--conversation', {'help': 'Conversation UUID resolved via runtime.json instances (or audit)'})),
 		'render-analysis': (('input', {'type': Path}), ('--output', {'type': Path})),
 	}
 	stage_specs = (('stage', {'choices': STAGES}), ('--input', {'action': 'append', 'required': True}), ('--output', {'action': 'append', 'required': True}), ('--note', {}))
@@ -185,7 +186,7 @@ def execute(args):
 		r = flow.record_search(args.project, args.id, args.owner, args.query, args.useful, args.method_change)
 	elif 'native-review-proof' == command:
 		from .metrics import native_review_proof
-		r = native_review_proof(args.project, args.parent, args.reviewer)
+		r = native_review_proof(args.project, args.parent, args.reviewer, instance=getattr(args, 'instance', None))
 	elif 'prepare-review' == command:
 		if '-' == str(args.spec) and '-' == str(args.response_file):
 			raise ValueError('Only one prepare-review input may use stdin')
@@ -209,10 +210,16 @@ def execute(args):
 	elif 'native-executor-metadata' == command:
 		from .metrics import native_executor_metadata, record_executor_metadata
 		callback = record_executor_metadata if args.save else native_executor_metadata
-		r = callback(args.project, args.conversation, role=args.role, parent_id=args.parent)
+		r = callback(args.project, args.conversation, role=args.role, parent_id=args.parent, instance=getattr(args, 'instance', None))
 	elif 'metrics' == command:
-		from .metrics import project_metrics, summarize
-		r = summarize(args.traces, read_input_json(args.bindings, encoding='utf-8') if args.bindings else None)
+		from .metrics import project_metrics, summarize, summarize_instance
+		bindings = read_input_json(args.bindings, encoding='utf-8') if args.bindings else None
+		if args.traces:
+			r = summarize(args.traces, bindings)
+		elif getattr(args, 'conversation', None):
+			r = summarize_instance(args.conversation, instance=getattr(args, 'instance', None), platform=getattr(args, 'platform', None), bindings=bindings)
+		else:
+			raise ValueError('Provide trace file paths or --conversation')
 		if args.project:
 			r['project'] = project_metrics(args.project)
 	elif 'source-ref' == command:

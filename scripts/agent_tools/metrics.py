@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
@@ -13,6 +14,7 @@
 from collections import Counter
 from pathlib import Path
 import json
+import os
 import re
 from .platforms.trace_common import parse_tool_args, summarize_token_records
 def summarize(paths, bindings=None):
@@ -87,15 +89,66 @@ def project_metrics(root):
 		except (OSError, ValueError, KeyError, TypeError):
 			executor_issues.append('Executor registry/snapshot is missing, invalid or changed; preserve and inspect')
 	return {'collector': collector, 'questions': questions, 'reviews': reviews, 'executors': executors, 'executor_issues': executor_issues, 'stages': stage_statuses(root, state), 'semantic_quality_verified': False, 'unrecorded_activity': 'unknown'}
-def native_requests(root, conversation_id, *, backend=None, platform=None):
+def summarize_instance(conversation_id, *, instance=None, platform=None, bindings=None):
+	from .runtime import find_conversation_instance, instance_entry, platform_name as resolve_platform
+	if instance:
+		entry = instance_entry(instance, platform=platform, include_disabled=True)
+		matches = find_conversation_instance(conversation_id, platform=entry['platform'], include_disabled=True)
+		found = next((m for m in matches if m['id'] == entry['id']), None)
+		if not found:
+			raise ValueError(f"Conversation {conversation_id} was not found in instance {entry['id']}")
+	else:
+		matches = find_conversation_instance(conversation_id, platform=platform, include_disabled=True)
+		if not matches:
+			raise ValueError(f'Conversation {conversation_id} was not found in any runtime.json instance')
+		if 1 < len(matches):
+			ids = ', '.join((f"{m['platform']}:{m['id']}" for m in matches))
+			raise ValueError(f'Conversation {conversation_id} found in multiple instances ({ids}); pass --instance')
+		found = matches[0]
+	trace_file = found.get('trace_file')
+	if not trace_file or (not Path(trace_file).is_file()):
+		raise ValueError(f"Native trace file unavailable for {found['id']} / {conversation_id}: {found['system_paths']}")
+	r = summarize([Path(trace_file)], bindings)
+	r['instance'] = {'id': found['id'], 'platform': found['platform'], 'enabled': found['enabled'], 'backend_dir': found['backend_dir'], 'trace_file': trace_file, 'system_paths': found['system_paths']}
+	return r
+def _resolve_target(platform, backend, instance, conversation_id=None):
+	from .runtime import _platform, find_conversation_instance, instance_entry
+	resolved_instance = instance
+	if instance and (None is platform or None is backend):
+		entry = instance_entry(instance, platform=platform, include_disabled=True)
+		platform = platform or entry['platform']
+		if None is backend:
+			sp = entry['system_paths']
+			backend = sp.get('backend_dir') or sp.get('home')
+	elif None is platform and None is backend and None is instance and conversation_id and not _platform.get() and not os.environ.get('UPWORK_PLATFORM'):
+		matches = find_conversation_instance(conversation_id, include_disabled=True)
+		if 1 == len(matches):
+			platform = matches[0]['platform']
+			backend = matches[0]['backend_dir']
+			resolved_instance = matches[0]['id']
+		elif 1 < len(matches):
+			ids = ', '.join((f"{m['platform']}:{m['id']}" for m in matches))
+			raise ValueError(f'Conversation UUID {conversation_id} exists in multiple instances ({ids}); pass --instance')
+	return (platform, backend, resolved_instance)
+def _resolve_platform_and_backend(platform, backend, instance, conversation_id=None):
+	return _resolve_target(platform, backend, instance, conversation_id=conversation_id)[:2]
+def native_requests(root, conversation_id, *, backend=None, platform=None, instance=None):
 	from .platforms import adapter
-	return adapter(platform).native_requests(root, conversation_id, backend=backend)
+	platform, backend, resolved_instance = _resolve_target(platform, backend, instance, conversation_id=conversation_id)
+	kw = {'backend': backend}
+	if None is not resolved_instance:
+		kw['instance'] = resolved_instance
+	return adapter(platform).native_requests(root, conversation_id, **kw)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None):
 	from .platforms import adapter
-	return adapter(platform).native_review_proof(root, parent_id, reviewer_id, backend=backend, write=write)
+	platform, backend, resolved_instance = _resolve_target(platform, backend, instance, conversation_id=reviewer_id or parent_id)
+	kw = {'backend': backend, 'write': write}
+	if None is not resolved_instance:
+		kw['instance'] = resolved_instance
+	return adapter(platform).native_review_proof(root, parent_id, reviewer_id, **kw)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -104,11 +157,15 @@ def verify_native_proof(root, native, package=None):
 	if not isinstance(native, dict) or not native.get('surface'):
 		raise ValueError('Native review proof must declare its actual surface')
 	return adapter(surface=native.get('surface')).verify_native_proof(root, native, package=package)
-def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, write=False):
+def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None, write=False):
 	from .platforms import adapter
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Executor role must be primary, AA or AF')
-	result = adapter(platform).native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, backend=backend)
+	platform, backend, resolved_instance = _resolve_target(platform, backend, instance, conversation_id=conversation_id)
+	kw = {'role': role, 'parent_id': parent_id, 'backend': backend}
+	if None is not resolved_instance:
+		kw['instance'] = resolved_instance
+	result = adapter(platform).native_executor_metadata(root, conversation_id, **kw)
 	return _save_executor_metadata(root, result) if write else result
 def _save_executor_metadata(root, result):
 	import hashlib
@@ -128,13 +185,13 @@ def _save_executor_metadata(root, result):
 			index['snapshots'].append(receipt)
 			replace_bytes(index_file, json_data(index))
 	return {**result, **receipt}
-def record_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None):
-	return native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, platform=platform, backend=backend, write=True)
+def record_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None):
+	return native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, platform=platform, backend=backend, instance=instance, write=True)
 def native_tool_trace(root, request):
 	from .platforms import adapter
 	if not isinstance(request, dict) or not request.get('surface') or 'events' in request:
 		raise ValueError('Native trace needs a surface/session/selection; supplied events are not evidence')
-	if set(request) - {'surface', 'conversation_id', 'call_ids', 'step_indices', 'native_profile_home'}:
+	if set(request) - {'surface', 'conversation_id', 'call_ids', 'step_indices', 'native_profile_home', 'instance'}:
 		raise ValueError('Native trace accepts only exact native source selectors')
 	return adapter(surface=request['surface']).native_tool_trace(root, request)
 def wire_fields(data):

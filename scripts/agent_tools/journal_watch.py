@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
@@ -24,7 +25,7 @@ from pathlib import Path
 import sqlite3
 import time
 import uuid
-from .runtime import HARNESS_META
+from .runtime import HARNESS_META, platform_adapter_name, resolve_antigravity_paths, settings
 from .storage import locked, replace_bytes
 FOREGROUND_ONLY = 'Persistent journal watchers are not supported; use journal-sync or journal-watch --action once in the foreground'
 def _folder(state_dir=None):
@@ -112,9 +113,13 @@ def stop(*, state_dir=None):
 	return r
 def _signature(binding):
 	files = [Path(binding['source_file'])]
-	if 'antigravity' == binding['platform']:
-		backend = Path(binding['native_backend'])
-		databases = [backend / 'conversation_summaries.db', backend / 'conversations' / (binding['conversation_id'] + '.db')]
+	try:
+		adapter_name = platform_adapter_name(binding['platform'])
+	except (OSError, ValueError):
+		adapter_name = binding['platform']
+	if 'antigravity' == adapter_name:
+		paths = resolve_antigravity_paths(backend=binding['native_backend'], instance=binding.get('instance'), conversation_id=binding['conversation_id'])
+		databases = [Path(paths['conversations_db']), Path(paths['conversations_dir']) / (binding['conversation_id'] + '.db')]
 		for database in databases:
 			files += [database, Path(str(database) + '-wal')]
 	result = []
@@ -132,7 +137,7 @@ def _validate_binding(value):
 	for name in ('project_root', 'platform', 'native_backend', 'conversation_id', 'source_file'):
 		if not isinstance(value.get(name), str) or not value[name].strip():
 			raise ValueError('Watcher binding needs a nonempty string: ' + name)
-	if value['platform'] not in ('codex', 'antigravity'):
+	if value['platform'] not in settings()['platforms']:
 		raise ValueError('Watcher binding has an unknown platform')
 	if str(uuid.UUID(value['conversation_id'])) != value['conversation_id'].lower():
 		raise ValueError('Watcher binding needs a native conversation UUID')

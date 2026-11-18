@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
 # https://github.com/dmitry-ai/harness/issues/74
@@ -468,13 +469,14 @@ class WorkflowStateEngine:
 		return {**result, 'journal_steps': steps, 'delivery_verified': False}
 	def registration_status(self):
 		if None is self._reg_cache:
-			from .runtime import platform_name, settings
+			from .runtime import platform_active, platform_name, settings
 			config, platform = (settings(), platform_name())
 			path = self.root / 'ꘖ/data/registrations.json'
 			required = path.exists() or self.root.is_relative_to(Path(config['workspace_root']) / config['daily_root'])
 			data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
 			receipt = data.get(platform) if isinstance(data, dict) else None
-			targets = list(dict.fromkeys((config.get('registration') or {}).get('targets') or [platform]))
+			raw_targets = list(dict.fromkeys((config.get('registration') or {}).get('targets') or [platform]))
+			targets = [target for target in raw_targets if platform_active(target, config=config) or target == platform]
 			if platform not in targets:
 				targets.insert(0, platform)
 			targets_status = {}
@@ -574,8 +576,16 @@ def _target_complete(target, item):
 	elif not isinstance(item.get('profiles'), dict):
 		r = bool(item.get('complete', item.get('project_id') and item.get('folder_id')))
 	else:
-		prof = profile_name() if 'codex' == target and 'CODEX_HOME' in os.environ else item.get('profile') or registration_profile_name()
-		r = bool(item['profiles'].get(prof, {}).get('ready'))
+		if 'codex' == target and 'CODEX_HOME' in os.environ:
+			prof = profile_name()
+		else:
+			prof = item.get('profile')
+			if not prof and 'codex' == target:
+				try:
+					prof = registration_profile_name()
+				except ValueError:
+					prof = None
+		r = bool(prof and item['profiles'].get(prof, {}).get('ready'))
 	return r
 def registration_status(root):
 	return WorkflowStateEngine(root).registration_status()

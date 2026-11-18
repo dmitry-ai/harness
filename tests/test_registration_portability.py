@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -23,6 +24,8 @@ class RegistrationTests(TemporaryCase):
 		self.project = Path(up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.root / 'daily', extracted_data=source(), register_native=False)['project_dir'])
 		self.config = deepcopy(runtime.settings())
 		self.config['registration'] = {'targets': ['antigravity', 'codex']}
+		for inst in self.config['platforms']['codex']['instances'].values():
+			inst['enabled'] = True
 		self.patch = patch.object(registration, 'settings', return_value=self.config)
 		self.patch.start()
 		self.addCleanup(self.patch.stop)

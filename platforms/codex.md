@@ -4,10 +4,10 @@ These instructions apply in Codex within the Upwork workspace.
 The unified configuration for environments, roles, and models is `AI/harness/code/runtime.json` relative to the repository root.  
 The shared skill and workflow are in `AI/harness/code/skills/upwork-init/SKILL.md`.  
 The shared tool is `AI/harness/code/scripts/upwork_project.py`.  
-Pass `--platform codex` to every internal command; profile C1/C2 is determined from `CODEX_HOME`, or passed explicitly via `--codex-profile` when ambiguous.  
-`doctor --platform codex` reports default models, selection policy, and verification limits; do not substitute its output for actual session metadata.  
+Pass `--platform codex` to every internal command; declared Codex instances and their `enabled` flags and `system_paths` live under `platforms.codex.instances` in `runtime.json`, and the active profile is determined from `CODEX_HOME` or passed explicitly via `--codex-profile` / `--instance` when ambiguous.  
+`doctor --platform codex` reports default models, selection policy, configured environments/instances, and verification limits; do not substitute its output for actual session metadata.  
 The global profile `AGENTS.md` preserves personal instructions and points to the common `platforms/codex/AGENTS.md` bootstrap, which lists mandatory canonical sources.  
-The bootstrap and role definitions are generated once by `build-native`; `install-global` connects the selected C1/C2 profiles with skill-directory links and individual file symlinks from `agents/<name>.toml` to the shared role definitions.  
+The bootstrap and role definitions are generated once by `build-native`; `install-global` connects enabled Codex instances with skill-directory links and individual file symlinks from `agents/<name>.toml` to the shared role definitions (disabled instances are skipped unless targeted explicitly with `--target-profile`).  
 The installer retires its former owned `agents.<name>.config_file` block while preserving other profile configuration; role discovery through that block alone failed in the installed C1 session.  
 Shared generation uses the central native-profile ownership receipt and lock from both entry points; project-specific loaders retain separate project ownership.  
 After changing the set of paths, roles, or runtime configuration, run `build-native`, `build-native --check`, and `install-global --check`; use repeated `--target-profile` options for a scoped migration.  
@@ -17,9 +17,9 @@ Read rules in batches without output truncation from the `exec` token budget (do
 Native instructions and role TOML files are generated; edit their canonical sources instead.  
 
 A new analysis starts with the `/upwork-init <URL>` or `$upwork-init <URL>` skill.  
-Cleanup of empty auto-created projects starts with `/upwork-cleanup` or `$upwork-cleanup`; the shared skill `skills/upwork-cleanup/SKILL.md` cleans both systems while preserving all of `proposals/daily`.  
+Cleanup of empty auto-created projects starts with `/upwork-cleanup` or `$upwork-cleanup`; the shared skill `skills/upwork-cleanup/SKILL.md` cleans enabled environments/instances while preserving all of `proposals/daily`.  
 Articles use `/df-article` or `$df-article`, and Upwork proposals use `/df-proposal` or `$df-proposal`; the shared procedure is `references/client-text/workflow.md`.  
-The workflow and five stages are shared across both environments; the agent runs the commands while the user enters only requests.  
+The workflow and five stages are shared across configured environments; the agent runs the commands while the user enters only requests.  
 For A.A/A.F, use the native subagent tools of the current chat; check roles and required models via `runtime`/`doctor`.  
 If the tool supports selecting a named agent type, use the native role from `runtime`; if the API lacks that parameter, pass the role and shared `agents/worker.md` in the prompt without inventing unsupported arguments.  
 The parent selects the subagent's model and effort based on task complexity, available models, and `runtime` policy.  
@@ -42,10 +42,10 @@ The auditor returns the original JSON verdict in its final native message; `reco
 Record actual metadata for the primary executor, A.A, and A.F via `native-executor-metadata`; `requested` and `observed` are tracked separately, and unknown values are never backfilled from `runtime` defaults.  
 Do not create user chats via `codex exec`, SDKs, or hidden model execution APIs.  
 
-Codex registration uses only the existing Shared-Projects UI helper through its named pipe.  
-Standard `init`/`register` service both systems per `runtime.registration.targets`; `--platform` indicates the executing environment, while `--target` on `register` selects a single registration to repair.  
-`registrations` stores separate Antigravity and Codex receipts; the Codex receipt records the shared ID, folder, and native C1/C2 IDs.  
-`complete` refers to the active environment, and `all_registered` refers to both; preserve any secondary error or pending state and retry `register` when the application becomes available.  
+Codex registration uses only the existing Shared-Projects UI helper through its named pipe when Codex instances are enabled in `runtime.json`.  
+Standard `init`/`register` service enabled targets from `runtime.registration.targets`; `--platform` indicates the executing environment, while `--target` on `register` selects a single registration to repair.  
+`registrations` stores separate platform receipts; the Codex receipt records the shared ID, folder, and native profile IDs.  
+`complete` refers to the active environment, and `all_registered` refers to all configured registration targets; preserve any secondary error or pending state and retry `register` when the application becomes available.  
 `status: pending`/`complete: false` represents a saved request, not a completed registration.  
 Wait for registration of the source profile using repeated idempotent `register` calls; verify `profiles` and `folder_path`.  
 If the application is waiting for native folder trust confirmation, inform the user, save state, and resume after their reply.  
@@ -53,7 +53,7 @@ Do not write directly to `catalog.json`, `ui-folders.json`, SQLite databases, or
 The folder tree and project are shared across C1/C2, whereas collapsed branches and chats belong to the individual profile.  
 When invoked from Antigravity without `CODEX_HOME`, `runtime.platforms.codex.registration_profile` defines the source profile for registration only; no such fallback applies when reading native evidence.  
 `configure` maintains local `.agents` manifests; the shared workspace loader reads the project's `.agents/rules` and additional path bindings in `rules.json`.  
-A local `developer_instructions` key is not created unless a prior manual override exists, so parent instructions continue to be inherited; `configure --check` verifies both environments.  
+A local `developer_instructions` key is not created unless a prior manual override exists, so parent instructions continue to be inherited; `configure --check` verifies all configured environments.  
 Native `developer_instructions` supplements standard instructions; `model_instructions_file` is not used.  
 `inherits` and filters in `rules.json` are currently diagnosed as unsupported; do not declare such a configuration compatible until explicitly resolved.  
 A shared Harness skill is discovered through the profile's link to its canonical `skills/<name>` folder; do not duplicate same-named skills across subprojects.  

@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
@@ -13,7 +14,7 @@ from pathlib import Path
 import re
 import tomllib
 from .configuration import DISCOVERY_KINDS, _frontmatter, load_discovery_manifest, load_project_receipt, receipt_sha256, resolve_manifest_entry
-from .runtime import PRIMARY, settings
+from .runtime import PRIMARY, extract_platform_instances, settings
 def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=PRIMARY):
 	if None is root or not str(root).strip():
 		raise ValueError('An explicit project root is required')
@@ -113,14 +114,22 @@ def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=
 		add(path, 'canonical-rule', 'runtime.PRIMARY')
 	for path in sorted((primary / 'skills').glob('*/SKILL.md')):
 		add(path, 'canonical-skill', 'runtime.PRIMARY')
-	for name in [platform] if platform else config.get('platforms', {}):
-		add(primary / 'platforms' / f'{name}.md', 'platform-adapter', 'runtime.platforms')
-	homes = config.get('platforms', {}).get('codex', {}).get('homes', {})
-	if None is not profile and profile not in homes:
+	for name, plat_cfg in [(platform, config.get('platforms', {}).get(platform, {}))] if platform else config.get('platforms', {}).items():
+		adapter_name = plat_cfg.get('adapter') or name if isinstance(plat_cfg, dict) else name
+		adapter_file = primary / 'platforms' / f'{adapter_name}.md'
+		if adapter_file.is_file() or (isinstance(plat_cfg, dict) and plat_cfg.get('enabled', True)):
+			add(adapter_file, 'platform-adapter', 'runtime.platforms')
+	codex_cfg = config.get('platforms', {}).get('codex', {})
+	all_insts = extract_platform_instances(codex_cfg, platform='codex', include_disabled=True)
+	enabled_insts = {k: v for k, v in all_insts.items() if v['enabled']}
+	if None is not profile and profile not in all_insts:
 		raise ValueError('Unknown configured Codex profile')
 	if platform in (None, 'codex'):
-		for name in [profile] if profile else homes:
-			inspect_native(Path(homes[name]).expanduser().resolve() / 'config.toml', f'runtime.platforms.codex.homes.{name}', profile_name=name)
+		target_pool = all_insts if profile else enabled_insts
+		for name in [profile] if profile else target_pool:
+			inst = target_pool[name]
+			cfg_path = inst['system_paths'].get('config_toml') or str(Path(inst['home']).expanduser().resolve() / 'config.toml')
+			inspect_native(Path(cfg_path).expanduser().resolve(), f'runtime.platforms.codex.instances.{name}', profile_name=name)
 	for scope in reversed(ancestry):
 		agents = scope / '.agents'
 		for path in sorted((agents / 'rules').glob('*.md')):

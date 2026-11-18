@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
@@ -35,23 +36,34 @@
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
 from collections import Counter
+import glob
 import hashlib
 import json
 from pathlib import Path
 import re
 import sqlite3
 import subprocess
-from ..runtime import platform_settings, profile_name
+from ..runtime import extract_platform_homes, platform_settings, profile_name, resolve_codex_home, resolve_codex_paths
 from ..research import json_data
 from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import iter_embedded_json_objects
 from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, local_uri_to_path, make_tool_trace_event, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_token_records, summarize_turn_activity, verify_review_proof_core
+def _state_db_files(paths_or_home):
+	if isinstance(paths_or_home, dict):
+		home = _local_path(paths_or_home['home'])
+		glob_raw = paths_or_home.get('state_db_glob') or 'state_*.sqlite'
+		if Path(glob_raw).is_absolute():
+			return sorted((Path(p) for p in glob.glob(glob_raw, recursive=True) if Path(p).is_file()))
+		return sorted((p for p in home.glob(glob_raw) if p.is_file()))
+	return sorted(_local_path(paths_or_home).glob('state_*.sqlite'))
 class CodexTurnScanner:
-	def __init__(self, root, conversation_id, *, backend=None):
+	def __init__(self, root, conversation_id, *, backend=None, instance=None):
 		self.root = root
 		self.root_p = Path(root).resolve()
 		self.conversation_id = conversation_id
-		self.home = _home(backend)
+		self._instance = instance
+		self.paths = _paths(backend, profile=instance, conversation_id=conversation_id)
+		self.home = self.paths['home']
 		self.path = None
 		self.rows = []
 		self.child = False
@@ -89,7 +101,7 @@ class CodexTurnScanner:
 			self.indexed_subagents = True
 			if 4096 < len(_SUBAGENT_PARENT_CACHE):
 				_SUBAGENT_PARENT_CACHE.clear()
-			for db_file in sorted(self.home.glob('state_*.sqlite')):
+			for db_file in _state_db_files(self.paths):
 				try:
 					with open_readonly_sqlite(db_file, row_factory=sqlite3.Row) as conn:
 						t_rows = conn.execute('SELECT id, rollout_path FROM threads').fetchall()
@@ -125,7 +137,7 @@ class CodexTurnScanner:
 						continue
 	def _load_context(self):
 		from .request_binding import completion_project_id
-		_, self.path, _, self.rows = _trace(self.home, self.conversation_id)
+		_, self.path, _, self.rows = _trace(self.home, self.conversation_id, paths=self.paths)
 		meta = self.rows[0][1]['payload']
 		self.child = isinstance(meta.get('source'), dict) and bool(meta['source'].get('subagent'))
 		selected, _, _ = _request_scope(self.root, self.rows, identifier=completion_project_id(self.root))
@@ -135,7 +147,7 @@ class CodexTurnScanner:
 		if sub_id not in self.thread_parent_map or (self.thread_parent_map[sub_id] and self.thread_parent_map[sub_id] == expected_parent):
 			pre_children = self.child_parent_map.get(sub_id, [])
 			try:
-				sub_db_row, _, _, sub_rows = _trace(self.home, sub_id)
+				sub_db_row, _, _, sub_rows = _trace(self.home, sub_id, paths=self.paths)
 				sub_agent_path = str((sub_db_row or {}).get('agent_path') or '')
 				r = (sub_rows, not re.search('\\baf\\b', sub_agent_path, flags=re.I) and bool(acc['aa_subagent_steps'] or sub_agent_path), pre_children, lambda sid, rows: self._visit_subagent_rows(sid, rows, anchor, turn, acc))
 			except (ValueError, OSError):
@@ -224,22 +236,18 @@ class CodexTurnScanner:
 _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 def _local_path(value):
 	return local_uri_to_path(value)
-def _home(backend=None, profile=None):
-	if None is not backend:
-		r = Path(backend).resolve()
-	else:
-		values = platform_settings('codex')['homes']
-		name = profile_name(profile)
-		if name not in values:
-			raise ValueError('Unknown Codex profile')
-		r = Path(values[name]).resolve()
-	return r
-def _trace(home, conversation_id):
-	home = _local_path(home)
+def _paths(backend=None, profile=None, *, conversation_id=None):
+	return resolve_codex_paths(backend, instance=profile, conversation_id=conversation_id, codex_cfg=platform_settings('codex'))
+def _home(backend=None, profile=None, *, conversation_id=None):
+	return _paths(backend, profile=profile, conversation_id=conversation_id)['home']
+def _trace(home, conversation_id, *, paths=None):
+	resolved = paths or _paths(home, conversation_id=conversation_id)
+	home = _local_path(resolved['home'])
+	sessions_dir = _local_path(resolved['sessions_dir'])
 	if not re.fullmatch('[a-f0-9-]{36}', conversation_id):
 		raise ValueError('Exact native Codex thread UUID required')
 	found = []
-	for database in sorted(home.glob('state_*.sqlite')):
+	for database in _state_db_files(resolved):
 		with open_readonly_sqlite(database, row_factory=sqlite3.Row) as connection:
 			row = connection.execute('SELECT * FROM threads WHERE id=?', (conversation_id,)).fetchone()
 			if row:
@@ -248,7 +256,7 @@ def _trace(home, conversation_id):
 		raise ValueError('Native Codex thread is missing or ambiguous in this profile')
 	row = found[0]
 	path = _local_path(row['rollout_path'])
-	if not path.is_relative_to(home / 'sessions'):
+	if not path.is_relative_to(sessions_dir):
 		raise ValueError('Codex trace is outside the selected profile sessions')
 	raw = path.read_bytes()
 	rows = []
@@ -307,12 +315,18 @@ def _request_scope(root, rows, *, until=None, identifier=None):
 				roots.append((index, str(_local_path(matching[0][1]['cwd'])), 'codex-turn-cwd'))
 			inputs.append((index, text))
 	return scoped_inputs(root, job_id, inputs, roots, until=until)
-def native_requests(root, conversation_id, *, backend=None):
-	home = _home(backend)
-	selected, _, _ = _request_scope(root, _trace(home, conversation_id)[3])
+def native_requests(root, conversation_id, *, backend=None, instance=None):
+	paths = _paths(backend, profile=instance, conversation_id=conversation_id)
+	home = paths['home']
+	selected, _, _ = _request_scope(root, _trace(home, conversation_id, paths=paths)[3])
 	return current_turn_requests(selected, conversation_id, 'codex-ui', 'Native Codex requests do not identify this project; use its exact project root or /upwork-init URL', id_fmt='codex:{cid}:{idx}', extra={'native_profile_home': str(home)})
-def require_current_binding(root, conversation_id, *, backend=None, rows=None, until=None):
-	selected, active, binding = _request_scope(root, _trace(_home(backend), conversation_id)[3] if None is rows else rows, until=until)
+def require_current_binding(root, conversation_id, *, backend=None, instance=None, rows=None, until=None):
+	if None is rows:
+		paths = _paths(backend, profile=instance, conversation_id=conversation_id)
+		rows_val = _trace(paths['home'], conversation_id, paths=paths)[3]
+	else:
+		rows_val = rows
+	selected, active, binding = _request_scope(root, rows_val, until=until)
 	return require_turn_binding(selected, active, binding, 'Native Codex conversation is currently bound to another project or no exact project root')
 def _extract_codex_target_subagents(raw_args) -> list[str]:
 	parsed_args = parse_tool_args(raw_args)
@@ -337,8 +351,8 @@ def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 			else:
 				r = [m.lower() for m in re.findall(f'\\b({UUID_PATTERN})\\b', out_text, flags=re.I)]
 	return r
-def native_answers(root, conversation_id, *, backend=None):
-	return CodexTurnScanner(root, conversation_id, backend=backend).scan()
+def native_answers(root, conversation_id, *, backend=None, instance=None):
+	return CodexTurnScanner(root, conversation_id, backend=backend, instance=instance).scan()
 def _model(rows, before=None):
 	contexts = [item['payload'] for index, item in rows if 'turn_context' == item.get('type') and (None is before or index <= before)]
 	if not contexts or not contexts[-1].get('model') or (not contexts[-1].get('effort')):
@@ -363,11 +377,12 @@ def _selection(parent_rows, child_meta, invocation=None):
 	if None is effort and model == parent['model']:
 		effort = parent['effort']
 	return {'model': model, 'effort': effort, 'invocation_call_id': call_id, 'task_name': arguments['task_name'], 'selection': 'explicit-parent-spawn' if arguments.get('model') or arguments.get('reasoning_effort') else 'inherit'}
-def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None):
+def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Unknown executor role')
-	home = _home(backend)
-	_, path, _, rows = _trace(home, conversation_id)
+	paths = _paths(backend, profile=instance, conversation_id=conversation_id)
+	home = paths['home']
+	_, path, _, rows = _trace(home, conversation_id, paths=paths)
 	contexts = [(index, item['payload']) for index, item in rows if 'turn_context' == item.get('type')]
 	history = [{'step': index, 'model': context.get('model'), 'effort': context.get('effort')} for index, context in contexts]
 	observed = {key: history[-1].get(key) if history else None for key in ('model', 'effort')}
@@ -382,7 +397,7 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 	else:
 		if not parent_id or spawn.get('parent_thread_id') != parent_id or parent_id == conversation_id:
 			raise ValueError('Native parent/child relationship required for AA/AF metadata')
-		_, parent_path, _, parent_rows = _trace(home, parent_id)
+		_, parent_path, _, parent_rows = _trace(home, parent_id, paths=paths)
 		invocation = _spawn(parent_rows, meta)
 		try:
 			selection = _selection(parent_rows, meta, invocation)
@@ -393,11 +408,13 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 		requested['source'] = {'native_file': str(parent_path), 'kind': 'spawn_agent', 'step': invocation[0], 'call_id': invocation[1]}
 	return finalize_executor_checks('codex-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native turn_context reports selected model/effort; missing fields remain unknown; server execution internals are not inferred')
 def native_tool_trace(root, request):
-	home = _home(request.get('native_profile_home'))
-	if request.get('native_profile_home') and home not in [Path(value).resolve() for value in platform_settings('codex')['homes'].values()]:
-		raise ValueError('Native tool trace names an unconfigured Codex profile')
 	conversation_id = request.get('conversation_id', '')
-	_, path, raw, rows = _trace(home, conversation_id)
+	paths = _paths(request.get('native_profile_home'), profile=request.get('instance'), conversation_id=conversation_id)
+	home = paths['home']
+	allowed_homes = [Path(value).resolve() for value in extract_platform_homes(platform_settings('codex'), platform='codex', include_disabled=True).values()]
+	if request.get('native_profile_home') and home not in allowed_homes:
+		raise ValueError('Native tool trace names an unconfigured Codex profile')
+	_, path, raw, rows = _trace(home, conversation_id, paths=paths)
 	ids = request.get('call_ids')
 	if not isinstance(ids, list) or not ids or (not all((isinstance(x, str) and x.strip() for x in ids))) or (len(set(ids)) != len(ids)):
 		raise ValueError('Exact unique Codex native tool call IDs required')
@@ -474,10 +491,11 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True):
-	home = _home(backend)
-	_, parent_path, _, parent_rows = _trace(home, parent_id)
-	child_row, path, raw, rows = _trace(home, reviewer_id)
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True):
+	paths = _paths(backend, profile=instance, conversation_id=reviewer_id or parent_id)
+	home = paths['home']
+	_, parent_path, _, parent_rows = _trace(home, parent_id, paths=paths)
+	child_row, path, raw, rows = _trace(home, reviewer_id, paths=paths)
 	meta = rows[0][1]['payload']
 	source = meta.get('source')
 	if not isinstance(source, dict):
@@ -509,15 +527,17 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 				msg_txt = parsed.get('message') or parsed.get('Message') or parsed.get('input')
 				if isinstance(msg_txt, str) and msg_txt.strip():
 					matched_prompts.append(msg_txt)
-	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write)
+	resolved_inst = paths['instance'] or instance
+	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home, instance=resolved_inst), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def verify_native_proof(root, native, package=None):
 	home = Path(native.get('native_profile_home', '')).resolve()
-	if home not in [Path(value).resolve() for value in platform_settings('codex')['homes'].values()]:
+	allowed_homes = [Path(value).resolve() for value in extract_platform_homes(platform_settings('codex'), platform='codex', include_disabled=True).values()]
+	if home not in allowed_homes:
 		raise ValueError('Saved Codex proof names an unconfigured profile')
-	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, write=False), ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'), trace_error='Codex review proof differs from the actual native trace', identity_error='Codex review proof has a different explicit project identity')
+	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, instance=native.get('instance'), write=False), ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'), trace_error='Codex review proof differs from the actual native trace', identity_error='Codex review proof has a different explicit project identity')
 	if package and (not any((Path(item['package']).name == package for item in r['review_inputs']))):
 		raise ValueError('Codex reviewer did not verify this immutable KB review package')
 	return r

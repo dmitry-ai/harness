@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
@@ -20,7 +21,7 @@ import os
 from pathlib import Path
 import re
 import tomllib
-from .runtime import PRIMARY, settings, profile_name
+from .runtime import PRIMARY, extract_platform_instances, profile_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
 DISCOVERY_KINDS = ('rules', 'skills', 'agents')
 def _digest(data):
@@ -205,15 +206,23 @@ def _loader(primary, local=(), *, restore_global=True):
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
 def global_codex_instructions():
-	homes = settings()['platforms']['codex']['homes']
+	codex_cfg = settings()['platforms'].get('codex') or {}
+	all_insts = extract_platform_instances(codex_cfg, platform='codex', include_disabled=True)
+	enabled_insts = {k: v for k, v in all_insts.items() if v['enabled']}
 	try:
 		name = profile_name()
 		names = [name]
+		pool = all_insts
 	except ValueError:
-		names = list(homes)
+		names = list(enabled_insts)
+		pool = enabled_insts
+	if not names:
+		return {'developer_instructions': '', 'profile': 'codex disabled (no enabled instances)'}
 	values = []
 	for name in names:
-		path = Path(homes[name]) / 'config.toml'
+		inst = pool.get(name) or {}
+		cfg_toml = inst.get('system_paths', {}).get('config_toml')
+		path = Path(cfg_toml) if cfg_toml else Path(inst['home']) / 'config.toml'
 		value = tomllib.loads(path.read_bytes().decode('utf-8-sig')).get('developer_instructions', '') if path.exists() else ''
 		if not isinstance(value, str):
 			raise ValueError('Global developer_instructions must be a string')
@@ -246,10 +255,17 @@ def _project_rule_paths(root, primary):
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
+def _primary_settings(primary):
+	p = Path(primary).resolve()
+	rt = p / 'runtime.json'
+	if p != Path(PRIMARY).resolve() and rt.is_file():
+		return settings(rt)
+	return settings()
 def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, check=False):
 	from .native_profiles import legacy_project_projection_paths
 	root, primary = (Path(root).resolve(), Path(primary).resolve())
-	if root == Path(settings()['workspace_root']).resolve():
+	cfg = _primary_settings(primary)
+	if 'codex' not in (cfg.get('platforms') or {}) or root == Path(cfg['workspace_root']).resolve():
 		r = {'valid': True, 'issues': [], 'written': []}
 	else:
 		r = None
@@ -290,11 +306,28 @@ def _frontmatter(path):
 # https://github.com/dmitry-ai/harness/issues/6
 def build_native(root=None, *, primary=PRIMARY, check=False):
 	from .native_profiles import build_shared_native, shared_native_outputs, legacy_project_projection_paths
-	config = settings()
-	root = Path(root or config['workspace_root']).resolve()
 	primary = Path(primary).resolve()
-	source_paths = [primary / 'runtime.json', *sorted((primary / 'rules').glob('*.md')), primary / 'platforms/codex.md', primary / 'agents/worker.md', *sorted((primary / 'skills').glob('*/SKILL.md'))]
+	config = _primary_settings(primary)
+	plats = config.get('platforms') or {}
+	has_codex = 'codex' in plats
+	root = Path(root or config['workspace_root']).resolve()
+	platform_docs = [p for plat in plats for p in (primary / f'platforms/{plat}.md',) if p.is_file()]
+	source_paths = [primary / 'runtime.json', *sorted((primary / 'rules').glob('*.md')), *platform_docs, *(p for p in (primary / 'agents/worker.md',) if p.is_file()), *sorted((primary / 'skills').glob('*/SKILL.md'))]
 	source_hash = _digest(b''.join((p.read_bytes() for p in source_paths)))
+	if not has_codex:
+		try:
+			publication = {'retire': [root / 'CODEX.md', *legacy_project_projection_paths(root, primary)], 'disown': list(shared_native_outputs(primary))}
+			shared = build_shared_native(primary, check=check)
+			if not shared['valid'] and (not check):
+				r = {'valid': False, 'issues': [], 'written': []}
+			else:
+				publication['disown'].extend(shared['removed'])
+				r = _publish(root, {}, check=check, **publication)
+			r.update(valid=r['valid'] and shared['valid'], issues=[*shared['issues'], *r['issues']], written=[*shared['written'], *r['written']], removed=[*shared['removed'], *r.get('removed', [])], shared=shared)
+			r.update(source_sha256=source_hash, policy_bytes=0, canonical_runtime=str(primary / 'runtime.json'))
+		except ValueError as exc:
+			r = {'valid': False, 'issues': [{'file': str(root), 'message': str(exc)}], 'written': []}
+		return r
 	native = root / '.codex/config.toml'
 	current = tomllib.loads(native.read_bytes().decode('utf-8')).get('developer_instructions', '') if native.exists() else ''
 	old_block = extract_managed_block(current)

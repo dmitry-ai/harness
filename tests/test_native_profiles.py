@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -26,8 +27,8 @@ class NativeProfileTests(TemporaryCase):
 		self.config['workspace_root'] = str(self.root / 'workspace')
 		self.gravity = {name: self.root / f'profiles/{name}/.gemini/config' for name in ('A0', 'A6')}
 		self.homes = {name: self.root / f'profiles/{name}' for name in ('C1', 'C2')}
-		self.config['platforms']['antigravity']['homes'] = {name: str(path.parent.parent) for name, path in self.gravity.items()}
-		self.config['platforms']['codex']['homes'] = {name: str(path) for name, path in self.homes.items()}
+		self.config['platforms']['antigravity']['instances'] = {name: {'enabled': True, 'home': str(path.parent.parent)} for name, path in self.gravity.items()}
+		self.config['platforms']['codex']['instances'] = {name: {'enabled': True, 'home': str(path)} for name, path in self.homes.items()}
 		self.write(self.primary / 'runtime.json', json.dumps(self.config))
 		self.write(self.primary / 'rules/00-scope.md', '---\ntrigger: always_on\n---\n# Scope\nUse canonical sources.  \n')
 		self.write(self.primary / 'platforms/codex.md', '# Codex\nPreserve profile settings.  \n')

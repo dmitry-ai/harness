@@ -11,10 +11,94 @@
   },
   "platforms": {
     "antigravity": {
+      "enabled": true,
+      "label": "Antigravity (A)",
       "surface": "antigravity-ui",
-      "homes": {
-        "A0": "C:/Users/dfedi",
-        "A6": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home"
+      "adapter": "antigravity",
+      "capabilities": [
+        "upwork_registration",
+        "cleanup",
+        "native_profiles",
+        "roles",
+        "executor_metadata",
+        "review_proof",
+        "trace_audit",
+        "handoff"
+      ],
+      "handoff": {
+        "conversation_trace_relative": "brain/<conversation_id>/.system_generated/logs/transcript_full.jsonl",
+        "conversation_compact_trace_relative": "brain/<conversation_id>/.system_generated/logs/transcript.jsonl",
+        "conversation_summary_db": "conversation_summaries.db",
+        "conversation_db_relative": "conversations/<conversation_id>.db",
+        "notes": "Each instance has isolated home, user_data_dir, config_dir, projects_dir, backend_dir, brain_dir, and logs_dir; all instances share folders_json."
+      },
+      "instances": {
+        "A0": {
+          "enabled": true,
+          "primary": true,
+          "label": "Antigravity A0 (Default)",
+          "home": "C:/Users/dfedi",
+          "user_data_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity",
+          "system_paths": {
+            "home": "C:/Users/dfedi",
+            "user_data_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity",
+            "logs_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity/logs",
+            "local_state": "C:/Users/dfedi/AppData/Roaming/Antigravity/Local State",
+            "preferences": "C:/Users/dfedi/AppData/Roaming/Antigravity/Preferences",
+            "window_state": "C:/Users/dfedi/AppData/Roaming/Antigravity/window_state.json",
+            "gemini_dir": "C:/Users/dfedi/.gemini",
+            "config_dir": "C:/Users/dfedi/.gemini/config",
+            "config_json": "C:/Users/dfedi/.gemini/config/config.json",
+            "hooks_json": "C:/Users/dfedi/.gemini/config/hooks.json",
+            "mcp_config_json": "C:/Users/dfedi/.gemini/config/mcp_config.json",
+            "rules_json": "C:/Users/dfedi/.gemini/config/rules.json",
+            "skills_json": "C:/Users/dfedi/.gemini/config/skills.json",
+            "agents_json": "C:/Users/dfedi/.gemini/config/agents.json",
+            "projects_dir": "C:/Users/dfedi/.gemini/config/projects",
+            "backend_dir": "C:/Users/dfedi/.gemini/antigravity",
+            "conversations_db": "C:/Users/dfedi/.gemini/antigravity/conversation_summaries.db",
+            "conversations_dir": "C:/Users/dfedi/.gemini/antigravity/conversations",
+            "brain_dir": "C:/Users/dfedi/.gemini/antigravity/brain",
+            "annotations_dir": "C:/Users/dfedi/.gemini/antigravity/annotations",
+            "knowledge_dir": "C:/Users/dfedi/.gemini/antigravity/knowledge",
+            "folders_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Folders/folders.json",
+            "addons_profiles_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Multi-Account/profiles.json"
+          }
+        },
+        "A6": {
+          "enabled": true,
+          "primary": false,
+          "label": "Antigravity A6",
+          "account_email": "admin6@mage2.pro",
+          "chrome_shortcut": "6",
+          "home": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home",
+          "user_data_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6",
+          "system_paths": {
+            "home": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home",
+            "user_data_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6",
+            "logs_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/logs",
+            "local_state": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/Local State",
+            "preferences": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/Preferences",
+            "window_state": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/window_state.json",
+            "gemini_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini",
+            "config_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config",
+            "config_json": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config/config.json",
+            "hooks_json": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config/hooks.json",
+            "mcp_config_json": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config/mcp_config.json",
+            "rules_json": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config/rules.json",
+            "skills_json": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config/skills.json",
+            "agents_json": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config/agents.json",
+            "projects_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/config/projects",
+            "backend_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/antigravity",
+            "conversations_db": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/antigravity/conversation_summaries.db",
+            "conversations_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/antigravity/conversations",
+            "brain_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/antigravity/brain",
+            "annotations_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/antigravity/annotations",
+            "knowledge_dir": "C:/Users/dfedi/AppData/Roaming/Antigravity-A6/home/.gemini/antigravity/knowledge",
+            "folders_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Folders/folders.json",
+            "addons_profiles_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Multi-Account/profiles.json"
+          }
+        }
       },
       "roles": {
         "AA": {
@@ -34,6 +118,7 @@
         "simple_agent": "af-worker"
       },
       "folders_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Folders/folders.json",
+      "addons_profiles_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Multi-Account/profiles.json",
       "browser": {
         "cdp_port": 9222,
         "owned_window_bounds": null,
@@ -42,8 +127,26 @@
       }
     },
     "codex": {
+      "enabled": true,
+      "label": "OpenAI Codex Desktop (C)",
       "surface": "codex-ui",
+      "adapter": "codex",
+      "capabilities": [
+        "upwork_registration",
+        "cleanup",
+        "native_profiles",
+        "roles",
+        "executor_metadata",
+        "review_proof",
+        "trace_audit",
+        "handoff"
+      ],
       "registration_profile": "C2",
+      "handoff": {
+        "session_trace_relative": "sessions/**/*.jsonl",
+        "state_db_glob": "state_*.sqlite",
+        "notes": "Instances C1 and C2 are temporarily disabled due to lapsed subscription; local state and session logs remain readable for efficiency audits."
+      },
       "subagents": {
         "selection": "parent",
         "fallback": "inherit",
@@ -64,9 +167,52 @@
         "complex_agent": "upwork-aa",
         "simple_agent": "upwork-af"
       },
-      "homes": {
-        "C1": "C:/Users/dfedi/.codex",
-        "C2": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2"
+      "instances": {
+        "C1": {
+          "enabled": false,
+          "label": "Codex C1",
+          "disabled_reason": "OpenAI subscription temporarily lapsed",
+          "home": "C:/Users/dfedi/.codex",
+          "system_paths": {
+            "home": "C:/Users/dfedi/.codex",
+            "config_toml": "C:/Users/dfedi/.codex/config.toml",
+            "agents_md": "C:/Users/dfedi/.codex/AGENTS.md",
+            "agents_dir": "C:/Users/dfedi/.codex/agents",
+            "skills_dir": "C:/Users/dfedi/.codex/skills",
+            "sessions_dir": "C:/Users/dfedi/.codex/sessions",
+            "session_index": "C:/Users/dfedi/.codex/session_index.jsonl",
+            "state_db_glob": "C:/Users/dfedi/.codex/state_*.sqlite",
+            "logs_db": "C:/Users/dfedi/.codex/logs_2.sqlite",
+            "memories_db": "C:/Users/dfedi/.codex/memories_1.sqlite",
+            "models_cache_json": "C:/Users/dfedi/.codex/models_cache.json",
+            "global_state": "C:/Users/dfedi/.codex/.codex-global-state.json",
+            "ui_folders": "C:/Users/dfedi/.codex/ui-folders.json",
+            "ui_manage": "C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons/code/UI/manage.mjs"
+          }
+        },
+        "C2": {
+          "enabled": false,
+          "default_registration": true,
+          "label": "Codex C2 (Registration)",
+          "disabled_reason": "OpenAI subscription temporarily lapsed",
+          "home": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2",
+          "system_paths": {
+            "home": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2",
+            "config_toml": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/config.toml",
+            "agents_md": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/AGENTS.md",
+            "agents_dir": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/agents",
+            "skills_dir": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/skills",
+            "sessions_dir": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/sessions",
+            "session_index": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/session_index.jsonl",
+            "state_db_glob": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/state_*.sqlite",
+            "logs_db": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/logs_2.sqlite",
+            "memories_db": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/memories_1.sqlite",
+            "models_cache_json": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/models_cache.json",
+            "global_state": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/.codex-global-state.json",
+            "ui_folders": "C:/Users/dfedi/AppData/Roaming/Codex-Profile2/ui-folders.json",
+            "ui_manage": "C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons/code/UI/manage.mjs"
+          }
+        }
       },
       "node": "C:/tools/nodejs/node.exe",
       "ui_manage": "C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons/code/UI/manage.mjs",

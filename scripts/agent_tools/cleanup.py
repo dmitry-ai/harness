@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
@@ -7,9 +8,11 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 import base64
+import glob
 import json
 from pathlib import Path
 import re
@@ -17,8 +20,16 @@ import sqlite3
 from zoneinfo import ZoneInfo
 from .platforms.trace_common import extract_resource_uri, local_uri_to_path, open_readonly_sqlite
 from .research import json_data
-from .runtime import HARNESS_META, LEGACY_PRIMARY, PRIMARY, platform_name, settings
+from .runtime import HARNESS_META, LEGACY_PRIMARY, PRIMARY, extract_platform_homes, platform_active, platform_instances, platform_name, settings
 from .storage import create_bytes, locked, replace_bytes
+_ACTIVE_CODEX_GLOBS = ContextVar('upwork_cleanup_codex_globs', default=None)
+@contextmanager
+def _codex_glob_scope(globs):
+	token = _ACTIVE_CODEX_GLOBS.set(globs or {})
+	try:
+		yield
+	finally:
+		_ACTIVE_CODEX_GLOBS.reset(token)
 _STATUS_NAMES = ('recent', 'preserved', 'eligible', 'removed', 'pending', 'blocked', 'already-absent')
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
@@ -100,8 +111,20 @@ def _count_indexed_conversations(root, ag_projects, homes, catalog, index):
 	wanted = path_key(root)
 	prefix = wanted + '/'
 	ag_rows, codex_rows, key_cache = index
-	ag_ids = {p['id'] for p in ag_projects}
-	r = {'antigravity': sum((proj_id in ag_ids or any((_belongs_cached(uri, wanted, prefix, key_cache) for uri in uris)) for proj_id, uris in ag_rows))}
+	if isinstance(ag_projects, dict):
+		r = {}
+		ag_total = 0
+		for iid, items in ag_projects.items():
+			ag_ids = {p['id'] for p in items}
+			rows_i = ag_rows.get(iid, [])
+			cnt = sum((proj_id in ag_ids or any((_belongs_cached(uri, wanted, prefix, key_cache) for uri in uris)) for proj_id, uris in rows_i))
+			r['antigravity:' + iid] = cnt
+			ag_total += cnt
+		if ag_projects:
+			r['antigravity'] = ag_total
+	else:
+		ag_ids = {p['id'] for p in ag_projects}
+		r = {'antigravity': sum((proj_id in ag_ids or any((_belongs_cached(uri, wanted, prefix, key_cache) for uri in uris)) for proj_id, uris in ag_rows))}
 	for profile in homes:
 		cx_ids = {p['bindings'][profile] for p in catalog}
 		r['codex:' + profile] = len({tid for tid, proj_id, cwd in codex_rows[profile] if proj_id in cx_ids or _belongs_cached(cwd, wanted, prefix, key_cache)})
@@ -109,17 +132,44 @@ def _count_indexed_conversations(root, ag_projects, homes, catalog, index):
 def _guard_history_db(database):
 	if not database.is_file() or linked(database):
 		raise ValueError(f'Native history unavailable: {database}')
-def _load_conversation_index(backend, homes):
+def _read_ag_rows(backend_dir, *, allow_missing=False, db_path=None):
+	db = Path(db_path) if None is not db_path else Path(backend_dir) / 'conversation_summaries.db'
+	if allow_missing and (not db.exists()) and (not db.is_symlink()):
+		return []
 	ag_rows = []
-	with open_readonly_sqlite(backend / 'conversation_summaries.db', guard=_guard_history_db, query_only=True, row_factory=sqlite3.Row, timeout=5) as conn:
+	with open_readonly_sqlite(db, guard=_guard_history_db, query_only=True, row_factory=sqlite3.Row, timeout=5) as conn:
 		for row in conn.execute('SELECT project_id, workspace_uris FROM conversation_summaries'):
 			uris = json.loads(row['workspace_uris']) if row['workspace_uris'] else []
 			if not isinstance(uris, list):
 				raise ValueError('Unknown Antigravity workspace_uris format')
 			ag_rows.append((row['project_id'], uris))
+	return ag_rows
+def _load_conversation_index(backend, homes):
+	if isinstance(backend, dict):
+		ag_rows = {}
+		for iid, b_info in backend.items():
+			if isinstance(b_info, tuple):
+				if 3 <= len(b_info):
+					b_dir, allow_missing, db_path = b_info[:3]
+				else:
+					b_dir, allow_missing = b_info
+					db_path = None
+			else:
+				b_dir, allow_missing, db_path = (b_info, False, None)
+			ag_rows[iid] = _read_ag_rows(b_dir, allow_missing=allow_missing, db_path=db_path)
+	else:
+		ag_rows = _read_ag_rows(backend, allow_missing=False)
+	codex_globs = _ACTIVE_CODEX_GLOBS.get() or {}
 	codex_rows = {}
 	for profile, home in homes.items():
-		databases = list(home.glob('state_*.sqlite'))
+		glob_raw = codex_globs.get(profile)
+		if glob_raw:
+			if Path(glob_raw).is_absolute():
+				databases = sorted((Path(p) for p in glob.glob(glob_raw, recursive=True) if Path(p).is_file()))
+			else:
+				databases = sorted((p for p in Path(home).glob(glob_raw) if p.is_file()))
+		else:
+			databases = list(home.glob('state_*.sqlite'))
 		if not databases:
 			raise ValueError(f'Native Codex history unavailable: {profile}')
 		p_rows = []
@@ -211,9 +261,11 @@ def conversations(root, ag_projects, backend, homes, catalog):
 	return _count_indexed_conversations(root, ag_projects, homes, catalog, _load_conversation_index(backend, homes))
 _DEFAULT_CONVERSATIONS = conversations
 def catalog_projects(catalog, root, homes):
+	if not homes:
+		return []
 	if not isinstance(catalog, dict) or not isinstance(catalog.get('projects'), dict) or (not isinstance(catalog.get('profiles'), dict)):
 		raise ValueError('Shared-Projects catalogue unavailable')
-	if set(catalog['profiles']) != set(homes):
+	if not set(homes).issubset(set(catalog['profiles'])):
 		raise ValueError('Configured Codex profiles differ from Shared-Projects')
 	target_key = path_key(root)
 	r = []
@@ -224,7 +276,8 @@ def catalog_projects(catalog, root, homes):
 		if roots != [target_key]:
 			raise ValueError('Codex multi-root project preserved')
 		bindings = {}
-		for profile, data in catalog['profiles'].items():
+		for profile in homes:
+			data = catalog['profiles'][profile]
 			binding = data['bindings'].get(ident)
 			if not binding or not binding.get('desktopId'):
 				raise ValueError('Codex profile binding is missing')
@@ -349,40 +402,105 @@ class ProjectCleanupScanner:
 		self.now = now or datetime.now(timezone.utc)
 		if None is self.now.tzinfo:
 			raise ValueError('Cleanup time must include a timezone')
-		self.directory = Path(ag_directory or Path.home() / '.gemini/config/projects').absolute()
-		self.backend = Path(ag_backend or Path.home() / '.gemini/antigravity').absolute()
-		self.folder_file = Path(folders or self.config['platforms']['antigravity']['folders_json']).absolute()
-		self.homes = {name: Path(home) for name, home in self.config['platforms']['codex']['homes'].items()}
-		if not self.directory.is_dir() or linked(self.directory) or linked(self.folder_file):
-			raise ValueError('Antigravity native stores unavailable or linked')
-		if self.directory.is_relative_to(self.daily) or self.folder_file.is_relative_to(self.daily):
-			raise ValueError('Native stores must be outside the preserved daily archive')
+		self.single_ag_mode = None is not ag_directory or None is not ag_backend
+		self.ag_stores = {}
+		platforms_cfg = self.config.get('platforms') or {}
+		if self.single_ag_mode:
+			p_dir = Path(ag_directory or Path.home() / '.gemini/config/projects').absolute()
+			b_dir = Path(ag_backend or Path.home() / '.gemini/antigravity').absolute()
+			if not p_dir.is_dir() or linked(p_dir):
+				raise ValueError('Antigravity native stores unavailable or linked')
+			if p_dir.is_relative_to(self.daily):
+				raise ValueError('Native stores must be outside the preserved daily archive')
+			self.ag_stores['default'] = {'directory': p_dir, 'backend': b_dir, 'allow_missing_db': False}
+			self.directory, self.backend = (p_dir, b_dir)
+		else:
+			ag_insts = platform_instances('antigravity', config=self.config, include_disabled=False) if 'antigravity' in platforms_cfg else {}
+			for iid, inst in ag_insts.items():
+				sp = inst['system_paths']
+				home_dir = Path(inst['home']).absolute() if inst.get('home') else None
+				p_dir = Path(sp['projects_dir']).absolute()
+				b_dir = Path(sp['backend_dir']).absolute()
+				conv_dir = Path(sp['conversations_dir']).absolute() if sp.get('conversations_dir') else b_dir / 'conversations'
+				brain_dir = Path(sp['brain_dir']).absolute() if sp.get('brain_dir') else b_dir / 'brain'
+				conv_db = Path(sp['conversations_db']).absolute() if sp.get('conversations_db') else b_dir / 'conversation_summaries.db'
+				if linked(p_dir) or linked(b_dir) or linked(conv_dir) or linked(brain_dir) or linked(conv_db) or (home_dir and (linked(home_dir) or not home_dir.is_dir())) or (not p_dir.is_dir() and not (home_dir and home_dir.is_dir())):
+					raise ValueError(f'Antigravity native stores unavailable or linked ({iid})')
+				if p_dir.is_relative_to(self.daily) or b_dir.is_relative_to(self.daily) or conv_dir.is_relative_to(self.daily) or brain_dir.is_relative_to(self.daily) or conv_db.is_relative_to(self.daily):
+					raise ValueError('Native stores must be outside the preserved daily archive')
+				has_history = conv_db.is_file() or (conv_dir.is_dir() and any(conv_dir.iterdir())) or (brain_dir.is_dir() and any(brain_dir.iterdir()))
+				self.ag_stores[iid] = {'directory': p_dir, 'backend': b_dir, 'conversations_dir': conv_dir, 'brain_dir': brain_dir, 'conversations_db': conv_db, 'allow_missing_db': not has_history, 'folders_json': sp.get('folders_json')}
+			first_store = next(iter(self.ag_stores.values()), None)
+			self.directory = first_store['directory'] if first_store else None
+			self.backend = {iid: (s['backend'], s['allow_missing_db'], s['conversations_db']) for iid, s in self.ag_stores.items()} if self.ag_stores else {}
+		folders_raw = folders or next((s.get('folders_json') for s in self.ag_stores.values() if s.get('folders_json')), None) or (platforms_cfg.get('antigravity') or {}).get('folders_json')
+		if (self.ag_stores or None is not folders) and (not folders_raw):
+			raise ValueError('Antigravity folders_json is not configured in runtime.json')
+		self.folder_file = Path(folders_raw).absolute() if (self.ag_stores or None is not folders) else None
+		if self.folder_file is not None:
+			if linked(self.folder_file) or (self.single_ag_mode and not self.folder_file.is_file()):
+				raise ValueError('Antigravity native stores unavailable or linked')
+			if self.folder_file.is_relative_to(self.daily):
+				raise ValueError('Native stores must be outside the preserved daily archive')
+		codex_insts = platform_instances('codex', config=self.config, include_disabled=False) if 'codex' in platforms_cfg else {}
+		self.homes = {iid: Path(inst['home']) for iid, inst in codex_insts.items() if inst.get('home')}
+		self.home_globs = {iid: inst['system_paths'].get('state_db_glob') for iid, inst in codex_insts.items() if inst.get('home') and inst['system_paths'].get('state_db_glob')}
+		skipped_disabled = {}
+		for plat_id in platforms_cfg:
+			disabled_ids = [iid for iid, v in platform_instances(plat_id, config=self.config, include_disabled=True).items() if not v['enabled']]
+			if disabled_ids:
+				skipped_disabled[plat_id] = disabled_ids
 		if None is control:
 			from .platforms.codex import shared_control
 			control = shared_control
 		self.control = control
 		self.catalog = None
 		self._history = None
-		self.result = {'complete': True, 'mode': 'apply' if apply else 'dry-run', 'platform': platform_name(), 'cutoff': (self.now - timedelta(days=3)).isoformat(), 'archive_preserved': str(self.daily), 'projects': [], 'issues': []}
+		self.result = {
+			'complete': True,
+			'mode': 'apply' if apply else 'dry-run',
+			'platform': platform_name(config=self.config),
+			'cutoff': (self.now - timedelta(days=3)).isoformat(),
+			'archive_preserved': str(self.daily),
+			'active_instances': {'antigravity': list(self.ag_stores), 'codex': list(self.homes)},
+			'skipped_disabled_instances': skipped_disabled,
+			'projects': [],
+			'issues': [],
+		}
+	def _ag_flat(self, ag):
+		return ag if self.single_ag_mode else [p for plist in ag.values() for p in plist]
 	def _apply_removal(self, entry, root, ag, cx, live_check):
 		live_check()
-		ag_meta = {'database': str(self.backend / 'conversation_summaries.db'), 'projectIds': [p['id'] for p in ag]}
+		ag_flat = self._ag_flat(ag)
+		raw_ag_dbs = [self.backend / 'conversation_summaries.db'] if self.single_ag_mode else [s['conversations_db'] for s in self.ag_stores.values()]
+		ag_dbs = [str(p) for p in sorted(raw_ag_dbs, key=lambda p: (0 if p.is_file() else 1))]
+		ag_meta = {'database': ag_dbs[0] if ag_dbs else None, 'databases': ag_dbs, 'projectIds': [p['id'] for p in ag_flat]}
 		proceed = True
 		if cx:
 			entry['codex'] = self.control({'command': 'shared-cleanup-project', 'deferCommit': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings'], 'antigravity': ag_meta})
 			if True is not entry['codex'].get('complete'):
 				entry['status'], self.result['complete'], proceed = ('pending', False, False)
-		if proceed and ag:
-			entry['antigravity'] = remove_antigravity(root, self.directory, self.folder_file, ag, live_check)
+		if proceed and ag_flat:
+			if self.single_ag_mode:
+				entry['antigravity'] = remove_antigravity(root, self.directory, self.folder_file, ag, live_check)
+			else:
+				ag_results = {}
+				for iid, plist in ag.items():
+					if plist:
+						ag_results[iid] = remove_antigravity(root, self.ag_stores[iid]['directory'], self.folder_file, plist, live_check)
+				entry['antigravity'] = {'complete': True, 'instances': ag_results, 'removed_projects': [pid for res in ag_results.values() for pid in res['removed_projects']], 'removed_folders': [fid for res in ag_results.values() for fid in res['removed_folders']]}
 		if proceed and cx:
 			entry['codex_commit'] = self.control({'command': 'shared-cleanup-project', 'commit': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings'], 'antigravity': ag_meta})
 			if True is not entry['codex_commit'].get('complete'):
 				entry['status'], self.result['complete'], proceed = ('pending', False, False)
 		if proceed:
-			with locked(self.directory / 'ꘖ/data/registration.lock'):
-				_finish_pending(self.directory, root)
+			for store in self.ag_stores.values():
+				if store['directory'].is_dir():
+					with locked(store['directory'] / 'ꘖ/data/registration.lock'):
+						_finish_pending(store['directory'], root)
 			entry['status'] = 'removed'
-			self.catalog = self.control({'command': 'shared-catalog'})
+			if self.homes:
+				self.catalog = self.control({'command': 'shared-catalog'})
 	def _discover_conversations(self, root, ag, cx):
 		if conversations is not _DEFAULT_CONVERSATIONS:
 			r = conversations(root, ag, self.backend, self.homes, cx)
@@ -391,25 +509,32 @@ class ProjectCleanupScanner:
 				self._history = _load_conversation_index(self.backend, self.homes)
 			r = _count_indexed_conversations(root, ag, self.homes, cx, self._history)
 		return r
+	def _collect_ag_projects(self, root):
+		if self.single_ag_mode:
+			return antigravity_projects(self.directory, root)
+		return {iid: antigravity_projects(store['directory'], root) if store['directory'].is_dir() else [] for iid, store in self.ag_stores.items()}
 	def _inspect_candidate(self, item):
 		root = Path(item['root'])
 		entry = {**item, 'status': 'recent' if not item['old_enough'] else 'checking'}
 		self.result['projects'].append(entry)
 		if item['old_enough']:
-			cx, ag = ([], [])
+			cx, ag = ([], [] if self.single_ag_mode else {iid: [] for iid in self.ag_stores})
 			try:
-				ag = antigravity_projects(self.directory, root)
+				ag = self._collect_ag_projects(root)
 				cx = catalog_projects(self.catalog, root, self.homes)
 				counts = self._discover_conversations(root, ag, cx)
 				entry['conversations'] = counts
-				if not ag and (not cx) and (not any(counts.values())):
+				ag_flat = self._ag_flat(ag)
+				if not ag_flat and (not cx) and (not any(counts.values())):
 					entry['status'] = 'already-absent'
 				elif any(counts.values()):
 					entry.update(status='preserved', error='Project has conversations')
 					self._recover_preserved(entry, root, cx)
 				else:
 					entry['status'] = 'eligible'
-					entry['native_projects'] = {'antigravity': [p['id'] for p in ag], 'codex': [p['id'] for p in cx]}
+					entry['native_projects'] = {'antigravity': [p['id'] for p in ag_flat], 'codex': [p['id'] for p in cx]}
+					if not self.single_ag_mode:
+						entry['native_projects']['antigravity_instances'] = {iid: [p['id'] for p in plist] for iid, plist in ag.items() if plist}
 					if self.apply:
 						def live_check():
 							live = conversations(root, ag, self.backend, self.homes, cx)
@@ -434,7 +559,7 @@ class ProjectCleanupScanner:
 			try:
 				if linked(root) or not root.resolve().is_relative_to(self.daily):
 					raise ValueError('Linked or escaped archive entry preserved')
-				ag = antigravity_projects(self.directory, root)
+				ag = self._collect_ag_projects(root)
 				cx = catalog_projects(self.catalog, root, self.homes)
 				counts = self._discover_conversations(root, ag, cx)
 				if any(counts.values()):
@@ -451,7 +576,14 @@ class ProjectCleanupScanner:
 	def _recover_preserved(self, entry, root, cx):
 		if self.apply:
 			try:
-				entry['antigravity_recovery'] = restore_antigravity(root, self.directory, self.folder_file)
+				if self.single_ag_mode:
+					entry['antigravity_recovery'] = restore_antigravity(root, self.directory, self.folder_file)
+				elif self.ag_stores:
+					rec = {}
+					for iid, store in self.ag_stores.items():
+						if store['directory'].is_dir():
+							rec[iid] = restore_antigravity(root, store['directory'], self.folder_file)
+					entry['antigravity_recovery'] = {'complete': all((r.get('complete') for r in rec.values())), 'instances': rec}
 				if cx:
 					current_cx = catalog_projects(self.control({'command': 'shared-catalog'}), root, self.homes)
 					if any((p['cleanup_hold'] for p in current_cx)):
@@ -463,15 +595,17 @@ class ProjectCleanupScanner:
 				self.result['complete'] = False
 	def run(self):
 		lock = HARNESS_META / 'ꘖ/data/cleanup.lock'
-		with locked(lock) if self.apply else nullcontext():
+		with locked(lock) if self.apply else nullcontext(), _codex_glob_scope(self.home_globs):
 			found, issues = candidates(self.daily, self.config, self.now)
 			self.result['discovery'] = {'verified_projects': len(found), 'modern_projects': sum(('project.json' == p['initialization_basis'] for p in found)), 'legacy_projects': sum(('project.json' != p['initialization_basis'] for p in found)), 'excluded_with_conversations': 0, 'unresolved_entries': len(issues)}
 			ready = True
 			try:
-				self.catalog = self.control({'command': 'shared-catalog'})
-				if not isinstance(self.catalog, dict):
-					raise RuntimeError('Shared-Projects is initializing; retry cleanup')
-				_json(self.folder_file)
+				if self.homes:
+					self.catalog = self.control({'command': 'shared-catalog'})
+					if not isinstance(self.catalog, dict):
+						raise RuntimeError('Shared-Projects is initializing; retry cleanup')
+				if self.folder_file is not None:
+					_json(self.folder_file)
 			except (OSError, ValueError, RuntimeError) as exc:
 				self.result.update(complete=False, issues=[*issues, {'error': str(exc)}])
 				ready = False

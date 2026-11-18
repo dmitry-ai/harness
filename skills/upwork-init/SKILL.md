@@ -45,24 +45,25 @@ Subsequent research never overwrites manual `KB/Project.md`.
 When instructed by the user, maintain the managed website and Red Flags blocks in the root `.md` while preserving all other authored text and manual `KB/` per KB-1.  
 In `Analysis.json`, populate `websites`: a non-empty list of `{url: HTTP(S) or null, role: client|target, basis_id: identity ID}`.  
 Distinguish an intermediary agency's website from the target website; the folder name is never evidence.  
-Standard `init` requests registration of the same directory in both platforms per `runtime.registration.targets`.  
+Standard `init` requests registration of the same directory across all enabled environments in `runtime.registration.targets` and all enabled Antigravity instances declared in `runtime.json`; disabled instances and disabled environments are skipped automatically.  
 Verify the actual project title `<domain-or-topic> - U.P.YYYY.MM.DD`, root path, native and shared IDs (when applicable), `folder_id`, `folder_path`, and the `Upwork / Proposals / YYYY / MM / DD` branch.  
-Top-level `complete` refers to the active platform, while `all_registered` refers to both.  
+Top-level `complete` refers to the active platform, while `all_registered` refers to all active registration targets.  
 Unavailability of the secondary platform is recorded for a later `register` retry and does not block analysis in the active platform; never report the secondary registration as complete while it is pending.  
 An unfinished Codex registration returns `complete: false`; retry idempotent `register` and account for pending native folder-trust confirmation.  
-In Codex, use Shared-Projects: one shared catalog and folder branch with separate native C1/C2 IDs; legacy `ui-folders.json` files are never edited.  
+When Codex is enabled, use Shared-Projects: one shared catalog and folder branch with separate native instance IDs; legacy `ui-folders.json` files are never edited.  
 To finish an incomplete registration, run `register <project>`, which preserves existing IDs, settings, and conversations.  
 
 ## Resuming a Project
 
-When the user writes `"Continue analysis. Analysis was interrupted due to ..."`, resume the same project.  
-This also applies in a new chat of the other platform when the user specifies the exact project or when the UI workspace uniquely binds the project root.  
+When the user writes `"Continue analysis. Analysis was interrupted due to ..."` (or hits an instance usage limit), resume the same project.  
+Use `harness.py instances [--conversation <uuid>]` to inspect configured environments, `enabled` states, and per-instance `system_paths` for cross-instance continuation or efficiency audits without scanning unrelated directories.  
+This also applies in a new chat of another instance or environment when the user specifies the exact project or when the UI workspace uniquely binds the project root.  
 Match the native Codex `cwd` or single Antigravity `workspace_uri` against the exact project root; if native binding is ambiguous, require an explicit `"Project root: <absolute path>"` in the user's message.  
 Example of an unambiguous prompt: `"Continue preparing the proposal. Project root: `<absolute path>`"`.  
 Do not ask the user to re-run `/upwork-init`.  
 Take the exact root/URL from the current chat history; never pick the most recently modified or neighboring project by guesswork.  
 Read the overview, topical modules, and saved results in the agent KB, then run `status <project>` and `resume <project> --reason <reason>`.  
-When switching platforms, run `configure <project>`, then `configure <project> --check`, and idempotent `register <project>` for both platforms.  
+When switching platforms, run `configure <project>`, then `configure <project> --check`, and idempotent `register <project>` for the active environments in `runtime.json`.  
 A prior Antigravity confirmation does not substitute for Codex registration or vice versa; never copy or recreate the working directory.  
 Verify the active profile and folder branch before completing `identity_init`; this does not require re-running `init` or re-collecting sources.  
 Check completed stages, file hashes, and actual worker states; the mere existence of an old file does not prove analysis completion.  

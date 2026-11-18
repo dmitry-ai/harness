@@ -1,8 +1,8 @@
 # Environment and Interface
 
-`/upwork-cleanup` is the shared skill for cleaning up empty auto-created projects in Antigravity and Codex C1/C2.  
-The internal command `upwork_project.py cleanup --platform codex` (or `antigravity`) shows a dry-run preview; `--apply` removes registrations and emptied Folders branches.  
-Criterion: strictly older than 72 hours and zero conversations across all three stores, including archived and child conversations, matched by project ID or working directory.  
+`/upwork-cleanup` is the shared skill for cleaning up empty auto-created projects across enabled environments and instances declared in `../runtime.json`.  
+The internal command `upwork_project.py cleanup --platform codex` (or `antigravity`) shows a dry-run preview; `--apply` removes registrations across active enabled instances and emptied Folders branches while skipping disabled instances/environments.  
+Criterion: strictly older than 72 hours and zero conversations across all enabled instances, including archived and child conversations, matched by project ID or working directory.  
 Unknown conversation history blocks deletion of the corresponding project.  
 Projects with confirmed conversations are excluded from legacy `/upwork-init` provenance warnings: they are counted in `preserved` and `discovery.excluded_with_conversations`, and reported to the user only in the total preserved count.  
 A closed required Codex profile yields `pending` without queuing a deferred deletion; re-run the command after opening that profile.  
@@ -17,15 +17,16 @@ The user starts with `/upwork-init <URL>` and continues with ordinary messages i
 Work on the same directory may be resumed in a new chat of the other platform, including semi-manual proposal preparation under a separate instruction.  
 All commands below are executed by the agent; Python 3.12+ is required, with dependencies listed in `requirements-agent-tools.txt`.  
 General entry point: `python <scripts>/harness.py <command> --help` (`upwork_project.py` remains a backward-compatible alias).  
-A single shared library services Antigravity and Codex; workspace root, daily directory, models, time zone, and paths are defined in `../runtime.json` (schema v2).  
-Pass `--platform antigravity|codex` to every operation; omitting the flag preserves Antigravity compatibility.  
-Codex resolves C1/C2 from `CODEX_HOME`, or accepts an explicit `--codex-profile C1|C2`.  
+A single shared library services declared agent environments and instances; workspace root, daily directory, environments, per-instance `enabled` toggles, `system_paths`, models, time zone, and paths are defined in `../runtime.json` (schema v2).  
+Pass `--platform <env>` to every operation; omitting the flag preserves Antigravity compatibility.  
+Codex resolves active instances from `CODEX_HOME`, or accepts an explicit `--codex-profile <id>` or `--instance <id>` (usable across platforms).  
+`instances [--platform <env>] [--instance <id>] [--conversation <uuid>] [--only-enabled]` inspects configured environments, per-instance `enabled` status, and exact `system_paths` to support usage-limit handoffs and cross-instance audits (`metrics [--conversation <uuid>] [--instance <id>]`).  
 On `extract`, `--profile` continues to select the extraction profile.  
 The configured `platforms.codex.registration_profile` is used only when registering from an environment without `CODEX_HOME`; reading native evidence remains bound to an explicitly known profile.  
 Platform adapters live in `agent_tools/platforms`, while domain logic, KB, journaling, stages, and context export are shared.  
-`doctor` reports the version digest across all static tools, rules, and references, along with existing paths and launch parameters.  
+`doctor` reports the version digest across all static tools, rules, and references, along with configured environments/instances and launch parameters.  
 An unchanged static `doctor` result may be reused; the selected browser tab, active model, and actual rule loading are verified separately per session.  
-`install-global` connects all Antigravity and Codex profiles declared in `runtime.json` to shared native sources.  
+`install-global` connects all enabled Antigravity and Codex instances declared in `runtime.json` to shared native sources (skipping disabled instances unless selected explicitly via `--target-profile`).  
 Repeat `--target-profile A6 --target-profile C2` for a pilot; `--platform` and `--codex-profile` continue to identify the executing session.  
 Antigravity profile manifests inherit `platforms/antigravity/{rules,skills,agents}.json`, and only exact plain legacy Harness entries are retired.  
 Codex profile skill directories link to the original skill folders; individual `agents/<name>.toml` file symlinks point at `platforms/codex/agents`, and a compact personal `AGENTS.md` block loads `platforms/codex/AGENTS.md`.  
@@ -74,15 +75,15 @@ Initial native creation may wait for source-profile folder trust: `complete=fals
 Secondary profiles are populated only after observing a genuine source registration.  
 `register <project>` completes registration alone while preserving IDs, settings, and conversations.  
 `configure <project>` merges manifest bindings and updates generator-owned projections while preserving user sources and settings.  
-Standard `init`/`register` target both platforms per `runtime.registration.targets`; `--platform` marks the executing environment, while `--target` on `register` repairs a single platform registration.  
-`complete` refers to the active platform and `all_registered` to both; a secondary error or pending state is saved for retry and does not block work in the active platform.  
+Standard `init`/`register` target enabled platforms in `runtime.registration.targets` and all enabled Antigravity instances; `--platform` marks the executing environment, while `--target` on `register` repairs a single platform registration.  
+`complete` refers to the active environment and `all_registered` to all configured registration targets; a secondary error or pending state is saved for retry and does not block work in the active environment.  
 Shared `registration.py` validates the name, root, folder, and native IDs, records `intent` prior to the call and the attempt/outcome afterward; `last_success` preserves prior confirmed IDs if a later retry fails.  
 A manual mismatched title is never silently renamed: a conflict reports both the expected and actual values.  
 `configure` merges mandatory Antigravity manifest entries with existing ones.  
 The shared workspace loader directs the agent to read the project's local rules and `rules.json` path entries; a local `developer_instructions` key is written only when a manual override already exists, preserving its text, and otherwise parent instructions are inherited.  
 All other TOML keys are preserved, and any verified tool-owned `CODEX.md` is retired.  
 Duplicate rule paths are deduplicated; `inherits`/`include_only`/`exclude` selectors currently require explicit resolution and return a diagnostic error rather than an incomplete projection.  
-`configure --check` validates bindings for both platforms and project projection currency without writing.  
+`configure --check` validates bindings for all configured environments and project projection currency without writing.  
 Legacy standard `context.json` files are upgraded to `draft-or-final` selection while archiving the original bytes in `config-history`; custom user configurations are left untouched.  
 `--no-register` is reserved for isolated testing, never for real analysis.  
 
@@ -150,7 +151,7 @@ Internal agents use `ꘖ/KB` and primary evidence; `Context.md` remains an exter
 The `risk`/`basis`/`request_scope`/`task_flags`/`claim_ids`/`claims` specification has no default `routine`; see [review.example.json](../skills/upwork-init/references/review.example.json).  
 The tool recomputes the minimum risk category from the types of new claims; significant conclusions require two independent A.A auditors, while a routine restatement requires proven unchanged grounds.  
 The auditor receives the package, sources, and response candidate without a desired verdict, one-sided JSON template, or another auditor's report.  
-In both platforms, the auditor first runs `review-input` to obtain a neutral `report_contract` listing all valid outcomes; in Codex this also binds an encrypted spawn assignment to the package.  
+Across configured environments, the auditor first runs `review-input` to obtain a neutral `report_contract` listing all valid outcomes; in Codex this also binds an encrypted spawn assignment to the package.  
 
 The authored schema v2 JSON report covers the five stages, `kb_consistency`, `response`, and every mapped claim; it evaluates the method, alternatives, limitations, ability of the test to falsify the claim, and agreement between raw results and pre-registered criteria (when `outcome: supported`, every standalone number in the claim and `response_excerpt` must be confirmed in `observed` or `tested_claim`).  
 An independent auditor operates strictly read-only inside the current project root and returns this JSON in its final native message; `native-review-proof` is generated after completion and verifies the absence of `prompt_bias_issues` and `reviewer_isolation_issues`.  

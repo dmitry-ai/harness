@@ -1,9 +1,18 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
@@ -59,21 +68,46 @@ import json
 import re
 import sqlite3
 import uuid
-from ..runtime import platform_settings, request_day
+from ..runtime import platform_instances, platform_settings, request_day, resolve_antigravity_backend, resolve_antigravity_paths, settings
 from ..knowledge import json_bytes
 from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import create_bytes, replace_bytes, locked
 from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, extract_resource_uri, finalize_executor_checks, init_turn_accumulator, iter_antigravity_subagents, local_uri_to_path, make_tool_trace_event, merge_turn_accumulators, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, read_jsonl_objects, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
+def _default_folders_json():
+	ag = settings()['platforms'].get('antigravity') or {}
+	if isinstance(ag.get('folders_json'), str) and ag['folders_json'].strip():
+		return Path(ag['folders_json'])
+	for inst in platform_instances('antigravity', include_disabled=True).values():
+		if inst['system_paths'].get('folders_json'):
+			return Path(inst['system_paths']['folders_json'])
+	raise ValueError('Antigravity folders_json is not configured in runtime.json')
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
-ANTIGRAVITY_FOLDERS_JSON = Path(platform_settings('antigravity')['folders_json'])
+try:
+	_ag_init_cfg = settings()['platforms'].get('antigravity') or {}
+	ANTIGRAVITY_FOLDERS_JSON = Path(_ag_init_cfg['folders_json']) if _ag_init_cfg.get('folders_json') else None
+except (OSError, ValueError, KeyError, TypeError):
+	ANTIGRAVITY_FOLDERS_JSON = None
 COMPLETED_STEP_STATUSES = (3, 5)
 _SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment'}
+def _antigravity_paths(backend=None, *, instance=None, conversation_id=None):
+	try:
+		cfg = settings()
+	except (OSError, ValueError):
+		cfg = None
+	return resolve_antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id, config=cfg)
+def _transcript_path(brain_dir, conversation_id):
+	logs_dir = Path(brain_dir) / conversation_id / '.system_generated/logs'
+	full_trace = logs_dir / 'transcript_full.jsonl'
+	compact_trace = logs_dir / 'transcript.jsonl'
+	return full_trace if full_trace.is_file() else compact_trace if compact_trace.is_file() else full_trace
 class AntigravityTurnScanner:
-	def __init__(self, root, conversation_id, *, backend=None):
+	def __init__(self, root, conversation_id, *, backend=None, instance=None):
 		self.root = root
 		self.root_p = Path(root).resolve()
 		self.conversation_id = conversation_id
-		self.backend = Path(backend).resolve() if backend else Path.home() / '.gemini/antigravity'
+		self._instance = instance
+		self.paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
+		self.backend = Path(self.paths['backend_dir']).resolve()
 		self.summary = None
 		self.path = None
 		self.rows = []
@@ -104,7 +138,7 @@ class AntigravityTurnScanner:
 			seeds = [(m_uuid, bool(seg['aa_subagent_steps']), self.conversation_id) for m_uuid in _extract_subagent_uuids(segment)]
 			if 1 == len(self.boundaries) - position:
 				try:
-					with open_readonly_sqlite(self.backend / 'conversation_summaries.db') as p_conn:
+					with open_readonly_sqlite(self.paths['conversations_db']) as p_conn:
 						seeds.extend(((p_row[0], bool(seg['aa_subagent_steps']), self.conversation_id) for p_row in p_conn.execute('SELECT conversation_id FROM conversation_summaries WHERE parent_conversation_id=?', (self.conversation_id,)).fetchall() if p_row and p_row[0] and p_row[0] not in self.completed_turn_cids))
 				except Exception:
 					pass
@@ -138,17 +172,17 @@ class AntigravityTurnScanner:
 		from ..journal import completed_request_group_index, resolve_journal_dir
 		if not re.fullmatch('[a-f0-9-]{36}', self.conversation_id):
 			raise ValueError('Exact native Antigravity conversation UUID required')
-		with open_readonly_sqlite(self.backend / 'conversation_summaries.db', row_factory=sqlite3.Row) as conn:
+		with open_readonly_sqlite(self.paths['conversations_db'], row_factory=sqlite3.Row) as conn:
 			summary = conn.execute('SELECT * FROM conversation_summaries WHERE conversation_id=?', (self.conversation_id,)).fetchone()
 			self.summary = dict(summary) if None is not summary else None
 		if None is self.summary or 'parent_conversation_id' not in self.summary:
 			raise ValueError('Native Antigravity primary/child identity is unavailable')
-		self.path = self.backend / 'brain' / self.conversation_id / '.system_generated/logs/transcript_full.jsonl'
+		self.path = _transcript_path(self.paths['brain_dir'], self.conversation_id)
 		self.rows = read_jsonl_objects(self.path, partial_error='Native Antigravity trace has a partial record; retry after flush')
-		self.inputs = _native_inputs(self.backend, self.conversation_id)
-		selected, _, _ = _request_scope(self.root, self.conversation_id, self.backend, inputs=self.inputs, identifier=completion_project_id(self.root))
+		self.inputs = _native_inputs(self.backend, self.conversation_id, paths=self.paths)
+		selected, _, _ = _request_scope(self.root, self.conversation_id, self.backend, inputs=self.inputs, identifier=completion_project_id(self.root), paths=self.paths)
 		self.requests = {index: {'id': f'{self.conversation_id}-{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
-		with open_readonly_sqlite(self.backend / 'conversations' / (self.conversation_id + '.db')) as conn:
+		with open_readonly_sqlite(_conversation_db_path(self.backend, self.conversation_id, paths=self.paths)) as conn:
 			self.statuses = {index: (kind, status) for index, kind, status in conn.execute('SELECT idx,step_type,status FROM steps')}
 		self.jdir = resolve_journal_dir(self.root_p)
 		self.journal_groups = completed_request_group_index(self.jdir)
@@ -158,7 +192,7 @@ class AntigravityTurnScanner:
 	def _query_child_summary(self, child_cid, expected_parent):
 		child_agent_name, db_grandchildren, parent_mismatch = (None, [], False)
 		try:
-			with open_readonly_sqlite(self.backend / 'conversation_summaries.db') as c_conn:
+			with open_readonly_sqlite(self.paths['conversations_db']) as c_conn:
 				c_row = c_conn.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (child_cid,)).fetchone()
 				if None is not c_row:
 					if not c_row[0] or c_row[0] != expected_parent:
@@ -192,7 +226,7 @@ class AntigravityTurnScanner:
 			record_normalized_tool_effects(self.root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True)
 	def _resolve_subagent_child(self, child_cid, is_aa_hint, expected_parent, anchor_step, seg):
 		r = None
-		child_log = self.backend / 'brain' / child_cid / '.system_generated/logs/transcript_full.jsonl'
+		child_log = _transcript_path(self.paths['brain_dir'], child_cid)
 		if child_log.is_file():
 			parent_mismatch, child_agent_name, db_grandchildren = self._query_child_summary(child_cid, expected_parent)
 			if not parent_mismatch:
@@ -242,12 +276,12 @@ def folder_path(uri):
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
-def register_antigravity_project(project_dir, domain_or_topic, date_str=None, projects_dir=ANTIGRAVITY_PROJECTS_DIR, folders_json_path=ANTIGRAVITY_FOLDERS_JSON):
+def register_antigravity_project(project_dir, domain_or_topic, date_str=None, projects_dir=ANTIGRAVITY_PROJECTS_DIR, folders_json_path=None, preferred_id=None):
 	root, projects = (Path(project_dir).resolve(), Path(projects_dir))
 	day = request_day(date_str) if date_str else date(int(root.parents[2].name), int(root.parents[1].name), int(root.parent.name))
 	name = f'{domain_or_topic} - U.P.{day:%Y.%m.%d}'
 	with locked(projects / 'ꘖ' / 'data' / 'registration.lock'):
-		folders = Path(folders_json_path)
+		folders = Path(folders_json_path if None is not folders_json_path else (ANTIGRAVITY_FOLDERS_JSON if None is not ANTIGRAVITY_FOLDERS_JSON else _default_folders_json()))
 		before = folders.read_bytes()
 		listing = json.loads(before.decode('utf-8-sig'))
 		nodes, assignments = (listing.get('folders'), listing.get('projectFolderMap'))
@@ -268,7 +302,7 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None, pr
 				ident, payload, destination = (item.get('id') or path.stem, item, path)
 				break
 		if None is ident:
-			ident = str(uuid.uuid4())
+			ident = preferred_id or str(uuid.uuid4())
 			destination = projects / f'{ident}.json'
 			payload = {'id': ident, 'name': name, 'projectResources': {'resources': [{'folderUri': root.as_uri()}]}, 'settings': {}, 'isWorkspaceOnly': False}
 			create_bytes(destination, json_bytes(payload))
@@ -287,10 +321,11 @@ def _apply_requested_config(requested, observed, raw_config, selection_kind, sou
 	requested.update(cfg, executor_model=cfg['model'], generation_model=observed['generation_model'] if gen_match else None, selection=selection_kind, source=source)
 	if gen_match and observed['generation_model']:
 		requested['model'] = observed['generation_model']
-def _conversation_db_path(backend, conversation_id, *, error_msg='Exact native conversation UUID required'):
+def _conversation_db_path(backend, conversation_id, *, error_msg='Exact native conversation UUID required', paths=None):
 	if not re.fullmatch('[a-f0-9-]{36}', conversation_id):
 		raise ValueError(error_msg)
-	return backend / 'conversations' / (conversation_id + '.db')
+	conv_dir = Path(paths['conversations_dir']) if paths else Path(backend) / 'conversations'
+	return conv_dir / (conversation_id + '.db')
 def _wire_path(blob, path):
 	values = [blob]
 	for field in path:
@@ -381,8 +416,9 @@ def _generation_matches_executor(generation_model, executor_model):
 		g_val, e_val = (generation_model.strip(), executor_model.strip())
 		r = g_val == e_val or g_val.startswith(e_val + '-')
 	return r
-def _load_transcript_inputs(backend, conversation_id):
-	t_path = backend / 'brain' / conversation_id / '.system_generated/logs/transcript_full.jsonl'
+def _load_transcript_inputs(backend, conversation_id, *, paths=None):
+	brain_dir = Path(paths['brain_dir']) if paths else Path(backend) / 'brain'
+	t_path = _transcript_path(brain_dir, conversation_id)
 	r = {}
 	if t_path.is_file():
 		try:
@@ -390,9 +426,9 @@ def _load_transcript_inputs(backend, conversation_id):
 		except (OSError, ValueError):
 			r = {}
 	return r
-def _query_step_model_ids(backend, cid, *, step=None):
+def _query_step_model_ids(backend, cid, *, step=None, paths=None):
 	r = set()
-	with open_readonly_sqlite(_conversation_db_path(backend, cid)) as connection:
+	with open_readonly_sqlite(_conversation_db_path(backend, cid, paths=paths)) as connection:
 		if 'metadata' in {row[1] for row in connection.execute('PRAGMA table_info(steps)')}:
 			for blob, in connection.execute('SELECT metadata FROM steps WHERE step_type=15 AND status IN (3,5)' + (' AND idx=?' if None is not step else ''), (step,) if None is not step else ()).fetchall():
 				try:
@@ -401,8 +437,8 @@ def _query_step_model_ids(backend, cid, *, step=None):
 					r = set()
 					break
 	return r
-def _model_metadata(backend, conversation_id):
-	path = _conversation_db_path(backend, conversation_id)
+def _model_metadata(backend, conversation_id, *, paths=None):
+	path = _conversation_db_path(backend, conversation_id, paths=paths)
 	history, sources = ({'generations': [], 'configurations': [], 'model_ids': []}, [])
 	with open_readonly_sqlite(path) as connection:
 		tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -423,11 +459,13 @@ def _model_metadata(backend, conversation_id):
 	config = history['configurations'][-1]['value'] if history['configurations'] else None
 	configured = _configuration(config)
 	return ({'model': generation, 'generation_model': generation, 'executor_model': configured['model'], 'effort': configured['effort'], 'configuration': config, 'model_ids': sorted({item['value'] for item in history['model_ids']})}, history, sources)
-def _native_invocation(backend, parent_id, conversation_id, role):
-	child_log = backend / 'brain' / conversation_id / '.system_generated/logs/transcript_full.jsonl'
-	parent_log = backend / 'brain' / parent_id / '.system_generated/logs/transcript_full.jsonl'
+def _native_invocation(backend, parent_id, conversation_id, role, *, paths=None):
+	resolved = paths or _antigravity_paths(backend=backend, conversation_id=conversation_id)
+	brain_dir = Path(resolved['brain_dir'])
+	child_log = _transcript_path(brain_dir, conversation_id)
+	parent_log = _transcript_path(brain_dir, parent_id)
 	initial = next((item.get('content', '') for item in read_jsonl_objects(child_log)), '')
-	with open_readonly_sqlite(backend / 'conversation_summaries.db') as connection:
+	with open_readonly_sqlite(Path(resolved['conversations_db'])) as connection:
 		row = connection.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (conversation_id,)).fetchone()
 	if None is row or row[0] != parent_id or row[1] != platform_settings('antigravity')['roles'][role]['agent']:
 		raise ValueError('Native child relationship/role is not established')
@@ -437,23 +475,24 @@ def _native_invocation(backend, parent_id, conversation_id, role):
 	exact_matches = [m for m in matches if m[2]]
 	index, invocation = exact_matches[-1][:2] if exact_matches else matches[-1][:2]
 	return (invocation, {'native_file': str(parent_log), 'step': index, 'kind': 'invoke_subagent'})
-def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None):
+def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Unknown executor role')
-	backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
-	observed, history, sources = _model_metadata(backend, conversation_id)
+	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
+	backend = Path(paths['backend_dir'])
+	observed, history, sources = _model_metadata(backend, conversation_id, paths=paths)
 	requested = {'model': None, 'generation_model': None, 'executor_model': None, 'effort': None, 'selection': 'unavailable', 'source': None}
 	if 'primary' == role and observed['configuration']:
 		_apply_requested_config(requested, observed, observed['configuration'], 'native-executor-configuration', next((item for item in reversed(sources) if 'executor_metadata' == item.get('table')), None))
 	elif 'primary' != role:
 		if not parent_id or parent_id == conversation_id:
 			raise ValueError('Exact parent required for AA/AF metadata')
-		invocation, source = _native_invocation(backend, parent_id, conversation_id, role)
+		invocation, source = _native_invocation(backend, parent_id, conversation_id, role, paths=paths)
 		selection = invocation.get('Model')
 		if 'inherit' != selection:
 			_apply_requested_config(requested, observed, selection, 'explicit-parent-invocation', source)
 		else:
-			parent_observed, parent_history, _ = _model_metadata(backend, parent_id)
+			parent_observed, parent_history, _ = _model_metadata(backend, parent_id, paths=paths)
 			if 1 == len({item['value'] for item in parent_history['generations']}):
 				requested['model'], requested['generation_model'] = (parent_observed['model'], parent_observed['generation_model'])
 			if 1 == len({item['value'] for item in parent_history['configurations']}):
@@ -462,12 +501,22 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 	force_mismatch = ('inherit' == requested.get('selection') and bool(requested.get('executor_model') and observed.get('executor_model') and (requested['executor_model'] != observed['executor_model']))) or bool(observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])))
 	return finalize_executor_checks('antigravity-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native generation model and executor configuration fields; exact API execution internals and missing modes are not inferred from runtime', force_model_mismatch=force_mismatch)
 def native_tool_trace(root, request):
-	backend = Path.home() / '.gemini/antigravity'
 	conversation_id = request.get('conversation_id', '')
-	database = _conversation_db_path(backend, conversation_id)
+	if request.get('native_profile_home'):
+		home_req = Path(request['native_profile_home']).resolve()
+		ag_insts = platform_instances('antigravity', include_disabled=True) if 'antigravity' in settings()['platforms'] else {}
+		matched = [inst for inst in ag_insts.values() if inst.get('home') and Path(inst['home']).resolve() == home_req and inst['system_paths'].get('backend_dir')]
+		if matched:
+			paths = _antigravity_paths(backend=matched[0]['system_paths']['backend_dir'], instance=matched[0]['id'], conversation_id=conversation_id)
+		else:
+			paths = _antigravity_paths(backend=home_req / '.gemini/antigravity', conversation_id=conversation_id)
+	else:
+		paths = _antigravity_paths(instance=request.get('instance'), conversation_id=conversation_id)
+	backend = Path(paths['backend_dir'])
+	database = _conversation_db_path(backend, conversation_id, paths=paths)
 	with open_readonly_sqlite(database) as connection:
 		statuses = {index: status for index, status in connection.execute('SELECT idx,status FROM steps')}
-	path = backend / 'brain' / conversation_id / '.system_generated/logs/transcript_full.jsonl'
+	path = _transcript_path(paths['brain_dir'], conversation_id)
 	raw = path.read_bytes()
 	rows = read_jsonl_objects(raw)
 	selected = request.get('step_indices')
@@ -501,26 +550,27 @@ def native_tool_trace(root, request):
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True):
 	root = Path(root).resolve()
-	backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
+	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=reviewer_id or parent_id)
+	backend = Path(paths['backend_dir'])
 	if not all((re.fullmatch('[a-f0-9-]{36}', x) for x in (parent_id, reviewer_id))):
 		raise ValueError('Native parent/reviewer UUIDs required')
-	with open_readonly_sqlite(backend / 'conversation_summaries.db', row_factory=sqlite3.Row) as conn:
+	with open_readonly_sqlite(Path(paths['conversations_db']), row_factory=sqlite3.Row) as conn:
 		child = conn.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (reviewer_id,)).fetchone()
 	if None is child or child['parent_conversation_id'] != parent_id or 'self' != child['agent_name']:
 		raise ValueError('Native trace does not establish an independent self/A.A child of this parent')
-	log = backend / 'brain' / reviewer_id / '.system_generated/logs/transcript_full.jsonl'
+	log = _transcript_path(paths['brain_dir'], reviewer_id)
 	raw = log.read_bytes()
 	rows = read_jsonl_objects(raw)
 	last = rows[-1] if rows else {}
 	if 'PLANNER_RESPONSE' != last.get('type') or last.get('tool_calls') or (not last.get('content', '').strip()):
 		raise ValueError('Reviewer has no successful final response in the native trace')
-	with open_readonly_sqlite(_conversation_db_path(backend, reviewer_id)) as conn:
+	with open_readonly_sqlite(_conversation_db_path(backend, reviewer_id, paths=paths)) as conn:
 		final = conn.execute('SELECT idx,step_type,status FROM steps ORDER BY idx DESC LIMIT 1').fetchone()
 	if not final or final[0] != last['step_index'] or 15 != final[1] or (final[2] not in COMPLETED_STEP_STATUSES):
 		raise ValueError('Native database reports an unfinished/failed later reviewer step')
-	parent_log = backend / 'brain' / parent_id / '.system_generated/logs/transcript_full.jsonl'
+	parent_log = _transcript_path(paths['brain_dir'], parent_id)
 	parent_inputs = read_jsonl_objects(parent_log)
 	initial_prompt = rows[0].get('content', '')
 	matches, extra_msgs = _find_subagent_invocations(parent_inputs, reviewer_id, 'self', initial_prompt, require_inherit_error='Native A.A reviewer was not requested with the inherited parent model')
@@ -528,12 +578,13 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 		raise ValueError('Matching native self/inherit invocation is not established')
 	exact_matches = [m for m in matches if m[2]]
 	invocation = exact_matches[-1][0] if exact_matches else matches[0][0]
+	resolved_inst = paths['instance'] or instance
 	def _extra():
-		require_current_binding(root, parent_id, backend=backend, inputs=[(item.get('step_index', index), item['content']) for index, item in enumerate(parent_inputs) if 'USER_INPUT' == item.get('type') and isinstance(item.get('content'), str)], until=invocation)
-		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation), _query_step_model_ids(backend, reviewer_id))
+		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=[(item.get('step_index', index), item['content']) for index, item in enumerate(parent_inputs) if 'USER_INPUT' == item.get('type') and isinstance(item.get('content'), str)], until=invocation)
+		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation, paths=paths), _query_step_model_ids(backend, reviewer_id, paths=paths))
 		if parent_models and child_models and (not child_models.issubset(parent_models)):
 			raise ValueError('Observed reviewer model differs from the inherited A.A model')
-		executor_metadata = native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=backend)
+		executor_metadata = native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=backend, instance=resolved_inst)
 		if 'mismatch' == executor_metadata['verification']['status']:
 			raise ValueError('Native reviewer generation/configuration differs from requested inherited model/effort')
 		return {'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation}
@@ -572,8 +623,8 @@ def wire_fields(data):
 			offset += size
 		r.append((field, kind, value))
 	return r
-def _native_inputs(backend, conversation_id):
-	db_path = _conversation_db_path(backend, conversation_id, error_msg='Exact current native conversation UUID required')
+def _native_inputs(backend, conversation_id, *, paths=None):
+	db_path = _conversation_db_path(backend, conversation_id, error_msg='Exact current native conversation UUID required', paths=paths)
 	with open_readonly_sqlite(db_path) as conn:
 		rows = conn.execute('SELECT idx,status,step_format,step_payload FROM steps WHERE step_type=14 AND status IN (3,5) ORDER BY idx').fetchall()
 	cache = {}
@@ -581,13 +632,14 @@ def _native_inputs(backend, conversation_id):
 	for index, status, format_id, payload in rows:
 		if 0 != format_id:
 			raise ValueError('Native request format is unsupported; save exact requests from the current chat, without reconstruction')
-		r.append((index, _decode_user_step(payload, status, index, lambda: cache.setdefault('rows', _load_transcript_inputs(backend, conversation_id)))))
+		r.append((index, _decode_user_step(payload, status, index, lambda: cache.setdefault('rows', _load_transcript_inputs(backend, conversation_id, paths=paths)))))
 	return r
-def _project_roots(backend, project_id):
+def _project_roots(backend, project_id, *, paths=None):
 	r = []
 	if isinstance(project_id, str) and project_id.strip() and project_id not in ('outside-of-project', 'default-cli-project'):
 		from .request_binding import canonical_path
-		candidate = Path(backend).resolve().parent / 'config/projects' / f'{project_id}.json'
+		projects_dir = Path(paths['projects_dir']) if paths else Path(backend).resolve().parent / 'config/projects'
+		candidate = projects_dir / f'{project_id}.json'
 		if candidate.is_file():
 			try:
 				data = json.loads(candidate.read_text(encoding='utf-8-sig'))
@@ -595,8 +647,9 @@ def _project_roots(backend, project_id):
 			except Exception:
 				r = []
 	return r
-def _workspace_context(backend, conversation_id):
-	file = backend / 'conversation_summaries.db'
+def _workspace_context(backend, conversation_id, *, paths=None):
+	resolved = paths or _antigravity_paths(backend=backend, conversation_id=conversation_id)
+	file = Path(resolved['conversations_db'])
 	r = []
 	if file.is_file():
 		with open_readonly_sqlite(file) as conn:
@@ -609,7 +662,7 @@ def _workspace_context(backend, conversation_id):
 			if not isinstance(roots, list) or any((not isinstance(root, str) or not root.startswith('file://') for root in roots)):
 				raise ValueError('Native Antigravity workspace_uris format is unsupported')
 			from .request_binding import canonical_path
-			p_roots = _project_roots(backend, project_id)
+			p_roots = _project_roots(backend, project_id, paths=resolved)
 			if not roots:
 				r = [(-1, str(p_roots[0]), 'antigravity-project-id')] if 1 == len(p_roots) else []
 			elif 1 < len(roots):
@@ -619,17 +672,20 @@ def _workspace_context(backend, conversation_id):
 				target = p_roots[0] if not w_path.exists() and 1 == len(p_roots) and p_roots[0].exists() else w_path
 				r = [(-1, str(target), 'antigravity-project-id' if target != w_path else 'antigravity-workspace-uris')]
 	return r
-def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None):
+def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None, paths=None):
 	from .request_binding import native_project_id, scoped_inputs
 	job_id = identifier if None is not identifier else native_project_id(root)
-	return scoped_inputs(root, job_id, _native_inputs(backend, conversation_id) if None is inputs else inputs, _workspace_context(backend, conversation_id), until=until)
-def native_requests(root, conversation_id, *, backend=None):
-	backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
-	selected, _, _ = _request_scope(root, conversation_id, backend)
+	resolved = paths or _antigravity_paths(backend=backend, conversation_id=conversation_id)
+	return scoped_inputs(root, job_id, _native_inputs(backend, conversation_id, paths=resolved) if None is inputs else inputs, _workspace_context(backend, conversation_id, paths=resolved), until=until)
+def native_requests(root, conversation_id, *, backend=None, instance=None):
+	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
+	backend = Path(paths['backend_dir'])
+	selected, _, _ = _request_scope(root, conversation_id, backend, paths=paths)
 	return current_turn_requests(selected, conversation_id, 'antigravity-ui', 'Native requests do not identify this project; say "Continue analysis. Project root: `<absolute path>`"')
-def require_current_binding(root, conversation_id, *, backend=None, inputs=None, until=None):
-	backend = Path(backend) if backend else Path.home() / '.gemini/antigravity'
-	selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until)
+def require_current_binding(root, conversation_id, *, backend=None, instance=None, inputs=None, until=None):
+	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
+	backend = Path(paths['backend_dir'])
+	selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until, paths=paths)
 	return require_turn_binding(selected, active, binding, 'Native Antigravity conversation is currently bound to another project or no exact project root')
 def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 	r: list[str] = []
@@ -667,18 +723,69 @@ def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 							if m_u.lower() not in r:
 								r.append(m_u.lower())
 	return r
-def native_answers(root, conversation_id, *, backend=None):
-	return AntigravityTurnScanner(root, conversation_id, backend=backend).scan()
+def native_answers(root, conversation_id, *, backend=None, instance=None):
+	return AntigravityTurnScanner(root, conversation_id, backend=backend, instance=instance).scan()
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+def _proof_paths(native):
+	if not isinstance(native, dict):
+		raise ValueError('Native review proof must be a JSON object')
+	cid = native.get('reviewer_id') or native.get('parent_id')
+	if native.get('instance'):
+		return _antigravity_paths(instance=native['instance'], conversation_id=cid)
+	if native.get('native_log'):
+		log_path = Path(native['native_log']).resolve()
+		ag_insts = platform_instances('antigravity', include_disabled=True) if 'antigravity' in settings()['platforms'] else {}
+		for inst in ag_insts.values():
+			sp = inst['system_paths']
+			for key in ('brain_dir', 'backend_dir'):
+				path_str = sp.get(key)
+				if path_str and log_path.is_relative_to(Path(path_str).resolve()):
+					return _antigravity_paths(backend=sp.get('backend_dir'), instance=inst['id'], conversation_id=cid)
+		home_backend = (Path.home() / '.gemini/antigravity').resolve()
+		if log_path.is_relative_to(home_backend):
+			return _antigravity_paths(backend=home_backend, conversation_id=cid)
+		raise ValueError('Saved Antigravity proof names an unconfigured or external log path')
+	return _antigravity_paths(conversation_id=cid)
+def _proof_backend(native):
+	return Path(_proof_paths(native)['backend_dir'])
 def verify_native_proof(root, native, package=None):
-	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), write=False), ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'), allow_legacy_generation_model=True)
+	paths = _proof_paths(native)
+	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=paths['backend_dir'], instance=paths['instance'], write=False), ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'), allow_legacy_generation_model=True)
 	if package:
 		with Path(r['native_log']).open(encoding='utf-8') as stream:
 			prompt = json.loads(stream.readline()).get('content', '')
 		if package not in prompt:
 			raise ValueError('Native reviewer was not assigned this immutable KB review package')
 	return r
-def register(project_dir, domain_or_topic, date_str=None):
-	return register_antigravity_project(project_dir, domain_or_topic, date_str)
+def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, folders_json_path=None):
+	if None is not projects_dir or None is not folders_json_path:
+		return register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=projects_dir or ANTIGRAVITY_PROJECTS_DIR, folders_json_path=folders_json_path or (ANTIGRAVITY_FOLDERS_JSON if None is not ANTIGRAVITY_FOLDERS_JSON else _default_folders_json()))
+	insts = platform_instances('antigravity', include_disabled=False)
+	if not insts:
+		raise ValueError('Antigravity has no enabled instances in runtime.json')
+	root = Path(project_dir).resolve()
+	ordered = sorted(insts.items(), key=lambda kv: (0 if kv[1].get('primary') else 1, kv[0]))
+	preferred_id = None
+	for _, inst in ordered:
+		p_dir = Path(inst['system_paths']['projects_dir'])
+		if p_dir.is_dir():
+			for path in p_dir.glob('*.json'):
+				item = json.loads(path.read_text(encoding='utf-8-sig'))
+				if any((resource_uri(res) and folder_path(resource_uri(res)) == root for res in (item.get('projectResources') or {}).get('resources') or [])):
+					preferred_id = item.get('id') or path.stem
+					break
+		if preferred_id:
+			break
+	per_instance = {}
+	primary_receipt = None
+	for iid, inst in ordered:
+		sp = inst['system_paths']
+		folders_target = Path(sp['folders_json']) if sp.get('folders_json') else (ANTIGRAVITY_FOLDERS_JSON if None is not ANTIGRAVITY_FOLDERS_JSON else _default_folders_json())
+		receipt = register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=Path(sp['projects_dir']), folders_json_path=folders_target, preferred_id=preferred_id)
+		preferred_id = preferred_id or receipt['project_id']
+		per_instance[iid] = receipt
+		if None is primary_receipt:
+			primary_receipt = receipt
+	return {**primary_receipt, 'instances': per_instance}

@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -9,7 +10,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import uuid
-from .runtime import platform_name, request_day, settings
+from .runtime import platform_active, platform_name, request_day, settings
 from .storage import locked, replace_bytes
 class RegistrationConflict(ValueError):
 	def __init__(self, message, *, expected, actual, issues):
@@ -168,12 +169,17 @@ def register_project(project, label=None, day=None, *, platform=None):
 		raise error
 	r = result
 	return r
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
 def register_projects(project, label=None, day=None, *, platform=None, targets=None, registrars=None):
 	active, config = (platform_name(platform), settings())
-	chosen = list(dict.fromkeys(targets if None is not targets else config['registration']['targets']))
+	if None is not targets:
+		chosen = list(dict.fromkeys(targets))
+	else:
+		configured = (config.get('registration') or {}).get('targets') or [active]
+		chosen = list(dict.fromkeys([target for target in configured if platform_active(target, config=config) or target == active]))
 	if active not in chosen:
 		raise ValueError('Registration targets must include the active application')
 	if any((target not in config['platforms'] for target in chosen)):

@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -37,8 +38,8 @@ from .knowledge import create_once, json_bytes, populate_agent_kb, render_analys
 from .storage import create_bytes, locked, replace_bytes
 from .upwork_data import canonical_job_url, normalize_job_id, format_kb_project_md
 from .upwork_extract import attachment_path, extract_upwork_job
-from .runtime import HARNESS_META, PRIMARY as PRIMARY_AGENTS_DIR, settings, platform_name, platform_settings, role_settings, request_day, using
-from .platforms.antigravity import register_antigravity_project, ANTIGRAVITY_PROJECTS_DIR, ANTIGRAVITY_FOLDERS_JSON
+from .runtime import HARNESS_META, PRIMARY as PRIMARY_AGENTS_DIR, all_instances, extract_platform_instances, find_conversation_instance, instance_entry, platform_active, platform_homes, platform_instances, platform_name, platform_settings, request_day, role_settings, settings, using
+from .platforms.antigravity import ANTIGRAVITY_FOLDERS_JSON, ANTIGRAVITY_PROJECTS_DIR, register as register_antigravity_default, register_antigravity_project
 WORKSPACE_ROOT = Path(settings()['workspace_root']).resolve()
 DAILY_PROPOSALS_ROOT = WORKSPACE_ROOT / settings()['daily_root']
 def default_context_config():
@@ -87,14 +88,17 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
 				create_bytes(history, previous)
 			replace_bytes(context_path, json_bytes(context_config))
 	create_once(rules / '90-project.md', '\n'.join(['---', 'trigger: always_on', 'description: "Project parameters"', '---', '', '# Project', f"Job post: {job_url or 'not specified'}.", f'Folder name: `{domain_or_topic or root.name}`; domain ownership is not proven by this.', 'Paths and boundaries: shared rules KB-1 and FILE-4.', '']))
-	configure_codex_project(root, primary, job_url, domain_or_topic)
+	cfg = settings(primary / 'runtime.json') if primary != Path(PRIMARY_AGENTS_DIR).resolve() and (primary / 'runtime.json').is_file() else settings()
+	if 'codex' in (cfg.get('platforms') or {}):
+		configure_codex_project(root, primary, job_url, domain_or_topic)
 	return agents
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 def check_configuration(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR):
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
-	result = configure_codex_project(root, primary, check=True)
+	cfg = settings(primary / 'runtime.json') if primary != Path(PRIMARY_AGENTS_DIR).resolve() and (primary / 'runtime.json').is_file() else settings()
+	result = configure_codex_project(root, primary, check=True) if 'codex' in (cfg.get('platforms') or {}) else {'valid': True, 'issues': [], 'written': []}
 	for kind in DISCOVERY_KINDS:
 		path = root / f'.agents/{kind}.json'
 		try:
@@ -123,12 +127,15 @@ def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR):
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
 def antigravity_global_config_dirs():
-	homes = settings()['platforms']['antigravity'].get('homes') or {}
-	if not isinstance(homes, dict):
-		raise ValueError('runtime.json platforms.antigravity.homes must map profile names to home directories')
-	r = {name: Path(home) / '.gemini' / 'config' for name, home in homes.items()}
+	config = settings()
+	if not platform_active('antigravity', config=config):
+		return {}
+	ag_cfg = config.get('platforms', {}).get('antigravity') or {}
+	all_insts = extract_platform_instances(ag_cfg, platform='antigravity', include_disabled=True)
+	r = {name: Path(inst['system_paths']['config_dir']) for name, inst in all_insts.items() if inst['enabled'] and 'config_dir' in inst['system_paths']}
 	current = Path.home() / '.gemini' / 'config'
-	if all((current.resolve() != path.resolve() for path in r.values())):
+	declared_paths = [Path(inst['system_paths']['config_dir']).resolve() for inst in all_insts.values() if 'config_dir' in inst['system_paths']]
+	if all((current.resolve() != path for path in declared_paths)):
 		r[UNDECLARED_ANTIGRAVITY_HOME] = current
 	return r
 def _has_entry(entries, target):
@@ -150,7 +157,7 @@ def check_global_customizations(config_dirs=None, primary=PRIMARY_AGENTS_DIR):
 	result = install_native_profiles(list(targets), primary=primary, check=True, config_dirs=targets, codex_homes={})
 	if UNDECLARED_ANTIGRAVITY_HOME in result['profiles']:
 		profile = result['profiles'][UNDECLARED_ANTIGRAVITY_HOME]
-		issue = {'file': profile['config'], 'message': 'Current Antigravity home is not declared in runtime.json platforms.antigravity.homes'}
+		issue = {'file': profile['config'], 'message': 'Current Antigravity home is not declared in runtime.json platforms.antigravity.instances'}
 		profile['issues'].insert(0, issue)
 		profile['valid'] = False
 		result['issues'].append(issue)
@@ -209,7 +216,7 @@ def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
-def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=ANTIGRAVITY_PROJECTS_DIR, antigravity_folders_json=ANTIGRAVITY_FOLDERS_JSON, site_hypothesis=None, platform=None, register_native=None, all_platforms=None):
+def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None):
 	platform = platform_name(platform)
 	job_id, day = (normalize_job_id(url_or_id), request_day(date_str))
 	if None is extracted_data:
@@ -249,13 +256,14 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		target, _, _ = generate_context(root, root / '.agents/context.json')
 	should_register = register_native if None is not register_native else register_antigravity
 	if None is should_register:
-		should_register = Path(daily_root).resolve() == DAILY_PROPOSALS_ROOT.resolve()
+		plat_caps = platform_settings(platform).get('capabilities')
+		should_register = Path(daily_root).resolve() == DAILY_PROPOSALS_ROOT.resolve() and (None is plat_caps or 'upwork_registration' in plat_caps)
 	initial_day = state['request_date']
 	info = None
 	if should_register:
 		from .registration import register_projects
 		both = all_platforms if None is not all_platforms else Path(daily_root).resolve() == DAILY_PROPOSALS_ROOT.resolve()
-		registrars = {'antigravity': lambda project, label, day: register_antigravity_project(project, label, day, projects_dir=antigravity_projects_dir, folders_json_path=antigravity_folders_json)}
+		registrars = {'antigravity': lambda project, label, day: register_antigravity_default(project, label, day, projects_dir=antigravity_projects_dir, folders_json_path=antigravity_folders_json)}
 		info = register_projects(root, root.name.split(' - ', 1)[1], initial_day, platform=platform, targets=None if both else [platform], registrars=registrars)
 	r = {'project_dir': str(root), 'job_id': job_id, 'domain_or_topic': label, 'context_path': str(target), 'snapshot': str(snapshot), 'registration': info, 'platform': platform, 'registrations': info['registrations'] if info else {}, 'antigravity': info['registrations'].get('antigravity') if info else None, 'analysis_status': 'pending; initialization is not a completed analysis'}
 	return r
@@ -281,19 +289,61 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
 	from .operations import COMMANDS
 	version_files = sorted((p for p in primary.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.json') and ('__pycache__' not in p.parts)))
 	tool_version = hashlib.sha256(b''.join((p.relative_to(primary).as_posix().encode() + hashlib.sha256(p.read_bytes()).digest() for p in version_files))).hexdigest()
-	r = {'tool_version': tool_version, 'rules': len(files), 'rule_bytes': sum(sizes.values()), 'per_file_bytes': sizes, 'skills': sorted((p.parent.name for p in (primary / 'skills').glob('*/SKILL.md'))), 'resolved_role_defaults': {role: role_settings(platform_name(), role) for role in ('AA', 'AF')}, 'subagent_policy': platform_settings().get('subagents', {'selection': 'configured_roles'}), 'surface': platform_settings()['surface'], 'delegation': platform_settings()['delegation'], 'actual_session_models_verified': False, 'paths': {'rules': [str(p.resolve()) for p in files], 'reference': str((primary / 'scripts/README-agent-tools.md').resolve()), 'analysis_contract': str((primary / 'scripts/agent_tools/analysis.py').resolve()), 'workflow_reference': str((primary / 'skills/upwork-init/references/workflow.md').resolve()), 'examples': str((primary / 'skills/upwork-init/references').resolve()), 'example_files': [str(p.resolve()) for p in sorted((primary / 'skills/upwork-init/references').glob('*.json'))]}, 'workflow_commands': list(COMMANDS), 'internal_knowledge': 'ꘖ/KB', 'context_purpose': 'complete external export for Gemini DeepThink or another external agent'}
+	active_platform = platform_name()
+	plat_cfg = platform_settings(active_platform)
+	roles_cfg = plat_cfg.get('roles') or {}
+	env_inventory = all_instances(check_exists=True)
+	r = {
+		'tool_version': tool_version,
+		'rules': len(files),
+		'rule_bytes': sum(sizes.values()),
+		'per_file_bytes': sizes,
+		'skills': sorted((p.parent.name for p in (primary / 'skills').glob('*/SKILL.md'))),
+		'resolved_role_defaults': {role: role_settings(active_platform, role) for role in ('AA', 'AF') if role in roles_cfg},
+		'subagent_policy': plat_cfg.get('subagents', {'selection': 'configured_roles'}),
+		'surface': plat_cfg.get('surface'),
+		'delegation': plat_cfg.get('delegation'),
+		'actual_session_models_verified': False,
+		'environments': env_inventory['environments'],
+		'enabled_environments': env_inventory['enabled_environments'],
+		'instances': env_inventory['instances'],
+		'available_handoff_targets': env_inventory['available_handoff_targets'],
+		'paths': {'rules': [str(p.resolve()) for p in files], 'reference': str((primary / 'scripts/README-agent-tools.md').resolve()), 'analysis_contract': str((primary / 'scripts/agent_tools/analysis.py').resolve()), 'workflow_reference': str((primary / 'skills/upwork-init/references/workflow.md').resolve()), 'examples': str((primary / 'skills/upwork-init/references').resolve()), 'example_files': [str(p.resolve()) for p in sorted((primary / 'skills/upwork-init/references').glob('*.json'))]},
+		'workflow_commands': list(COMMANDS),
+		'internal_knowledge': 'ꘖ/KB',
+		'context_purpose': 'complete external export for Gemini DeepThink or another external agent',
+	}
 	# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 	# https://github.com/dmitry-ai/harness/issues/33
 	r['global_customizations'] = check_global_customizations(primary=primary)
 	r['valid'] = r['global_customizations']['valid']
 	return r
+def instances_report(*, platform=None, instance=None, conversation=None, include_disabled=True, check_exists=True):
+	config = settings()
+	if conversation:
+		matches = find_conversation_instance(conversation, platform=platform, config=config, include_disabled=include_disabled)
+		if instance:
+			matches = [m for m in matches if m['id'] == instance]
+		return {'conversation_id': conversation, 'matches': matches, 'found': bool(matches), 'available_handoff_targets': all_instances(config=config, include_disabled=False)['available_handoff_targets']}
+	if instance:
+		entry = instance_entry(instance, platform=platform, config=config, include_disabled=include_disabled)
+		inv = all_instances(config=config, platform=entry['platform'], include_disabled=include_disabled, check_exists=check_exists)
+		record = inv['environments'][entry['platform']]['instances'][entry['id']]
+		return {'instance': record, 'available_handoff_targets': all_instances(config=config, include_disabled=False)['available_handoff_targets']}
+	return all_instances(config=config, platform=platform, include_disabled=include_disabled, check_exists=check_exists)
 def main(argv=None):
 	from .cli_common import add_arg_specs
 	from .operations import add_parsers
 	parser = argparse.ArgumentParser(description=__doc__)
 	sub = parser.add_subparsers(dest='command', required=True)
-	all_profiles = tuple(settings()['platforms']['antigravity']['homes']) + tuple(settings()['platforms']['codex']['homes'])
+	cfg = settings()
+	platforms_map = cfg['platforms']
+	profile_candidates = []
+	for p_name in platforms_map:
+		profile_candidates.extend(platform_homes(p_name, config=cfg, include_disabled=True))
+	all_profiles = tuple(dict.fromkeys(profile_candidates))
+	codex_profiles = tuple(platform_homes('codex', config=cfg, include_disabled=True)) if 'codex' in platforms_map else ()
 	subcommands = {
 		'inspect': ('Capture the selected tab once, including attachments', (('url', {}), ('--output', {'required': True, 'type': Path}), ('--tab-id', {}), ('--session-id', {'help': 'Authorized runtime text.browser.sessions entry (default: primary session)'}), ('--cdp-port', {'type': int}))),
 		'browser-anchor': ('Verify primary Chrome profile M-2A/M-2B isolation or initialize M-2B sentinel on an explicit Default tab', (('--session-id', {}), ('--init-sentinel-tab', {'help': 'Explicit Default profile tab_id on which to set the isolated https://harness-profile.invalid sentinel cookie'}))),
@@ -302,10 +352,11 @@ def main(argv=None):
 		'cleanup': ('Remove empty native Upwork projects older than 72 hours; keep the entire daily archive', (('--apply', {'action': 'store_true', 'help': 'Apply cleanup; default is a read-only preview'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}))),
 		'cleanup-report': ('Save the exact cleanup answer with an Istanbul timestamp in AI/log/cleanup', (('--answer', {'default': '-', 'help': 'Answer body as a UTF-8 file, or - for stdin'}),)),
 		'configure': ('Create missing native manifests; preserve existing configuration', (('project', {'type': Path}), ('--check', {'action': 'store_true', 'help': 'Check the project Codex projection without writing'}))),
-		'register': ('Ensure the same project and folder in both configured platforms', (('project', {'type': Path}), ('--domain', {}), ('--target', {'choices': tuple(settings()['platforms']), 'help': 'Repair one platform only; default: both'}))),
+		'register': ('Ensure the same project and folder in configured active platforms', (('project', {'type': Path}), ('--domain', {}), ('--target', {'choices': tuple(platforms_map), 'help': 'Repair one platform only; default: active targets'}))),
 		'validate-analysis': ('Check all five analysis stages and their evidence graph', (('input', {'type': Path}), ('--render', {'type': Path}), ('--format', {'choices': ('text', 'json'), 'default': 'text'}), ('--evidence', {'action': 'store_true', 'help': 'Verify saved sources and quotes without network requests'}))),
 		'doctor': ('Check discovery inputs, always_on rules, size and model settings', ()),
-		'install-global': ('Connect selected Antigravity/Codex profiles to shared native Harness sources', (('--target-profile', {'action': 'append', 'choices': all_profiles, 'help': 'Profile to configure; repeat for a pilot, default: all configured profiles'}), ('--check', {'action': 'store_true', 'help': 'Verify shared sources, inherited manifests, directory links and role paths without writing'}))),
+		'instances': ('Inspect configured environments, instances, enabled status, and system paths for handoff/audit', (('--conversation', {'help': 'Locate the instance owning this conversation UUID'}), ('--only-enabled', {'action': 'store_true', 'help': 'Show only enabled instances'}), ('--no-exists-check', {'action': 'store_true', 'help': 'Skip checking whether each system path currently exists on disk'}))),
+		'install-global': ('Connect selected Antigravity/Codex profiles to shared native Harness sources', (('--target-profile', {'action': 'append', 'choices': all_profiles, 'help': 'Profile to configure; repeat for a pilot, default: enabled profiles'}), ('--check', {'action': 'store_true', 'help': 'Verify shared sources, inherited manifests, directory links and role paths without writing'}))),
 		'build-native': ('Generate/check native projections from canonical policy and runtime', (('--root', {'type': Path}), ('--check', {'action': 'store_true'}))),
 		'policy-instructions': ('Read only the current profile global developer_instructions key', ()),
 	}
@@ -313,9 +364,12 @@ def main(argv=None):
 		add_arg_specs(sub.add_parser(cmd_name, help=help_text), specs)
 	add_parsers(sub)
 	for child in sub.choices.values():
-		add_arg_specs(child, (('--platform', {'choices': tuple(settings()['platforms'])}), ('--codex-profile', {'choices': tuple(settings()['platforms']['codex']['homes'])})))
+		add_arg_specs(child, (('--platform', {'choices': tuple(platforms_map)}), ('--codex-profile', {'choices': codex_profiles}), ('--instance', {'help': 'Optional target instance ID from runtime.json'})))
 	args = parser.parse_args(argv)
-	with using(args.platform, args.codex_profile):
+	effective_platform = args.platform
+	if None is effective_platform and getattr(args, 'instance', None) and 'instances' != args.command:
+		effective_platform = instance_entry(args.instance, include_disabled=True)['platform']
+	with using(effective_platform, args.codex_profile, getattr(args, 'instance', None)):
 		r = run(args)
 	return r
 def run(args):
@@ -356,6 +410,8 @@ def run(args):
 		else:
 			if 'doctor' == args.command:
 				result = doctor()
+			elif 'instances' == args.command:
+				result = instances_report(platform=args.platform, instance=getattr(args, 'instance', None), conversation=getattr(args, 'conversation', None), include_disabled=not getattr(args, 'only_enabled', False), check_exists=not getattr(args, 'no_exists_check', False))
 			elif 'build-native' == args.command:
 				from .configuration import build_native
 				result = build_native(args.root, check=args.check)
@@ -376,7 +432,7 @@ def run(args):
 				if args.output.exists():
 					raise FileExistsError('Capture exists; reuse it with init --from-json')
 				args.output.parent.mkdir(parents=True, exist_ok=True)
-				captured = extract_upwork_job(args.url, cdp_port=args.cdp_port or platform_settings()['browser']['cdp_port'], tab_id=args.tab_id, session_id=getattr(args, 'session_id', None), attachments_dir=args.output.parent / 'attachments')
+				captured = extract_upwork_job(args.url, cdp_port=args.cdp_port or platform_settings().get('browser', {}).get('cdp_port', 9222), tab_id=args.tab_id, session_id=getattr(args, 'session_id', None), attachments_dir=args.output.parent / 'attachments')
 				create_bytes(args.output, json_bytes(captured))
 				result = {'capture': str(args.output), 'job_id': captured['job_id'], 'coverage': captured['coverage']}
 			elif 'browser-anchor' == args.command:

@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -39,7 +40,7 @@ from urllib.parse import urldefrag, urlsplit
 from urllib.request import urlopen
 import uuid
 from .research import classify_html_challenge
-from .runtime import HARNESS_META, platform_settings, settings
+from .runtime import HARNESS_META, extract_platform_homes, platform_settings, settings
 from .storage import locked, write_immutable_bytes
 _LOCKS, _LOCKS_GUARD = ({}, threading.Lock())
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
@@ -111,7 +112,8 @@ def _profile(session, config):
 		raise ValueError('Use one profile path or one runtime profile reference')
 	path = value.get('path')
 	if not path and value.get('platform') and value.get('name'):
-		path = config.get('platforms', {}).get(value['platform'], {}).get('homes', {}).get(value['name'])
+		plat_cfg = config.get('platforms', {}).get(value['platform'], {})
+		path = extract_platform_homes(plat_cfg, platform=value['platform'], include_disabled=True).get(value['name'])
 	argument = value.get('argument')
 	if not isinstance(path, str) or not path.strip() or (not isinstance(argument, str)) or (not argument.startswith('--')):
 		raise ValueError('Session needs a profile path/reference and its observable command-line argument')

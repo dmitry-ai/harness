@@ -1,13 +1,13 @@
 ---
 name: upwork-cleanup
-description: "Cleans Antigravity and both Codex profiles of /upwork-init projects older than 72 hours with zero conversations while preserving all on-disk history; use for /upwork-cleanup or requests to clean up empty auto-created Upwork projects."
+description: "Cleans enabled Antigravity and Codex instances declared in runtime.json of /upwork-init projects older than 72 hours with zero conversations while preserving all on-disk history; use for /upwork-cleanup or requests to clean up empty auto-created Upwork projects."
 ---
 # Cleaning Up Empty Upwork Projects
 
 Format the authored response and any text reports from all workers with human-readable links without URL encoding per [LINK-5](../../rules/02-link-standards.md#link-5); do not reformat internal registration URIs.  
 
-A standard `/upwork-cleanup` invocation cleans both platforms regardless of which UI launched it.  
-In Codex, `$upwork-cleanup` is also available.  
+A standard `/upwork-cleanup` invocation cleans all environments and instances that are enabled (`enabled: true`) in `runtime.json` regardless of which UI launched it; disabled environments or instances are skipped automatically without requiring Codex Desktop or missing sessions.  
+In Codex, `$upwork-cleanup` is also available when Codex instances are enabled.  
 If the user asks for a preview or dry run only, run the check without `--apply`.  
 
 Shared tool: `C:/work/research/provision/code/AI/harness/code/scripts/upwork_project.py`.  
@@ -30,7 +30,7 @@ The first line is the `Europe/Istanbul` timestamp in `2026-10-18 00:49 UTC+3` fo
 Both the first-line timestamp and the file path derive from the same instant; subsequent reports within the same minute receive suffixes `--2`, `--3`, etc., without overwriting existing logs.  
 If writing the log fails, report the write error; never claim that the log was saved when it failed.  
 
-Only confirmed `/upwork-init` projects strictly older than 72 hours with zero conversations across Antigravity, C1, and C2 may be removed.  
+Only confirmed `/upwork-init` projects strictly older than 72 hours with zero conversations across all enabled instances declared in `runtime.json` may be removed.  
 Archived, child, and still-empty conversations all count as conversations; both project bindings and working directories (including subdirectories) are checked.  
 Whenever history is unavailable or unknown, registration is ambiguous, or data is changing concurrently, preserve the project and state the reason.  
 An unknown conversation count must never be treated as zero.  
@@ -38,7 +38,7 @@ New projects record `created_at` in `ꘖ/project.json`; for legacy projects, the
 Absence of `ꘖ/project.json` in early projects does not exempt them from inspection: legacy `/upwork-init` provenance is confirmed by the three shared `.agents` manifests, the local project rule, and a matching job URL in `KB/Project.md`.  
 Folder names and the `U.P.YYYY.MM.DD` suffix alone do not prove `/upwork-init` provenance; corrupted or contradictory evidence is preserved with diagnostics.  
 
-Cleanup removes native Antigravity registrations, the shared catalog entry and native Codex C1/C2 registrations, Folders bindings, and only those empty folder branches that became empty as a result of this cleanup.  
+Cleanup removes native registrations across enabled Antigravity instances (and when Codex is enabled, the shared catalog entry and native Codex registrations), Folders bindings, and only those empty folder branches that became empty as a result of this cleanup.  
 Codex is updated exclusively through the installed Shared-Projects UI helper; direct writes to its JSON or SQLite stores are prohibited.  
 If a required Codex profile is closed, the project is marked `pending` without queuing a deferred deletion; name the profiles that need to be opened and re-run the command once they are open.  
 After a partial failure, a temporary `cleanupHold` prevents automatic re-registration; the next run resumes by the same ID after re-checking conversations.  

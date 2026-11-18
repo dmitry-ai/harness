@@ -1,3 +1,4 @@
+# https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -18,7 +19,7 @@ import subprocess
 import tomllib
 import uuid
 from .configuration import DISCOVERY_KINDS as KINDS, _frontmatter, _loader, has_linked_ancestor, is_linked_path, load_discovery_manifest, load_project_receipt, receipt_sha256, replace_managed_block, resolve_manifest_entry, store_content_backup
-from .runtime import PRIMARY, settings
+from .runtime import PRIMARY, extract_platform_instances, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
 ISSUE = 'https://github.com/dmitry-ai/harness/issues/35'
 START = '<!-- harness:native-loader:start -->'
@@ -50,25 +51,34 @@ def _skills(primary):
 		r[path.parent.name] = (path, metadata)
 	return r
 def _role_values(primary):
-	config = _configuration(primary)['platforms']['codex']
-	values = [(role, config['roles'][role]['agent'], PURPOSES[role], config['roles'][role]) for role in ('AA', 'AF') if role in config['roles']]
+	config = _configuration(primary)['platforms'].get('codex') or {}
+	roles = config.get('roles') or {}
+	values = [(role, roles[role]['agent'], PURPOSES[role], roles[role]) for role in ('AA', 'AF') if role in roles]
 	if any(not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', name) for _, name, _, _ in values) or len({name for _, name, _, _ in values}) != len(values):
 		raise ValueError('Native role identifiers must be distinct safe filenames')
 	return values
 def _model_fields(primary, role):
-	config = _configuration(primary)['platforms']['codex']
-	value = config['roles'][role]
+	config = _configuration(primary)['platforms'].get('codex') or {}
+	value = (config.get('roles') or {})[role]
 	return '' if 'parent' == config.get('subagents', {}).get('selection') or value.get('selection') in ('parent', 'inherit') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
 def shared_native_outputs(primary=PRIMARY):
 	primary = Path(primary).resolve()
-	r = {primary / f'platforms/antigravity/{kind}.json': _json({'entries': [{'path': (primary / kind).as_posix()}]}).decode('utf-8') for kind in KINDS}
-	bootstrap = primary / 'platforms/codex/AGENTS.md'
-	r[bootstrap] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(primary) + '\n'
-	for role, name, purpose, _ in _role_values(primary):
-		instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(primary / "agents/worker.md").as_posix()}  '
-		r[primary / f'platforms/codex/agents/{name}.toml'] = f'# Generated from runtime.json and agents/worker.md; do not edit.\n# {ISSUE}\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + _model_fields(primary, role) + f'developer_instructions = {json.dumps(instructions)}\n'
-	flash = _configuration(primary)['platforms']['antigravity']['roles']['AF']
-	r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\nmodel: {flash["tier"]}\nsubagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(primary / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the configured tier does not prove the exact model.  \n'
+	cfg = _configuration(primary)
+	plats = cfg['platforms']
+	r = {}
+	if 'antigravity' in plats:
+		for kind in KINDS:
+			r[primary / f'platforms/antigravity/{kind}.json'] = _json({'entries': [{'path': (primary / kind).as_posix()}]}).decode('utf-8')
+		ag_roles = (plats.get('antigravity') or {}).get('roles') or {}
+		if 'AF' in ag_roles:
+			flash = ag_roles['AF']
+			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\nmodel: {flash["tier"]}\nsubagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(primary / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the configured tier does not prove the exact model.  \n'
+	if 'codex' in plats:
+		bootstrap = primary / 'platforms/codex/AGENTS.md'
+		r[bootstrap] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(primary) + '\n'
+		for role, name, purpose, _ in _role_values(primary):
+			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(primary / "agents/worker.md").as_posix()}  '
+			r[primary / f'platforms/codex/agents/{name}.toml'] = f'# Generated from runtime.json and agents/worker.md; do not edit.\n# {ISSUE}\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + _model_fields(primary, role) + f'developer_instructions = {json.dumps(instructions)}\n'
 	return r
 def _legacy_skill(name, primary):
 	path = Path(primary) / f'skills/{name}/SKILL.md'
@@ -542,7 +552,7 @@ def _directory_link(target, path, primary):
 	if 'nt' != os.name:
 		path.symlink_to(target, target_is_directory=True)
 	else:
-		node = _configuration(primary)['platforms']['codex'].get('node', 'node')
+		node = (_configuration(primary)['platforms'].get('codex') or {}).get('node', 'node')
 		result = subprocess.run([node, '-e', "require('node:fs').symlinkSync(process.argv[1],process.argv[2],'junction')", str(target), str(path)], capture_output=True, text=True, timeout=15)
 		if result.returncode:
 			raise OSError(f'Directory junction creation failed: {result.stderr.strip()}')
@@ -698,25 +708,49 @@ def build_shared_native(primary=PRIMARY, *, check=False):
 def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMARY, config_dirs=None, codex_homes=None):
 	primary = Path(primary).resolve()
 	config = _configuration(primary)
-	gravity = {name: Path(home) / '.gemini/config' for name, home in config['platforms']['antigravity'].get('homes', {}).items()} if config_dirs is None else {name: Path(path) for name, path in config_dirs.items()}
-	codex = {name: Path(home) for name, home in config['platforms']['codex'].get('homes', {}).items()} if codex_homes is None else {name: Path(path) for name, path in codex_homes.items()}
-	if set(gravity) & set(codex):
+	platforms_cfg = config.get('platforms') or {}
+	ag_cfg = platforms_cfg.get('antigravity') or {}
+	cx_cfg = platforms_cfg.get('codex') or {}
+	if config_dirs is None:
+		ag_all = extract_platform_instances(ag_cfg, platform='antigravity', include_disabled=True)
+		gravity_all = {name: Path(inst['system_paths']['config_dir']) for name, inst in ag_all.items() if 'config_dir' in inst['system_paths']}
+		gravity_enabled = {name: path for name, path in gravity_all.items() if ag_all[name]['enabled']}
+	else:
+		gravity_all = gravity_enabled = {name: Path(path) for name, path in config_dirs.items()}
+	if codex_homes is None:
+		cx_all = extract_platform_instances(cx_cfg, platform='codex', include_disabled=True)
+		codex_all = {name: Path(inst['home']) for name, inst in cx_all.items() if inst.get('home')}
+		codex_enabled = {name: path for name, path in codex_all.items() if cx_all[name]['enabled']}
+	else:
+		codex_all = codex_enabled = {name: Path(path) for name, path in codex_homes.items()}
+	if set(gravity_all) & set(codex_all):
 		raise ValueError('Antigravity and Codex profile identifiers must be distinct')
-	names = list(dict.fromkeys([*gravity, *codex] if target_profiles is None else target_profiles))
-	if not names or any(name not in gravity and name not in codex for name in names):
-		raise ValueError('Select existing target profile names from runtime.json')
-	if len({_absolute(gravity[name] if name in gravity else codex[name]) for name in names}) != len(names):
+	all_declared = list(dict.fromkeys([*gravity_all, *codex_all]))
+	if target_profiles is None:
+		names = list(dict.fromkeys([*gravity_enabled, *codex_enabled]))
+		if not all_declared and ('antigravity' in platforms_cfg or 'codex' in platforms_cfg):
+			raise ValueError('Select existing target profile names from runtime.json')
+	else:
+		names = list(dict.fromkeys(target_profiles))
+		if config_dirs is None or codex_homes is None:
+			if not names or any(name not in gravity_all and name not in codex_all for name in names):
+				raise ValueError('Select existing target profile names from runtime.json')
+		elif any(name not in gravity_all and name not in codex_all for name in names):
+			raise ValueError('Select existing target profile names from runtime.json')
+	if len({_absolute(gravity_all[name] if name in gravity_all else codex_all[name]) for name in names}) != len(names):
 		raise ValueError('Selected profile configuration directories must be distinct')
 	with nullcontext() if check else locked(data_dir_for(primary) / 'native-profiles/install.lock'):
 		state, plan = _load_state(primary), _Plan()
 		_shared_plan(plan, primary, state)
 		for name in names:
-			if name in gravity:
-				_antigravity_plan(plan, name, gravity[name], primary, state)
+			if name in gravity_all:
+				_antigravity_plan(plan, name, gravity_all[name], primary, state)
 			else:
-				_codex_plan(plan, name, codex[name], primary, state)
+				_codex_plan(plan, name, codex_all[name], primary, state)
 		_retire_shared_roles(plan, primary, state)
-		return _execute(plan, primary, state, check=check)
+		result = _execute(plan, primary, state, check=check)
+		result['skipped_disabled'] = [name for name in all_declared if name not in names]
+		return result
 def legacy_project_projection_paths(root, primary=PRIMARY):
 	root = Path(root).resolve()
 	paths = [root / f'.agents/skills/{name}/SKILL.md' for name in _skills(primary)] + [root / f'.codex/agents/{name}.toml' for _, name, _, _ in _role_values(primary)]
