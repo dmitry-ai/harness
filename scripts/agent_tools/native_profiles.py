@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
@@ -93,7 +96,7 @@ def _legacy_skill(name, primary):
 	if 'upwork-init' == name:
 		r += 'Determine the active UI platform from the conversation and use the corresponding platform adapter of the shared skill.  \n'
 	elif 'upwork-cleanup' == name:
-		r += 'Determine the active UI platform from the conversation; a normal run cleans both platforms.  \n'
+		r += 'Determine the active UI platform from the conversation; a normal run cleans all enabled environment instances configured in runtime.json.  \n'
 	return r
 def _legacy_role(primary, role, name, purpose):
 	instructions = f'Role: {role}.  \n{purpose}  \n' + _loader(Path(primary)) + f'\nAlso read the worker protocol: {(Path(primary) / "agents/worker.md").as_posix()}  '

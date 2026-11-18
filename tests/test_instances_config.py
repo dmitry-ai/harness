@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
 from contextlib import closing, redirect_stdout
@@ -16,7 +19,7 @@ import uuid
 from test_agent_tools import SCRIPTS, TemporaryCase
 from test_onboarding import source
 import check_stop_gate
-from agent_tools import cleanup, configuration, journal_watch, metrics, native_profiles as native, registration, runtime, text_diagnostics, upwork_project as up, workflow
+from agent_tools import cleanup, completion, configuration, journal_watch, metrics, native_profiles as native, registration, runtime, text_diagnostics, upwork_project as up, workflow
 from agent_tools.platforms import adapter, antigravity, codex
 class RuntimeInstancesTests(TemporaryCase):
 	def setUp(self):
@@ -613,5 +616,187 @@ class RuntimeInstancesTests(TemporaryCase):
 			decision = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'fullyIdle': True, 'cwd': str(old_proj), 'sessionId': cid_a6})
 			self.assertEqual(decision['decision'], 'continue')
 			self.assertIn('turn-begin', decision['reason'])
+	def test_default_system_paths_overrides_and_nested_codex_globs(self):
+		inst_ag = {
+			'enabled': True,
+			'home': str(self.root / 'old_home'),
+			'system_paths': {
+				'backend_dir': str(self.root / 'custom_backend'),
+				'config_dir': str(self.root / 'custom_config'),
+			},
+		}
+		sp_ag = runtime.default_system_paths('antigravity', 'A9', inst_ag, {'adapter': 'antigravity'})
+		self.assertEqual(sp_ag['brain_dir'], (self.root / 'custom_backend/brain').as_posix())
+		self.assertEqual(sp_ag['conversations_db'], (self.root / 'custom_backend/conversation_summaries.db').as_posix())
+		self.assertEqual(sp_ag['projects_dir'], (self.root / 'custom_config/projects').as_posix())
+		self.assertEqual(sp_ag['hooks_json'], (self.root / 'custom_config/hooks.json').as_posix())
+
+		cid = str(uuid.uuid4())
+		nested_db = self.root / 'dbs/shard_1/state_9.sqlite'
+		sess_file = self.root / f'custom_sess/2026/11/18/rollout-{cid}.jsonl'
+		self.write_file(sess_file, json.dumps({'type': 'session_meta', 'payload': {'id': cid, 'cwd': str(self.root)}}) + '\n')
+		self.sql(nested_db, 'CREATE TABLE threads (id TEXT, rollout_path TEXT, project_id TEXT, cwd TEXT, archived INTEGER)')
+		self.sql(nested_db, 'INSERT INTO threads VALUES (?, ?, ?, ?, ?)', (cid, str(sess_file), 'p1', str(self.root), 0))
+		wild_abs = (self.root / 'dbs/*/state_*.sqlite').as_posix()
+		sp_cx = runtime.default_system_paths('codex', 'C9', {'enabled': True, 'system_paths': {'state_db_glob': wild_abs}}, {'adapter': 'codex'})
+		self.assertNotIn('home', sp_cx)
+		self.assertTrue(runtime._exists_flag(wild_abs))
+		self.assertEqual(Path(runtime._codex_home_conversation_trace(None, cid, system_paths=sp_cx)).resolve(), sess_file.resolve())
+		self.assertEqual(Path(runtime._codex_home_conversation_trace(self.root, cid, system_paths={'state_db_glob': 'dbs/*/state_*.sqlite'})).resolve(), sess_file.resolve())
+	def test_dynamic_folders_json_and_cleanup_without_homes(self):
+		custom_cfg_dir = self.root / 'custom_ag/cfg'
+		custom_proj_dir = custom_cfg_dir / 'projects'
+		custom_proj_dir.mkdir(parents=True)
+		custom_folders = custom_cfg_dir / 'folders.json'
+		custom_folders.write_text(json.dumps({'folders': [], 'projectFolderMap': {}}), encoding='utf-8')
+		custom_backend = self.root / 'custom_ag/backend'
+		(custom_backend / 'conversations').mkdir(parents=True)
+		(custom_backend / 'brain').mkdir(parents=True)
+		self.sql(custom_backend / 'conversation_summaries.db', 'CREATE TABLE conversation_summaries (project_id TEXT, workspace_uris TEXT)')
+		old_proj = self.daily / '2026/10/08/1 - CustomWithoutHome'
+		old_proj.mkdir(parents=True)
+		(old_proj / 'ꘖ').mkdir()
+		(old_proj / 'ꘖ/project.json').write_text(json.dumps({'job_id': '~024444444444', 'initialized': True, 'request_date': '2026-10-08', 'created_at': '2026-10-08T10:00:00+00:00'}), encoding='utf-8')
+		(old_proj / '.md').write_text('Custom store test', encoding='utf-8')
+
+		cfg_ag = deepcopy(self.config)
+		cfg_ag['platforms']['antigravity'] = {
+			'adapter': 'antigravity',
+			'enabled': True,
+			'folders_json': str(custom_folders),
+			'instances': {
+				'A9': {
+					'enabled': True,
+					'primary': True,
+					'home': str(self.root / 'missing_home'),
+					'system_paths': {'projects_dir': str(custom_proj_dir), 'backend_dir': str(custom_backend)},
+				}
+			},
+		}
+		cfg_ag['platforms']['codex']['enabled'] = False
+		self.assertIsNotNone(antigravity.ANTIGRAVITY_FOLDERS_JSON)
+		with patch.object(antigravity, 'settings', return_value=cfg_ag), patch.object(antigravity, 'platform_instances', side_effect=lambda p, **kw: runtime.platform_instances(p, config=cfg_ag, **kw)), patch.object(runtime, 'settings', return_value=cfg_ag):
+			rec = antigravity.register(old_proj, 'CustomWithoutHome', '2026-10-08')
+			self.assertIn('A9', rec['instances'])
+			folders_data = json.loads(custom_folders.read_text(encoding='utf-8'))
+			self.assertTrue(folders_data['projectFolderMap'])
+		res_ag = cleanup.cleanup_projects(apply=False, daily_root=self.daily, config=cfg_ag)
+		self.assertTrue(res_ag['complete'], res_ag)
+		self.assertEqual(res_ag['active_instances']['antigravity'], ['A9'])
+
+		cid = str(uuid.uuid4())
+		nested_db = self.root / 'cx_dbs/bucket/state_3.sqlite'
+		sess_dir = self.root / 'cx_sess'
+		rollout = sess_dir / f'rollout-{cid}.jsonl'
+		self.write_file(rollout, json.dumps({'type': 'session_meta', 'payload': {'id': cid, 'cwd': str(old_proj)}}) + '\n' + json.dumps({'type': 'response_item', 'payload': {'type': 'message', 'role': 'user', 'content': [{'type': 'input_text', 'text': 'Hello'}]}}) + '\n')
+		self.sql(nested_db, 'CREATE TABLE threads (id TEXT, rollout_path TEXT, project_id TEXT, cwd TEXT, archived INTEGER)')
+		self.sql(nested_db, 'INSERT INTO threads VALUES (?, ?, ?, ?, ?)', (cid, str(rollout), 'cx-p1', str(old_proj), 0))
+		cfg_cx = deepcopy(self.config)
+		cfg_cx['platforms'] = {
+			'codex': {
+				'adapter': 'codex',
+				'enabled': True,
+				'instances': {
+					'C9': {
+						'enabled': True,
+						'system_paths': {'state_db_glob': (self.root / 'cx_dbs/*/state_*.sqlite').as_posix()},
+					}
+				},
+			}
+		}
+		res_cx = cleanup.cleanup_projects(apply=False, daily_root=self.daily, config=cfg_cx, control=lambda req: {'projects': {'cx-1': {'id': 'cx-1', 'rootPaths': [old_proj.as_posix()]}}, 'profiles': {'C9': {'bindings': {'cx-1': {'desktopId': 'cx-p1'}}}}})
+		self.assertTrue(res_cx['complete'], res_cx)
+		self.assertEqual(res_cx['projects'][0]['status'], 'preserved')
+		self.assertEqual(res_cx['projects'][0]['conversations']['codex:C9'], 1)
+
+		cfg_cx['platforms']['codex']['instances']['C9']['system_paths']['sessions_dir'] = str(sess_dir)
+		with patch.object(codex, 'platform_settings', return_value=cfg_cx['platforms']['codex']), patch.object(runtime, 'settings', return_value=cfg_cx):
+			trace_row, trace_path, _, trace_rows = codex._trace(None, cid, paths=runtime.resolve_codex_paths(config=cfg_cx, instance='C9'))
+			self.assertEqual(trace_row['id'], cid)
+			self.assertEqual(trace_path.resolve(), rollout.resolve())
+			self.assertTrue(trace_rows)
+	def test_custom_adapter_platform_keys_and_instruction_snapshot(self):
+		cfg = deepcopy(self.config)
+		cfg['platforms'] = {
+			'ag_next': {
+				'adapter': 'antigravity',
+				'enabled': True,
+				'folders_json': str(self.folders),
+				'instances': {'A9': {'enabled': True, 'home': str(self.ag_homes['A0'])}},
+			},
+			'cx_next': {
+				'adapter': 'codex',
+				'enabled': True,
+				'registration_profile': 'C9',
+				'instances': {'C9': {'enabled': True, 'home': str(self.cx_homes['C1'])}},
+			},
+			'claude_code': {
+				'adapter': 'claude_code',
+				'enabled': True,
+				'instances': {'CC1': {'enabled': True, 'home': str(self.root / 'cc_home')}},
+			},
+		}
+		self.assertEqual(runtime.registration_profile_name(config=cfg), 'C9')
+		self.assertEqual(runtime.resolve_antigravity_paths(config=cfg, instance='A9')['instance'], 'A9')
+		self.assertEqual(runtime.resolve_codex_paths(config=cfg, instance='C9')['instance'], 'C9')
+		self.assertEqual(runtime.instance_entry('A9', platform='antigravity', config=cfg)['platform'], 'ag_next')
+		self.assertEqual(list(runtime.all_instances(platform='codex', config=cfg)['environments']), ['cx_next'])
+		with patch.object(completion, 'settings', return_value=cfg):
+			snap_ag = completion._instruction_snapshot(self.root / 'workspace/proj', {'platform': 'ag_next', 'conversation_id': 'c1'}, stage='answer-prepare')
+			self.assertEqual(snap_ag['errors'], [])
+			self.assertTrue(any((s['kind'] == 'adapter' and Path(s['path']).name == 'antigravity.md' for s in snap_ag['sources'])))
+			snap_cc = completion._instruction_snapshot(self.root / 'workspace/proj', {'platform': 'claude_code', 'conversation_id': 'c2'}, stage='answer-prepare')
+			self.assertEqual(snap_cc['errors'], [])
+	def test_claude_code_only_real_cli_subprocesses(self):
+		cc_primary = self.root / 'cc_cli_harness/code'
+		(cc_primary / 'rules').mkdir(parents=True)
+		(cc_primary / 'platforms').mkdir(parents=True)
+		(cc_primary / 'skills/upwork-init').mkdir(parents=True)
+		(cc_primary / 'skills/upwork-cleanup').mkdir(parents=True)
+		(cc_primary / 'rules/00-scope.md').write_text('---\ntrigger: always_on\n---\n# Scope\n', encoding='utf-8')
+		(cc_primary / 'platforms/claude_code.md').write_text('# Claude Code\n', encoding='utf-8')
+		(cc_primary / 'skills/upwork-init/SKILL.md').write_text('---\nname: upwork-init\ndescription: init\n---\nInit skill.\n', encoding='utf-8')
+		(cc_primary / 'skills/upwork-cleanup/SKILL.md').write_text('---\nname: upwork-cleanup\ndescription: cleanup\n---\nCleanup skill.\n', encoding='utf-8')
+		cc_home = self.root / 'cc_cli_home'
+		(cc_home / '.claude').mkdir(parents=True)
+		cfg = {
+			'version': 2,
+			'timezone': 'Europe/Istanbul',
+			'workspace_root': str(self.root / 'workspace'),
+			'daily_root': 'proposals/daily',
+			'daily_proposals_root': 'proposals/daily',
+			'platforms': {
+				'claude_code': {
+					'adapter': 'claude_code',
+					'enabled': True,
+					'surface': 'cli',
+					'instances': {
+						'CC1': {
+							'enabled': True,
+							'home': str(cc_home),
+							'system_paths': {'claude_dir': str(cc_home / '.claude')},
+						}
+					},
+				}
+			},
+		}
+		(cc_primary / 'runtime.json').write_text(json.dumps(cfg, indent=2), encoding='utf-8')
+		for argv in (['instances'], ['doctor'], ['install-global', '--check'], ['build-native', '--check'], ['cleanup']):
+			code = (
+				f"import sys; sys.path.insert(0, {str(SCRIPTS)!r}); "
+				f"from pathlib import Path; import agent_tools.runtime as rt; "
+				f"rt.PRIMARY = Path({str(cc_primary)!r}); "
+				f"from agent_tools import harness_cli; "
+				f"sys.exit(harness_cli.main({argv!r}))"
+			)
+			proc = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=30)
+			self.assertEqual(proc.returncode, 0, (argv, proc.stdout, proc.stderr))
+			payload = json.loads(proc.stdout)
+			if argv == ['instances']:
+				self.assertEqual(payload['enabled_environments'], ['claude_code'])
+			elif argv in (['doctor'], ['install-global', '--check'], ['build-native', '--check']):
+				self.assertTrue(payload['valid'], (argv, payload))
+			elif argv == ['cleanup']:
+				self.assertTrue(payload['complete'], payload)
 if '__main__' == __name__:
 	unittest.main()

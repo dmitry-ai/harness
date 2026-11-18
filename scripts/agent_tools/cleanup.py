@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
@@ -20,7 +23,7 @@ import sqlite3
 from zoneinfo import ZoneInfo
 from .platforms.trace_common import extract_resource_uri, local_uri_to_path, open_readonly_sqlite
 from .research import json_data
-from .runtime import HARNESS_META, LEGACY_PRIMARY, PRIMARY, extract_platform_homes, platform_active, platform_instances, platform_name, settings
+from .runtime import HARNESS_META, LEGACY_PRIMARY, PRIMARY, extract_platform_homes, platform_active, platform_adapter_name, platform_instances, platform_name, settings
 from .storage import create_bytes, locked, replace_bytes
 _ACTIVE_CODEX_GLOBS = ContextVar('upwork_cleanup_codex_globs', default=None)
 @contextmanager
@@ -166,10 +169,14 @@ def _load_conversation_index(backend, homes):
 		if glob_raw:
 			if Path(glob_raw).is_absolute():
 				databases = sorted((Path(p) for p in glob.glob(glob_raw, recursive=True) if Path(p).is_file()))
+			elif None is not home:
+				databases = sorted((Path(p) for p in glob.glob((Path(home) / glob_raw).as_posix(), recursive=True) if Path(p).is_file()))
 			else:
-				databases = sorted((p for p in Path(home).glob(glob_raw) if p.is_file()))
+				databases = []
+		elif None is not home:
+			databases = sorted((p for p in Path(home).glob('state_*.sqlite') if p.is_file()))
 		else:
-			databases = list(home.glob('state_*.sqlite'))
+			databases = []
 		if not databases:
 			raise ValueError(f'Native Codex history unavailable: {profile}')
 		p_rows = []
@@ -405,6 +412,8 @@ class ProjectCleanupScanner:
 		self.single_ag_mode = None is not ag_directory or None is not ag_backend
 		self.ag_stores = {}
 		platforms_cfg = self.config.get('platforms') or {}
+		ag_plats = [pid for pid, pcfg in platforms_cfg.items() if isinstance(pcfg, dict) and 'antigravity' == platform_adapter_name(pid, pcfg) and platform_active(pid, config=self.config)]
+		cx_plats = [pid for pid, pcfg in platforms_cfg.items() if isinstance(pcfg, dict) and 'codex' == platform_adapter_name(pid, pcfg) and platform_active(pid, config=self.config)]
 		if self.single_ag_mode:
 			p_dir = Path(ag_directory or Path.home() / '.gemini/config/projects').absolute()
 			b_dir = Path(ag_backend or Path.home() / '.gemini/antigravity').absolute()
@@ -415,25 +424,32 @@ class ProjectCleanupScanner:
 			self.ag_stores['default'] = {'directory': p_dir, 'backend': b_dir, 'allow_missing_db': False}
 			self.directory, self.backend = (p_dir, b_dir)
 		else:
-			ag_insts = platform_instances('antigravity', config=self.config, include_disabled=False) if 'antigravity' in platforms_cfg else {}
+			self.directory, self.backend = (None, None)
+			ag_insts = {}
+			for pid in ag_plats:
+				ag_insts.update(platform_instances(pid, config=self.config, include_disabled=False))
 			for iid, inst in ag_insts.items():
 				sp = inst['system_paths']
 				home_dir = Path(inst['home']).absolute() if inst.get('home') else None
-				p_dir = Path(sp['projects_dir']).absolute()
-				b_dir = Path(sp['backend_dir']).absolute()
-				conv_dir = Path(sp['conversations_dir']).absolute() if sp.get('conversations_dir') else b_dir / 'conversations'
-				brain_dir = Path(sp['brain_dir']).absolute() if sp.get('brain_dir') else b_dir / 'brain'
-				conv_db = Path(sp['conversations_db']).absolute() if sp.get('conversations_db') else b_dir / 'conversation_summaries.db'
-				if linked(p_dir) or linked(b_dir) or linked(conv_dir) or linked(brain_dir) or linked(conv_db) or (home_dir and (linked(home_dir) or not home_dir.is_dir())) or (not p_dir.is_dir() and not (home_dir and home_dir.is_dir())):
+				p_dir = Path(sp['projects_dir']).absolute() if sp.get('projects_dir') else (home_dir / '.gemini/config/projects' if home_dir else None)
+				b_dir = Path(sp['backend_dir']).absolute() if sp.get('backend_dir') else (home_dir / '.gemini/antigravity' if home_dir else None)
+				conv_dir = Path(sp['conversations_dir']).absolute() if sp.get('conversations_dir') else (b_dir / 'conversations' if b_dir else None)
+				brain_dir = Path(sp['brain_dir']).absolute() if sp.get('brain_dir') else (b_dir / 'brain' if b_dir else None)
+				conv_db = Path(sp['conversations_db']).absolute() if sp.get('conversations_db') else (b_dir / 'conversation_summaries.db' if b_dir else None)
+				if not p_dir or linked(p_dir) or (b_dir and linked(b_dir)) or (conv_dir and linked(conv_dir)) or (brain_dir and linked(brain_dir)) or (conv_db and linked(conv_db)) or (home_dir and linked(home_dir)):
 					raise ValueError(f'Antigravity native stores unavailable or linked ({iid})')
-				if p_dir.is_relative_to(self.daily) or b_dir.is_relative_to(self.daily) or conv_dir.is_relative_to(self.daily) or brain_dir.is_relative_to(self.daily) or conv_db.is_relative_to(self.daily):
+				has_any_store = p_dir.is_dir() or (conv_dir and conv_dir.is_dir()) or (brain_dir and brain_dir.is_dir()) or (conv_db and conv_db.is_file()) or (home_dir and home_dir.is_dir())
+				if not has_any_store:
+					raise ValueError(f'Antigravity native stores unavailable or linked ({iid})')
+				if p_dir.is_relative_to(self.daily) or (b_dir and b_dir.is_relative_to(self.daily)) or (conv_dir and conv_dir.is_relative_to(self.daily)) or (brain_dir and brain_dir.is_relative_to(self.daily)) or (conv_db and conv_db.is_relative_to(self.daily)):
 					raise ValueError('Native stores must be outside the preserved daily archive')
-				has_history = conv_db.is_file() or (conv_dir.is_dir() and any(conv_dir.iterdir())) or (brain_dir.is_dir() and any(brain_dir.iterdir()))
-				self.ag_stores[iid] = {'directory': p_dir, 'backend': b_dir, 'conversations_dir': conv_dir, 'brain_dir': brain_dir, 'conversations_db': conv_db, 'allow_missing_db': not has_history, 'folders_json': sp.get('folders_json')}
+				has_history = bool((conv_db and conv_db.is_file()) or (conv_dir and conv_dir.is_dir() and any(conv_dir.iterdir())) or (brain_dir and brain_dir.is_dir() and any(brain_dir.iterdir())))
+				self.ag_stores[iid] = {'directory': p_dir, 'backend': b_dir or (conv_db.parent if conv_db else p_dir), 'conversations_dir': conv_dir, 'brain_dir': brain_dir, 'conversations_db': conv_db, 'allow_missing_db': not has_history, 'folders_json': sp.get('folders_json')}
 			first_store = next(iter(self.ag_stores.values()), None)
 			self.directory = first_store['directory'] if first_store else None
 			self.backend = {iid: (s['backend'], s['allow_missing_db'], s['conversations_db']) for iid, s in self.ag_stores.items()} if self.ag_stores else {}
-		folders_raw = folders or next((s.get('folders_json') for s in self.ag_stores.values() if s.get('folders_json')), None) or (platforms_cfg.get('antigravity') or {}).get('folders_json')
+		ag_plat_folders = next(((platforms_cfg.get(pid) or {}).get('folders_json') for pid in ag_plats if (platforms_cfg.get(pid) or {}).get('folders_json')), None)
+		folders_raw = folders or next((s.get('folders_json') for s in self.ag_stores.values() if s.get('folders_json')), None) or ag_plat_folders
 		if (self.ag_stores or None is not folders) and (not folders_raw):
 			raise ValueError('Antigravity folders_json is not configured in runtime.json')
 		self.folder_file = Path(folders_raw).absolute() if (self.ag_stores or None is not folders) else None
@@ -442,9 +458,11 @@ class ProjectCleanupScanner:
 				raise ValueError('Antigravity native stores unavailable or linked')
 			if self.folder_file.is_relative_to(self.daily):
 				raise ValueError('Native stores must be outside the preserved daily archive')
-		codex_insts = platform_instances('codex', config=self.config, include_disabled=False) if 'codex' in platforms_cfg else {}
-		self.homes = {iid: Path(inst['home']) for iid, inst in codex_insts.items() if inst.get('home')}
-		self.home_globs = {iid: inst['system_paths'].get('state_db_glob') for iid, inst in codex_insts.items() if inst.get('home') and inst['system_paths'].get('state_db_glob')}
+		codex_insts = {}
+		for pid in cx_plats:
+			codex_insts.update(platform_instances(pid, config=self.config, include_disabled=False))
+		self.homes = {iid: Path(inst['home']) if inst.get('home') else None for iid, inst in codex_insts.items() if inst.get('home') or inst['system_paths'].get('state_db_glob')}
+		self.home_globs = {iid: inst['system_paths'].get('state_db_glob') for iid, inst in codex_insts.items() if (inst.get('home') or inst['system_paths'].get('state_db_glob')) and inst['system_paths'].get('state_db_glob')}
 		skipped_disabled = {}
 		for plat_id in platforms_cfg:
 			disabled_ids = [iid for iid, v in platform_instances(plat_id, config=self.config, include_disabled=True).items() if not v['enabled']]

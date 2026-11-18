@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
@@ -50,11 +53,13 @@ from ..storage import iter_embedded_json_objects
 from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, local_uri_to_path, make_tool_trace_event, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_token_records, summarize_turn_activity, verify_review_proof_core
 def _state_db_files(paths_or_home):
 	if isinstance(paths_or_home, dict):
-		home = _local_path(paths_or_home['home'])
+		home = _local_path(paths_or_home['home']) if paths_or_home.get('home') else None
 		glob_raw = paths_or_home.get('state_db_glob') or 'state_*.sqlite'
 		if Path(glob_raw).is_absolute():
 			return sorted((Path(p) for p in glob.glob(glob_raw, recursive=True) if Path(p).is_file()))
-		return sorted((p for p in home.glob(glob_raw) if p.is_file()))
+		if None is home:
+			return []
+		return sorted((Path(p) for p in glob.glob((home / glob_raw).as_posix(), recursive=True) if Path(p).is_file()))
 	return sorted(_local_path(paths_or_home).glob('state_*.sqlite'))
 class CodexTurnScanner:
 	def __init__(self, root, conversation_id, *, backend=None, instance=None):
@@ -232,7 +237,7 @@ class CodexTurnScanner:
 		self._scan_primary_turns()
 		for t_idx, (turn, acc) in enumerate(self.turn_entries):
 			self._finalize_turn(t_idx, turn, acc)
-		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home), 'source_file': str(self.path), 'primary': not self.child, 'turns': [turn for turn, _ in self.turn_entries], 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None}
+		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home or (self.paths.get('sessions_dir') or '')), 'source_file': str(self.path), 'primary': not self.child, 'turns': [turn for turn, _ in self.turn_entries], 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None}
 _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 def _local_path(value):
 	return local_uri_to_path(value)
@@ -242,8 +247,8 @@ def _home(backend=None, profile=None, *, conversation_id=None):
 	return _paths(backend, profile=profile, conversation_id=conversation_id)['home']
 def _trace(home, conversation_id, *, paths=None):
 	resolved = paths or _paths(home, conversation_id=conversation_id)
-	home = _local_path(resolved['home'])
-	sessions_dir = _local_path(resolved['sessions_dir'])
+	home = _local_path(resolved['home']) if resolved.get('home') else None
+	sessions_dir = _local_path(resolved['sessions_dir']) if resolved.get('sessions_dir') else None
 	if not re.fullmatch('[a-f0-9-]{36}', conversation_id):
 		raise ValueError('Exact native Codex thread UUID required')
 	found = []
@@ -256,7 +261,7 @@ def _trace(home, conversation_id, *, paths=None):
 		raise ValueError('Native Codex thread is missing or ambiguous in this profile')
 	row = found[0]
 	path = _local_path(row['rollout_path'])
-	if not path.is_relative_to(sessions_dir):
+	if sessions_dir and (not path.is_relative_to(sessions_dir)):
 		raise ValueError('Codex trace is outside the selected profile sessions')
 	raw = path.read_bytes()
 	rows = []

@@ -1,6 +1,6 @@
 # Access to Authenticated Portals
 
-The shared procedure in [EXEC-3 and EXEC-6](../../../rules/08-execution-and-tools.md#exec-3) governs analysis, task execution, and continuation of existing projects across both platforms.  
+The shared procedure in [EXEC-3 and EXEC-6](../../../rules/08-execution-and-tools.md#exec-3) governs analysis, task execution, and continuation of existing projects across active environments.  
 It authorizes using active browser authentication for an instructed action, while the scope of permissible external changes is governed by [SCOPE-2](../../../rules/00-scope.md#scope-2).  
 
 ## Session Selection and Opening Pages

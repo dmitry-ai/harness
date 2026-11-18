@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -10,6 +13,7 @@
 from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import deepcopy
+import glob
 import json
 import os
 from pathlib import Path
@@ -68,40 +72,85 @@ def platform_adapter_name(platform, plat_cfg=None, *, config=None):
 	if None is plat_cfg:
 		plat_cfg = (config or settings()).get('platforms', {}).get(platform) or {}
 	return plat_cfg.get('adapter') or platform
+def _has_glob_wildcard(value):
+	text = str(value or '')
+	return '*' in text or '?' in text
+def _resolve_glob_paths(raw_glob, base_dir=None):
+	text = _expand_path(raw_glob) if isinstance(raw_glob, str) and raw_glob.strip() else ''
+	if not text:
+		return []
+	p = Path(text)
+	if not p.is_absolute():
+		if None is base_dir:
+			return []
+		text = (Path(base_dir) / p).as_posix()
+	return sorted((Path(match) for match in glob.glob(text, recursive=True)))
+def platform_key_for_adapter(adapter_name, config=None):
+	cfg_all = config or settings()
+	plats = cfg_all.get('platforms') or {}
+	direct = plats.get(adapter_name)
+	if isinstance(direct, dict) and platform_adapter_name(adapter_name, direct) == adapter_name:
+		return adapter_name
+	matches = [name for name, plat_cfg in plats.items() if isinstance(plat_cfg, dict) and platform_adapter_name(name, plat_cfg) == adapter_name]
+	if not matches:
+		return None
+	enabled = [name for name in matches if bool(plats[name].get('enabled', True))]
+	return enabled[0] if enabled else matches[0]
 def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 	plat_cfg = plat_cfg if isinstance(plat_cfg, dict) else {}
 	adapter_kind = platform_adapter_name(platform, plat_cfg)
+	explicit_raw = inst_cfg.get('system_paths') or {}
+	if not isinstance(explicit_raw, dict):
+		raise ValueError(f'system_paths for {platform}/{inst_id} must be an object')
+	explicit = {}
+	for key, val in explicit_raw.items():
+		if not isinstance(key, str) or not key.strip() or (not isinstance(val, str)) or (not val.strip()):
+			raise ValueError(f'system_paths.{key} for {platform}/{inst_id} must be a non-empty string')
+		explicit[key] = _expand_path(val)
 	paths = {}
-	raw_home = inst_cfg.get('home')
-	home = Path(os.path.expanduser(raw_home)) if isinstance(raw_home, str) and raw_home.strip() else None
+	raw_home = explicit.get('home') if 'home' in explicit else inst_cfg.get('home')
+	home = Path(os.path.expanduser(raw_home)) if isinstance(raw_home, str) and raw_home.strip() and (not _has_glob_wildcard(raw_home)) else None
 	if home:
 		paths['home'] = home.as_posix()
-	raw_udd = inst_cfg.get('user_data_dir')
-	udd = Path(os.path.expanduser(raw_udd)) if isinstance(raw_udd, str) and raw_udd.strip() else None
+	raw_udd = explicit.get('user_data_dir') if 'user_data_dir' in explicit else inst_cfg.get('user_data_dir')
+	udd = Path(os.path.expanduser(raw_udd)) if isinstance(raw_udd, str) and raw_udd.strip() and (not _has_glob_wildcard(raw_udd)) else None
 	if udd:
 		paths['user_data_dir'] = udd.as_posix()
 	if 'antigravity' == adapter_kind:
-		if home:
-			gemini = home / '.gemini'
+		gemini = Path(explicit['gemini_dir']) if 'gemini_dir' in explicit else (home / '.gemini' if home else None)
+		if gemini:
+			paths['gemini_dir'] = gemini.as_posix()
+		cfg_dir = None
+		if 'config_dir' in explicit:
+			cfg_dir = Path(explicit['config_dir'])
+		elif 'projects_dir' in explicit and 'projects' == Path(explicit['projects_dir']).name:
+			cfg_dir = Path(explicit['projects_dir']).parent
+		elif gemini:
 			cfg_dir = gemini / 'config'
+		if cfg_dir:
+			paths['config_dir'] = cfg_dir.as_posix()
+			paths['config_json'] = (cfg_dir / 'config.json').as_posix()
+			paths['hooks_json'] = (cfg_dir / 'hooks.json').as_posix()
+			paths['mcp_config_json'] = (cfg_dir / 'mcp_config.json').as_posix()
+			paths['rules_json'] = (cfg_dir / 'rules.json').as_posix()
+			paths['skills_json'] = (cfg_dir / 'skills.json').as_posix()
+			paths['agents_json'] = (cfg_dir / 'agents.json').as_posix()
+			paths['projects_dir'] = (cfg_dir / 'projects').as_posix()
+		backend = Path(explicit['backend_dir']) if 'backend_dir' in explicit else None
+		if None is backend:
+			for key in ('conversations_db', 'brain_dir', 'conversations_dir', 'annotations_dir', 'knowledge_dir'):
+				if key in explicit:
+					backend = Path(explicit[key]).parent
+					break
+		if None is backend and gemini:
 			backend = gemini / 'antigravity'
-			paths.update({
-				'gemini_dir': gemini.as_posix(),
-				'config_dir': cfg_dir.as_posix(),
-				'config_json': (cfg_dir / 'config.json').as_posix(),
-				'hooks_json': (cfg_dir / 'hooks.json').as_posix(),
-				'mcp_config_json': (cfg_dir / 'mcp_config.json').as_posix(),
-				'rules_json': (cfg_dir / 'rules.json').as_posix(),
-				'skills_json': (cfg_dir / 'skills.json').as_posix(),
-				'agents_json': (cfg_dir / 'agents.json').as_posix(),
-				'projects_dir': (cfg_dir / 'projects').as_posix(),
-				'backend_dir': backend.as_posix(),
-				'conversations_db': (backend / 'conversation_summaries.db').as_posix(),
-				'conversations_dir': (backend / 'conversations').as_posix(),
-				'brain_dir': (backend / 'brain').as_posix(),
-				'annotations_dir': (backend / 'annotations').as_posix(),
-				'knowledge_dir': (backend / 'knowledge').as_posix(),
-			})
+		if backend:
+			paths['backend_dir'] = backend.as_posix()
+			paths['conversations_db'] = (backend / 'conversation_summaries.db').as_posix()
+			paths['conversations_dir'] = (backend / 'conversations').as_posix()
+			paths['brain_dir'] = (backend / 'brain').as_posix()
+			paths['annotations_dir'] = (backend / 'annotations').as_posix()
+			paths['knowledge_dir'] = (backend / 'knowledge').as_posix()
 		if udd:
 			paths.setdefault('logs_dir', (udd / 'logs').as_posix())
 			paths.setdefault('local_state', (udd / 'Local State').as_posix())
@@ -111,7 +160,18 @@ def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 			paths['folders_json'] = _expand_path(plat_cfg['folders_json'])
 		if isinstance(plat_cfg.get('addons_profiles_json'), str) and plat_cfg['addons_profiles_json'].strip():
 			paths['addons_profiles_json'] = _expand_path(plat_cfg['addons_profiles_json'])
+		if 'gemini_dir' not in paths:
+			if 'config_dir' in paths and 'config' == Path(paths['config_dir']).name:
+				paths['gemini_dir'] = Path(paths['config_dir']).parent.as_posix()
+			elif 'backend_dir' in paths and 'antigravity' == Path(paths['backend_dir']).name:
+				paths['gemini_dir'] = Path(paths['backend_dir']).parent.as_posix()
 	elif 'codex' == adapter_kind:
+		if None is home:
+			for key in ('config_toml', 'agents_md', 'session_index', 'global_state', 'ui_folders', 'logs_db', 'memories_db', 'models_cache_json', 'sessions_dir', 'agents_dir', 'skills_dir', 'state_db_glob'):
+				if key in explicit and (not _has_glob_wildcard(Path(explicit[key]).parent)):
+					home = Path(explicit[key]).parent
+					paths['home'] = home.as_posix()
+					break
 		if home:
 			paths.update({
 				'config_toml': (home / 'config.toml').as_posix(),
@@ -129,44 +189,7 @@ def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 			})
 		if isinstance(plat_cfg.get('ui_manage'), str) and plat_cfg['ui_manage'].strip():
 			paths['ui_manage'] = _expand_path(plat_cfg['ui_manage'])
-	explicit = inst_cfg.get('system_paths') or {}
-	if not isinstance(explicit, dict):
-		raise ValueError(f'system_paths for {platform}/{inst_id} must be an object')
-	for key, val in explicit.items():
-		if not isinstance(key, str) or not key.strip() or (not isinstance(val, str)) or (not val.strip()):
-			raise ValueError(f'system_paths.{key} for {platform}/{inst_id} must be a non-empty string')
-		paths[key] = _expand_path(val)
-	if 'antigravity' == adapter_kind:
-		if 'config_dir' not in paths and 'projects_dir' in paths and 'projects' == Path(paths['projects_dir']).name:
-			paths['config_dir'] = Path(paths['projects_dir']).parent.as_posix()
-		if 'config_dir' in paths:
-			cfg_dir = Path(paths['config_dir'])
-			paths.setdefault('projects_dir', (cfg_dir / 'projects').as_posix())
-			for key, fname in (('config_json', 'config.json'), ('hooks_json', 'hooks.json'), ('mcp_config_json', 'mcp_config.json'), ('rules_json', 'rules.json'), ('skills_json', 'skills.json'), ('agents_json', 'agents.json')):
-				paths.setdefault(key, (cfg_dir / fname).as_posix())
-		if 'backend_dir' not in paths:
-			for key in ('conversations_db', 'brain_dir', 'conversations_dir', 'annotations_dir', 'knowledge_dir'):
-				if key in paths:
-					paths['backend_dir'] = Path(paths[key]).parent.as_posix()
-					break
-		if 'backend_dir' in paths:
-			backend = Path(paths['backend_dir'])
-			paths.setdefault('conversations_db', (backend / 'conversation_summaries.db').as_posix())
-			paths.setdefault('conversations_dir', (backend / 'conversations').as_posix())
-			paths.setdefault('brain_dir', (backend / 'brain').as_posix())
-			paths.setdefault('annotations_dir', (backend / 'annotations').as_posix())
-			paths.setdefault('knowledge_dir', (backend / 'knowledge').as_posix())
-	elif 'codex' == adapter_kind:
-		if 'home' not in paths:
-			for key in ('config_toml', 'agents_md', 'session_index', 'global_state', 'ui_folders', 'logs_db', 'memories_db', 'models_cache_json', 'sessions_dir', 'agents_dir', 'skills_dir', 'state_db_glob'):
-				if key in paths:
-					paths['home'] = Path(paths[key]).parent.as_posix()
-					break
-		if 'home' in paths:
-			c_home = Path(paths['home'])
-			paths.setdefault('sessions_dir', (c_home / 'sessions').as_posix())
-			paths.setdefault('state_db_glob', (c_home / 'state_*.sqlite').as_posix())
-			paths.setdefault('config_toml', (c_home / 'config.toml').as_posix())
+	paths.update(explicit)
 	if 'home' not in paths and 'config_dir' in paths:
 		cfg_p = Path(paths['config_dir'])
 		if 'config' == cfg_p.name and '.gemini' == cfg_p.parent.name:
@@ -217,8 +240,17 @@ def extract_platform_instances(plat_cfg, *, platform='', include_disabled=False)
 	return out
 def extract_platform_homes(plat_cfg, *, platform='', include_disabled=False):
 	return {name: item['home'] for name, item in extract_platform_instances(plat_cfg, platform=platform, include_disabled=include_disabled).items() if item.get('home')}
+def _resolve_platform_cfg(platform, *, config=None):
+	cfg_all = config or settings()
+	plats = cfg_all.get('platforms') or {}
+	if platform in plats:
+		return (platform, plats[platform])
+	key = platform_key_for_adapter(platform, cfg_all)
+	if key and key in plats:
+		return (key, plats[key])
+	return (platform, None)
 def platform_enabled(platform, *, config=None):
-	cfg = (config or settings())['platforms'].get(platform)
+	_, cfg = _resolve_platform_cfg(platform, config=config)
 	if not isinstance(cfg, dict):
 		raise ValueError(f'Unknown Upwork platform: {platform}')
 	val = cfg.get('enabled', True)
@@ -226,21 +258,21 @@ def platform_enabled(platform, *, config=None):
 		raise ValueError(f'runtime.json platforms.{platform}.enabled must be a boolean')
 	return val
 def platform_instances(platform, *, config=None, include_disabled=False):
-	cfg = (config or settings())['platforms'].get(platform)
+	resolved_id, cfg = _resolve_platform_cfg(platform, config=config)
 	if None is cfg:
 		raise ValueError(f'Unknown Upwork platform: {platform}')
-	return extract_platform_instances(cfg, platform=platform, include_disabled=include_disabled)
+	return extract_platform_instances(cfg, platform=resolved_id, include_disabled=include_disabled)
 def platform_homes(platform, *, config=None, include_disabled=False):
-	cfg = (config or settings())['platforms'].get(platform)
+	resolved_id, cfg = _resolve_platform_cfg(platform, config=config)
 	if None is cfg:
 		raise ValueError(f'Unknown Upwork platform: {platform}')
-	return extract_platform_homes(cfg, platform=platform, include_disabled=include_disabled)
+	return extract_platform_homes(cfg, platform=resolved_id, include_disabled=include_disabled)
 def platform_active(platform, *, config=None):
 	cfg_all = config or settings()
-	plat_cfg = cfg_all['platforms'].get(platform)
-	if not isinstance(plat_cfg, dict) or (not platform_enabled(platform, config=cfg_all)):
+	resolved_id, plat_cfg = _resolve_platform_cfg(platform, config=cfg_all)
+	if not isinstance(plat_cfg, dict) or (not platform_enabled(resolved_id, config=cfg_all)):
 		return False
-	declared = extract_platform_instances(plat_cfg, platform=platform, include_disabled=True)
+	declared = extract_platform_instances(plat_cfg, platform=resolved_id, include_disabled=True)
 	if declared:
 		return any((item['enabled'] for item in declared.values()))
 	return True
@@ -250,10 +282,14 @@ def enabled_platforms(*, config=None):
 def instance_entry(instance_id, *, platform=None, config=None, include_disabled=True):
 	cfg_all = config or settings()
 	matches = []
-	targets = [platform] if platform else list(cfg_all['platforms'])
+	if platform:
+		resolved_id, resolved_cfg = _resolve_platform_cfg(platform, config=cfg_all)
+		if None is resolved_cfg:
+			raise ValueError(f'Unknown Upwork platform: {platform}')
+		targets = [resolved_id]
+	else:
+		targets = list(cfg_all['platforms'])
 	for plat_id in targets:
-		if plat_id not in cfg_all['platforms']:
-			raise ValueError(f'Unknown Upwork platform: {plat_id}')
 		insts = platform_instances(plat_id, config=cfg_all, include_disabled=include_disabled)
 		if instance_id in insts:
 			matches.append(insts[instance_id])
@@ -266,16 +302,19 @@ def instance_entry(instance_id, *, platform=None, config=None, include_disabled=
 def instance_paths(instance_id, *, platform=None, config=None, include_disabled=True):
 	return instance_entry(instance_id, platform=platform, config=config, include_disabled=include_disabled)['system_paths']
 def _exists_flag(path_str):
-	text = str(path_str)
-	if '*' in text or '?' in text:
-		p = Path(text)
-		return p.parent.is_dir() and bool(list(p.parent.glob(p.name)))
+	text = _expand_path(path_str) if isinstance(path_str, str) else str(path_str)
+	if _has_glob_wildcard(text):
+		return any((Path(match).exists() for match in glob.glob(text, recursive=True)))
 	return Path(text).exists()
 def all_instances(*, config=None, platform=None, include_disabled=True, check_exists=False):
 	cfg_all = config or settings()
-	if platform and platform not in cfg_all['platforms']:
-		raise ValueError(f'Unknown Upwork platform: {platform}')
-	plat_names = [platform] if platform else list(cfg_all['platforms'])
+	if platform:
+		resolved_id, resolved_cfg = _resolve_platform_cfg(platform, config=cfg_all)
+		if None is resolved_cfg:
+			raise ValueError(f'Unknown Upwork platform: {platform}')
+		plat_names = [resolved_id]
+	else:
+		plat_names = list(cfg_all['platforms'])
 	envs = {}
 	flat = {}
 	for plat_id in plat_names:
@@ -344,7 +383,10 @@ def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=No
 		return None
 	sp = system_paths or {}
 	glob_raw = sp.get('state_db_glob')
-	db_files = sorted(Path(glob_raw).parent.glob(Path(glob_raw).name)) if glob_raw else (sorted(home.glob('state_*.sqlite')) if home else [])
+	if glob_raw:
+		db_files = [p for p in _resolve_glob_paths(glob_raw, home) if p.is_file()]
+	else:
+		db_files = [p for p in sorted(home.glob('state_*.sqlite')) if p.is_file()] if home else []
 	for db_file in db_files:
 		try:
 			conn = sqlite3.connect(db_file.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)
@@ -364,11 +406,15 @@ def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=No
 	return None
 def find_conversation_instance(conversation_id, *, platform=None, config=None, include_disabled=True):
 	cfg_all = config or settings()
-	targets = [platform] if platform else list(cfg_all['platforms'])
+	if platform:
+		resolved_id, resolved_cfg = _resolve_platform_cfg(platform, config=cfg_all)
+		if None is resolved_cfg:
+			raise ValueError(f'Unknown Upwork platform: {platform}')
+		targets = [resolved_id]
+	else:
+		targets = list(cfg_all['platforms'])
 	found = []
 	for plat_id in targets:
-		if plat_id not in cfg_all['platforms']:
-			raise ValueError(f'Unknown Upwork platform: {plat_id}')
 		plat_cfg = cfg_all['platforms'][plat_id]
 		adapter_kind = platform_adapter_name(plat_id, plat_cfg)
 		for iid, item in extract_platform_instances(plat_cfg, platform=plat_id, include_disabled=include_disabled).items():
@@ -401,8 +447,9 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 			if None is backend:
 				raise
 			cfg_all = None
-	ag_cfg = ((cfg_all or {}).get('platforms') or {}).get('antigravity')
-	ag_insts = extract_platform_instances(ag_cfg, platform='antigravity', include_disabled=True) if isinstance(ag_cfg, dict) else {}
+	ag_plat = platform_key_for_adapter('antigravity', cfg_all) if cfg_all else 'antigravity'
+	ag_cfg = ((cfg_all or {}).get('platforms') or {}).get(ag_plat) if ag_plat else None
+	ag_insts = extract_platform_instances(ag_cfg, platform=ag_plat, include_disabled=True) if isinstance(ag_cfg, dict) else {}
 	explicit_inst = instance or _instance.get() or os.environ.get('UPWORK_INSTANCE')
 	matched_entry = None
 	if None is not backend:
@@ -430,9 +477,9 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 		sp = dict((matched_entry or {}).get('system_paths') or {})
 	else:
 		if explicit_inst:
-			matched_entry = instance_entry(explicit_inst, platform='antigravity', config=cfg_all, include_disabled=True)
-		elif conversation_id and cfg_all and ('antigravity' in cfg_all.get('platforms', {})):
-			matches = find_conversation_instance(conversation_id, platform='antigravity', config=cfg_all, include_disabled=True)
+			matched_entry = instance_entry(explicit_inst, platform=ag_plat or 'antigravity', config=cfg_all, include_disabled=True)
+		elif conversation_id and cfg_all and ag_plat and (ag_plat in cfg_all.get('platforms', {})):
+			matches = find_conversation_instance(conversation_id, platform=ag_plat, config=cfg_all, include_disabled=True)
 			if 1 == len(matches):
 				matched_entry = ag_insts.get(matches[0]['id']) or {'id': matches[0]['id'], 'system_paths': matches[0]['system_paths']}
 			elif 1 < len(matches):
@@ -446,7 +493,7 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 				matched_entry = home_matches[0]
 			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else home_backend
 		else:
-			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry['system_paths'].get('backend_dir') else Path.home() / '.gemini/antigravity'
+			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else Path.home() / '.gemini/antigravity'
 		sp = dict((matched_entry or {}).get('system_paths') or {})
 	backend_res = backend_p.resolve()
 	return {
@@ -467,19 +514,20 @@ def resolve_codex_home(backend=None, *, instance=None, conversation_id=None, con
 	if None is not backend:
 		return Path(backend).resolve()
 	cfg_all = config or settings()
+	cx_plat = platform_key_for_adapter('codex', cfg_all) or 'codex'
 	if None is not codex_cfg:
-		cfg_all = {**cfg_all, 'platforms': {**cfg_all['platforms'], 'codex': codex_cfg}}
-	if 'codex' not in cfg_all['platforms']:
+		cfg_all = {**cfg_all, 'platforms': {**cfg_all['platforms'], cx_plat: codex_cfg}}
+	if cx_plat not in cfg_all['platforms']:
 		raise ValueError('Unknown Upwork platform: codex')
-	resolved_codex_cfg = cfg_all['platforms']['codex']
-	homes = extract_platform_homes(resolved_codex_cfg, platform='codex', include_disabled=True)
+	resolved_codex_cfg = cfg_all['platforms'][cx_plat]
+	homes = extract_platform_homes(resolved_codex_cfg, platform=cx_plat, include_disabled=True)
 	explicit_profile = _profile.get() or os.environ.get('UPWORK_CODEX_PROFILE')
 	if explicit_profile:
 		if explicit_profile not in homes:
 			raise ValueError('Unknown Codex profile')
 		return Path(homes[explicit_profile]).resolve()
 	if instance:
-		entry = instance_entry(instance, platform='codex', config=cfg_all, include_disabled=True)
+		entry = instance_entry(instance, platform=cx_plat, config=cfg_all, include_disabled=True)
 		if not entry.get('home'):
 			raise ValueError('Unknown Codex profile')
 		return Path(entry['home']).resolve()
@@ -487,8 +535,8 @@ def resolve_codex_home(backend=None, *, instance=None, conversation_id=None, con
 	if context_inst and context_inst in homes:
 		return Path(homes[context_inst]).resolve()
 	if not os.environ.get('CODEX_HOME') and conversation_id:
-		matches = find_conversation_instance(conversation_id, platform='codex', config=cfg_all, include_disabled=True)
-		if 1 == len(matches):
+		matches = find_conversation_instance(conversation_id, platform=cx_plat, config=cfg_all, include_disabled=True)
+		if 1 == len(matches) and matches[0].get('backend_dir'):
 			return Path(matches[0]['backend_dir']).resolve()
 		if 1 < len(matches):
 			ids = ', '.join((m['id'] for m in matches))
@@ -498,45 +546,62 @@ def resolve_codex_home(backend=None, *, instance=None, conversation_id=None, con
 		raise ValueError('Unknown Codex profile')
 	return Path(homes[name]).resolve()
 def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, config=None, codex_cfg=None):
-	home_p = resolve_codex_home(backend, instance=instance, conversation_id=conversation_id, config=config, codex_cfg=codex_cfg)
+	cfg_all = config
+	if None is cfg_all:
+		try:
+			cfg_all = settings()
+		except (OSError, ValueError):
+			cfg_all = None
 	resolved_codex_cfg = codex_cfg
-	if None is resolved_codex_cfg:
-		cfg_all = config
-		if None is cfg_all:
-			try:
-				cfg_all = settings()
-			except (OSError, ValueError):
-				cfg_all = None
-		resolved_codex_cfg = ((cfg_all or {}).get('platforms') or {}).get('codex')
-	all_insts = extract_platform_instances(resolved_codex_cfg, platform='codex', include_disabled=True) if isinstance(resolved_codex_cfg, dict) else {}
+	cx_plat = platform_key_for_adapter('codex', cfg_all) if cfg_all else None
+	if None is resolved_codex_cfg and cfg_all and cx_plat:
+		resolved_codex_cfg = (cfg_all.get('platforms') or {}).get(cx_plat)
+	all_insts = extract_platform_instances(resolved_codex_cfg, platform=cx_plat or 'codex', include_disabled=True) if isinstance(resolved_codex_cfg, dict) else {}
 	explicit_id = _profile.get() or os.environ.get('UPWORK_CODEX_PROFILE') or instance or _instance.get() or os.environ.get('UPWORK_INSTANCE')
 	matched_entry = None
-	if explicit_id and explicit_id in all_insts:
-		cand = all_insts[explicit_id]
-		if not cand.get('home') or Path(cand['home']).resolve() == home_p:
-			matched_entry = cand
-	if None is matched_entry:
-		matches = [inst for inst in all_insts.values() if inst.get('home') and Path(inst['home']).resolve() == home_p]
-		if 1 == len(matches):
-			matched_entry = matches[0]
-		elif 1 < len(matches):
-			if conversation_id:
-				conv_matches = [inst for inst in matches if _codex_home_conversation_trace(inst.get('home'), conversation_id, system_paths=inst['system_paths'])]
-				if 1 == len(conv_matches):
-					matched_entry = conv_matches[0]
-			if None is matched_entry:
+	home_p = Path(backend).resolve() if None is not backend else None
+	if None is home_p:
+		if explicit_id and explicit_id in all_insts:
+			matched_entry = all_insts[explicit_id]
+		elif not os.environ.get('CODEX_HOME') and conversation_id and cfg_all and cx_plat:
+			matches = find_conversation_instance(conversation_id, platform=cx_plat, config=cfg_all, include_disabled=True)
+			if 1 == len(matches):
+				matched_entry = all_insts.get(matches[0]['id']) or {'id': matches[0]['id'], 'home': matches[0].get('backend_dir'), 'system_paths': matches[0]['system_paths']}
+			elif 1 < len(matches):
+				ids = ', '.join((m['id'] for m in matches))
+				raise ValueError(f'Conversation UUID {conversation_id} exists in multiple Codex instances ({ids}); pass --instance or --codex-profile')
+		if None is not matched_entry and matched_entry.get('home'):
+			home_p = Path(matched_entry['home']).resolve()
+		elif None is matched_entry:
+			home_p = resolve_codex_home(backend, instance=instance, conversation_id=conversation_id, config=cfg_all, codex_cfg=codex_cfg)
+	if None is not home_p:
+		if explicit_id and explicit_id in all_insts:
+			cand = all_insts[explicit_id]
+			if not cand.get('home') or Path(cand['home']).resolve() == home_p:
+				matched_entry = cand
+		if None is matched_entry:
+			matches = [inst for inst in all_insts.values() if inst.get('home') and Path(inst['home']).resolve() == home_p]
+			if 1 == len(matches):
 				matched_entry = matches[0]
+			elif 1 < len(matches):
+				if conversation_id:
+					conv_matches = [inst for inst in matches if _codex_home_conversation_trace(inst.get('home'), conversation_id, system_paths=inst['system_paths'])]
+					if 1 == len(conv_matches):
+						matched_entry = conv_matches[0]
+				if None is matched_entry:
+					matched_entry = matches[0]
 	sp = dict((matched_entry or {}).get('system_paths') or {})
 	return {
 		'instance': matched_entry.get('id') if matched_entry else None,
 		'home': home_p,
-		'state_db_glob': sp.get('state_db_glob') or (home_p / 'state_*.sqlite').as_posix(),
-		'sessions_dir': Path(sp['sessions_dir']) if sp.get('sessions_dir') else home_p / 'sessions',
-		'config_toml': Path(sp['config_toml']) if sp.get('config_toml') else home_p / 'config.toml',
+		'state_db_glob': sp.get('state_db_glob') or ((home_p / 'state_*.sqlite').as_posix() if home_p else None),
+		'sessions_dir': Path(sp['sessions_dir']) if sp.get('sessions_dir') else (home_p / 'sessions' if home_p else None),
+		'config_toml': Path(sp['config_toml']) if sp.get('config_toml') else (home_p / 'config.toml' if home_p else None),
 		'system_paths': sp,
 	}
 def platform_name(value=None, *, config=None):
 	cfg_all = config or settings()
+	plats = cfg_all['platforms']
 	name = value or _platform.get() or os.environ.get('UPWORK_PLATFORM')
 	if not name:
 		inst = _instance.get() or os.environ.get('UPWORK_INSTANCE')
@@ -546,23 +611,27 @@ def platform_name(value=None, *, config=None):
 			except ValueError:
 				name = None
 	if not name:
-		plats = cfg_all['platforms']
-		if 'antigravity' in plats and platform_active('antigravity', config=cfg_all):
-			name = 'antigravity'
+		ag_plat = platform_key_for_adapter('antigravity', cfg_all)
+		if ag_plat and platform_active(ag_plat, config=cfg_all):
+			name = ag_plat
 		else:
 			active = enabled_platforms(config=cfg_all)
-			name = active[0] if active else ('antigravity' if 'antigravity' in plats else next(iter(plats)))
-	if name not in cfg_all['platforms']:
-		raise ValueError(f'Unknown Upwork platform: {name}')
+			name = active[0] if active else (ag_plat if ag_plat else next(iter(plats)))
+	if name not in plats:
+		resolved_key = platform_key_for_adapter(name, cfg_all)
+		if not resolved_key:
+			raise ValueError(f'Unknown Upwork platform: {name}')
+		name = resolved_key
 	r = name
 	return r
 def profile_name(value=None, *, config=None, include_disabled=True):
 	cfg_all = config or settings()
-	codex_cfg = cfg_all['platforms'].get('codex')
+	cx_plat = platform_key_for_adapter('codex', cfg_all)
+	codex_cfg = cfg_all['platforms'].get(cx_plat) if cx_plat else None
 	if not isinstance(codex_cfg, dict):
 		raise ValueError('Unknown Upwork platform: codex')
-	all_insts = extract_platform_instances(codex_cfg, platform='codex', include_disabled=True)
-	homes = extract_platform_homes(codex_cfg, platform='codex', include_disabled=include_disabled)
+	all_insts = extract_platform_instances(codex_cfg, platform=cx_plat, include_disabled=True)
+	homes = extract_platform_homes(codex_cfg, platform=cx_plat, include_disabled=include_disabled)
 	explicit_inst = _instance.get() or os.environ.get('UPWORK_INSTANCE')
 	if value or _profile.get() or os.environ.get('UPWORK_CODEX_PROFILE'):
 		r = value or _profile.get() or os.environ['UPWORK_CODEX_PROFILE']
@@ -580,11 +649,12 @@ def profile_name(value=None, *, config=None, include_disabled=True):
 	return r
 def registration_profile_name(value=None, *, config=None):
 	cfg_all = config or settings()
-	if 'codex' not in cfg_all['platforms']:
+	cx_plat = platform_key_for_adapter('codex', cfg_all)
+	if not cx_plat or cx_plat not in cfg_all['platforms']:
 		raise ValueError('Unknown Upwork platform: codex')
-	plat_cfg = cfg_all['platforms']['codex']
-	enabled_homes = extract_platform_homes(plat_cfg, platform='codex', include_disabled=False)
-	all_homes = extract_platform_homes(plat_cfg, platform='codex', include_disabled=True)
+	plat_cfg = cfg_all['platforms'][cx_plat]
+	enabled_homes = extract_platform_homes(plat_cfg, platform=cx_plat, include_disabled=False)
+	all_homes = extract_platform_homes(plat_cfg, platform=cx_plat, include_disabled=True)
 	if not enabled_homes:
 		raise ValueError('Codex has no enabled instances in runtime.json')
 	explicit_inst = _instance.get() or os.environ.get('UPWORK_INSTANCE')
@@ -593,7 +663,7 @@ def registration_profile_name(value=None, *, config=None):
 	else:
 		name = plat_cfg.get('registration_profile')
 		if not name:
-			default_inst = [iid for iid, item in extract_platform_instances(plat_cfg, platform='codex', include_disabled=False).items() if item.get('default_registration')]
+			default_inst = [iid for iid, item in extract_platform_instances(plat_cfg, platform=cx_plat, include_disabled=False).items() if item.get('default_registration')]
 			if 1 == len(default_inst):
 				name = default_inst[0]
 		if not name:

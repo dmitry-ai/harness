@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
@@ -88,7 +91,7 @@ from . import journal
 from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_lifecycle_status, evidence_issue_files as _evidence_issue_files, evidence_issue_state as _evidence_issue_state, origin_repo_slug as _origin_repo_slug
 from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
-from .runtime import PRIMARY, platform_name, settings
+from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
 COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch', 'reconcile-unprepared-delivery')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
@@ -572,8 +575,14 @@ def _budget_status(root, turn):
 def _instruction_snapshot(root, native, *, stage):
 	from .configuration import _project_rule_paths
 	root = Path(root).resolve()
+	plat_id = native['platform']
+	plat_cfg = (settings().get('platforms') or {}).get(plat_id)
+	adapter_kind = platform_adapter_name(plat_id, plat_cfg)
 	sources = {path: 'canonical' for path in sorted((PRIMARY / 'rules').glob('*.md'))}
-	sources.update({PRIMARY / 'runtime.json': 'runtime', PRIMARY / 'platforms' / (native['platform'] + '.md'): 'adapter'})
+	sources[PRIMARY / 'runtime.json'] = 'runtime'
+	adapter_doc = PRIMARY / 'platforms' / (adapter_kind + '.md')
+	if adapter_doc.is_file():
+		sources[adapter_doc] = 'adapter'
 	errors = []
 	manifest = root / '.agents/rules.json'
 	if manifest.exists():
@@ -582,12 +591,13 @@ def _instruction_snapshot(root, native, *, stage):
 		sources.update({path: 'project-rule' for path in _project_rule_paths(root, PRIMARY)})
 	except (OSError, ValueError) as exc:
 		errors.append(str(exc))
-	if 'codex' == native['platform']:
+	if 'codex' == adapter_kind:
 		workspace = Path(settings()['workspace_root']).resolve()
 		folders = [root]
 		if root.is_relative_to(workspace):
 			folders += [parent for parent in root.parents if parent == workspace or parent.is_relative_to(workspace)]
-		folders.append(Path(native['native_backend']))
+		if native.get('native_backend'):
+			folders.append(Path(native['native_backend']))
 		for folder in folders:
 			for name in ('AGENTS.md', 'AGENTS.override.md'):
 				path = folder / name

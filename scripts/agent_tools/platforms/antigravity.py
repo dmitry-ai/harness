@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -68,25 +71,43 @@ import json
 import re
 import sqlite3
 import uuid
-from ..runtime import platform_instances, platform_settings, request_day, resolve_antigravity_backend, resolve_antigravity_paths, settings
+from ..runtime import platform_instances, platform_key_for_adapter, platform_settings, request_day, resolve_antigravity_backend, resolve_antigravity_paths, settings
 from ..knowledge import json_bytes
 from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import create_bytes, replace_bytes, locked
 from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, extract_resource_uri, finalize_executor_checks, init_turn_accumulator, iter_antigravity_subagents, local_uri_to_path, make_tool_trace_event, merge_turn_accumulators, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, read_jsonl_objects, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
 def _default_folders_json():
-	ag = settings()['platforms'].get('antigravity') or {}
+	cfg_all = settings()
+	ag_key = platform_key_for_adapter('antigravity', cfg_all) or 'antigravity'
+	ag = (cfg_all.get('platforms') or {}).get(ag_key) or {}
 	if isinstance(ag.get('folders_json'), str) and ag['folders_json'].strip():
 		return Path(ag['folders_json'])
-	for inst in platform_instances('antigravity', include_disabled=True).values():
+	for inst in platform_instances(ag_key, config=cfg_all, include_disabled=True).values():
 		if inst['system_paths'].get('folders_json'):
 			return Path(inst['system_paths']['folders_json'])
 	raise ValueError('Antigravity folders_json is not configured in runtime.json')
 ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
 try:
-	_ag_init_cfg = settings()['platforms'].get('antigravity') or {}
+	_ag_init_all = settings()
+	_ag_init_key = platform_key_for_adapter('antigravity', _ag_init_all) or 'antigravity'
+	_ag_init_cfg = (_ag_init_all.get('platforms') or {}).get(_ag_init_key) or {}
 	ANTIGRAVITY_FOLDERS_JSON = Path(_ag_init_cfg['folders_json']) if _ag_init_cfg.get('folders_json') else None
 except (OSError, ValueError, KeyError, TypeError):
 	ANTIGRAVITY_FOLDERS_JSON = None
+_INITIAL_ANTIGRAVITY_FOLDERS_JSON = ANTIGRAVITY_FOLDERS_JSON
+def _resolve_folders_json(folders_json_path=None, sp=None):
+	if None is not folders_json_path:
+		return Path(folders_json_path)
+	if sp and sp.get('folders_json'):
+		return Path(sp['folders_json'])
+	if ANTIGRAVITY_FOLDERS_JSON != _INITIAL_ANTIGRAVITY_FOLDERS_JSON and None is not ANTIGRAVITY_FOLDERS_JSON:
+		return Path(ANTIGRAVITY_FOLDERS_JSON)
+	try:
+		return _default_folders_json()
+	except (OSError, ValueError, KeyError, TypeError):
+		if None is not ANTIGRAVITY_FOLDERS_JSON:
+			return Path(ANTIGRAVITY_FOLDERS_JSON)
+		raise
 COMPLETED_STEP_STATUSES = (3, 5)
 _SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment'}
 def _antigravity_paths(backend=None, *, instance=None, conversation_id=None):
@@ -281,7 +302,7 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None, pr
 	day = request_day(date_str) if date_str else date(int(root.parents[2].name), int(root.parents[1].name), int(root.parent.name))
 	name = f'{domain_or_topic} - U.P.{day:%Y.%m.%d}'
 	with locked(projects / 'ꘖ' / 'data' / 'registration.lock'):
-		folders = Path(folders_json_path if None is not folders_json_path else (ANTIGRAVITY_FOLDERS_JSON if None is not ANTIGRAVITY_FOLDERS_JSON else _default_folders_json()))
+		folders = _resolve_folders_json(folders_json_path)
 		before = folders.read_bytes()
 		listing = json.loads(before.decode('utf-8-sig'))
 		nodes, assignments = (listing.get('folders'), listing.get('projectFolderMap'))
@@ -761,7 +782,7 @@ def verify_native_proof(root, native, package=None):
 	return r
 def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, folders_json_path=None):
 	if None is not projects_dir or None is not folders_json_path:
-		return register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=projects_dir or ANTIGRAVITY_PROJECTS_DIR, folders_json_path=folders_json_path or (ANTIGRAVITY_FOLDERS_JSON if None is not ANTIGRAVITY_FOLDERS_JSON else _default_folders_json()))
+		return register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=projects_dir or ANTIGRAVITY_PROJECTS_DIR, folders_json_path=_resolve_folders_json(folders_json_path))
 	insts = platform_instances('antigravity', include_disabled=False)
 	if not insts:
 		raise ValueError('Antigravity has no enabled instances in runtime.json')
@@ -782,7 +803,7 @@ def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, 
 	primary_receipt = None
 	for iid, inst in ordered:
 		sp = inst['system_paths']
-		folders_target = Path(sp['folders_json']) if sp.get('folders_json') else (ANTIGRAVITY_FOLDERS_JSON if None is not ANTIGRAVITY_FOLDERS_JSON else _default_folders_json())
+		folders_target = _resolve_folders_json(sp=sp)
 		receipt = register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=Path(sp['projects_dir']), folders_json_path=folders_target, preferred_id=preferred_id)
 		preferred_id = preferred_id or receipt['project_id']
 		per_instance[iid] = receipt

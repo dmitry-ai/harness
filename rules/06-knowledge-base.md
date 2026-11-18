@@ -18,10 +18,10 @@ H and M conform to [DOC-2](04-statement-structure.md#doc-2) and [DOC-3](04-state
 A mentioned domain, a name in a review, a prior contract, or a folder name does not establish identity, website ownership, or that all jobs belong to one business.  
 ## KB-3
 Read the overview and relevant topical modules before investigating; save new verified findings and corrections before responding, updating dependencies and the glossary.  
-Internal agents of both platforms work with their own agent KB (`ꘖ/KB`), primary evidence, and its `Progress.md` navigation.  
+Internal agents of every active environment work with their own agent KB (`ꘖ/KB`), primary evidence, and its `Progress.md` navigation.  
 Keep the KB current and self-consistent at all times: after new data arrives, audit dependent claims, update permitted modules, and explicitly mark anything unverified or stale.  
 After an interruption and a `"Continue analysis"` request in the current chat, restore the next step from the KB and service receipts; the mere presence of an old file does not prove stage completion.  
-A project may be continued in the other platform and in a new chat using the same root on disk, including semi-manual proposal preparation after initial analysis.  
+A project may be continued in another environment or instance and in a new chat using the same root on disk, including semi-manual proposal preparation after initial analysis.  
 Also read the exact journal and existing `result/**/draft.md`/`final.md`; do not carry over a conversation from one platform to another via fabricated history.  
 Record the current instruction, working files, open questions, and next step in `ꘖ/data/continuation.md` with links to real artifacts.  
 Completion of initial analysis and readiness of a proposal are distinct; a new instruction regarding a draft does not by itself require re-collection or all five analysis stages.  
