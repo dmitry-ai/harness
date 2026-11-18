@@ -1,3 +1,6 @@
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
+# https://github.com/dmitry-ai/harness/issues/88
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
@@ -177,6 +180,15 @@ class AgentsLoaderTests(TemporaryCase):
 		actions = inspector.extract_issue_actions(['{"ok": true, "action": "edit", "repo": "dmitry-ai/harness", "number": 67, "state": "open"}'])
 		self.assertEqual(1, len(actions))
 		self.assertEqual(67, actions[0]['number'])
+		grep_out = 'code\\tests\\test_agents_loader.py:177:\t\tactions = inspector.extract_issue_actions([\'{"ok": true, "action": "edit", "repo": "dmitry-ai/harness", "number": 67, "state": "open"}\'])'
+		self.assertEqual([], inspector.extract_issue_actions([grep_out]))
+		viewer_out = 'Showing lines 165-190 of 201\n177: \t\tactions = inspector.extract_issue_actions([\'{"ok": true, "action": "edit", "repo": "dmitry-ai/harness", "number": 67, "state": "open"}\'])'
+		self.assertEqual([], inspector.extract_issue_actions([viewer_out]))
+		multi_out = '{\n  "ok": true,\n  "action": "create",\n  "repo": "dmitry-ai/harness",\n  "number": 88,\n  "parent_number": 82\n}\n{\n  "ok": true,\n  "action": "close",\n  "repo": "dmitry-ai/harness",\n  "number": 88,\n  "state": "closed"\n}\n'
+		multi_actions = inspector.extract_issue_actions([multi_out])
+		self.assertEqual(2, len(multi_actions))
+		self.assertEqual(82, multi_actions[0].get('parent_number'))
+		self.assertEqual('closed', multi_actions[1].get('state'))
 		code_repo = self.root / 'sp_proj/code'
 		(self.root / 'sp_proj/_').mkdir(parents=True)
 		code_repo.mkdir(parents=True)

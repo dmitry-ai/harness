@@ -1,4 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
+# https://github.com/dmitry-ai/harness/issues/88
+# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -11,7 +14,6 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import urlsplit
-from .storage import iter_embedded_json_objects
 READ_SUBCOMMANDS = ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files')
 _ADHOC_HTTP_CLIENT_RE = re.compile('(?:\\burllib\\.request\\b|\\burlopen\\s*\\(|\\brequests\\.(?:get|post|head|request|Session)\\b|\\bhttpx\\.(?:get|post|Client)\\b|\\bInvoke-(?:WebRequest|RestMethod)\\b|\\b(?:iwr|irm|curl(?:\\.exe)?|wget(?:\\.exe)?)\\s+)', re.I)
 _CDP_PROTOCOL_RE = re.compile('(?:(?:https?|wss?)://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?(?:/json(?:/|$|["\'\\s?])|/devtools/(?:page|browser)(?:/|$|["\'\\s?]))|(?:/json/(?:list|version|new|activate|close|protocol)\\b|/devtools/(?:page|browser)/[A-Za-z0-9_-]*)|\\bDevToolsActivePort\\b|\\bchrome-remote-interface\\b|\\bchrome-devtools-mcp\\b[^\\r\\n]*(?:--browser-url|--browserUrl|--autoConnect)\\b)', re.I)
@@ -116,13 +118,29 @@ class ShellCommandInspector:
 		return (tokens[sub_idx] if None is not sub_idx else None, has_flag)
 	def extract_issue_actions(self, outputs: list[str] | tuple[str, ...]) -> list[dict]:
 		r: list[dict] = []
+		decoder = json.JSONDecoder()
 		for text in outputs or ():
-			if isinstance(text, str) and '"action"' in text and ('"repo"' in text) and (not re.search('(?m)^Ran \\d+ tests? in \\d', text)) and (not re.search('(?i)"consumed_files"\\s*:\\s*\\[\\s*"[^"]*(?:[/\\\\\\\\]temp[/\\\\\\\\]|[/\\\\\\\\]tmp[/\\\\\\\\])', text)):
-				for obj in iter_embedded_json_objects(text, parse_root=False, recursive=False):
-					consumed = obj.get('consumed_files') if isinstance(obj, dict) else None
-					act = obj.get('action') if isinstance(obj, dict) else None
-					repo = obj.get('repo') if isinstance(obj, dict) else None
-					if isinstance(obj, dict) and obj.get('ok', True) and (not (isinstance(consumed, list) and any((re.search('(?i)(?:[/\\\\]temp[/\\\\]|[/\\\\]tmp[/\\\\])', str(cf)) for cf in consumed)))) and (act in ('create', 'edit', 'comment', 'close')) and isinstance(repo, str) and ('/' in repo):
+			if isinstance(text, str) and '"action"' in text and ('"repo"' in text) and (not re.search('(?m)^Ran \\d+ tests? in \\d', text)) and (not re.search('(?m)^Showing lines \\d+-\\d+ of \\d+\\b', text)) and (not re.search('(?i)"consumed_files"\\s*:\\s*\\[\\s*"[^"]*(?:[/\\\\\\\\]temp[/\\\\\\\\]|[/\\\\\\\\]tmp[/\\\\\\\\])', text)):
+				pos = 0
+				while True:
+					m_brace = re.search('(?m)^[ \\t]*\\{', text[pos:])
+					if not m_brace:
+						break
+					raw_start = text.find('{', pos + m_brace.start())
+					try:
+						obj, end_idx = decoder.raw_decode(text, raw_start)
+					except ValueError:
+						pos = raw_start + 1
+						continue
+					nl_idx = text.find('\n', end_idx)
+					tail = text[end_idx:] if -1 == nl_idx else text[end_idx:nl_idx]
+					pos = end_idx
+					if tail.strip() or not isinstance(obj, dict):
+						continue
+					consumed = obj.get('consumed_files')
+					act = obj.get('action')
+					repo = obj.get('repo')
+					if obj.get('ok', True) and (not (isinstance(consumed, list) and any((re.search('(?i)(?:[/\\\\]temp[/\\\\]|[/\\\\]tmp[/\\\\])', str(cf)) for cf in consumed)))) and (act in ('create', 'edit', 'comment', 'close')) and isinstance(repo, str) and ('/' in repo):
 						num = obj.get('number')
 						if None is num:
 							m = re.search('/issues/(\\d+)\\b', str(obj.get('html_url') or ''))
