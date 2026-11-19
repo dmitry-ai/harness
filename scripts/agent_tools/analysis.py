@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
@@ -131,24 +134,26 @@ def source_uri(argument, registry):
 def validate_analysis(value):
 	require_valid(analysis_issues(value))
 def save_analysis(root, candidate, expected_sha256=None):
+	from .path_registry import project_paths
 	from .research import inside
-	root = Path(root).resolve()
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
 	value = candidate if isinstance(candidate, dict) else json.loads(inside(root, candidate).read_text(encoding='utf-8-sig'))
 	validate_analysis(value)
 	require_current_contract(value)
 	from .evidence import evidence_issues
 	require_valid(evidence_issues(root, value, skip_structural=True))
 	payload = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode()
-	target = root / 'ꘖ/KB/Analysis.json'
+	target = pp.kb_dir / 'Analysis.json'
 	target.parent.mkdir(parents=True, exist_ok=True)
-	with locked(root / 'ꘖ/data/analysis.lock'):
+	with locked(pp.data_dir / 'analysis.lock'):
 		previous = target.read_bytes() if target.exists() else None
 		if None is not previous and digest(previous) != expected_sha256:
 			raise ValueError('Analysis changed or expected hash was not supplied; read current KB and reconcile the candidate')
 		if None is previous and None is not expected_sha256:
 			raise ValueError('Expected existing analysis is missing; preserve candidate and inspect state')
 		if None is not previous and previous != payload:
-			write_immutable_bytes(root / 'ꘖ/data/analysis-history' / (digest(previous) + '.json'), previous)
+			write_immutable_bytes(pp.data_dir / 'analysis-history' / (digest(previous) + '.json'), previous)
 		if (target.read_bytes() if target.exists() else None) != previous:
 			raise ValueError('Analysis changed during commit; external edit preserved')
 		if None is previous:
@@ -240,33 +245,40 @@ def _render_claim_contract(claim):
 	r = lines
 	return r
 def publish_analysis(source, target=None):
+	from .path_registry import project_paths, resolve_project_root
 	from .red_flags import sync_project_red_flags
 	source = Path(source).resolve()
 	value = json.loads(source.read_text(encoding='utf-8-sig'))
 	require_current_contract(value)
-	if not ('Analysis.json' == source.name and 'KB' == source.parent.name and ('ꘖ' == source.parent.parent.name)):
+	proj_root = resolve_project_root(source)
+	pp = project_paths(proj_root, exact_root=True)
+	expected_source = (pp.kb_dir / 'Analysis.json').resolve()
+	is_standard_layout = 'Analysis.json' == source.name and 'KB' == source.parent.name and ('ꘖ' == source.parent.parent.name)
+	if source != expected_source and (not is_standard_layout):
 		raise ValueError('Publish a reconciled schema 3 candidate from its project ꘖ/KB/Analysis.json')
+	if source != expected_source and is_standard_layout:
+		proj_root = source.parents[2]
 	from .evidence import evidence_issues
 	validate_analysis(value)
-	require_valid(evidence_issues(source.parents[2], value, skip_structural=True))
+	require_valid(evidence_issues(proj_root, value, skip_structural=True))
 	result = publish_owned(target or source.with_suffix('.md'), render_analysis(value), source=source)
 	if 'conflict' == result['status']:
 		r = result
 	else:
-		if 'Analysis.json' == source.name and 'KB' == source.parent.name and ('ꘖ' == source.parent.parent.name):
-			from .knowledge import sync_website_card
-			result['website_card'] = sync_website_card(source.parents[2], value)
-			card = sync_project_red_flags(source.parents[2], value)
-			result['project_card'] = card
-			if 'conflict' == card['status']:
-				result['status'] = 'conflict'
-			if 'conflict' == result['website_card']['status']:
-				result['status'] = 'conflict'
+		from .knowledge import sync_website_card
+		result['website_card'] = sync_website_card(proj_root, value)
+		card = sync_project_red_flags(proj_root, value)
+		result['project_card'] = card
+		if 'conflict' == card['status']:
+			result['status'] = 'conflict'
+		if 'conflict' == result['website_card']['status']:
+			result['status'] = 'conflict'
 		r = result
 	return r
 def digest(data):
 	return hashlib.sha256(data).hexdigest()
 def publish_owned(target, content, *, source=None, history=True):
+	from .path_registry import project_paths
 	target = Path(target).resolve()
 	payload = content.encode('utf-8') if isinstance(content, str) else content
 	if target.suffix.lower() in ('.md', '.markdown', '.txt', '.html', '.htm'):
@@ -274,8 +286,9 @@ def publish_owned(target, content, *, source=None, history=True):
 		issues = readable_link_issues(payload.decode('utf-8'))
 		if issues:
 			raise ValueError('\n'.join(issues))
-	state_dir = data_dir_for(target)
-	state_file = state_dir / 'rendered.json'
+	pp = project_paths(target)
+	state_dir = pp.data_dir
+	state_file = pp.rendered_json
 	with locked(state_dir / 'render.lock'):
 		receipt = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {}
 		key = str(target)

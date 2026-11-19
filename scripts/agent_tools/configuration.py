@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
@@ -90,7 +93,8 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 							raise ValueError('Legacy file changed during migration')
 						target.unlink()
 						previous.pop(str(target), None)
-					config = root / '.codex/config.toml'
+					from .path_registry import project_paths
+					config = project_paths(root, exact_root=True).codex_config_toml
 					if config in outputs:
 						if outputs[config].strip():
 							value = tomllib.loads(outputs[config]).get('developer_instructions', '')
@@ -184,7 +188,8 @@ def _root_options(text, instructions=None, *, legacy_bytes=None, expected_block=
 	tomllib.loads(text)
 	return text
 def _native_config(root, instructions=None):
-	config_path = root / '.codex/config.toml'
+	from .path_registry import project_paths
+	config_path = project_paths(root, exact_root=True).codex_config_toml
 	actual = config_path.read_bytes() if config_path.exists() else None
 	existing = actual.decode('utf-8') if None is not actual else ''
 	_, _, receipt = load_project_receipt(root)
@@ -232,7 +237,9 @@ def global_codex_instructions():
 	r = {'developer_instructions': values[0], 'profile': names[0] if 1 == len(names) else 'identical across configured profiles'}
 	return r
 def _project_rule_paths(root, primary):
-	agents = root / '.agents'
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != Path(primary).resolve() else (root / '.agents')
 	paths = list(sorted((agents / 'rules').glob('*.md')))
 	data = load_discovery_manifest(agents / 'rules.json', entries_error='rules.json needs an entries list')
 	if data.get('inherits'):
@@ -268,16 +275,19 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
 	if 'codex' not in (cfg.get('platforms') or {}) or root == Path(cfg['workspace_root']).resolve():
 		r = {'valid': True, 'issues': [], 'written': []}
 	else:
+		from .path_registry import project_paths
+		pp = project_paths(root, exact_root=True)
+		agents_dir = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
 		r = None
 		try:
 			paths = _project_rule_paths(root, primary)
 		except (ValueError, OSError) as exc:
 			if not check:
 				raise
-			r = {'valid': False, 'issues': [{'file': str(root / '.agents/rules.json'), 'message': str(exc)}], 'written': []}
+			r = {'valid': False, 'issues': [{'file': str(agents_dir / 'rules.json'), 'message': str(exc)}], 'written': []}
 		if None is r:
 			try:
-				native = root / '.codex/config.toml'
+				native = pp.codex_config_toml
 				data = tomllib.loads(native.read_bytes().decode('utf-8')) if native.exists() else {}
 				current = data.get('developer_instructions', '')
 				manual = current.replace(extract_managed_block(current), '').strip()
@@ -286,7 +296,7 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
 			except ValueError as exc:
 				if not check:
 					raise
-				r = {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
+				r = {'valid': False, 'issues': [{'file': str(pp.codex_config_toml), 'message': str(exc)}], 'written': []}
 			if not check and (not r['valid']):
 				raise ValueError(r['issues'])
 	return r
@@ -328,11 +338,14 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 		except ValueError as exc:
 			r = {'valid': False, 'issues': [{'file': str(root), 'message': str(exc)}], 'written': []}
 		return r
-	native = root / '.codex/config.toml'
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	native = pp.codex_config_toml
 	current = tomllib.loads(native.read_bytes().decode('utf-8')).get('developer_instructions', '') if native.exists() else ''
 	old_block = extract_managed_block(current)
 	restore_global = 'policy-instructions' in old_block if old_block else not bool(current.strip())
-	local_rules = _project_rule_paths(root, primary) if (root / '.agents/rules').is_dir() else ()
+	agents_dir = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
+	local_rules = _project_rule_paths(root, primary) if (agents_dir / 'rules').is_dir() else ()
 	instructions = _loader(primary, local_rules, restore_global=restore_global)
 	guidance = f'# Codex: Upwork\n\n<!-- Generated from {primary.as_posix()}; run harness.py build-native to update. -->\n\n' + instructions + '\n'
 	outputs = {root / 'AGENTS.md': guidance}

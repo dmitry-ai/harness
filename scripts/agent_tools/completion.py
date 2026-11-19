@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
@@ -98,15 +101,17 @@ RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
 	def __init__(self, root, response, result, native, turn):
-		self.root = root
+		from .path_registry import project_paths
+		self.pp = project_paths(root, exact_root=True)
+		self.root = self.pp.root
 		self.response = response
 		self.sha = _hash(response.encode('utf-8'))
 		self.result = result
 		self.native = native
 		self.turn = turn
-		self.path, self.value = _state(root, native, turn)
+		self.path, self.value = _state(self.root, native, turn)
 		self.allow_reprepare = False
-		self.workflow_path = root / '\ua616/data/workflow.json'
+		self.workflow_path = self.pp.workflow_json
 		self.wf_state = None
 		self.wf_identifiers = set()
 		self.wf_covered = set()
@@ -124,7 +129,7 @@ class AnswerPreparationRunner:
 			if kb_scan['issues']:
 				self._fail_gate('factual_kb_note', 'KB-2 / DOC-1 violation in factual research note: ' + '; '.join(kb_scan['issues']))
 			has_kb_or_issue_mutation = kb_scan['has_normative'] or bool(self.turn.get('issue_actions')) or bool(self.value.get('github_issues'))
-			touches_client_deliverable = any((_is_client_deliverable_path(tf) for tf in (self.turn.get('touched_files') or ())))
+			touches_client_deliverable = any((_is_client_deliverable_path(tf, self.root) for tf in (self.turn.get('touched_files') or ())))
 			has_hm_tags = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', self.response))
 			if self.is_finalized:
 				self.has_substantive_hm = kb_scan['has_analysis'] or (has_hm_tags and 0 == self.value['delegation_check'].get('aa_subagent_step_count', 0))
@@ -132,7 +137,7 @@ class AnswerPreparationRunner:
 				self.has_substantive_hm = has_hm_tags or has_kb_or_issue_mutation or touches_client_deliverable
 			if self.wf_covered and self.wf_covered != self.wf_identifiers:
 				raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
-			if not self.wf_covered and (self.root / '\ua616/project.json').is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', req.get('text', '')) for req in self.turn['requests']))) and (not self.is_finalized or self.has_substantive_hm):
+			if not self.wf_covered and self.pp.project_json.is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', req.get('text', '')) for req in self.turn['requests']))) and (not self.is_finalized or self.has_substantive_hm):
 				self._fail_gate('workflow_adoption', 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project')
 	def _authorize_and_sync_workflow(self):
 		if None is self.wf_state or not self.wf_covered:
@@ -171,7 +176,7 @@ class AnswerPreparationRunner:
 	def _check_evicted_citations(self):
 		if self.value['compaction_check'].get('occurred') and self.value['compaction_check'].get('evicted_unreread_files'):
 			turn_key = self.result['turn_key']
-			scratch_ans = self.root / f'\ua616/data/scratch/answer-{turn_key}.md'
+			scratch_ans = self.pp.scratch_dir / f'answer-{turn_key}.md'
 			post_cp_w_low = {str(w).replace('\\', '/').lower() for w in (self.value['compaction_check'].get('post_checkpoint_written_files') or [])}
 			pre_cp_authored = False
 			if scratch_ans.is_file() and scratch_ans.resolve().as_posix().lower() not in post_cp_w_low:
@@ -292,7 +297,8 @@ class TurnJournalReconciler:
 	def __init__(self, root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, preloaded_native=None):
 		if int is not type(from_step) or 0 > from_step:
 			raise ValueError('Native from-step must be a nonnegative integer')
-		self.root = Path(root).resolve()
+		from .path_registry import canonicalize_root_dir
+		self.root = canonicalize_root_dir(root)
 		self.native = preloaded_native if None is not preloaded_native else _native(self.root, conversation, platform=platform, backend=backend)
 		self.from_step = from_step
 		self.journal_directory = journal_directory
@@ -312,7 +318,8 @@ class TurnJournalReconciler:
 	def _cleanup_adopted_conflict(self, value):
 		value.pop('admission_failure', None)
 		if (value.get('delivery') or {}).get('conflict_evidence'):
-			conflict_file = self.root / value['delivery']['conflict_evidence']
+			raw_ce = Path(value['delivery']['conflict_evidence'])
+			conflict_file = raw_ce if raw_ce.is_absolute() else (self.root / raw_ce)
 			if conflict_file.is_file():
 				try:
 					conflict_file.unlink()
@@ -404,7 +411,9 @@ def _read(path):
 	r = value
 	return r
 def _folder(root):
-	return data_dir_for(root) / 'turns'
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	return pp.turns_dir if pp.has_explicit_path('turns_dir') else (data_dir_for(root) / 'turns')
 def _turn_lock(root, key):
 	return _folder(root) / f'turn-{key}.lock'
 def _journal_lock(root):
@@ -438,24 +447,30 @@ def _exec5_status(turn, root=None, key=None):
 	return _recoverable_step_status(turn, 'exec5_violations', 'covered_exec5_steps', root, key)
 def _factual_kb_note_issues(root, turn):
 	from .knowledge import validate_kb_factual_note
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	kb_prefix = pp.kb_dir.as_posix().lower().rstrip('/') + '/'
+	ev_prefix = pp.evidence_dir.as_posix().lower().rstrip('/') + '/'
 	r = {'has_normative': False, 'has_analysis': False, 'issues': []}
 	for tf in turn.get('touched_files') or []:
 		tf_norm = str(tf).replace('\\', '/').lower()
-		if ('/\ua616/kb/' in tf_norm or tf_norm.endswith('/kb/analysis.md') or tf_norm.endswith('/kb/analysis.json')) and '/\ua616/kb/evidence/' not in tf_norm:
+		fpath = Path(tf) if Path(tf).is_absolute() else (pp.root / Path(tf))
+		fpath_low = fpath.as_posix().lower()
+		in_kb = '/\ua616/kb/' in tf_norm or tf_norm.endswith('/kb/analysis.md') or tf_norm.endswith('/kb/analysis.json') or fpath_low.startswith(kb_prefix)
+		in_ev = '/\ua616/kb/evidence/' in tf_norm or fpath_low.startswith(ev_prefix)
+		if in_kb and (not in_ev):
 			basename = Path(tf).name.lower()
 			if basename in ('analysis.md', 'analysis.json'):
 				r['has_analysis'] = True
 				r['has_normative'] = True
 			elif basename in ('project.md', 'projects.md'):
 				r['has_normative'] = True
-			else:
-				fpath = Path(tf) if Path(tf).is_absolute() else (root / Path(tf))
-				if fpath.is_file():
-					try:
-						note_text = fpath.read_text(encoding='utf-8', errors='replace')
-						r['issues'].extend(validate_kb_factual_note(fpath, note_text))
-					except OSError:
-						pass
+			elif fpath.is_file():
+				try:
+					note_text = fpath.read_text(encoding='utf-8', errors='replace')
+					r['issues'].extend(validate_kb_factual_note(fpath, note_text))
+				except OSError:
+					pass
 	return r
 VERIFIED_CHECK_KEYS = ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'code_lifecycle_check', 'language_and_stub_check', 'source_kb_check')
 GATE_SPECS = (
@@ -473,17 +488,21 @@ GATE_SPECS = (
 	('source_grounding', ('VERIFY-1', 'LINK-', 'KB-1 / KB-3:', 'DOC-1 / VERIFY-'), lambda root_p, turn, value, rc: bool(value.get('source_kb_check', {}).get('verified'))),
 )
 def _gate_resolved(root, turn, value):
+	from .path_registry import canonicalize_root_dir
 	rc = value.get('readiness_check') or {}
 	gid = str(rc.get('gate_id') or '')
 	rc_detail = str(rc.get('detail') or '')
 	if '' == gid and rc_detail.startswith('COMPACT-1 / KB-3 violation'):
 		gid = 'evicted_citations' if 'cited in response' in rc_detail else 'compaction'
-	root_p = Path(root).resolve()
+	root_p = canonicalize_root_dir(root)
 	specific = next((pred(root_p, turn, value, rc) for spec_id, prefixes, pred in GATE_SPECS if spec_id == gid or ('' == gid and prefixes and rc_detail.startswith(prefixes))), False)
 	return bool(specific and all((value.get(k, {}).get('verified', True) for k in VERIFIED_CHECK_KEYS)))
 def _http_fetch_status(turn, root=None, key=None):
 	return _recoverable_step_status(turn, 'http_fetch_violations', 'covered_http_fetch_steps', root, key)
 def _compaction_status(root, key, turn):
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	ev_prefix = pp.evidence_dir.as_posix().lower().rstrip('/') + '/'
 	comp = dict(turn.get('compaction') or {})
 	occurred = bool(comp.get('occurred'))
 	last_cp = comp.get('last_checkpoint_step')
@@ -503,11 +522,11 @@ def _compaction_status(root, key, turn):
 			sib = (Path(wnorm).parent / 'source.md').as_posix()
 			if sib.lower() in evicted_lower and evicted_lower[sib.lower()] not in unreread_analysis_sources:
 				unreread_analysis_sources.append(evicted_lower[sib.lower()])
-		elif _is_client_deliverable_path(wlow):
+		elif _is_client_deliverable_path(wlow, root):
 			writes_client_deliverable = True
 	if writes_client_deliverable:
 		for ev_l, ev_orig in evicted_lower.items():
-			if ('/.system_generated/steps/' in ev_l or ev_l.endswith('/kb/source.md') or '/source/' in ev_l or '/\ua616/kb/evidence/' in ev_l) and ev_orig not in unreread_analysis_sources:
+			if ('/.system_generated/steps/' in ev_l or ev_l.endswith('/kb/source.md') or '/source/' in ev_l or '/\ua616/kb/evidence/' in ev_l or ev_l.startswith(ev_prefix)) and ev_orig not in unreread_analysis_sources:
 				unreread_analysis_sources.append(ev_orig)
 	recovered_in_trace = bool(comp.get('recovered_in_trace', True))
 	receipt_path = _folder(root) / f'{key}-checkpoint-recovery.json'
@@ -539,7 +558,8 @@ def _delegation_status(root, turn):
 	max_src_reads = int(del_info.get('max_unpersisted_source_reads') or 0)
 	issue_actions_count = len(turn.get('issue_actions') or [])
 	aa_part_errs = list(del_info.get('aa_partial_read_violations') or [])
-	is_upwork_project = (Path(root).resolve() / '\ua616/project.json').is_file()
+	from .path_registry import project_paths
+	is_upwork_project = project_paths(root, exact_root=True).project_json.is_file()
 	unpersisted_bulk = bool(is_upwork_project and ((tool_steps > DEL_MAX_UNPERSISTED_STEPS and 0 == sub_steps and 0 == kb_steps) or cur_streak > DEL_MAX_UNPERSISTED_STEPS or (max_src_reads >= DEL_MAX_UNPERSISTED_SOURCE_READS and 0 == sub_steps) or (tool_steps > DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS and 0 == sub_steps) or (issue_actions_count > DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS and 0 == sub_steps)))
 	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'aa_partial_read_violations': aa_part_errs, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'issue_actions_count': issue_actions_count, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
 	return r
@@ -566,25 +586,36 @@ def _budget_status(root, turn):
 						window_5h_steps += int((td.get('delegation_check') or {}).get('tool_step_count') or 0)
 			except (OSError, ValueError):
 				pass
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	cont_low = pp.continuation_md.as_posix().lower()
+	kb_prefix = pp.kb_dir.as_posix().lower().rstrip('/') + '/'
 	touched = [str(x).replace('\\', '/').lower() for x in (turn.get('touched_files') or [])]
-	continuation_saved = any((x.endswith('/data/continuation.md') or x.endswith('\ua616/data/continuation.md') for x in touched))
-	kb_saved = any(('/\ua616/kb/' in x or x.endswith('/kb/analysis.md') or x.endswith('/kb/analysis.json') for x in touched))
+	continuation_saved = any((x.endswith('/data/continuation.md') or x.endswith('\ua616/data/continuation.md') or x == cont_low for x in touched))
+	kb_saved = any(('/\ua616/kb/' in x or x.endswith('/kb/analysis.md') or x.endswith('/kb/analysis.json') or x.startswith(kb_prefix) for x in touched))
 	exceeded = bool(cp_count >= BUDGET_MAX_CHECKPOINTS or tool_steps >= BUDGET_MAX_TOOL_STEPS or window_5h_steps >= BUDGET_WINDOW_5H_MAX_STEPS)
 	r = {'verified': True, 'checkpoint_count': cp_count, 'max_checkpoints': BUDGET_MAX_CHECKPOINTS, 'tool_step_count': tool_steps, 'max_tool_steps': BUDGET_MAX_TOOL_STEPS, 'window_5h_tool_steps': window_5h_steps, 'max_window_5h_tool_steps': BUDGET_WINDOW_5H_MAX_STEPS, 'graceful_checkpoint_required': exceeded, 'continuation_saved': continuation_saved, 'kb_saved': kb_saved}
 	return r
 def _instruction_snapshot(root, native, *, stage):
 	from .configuration import _project_rule_paths
-	root = Path(root).resolve()
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
 	plat_id = native['platform']
 	plat_cfg = (settings().get('platforms') or {}).get(plat_id)
 	adapter_kind = platform_adapter_name(plat_id, plat_cfg)
 	sources = {path: 'canonical' for path in sorted((PRIMARY / 'rules').glob('*.md'))}
 	sources[PRIMARY / 'runtime.json'] = 'runtime'
+	if (PRIMARY / 'paths.json').is_file():
+		sources[PRIMARY / 'paths.json'] = 'paths-registry'
+	if None is not pp.overlay_file and pp.overlay_file.is_file():
+		sources[pp.overlay_file] = 'project-paths-overlay'
 	adapter_doc = PRIMARY / 'platforms' / (adapter_kind + '.md')
 	if adapter_doc.is_file():
 		sources[adapter_doc] = 'adapter'
 	errors = []
-	manifest = root / '.agents/rules.json'
+	agents_dir = pp.agents_config_dir if pp.agents_config_dir.resolve() != Path(PRIMARY).resolve() else (root / '.agents')
+	manifest = agents_dir / 'rules.json'
 	if manifest.exists():
 		sources[manifest] = 'project-registration'
 	try:
@@ -611,13 +642,30 @@ def _instruction_snapshot(root, native, *, stage):
 			errors.append(str(exc))
 	r = {'captured_at': _now(), 'capture_stage': stage, 'sources': files, 'errors': errors, 'selection_verified': False, 'delivery_to_model_verified': False}
 	return r
-def _is_client_deliverable_path(path_text) -> bool:
+def _is_client_deliverable_path(path_text, root=None) -> bool:
 	norm = str(path_text).replace('\\', '/').lower()
-	return any((seg in norm for seg in ('/letters/', '/result/', '/defects/'))) and '/\ua616/' not in norm and ('/\ua66e/' not in norm)
+	if '/\ua616/' in norm or '/\ua66e/' in norm:
+		return False
+	segs = ('/letters/', '/result/', '/defects/')
+	if None is not root:
+		from .path_registry import project_paths
+		pp = project_paths(root, exact_root=True)
+		ag_pref = pp.agent_dir.as_posix().lower().rstrip('/') + '/'
+		jr_pref = pp.journal_root_dir.as_posix().lower().rstrip('/') + '/'
+		if norm.startswith(ag_pref) or norm.startswith(jr_pref):
+			return False
+		segs = tuple({*segs, *(s.lower() for s in pp.deliverable_segments)})
+		for slot in ('letters_dir', 'proposals_dir', 'articles_dir'):
+			sp = pp.path(slot)
+			if None is not sp and norm.startswith(sp.as_posix().lower().rstrip('/') + '/'):
+				return True
+	return any((seg in norm for seg in segs))
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
+	from .path_registry import canonicalize_root_dir
+	canon_root = canonicalize_root_dir(root)
 	key = _key(native, turn)
-	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []} if recovered else _code_and_issue_lifecycle_status(root, turn)
-	r = {'schema_version': 1, 'key': key, 'project_root': str(Path(root).resolve()), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, root, key), 'http_fetch_check': _http_fetch_status(turn, root, key), 'compaction_check': _compaction_status(root, key, turn), 'delegation_check': _delegation_status(root, turn), 'budget_check': _budget_status(root, turn), 'code_lifecycle_check': lifecycle, 'instruction_snapshot': _instruction_snapshot(root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []} if recovered else _code_and_issue_lifecycle_status(canon_root, turn)
+	r = {'schema_version': 1, 'key': key, 'project_root': str(canon_root), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(canon_root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, canon_root, key), 'http_fetch_check': _http_fetch_status(turn, canon_root, key), 'compaction_check': _compaction_status(canon_root, key, turn), 'delegation_check': _delegation_status(canon_root, turn), 'budget_check': _budget_status(canon_root, turn), 'code_lifecycle_check': lifecycle, 'instruction_snapshot': _instruction_snapshot(canon_root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
 	return r
 def _persist(path, value):
 	if path.exists() and _read(path) == value:
@@ -625,7 +673,8 @@ def _persist(path, value):
 	value['updated_at'] = _now()
 	replace_bytes(path, _json(value))
 def _persist_turn_recovery(root, conversation, suffix, build_receipt, *, platform=None, backend=None, clear_admission=False):
-	root = Path(root).resolve()
+	from .path_registry import canonicalize_root_dir
+	root = canonicalize_root_dir(root)
 	native = _native(root, conversation, platform=platform, backend=backend)
 	turn = _active(native)
 	if None is turn:
@@ -651,6 +700,8 @@ def _recoverable_step_status(turn, violations_key, covered_key, root=None, key=N
 		r['recovered_via_receipt'] = True
 	return r
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
+	from .path_registry import canonicalize_root_dir
+	root = canonicalize_root_dir(root)
 	key = _key(native, turn)
 	path = _folder(root) / (key + '.json')
 	value = _read(path) if path.exists() else _new(root, native, turn, recovered=recovered, journal_directory=journal_directory)
@@ -677,7 +728,7 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 	if strict_journal and None is not journal_directory and (saved_directory != _directory(root, journal_directory)):
 		raise ValueError('The native turn already has a different journal; preserve its original binding')
 	value['journal'] = str(saved_directory)
-	for name, expected in [('project_root', str(Path(root).resolve())), ('platform', native['platform']), ('native_backend', native['native_backend']), ('conversation_id', native['conversation_id']), ('native_turn_id', turn['turn_id'])]:
+	for name, expected in [('project_root', str(root)), ('platform', native['platform']), ('native_backend', native['native_backend']), ('conversation_id', native['conversation_id']), ('native_turn_id', turn['turn_id'])]:
 		if value.get(name) != expected:
 			raise ValueError('Completion state has a different native owner; preserved')
 	old, current = (value['requests'], turn['requests'])
@@ -711,7 +762,8 @@ def _active(native):
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
 def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None):
-	root = Path(root).resolve()
+	from .path_registry import canonicalize_root_dir
+	root = canonicalize_root_dir(root)
 	native = _native(root, conversation, platform=platform, backend=backend)
 	turn = _active(native)
 	if None is turn:
@@ -897,7 +949,8 @@ def _unchanged(root, native, turn):
 	if None is current or _key(latest, current) != _key(native, turn) or current['requests'] != turn['requests']:
 		raise ValueError('The active native turn or requests changed during preparation; readiness was not granted')
 def _workflow_gate_resolved(root_p, turn, kind):
-	wf_file = root_p / '\ua616/data/workflow.json'
+	from .path_registry import project_paths
+	wf_file = project_paths(root_p, exact_root=True).workflow_json
 	if not wf_file.is_file():
 		r = True
 	elif 'workflow_adoption' == kind:
@@ -921,7 +974,8 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 	result = begin(root, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory)
 	if not result['journal_required']:
 		raise ValueError('A child executor cannot prepare the primary user journal')
-	root_p = Path(root).resolve()
+	from .path_registry import canonicalize_root_dir
+	root_p = canonicalize_root_dir(root)
 	with locked(_turn_lock(root_p, result['turn_key'])):
 		native = _native(root_p, conversation, platform=platform, backend=backend)
 		turn = _active(native)
@@ -930,17 +984,20 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 		r = AnswerPreparationRunner(root_p, response, result, native, turn).run()
 	return r
 def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
+	from .path_registry import canonicalize_root_dir
+	root_p = canonicalize_root_dir(root)
 	payload = response.encode('utf-8')
-	evidence = write_immutable_bytes(_folder(root) / 'conflicts' / (value['key'] + '-' + _hash(payload) + '.txt'), payload, diff_error='Immutable native conflict evidence changed')
+	evidence = write_immutable_bytes(_folder(root_p) / 'conflicts' / (value['key'] + '-' + _hash(payload) + '.txt'), payload, diff_error='Immutable native conflict evidence changed')
 	if _recorded(value):
 		value['journal_record'] = _recorded(value)
 	prior_verified = value.get('delivery') if (value.get('delivery') or {}).get('verified') else value.get('prior_verified_delivery')
 	if prior_verified:
 		value['prior_verified_delivery'] = deepcopy(prior_verified)
+	rel_evidence = evidence.relative_to(root_p).as_posix() if evidence.is_relative_to(root_p) else str(evidence)
 	value['status'] = 'conflict'
-	value['delivery'] = {'verified': False, 'native_response_sha256': _hash(payload), 'source_file': native['source_file'], 'final_step': turn['final_step'], 'native_requests': turn['requests'], 'conflict_evidence': evidence.relative_to(root).as_posix(), 'detail': detail, 'retryable': retryable}
+	value['delivery'] = {'verified': False, 'native_response_sha256': _hash(payload), 'source_file': native['source_file'], 'final_step': turn['final_step'], 'native_requests': turn['requests'], 'conflict_evidence': rel_evidence, 'detail': detail, 'retryable': retryable}
 	_persist(path, value)
-	r = {'turn_key': value['key'], 'status': 'conflict', 'detail': detail, 'evidence': evidence.relative_to(root).as_posix(), 'retryable': retryable}
+	r = {'turn_key': value['key'], 'status': 'conflict', 'detail': detail, 'evidence': rel_evidence, 'retryable': retryable}
 	return r
 _strip_local_file_scheme = journal.strip_local_file_scheme
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk

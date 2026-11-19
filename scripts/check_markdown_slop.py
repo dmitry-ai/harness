@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
 # https://github.com/dmitry-ai/harness/issues/50
@@ -21,6 +24,7 @@ from pathlib import Path
 import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from agent_tools.path_registry import project_paths, resolve_project_root
 from agent_tools.source_grounding import local_source_grounding_issues
 ABBREVIATIONS = '\\b(?:\\u0433|\\u0433\\u0433|\\u0442\\.\\u0434|\\u0442\\.\\u043f|\\u0441\\u043c|\\u0438\\u043c|\\u0434\\u0440|\\u043f\\u0440|\\u0443\\u043b|\\u0434|\\u043a\\u0432|\\u0440\\u0438\\u0441|\\u0442\\u0430\\u0431\\u043b|\\u0441\\u0442|\\u043f|\\u0447|\\u0440\\u0443\\u0431|\\u0442\\u044b\\u0441|\\u043c\\u043b\\u043d|\\u043c\\u043b\\u0440\\u0434|\\u0430\\u043d\\u0433\\u043b|\\u0440\\u0443\\u0441|\\u043d\\u0430\\u043f\\u0440|\\u043e\\u043a|vs|Mr|Mrs|Ms|Dr|St|Inc|Ltd|Co|Jr|Sr|e\\.g|i\\.e)\\.'
 ABBR_RE = re.compile(ABBREVIATIONS, re.IGNORECASE)
@@ -29,21 +33,19 @@ def is_abbreviation_end(text):
 	r = bool(ABBR_RE.search(text.rstrip()))
 	return r
 def _infer_project_root(target: Path) -> Path:
-	for anc in (target.parent, *target.parents):
-		if anc.name in ('\ua616', '\ua66e', '_') and anc.parent.is_dir():
-			return anc.parent
-		if (anc / '\ua616').is_dir() or (anc / '\ua66e').is_dir() or (anc / '_/\ua616').is_dir():
-			return anc
-	cwd = Path.cwd().resolve()
-	for anc in (cwd, *cwd.parents):
-		if (anc / '\ua616').is_dir() or (anc / '\ua66e').is_dir() or (anc / '_/\ua616').is_dir():
-			return anc
-	return target.parent
+	resolved = resolve_project_root(target)
+	if resolved != target.resolve().parent or (resolved / '\ua616').is_dir() or (resolved / '_/\ua616').is_dir() or (resolved / '\ua66e').is_dir():
+		return resolved
+	cwd_res = resolve_project_root(Path.cwd().resolve())
+	if (cwd_res / '\ua616').is_dir() or (cwd_res / '_/\ua616').is_dir() or (cwd_res / '\ua66e').is_dir():
+		return cwd_res
+	return resolved
 def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
+	pp = project_paths(proj_root)
 	norm_p = target.as_posix().lower()
-	if not any((seg in norm_p for seg in ('/letters/', '/result/', '/defects/'))) or '/\ua616/' in norm_p or '/\ua66e/' in norm_p:
+	if not any((seg in norm_p for seg in pp.deliverable_segments)) or '/\ua616/' in norm_p or '/\ua66e/' in norm_p:
 		return None
-	turns_dir = proj_root / '\ua616/data/turns'
+	turns_dir = pp.turns_dir
 	if not turns_dir.is_dir():
 		return None
 	for tf in turns_dir.glob('*.json'):

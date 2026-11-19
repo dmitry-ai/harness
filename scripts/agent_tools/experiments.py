@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
 # https://github.com/dmitry-ai/harness/issues/72
@@ -275,7 +278,9 @@ class BrowserTraceInspector:
 class ExperimentPlanStore:
 	CLI_NAMES = ('harness.py', 'upwork_project.py')
 	def __init__(self, root):
-		self.root = Path(root).resolve()
+		from .path_registry import project_paths
+		self.pp = project_paths(root, exact_root=True)
+		self.root = self.pp.root
 	@staticmethod
 	def _after_plan(value, prepared_at):
 		try:
@@ -296,8 +301,8 @@ class ExperimentPlanStore:
 				r = any((1 == receipt.get('upwork_experiment_plan') and receipt.get('project_root') == str(self.root) and (receipt.get('plan') == run.get('plan')) and (receipt.get('plan_sha256') == run.get('plan_sha256')) and (receipt.get('requirement_sha256') == run.get('requirement_sha256')) for receipt in iter_embedded_json_objects(event.get('result'))))
 		return r
 	def load(self, reference):
-		path = inside(self.root / 'ꘖ/KB', reference)
-		base = self.root / 'ꘖ/KB/Evidence/Experiments/Plans'
+		path = inside(self.pp.kb_dir, reference)
+		base = self.pp.evidence_dir / 'Experiments/Plans'
 		plan = json.loads(path.read_text(encoding='utf-8'))
 		if not path.is_relative_to(base) or 'plan.json' != path.name or path.parent.name != digest(plan) or (1 != plan.get('schema_version')) or ('experiment_plan' != plan.get('kind')) or (plan.get('requirement_sha256') != digest(plan.get('requirement'))) or requirement_issues([plan.get('requirement')]):
 			raise ValueError('Missing/changed immutable experimental plan')
@@ -321,16 +326,16 @@ class ExperimentPlanStore:
 			if previous['requirement']['id'] != requirement['id']:
 				raise ValueError('An amendment must preserve the experimental requirement ID')
 		plan = {'schema_version': 1, 'kind': 'experiment_plan', 'prepared_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'requirement': requirement, 'requirement_sha256': digest(requirement), 'revision': previous['revision'] + 1 if previous else 1, 'amendment_of': amendment_of, 'amendment_reason': amendment_reason, 'previous_plan_sha256': digest(previous) if previous else None}
-		directory = self.root / 'ꘖ/KB/Evidence/Experiments/Plans' / digest(plan)
+		directory = self.pp.evidence_dir / 'Experiments/Plans' / digest(plan)
 		directory.mkdir(parents=True, exist_ok=False)
 		path = directory / 'plan.json'
 		create_bytes(path, json_data(plan))
-		return {'upwork_experiment_plan': 1, 'project_root': str(self.root), 'plan': path.relative_to(self.root / 'ꘖ/KB').as_posix(), 'plan_sha256': hashlib.sha256(path.read_bytes()).hexdigest(), **plan}
+		return {'upwork_experiment_plan': 1, 'project_root': str(self.root), 'plan': path.relative_to(self.pp.kb_dir).as_posix(), 'plan_sha256': hashlib.sha256(path.read_bytes()).hexdigest(), **plan}
 	def preregistration_issues(self, run, events=None):
 		plan, early = (None, None)
 		try:
 			plan = self.load(run['plan'])
-			path = inside(self.root / 'ꘖ/KB', run['plan'])
+			path = inside(self.pp.kb_dir, run['plan'])
 			if hashlib.sha256(path.read_bytes()).hexdigest() != run.get('plan_sha256'):
 				early = ['Run does not bind the exact immutable plan hash']
 			elif plan['requirement_sha256'] != run.get('requirement_sha256'):
@@ -540,10 +545,12 @@ class ExperimentRunValidator:
 		run['artifacts'] = saved
 		return (saved, contents)
 	def _verify_saved_artifacts(self, path):
+		from .path_registry import project_paths
+		kb_dir = project_paths(self.root, exact_root=True).kb_dir
 		for artifact in self.run.get('artifacts', []):
 			if artifact.get('observation_kind') and (not artifact.get('source_observation')):
 				raise ValueError('Observation capability label lacks its actual collector source')
-			source = inside(self.root / 'ꘖ/KB', artifact['path'])
+			source = inside(kb_dir, artifact['path'])
 			if not source.is_relative_to(path.parent):
 				raise ValueError('Experimental artifact escapes immutable run')
 			raw = source.read_bytes()
@@ -626,10 +633,12 @@ class ExperimentRunValidator:
 		return {'status': status, 'assertions': results, 'interpretation': 'Restricted predicates establish only the preregistered raw property; A.A checks semantic entailment and alternative explanations'}
 	@classmethod
 	def load(cls, root, reference):
-		resolved = Path(root).resolve()
-		path = inside(resolved / 'ꘖ/KB', reference)
+		from .path_registry import project_paths
+		pp = project_paths(root, exact_root=True)
+		resolved = pp.root
+		path = inside(pp.kb_dir, reference)
 		run = json.loads(path.read_text(encoding='utf-8'))
-		if not path.is_relative_to(resolved / 'ꘖ/KB/Evidence/Experiments'):
+		if not path.is_relative_to(pp.evidence_dir / 'Experiments'):
 			raise ValueError('Experiment must be a recorder-owned immutable run')
 		if run.get('requirement_sha256') != digest(run.get('requirement')):
 			raise ValueError('Experimental requirement changed after measurement')
@@ -652,7 +661,9 @@ class ExperimentRunValidator:
 		return [self.events[nid] for ident in ids if isinstance(ident, str) and (nid := self.artifacts.get(ident, {}).get('native_event_id')) in self.events]
 	@classmethod
 	def record(cls, root, specification, *, tool_trace=None):
-		resolved = Path(root).resolve()
+		from .path_registry import project_paths
+		pp = project_paths(root, exact_root=True)
+		resolved = pp.root
 		if not isinstance(specification, dict):
 			raise ValueError('Experimental run object required')
 		run = json.loads(json.dumps(specification, ensure_ascii=False, allow_nan=False))
@@ -684,15 +695,15 @@ class ExperimentRunValidator:
 		if run.get('status') in ('verified', 'refuted') and run['requirement']['property'] not in capabilities:
 			raise ValueError('Recorded method/evidence does not establish the requested property')
 		run['capabilities'] = capabilities
-		directory = resolved / 'ꘖ/KB/Evidence/Experiments' / digest(run)
+		directory = pp.evidence_dir / 'Experiments' / digest(run)
 		directory.mkdir(parents=True, exist_ok=False)
 		for artifact in saved:
 			path = directory / (artifact['id'] + '.bin')
 			create_bytes(path, contents[artifact['id']])
-			artifact['path'] = path.relative_to(resolved / 'ꘖ/KB').as_posix()
+			artifact['path'] = path.relative_to(pp.kb_dir).as_posix()
 		target = directory / 'experiment.json'
 		create_bytes(target, json_data(run))
-		return {'experiment': target.relative_to(resolved / 'ꘖ/KB').as_posix(), 'experiment_sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'requirement_id': run['requirement']['id'], 'status': run['status'], 'capabilities': capabilities, 'limitation': run.get('limitation')}
+		return {'experiment': target.relative_to(pp.kb_dir).as_posix(), 'experiment_sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'requirement_id': run['requirement']['id'], 'status': run['status'], 'capabilities': capabilities, 'limitation': run.get('limitation')}
 	def run_issues(self):
 		issues = self._check_run_header()
 		if not issues:
@@ -830,7 +841,8 @@ def result_issues(root, requirement, result):
 		if result.get('requirement_id') != requirement.get('id') or result.get('status') not in STATUSES:
 			issues.append('Property result must identify the exact requirement and valid status')
 		try:
-			path = inside(Path(root).resolve() / 'ꘖ/KB', result.get('experiment', ''))
+			from .path_registry import project_paths
+			path = inside(project_paths(root, exact_root=True).kb_dir, result.get('experiment', ''))
 			run = load_experiment(root, result.get('experiment', ''))
 			if hashlib.sha256(path.read_bytes()).hexdigest() != result.get('experiment_sha256'):
 				issues.append('Experimental result hash differs from immutable run')

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -8,13 +11,15 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from ..path_registry import canonicalize_root_dir, project_paths, relocated_roots
 def text_project_id(root):
-	root = Path(root).resolve()
+	root = canonical_path(root)
 	r = 'text-' + hashlib.sha256(str(root).encode('utf-8')).hexdigest()
 	return r
 def native_project_id(root):
-	root = Path(root).resolve()
-	job = root / 'ꘖ/project.json'
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
+	job = pp.project_json
 	if job.is_file():
 		project = json.loads(job.read_text(encoding='utf-8-sig'))
 		identifier = project.get('job_id') if isinstance(project, dict) else None
@@ -22,7 +27,7 @@ def native_project_id(root):
 			raise ValueError('Existing project.json needs its real Upwork job_id')
 		r = identifier
 	else:
-		marker = root / 'ꘖ/data/text-project.json'
+		marker = pp.text_project_json
 		if not marker.is_file():
 			raise ValueError('No native project identity; initialize an explicit text workspace first')
 		value = json.loads(marker.read_text(encoding='utf-8-sig'))
@@ -36,35 +41,21 @@ def native_project_fields(root):
 	r = {'project_id': identifier, 'project_kind': 'client_text_workspace' if is_text else 'upwork_job', 'job_id': None if is_text else identifier}
 	return r
 def completion_project_id(root):
-	root = Path(root).resolve()
-	if not root.is_dir():
+	root_p = Path(root).resolve()
+	if not root_p.is_dir():
 		raise ValueError('Completion needs an exact existing project directory')
-	if (root / 'ꘖ/project.json').exists() or (root / 'ꘖ/data/text-project.json').exists():
-		r = native_project_id(root)
+	pp = project_paths(root_p, exact_root=True)
+	if pp.project_json.exists() or pp.text_project_json.exists():
+		r = native_project_id(pp.root)
 	else:
-		r = text_project_id(root)
+		r = text_project_id(pp.root)
 	return r
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
-_RELOCATED_ROOTS = {
-	'c:/work/upwork/code/ai': 'C:/work/research/provision/code/AI/harness',
-	'c:/work/upwork/code/ai/primary': 'C:/work/research/provision/code/AI/harness',
-	'c:/work/upwork/code/ai/primary/' + 'result': 'C:/work/research/provision/code/AI/harness',
-	'c:/work/research/provision/code/ai/primary': 'C:/work/research/provision/code/AI/harness',
-	'c:/work/research/provision/code/ai/harness': 'C:/work/research/provision/code/AI/harness',
-	'c:/work/research/provision/code/software/openai/codex': 'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons',
-	'c:/work/research/provision/code/ai/products/openai/chatgpt/desktop/addons': 'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons',
-	'c:/work/research/provision/code/software/google/ai/antigravity': 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons',
-	'c:/work/research/provision/code/ai/products/google/antigravity/addons': 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons',
-}
+_RELOCATED_ROOTS = relocated_roots()
 def canonical_path(value):
-	path = Path(value).resolve()
-	if path.name in ('code', '_') and (path.parent / 'code').is_dir() and (path.parent / '_').is_dir():
-		path = path.parent.resolve()
-	norm = str(path).replace('\\', '/').rstrip('/').lower()
-	r = Path(_RELOCATED_ROOTS[norm]).resolve() if norm in _RELOCATED_ROOTS else path
-	return r
+	return canonicalize_root_dir(value)
 def _canonical_root(value):
 	r = str(canonical_path(value)).replace('\\', '/').rstrip('/').lower()
 	return r

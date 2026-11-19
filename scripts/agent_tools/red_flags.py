@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
 # https://github.com/dmitry-ai/harness/issues/5
@@ -46,7 +49,7 @@ def red_flag_issues(value, claims):
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
 # https://github.com/dmitry-ai/harness/issues/5
-def render_red_flags(value, *, project_card=False):
+def render_red_flags(value, *, project_card=False, analysis_rel='ꘖ/KB/Analysis.json'):
 	flags = value.get('red_flags', [])
 	if not flags:
 		r = ''
@@ -56,7 +59,7 @@ def render_red_flags(value, *, project_card=False):
 		if 2 == len(by_id):
 			qualifier = ' (intermediation is currently a hypothesis)' if 'suspected' == by_id['RF-CLIENT-INTERMEDIARY']['status'] else ''
 			lines += [f'**Both Red Flags simultaneously{qualifier}: high likelihood of declining the project.**', '']
-		pointers = {claim['id']: f'ꘖ/KB/Analysis.json#/identity/{index}' for index, claim in enumerate(value['identity'])}
+		pointers = {claim['id']: f'{analysis_rel}#/identity/{index}' for index, claim in enumerate(value['identity'])}
 		for ident in FLAGS:
 			if ident not in by_id:
 				continue
@@ -66,18 +69,21 @@ def render_red_flags(value, *, project_card=False):
 	return r
 def sync_project_red_flags(root, value):
 	from .analysis import digest, validate_analysis
+	from .path_registry import project_paths
 	validate_analysis(value)
-	root = Path(root).resolve()
-	target = root / '.md'
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
+	target = pp.path('overview_md', root / '.md')
 	if 'red_flags' not in value:
 		return {'status': 'unassessed', 'target': str(target)}
-	state_dir = root / 'ꘖ/data'
+	state_dir = pp.data_dir
 	state_file = state_dir / 'red-flags.json'
+	analysis_rel = pp.rel_to_root(pp.kb_dir / 'Analysis.json')
 	with locked(state_dir / 'red-flags.lock'):
 		original = target.read_bytes()
 		original.decode('utf-8-sig')
 		newline = b'\r\n' if b'\r\n' in original else b'\n'
-		rendered = render_red_flags(value, project_card=True)
+		rendered = render_red_flags(value, project_card=True, analysis_rel=analysis_rel)
 		title, content = rendered.split('\n\n', 1) if rendered else ('', '')
 		heading = (title + '\n\n').encode('utf-8').replace(b'\n', newline) if title else b''
 		content = content.encode('utf-8').replace(b'\n', newline)

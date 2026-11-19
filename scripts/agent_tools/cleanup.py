@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
@@ -50,8 +53,10 @@ def record_cleanup_answer(body, *, now=None, log_root=None):
 	timestamp = f'{local:%Y-%m-%d %H:%M} {zone}'
 	answer = timestamp + '\n\n' + body
 	payload = answer.encode('utf-8')
+	from .path_registry import store_value, workspace_override
 	ws = Path(settings()['workspace_root']).resolve()
-	default_log = HARNESS_META / 'Data/Log/cleanup' if ws == Path('C:/work/upwork/code').resolve() else ws / 'AI/log/cleanup'
+	ovr_log = workspace_override(ws, 'cleanup_log_dir')
+	default_log = Path(ovr_log) if ovr_log else ws / str(store_value('workspace_cleanup_log_rel'))
 	root = Path(log_root or default_log).absolute()
 	directory = root / f'{local:%Y/%m}'
 	if linked(directory):
@@ -414,9 +419,11 @@ class ProjectCleanupScanner:
 		platforms_cfg = self.config.get('platforms') or {}
 		ag_plats = [pid for pid, pcfg in platforms_cfg.items() if isinstance(pcfg, dict) and 'antigravity' == platform_adapter_name(pid, pcfg) and platform_active(pid, config=self.config)]
 		cx_plats = [pid for pid, pcfg in platforms_cfg.items() if isinstance(pcfg, dict) and 'codex' == platform_adapter_name(pid, pcfg) and platform_active(pid, config=self.config)]
+		from .path_registry import default_platform_paths
 		if self.single_ag_mode:
-			p_dir = Path(ag_directory or Path.home() / '.gemini/config/projects').absolute()
-			b_dir = Path(ag_backend or Path.home() / '.gemini/antigravity').absolute()
+			def_ag = default_platform_paths('antigravity')
+			p_dir = Path(ag_directory or def_ag['projects_dir']).absolute()
+			b_dir = Path(ag_backend or def_ag['backend_dir']).absolute()
 			if not p_dir.is_dir() or linked(p_dir):
 				raise ValueError('Antigravity native stores unavailable or linked')
 			if p_dir.is_relative_to(self.daily):
@@ -431,8 +438,9 @@ class ProjectCleanupScanner:
 			for iid, inst in ag_insts.items():
 				sp = inst['system_paths']
 				home_dir = Path(inst['home']).absolute() if inst.get('home') else None
-				p_dir = Path(sp['projects_dir']).absolute() if sp.get('projects_dir') else (home_dir / '.gemini/config/projects' if home_dir else None)
-				b_dir = Path(sp['backend_dir']).absolute() if sp.get('backend_dir') else (home_dir / '.gemini/antigravity' if home_dir else None)
+				home_ag = default_platform_paths('antigravity', home=home_dir) if home_dir else {}
+				p_dir = Path(sp['projects_dir']).absolute() if sp.get('projects_dir') else (Path(home_ag['projects_dir']).absolute() if home_ag.get('projects_dir') else None)
+				b_dir = Path(sp['backend_dir']).absolute() if sp.get('backend_dir') else (Path(home_ag['backend_dir']).absolute() if home_ag.get('backend_dir') else None)
 				conv_dir = Path(sp['conversations_dir']).absolute() if sp.get('conversations_dir') else (b_dir / 'conversations' if b_dir else None)
 				brain_dir = Path(sp['brain_dir']).absolute() if sp.get('brain_dir') else (b_dir / 'brain' if b_dir else None)
 				conv_db = Path(sp['conversations_db']).absolute() if sp.get('conversations_db') else (b_dir / 'conversation_summaries.db' if b_dir else None)
@@ -612,7 +620,8 @@ class ProjectCleanupScanner:
 				entry['recovery_error'] = str(recovery_error)
 				self.result['complete'] = False
 	def run(self):
-		lock = HARNESS_META / 'ꘖ/data/cleanup.lock'
+		from .path_registry import store_path
+		lock = store_path('cleanup_lock')
 		with locked(lock) if self.apply else nullcontext(), _codex_glob_scope(self.home_globs):
 			found, issues = candidates(self.daily, self.config, self.now)
 			self.result['discovery'] = {'verified_projects': len(found), 'modern_projects': sum(('project.json' == p['initialization_basis'] for p in found)), 'legacy_projects': sum(('project.json' != p['initialization_basis'] for p in found)), 'excluded_with_conversations': 0, 'unresolved_entries': len(issues)}

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
@@ -46,9 +49,10 @@ import sys
 import time
 import uuid
 from .links import validate_file
+from .path_registry import project_paths, tool_list, tool_path
 from .shell_audit import READ_SUBCOMMANDS, ShellCommandInspector, _COMMIT_MESSAGE_ISSUE_URL_RE, _CYGDRIVE_RE, _GITHUB_ISSUE_URL_RE, _ISSUE_LINKED_CODE_SUFFIXES, _VALUE_GLOBAL_OPTS, _iter_shell_git_segments, _parse_commit_subcommand_args, _scan_git_global_opts, _split_shell_segments, _unquote, classify_git_argv, extract_comment_issue_urls, extract_issue_actions_from_outputs, extract_issue_urls, is_code_file, normalize_commit_message, normalize_host_path, parse_issue_url, prohibited_git_write_commands, unflagged_git_read_commands, unpersisted_http_fetch_commands
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
-HOOKS_DIR = Path(__file__).resolve().parents[1] / 'git_hooks'
+HOOKS_DIR = tool_path('git_hooks_dir')
 GITHUB_MAX_BLOB_BYTES = 100 * 1024 * 1024
 EXTRACTED_MAX_BYTES = 16 * 1024 * 1024
 _EXTRACTED_DERIVED_RE = re.compile('(?:^|/)(?:Evidence/HTTP/[^/]+/[^/]+/extracted-[^/]+\\.json|Evidence/Extracted/[0-9a-f]{64}/[^/]+\\.json|extracted-(?:html|text|json)(?:-[0-9a-f]{16})?\\.json)$')
@@ -143,7 +147,15 @@ class GitRepoGate:
 		return result.stdout
 	def is_issue_tracked(self) -> bool:
 		resolved = self.main_repo()
-		return 'code' == resolved.name and (resolved / '.git').exists() and ((resolved.parent / '_').is_dir() or (resolved.parent / '.agents').is_dir())
+		if not (resolved / '.git').exists():
+			return False
+		try:
+			pp = project_paths(resolved)
+			if pp.has_overlay and any((resolved == cr for cr in pp.code_repos)):
+				return True
+		except (OSError, ValueError):
+			pass
+		return 'code' == resolved.name and ((resolved.parent / '_').is_dir() or (resolved.parent / '.agents').is_dir())
 	def main_repo(self) -> Path:
 		r = self.root
 		dot_git = self.root / '.git'
@@ -413,7 +425,7 @@ class WorktreeCommitTransaction:
 			self.remove(wt_dir)
 		return r
 	def create(self) -> Path:
-		base = (self.gate.root.parent / '_/ꘖ/data/worktrees') if (self.gate.root.parent / '_').is_dir() else (self.gate.root.parent / 'ꘖ/data/worktrees')
+		base = project_paths(self.gate.root).worktrees_dir
 		base.mkdir(parents=True, exist_ok=True)
 		r = base / f'{self.label}-{uuid.uuid4().hex[:10]}'
 		self.gate.git('worktree', 'add', '--detach', str(r), 'HEAD')
@@ -469,14 +481,19 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 	if None is not candidates:
 		lock_paths = [normalize_host_path(p) for p in candidates]
 	else:
-		roots = [Path.home(), Path('C:/tools/shell/home')]
+		roots = [Path(h) for h in tool_list('git_credential_lock_homes')]
+		try:
+			roots.insert(0, Path.home())
+		except RuntimeError:
+			pass
 		env_home = os.environ.get('HOME')
 		if env_home:
 			roots.append(normalize_host_path(env_home))
 		seen: set[str] = set()
 		lock_paths = []
+		lock_rels = tuple(tool_list('git_credential_lock_relpaths'))
 		for base in roots:
-			for rel in ('.git-credentials.lock', '.config/git/credentials.lock'):
+			for rel in lock_rels:
 				cand = base / rel
 				key = str(cand).replace('\\', '/').lower()
 				if key not in seen:

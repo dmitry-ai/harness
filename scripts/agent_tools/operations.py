@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
@@ -70,10 +73,12 @@ def _execute_collect(args):
 		r = result
 	else:
 		from .analysis import digest, publish_owned
-		target = inside(args.project, args.output)
-		if not target.is_relative_to(Path(args.project).resolve() / '\ua616/KB/Evidence') or '/HTTP/' in target.as_posix() or '/Reviews/' in target.as_posix():
+		from .path_registry import project_paths
+		pp = project_paths(args.project, exact_root=True)
+		target = inside(pp.root, args.output)
+		if not target.is_relative_to(pp.evidence_dir.resolve()) or '/HTTP/' in target.as_posix() or '/Reviews/' in target.as_posix():
 			raise ValueError('Collection report must be a project Evidence file outside immutable HTTP/Reviews observations')
-		receipts_file = Path(args.project).resolve() / '\ua616/data/rendered.json'
+		receipts_file = pp.rendered_json
 		if target.is_file() and receipts_file.is_file():
 			try:
 				receipts = json.loads(receipts_file.read_text(encoding='utf-8'))
@@ -118,11 +123,12 @@ def add_parsers(sub):
 			specs.extend(stage_specs if 'stage' == command else _PROJECT_SPECS.get(command, ()))
 			add_arg_specs(parser, specs)
 def analysis_root(file):
+	from .path_registry import canonicalize_root_dir
 	file = Path(file).resolve()
 	r = file.parent
 	for parent in file.parents:
 		if '\ua616' == parent.name:
-			r = parent.parent
+			r = canonicalize_root_dir(parent.parent)
 			break
 	return r
 def execute(args):

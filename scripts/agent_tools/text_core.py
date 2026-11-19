@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -268,7 +271,15 @@ def find_bans(path: Path | None):
 				result.extend(data.get('bans', []) if isinstance(data, dict) else data)
 		if result:
 			return result
-	return []
+	from .storage import data_dir_for
+	dd = data_dir_for(path)
+	result = []
+	for fname in ('text-bans.json', 'article-bans.json'):
+		candidate = dd / fname
+		if candidate.is_file():
+			data = json.loads(candidate.read_text(encoding='utf-8'))
+			result.extend(data.get('bans', []) if isinstance(data, dict) else data)
+	return result
 def normalized(text: str) -> str:
 	return re.sub('\\s+', ' ', text).strip()
 def check_response(path: Path, text: str | None=None, against=(), lexicon=None, journal: Path | None=None) -> list[Finding]:
@@ -319,11 +330,12 @@ def check_response(path: Path, text: str | None=None, against=(), lexicon=None, 
 	r = sorted(findings, key=lambda f: (f.line, f.rule))
 	return r
 def default_shell():
+	from .path_registry import tool_list
 	configured = os.environ.get('DF_TEXT_BASH') or os.environ.get('CYGWIN_BASH') or settings().get('client_text', {}).get('bash')
 	if configured:
 		return configured
 	if 'nt' == os.name:
-		for candidate in ('C:/tools/cygwin/bin/bash.exe', 'C:/cygwin64/bin/bash.exe', 'C:/cygwin/bin/bash.exe'):
+		for candidate in tool_list('bash_candidates'):
 			if Path(candidate).is_file():
 				return candidate
 	found = shutil.which('bash')

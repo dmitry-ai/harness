@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
 # https://github.com/dmitry-ai/harness/issues/74
@@ -21,10 +24,12 @@ from .upwork_data import canonical_job_url, classify_attachment, detect_client_v
 from .analysis import SECTIONS, TITLES, validate_analysis, render_analysis, publish_owned
 class AttachmentInventory:
 	def __init__(self, project_root: Path | str):
-		self.root = Path(project_root).resolve()
-		self.kb_dir = self.root / '\ua616' / 'KB'
-		self.att_root = self.kb_dir / 'Evidence' / 'Attachments'
-		self.source_dir = self.root / 'source'
+		from .path_registry import project_paths
+		self.pp = project_paths(project_root, exact_root=True)
+		self.root = self.pp.root
+		self.kb_dir = self.pp.kb_dir
+		self.att_root = self.pp.evidence_dir / 'Attachments'
+		self.source_dir = self.pp.source_dir
 	def _evidence_entries(self, asset_evidence: list[dict] | None=None) -> list[tuple[Path, str | None]]:
 		r: list[tuple[Path, str | None]] = []
 		for item in asset_evidence or []:
@@ -130,36 +135,44 @@ def website_issues(value):
 	return r
 def sync_website_card(root, value, *, selections=None, check=False):
 	from .analysis import digest
+	from .path_registry import project_paths
 	from .project_card import sync_block
-	root = Path(root).resolve()
-	metadata = root / 'ꘖ/data/rendered.json'
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
+	overview_md = pp.path('overview_md', root / '.md')
+	metadata = pp.rendered_json
 	state = json.loads(metadata.read_bytes()) if metadata.exists() else {}
-	cached = state.get(str(root / '.md'), {}).get('managed_blocks', {}).get('websites', {}).get('data')
+	cached = state.get(str(overview_md), {}).get('managed_blocks', {}).get('websites', {}).get('data')
 	selected = selections if None is not selections else value.get('websites', cached)
 	if None is selected:
-		return {'status': 'unassessed', 'target': str(root / '.md')}
+		return {'status': 'unassessed', 'target': str(overview_md)}
 	checked = {**value, 'websites': selected}
 	if website_issues(checked):
 		raise ValueError(website_issues(checked))
 	identities = {claim['id']: (index, claim) for index, claim in enumerate(value['identity'])}
+	analysis_json = pp.kb_dir / 'Analysis.json'
+	analysis_rel = pp.rel_to_root(analysis_json)
 	stored, lines = ([], ['## Client and Project Website', ''])
 	for site in selected:
 		index, claim = identities[site['basis_id']]
 		sha = digest(json_bytes(claim))
 		if site.get('basis_sha256', sha) != sha:
-			return {'status': 'conflict', 'target': str(root / '.md'), 'detail': 'Website identity evidence changed; reassess its explicit selection'}
+			return {'status': 'conflict', 'target': str(overview_md), 'detail': 'Website identity evidence changed; reassess its explicit selection'}
 		label = 'Client website' if 'client' == site['role'] else 'Target project website'
 		url = site.get('url')
 		address = markdown_link(None, url) if url else '**unresolved from available data**'
 		probability = claim.get('probability_percent')
 		assessment = f' Identification score: {probability}%.' if None is not probability else ''
-		lines.append(f"- **{label}:** {address}.{assessment} [Basis: {claim['id']}](<ꘖ/KB/Analysis.json#/identity/{index}>).")
+		lines.append(f"- **{label}:** {address}.{assessment} [Basis: {claim['id']}](<{analysis_rel}#/identity/{index}>).")
 		stored.append({'url': url, 'role': site['role'], 'basis_id': site['basis_id'], 'basis_sha256': sha})
-	result = sync_block(root, root / '.md', 'websites', '\n'.join(lines) + '\n', position='after-title', check=check, source=root / 'ꘖ/KB/Analysis.json', attributes=stored)
+	result = sync_block(root, overview_md, 'websites', '\n'.join(lines) + '\n', position='after-title', check=check, source=analysis_json, attributes=stored)
 	return result
 def sync_initial_website(root, snapshot, hypothesis=None):
+	from .path_registry import project_paths
 	from .project_card import sync_block
-	root = Path(root).resolve()
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
+	overview_md = pp.path('overview_md', root / '.md')
 	if not hypothesis:
 		source = Path(snapshot).resolve()
 		content = f'## Client and Project Website\n\nURL is not yet established by initial extraction; identification requires analysis. [Source job post](<{source.relative_to(root).as_posix()}#/description>).\n'
@@ -172,9 +185,11 @@ def sync_initial_website(root, snapshot, hypothesis=None):
 		if issues:
 			raise ValueError(issues)
 		address = markdown_link(None, url) if url else '**unresolved**'
-		content = f"## Client and Project Website\n\n**Target project website:** {address}. Hypothesis score: {hypothesis['probability_percent']}%. [Basis: {hypothesis['id']}](KB/Project.md#13-website).\n"
-		source = root / 'KB/Project.md'
-	return sync_block(root, root / '.md', 'websites', content, source=source)
+		manual_proj = pp.manual_kb_dir / 'Project.md'
+		manual_rel = pp.rel_to_root(manual_proj)
+		content = f"## Client and Project Website\n\n**Target project website:** {address}. Hypothesis score: {hypothesis['probability_percent']}%. [Basis: {hypothesis['id']}]({manual_rel}#13-website).\n"
+		source = manual_proj
+	return sync_block(root, overview_md, 'websites', content, source=source)
 def json_bytes(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 def create_once(path: Path, content: str):
@@ -189,8 +204,8 @@ def create_once(path: Path, content: str):
 def sync_source_folder_attachments(project_root: Path, saved_attachments: list[dict] | None=None, asset_evidence: list[dict] | None=None) -> list[dict]:
 	return AttachmentInventory(project_root).sync(saved_attachments, asset_evidence)
 def _load_media_descriptions(project_root: Path, overrides: dict | None=None) -> dict[str, str]:
-	root = Path(project_root).resolve()
-	media_dir = root / 'ꘖ' / 'data' / 'media'
+	from .path_registry import project_paths
+	media_dir = project_paths(project_root, exact_root=True).data_dir / 'media'
 	store_file = media_dir / 'descriptions.json'
 	descriptions: dict[str, str] = {}
 	if store_file.is_file():
@@ -209,8 +224,10 @@ def _load_media_descriptions(project_root: Path, overrides: dict | None=None) ->
 	r = descriptions
 	return r
 def build_project_extra_sources(project_root: Path, data: dict, assets: list[dict] | None=None, *, fetch_videos: bool=True) -> list[dict]:
-	root = Path(project_root).resolve()
-	kb_dir = root / 'ꘖ' / 'KB'
+	from .path_registry import project_paths
+	pp = project_paths(project_root, exact_root=True)
+	root = pp.root
+	kb_dir = pp.kb_dir
 	if None is assets:
 		assets = sync_source_folder_attachments(root, data.get('saved_attachments'), data.get('asset_evidence'))
 	descriptions = _load_media_descriptions(root, data.get('media_descriptions'))
@@ -223,21 +240,22 @@ def build_project_extra_sources(project_root: Path, data: dict, assets: list[dic
 		fname = asset.get('filename') or target.name
 		sha = asset['sha256']
 		payload = target.read_bytes()
-		src_copy = root / 'source' / fname
+		src_copy = pp.source_dir / fname
 		if not src_copy.exists():
 			src_copy.parent.mkdir(parents=True, exist_ok=True)
 			create_bytes(src_copy, payload)
+		src_rel = pp.rel_to_root(src_copy)
 		kind = classify_attachment(fname, payload)
 		custom_body = descriptions.get(fname) or descriptions.get(sha)
 		if 'document' == kind:
 			body = custom_body or extract_attachment_markdown(target, payload)
 			doc_markdowns.append(body)
-			extra_sources.append({'kind': 'document', 'name': fname, 'heading': f'Description in `{fname}`', 'body': body, 'sha256': sha, 'file': asset['file'], 'source_file': asset.get('source_file') or f'source/{fname}'})
+			extra_sources.append({'kind': 'document', 'name': fname, 'heading': f'Description in `{fname}`', 'body': body, 'sha256': sha, 'file': asset['file'], 'source_file': asset.get('source_file') or src_rel})
 		elif 'image' == kind:
 			body = custom_body or ''
-			extra_sources.append({'kind': 'image', 'name': fname, 'heading': f'Description in `{fname}`', 'body': body, 'sha256': sha, 'file': asset['file'], 'source_file': asset.get('source_file') or f'source/{fname}'})
+			extra_sources.append({'kind': 'image', 'name': fname, 'heading': f'Description in `{fname}`', 'body': body, 'sha256': sha, 'file': asset['file'], 'source_file': asset.get('source_file') or src_rel})
 	videos = detect_client_videos(data.get('description') or '', doc_markdowns, assets)
-	media_dir = root / 'ꘖ' / 'data' / 'media'
+	media_dir = pp.data_dir / 'media'
 	for v in videos:
 		v_key = v.get('url') or v.get('filename') or v.get('video_id') or ''
 		v_key_www = re.sub('^https?://(?!www\\.)', 'https://www.', v_key) if v_key.startswith('http') else ''
@@ -316,8 +334,10 @@ def _render_evidence_md(asset_evidence: list[dict], extra_sources: list[dict], p
 		r = '\n'.join(ev_lines).rstrip() + '\n'
 	return r
 def populate_agent_kb(project_root: Path, data: dict):
-	kb = project_root / 'ꘖ' / 'KB'
-	evidence = kb / 'Evidence'
+	from .path_registry import project_paths
+	pp = project_paths(project_root, exact_root=True)
+	kb = pp.kb_dir
+	evidence = pp.evidence_dir
 	evidence.mkdir(parents=True, exist_ok=True)
 	source = {k: v for k, v in data.items() if k not in ('saved_attachments', 'cookies', 'extra_sources', 'media_descriptions', 'site_hypothesis')}
 	if 'asset_evidence' in source and isinstance(source['asset_evidence'], list):
@@ -327,13 +347,13 @@ def populate_agent_kb(project_root: Path, data: dict):
 	snapshot = evidence / f'{fingerprint}.json'
 	if not snapshot.exists():
 		create_bytes(snapshot, raw)
-	source_link = f'Evidence/{fingerprint}.json'
+	source_link = snapshot.relative_to(kb).as_posix() if snapshot.is_relative_to(kb) else f'Evidence/{fingerprint}.json'
 	when = data.get('observed_at') or datetime.now(timezone.utc).isoformat(timespec='seconds')
 	url = canonical_job_url(data['job_id'])
 	extra_sources = data.get('extra_sources')
 	if None is extra_sources:
-		extra_sources = build_project_extra_sources(project_root, data, data.get('asset_evidence'))
-	manual = project_root / 'KB' / 'Project.md'
+		extra_sources = build_project_extra_sources(pp.root, data, data.get('asset_evidence'))
+	manual = pp.manual_kb_dir / 'Project.md'
 	if manual.is_file():
 		create_once(kb / 'Project.md', manual.read_bytes().decode('utf-8'))
 	else:
@@ -345,8 +365,8 @@ def populate_agent_kb(project_root: Path, data: dict):
 	create_once(kb / 'Client.md', '\n'.join(client))
 	website = ['# Website', '', '## F-SITE-1', 'Website ownership is not established by automated extraction.', 'The folder name and discovered URLs do not confirm ownership.', '', '## F-SITE-2', 'Domains mentioned in source texts:', '```json', json.dumps(data.get('candidate_domains') or [], ensure_ascii=False, indent=2), '```', f'[Snapshot]({source_link}#/candidate_domains).', '']
 	create_once(kb / 'Website.md', '\n'.join(website))
-	create_once(kb / 'Projects.md', _render_projects_md(data, url, source_link, extra_sources, project_root))
-	ev_md = _render_evidence_md(source.get('asset_evidence') or [], extra_sources, project_root)
+	create_once(kb / 'Projects.md', _render_projects_md(data, url, source_link, extra_sources, pp.root))
+	ev_md = _render_evidence_md(source.get('asset_evidence') or [], extra_sources, pp.root)
 	if None is not ev_md:
 		create_once(kb / 'Evidence.md', ev_md)
 	create_once(kb / 'Glossary.md', '# Glossary\n\nDefinitions are added when used; each term includes a link to its source.\n')
@@ -370,33 +390,35 @@ def _replace_section2_in_project_md(existing_md: str, data: dict, extra_sources:
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
 def sync_project_attachments_and_kb(project_root: Path, media_descriptions: dict | None=None, *, fetch_videos: bool=True) -> dict:
-	root = Path(project_root).resolve()
-	pj_file = root / 'ꘖ' / 'project.json'
+	from .path_registry import project_paths
+	pp = project_paths(project_root, exact_root=True)
+	root = pp.root
+	pj_file = pp.project_json
 	if not pj_file.is_file():
 		raise ValueError(f'Missing project.json in {root}')
 	pj = json.loads(pj_file.read_text(encoding='utf-8'))
 	snapshot_path = root / pj['snapshot']
 	snapshot_data = json.loads(snapshot_path.read_text(encoding='utf-8'))
-	source_link = snapshot_path.relative_to(root / 'ꘖ' / 'KB').as_posix()
+	source_link = snapshot_path.relative_to(pp.kb_dir).as_posix()
 	url = canonical_job_url(pj['job_id'])
 	assets = sync_source_folder_attachments(root, asset_evidence=snapshot_data.get('asset_evidence'))
 	merged_data = {**snapshot_data, 'asset_evidence': assets}
 	if media_descriptions:
 		merged_data['media_descriptions'] = media_descriptions
 	extra_sources = build_project_extra_sources(root, merged_data, assets, fetch_videos=fetch_videos)
-	manual_kb = root / 'KB' / 'Project.md'
-	agent_kb_proj = root / 'ꘖ' / 'KB' / 'Project.md'
+	manual_kb = pp.manual_kb_dir / 'Project.md'
+	agent_kb_proj = pp.kb_dir / 'Project.md'
 	if manual_kb.is_file():
 		updated_proj_md = _replace_section2_in_project_md(manual_kb.read_text(encoding='utf-8'), merged_data, extra_sources)
 	else:
 		updated_proj_md = format_kb_project_md({**merged_data, 'extra_sources': extra_sources})
 	replace_bytes(manual_kb, updated_proj_md.encode('utf-8'))
 	replace_bytes(agent_kb_proj, updated_proj_md.encode('utf-8'))
-	projects_md = _render_projects_md(merged_data, url, source_link, extra_sources)
-	replace_bytes(root / 'ꘖ' / 'KB' / 'Projects.md', projects_md.encode('utf-8'))
-	ev_md = _render_evidence_md([{'file': a['file'], 'sha256': a['sha256']} for a in assets], extra_sources)
+	projects_md = _render_projects_md(merged_data, url, source_link, extra_sources, root)
+	replace_bytes(pp.kb_dir / 'Projects.md', projects_md.encode('utf-8'))
+	ev_md = _render_evidence_md([{'file': a['file'], 'sha256': a['sha256']} for a in assets], extra_sources, root)
 	if None is not ev_md:
-		replace_bytes(root / 'ꘖ' / 'KB' / 'Evidence.md', ev_md.encode('utf-8'))
+		replace_bytes(pp.kb_dir / 'Evidence.md', ev_md.encode('utf-8'))
 	r = {'project_root': str(root), 'source_files': [a['source_file'] for a in assets], 'extra_sources': [{'kind': e['kind'], 'name': e['name'], 'heading': e['heading'], 'has_body': bool((e.get('body') or '').strip())} for e in extra_sources]}
 	return r
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk

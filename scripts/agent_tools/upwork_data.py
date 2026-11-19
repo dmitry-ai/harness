@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -684,9 +687,10 @@ def discover_pdf_ligature_repairs(pdf_bytes: bytes) -> dict[str, str]:
 					r[b.replace('\ufffd', '\u01af').translate(LIGATURE_MAP)] = clean_w
 	return r
 def _find_poppler_tool(name: str) -> str | None:
+	from .path_registry import tool_list
 	r = shutil.which(name)
 	if not r:
-		for folder in ('C:\\tools\\poppler\\Library\\bin', 'C:\\Program Files\\poppler\\bin'):
+		for folder in tool_list('poppler_bin_dirs'):
 			cand = Path(folder) / (name if name.endswith('.exe') else f'{name}.exe')
 			if cand.is_file():
 				r = str(cand)

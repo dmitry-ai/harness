@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
@@ -19,11 +22,12 @@ class RegistrationConflict(ValueError):
 def _now():
 	return datetime.now(timezone.utc).isoformat(timespec='microseconds')
 def _expected(project, label=None, day=None):
+	from .path_registry import project_paths
 	root = Path(project).resolve()
 	if not root.is_dir():
 		raise ValueError('Registration requires an existing project directory')
 	if None is day:
-		state = json.loads((root / 'ꘖ/project.json').read_text(encoding='utf-8'))
+		state = json.loads(project_paths(root, exact_root=True).project_json.read_text(encoding='utf-8'))
 		day = state['request_date']
 	day = request_day(day)
 	label = label or root.name.split(' - ', 1)[-1]
@@ -81,7 +85,8 @@ def validate_registration(project, label, day, platform, result):
 	r = value
 	return r
 def _read(root):
-	path = root / 'ꘖ/data/registrations.json'
+	from .path_registry import project_paths
+	path = project_paths(root, exact_root=True).registrations_json
 	data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
 	if not isinstance(data, dict):
 		raise ValueError('Registrations must be a map of platform receipts')
@@ -98,7 +103,8 @@ def _success(previous):
 		r = {key: deepcopy(value) for key, value in previous.items() if key not in ('intent', 'attempt', 'attempts', 'attempt_history', 'last_success')}
 	return r
 def _begin(root, platform, intent):
-	with locked(root / 'ꘖ/data/registration.lock'):
+	from .path_registry import project_paths
+	with locked(project_paths(root, exact_root=True).data_dir / 'registration.lock'):
 		path, data = _read(root)
 		previous = data.get(platform, {})
 		history = deepcopy(previous.get('attempt_history', []))
@@ -115,9 +121,11 @@ def _begin(root, platform, intent):
 		r = deepcopy(entry)
 	return r
 def save_registration(root, platform, result):
-	root = Path(root).resolve()
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
 	platform = platform_name(platform)
-	with locked(root / 'ꘖ/data/registration.lock'):
+	with locked(pp.data_dir / 'registration.lock'):
 		path, data = _read(root)
 		previous = data.get(platform, {})
 		value = deepcopy(result)

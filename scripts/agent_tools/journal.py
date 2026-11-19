@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
@@ -104,17 +107,29 @@ def recover_step(directory: Path, step: int, token: str):
 				raise ValueError(f'Damaged reservation: {key}')
 		_publish(directory, step, state, recovering=True)
 def resolve_journal_dir(root: Path, selected=None) -> Path:
+	from .path_registry import project_paths
 	root_p = Path(root).resolve()
+	pp = project_paths(root_p, exact_root=True)
 	if selected:
-		r = (root_p / selected).resolve()
-	elif (root_p / '_/\ua66e').is_dir():
-		r = (root_p / '_/\ua66e').resolve()
-	elif (root_p / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437').is_dir() and (not (root_p / '\ua66e/1 - Analysis').is_dir()):
-		r = (root_p / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437').resolve()
-	elif (root_p / '\ua66e/README.md').is_file() and (not (root_p / '\ua66e/1 - Analysis').is_dir()):
-		r = (root_p / '\ua66e').resolve()
+		sel_str = pp.expand(str(selected)) if '${' in str(selected) else str(selected)
+		r = (pp.root / sel_str).resolve()
+	elif pp.has_explicit_path('journal_dir') or pp.journal_glob:
+		r = pp.journal_dir.resolve()
+	elif 'dual_repo' == pp.profile and pp.journal_dir.is_dir():
+		r = pp.journal_dir.resolve()
 	else:
-		r = (root_p / '\ua66e/1 - Analysis').resolve()
+		r = None
+		if not pp.journal_dir.is_dir():
+			for fb in pp.journal_legacy_fallbacks:
+				if fb == pp.journal_root_dir:
+					if (fb / 'README.md').is_file():
+						r = fb.resolve()
+						break
+				elif fb.is_dir():
+					r = fb.resolve()
+					break
+		if None is r:
+			r = pp.journal_dir.resolve()
 	return r
 def step_errors(directory: Path, step: int) -> list[str]:
 	directory = Path(directory)

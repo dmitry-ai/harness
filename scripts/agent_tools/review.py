@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
 # https://github.com/dmitry-ai/harness/issues/73
@@ -419,7 +422,8 @@ _latest_for_subject = latest_for_subject
 _text = is_nonempty_text
 _unhandled_verdicts = has_unhandled_verdicts
 def load_verified_claims_cache(root) -> dict:
-	path = Path(root).resolve() / 'ꘖ/data/verified-claims.json'
+	from .path_registry import project_paths
+	path = project_paths(root, exact_root=True).verified_claims_json
 	r = {'version': 1, 'claims': {}}
 	if path.is_file():
 		try:
@@ -539,8 +543,10 @@ def update_verified_claims_cache(root, package: dict, value: dict | None = None)
 			claim_obj = index.get(ident) or {}
 			m_hash = (package.get('merkle_delta') or {}).get('merkle_hashes', {}).get(ident) or claim_merkle_hash(item, index, ev_inputs)
 			claims_map[ident] = {'claim_id': ident, 'claim_sha256': item.get('claim_sha256', ''), 'knowledge_type': item.get('knowledge_type') or claim_obj.get('knowledge_type') or '', 'verification_status': item.get('verification_status') or claim_obj.get('verification_status') or '', 'tier0_evidence_hashes': dict(_claim_evidence_pairs(ident, index, ev_inputs)), 'merkle_sha256': m_hash, 'response_sha256': (package.get('response') or {}).get('sha256', '')}
-	path = root_p / 'ꘖ/data/verified-claims.json'
-	if path.parent.is_dir() or (root_p / 'ꘖ').is_dir():
+	from .path_registry import project_paths
+	pp = project_paths(root_p, exact_root=True)
+	path = pp.verified_claims_json
+	if path.parent.is_dir() or pp.agent_dir.is_dir():
 		replace_bytes(path, json_data(r))
 	return r
 def build_blind_verification_predicates(manifest: list[dict], value: dict) -> list[dict]:
@@ -570,7 +576,8 @@ def request_snapshot(state):
 def _analysis(root):
 	from .analysis import analysis_issues
 	from .evidence import evidence_issues
-	path = Path(root) / 'ꘖ/KB/Analysis.json'
+	from .path_registry import project_paths
+	path = project_paths(root, exact_root=True).kb_dir / 'Analysis.json'
 	value = json.loads(path.read_text(encoding='utf-8-sig'))
 	if not isinstance(value, dict) or 3 != value.get('schema_version'):
 		raise ValueError('New review and publication require Analysis schema 3; legacy files remain readable')
@@ -622,10 +629,12 @@ def prepare(root, parent_id, spec, response):
 	grounding_issues = local_source_grounding_issues(root, response)
 	if grounding_issues:
 		raise ValueError('\n'.join(grounding_issues))
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
 	classified = classification(root, state, spec, response, value)
 	payload = response.encode('utf-8')
 	response_sha = digest(payload)
-	candidate = root / 'ꘖ/KB/Evidence/Reviews/Candidates' / (response_sha + '.txt')
+	candidate = pp.evidence_dir / 'Reviews/Candidates' / (response_sha + '.txt')
 	_immutable(candidate, payload)
 	ev_inputs = hashes(root, evidence_paths(root))
 	extra_pkg = {'auto_tier0_evidence': discover_entity_tier0_sources(root, response), 'merkle_delta': compute_claim_merkle_delta(root, classified['claims'], value, ev_inputs), 'blind_verification_predicates': build_blind_verification_predicates(classified['claims'], value)}
@@ -636,7 +645,7 @@ def prepare(root, parent_id, spec, response):
 	if 'routine' == data['risk'] and ReviewQuorumEvaluator(root, state).significant_findings(data['subject_sha256']):
 		raise ValueError('A significant/critical finding on this exact answer requires a significant package and two independent A.A')
 	package_bytes = json_data(data)
-	path = root / 'ꘖ/KB/Evidence/Reviews' / (digest(package_bytes) + '-inputs.json')
+	path = pp.evidence_dir / 'Reviews' / (digest(package_bytes) + '-inputs.json')
 	_immutable(path, package_bytes)
 	return {'package': path.relative_to(root).as_posix(), 'package_sha256': digest(package_bytes), **data}
 def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evidence=None, allow_self=True, expected_risk=None, package_reader=None, issue_checker=None, reviews_dir_fn=None, artifact_prefix_fn=None, diff_error='Immutable review artifact differs; preserve the original and create a new attempt'):
@@ -662,7 +671,8 @@ def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evide
 		raise ValueError('\n'.join(issues))
 	independent, proof_paths, native, raw_payload = authenticate_report(root_p, package, package_path, data, source_payload, parent_id=parent_id, reviewer_id=reviewer_id, native_evidence=native_evidence, allow_self=allow_self)
 	review_id = digest((package_sha + '\x00' + reviewer_id + '\x00' + digest(raw_payload)).encode())
-	folder = (root_p / 'ꘖ/KB/Evidence/Reviews' / package_sha) if None is reviews_dir_fn else reviews_dir_fn(root_p, package_sha)
+	from .path_registry import project_paths
+	folder = (project_paths(root_p, exact_root=True).evidence_dir / 'Reviews' / package_sha) if None is reviews_dir_fn else reviews_dir_fn(root_p, package_sha)
 	prefix = (hashlib.sha256(reviewer_id.encode()).hexdigest()[:16] + '-' + review_id) if None is artifact_prefix_fn else artifact_prefix_fn(reviewer_id, review_id)
 	report_file = write_immutable_bytes(folder / f'{prefix}-report.json', json_data(data), diff_error=diff_error)
 	authored_file = write_immutable_bytes(folder / f'{prefix}-authored.txt', raw_payload, diff_error=diff_error)
@@ -791,7 +801,8 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 		raise ValueError('Finding does not exist in the original report')
 	payload = {'schema_version': 1, 'review_id': review_id, 'finding_id': finding_id, 'parent_id': parent_id, 'status': status, 'basis': basis, 'evidence': hashes(root, evidence), 'time': now()}
 	encoded = json_data(payload)
-	target = _immutable(root / 'ꘖ/KB/Evidence/Reviews/Dispositions' / (digest(encoded) + '.json'), encoded)
+	from .path_registry import project_paths
+	target = _immutable(project_paths(root, exact_root=True).evidence_dir / 'Reviews/Dispositions' / (digest(encoded) + '.json'), encoded)
 	relative = target.relative_to(root).as_posix()
 	def change(current):
 		saved = next((r for r in current['reviews'] if r.get('id') == review_id))

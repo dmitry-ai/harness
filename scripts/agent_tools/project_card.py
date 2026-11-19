@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
@@ -25,8 +28,10 @@ def sync_block(root, target, key, content, position='after-title', *, check=Fals
 	issues = readable_link_issues(content)
 	if issues:
 		raise ValueError('\n'.join(issues))
-	directory = root / 'ꘖ/data'
-	receipt_path = directory / 'rendered.json'
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	directory = pp.data_dir
+	receipt_path = pp.rendered_json
 	result = {'target': str(target), 'block': key}
 	def conflict(detail):
 		return {**result, 'status': 'conflict', 'detail': detail}

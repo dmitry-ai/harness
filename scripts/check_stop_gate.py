@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
@@ -10,10 +13,27 @@ import sqlite3
 import sys
 def _strip_local_file_scheme(text: str) -> str:
 	return re.sub('file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')
+def _ensure_scripts_on_path() -> None:
+	scripts_dir = str(Path(__file__).resolve().parent)
+	if scripts_dir not in sys.path:
+		sys.path.insert(0, scripts_dir)
 def _is_tracked_workspace(root: Path) -> bool:
+	_ensure_scripts_on_path()
+	try:
+		from agent_tools.path_registry import project_paths
+		pp = project_paths(root)
+		if pp.has_overlay or pp.project_json.is_file() or pp.journal_dir.is_dir() or pp.turns_dir.is_dir():
+			return True
+	except Exception:
+		pass
 	return (root / '\ua616/project.json').is_file() or (root / '_/\ua66e').is_dir() or (root / '\ua66e').is_dir()
 def _turns_dir(root: Path) -> Path:
-	return (root / '_/\ua616/data/turns') if (root / '_/\ua616').is_dir() else (root / '\ua616/data/turns')
+	_ensure_scripts_on_path()
+	try:
+		from agent_tools.path_registry import project_paths
+		return project_paths(root).turns_dir
+	except Exception:
+		return (root / '_/\ua616/data/turns') if (root / '_/\ua616').is_dir() else (root / '\ua616/data/turns')
 def _is_child_conversation(backend: Path, conversation_id: str, *, conversations_db: Path | None = None) -> bool:
 	db_path = Path(conversations_db) if None is not conversations_db else Path(backend) / 'conversation_summaries.db'
 	if not db_path.is_file():
@@ -68,7 +88,11 @@ def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_ove
 			backend = t_path.parent
 			brain_dir = backend / 'brain'
 		return (backend, brain_dir, backend / 'conversation_summaries.db')
-	backend = (Path.home() / '.gemini/antigravity').resolve()
+	try:
+		from agent_tools.path_registry import default_platform_paths
+		backend = Path(default_platform_paths('antigravity')['backend_dir']).resolve()
+	except Exception:
+		backend = (Path.home() / '.gemini/antigravity').resolve()
 	return (backend, backend / 'brain', backend / 'conversation_summaries.db')
 def _resolve_backend_fallback(session_id: str) -> Path:
 	return _resolve_stop_paths(session_id)[0]

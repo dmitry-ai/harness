@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
 # https://github.com/dmitry-ai/harness/issues/72
@@ -43,29 +46,8 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 def create_bytes(path: Path, data: bytes):
 	_stage_atomic_write(Path(path), data, os.rename if 'nt' == os.name else os.link)
 def data_dir_for(path: Path) -> Path:
-	resolved = Path(path).resolve()
-	if 'c:/work/upwork/code' == str(resolved).replace('\\', '/').rstrip('/').lower():
-		r = Path('C:/work/research/provision/code/AI/harness/_/ꘖ/data/workspaces/upwork')
-	else:
-		start = resolved if not resolved.exists() or resolved.is_dir() else resolved.parent
-		r = start / 'ꘖ' / 'data'
-		for parent in (start, *start.parents):
-			if 'ꘖ' == parent.name:
-				r = parent / 'data'
-				break
-			if (parent / '_').is_dir() and ((parent / 'code').is_dir() or (parent / '_/ꙮ').is_dir() or (parent / '_/ꘖ').is_dir()):
-				r = parent / '_' / 'ꘖ' / 'data'
-				break
-			if (parent / 'ꘖ').is_dir():
-				r = parent / 'ꘖ' / 'data'
-				break
-			if '.agents' == parent.name:
-				r = parent.parent / '_' / 'ꘖ' / 'data' if (parent.parent / '_').is_dir() and (parent.parent / 'code').is_dir() else parent.parent / 'ꘖ' / 'data'
-				break
-			if (parent / '.agents').is_dir():
-				r = Path('C:/work/research/provision/code/AI/harness/_/ꘖ/data/workspaces/upwork') if 'c:/work/upwork/code' == str(parent).replace('\\', '/').rstrip('/').lower() else parent / 'ꘖ' / 'data'
-				break
-	return r
+	from .path_registry import project_paths
+	return project_paths(Path(path)).data_dir
 def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=True):
 	if isinstance(value, dict):
 		yield value

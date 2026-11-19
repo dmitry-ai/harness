@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
 # https://github.com/dmitry-ai/harness/issues/54
@@ -279,9 +282,11 @@ class Tier0SourceIndex:
 	CACHE_SCHEMA_VERSION = 2
 	_INDICES: dict[str, 'Tier0SourceIndex'] = {}
 	def __init__(self, root: Path):
-		self.root = Path(root).resolve()
+		from .path_registry import project_paths
+		self.pp = project_paths(root, exact_root=True)
+		self.root = self.pp.root
 		self.root_key = str(self.root)
-		self.cache_file = self.root / '\ua616' / 'data' / 'grounding-cache.json'
+		self.cache_file = self.pp.grounding_cache_json
 		self.entries: dict[str, dict] = {}
 		self._disk_loaded = False
 	def _build_hydrated_info(self, path: Path, rp: Path, stat_key: tuple[str, int, int] | None, raw: str, sha256: str, tuples: list[dict]) -> dict:
@@ -300,8 +305,8 @@ class Tier0SourceIndex:
 	def _candidate_files(self, tickets: list[str] | tuple[str, ...]=()) -> list[Path]:
 		r: list[Path] = []
 		seen: set[Path] = set()
-		for sub in ('\ua616/KB/Evidence', 'source', 'KB', 'tickets'):
-			base = self.root / sub
+		scan_bases = [self.pp.evidence_dir, self.pp.source_dir, self.pp.manual_kb_dir, self.root / 'tickets', *self.pp.source_dirs]
+		for base in scan_bases:
 			if base.is_dir():
 				for dirpath, dirs, filenames in os.walk(base):
 					dirs[:] = sorted((d for d in dirs if d.lower() not in ('http', 'reviews', 'github')))
@@ -349,7 +354,7 @@ class Tier0SourceIndex:
 						self.entries = {}
 				_TIER0_INDEX_CACHE[self.root_key] = self.entries
 	def _persist_if_dirty(self, dirty: bool) -> None:
-		if (dirty or (self.entries and (not self.cache_file.is_file()))) and (self.cache_file.parent.is_dir() or (self.root / '\ua616').is_dir()):
+		if (dirty or (self.entries and (not self.cache_file.is_file()))) and (self.cache_file.parent.is_dir() or self.pp.agent_dir.is_dir()):
 			try:
 				self.cache_file.parent.mkdir(parents=True, exist_ok=True)
 				self.cache_file.write_text(json.dumps({'version': self.CACHE_SCHEMA_VERSION, 'files': self.entries}, ensure_ascii=False) + '\n', encoding='utf-8')
@@ -492,10 +497,10 @@ class Tier0SourceIndex:
 			if isinstance(entry, dict) and isinstance(entry.get('fact_tuples'), list):
 				tuples.extend(entry['fact_tuples'])
 		r = {'version': 1, 'tuple_count': len(tuples), 'tuples': tuples}
-		data_dir = self.root / '\ua616' / 'data'
-		if tuples or data_dir.is_dir() or (self.root / '\ua616').is_dir():
-			data_dir.mkdir(parents=True, exist_ok=True)
-			(data_dir / 'facts.json').write_text(json.dumps(r, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+		facts_file = self.pp.facts_json
+		if tuples or facts_file.parent.is_dir() or self.pp.agent_dir.is_dir():
+			facts_file.parent.mkdir(parents=True, exist_ok=True)
+			facts_file.write_text(json.dumps(r, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 		return r
 def _char_script(ch: str) -> str:
 	name = unicodedata.name(ch, '')
@@ -726,8 +731,9 @@ def is_primary_local_source(path: Path) -> bool:
 		r = path.as_posix().lower().endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md'))
 	return r
 def load_fact_ledger(root: Path) -> list[dict]:
+	from .path_registry import project_paths
 	r: list[dict] = []
-	ledger_path = Path(root).resolve() / '\ua616' / 'data' / 'facts.json'
+	ledger_path = project_paths(root, exact_root=True).facts_json
 	if ledger_path.is_file():
 		try:
 			data = json.loads(ledger_path.read_text(encoding='utf-8'))

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose text_workflow.py into ClientTextWorkspace and TextIntegrityVerifier classes":
 # https://github.com/dmitry-ai/harness/issues/78
@@ -32,8 +35,11 @@ from .text_sections import TEXT_KINDS as KINDS, lint_document as _lint, mechanic
 _APPLIED_CHECK_KEYS = ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks')
 class ClientTextWorkspace:
 	def __init__(self, root, *, strict=False):
-		self.root = Path(root).resolve(strict=strict)
-		self.folder = self.root / 'ꘖ/data/texts'
+		from .path_registry import project_paths
+		resolved = Path(root).resolve(strict=strict)
+		self.pp = project_paths(resolved, exact_root=True)
+		self.root = self.pp.root
+		self.folder = self.pp.data_dir / 'texts'
 	def _check_replay(self, ident, op, candidate, candidate_sha, changed, manifest, *, run_replay=False, replay_record=None):
 		from .text_core import replay
 		issues = []
@@ -103,7 +109,7 @@ class ClientTextWorkspace:
 		if _has_linked_ancestor(self.root, requested):
 			raise ValueError('Text target indirections need an explicit resolved ordinary file')
 		target = inside(self.root, spec.get('target', ''))
-		if target == self.root or target.is_relative_to(self.root / '\ua616'):
+		if target == self.root or target.is_relative_to(self.root / '\ua616') or target.is_relative_to(self.pp.agent_dir):
 			raise ValueError('Choose an explicit user document outside agent service storage')
 		if _has_linked_ancestor(self.root, target):
 			raise ValueError('Text target indirections need an explicit resolved ordinary file')
@@ -181,8 +187,8 @@ class ClientTextWorkspace:
 			state['protected'] = sorted(set(state.get('protected', [])) | set(protected))
 			state['targets'].setdefault(r['target'], {'sha256': r['base_sha256'], 'kind': spec['kind'], 'receipt': None})
 			self.save_index(state)
-			identity = self.root / 'ꘖ/data/text-project.json'
-			if not (self.root / 'ꘖ/project.json').exists() and (not identity.exists()):
+			identity = self.pp.text_project_json
+			if not self.pp.project_json.exists() and (not identity.exists()):
 				from .platforms.request_binding import text_project_id
 				_immutable(identity, json_data({'schema_version': 1, 'kind': 'client_text_workspace', 'project_root': str(self.root), 'id': text_project_id(self.root)}))
 		return r
@@ -224,7 +230,7 @@ class ClientTextWorkspace:
 		result = {'schema_version': 1, 'operation': ident, 'root': str(self.root), 'target': op['target'], 'kind': op['kind'], 'base_sha256': op['base_sha256'], 'candidate_sha256': candidate_sha, 'valid': not issues, 'issues': issues, 'coverage': 'mechanical' if mechanical else 'semantic', 'inputs': {**mapped['inputs'], **sources['inputs']}, 'claims': mapped['claims'], 'claim_versions': mapped['claim_versions'], 'source_checks': sources['checks'], 'manifest': manifest, 'replay_record': replay_record, 'warning_dispositions': warning_dispositions, 'diff': ''.join(difflib.unified_diff(base_text.splitlines(True), candidate.splitlines(True), fromfile='before/' + op['target'], tofile='after/' + op['target']))}
 		if result['claim_versions']:
 			from .text_claims import registry_path, subset
-			registry = registry_path(self.root, (manifest or {}).get('registry', 'ꘖ/KB/TextClaims.json'))
+			registry = registry_path(self.root, (manifest or {}).get('registry'))
 			result['claim_snapshot'] = subset(_read(registry), result['claim_versions'])
 		op_folder = self.folder / 'operations' / ident
 		source = _immutable(op_folder / (candidate_sha + '.md'), candidate_bytes)
@@ -246,7 +252,7 @@ class ClientTextWorkspace:
 				issues.extend(self._gate_target(name, entry, publication=publication))
 		if None is not response and state['targets']:
 			from .text_core import check_response
-			findings = check_response(self.root / 'ꘖ/data/answer-candidate.md', text=response, against=[inside(self.root, p) for p in selected if p in state['targets'] and inside(self.root, p).is_file()])
+			findings = check_response(self.pp.data_dir / 'answer-candidate.md', text=response, against=[inside(self.root, p) for p in selected if p in state['targets'] and inside(self.root, p).is_file()])
 			issues.extend((f.format() for f in findings if 'error' == f.severity or 'RESP-CLAIM' == f.rule))
 		if issues:
 			raise ValueError('\n'.join(issues))
@@ -392,13 +398,13 @@ class TextIntegrityVerifier:
 		r = None
 		versions = checked.get('claim_versions', {})
 		if versions:
-			registry = registry_path(self.ws.root, (checked.get('manifest') or {}).get('registry', 'ꘖ/KB/TextClaims.json'))
+			registry = registry_path(self.ws.root, (checked.get('manifest') or {}).get('registry'))
 			reference = registry.relative_to(self.ws.root).as_posix()
 			snapshot = checked.get('claim_snapshot')
 			if None is snapshot:
 				candidates = [registry]
 				if reference in checked['inputs']:
-					candidates.append(self.ws.root / 'ꘖ/data/text-claim-history' / (checked['inputs'][reference] + '.json'))
+					candidates.append(self.ws.pp.data_dir / 'text-claim-history' / (checked['inputs'][reference] + '.json'))
 				for path in candidates:
 					try:
 						candidate = subset(_read(path), versions)
@@ -475,7 +481,8 @@ class TextIntegrityVerifier:
 				entry = previous
 		return {'valid': True, 'scope': 'exact_applied_successor_lineage'}
 def _folder(root):
-	return Path(root).resolve() / 'ꘖ/data/texts'
+	from .path_registry import project_paths
+	return project_paths(root, exact_root=True).data_dir / 'texts'
 def _read(path):
 	return json.loads(Path(path).read_text(encoding='utf-8-sig'))
 def _immutable(path, payload):

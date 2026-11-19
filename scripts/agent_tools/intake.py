@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
@@ -10,10 +13,11 @@ import json
 import os
 from pathlib import Path
 import re
+from .path_registry import store_path
 from .runtime import HARNESS_META, PRIMARY, settings
 from .storage import create_bytes, locked, replace_bytes
 from .upwork_data import normalize_job_id
-INCOMING = HARNESS_META / 'ꘖ/data/incoming'
+INCOMING = store_path('incoming_dir')
 DAILY = Path(settings()['workspace_root']) / settings()['daily_root']
 CAPTURE_NAME = re.compile('^(0[12][A-Za-z0-9]+)-([A-Za-z0-9-]{8,})$')
 WEB_SUFFIXES = {'.html', '.htm', '.json', '.xml', '.mjs', '.js', '.css', '.txt', '.png', '.jpg', '.jpeg', '.webp'}
@@ -64,25 +68,30 @@ def _inventory(capture):
 	r = (result, dirs)
 	return r
 def _project(capture, daily):
+	from .path_registry import project_paths
 	match = CAPTURE_NAME.fullmatch(capture.name)
 	if not match:
 		raise ValueError('Unknown/manual capture directory is preserved')
 	job_id = normalize_job_id('~' + match[1])
-	reg_file = HARNESS_META / 'ꘖ/data/upwork-projects/projects.json' if daily.resolve() == DAILY.resolve() and (not (daily / 'ꘖ/data/projects.json').exists()) else _within(daily, 'ꘖ/data/projects.json')
+	reg_file = store_path('upwork_projects_index') if daily.resolve() == DAILY.resolve() and (not (daily / 'ꘖ/data/projects.json').exists()) else _within(daily, 'ꘖ/data/projects.json')
 	registry = json.loads(_read(reg_file).decode('utf-8-sig'))
 	if not isinstance(registry, dict) or job_id not in registry:
 		raise ValueError('Capture has no registered project; staging is preserved')
 	project = _within(daily, registry[job_id])
-	state = json.loads(_read(_within(project, 'ꘖ/project.json')).decode('utf-8-sig'))
+	pp = project_paths(project, exact_root=True)
+	state = json.loads(_read(_within(project, pp.rel_to_root(pp.project_json))).decode('utf-8-sig'))
 	if not isinstance(state, dict) or state.get('job_id') != job_id or True is not state.get('initialized'):
 		raise ValueError('Project initialization is incomplete; staging is preserved')
 	r = (project, state)
 	return r
 def _snapshot(project, state, source):
+	from .path_registry import project_paths
+	pp = project_paths(project, exact_root=True)
 	if not isinstance(source, dict) or source.get('job_id') != state['job_id']:
 		raise ValueError('The capture source does not match the initialized project')
 	snapshot = _within(project, state['snapshot'])
-	evidence = _within(project, 'ꘖ/KB/Evidence')
+	evidence = _within(project, pp.rel_to_root(pp.evidence_dir))
+	kb_dir = _within(project, pp.rel_to_root(pp.kb_dir))
 	if not snapshot.is_relative_to(evidence):
 		raise ValueError('The initialized snapshot must belong to project Evidence')
 	payload = _read(snapshot)
@@ -95,7 +104,7 @@ def _snapshot(project, state, source):
 	if sorted((x['sha256'] for x in assets)) != sorted((x['sha256'] for x in permanent)):
 		raise ValueError('The permanent snapshot does not retain every attachment')
 	for asset in permanent:
-		target = _within(_within(project, 'ꘖ/KB'), asset['file'])
+		target = _within(kb_dir, asset['file'])
 		if not target.is_relative_to(evidence) or _hash(_read(target)) != asset['sha256']:
 			raise ValueError('A permanent attachment is missing or changed; staging is preserved')
 	r = {'file': snapshot.relative_to(project).as_posix(), 'sha256': _hash(payload), 'transform': 'Drop transport saved_attachments/cookies; add verified project asset_evidence.'}
@@ -122,12 +131,15 @@ def _validate_new(capture, source, files, dirs):
 	if dirs - {'attachments'}:
 		raise ValueError('Unknown/manual staging directories are preserved')
 def _receipt(project, capture, state, files, dirs):
+	from .path_registry import project_paths
+	pp = project_paths(project, exact_root=True)
+	ev_rel = pp.rel_to_root(pp.evidence_dir)
 	source = json.loads(files['source.json'].decode('utf-8-sig'))
 	_validate_new(capture, source, files, dirs)
 	snapshot = _snapshot(project, state, source)
 	sizes = {len(payload) for payload in files.values()}
 	known = {}
-	evidence = _within(project, 'ꘖ/KB/Evidence')
+	evidence = _within(project, ev_rel)
 	for parent, children, names in os.walk(evidence, followlinks=False):
 		children[:] = [name for name in children if not _linked(Path(parent) / name)]
 		for name in names:
@@ -140,19 +152,22 @@ def _receipt(project, capture, state, files, dirs):
 		if digest not in known:
 			suffix = Path(name).suffix.lower()
 			suffix = suffix if suffix in ('.json', '.txt', '.xml', '.png', '.jpg', '.jpeg', '.webp') else suffix + '.txt'
-			known[digest] = f'ꘖ/KB/Evidence/Intake/objects/{digest}{suffix}'
+			known[digest] = f'{ev_rel}/Intake/objects/{digest}{suffix}'
 		entries.append({'original_relative_provenance': name, 'sha256': digest, 'bytes': len(payload), 'durable_file': known[digest], 'transform': 'identity'})
 	r = {'version': 1, 'capture_id': capture.name, 'job_id': source['job_id'], 'status': 'prepared', 'original_directory_provenance': str(capture), 'original_paths_are_provenance_only': True, 'snapshot': snapshot, 'entries': entries}
 	return r
 def _validate_receipt(receipt, capture, project, state):
+	from .path_registry import project_paths
+	ev_rel = project_paths(project, exact_root=True).rel_to_root(project_paths(project, exact_root=True).evidence_dir)
 	if not isinstance(receipt, dict) or 1 != receipt.get('version') or receipt.get('capture_id') != capture.name or (receipt.get('job_id') != state['job_id']) or (receipt.get('original_directory_provenance') != str(capture)) or (receipt.get('status') not in ('prepared', 'drained')):
 		raise ValueError('Unknown/manual intake receipt is preserved')
 	names = set()
+	evidence_dir = _within(project, ev_rel)
 	for entry in receipt['entries']:
 		name = entry['original_relative_provenance']
 		_within(capture, name)
 		target = _within(project, entry['durable_file'])
-		if name in names or not re.fullmatch('[0-9a-f]{64}', entry['sha256']) or (not target.is_relative_to(_within(project, 'ꘖ/KB/Evidence'))) or ('identity' != entry['transform']) or (len(_read(target)) != entry['bytes']) or (_hash(_read(target)) != entry['sha256']):
+		if name in names or not re.fullmatch('[0-9a-f]{64}', entry['sha256']) or (not target.is_relative_to(evidence_dir)) or ('identity' != entry['transform']) or (len(_read(target)) != entry['bytes']) or (_hash(_read(target)) != entry['sha256']):
 			raise ValueError('A permanent intake object is missing or changed; staging is preserved')
 		names.add(name)
 	original = next((x for x in receipt['entries'] if 'source.json' == x['original_relative_provenance']))
@@ -190,15 +205,20 @@ def _restore(receipt, capture):
 		if retired.exists() and (not original.exists()):
 			os.rename(retired, original)
 def _index(project):
-	target = _within(project, 'ꘖ/KB/Intake.md')
+	from .path_registry import project_paths
+	pp = project_paths(project, exact_root=True)
+	kb_rel = pp.rel_to_root(pp.kb_dir)
+	ev_rel = pp.rel_to_root(pp.evidence_dir)
+	ev_in_kb = Path(ev_rel).relative_to(kb_rel).as_posix() if Path(ev_rel).is_relative_to(kb_rel) else 'Evidence'
+	target = _within(project, f'{kb_rel}/Intake.md')
 	if target.exists() and (not _read(target).decode('utf-8-sig').startswith(INDEX_MARKER)):
 		raise ValueError('Manual KB/Intake.md is preserved; intake drain is deferred')
 	lines = [INDEX_MARKER.rstrip(), '# Source Materials', '', 'Previous paths in receipts record provenance only. Working links point to permanent evidence.', '']
-	for path in sorted(_within(project, 'ꘖ/KB/Evidence/Intake').glob('*.json')):
+	for path in sorted(_within(project, f'{ev_rel}/Intake').glob('*.json')):
 		receipt = json.loads(_read(path).decode('utf-8-sig'))
-		lines.extend([f"## {receipt['capture_id']}", '', f'[Receipt](Evidence/Intake/{path.name}).', ''])
+		lines.extend([f"## {receipt['capture_id']}", '', f'[Receipt]({ev_in_kb}/Intake/{path.name}).', ''])
 		for entry in receipt['entries']:
-			relative = Path(entry['durable_file']).relative_to('ꘖ/KB').as_posix()
+			relative = Path(entry['durable_file']).relative_to(kb_rel).as_posix()
 			label = entry['original_relative_provenance'].replace('[', '\\[').replace(']', '\\]')
 			lines.append(f"- [{label}](<{relative}>) — SHA-256 `{entry['sha256']}`.")
 		lines.append('')
@@ -207,13 +227,14 @@ def _index(project):
 	if 'conflict' == publication['status']:
 		raise ValueError('Intake index was manually changed; preserve it and reconcile the publication candidate')
 	from .project_card import sync_block
-	navigation = sync_block(project, _within(project, 'ꘖ/KB/.md'), 'intake-navigation', '## Source Materials\n\n[Saved sources and import receipts](Intake.md).\n', position='append', source=target)
+	navigation = sync_block(project, _within(project, f'{kb_rel}/.md'), 'intake-navigation', '## Source Materials\n\n[Saved sources and import receipts](Intake.md).\n', position='append', source=target)
 	if 'conflict' == navigation['status']:
 		raise ValueError('Intake navigation was manually changed; staging is preserved for reconciliation')
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
 def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=False):
+	from .path_registry import project_paths
 	capture, incoming, daily = (Path(capture), Path(incoming_root), Path(daily_root))
 	report = {'capture': str(capture), 'status': 'retained', 'drained': False}
 	receipt = None
@@ -224,19 +245,24 @@ def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=F
 		if capture.parent != incoming:
 			raise ValueError('Only one immediate managed incoming capture may be drained')
 		project, state = _project(capture, daily)
+		pp = project_paths(project, exact_root=True)
+		data_rel = pp.rel_to_root(pp.data_dir)
+		pj_rel = pp.rel_to_root(pp.project_json)
+		kb_rel = pp.rel_to_root(pp.kb_dir)
+		ev_rel = pp.rel_to_root(pp.evidence_dir)
 		report['project'] = str(project)
-		with locked(_within(project, 'ꘖ/data/init.lock')) if apply else nullcontext():
-			state = json.loads(_read(_within(project, 'ꘖ/project.json')).decode('utf-8-sig'))
+		with locked(_within(project, f'{data_rel}/init.lock')) if apply else nullcontext():
+			state = json.loads(_read(_within(project, pj_rel)).decode('utf-8-sig'))
 			if not isinstance(state, dict) or True is not state.get('initialized') or state.get('job_id') != '~' + CAPTURE_NAME.fullmatch(capture.name)[1]:
 				raise ValueError('Project initialization changed; staging is preserved')
-			manifest = _within(project, f'ꘖ/KB/Evidence/Intake/{capture.name}.json')
+			manifest = _within(project, f'{ev_rel}/Intake/{capture.name}.json')
 			if manifest.exists():
 				receipt = json.loads(_read(manifest).decode('utf-8-sig'))
 				_validate_receipt(receipt, capture, project, state)
 			else:
 				files, dirs = _inventory(capture)
 				receipt = _receipt(project, capture, state, files, dirs)
-			report.update(manifest=str(manifest), files=len(receipt['entries']), bytes=sum((x['bytes'] for x in receipt['entries'])), evidence_index=str(_within(project, 'ꘖ/KB/Intake.md')), durable_inputs={x['original_relative_provenance']: str(_within(project, x['durable_file'])) for x in receipt['entries'] if x['original_relative_provenance'] in ('source.json', 'site.json', 'request.txt')})
+			report.update(manifest=str(manifest), files=len(receipt['entries']), bytes=sum((x['bytes'] for x in receipt['entries'])), evidence_index=str(_within(project, f'{kb_rel}/Intake.md')), durable_inputs={x['original_relative_provenance']: str(_within(project, x['durable_file'])) for x in receipt['entries'] if x['original_relative_provenance'] in ('source.json', 'site.json', 'request.txt')})
 			_remaining(receipt, capture)
 			if not apply:
 				r = {**report, 'status': 'planned'}

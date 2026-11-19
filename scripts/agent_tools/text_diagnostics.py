@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
@@ -130,8 +133,11 @@ def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=
 			inst = target_pool[name]
 			cfg_path = inst['system_paths'].get('config_toml') or str(Path(inst['home']).expanduser().resolve() / 'config.toml')
 			inspect_native(Path(cfg_path).expanduser().resolve(), f'runtime.platforms.codex.instances.{name}', profile_name=name)
+	from .path_registry import project_paths
+	from .storage import data_dir_for
 	for scope in reversed(ancestry):
-		agents = scope / '.agents'
+		scope_pp = project_paths(scope, exact_root=True)
+		agents = scope_pp.agents_config_dir if scope_pp.agents_config_dir.resolve() != primary else (scope / '.agents')
 		for path in sorted((agents / 'rules').glob('*.md')):
 			add(path, 'local-rule', f'project-discovery:{scope}')
 		for path in sorted((agents / 'skills').glob('*/SKILL.md')):
@@ -162,12 +168,12 @@ def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=
 								add(path, f'configured-{category}', str(manifest), required=True)
 			except (OSError, ValueError, UnicodeError) as exc:
 				issue('INVALID-MANIFEST', manifest, str(exc))
-		native = scope / '.codex/config.toml'
+		native = scope_pp.codex_config_toml
 		inspect_native(native, f'optional-discovery:{scope}', scope=scope)
 		for filename in ('AGENTS.md', 'AGENTS.override.md'):
 			if (scope / filename).is_file():
 				add(scope / filename, 'native-project-document', f'optional-discovery:{scope}')
-		receipt_path = scope / 'ꘖ/data/native-config.json'
+		receipt_path = data_dir_for(scope) / 'native-config.json'
 		receipt_item = add(receipt_path, 'projection-receipt', f'optional-discovery:{scope}')
 		if receipt_item['exists']:
 			try:

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
@@ -75,9 +78,10 @@ def result_exit_code(result: dict, *, extra_failures: tuple=()) -> int:
 	failed = False is result.get('valid') or False is result.get('complete') or 'conflict' == result.get('status') or any(extra_failures)
 	return 2 if failed else 0
 def verify_scratch_input_path(project, path) -> Path:
+	from .path_registry import project_paths
 	from .storage import data_dir_for
 	r = Path(path).resolve()
-	scratch_dirs = [data_dir_for(project) / 'scratch', Path(project).resolve() / '\ua616/data/scratch']
+	scratch_dirs = [project_paths(project).scratch_dir, data_dir_for(project) / 'scratch', Path(project).resolve() / '\ua616/data/scratch']
 	if not any((r.is_relative_to(s) for s in scratch_dirs)) or Path(path).is_symlink() or any((p.is_junction() for p in (r, *r.parents) if p.exists())):
 		raise ValueError('Consumed input must be an ordinary file inside project \ua616/data/scratch')
 	return r

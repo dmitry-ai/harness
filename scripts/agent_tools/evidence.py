@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -60,13 +63,15 @@ def local_file(root, reference):
 			path = path[1:]
 		if parsed.netloc and 'localhost' != parsed.netloc:
 			raise ValueError('Remote file URI is not a local project source')
-	root_resolved = Path(root).resolve()
-	target = (root_resolved / 'ꘖ/KB' / path).resolve()
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	root_resolved = pp.root
+	target = (pp.kb_dir / path).resolve()
 	if not target.exists() and path.replace('\\', '/').lstrip('/').startswith('source/'):
 		alt = (root_resolved / path.replace('\\', '/').lstrip('/')).resolve()
-		if alt.is_relative_to(root_resolved / 'source'):
+		if alt.is_relative_to(pp.source_dir):
 			target = alt
-	if not target.is_relative_to(root_resolved):
+	if not (target.is_relative_to(root_resolved) or target.is_relative_to(pp.kb_dir.resolve())):
 		raise ValueError('Source path escapes the project; copy authorized primary evidence into Evidence first')
 	r = target
 	return r
@@ -116,7 +121,8 @@ def saved_source(root, source, observation=None):
 			r = {'kind': 'text', 'text': md_text + '\n' + plain_text, 'fragment': unquote(fragment), 'file': file, 'sha256': hashlib.sha256(raw).hexdigest()}
 	else:
 		if not observation:
-			index = Path(root) / 'ꘖ/data/http-index.json'
+			from .path_registry import project_paths
+			index = project_paths(root, exact_root=True).http_index_json
 			candidates = json.loads(index.read_text(encoding='utf-8')).values() if index.exists() else []
 			for candidate in candidates:
 				meta = load_observation(root, candidate['observation'])
@@ -202,8 +208,10 @@ def evidence_issues(root, value, *, skip_structural=False):
 		r = issues
 	return r
 def source_reference(root, file, parts=()):
-	file = inside(Path(root) / 'ꘖ/KB', file)
-	r = file.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix() + ('#' + pointer(*parts) if parts else '')
+	from .path_registry import project_paths
+	kb_dir = project_paths(root, exact_root=True).kb_dir.resolve()
+	file = inside(kb_dir, file)
+	r = file.relative_to(kb_dir).as_posix() + ('#' + pointer(*parts) if parts else '')
 	return r
 def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, exception=None, observation=None, require_bound_observation=False) -> str:
 	from .research import classify_html_challenge

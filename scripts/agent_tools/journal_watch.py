@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
@@ -29,7 +32,8 @@ from .runtime import HARNESS_META, platform_adapter_name, resolve_antigravity_pa
 from .storage import locked, replace_bytes
 FOREGROUND_ONLY = 'Persistent journal watchers are not supported; use journal-sync or journal-watch --action once in the foreground'
 def _folder(state_dir=None):
-	return Path(state_dir).resolve() if None is not state_dir else HARNESS_META / 'ꘖ/data/journal-watch'
+	from .path_registry import store_path
+	return Path(state_dir).resolve() if None is not state_dir else store_path('journal_watch_dir')
 def _read(path, default=None):
 	for attempt in range(10):
 		try:
@@ -56,15 +60,17 @@ def _log(directory, event, **fields):
 	except OSError:
 		pass
 def register(root, native, from_step, *, state_dir=None, journal_directory=None):
+	from .path_registry import canonicalize_root_dir
+	canon_root = canonicalize_root_dir(root)
 	directory = _folder(state_dir)
-	identity = [str(Path(root).resolve()), native['platform'], native['native_backend'], native['conversation_id']]
+	identity = [str(canon_root), native['platform'], native['native_backend'], native['conversation_id']]
 	key = hashlib.sha256(json.dumps(identity).encode('utf-8')).hexdigest()
 	path = directory / 'bindings' / (key + '.json')
 	with locked(directory / 'bindings.lock'):
 		previous = _read(path, {})
 		value = {**previous, 'schema_version': 1, 'project_root': identity[0], 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'source_file': native['source_file'], 'from_step': min(from_step, previous.get('from_step', from_step)), 'registered_at': previous.get('registered_at') or _now()}
 		if None is not journal_directory:
-			value['journal_directory'] = str((Path(root).resolve() / journal_directory).resolve())
+			value['journal_directory'] = str((canon_root / journal_directory).resolve())
 		if any((value.get(name) != previous.get(name) for name in ('from_step', 'source_file', 'journal_directory'))):
 			value.pop('last_signature', None)
 		if value != previous:
@@ -72,8 +78,10 @@ def register(root, native, from_step, *, state_dir=None, journal_directory=None)
 	r = {'binding': str(path), 'from_step': value['from_step']}
 	return r
 def unregister(root, native, *, state_dir=None):
+	from .path_registry import canonicalize_root_dir
+	canon_root = canonicalize_root_dir(root)
 	directory = _folder(state_dir)
-	identity = [str(Path(root).resolve()), native['platform'], native['native_backend'], native['conversation_id']]
+	identity = [str(canon_root), native['platform'], native['native_backend'], native['conversation_id']]
 	key = hashlib.sha256(json.dumps(identity).encode('utf-8')).hexdigest()
 	path = directory / 'bindings' / (key + '.json')
 	with locked(directory / 'scan.lock'), locked(directory / 'bindings.lock'):

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
@@ -836,9 +839,10 @@ def _endpoint_lock(endpoint, config):
 	key = hashlib.sha256(endpoint.encode()).hexdigest()
 	with _LOCKS_GUARD:
 		lock = _LOCKS.setdefault(key, threading.Lock())
+	from .path_registry import project_paths, workspace_override
 	cfg_ws = Path(config['workspace_root']).resolve()
-	default_ws = Path(settings()['workspace_root']).resolve()
-	lock_dir = HARNESS_META / 'ꘖ/data/browser-locks' if cfg_ws == default_ws else cfg_ws / 'ꘖ/data/browser-locks'
+	ovr_locks = workspace_override(cfg_ws, 'browser_locks_dir')
+	lock_dir = Path(ovr_locks) if ovr_locks else project_paths(cfg_ws).data_dir / 'browser-locks'
 	path = lock_dir / f'{key}.lock'
 	with lock, locked(path):
 		yield
@@ -1020,8 +1024,9 @@ def probe_cdp_arguments(browser_ws, call):
 		raise ValueError('Native browser command-line arguments are unavailable')
 	return r
 def save_cdp_identity(root, observed_identity):
-	root_path = Path(root).resolve()
+	from .path_registry import project_paths
+	pp = project_paths(root)
 	identity_bytes = (json.dumps(observed_identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	identity_hash = hashlib.sha256(identity_bytes).hexdigest()
-	identity_path = write_immutable_bytes(root_path / 'ꘖ/KB/Evidence/CDPSessions' / f'{identity_hash}.json', identity_bytes, diff_error='Immutable CDP session identity changed')
-	return (identity_path.relative_to(root_path / 'ꘖ/KB').as_posix(), identity_hash)
+	identity_path = write_immutable_bytes(pp.evidence_dir / 'CDPSessions' / f'{identity_hash}.json', identity_bytes, diff_error='Immutable CDP session identity changed')
+	return (identity_path.relative_to(pp.kb_dir).as_posix(), identity_hash)

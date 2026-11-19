@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -66,11 +69,13 @@ class ResponseEvidenceAuditor:
 					preview = ' '.join(q_raw.split())[:80]
 					self.errors.append(f'VERIFY-1 / LINK-1: Verbatim quote \u00ab{preview}\u00bb attributed to {href} is absent from the saved observation in \ua616/KB/Evidence')
 	def _check_kb_membership(self) -> None:
-		if (self.root / '\ua616/project.json').is_file() and (self.root / '\ua616/KB').is_dir():
+		from .path_registry import project_paths
+		pp = project_paths(self.root, exact_root=True)
+		if pp.project_json.is_file() and pp.kb_dir.is_dir():
 			kb_urls = set(self.client_urls)
 			kb_topics: set[tuple[str, str]] = set()
-			kb_files = list((self.root / '\ua616/KB').rglob('*.md')) + (list((self.root / 'KB').rglob('*.md')) if (self.root / 'KB').is_dir() else [])
-			analysis_file = self.root / '\ua616/KB/Analysis.json'
+			kb_files = list(pp.kb_dir.rglob('*.md')) + (list(pp.manual_kb_dir.rglob('*.md')) if pp.manual_kb_dir.is_dir() else [])
+			analysis_file = pp.kb_dir / 'Analysis.json'
 			if analysis_file.is_file():
 				kb_files.append(analysis_file)
 			for kb_file in kb_files:
@@ -117,7 +122,9 @@ class ResponseEvidenceAuditor:
 				jid = extract_upwork_job_url_id(u, allow_query_or_fragment=True)
 				if jid:
 					job_ids.add(jid)
-		pjson = self.root / '\ua616/project.json'
+		from .path_registry import project_paths
+		pp = project_paths(self.root, exact_root=True)
+		pjson = pp.project_json
 		if pjson.is_file():
 			try:
 				pdata = json.loads(pjson.read_text(encoding='utf-8-sig'))
@@ -125,7 +132,7 @@ class ResponseEvidenceAuditor:
 					job_ids.add(pdata['job_id'].strip())
 			except (OSError, ValueError):
 				pass
-		for pfile in (pjson, self.root / 'KB/Project.md', self.root / '\ua616/KB/Project.md'):
+		for pfile in (pjson, pp.manual_kb_dir / 'Project.md', pp.kb_dir / 'Project.md'):
 			if pfile.is_file():
 				try:
 					for u in _bare_urls(pfile.read_text(encoding='utf-8')):
@@ -207,7 +214,11 @@ class ResponseEvidenceAuditor:
 		needs_ev_scan = any((_is_descriptive_title_label(label, href) or ((urlsplit(href).hostname or '').lower() not in ('localhost', '127.0.0.1', '::1') and _norm_url(href) not in self.client_urls) for label, href in self.authored_links)) or any((_norm_url(href) not in self.client_urls for href, _ in self.attributed_quotes))
 		ev_dirs: list[Path] = []
 		if needs_ev_scan:
-			if (self.root / '_/\ua616/KB/Evidence').is_dir():
+			from .path_registry import project_paths
+			pp_ev = project_paths(self.root, exact_root=True).evidence_dir
+			if pp_ev.is_dir():
+				ev_dirs.append(pp_ev.resolve())
+			elif (self.root / '_/\ua616/KB/Evidence').is_dir():
 				ev_dirs.append((self.root / '_/\ua616/KB/Evidence').resolve())
 			elif (self.root / '\ua616/KB/Evidence').is_dir():
 				ev_dirs.append((self.root / '\ua616/KB/Evidence').resolve())

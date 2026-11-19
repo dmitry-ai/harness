@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
 # https://github.com/dmitry-ai/harness/issues/70
@@ -26,9 +29,15 @@ def _nonempty(value):
 	return isinstance(value, str) and bool(value.strip())
 def _issue(code, detail, **extra):
 	return {'code': code, 'message': detail, **extra}
-def registry_path(root, reference='ꘖ/KB/TextClaims.json'):
-	path = inside(root, reference)
-	if not path.is_relative_to(Path(root).resolve() / 'ꘖ/KB') or '.json' != path.suffix:
+def registry_path(root, reference=None):
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	kb_resolved = pp.kb_dir.resolve()
+	if None is reference or ('ꘖ/KB/TextClaims.json' == reference and kb_resolved != (pp.root / 'ꘖ/KB').resolve() and (not (pp.root / reference).exists())):
+		path = (kb_resolved / 'TextClaims.json').resolve()
+	else:
+		path = inside(pp.root, reference)
+	if not path.is_relative_to(kb_resolved) or '.json' != path.suffix:
 		raise ValueError('The text claim registry must be an explicit agent KB JSON file')
 	r = path
 	return r
@@ -127,7 +136,7 @@ def validate_map(root, text, kind, manifest):
 			all_ids = {ident for item in mapped.values() for ident in item.get('claim_ids', []) if isinstance(ident, str)}
 			value, index, registry = ({'schema_version': 3, 'facts': []}, {}, None)
 			if all_ids:
-				registry = registry_path(root, manifest.get('registry', 'ꘖ/KB/TextClaims.json'))
+				registry = registry_path(root, manifest.get('registry'))
 				whole = json.loads(registry.read_text(encoding='utf-8-sig'))
 				value = subset(whole, all_ids)
 				issues.extend(contract_issues(value))
@@ -170,12 +179,14 @@ def validate_map(root, text, kind, manifest):
 			issues.append(_issue('text.map_input', str(exc)))
 		r = {'valid': not issues, 'issues': issues, 'inputs': inputs, 'claims': assessment, 'claim_versions': {i: claim_digest(c) for i, c in index.items()} if 'index' in locals() else {}}
 	return r
-def save_registry(root, candidate, *, expected_sha256=None, reference='ꘖ/KB/TextClaims.json', reassessments=None):
-	root, value = (Path(root).resolve(), deepcopy(candidate))
+def save_registry(root, candidate, *, expected_sha256=None, reference=None, reassessments=None):
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	root, value = (pp.root, deepcopy(candidate))
 	if not isinstance(value, dict) or 3 != value.get('schema_version'):
 		raise ValueError('Text claim registry requires schema_version 3')
 	path = registry_path(root, reference)
-	with locked(root / 'ꘖ/data/text-claims.lock'):
+	with locked(pp.data_dir / 'text-claims.lock'):
 		previous = path.read_bytes() if path.exists() else None
 		if (digest(previous) if None is not previous else None) != expected_sha256:
 			raise ValueError('Claim registry changed; read current bytes and reconcile')
@@ -207,7 +218,7 @@ def save_registry(root, candidate, *, expected_sha256=None, reference='ꘖ/KB/Te
 		if issues:
 			raise ValueError(json.dumps(issues, ensure_ascii=False))
 		payload = json_data(value)
-		history = root / 'ꘖ/data/text-claim-history'
+		history = pp.data_dir / 'text-claim-history'
 		history.mkdir(parents=True, exist_ok=True)
 		if None is not previous:
 			archive = history / (digest(previous) + '.json')

@@ -1,4 +1,7 @@
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove Antigravity addons runtime health probing from Harness":
 # https://github.com/dmitry-ai/harness/issues/93
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -49,8 +52,32 @@ from .runtime import HARNESS_META, PRIMARY as PRIMARY_AGENTS_DIR, all_instances,
 from .platforms.antigravity import ANTIGRAVITY_FOLDERS_JSON, ANTIGRAVITY_PROJECTS_DIR, register as register_antigravity_default, register_antigravity_project
 WORKSPACE_ROOT = Path(settings()['workspace_root']).resolve()
 DAILY_PROPOSALS_ROOT = WORKSPACE_ROOT / settings()['daily_root']
-def default_context_config():
-	return {'version': 1, 'output': 'ꙮ/0/Context.md', 'sections': [{'title': 'Project', 'files': ['.md']}, {'title': 'Manual KB', 'globs': ['KB/**/*.md'], 'optional': True}, {'title': 'Agent KB', 'globs': ['ꘖ/KB/**/*.md'], 'optional': True}, {'title': 'Analysis', 'journals': ['ꙮ/1 - Analysis'], 'optional': True}, {'title': 'Proposals', 'globs': ['result/**/final/*.md', 'result/**/final.md'], 'drafts': ['result'], 'optional': True}, {'title': 'Correspondence', 'optional': True, 'letters': [{'root': 'Letters/my', 'author': 'Consultant', 'languages': ['EN', 'RU']}, {'root': 'Letters/client', 'author': 'Client', 'languages': ['EN', 'RU']}]}]}
+def default_context_config(root: Path | None=None):
+	out_rel = 'ꙮ/0/Context.md'
+	overview_rel = '.md'
+	manual_kb_glob = 'KB/**/*.md'
+	agent_kb_glob = 'ꘖ/KB/**/*.md'
+	journal_rel = 'ꙮ/1 - Analysis'
+	proposals_rel = 'result'
+	letters_my = 'Letters/my'
+	letters_client = 'Letters/client'
+	if None is not root:
+		from .path_registry import project_paths
+		pp = project_paths(root, exact_root=True)
+		if pp.context_output.is_relative_to(pp.root):
+			out_rel = pp.context_output.relative_to(pp.root).as_posix()
+		ov_p = pp.path('overview_md', pp.root / '.md')
+		overview_rel = pp.rel_to_root(ov_p)
+		manual_kb_glob = f'{pp.rel_to_root(pp.manual_kb_dir)}/**/*.md'
+		agent_kb_glob = f'{pp.rel_to_root(pp.kb_dir)}/**/*.md'
+		journal_rel = pp.rel_to_root(pp.journal_dir)
+		prop_p = pp.path('proposals_dir', pp.root / 'result')
+		proposals_rel = pp.rel_to_root(prop_p)
+		let_p = pp.path('letters_dir', pp.root / 'Letters')
+		let_rel = pp.rel_to_root(let_p)
+		letters_my = f'{let_rel}/my'
+		letters_client = f'{let_rel}/client'
+	return {'version': 1, 'output': out_rel, 'sections': [{'title': 'Project', 'files': [overview_rel]}, {'title': 'Manual KB', 'globs': [manual_kb_glob], 'optional': True}, {'title': 'Agent KB', 'globs': [agent_kb_glob], 'optional': True}, {'title': 'Analysis', 'journals': [journal_rel], 'optional': True}, {'title': 'Proposals', 'globs': [f'{proposals_rel}/**/final/*.md', f'{proposals_rel}/**/final.md'], 'drafts': [proposals_rel], 'optional': True}, {'title': 'Correspondence', 'optional': True, 'letters': [{'root': letters_my, 'author': 'Consultant', 'languages': ['EN', 'RU']}, {'root': letters_client, 'author': 'Client', 'languages': ['EN', 'RU']}]}]}
 def validate_label(value):
 	if not value or len(value) > 120 or value != value.strip().rstrip('.') or re.search('[\\\\/:\\x00-\\x1f<>"|?*]', value):
 		raise ValueError('Project name must be a Windows-safe domain or short topic, without a URL scheme')
@@ -60,8 +87,10 @@ def validate_label(value):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_url=None, domain_or_topic=None, *, platform=None):
+	from .path_registry import project_paths
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
-	agents = root / '.agents'
+	pp = project_paths(root, exact_root=True)
+	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
 	if is_linked_path(agents):
 		raise ValueError('Configuration must be project-local; existing linked directory is preserved')
 	agents.mkdir(parents=True, exist_ok=True)
@@ -80,16 +109,16 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
 			if missing:
 				existing['entries'].extend(missing)
 				replace_bytes(path, json_bytes(existing))
-	context_path = agents / 'context.json'
-	context_config = default_context_config()
+	context_path = pp.context_config if pp.agents_config_dir.resolve() != primary else (agents / 'context.json')
+	context_config = default_context_config(root if pp.has_overlay else None)
 	if not context_path.exists():
 		create_once(context_path, json_bytes(context_config).decode('utf-8'))
 	else:
-		old_config = default_context_config()
+		old_config = default_context_config(root if pp.has_overlay else None)
 		next((section for section in old_config['sections'] if 'Proposals' == section['title'])).pop('drafts')
 		if json.loads(context_path.read_text(encoding='utf-8-sig')) == old_config:
 			previous = context_path.read_bytes()
-			history = root / 'ꘖ/data/config-history' / (hashlib.sha256(previous).hexdigest() + '-context.json')
+			history = pp.data_dir / 'config-history' / (hashlib.sha256(previous).hexdigest() + '-context.json')
 			history.parent.mkdir(parents=True, exist_ok=True)
 			if not history.exists():
 				create_bytes(history, previous)
@@ -103,11 +132,14 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 def check_configuration(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR):
+	from .path_registry import project_paths
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
+	pp = project_paths(root, exact_root=True)
+	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
 	cfg = settings(primary / 'runtime.json') if primary != Path(PRIMARY_AGENTS_DIR).resolve() and (primary / 'runtime.json').is_file() else settings()
 	result = configure_codex_project(root, primary, check=True) if 'codex' in (cfg.get('platforms') or {}) else {'valid': True, 'issues': [], 'written': []}
 	for kind in DISCOVERY_KINDS:
-		path = root / f'.agents/{kind}.json'
+		path = agents / f'{kind}.json'
 		try:
 			entries = load_discovery_manifest(path, entries_error='Native manifest needs an entries list').get('entries', [])
 		except (ValueError, OSError) as exc:
@@ -134,13 +166,14 @@ def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR):
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
 def antigravity_global_config_dirs():
+	from .path_registry import default_platform_paths
 	config = settings()
 	if not platform_active('antigravity', config=config):
 		return {}
 	ag_cfg = config.get('platforms', {}).get('antigravity') or {}
 	all_insts = extract_platform_instances(ag_cfg, platform='antigravity', include_disabled=True)
 	r = {name: Path(inst['system_paths']['config_dir']) for name, inst in all_insts.items() if inst['enabled'] and 'config_dir' in inst['system_paths']}
-	current = Path.home() / '.gemini' / 'config'
+	current = Path(default_platform_paths('antigravity')['config_dir'])
 	declared_paths = [Path(inst['system_paths']['config_dir']).resolve() for inst in all_insts.values() if 'config_dir' in inst['system_paths']]
 	if all((current.resolve() != path for path in declared_paths)):
 		r[UNDECLARED_ANTIGRAVITY_HOME] = current
@@ -187,9 +220,10 @@ def install_global_customizations(config_dir=None, primary=PRIMARY_AGENTS_DIR):
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
 def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_root=DAILY_PROPOSALS_ROOT):
+	from .path_registry import store_path
 	job_id, label, day = (normalize_job_id(job_id), validate_label(domain_or_topic), request_day(date_str))
 	daily = Path(daily_root).resolve()
-	state = HARNESS_META / '\ua616/data/upwork-projects' if daily == DAILY_PROPOSALS_ROOT and (not (daily / '\ua616/data/projects.json').exists()) else daily / '\ua616/data'
+	state = store_path('upwork_projects_dir') if daily == DAILY_PROPOSALS_ROOT and (not (daily / '\ua616/data/projects.json').exists()) else daily / '\ua616/data'
 	r = None
 	with locked(state / 'projects.lock'):
 		index_file = state / 'projects.json'
@@ -234,22 +268,25 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 	if data.get('job_id') != job_id or not data.get('title') or (not data.get('description')):
 		raise ValueError('A capture with matching job ID, title and full description is required')
 	label = domain_or_topic or ' '.join(re.findall('[\\w-]+', data['title'])[:5])
+	from .path_registry import project_paths
 	root = resolve_or_create_project_dir(job_id, label, day.isoformat(), daily_root)
-	(root / 'ꘖ').mkdir(exist_ok=True)
-	with locked(root / 'ꘖ' / 'data' / 'init.lock'):
-		state_file = root / 'ꘖ' / 'project.json'
+	pp = project_paths(root, exact_root=True)
+	pp.agent_dir.mkdir(parents=True, exist_ok=True)
+	with locked(pp.data_dir / 'init.lock'):
+		state_file = pp.project_json
 		state = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {'job_id': job_id, 'initialized': False, 'created_by': 'upwork-init', 'created_at': datetime.now(timezone.utc).isoformat()}
 		if state['job_id'] != job_id:
 			raise ValueError('Project identity mismatch')
 		configure_project(root, primary_agents_dir, canonical_job_url(job_id), root.name.split(' - ', 1)[-1], platform=platform)
-		for folder in ('KB', 'ꘖ/KB', 'ꙮ/0', 'ꙮ/1 - Analysis/req', 'ꙮ/1 - Analysis/res'):
-			(root / folder).mkdir(parents=True, exist_ok=True)
+		for folder in (pp.manual_kb_dir, pp.kb_dir, pp.context_output.parent, pp.journal_dir / 'req', pp.journal_dir / 'res'):
+			folder.mkdir(parents=True, exist_ok=True)
 		from .knowledge import sync_source_folder_attachments, build_project_extra_sources
 		assets = sync_source_folder_attachments(root, data.get('saved_attachments') or [])
 		extra_sources = build_project_extra_sources(root, data, assets)
+		overview_md = pp.path('overview_md', root / '.md')
 		if not state['initialized']:
-			create_once(root / '.md', f"# {data['title']}\n{canonical_job_url(job_id)}\n")
-			create_once(root / 'KB' / 'Project.md', format_kb_project_md({**data, 'extra_sources': extra_sources, **({'site_hypothesis': site_hypothesis} if site_hypothesis else {})}))
+			create_once(overview_md, f"# {data['title']}\n{canonical_job_url(job_id)}\n")
+			create_once(pp.manual_kb_dir / 'Project.md', format_kb_project_md({**data, 'extra_sources': extra_sources, **({'site_hypothesis': site_hypothesis} if site_hypothesis else {})}))
 		source_data = {**data, 'asset_evidence': [{'file': a['file'], 'sha256': a['sha256']} for a in assets], 'extra_sources': extra_sources}
 		snapshot = populate_agent_kb(root, source_data)
 		if not state['initialized']:
@@ -260,7 +297,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		state.update(initialized=True, snapshot=str(snapshot.relative_to(root)))
 		state.setdefault('request_date', day.isoformat())
 		replace_bytes(state_file, json_bytes(state))
-		target, _, _ = generate_context(root, root / '.agents/context.json')
+		target, _, _ = generate_context(root, pp.context_config)
 	should_register = register_native if None is not register_native else register_antigravity
 	if None is should_register:
 		plat_caps = platform_settings(platform).get('capabilities')
@@ -332,7 +369,12 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
 	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 	# https://github.com/dmitry-ai/harness/issues/33
 	r['global_customizations'] = check_global_customizations(primary=primary)
-	r['valid'] = r['global_customizations']['valid']
+	from .path_registry import load_registry, paths_report
+	reg_file = primary / 'paths.json'
+	reg = load_registry(reg_file if reg_file.is_file() else None, primary=primary)
+	p_rep = paths_report(check=True, registry=reg)
+	r['paths_registry'] = {'file': p_rep['registry_file'], 'valid': p_rep['valid'], 'overlays': len(p_rep['discovered_overlays']), 'issues': p_rep['issues']}
+	r['valid'] = r['global_customizations']['valid'] and p_rep['valid']
 	return r
 def instances_report(*, platform=None, instance=None, conversation=None, include_disabled=True, check_exists=True):
 	config = settings()
@@ -370,6 +412,7 @@ def main(argv=None):
 		'register': ('Ensure the same project and folder in configured active platforms', (('project', {'type': Path}), ('--domain', {}), ('--target', {'choices': tuple(platforms_map), 'help': 'Repair one platform only; default: active targets'}))),
 		'validate-analysis': ('Check all five analysis stages and their evidence graph', (('input', {'type': Path}), ('--render', {'type': Path}), ('--format', {'choices': ('text', 'json'), 'default': 'text'}), ('--evidence', {'action': 'store_true', 'help': 'Verify saved sources and quotes without network requests'}))),
 		'doctor': ('Check discovery inputs, always_on rules, size and model settings', ()),
+		'paths': ('Inspect global path registry R, project overlay R+, and template variable expansion', (('project', {'nargs': '?', 'type': Path, 'help': 'Optional project root or child path'}), ('--expand', {'help': 'Optional path template string to expand'}), ('--check', {'action': 'store_true', 'help': 'Validate registry R and discovered project overlays R+'}))),
 		'instances': ('Inspect configured environments, instances, enabled status, and system paths for handoff/audit', (('--conversation', {'help': 'Locate the instance owning this conversation UUID'}), ('--only-enabled', {'action': 'store_true', 'help': 'Show only enabled instances'}), ('--no-exists-check', {'action': 'store_true', 'help': 'Skip checking whether each system path currently exists on disk'}))),
 		'install-global': ('Connect selected Antigravity/Codex profiles to shared native Harness sources', (('--target-profile', {'action': 'append', 'choices': all_profiles, 'help': 'Profile to configure; repeat for a pilot, default: enabled profiles'}), ('--check', {'action': 'store_true', 'help': 'Verify shared sources, inherited manifests, directory links and role paths without writing'}))),
 		'build-native': ('Generate/check native projections from canonical policy and runtime', (('--root', {'type': Path}), ('--check', {'action': 'store_true'}))),
@@ -425,6 +468,9 @@ def run(args):
 		else:
 			if 'doctor' == args.command:
 				result = doctor()
+			elif 'paths' == args.command:
+				from .path_registry import paths_report
+				result = paths_report(getattr(args, 'project', None), expand=getattr(args, 'expand', None), check=bool(getattr(args, 'check', False)))
 			elif 'instances' == args.command:
 				result = instances_report(platform=args.platform, instance=getattr(args, 'instance', None), conversation=getattr(args, 'conversation', None), include_disabled=not getattr(args, 'only_enabled', False), check_exists=not getattr(args, 'no_exists_check', False))
 			elif 'build-native' == args.command:

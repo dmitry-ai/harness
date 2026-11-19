@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
@@ -86,7 +89,8 @@ def _default_folders_json():
 		if inst['system_paths'].get('folders_json'):
 			return Path(inst['system_paths']['folders_json'])
 	raise ValueError('Antigravity folders_json is not configured in runtime.json')
-ANTIGRAVITY_PROJECTS_DIR = Path.home() / '.gemini/config/projects'
+from ..path_registry import default_platform_paths as _default_platform_paths
+ANTIGRAVITY_PROJECTS_DIR = Path(_default_platform_paths('antigravity')['projects_dir'])
 try:
 	_ag_init_all = settings()
 	_ag_init_key = platform_key_for_adapter('antigravity', _ag_init_all) or 'antigravity'
@@ -530,7 +534,7 @@ def native_tool_trace(root, request):
 		if matched:
 			paths = _antigravity_paths(backend=matched[0]['system_paths']['backend_dir'], instance=matched[0]['id'], conversation_id=conversation_id)
 		else:
-			paths = _antigravity_paths(backend=home_req / '.gemini/antigravity', conversation_id=conversation_id)
+			paths = _antigravity_paths(backend=Path(_default_platform_paths('antigravity', home=home_req)['backend_dir']), conversation_id=conversation_id)
 	else:
 		paths = _antigravity_paths(instance=request.get('instance'), conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
@@ -764,7 +768,7 @@ def _proof_paths(native):
 				path_str = sp.get(key)
 				if path_str and log_path.is_relative_to(Path(path_str).resolve()):
 					return _antigravity_paths(backend=sp.get('backend_dir'), instance=inst['id'], conversation_id=cid)
-		home_backend = (Path.home() / '.gemini/antigravity').resolve()
+		home_backend = Path(_default_platform_paths('antigravity')['backend_dir']).resolve()
 		if log_path.is_relative_to(home_backend):
 			return _antigravity_paths(backend=home_backend, conversation_id=cid)
 		raise ValueError('Saved Antigravity proof names an unconfigured or external log path')

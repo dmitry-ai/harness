@@ -1,4 +1,7 @@
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Integrate declarative Antigravity addons health and sanctioning into Harness":
 # https://github.com/dmitry-ai/harness/issues/92
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -45,7 +48,7 @@ def check_rules_budget(name: str, args: dict) -> str | None:
 	if content:
 		byte_len = len(content.encode('utf-8'))
 		if normalized.endswith('90-project.md') and byte_len > 4000:
-			r = f"Size of 90-project.md ({byte_len} bytes) exceeds the 4,000-byte limit to avoid dropping out of the Antigravity system prompt. Run 'python C:/work/research/provision/code/AI/harness/code/scripts/split_project_rules.py' for automatic splitting or move the new section into a separate module .agents/rules/9X-<topic>.md."
+			r = f"Size of 90-project.md ({byte_len} bytes) exceeds the 4,000-byte limit to avoid dropping out of the Antigravity system prompt. Run 'python {(PRIMARY / 'scripts/split_project_rules.py').as_posix()}' for automatic splitting or move the new section into a separate module .agents/rules/9X-<topic>.md."
 		elif re.search('/9[1-9]-[^/]+\\.md$', normalized) and byte_len > 6000:
 			r = f'Size of rule module {path} ({byte_len} bytes) exceeds the 6,000-byte limit. Split it into smaller topical modules.'
 	return r
@@ -165,7 +168,14 @@ def _upwork_project_root_for_command(cmd: str) -> Path | None:
 		candidates.append(Path.cwd().resolve())
 	except OSError:
 		pass
+	from agent_tools.path_registry import project_paths
 	for c in candidates:
+		try:
+			pp = project_paths(c)
+			if pp.project_json.is_file():
+				return pp.root
+		except (OSError, ValueError):
+			pass
 		for anc in (c, *c.parents):
 			if (anc / '\ua616/project.json').is_file():
 				return anc
@@ -185,7 +195,8 @@ def check_external_write_gate(name: str, args: dict) -> str | None:
 	if re.search('\\bdf_github_issue\\.py\\s+(?:create|edit|comment|close)\\b', cmd, re.I):
 		proj_root = _upwork_project_root_for_command(cmd)
 		if None is not proj_root:
-			turns_dir = proj_root / '\ua616/data/turns'
+			from agent_tools.path_registry import project_paths
+			turns_dir = project_paths(proj_root).turns_dir
 			if turns_dir.is_dir():
 				for tfile in turns_dir.glob('*.json'):
 					if tfile.name.endswith(('-recovery.json', '-violation-recovery.json')):

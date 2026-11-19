@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/87
@@ -328,13 +331,24 @@ def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
 			r = False
 	return r
 def _find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> Path | None:
+	from .path_registry import project_paths, store_value
 	r = None
 	candidates: list[Path] = []
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
+		try:
+			pp = project_paths(pr)
+			candidates.extend([*pp.code_repos, *pp.auxiliary_repos.values()])
+		except (OSError, ValueError):
+			pass
 		candidates.extend([pr, pr / 'code', pr.parent, pr.parent / 'code'])
 	for fpath, _ in source_files or []:
 		resolved = fpath.resolve()
+		try:
+			pp_f = project_paths(resolved)
+			candidates.extend([*pp_f.code_repos, *pp_f.auxiliary_repos.values()])
+		except (OSError, ValueError):
+			pass
 		for anc in (resolved, *resolved.parents):
 			candidates.extend([anc, anc / 'code'])
 	cwd = Path.cwd().resolve()
@@ -348,20 +362,36 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 				r = cand
 				break
 	if None is r:
-		ai_root = HARNESS_META.parents[1] if 2 <= len(HARNESS_META.parents) else None
-		if None is not ai_root and ai_root.is_dir():
+		for raw_search_root in store_value('code_repo_search_roots'):
+			search_root = Path(raw_search_root)
+			if not search_root.is_dir():
+				continue
 			try:
-				for cfg in ai_root.glob('**/code/.git/config'):
-					code_dir = cfg.parent.parent.resolve()
-					if code_dir not in seen and _repo_matches_github_slug(code_dir, repo):
-						r = code_dir
+				for pattern in ('*/.git/config', '**/code/.git/config'):
+					for cfg in search_root.glob(pattern):
+						code_dir = cfg.parent.parent.resolve()
+						if code_dir not in seen:
+							seen.add(code_dir)
+							if _repo_matches_github_slug(code_dir, repo):
+								r = code_dir
+								break
+					if None is not r:
 						break
 			except OSError:
 				pass
+			if None is not r:
+				break
 	return r
 find_local_code_repo = _find_local_code_repo
 def _meta_dir_for_project_root(proj_root: Path) -> Path | None:
+	from .path_registry import project_paths
 	proj_root = proj_root.resolve()
+	try:
+		pp = project_paths(proj_root)
+		if pp.agent_dir.is_dir() or pp.has_overlay or (pp.root / '_').is_dir():
+			return pp.agent_dir
+	except (OSError, ValueError):
+		pass
 	if (proj_root / '_/\ua616').is_dir() or (proj_root / '_').is_dir():
 		r = proj_root / '_' / '\ua616'
 	elif (proj_root / '\ua616').is_dir():
@@ -369,29 +399,52 @@ def _meta_dir_for_project_root(proj_root: Path) -> Path | None:
 	else:
 		r = None
 	return r
-def _resolve_meta_dirs(source_files: list[tuple[Path, bytes]], repo: str, project_root: str | Path | None=None) -> list[Path]:
-	r: list[Path] = []
-	def _add(d: Path | None) -> None:
-		if None is not d:
-			resolved = d.resolve()
-			if resolved not in r:
-				r.append(resolved)
+def _issue_target_for_path(target_path: Path) -> tuple[Path, Path] | None:
+	from .path_registry import project_paths, store_path, workspace_override
+	target_path = target_path.resolve()
+	try:
+		pp = project_paths(target_path)
+		if None is not workspace_override(pp.root):
+			return (store_path('github_evidence_dir'), pp.turns_dir)
+		if pp.agent_dir.is_dir() or pp.has_overlay or (pp.root / '_').is_dir() or pp.turns_dir.is_dir() or pp.evidence_dir.is_dir():
+			return (pp.evidence_dir / 'GitHub', pp.turns_dir)
+	except (OSError, ValueError):
+		pass
+	if (target_path / '_/\ua616').is_dir() or (target_path / '_').is_dir():
+		ag = target_path / '_' / '\ua616'
+		return (ag / 'KB/Evidence/GitHub', ag / 'data/turns')
+	if (target_path / '\ua616').is_dir():
+		ag = target_path / '\ua616'
+		return (ag / 'KB/Evidence/GitHub', ag / 'data/turns')
+	return None
+def _resolve_issue_targets(source_files: list[tuple[Path, bytes]], repo: str, project_root: str | Path | None=None) -> list[tuple[Path, Path]]:
+	from .path_registry import project_paths, store_path, store_value, workspace_override
+	r: list[tuple[Path, Path]] = []
+	def _add(pair: tuple[Path, Path] | None) -> None:
+		if None is not pair:
+			norm = (pair[0].resolve(), pair[1].resolve())
+			if norm not in r:
+				r.append(norm)
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
-		_add(_meta_dir_for_project_root(pr) or (pr / '_' / '\ua616' if (pr / '_').is_dir() else pr / '\ua616'))
+		hit = _issue_target_for_path(pr)
+		if None is hit:
+			pp = project_paths(pr)
+			hit = (store_path('github_evidence_dir'), pp.turns_dir) if None is not workspace_override(pp.root) else (pp.evidence_dir / 'GitHub', pp.turns_dir)
+		_add(hit)
 	code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=source_files)
 	if None is not code_repo:
-		_add(_meta_dir_for_project_root(code_repo.parent))
+		_add(_issue_target_for_path(code_repo))
 	for fpath, _ in source_files:
-		for parent in fpath.resolve().parents:
-			if '\ua616' == parent.name:
-				_add(parent.parent / '_' / '\ua616' if 'harness' == parent.parent.name and (parent.parent / '_/\ua616').is_dir() else parent)
-				break
-	if not r or 'dmitry-ai/harness' == repo.lower():
-		_add(HARNESS_META / '\ua616')
+		try:
+			_add(_issue_target_for_path(fpath))
+		except (OSError, ValueError):
+			pass
+	primary_repo = str(store_value('primary_github_repo') or '').lower()
+	if not r or (primary_repo and primary_repo == repo.lower()):
+		_add((store_path('github_evidence_dir'), store_path('data_dir') / 'turns'))
 	return r
-def _record_issue_in_open_turns(meta_dir: Path, repo: str, record: dict[str, Any], action: str | None) -> None:
-	turns_dir = meta_dir / 'data/turns'
+def _record_issue_in_open_turns(turns_dir: Path, repo: str, record: dict[str, Any], action: str | None) -> None:
 	issue_num = record.get('number') or record.get('issue_number')
 	if None is issue_num:
 		m = re.search('/issues/(\\d+)\\b', str(record.get('html_url') or record.get('url') or ''))
@@ -451,8 +504,8 @@ def _load_saved_issue_container_text(source_files: list[tuple[Path, bytes]], rep
 	r = None
 	if None is not issue_num:
 		safe_repo = repo.replace('/', '__')
-		for meta_dir in _resolve_meta_dirs(source_files, repo, project_root=project_root):
-			cand = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'issue-{int(issue_num)}.json'
+		for gh_root, _ in _resolve_issue_targets(source_files, repo, project_root=project_root):
+			cand = gh_root / safe_repo / f'issue-{int(issue_num)}.json'
 			if cand.is_file():
 				try:
 					data = json.loads(cand.read_text(encoding='utf-8'))
@@ -465,8 +518,8 @@ def _load_saved_issue_container_text(source_files: list[tuple[Path, bytes]], rep
 def _find_existing_issue_comments(source_files: list[tuple[Path, bytes]], repo: str, issue_num: int, project_root: str | Path | None=None) -> list[int]:
 	safe_repo = repo.replace('/', '__')
 	r: list[int] = []
-	for meta_dir in _resolve_meta_dirs(source_files, repo, project_root=project_root):
-		gh_dir = meta_dir / 'KB/Evidence/GitHub' / safe_repo
+	for gh_root, _ in _resolve_issue_targets(source_files, repo, project_root=project_root):
+		gh_dir = gh_root / safe_repo
 		if not gh_dir.is_dir():
 			continue
 		for cfile in sorted(gh_dir.glob('comment-*.json')):
@@ -489,8 +542,8 @@ def _saved_issue_parent_number(source_files: list[tuple[Path, bytes]], repo: str
 	r = None
 	if None is not issue_num:
 		safe_repo = repo.replace('/', '__')
-		for meta_dir in _resolve_meta_dirs(source_files, repo, project_root=project_root):
-			cand = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'issue-{int(issue_num)}.json'
+		for gh_root, _ in _resolve_issue_targets(source_files, repo, project_root=project_root):
+			cand = gh_root / safe_repo / f'issue-{int(issue_num)}.json'
 			if cand.is_file():
 				try:
 					data = json.loads(cand.read_text(encoding='utf-8'))
@@ -513,8 +566,8 @@ def _verify_and_persist_parent_issue(source_files: list[tuple[Path, bytes]], rep
 		raise ValueError(f'Issue #{self_number} cannot reference itself as --parent')
 	safe_repo = repo.replace('/', '__')
 	existing_data = None
-	for meta_dir in _resolve_meta_dirs(source_files, repo, project_root=project_root):
-		cand = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'issue-{pnum}.json'
+	for gh_root, _ in _resolve_issue_targets(source_files, repo, project_root=project_root):
+		cand = gh_root / safe_repo / f'issue-{pnum}.json'
 		if cand.is_file():
 			try:
 				loaded = json.loads(cand.read_text(encoding='utf-8'))
@@ -540,15 +593,17 @@ def _try_link_github_sub_issue(repo: str, parent_number: int, child_id: Any) -> 
 		return False
 def find_tracked_child_issues(repo: str, parent_number: int, *, project_root: str | Path | None=None, code_repo: Path | None=None) -> list[dict[str, Any]]:
 	pnum = int(parent_number)
-	meta_dirs = _resolve_meta_dirs([], repo, project_root=project_root)
+	targets = _resolve_issue_targets([], repo, project_root=project_root)
 	if None is not code_repo:
-		extra = _meta_dir_for_project_root(Path(code_repo).resolve().parent)
-		if None is not extra and extra.resolve() not in meta_dirs:
-			meta_dirs.append(extra.resolve())
+		extra = _issue_target_for_path(Path(code_repo).resolve().parent)
+		if None is not extra:
+			norm_extra = (extra[0].resolve(), extra[1].resolve())
+			if norm_extra not in targets:
+				targets.append(norm_extra)
 	safe_repo = repo.replace('/', '__')
 	by_num: dict[int, dict[str, Any]] = {}
-	for meta_dir in meta_dirs:
-		gh_dir = meta_dir / 'KB/Evidence/GitHub' / safe_repo
+	for gh_root, _ in targets:
+		gh_dir = gh_root / safe_repo
 		if not gh_dir.is_dir():
 			continue
 		for ifile in sorted(gh_dir.glob('issue-*.json')):
@@ -585,15 +640,13 @@ def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, f
 				record['parent_number'] = int(eff_parent)
 				record['parent_url'] = f'https://github.com/{repo}/issues/{int(eff_parent)}'
 		payload_bytes = (json.dumps(record, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
-		for meta_dir in _resolve_meta_dirs(source_files, repo, project_root=project_root):
-			if not meta_dir.exists():
-				meta_dir.mkdir(parents=True, exist_ok=True)
-			target = meta_dir / 'KB/Evidence/GitHub' / safe_repo / f'{kind}-{ident}.json'
+		for gh_root, turns_dir in _resolve_issue_targets(source_files, repo, project_root=project_root):
+			target = gh_root / safe_repo / f'{kind}-{ident}.json'
 			target.parent.mkdir(parents=True, exist_ok=True)
 			target.write_bytes(payload_bytes)
 			if None is r:
 				r = str(target)
-			_record_issue_in_open_turns(meta_dir, repo, record, action)
+			_record_issue_in_open_turns(turns_dir, repo, record, action)
 	return r
 def _resolve_title(args: argparse.Namespace, consumable: list[tuple[Path, bytes]]) -> str | None:
 	if getattr(args, 'title_file', None):

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
@@ -29,11 +32,16 @@ from .storage import locked, replace_bytes
 STAGES = ('capture', 'identity_init', 'research', 'analysis', 'review', 'kb_review', 'finalize')
 class ProjectHealthAuditor:
 	def __init__(self, root):
-		self.root = Path(root).resolve()
+		from .path_registry import project_paths
+		self.pp = project_paths(root, exact_root=True)
+		self.root = self.pp.root
 	def _analysis_card_issues(self, path):
 		r = []
+		analysis_rel = self.pp.rel_to_root(path)
+		overview_file = self.pp.path('overview_md', self.root / '.md')
+		overview_rel = self.pp.rel_to_root(overview_file)
 		if not path.is_file():
-			r.append(problem('analysis.missing', 'ꘖ/KB/Analysis.json', 'Analysis draft is not saved'))
+			r.append(problem('analysis.missing', analysis_rel, 'Analysis draft is not saved'))
 		else:
 			try:
 				value = json.loads(path.read_text(encoding='utf-8-sig'))
@@ -45,11 +53,11 @@ class ProjectHealthAuditor:
 						from .knowledge import sync_website_card
 						website = sync_website_card(self.root, value, check=True)
 						if website['status'] not in ('published', 'unchanged'):
-							r.append(problem('project.website', '.md', 'Publish the explicit evidenced client/target website selection, or null if unidentified', file=self.root / '.md'))
+							r.append(problem('project.website', overview_rel, 'Publish the explicit evidenced client/target website selection, or null if unidentified', file=overview_file))
 						established_identity = any((isinstance(c, dict) and ('verified' == c.get('verification_status') or (c.get('probability_percent') or 0) >= 80) and re.search('(?:client|author|artist|owner|customer|founder|\\u043a\\u043b\\u0438\\u0435\\u043d\\u0442|\\u0430\\u0432\\u0442\\u043e\\u0440|\\u0445\\u0443\\u0434\\u043e\\u0436\\u043d\\u0438\\u043a|\\u0432\\u043b\\u0430\\u0434\\u0435\\u043b\\u0435\\u0446|\\u0437\\u0430\\u043a\\u0430\\u0437\\u0447\\u0438\\u043a|\\u043e\\u0441\\u043d\\u043e\\u0432\\u0430\\u0442\\u0435\\u043b\\u044c)[^.]{0,40}?\\b[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{1,25}\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{1,25}\\b', c.get('essence') or '', re.IGNORECASE) for c in value.get('identity') or []))
 						if established_identity:
-							for rel_proj in ('KB/Project.md', 'ꘖ/KB/Project.md'):
-								proj_file = self.root / rel_proj
+							for proj_file in (self.pp.manual_kb_dir / 'Project.md', self.pp.kb_dir / 'Project.md'):
+								rel_proj = self.pp.rel_to_root(proj_file)
 								if proj_file.is_file() and re.search('#\\s*1\\.1\\s+(?:Name|\\u0418\\u043c\\u044f)\\s*\\r?\\n\\s*(?:unknown|\\u043d\\u0435\\u0438\\u0437\\u0432\\u0435\\u0441\\u0442\\u043d\\u043e)\\b', proj_file.read_text(encoding='utf-8'), re.IGNORECASE):
 									r.append(problem('kb.identity_mismatch', rel_proj, f'Established client identity in Analysis.json is not synced to {rel_proj} (# 1.1 Name is still unknown)', file=proj_file))
 			except (OSError, ValueError, TypeError) as exc:
@@ -57,12 +65,12 @@ class ProjectHealthAuditor:
 		return r
 	def _kb_targets(self):
 		r = []
-		for label in ('KB/Project.md', 'ꘖ/KB/Project.md', 'ꘖ/KB/Projects.md'):
-			target = self.root / label
+		for target in (self.pp.manual_kb_dir / 'Project.md', self.pp.kb_dir / 'Project.md', self.pp.kb_dir / 'Projects.md'):
+			label = self.pp.rel_to_root(target)
 			r.append((label, target, target.read_text(encoding='utf-8') if target.is_file() else ''))
 		return tuple(r)
 	def _load_snapshot(self):
-		pj_file = self.root / 'ꘖ/project.json'
+		pj_file = self.pp.project_json
 		r = None
 		if pj_file.is_file():
 			try:
@@ -114,18 +122,27 @@ class ProjectHealthAuditor:
 						r.append(problem('attachment.video_incomplete', label, f'Client video ({v_heading}) in {label} requires # Video:, # Key Spoken Commentary Points..., and # Full Audio Transcript: with [MM:SS] timestamps (§2.3)', file=target_file))
 		return r
 	def check_project(self):
+		from .runtime import PRIMARY
 		issues = kb_issues(self.root) + attachment_issues(self.root)
-		for folder in (self.root / 'ꘖ/data', self.root / '.agents'):
+		scan_folders = [self.pp.data_dir]
+		if self.pp.agents_config_dir.resolve() != Path(PRIMARY).resolve():
+			scan_folders.append(self.pp.agents_config_dir)
+		elif (self.root / '.agents').is_dir():
+			scan_folders.append(self.root / '.agents')
+		for folder in scan_folders:
 			if folder.is_dir():
 				for script in sorted(folder.rglob('*')):
 					if script.is_file() and script.suffix.lower() in ('.py', '.ps1', '.sh', '.bat', '.cmd'):
-						issues.append(problem('project.one_off_script', script.relative_to(self.root).as_posix(), 'Executable one-off scripts are prohibited in project directories (FILE-5/EXEC-1); use shared upwork_project.py commands', file=script))
+						issues.append(problem('project.one_off_script', self.pp.rel_to_root(script), 'Executable one-off scripts are prohibited in project directories (FILE-5/EXEC-1); use shared upwork_project.py commands', file=script))
 		from .links import readable_link_issues
-		for document in [self.root / '.md', *sorted((self.root / 'result').rglob('*'))]:
+		proposals_dir = self.pp.path('proposals_dir', self.root / 'result')
+		overview_file = self.pp.path('overview_md', self.root / '.md')
+		proposal_docs = sorted(proposals_dir.rglob('*')) if proposals_dir.is_dir() else []
+		for document in [overview_file, *proposal_docs]:
 			if document.is_file() and 'draft.prev.md' != document.name and ('.md' == document.name or document.suffix.lower() in ('.md', '.markdown', '.txt', '.html', '.htm')):
 				for error in readable_link_issues(document.read_text(encoding='utf-8')):
-					issues.append(problem('document.link_style', document.relative_to(self.root).as_posix(), error, file=document))
-		path = self.root / 'ꘖ/KB/Analysis.json'
+					issues.append(problem('document.link_style', self.pp.rel_to_root(document), error, file=document))
+		path = self.pp.kb_dir / 'Analysis.json'
 		issues.extend(self._analysis_card_issues(path))
 		for issue in issues:
 			if not issue.get('file'):
@@ -149,7 +166,9 @@ class ProjectHealthAuditor:
 		return r
 class ResearchQuestionRegistry:
 	def __init__(self, root):
-		self.root = Path(root).resolve()
+		from .path_registry import project_paths
+		self.pp = project_paths(root, exact_root=True)
+		self.root = self.pp.root
 	def _apply_add(self, state, ident, entry):
 		if ident in state['questions']:
 			raise ValueError('Question already exists; use its saved inputs/results')
@@ -206,7 +225,9 @@ class ResearchQuestionRegistry:
 			raise ValueError('\n'.join(issues))
 		input_hashes = hashes(self.root, inputs)
 		permitted = [inside(self.root, path).relative_to(self.root).as_posix() for path in outputs]
-		if not permitted or any((not p.startswith('ꘖ/') or p.startswith('ꘖ/data/workflow') for p in permitted)):
+		ag_prefix = self.pp.rel_to_root(self.pp.agent_dir).rstrip('/') + '/'
+		wf_prefix = self.pp.rel_to_root(self.pp.workflow_json).rsplit('.json', 1)[0]
+		if not permitted or any((not (p.startswith('ꘖ/') or p.startswith(ag_prefix)) or p.startswith('ꘖ/data/workflow') or p.startswith(wf_prefix) for p in permitted)):
 			raise ValueError('Declare exact project-owned outputs under ꘖ; not workflow state')
 		entry = {'id': ident, 'question': question, 'impact': impact, 'done_when': done_when, 'inputs': input_hashes, 'allowed_outputs': permitted, 'status': 'pending', 'owner': None, 'searches': [], 'results': {}, 'requirements': requirements, 'requirement_results': []}
 		return update(self.root, {'action': 'question', 'question_id': ident}, lambda state: self._apply_add(state, ident, entry))
@@ -251,7 +272,9 @@ class ResearchQuestionRegistry:
 		return update(self.root, {'action': 'search', 'question_id': ident}, lambda state: self._apply_search(state, ident, owner, query, useful, method_change))
 class WorkflowStateEngine:
 	def __init__(self, root):
-		self.root = Path(root).resolve()
+		from .path_registry import project_paths
+		self.pp = project_paths(root, exact_root=True)
+		self.root = self.pp.root
 		self._evidence_cache = None
 		self._kb_cache = None
 		self._reg_cache = None
@@ -282,10 +305,11 @@ class WorkflowStateEngine:
 			raise ValueError('A research question is open or its inputs/results changed')
 		if 'analysis' == stage:
 			from .analysis import require_current_contract
-			require_current_contract(json.loads((self.root / 'ꘖ/KB/Analysis.json').read_text(encoding='utf-8-sig')))
+			analysis_json = self.pp.kb_dir / 'Analysis.json'
+			require_current_contract(json.loads(analysis_json.read_text(encoding='utf-8-sig')))
 			if not check_project(self.root)['valid']:
 				raise ValueError('Resolve project/evidence diagnostics before completing analysis')
-			if 'ꘖ/KB/Analysis.json' not in out_hashes:
+			if self.pp.rel_to_root(analysis_json) not in out_hashes:
 				raise ValueError('Analysis.json must be a declared stage output')
 		if 'kb_review' == stage and (not note):
 			raise ValueError('Record the result of the semantic KB consistency review')
@@ -318,7 +342,7 @@ class WorkflowStateEngine:
 		state['legacy'] = False
 		if None is not request:
 			state['requests'].append({'id': uuid.uuid4().hex, 'time': now(), 'text': request})
-		pj = json.loads((self.root / 'ꘖ/project.json').read_text(encoding='utf-8'))
+		pj = json.loads(self.pp.project_json.read_text(encoding='utf-8'))
 		source = inside(self.root, pj['snapshot'])
 		data = json.loads(source.read_text(encoding='utf-8'))
 		if normalize_job_id(data.get('job_id')) != pj['job_id'] or not data.get('title') or (not data.get('description')):
@@ -335,7 +359,7 @@ class WorkflowStateEngine:
 		from .review import authorize
 		from .text_workflow import gate_paths
 		gate_paths([self.root / name for name in outputs])
-		scratch_dir = self.root / 'ꘖ/data/scratch'
+		scratch_dir = self.pp.scratch_dir
 		if scratch_dir.is_dir() and any((p.is_file() for p in scratch_dir.rglob('*'))):
 			raise ValueError('Clean or consume all temporary files in ꘖ/data/scratch before finalizing')
 		prepared = state['requests'][-1].get('response_prepared', {}) if state['requests'] else {}
@@ -355,7 +379,8 @@ class WorkflowStateEngine:
 		r = authorize(self.root, state, response=reply.read_bytes().decode('utf-8'))
 		if any((not request.get('response_prepared') for request in state['requests'])) or not state['requests'] or state['requests'][-1]['response_prepared'].get('sha256') != r['response_sha256']:
 			raise ValueError('Record the exact approved answer for current requests before finalizing')
-		target, _, _ = generate(self.root, self.root / '.agents/context.json')
+		ctx_cfg = self.pp.context_config if self.pp.context_config.is_file() else None
+		target, _, _ = generate(self.root, ctx_cfg)
 		out_hashes[target.relative_to(self.root).as_posix()] = file_hash(target)
 		return r
 	def adopt_requests(self, conversation_id, *, allow_finalized=False, backend=None, platform=None):
@@ -380,7 +405,8 @@ class WorkflowStateEngine:
 				register_projects(self.root, platform=reg['platform'], targets=[reg['platform'], *reg['pending_targets']])
 				self._reg_cache = None
 		in_hashes, out_hashes = (hashes(self.root, inputs), hashes(self.root, outputs))
-		if set((*in_hashes, *out_hashes)) & {'ꘖ/data/workflow.json', 'ꘖ/data/rendered.json', 'ꘖ/KB/Progress.md'}:
+		forbidden = {'ꘖ/data/workflow.json', 'ꘖ/data/rendered.json', 'ꘖ/KB/Progress.md', self.pp.rel_to_root(self.pp.workflow_json), self.pp.rel_to_root(self.pp.rendered_json), self.pp.rel_to_root(self.pp.kb_dir / 'Progress.md')}
+		if set((*in_hashes, *out_hashes)) & forbidden:
 			raise ValueError('Generated workflow/navigation state cannot serve as its own stage proof')
 		return update(self.root, {'action': 'complete_stage', 'stage': stage}, lambda state: self._apply_complete_stage(state, stage, in_hashes, out_hashes, outputs, note))
 	def evidence_hashes(self):
@@ -396,7 +422,7 @@ class WorkflowStateEngine:
 			self._kb_cache = hashes(self.root, kb_paths(self.root))
 		return self._kb_cache
 	def load(self):
-		pj = self.root / 'ꘖ/project.json'
+		pj = self.pp.project_json
 		if not pj.is_file():
 			raise ValueError('Provide the existing project root from this chat; no project is selected or initialized implicitly')
 		project = json.loads(pj.read_text(encoding='utf-8'))
@@ -415,8 +441,9 @@ class WorkflowStateEngine:
 		lines = ['# Analysis Progress', '', 'Service navigation for the agent KB; statuses do not prove the truth of conclusions.', f"Job: {state['job_id']}.", '', '## Stages']
 		lines += [f'- {stage}: {resolved_statuses[stage]}.' for stage in STAGES if 'finalize' != stage]
 		lines += ['Verify completion and external export receipt with the status command.', '']
-		if (self.root / 'ꘖ/data/continuation.md').is_file():
-			lines += ['Current post-analysis instruction: [continuation state](../data/continuation.md).', '']
+		if self.pp.continuation_md.is_file():
+			cont_rel = Path(os.path.relpath(self.pp.continuation_md, self.pp.kb_dir)).as_posix()
+			lines += [f"Current post-analysis instruction: {markdown_link('continuation state', cont_rel)}.", '']
 		lines += ['', '## Questions']
 		for question in state['questions'].values():
 			lines += [f"- {question['id']}: {question['question']}", f"  Status: {question['status']}; owner: {question.get('owner') or 'unassigned'}.", f"  Completion criterion: {question['done_when']}."]
@@ -424,12 +451,12 @@ class WorkflowStateEngine:
 				lines.append('  Gap: ' + question['gap'])
 			for ref in question.get('results', {}):
 				target = inside(self.root, ref)
-				relative = Path(os.path.relpath(target, self.root / 'ꘖ/KB')).as_posix()
+				relative = Path(os.path.relpath(target, self.pp.kb_dir)).as_posix()
 				lines.append('  ' + markdown_link('Saved result', relative))
 		lines += ['', '## Topical Modules']
-		lines += ['- ' + markdown_link(p.name, p.name) for p in sorted((self.root / 'ꘖ/KB').glob('*.md')) if 'Progress.md' != p.name]
+		lines += ['- ' + markdown_link(p.name, p.name) for p in sorted(self.pp.kb_dir.glob('*.md')) if 'Progress.md' != p.name]
 		lines += ['', 'Before new research, check the overview and topical KB modules.', 'Corrections propagate to linked claims and documents; anything unverified is marked explicitly.', 'Context.md is intended for handoff to an external agent, not for internal work.', '']
-		return publish_owned(self.root / 'ꘖ/KB/Progress.md', '\n'.join(lines), source=self.state_path(), history=False)
+		return publish_owned(self.pp.kb_dir / 'Progress.md', '\n'.join(lines), source=self.state_path(), history=False)
 	def receipt_current(self, receipt):
 		return all((inside(self.root, path).is_file() and file_hash(inside(self.root, path)) == digest for group in ('inputs', 'outputs') for path, digest in receipt.get(group, {}).items())) and ('kb_inputs' not in receipt or receipt['kb_inputs'] == self.kb_hashes()) and ('evidence_inputs' not in receipt or receipt['evidence_inputs'] == self.evidence_hashes())
 	def record_current_answer(self, response, *, journal_directory=None, request_ids=None, preauthorized=None, recorded_steps=None, turn_token=None):
@@ -439,7 +466,7 @@ class WorkflowStateEngine:
 		issues = readable_link_issues(response, allow_unencoded_file_uri=True)
 		if issues:
 			raise ValueError('\n'.join(issues))
-		analysis_path = self.root / 'ꘖ/KB/Analysis.json'
+		analysis_path = self.pp.kb_dir / 'Analysis.json'
 		if analysis_path.is_file():
 			try:
 				analysis_val = json.loads(analysis_path.read_text(encoding='utf-8-sig'))
@@ -471,7 +498,7 @@ class WorkflowStateEngine:
 		if None is self._reg_cache:
 			from .runtime import platform_active, platform_name, settings
 			config, platform = (settings(), platform_name())
-			path = self.root / 'ꘖ/data/registrations.json'
+			path = self.pp.registrations_json
 			required = path.exists() or self.root.is_relative_to(Path(config['workspace_root']) / config['daily_root'])
 			data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
 			receipt = data.get(platform) if isinstance(data, dict) else None
@@ -512,21 +539,23 @@ class WorkflowStateEngine:
 			dependency_ok = dependency_ok and current
 		return r
 	def state_path(self):
-		return self.root / 'ꘖ/data/workflow.json'
+		return self.pp.workflow_json
 	def status(self, *, state=None, statuses=None):
 		resolved_state = self.load() if None is state else state
 		resolved_statuses = self.stage_statuses(resolved_state) if None is statuses else statuses
-		existing = {name: (self.root / 'ꘖ/KB' / name).is_file() for name in ('Analysis.json', 'Analysis.md', 'Progress.md')}
-		proposals = [{'path': inside(self.root, path).relative_to(self.root).as_posix(), 'sha256': file_hash(inside(self.root, path))} for path in sorted((self.root / 'result').rglob('*.md')) if path.is_file() and path.name in ('draft.md', 'final.md', 'draft.prev.md')]
-		checkpoint = self.root / 'ꘖ/data/continuation.md'
-		return {'project': str(self.root), 'job_id': resolved_state['job_id'], 'legacy': resolved_state['legacy'], 'stages': resolved_statuses, 'scope': 'initial_analysis', 'proposal_artifacts': proposals, 'continuation': {'file': 'ꘖ/data/continuation.md', 'exists': checkpoint.is_file()}, 'next_stage': next((s for s in STAGES if 'complete' != resolved_statuses[s]), None), 'agent_kb': str(self.root / 'ꘖ/KB'), 'existing_drafts': existing, 'kb_hashes': self.kb_hashes(), 'questions': list(resolved_state['questions'].values()), 'registration': self.registration_status(), 'detail': 'Stages track saved analysis. Every new analytical reply requires current request/answer-bound approval. Continue the same filesystem project in either UI using agent KB, journal and actual proposal files; Context.md is an external export.'}
+		existing = {name: (self.pp.kb_dir / name).is_file() for name in ('Analysis.json', 'Analysis.md', 'Progress.md')}
+		proposals_dir = self.pp.path('proposals_dir', self.root / 'result')
+		prop_files = sorted(proposals_dir.rglob('*.md')) if proposals_dir.is_dir() and proposals_dir.resolve().is_relative_to(self.root) else []
+		proposals = [{'path': inside(self.root, path).relative_to(self.root).as_posix(), 'sha256': file_hash(inside(self.root, path))} for path in prop_files if path.is_file() and path.name in ('draft.md', 'final.md', 'draft.prev.md')]
+		checkpoint = self.pp.continuation_md
+		return {'project': str(self.root), 'job_id': resolved_state['job_id'], 'legacy': resolved_state['legacy'], 'stages': resolved_statuses, 'scope': 'initial_analysis', 'proposal_artifacts': proposals, 'continuation': {'file': self.pp.rel_to_root(checkpoint), 'exists': checkpoint.is_file()}, 'next_stage': next((s for s in STAGES if 'complete' != resolved_statuses[s]), None), 'agent_kb': str(self.pp.kb_dir), 'existing_drafts': existing, 'kb_hashes': self.kb_hashes(), 'questions': list(resolved_state['questions'].values()), 'registration': self.registration_status(), 'detail': 'Stages track saved analysis. Every new analytical reply requires current request/answer-bound approval. Continue the same filesystem project in either UI using agent KB, journal and actual proposal files; Context.md is an external export.'}
 	def unadopt_requests(self, conversation_id=None, request_ids=None):
 		req_ids = set(request_ids or [])
 		if not conversation_id and (not req_ids):
 			raise ValueError('Provide --conversation or at least one --request-id to unadopt')
 		return update(self.root, {'action': 'unadopt_requests', 'conversation_id': conversation_id, 'request_ids': sorted(req_ids)}, lambda state: self._apply_unadopt(state, conversation_id, req_ids))
 	def update(self, event, change):
-		with locked(self.root / 'ꘖ/data/workflow.lock'):
+		with locked(self.pp.data_dir / 'workflow.lock'):
 			state = self.load()
 			change(state)
 			state['events'].append({'id': uuid.uuid4().hex, 'time': now(), **event})
@@ -550,14 +579,19 @@ def hashes(root, paths):
 		r[target.relative_to(resolved).as_posix()] = file_hash(target)
 	return r
 def kb_paths(root):
-	kb = Path(root) / 'ꘖ/KB'
-	return [p.relative_to(root).as_posix() for p in sorted(kb.rglob('*')) if p.is_file() and (p.suffix.lower() in ('.md', '.json') or '.md' == p.name) and ('Progress.md' != p.name) and (not p.is_relative_to(kb / 'Evidence'))]
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	kb = pp.kb_dir
+	ev = pp.evidence_dir
+	if not kb.is_dir():
+		return []
+	return [p.relative_to(pp.root).as_posix() for p in sorted(kb.rglob('*')) if p.is_file() and (p.suffix.lower() in ('.md', '.json') or '.md' == p.name) and ('Progress.md' != p.name) and (not p.is_relative_to(ev))]
 def evidence_paths(root):
-	resolved = Path(root).resolve()
-	evidence = resolved / 'ꘖ/KB/Evidence'
-	dirs = [evidence, resolved / 'KB']
-	if (resolved / 'source').is_dir():
-		dirs.append(resolved / 'source')
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	resolved = pp.root
+	evidence = pp.evidence_dir
+	dirs = [d for d in (evidence, pp.manual_kb_dir, pp.source_dir) if d.is_dir() and d.resolve().is_relative_to(resolved)]
 	return sorted({p.relative_to(resolved).as_posix() for directory in dirs for p in directory.rglob('*') if p.is_file() and (not p.is_relative_to(evidence / 'Reviews'))})
 def question_contract_issues(root, question):
 	return ResearchQuestionRegistry(root).contract_issues(question)

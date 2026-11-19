@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
@@ -726,19 +729,21 @@ def _verify_quote(root, ref, *, observation=None):
 	return verify_saved_quote(root, _with_locator(ref['source'], locator), ref['quote'], mode=ref.get('quote_match', 'exact'), expected_hash=ref['source_sha256'], require_hash=True, observation=observation, documentation=bool(ref.get('documentation')), exception=ref.get('anchor_exception', {}), locator=locator, require_bound_observation=True, hash_error='Primary source bytes changed from source_sha256', absent_error='Exact quote is absent from the located primary source')
 def _manifest_primary(root, ref):
 	from .evidence import local_file
+	from .path_registry import project_paths
 	from .research import inside
-	root = Path(root).resolve()
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
 	source = local_file(root, ref['source'])
 	manifest_file = local_file(root, ref['manifest'])
 	manifest = json.loads(manifest_file.read_text(encoding='utf-8-sig'))
 	if not isinstance(manifest, dict):
 		raise ValueError('A primary manifest must be a saved JSON object')
-	state_file = root / 'ꘖ/project.json'
+	state_file = pp.project_json
 	state = json.loads(state_file.read_text(encoding='utf-8-sig')) if state_file.exists() else {}
 	if not isinstance(state, dict) or True is not state.get('initialized') or (not _text(state.get('job_id'))) or (not _text(state.get('snapshot'))):
 		raise ValueError('Intake evidence needs a registered initialized project and its exact permanent snapshot')
 	snapshot = inside(root, state['snapshot'])
-	evidence = root / 'ꘖ/KB/Evidence'
+	evidence = pp.evidence_dir
 	if not snapshot.is_relative_to(evidence):
 		raise ValueError('Registered intake snapshot must belong to project Evidence')
 	snapshot_raw = snapshot.read_bytes()
@@ -755,7 +760,7 @@ def _manifest_primary(root, ref):
 			for asset in manifest.get('asset_evidence', []):
 				if isinstance(asset, dict) and local_file(root, asset.get('file', '')) == source and (asset.get('sha256') == ref['source_sha256']):
 					return {'client_report', 'content'}
-	intake = root / 'ꘖ/KB/Evidence/Intake'
+	intake = evidence / 'Intake'
 	if manifest_file.parent != intake or 1 != manifest.get('version') or manifest.get('status') not in {'prepared', 'drained'} or (manifest.get('job_id') != state.get('job_id')):
 		raise ValueError('Primary intake/attachment must belong to the registered snapshot or its intake manifest')
 	from .intake import CAPTURE_NAME, _validate_receipt

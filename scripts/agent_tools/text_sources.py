@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -26,8 +29,9 @@ SOURCE_MAX_AGE = 86400
 def _attempt(root, candidate, url, observation, reference, *, read_only=False):
 	from .research import load_observation, json_data
 	from .text_claims import digest
+	from .text_workflow import _folder
 	url = readable_reference(url)
-	folder = Path(root).resolve() / 'ꘖ/data/texts/sources'
+	folder = _folder(root) / 'sources'
 	key = digest(url.encode('utf-8'))
 	index = folder / (key + '-latest.json')
 	with locked(folder / 'attempts.lock'):
@@ -72,13 +76,15 @@ def _evaluate(root, candidate, spec):
 		cited_job_id = extract_upwork_job_url_id(spec['url'])
 		if not cited_job_id:
 			raise ValueError('Intake source-check provenance applies only to the registered Upwork job URL of this project')
-		state_file = Path(root).resolve() / 'ꘖ/project.json'
+		from .path_registry import project_paths
+		pp = project_paths(root, exact_root=True)
+		state_file = pp.project_json
 		state = json.loads(state_file.read_text(encoding='utf-8-sig')) if state_file.is_file() else {}
 		if not isinstance(state, dict) or True is not state.get('initialized') or state.get('job_id') != cited_job_id:
 			raise ValueError('Cited Upwork job URL does not match the registered initialized project job_id')
 		if not isinstance(ref.get('manifest'), str) or not ref['manifest'].strip() or (not isinstance(ref.get('source_sha256'), str)) or (not ref['source_sha256'].strip()) or (not isinstance(ref.get('quote'), str)) or (not ref['quote'].strip()) or (not isinstance(ref.get('locator'), dict)) or (ref['locator'].get('type') not in ('json_pointer', 'text', 'lines')) or (not isinstance(ref['locator'].get('value'), str)) or (not ref['locator']['value']) or (False is not ref.get('documentation', False)):
 			raise ValueError('Intake source-check requires manifest, source_sha256, quote, non-documentation flag and json_pointer/text/lines locator')
-		root_resolved = Path(root).resolve()
+		root_resolved = pp.root
 		manifest_file = local_file(root, ref['manifest'])
 		manifest_doc = json.loads(manifest_file.read_text(encoding='utf-8-sig'))
 		raw_src = ref.get('source')
@@ -95,7 +101,7 @@ def _evaluate(root, candidate, spec):
 				matched_entry = next((e for e in manifest_doc['entries'] if isinstance(e, dict) and 'identity' == e.get('transform') and 'source.json' == e.get('original_relative_provenance') and (e.get('sha256') == ref['source_sha256']) and isinstance(e.get('durable_file'), str)), None)
 				if not matched_entry:
 					raise ValueError('Intake receipt has no matching source.json entry for this Upwork job snapshot')
-				local_source = inside(root_resolved, matched_entry['durable_file']).relative_to(root_resolved / 'ꘖ/KB').as_posix()
+				local_source = inside(root_resolved, matched_entry['durable_file']).relative_to(pp.kb_dir).as_posix()
 			else:
 				local_source = ref['manifest']
 		src_file = local_file(root, local_source)
@@ -139,10 +145,11 @@ def _evaluate(root, candidate, spec):
 	_verify_quote(root, ref, observation=ref['observation'])
 	inputs = evidence_inputs(root, {'facts': [{'evidence': [ref]}]})
 	if 'dom' == meta.get('kind'):
+		from .path_registry import project_paths
 		identity = spec.get('cdp_identity')
 		if not isinstance(identity, str) or not identity.strip():
 			raise ValueError('DOM fallback requires its captured CDP identity receipt')
-		path = inside(Path(root).resolve() / 'ꘖ/KB', identity)
+		path = inside(project_paths(root, exact_root=True).kb_dir, identity)
 		raw, data = read_addressed_json(path, stem_match=True, error_msg='DOM identity does not bind this exact observation')
 		prof = data.get('profile')
 		if 1 != data.get('schema_version') or any((not isinstance(data.get(key), str) or not data[key] for key in ('target_id', 'browser_websocket', 'observed_at'))) or ('read-only-dom' != meta.get('collector')) or ('READ_DOM' != meta.get('method')) or (not isinstance(prof, dict)) or ('verified' != prof.get('status')):
@@ -265,7 +272,7 @@ def validate_source_checks(root, candidate, records):
 			issues.append({'code': 'text.source_missing', 'message': 'External source needs a candidate-bound quote/anchor receipt: ' + url})
 		r = {'issues': issues, 'inputs': inputs, 'checks': checks}
 	return r
-def check_claim_sources(root, identifiers, *, reference='ꘖ/KB/TextClaims.json'):
+def check_claim_sources(root, identifiers, *, reference=None):
 	path = registry_path(root, reference)
 	selected = subset(json.loads(path.read_text(encoding='utf-8-sig')), identifiers)
 	issues = contract_issues(selected)

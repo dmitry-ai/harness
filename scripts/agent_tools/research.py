@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -204,8 +207,10 @@ def bounded_metrics(value):
 		r = value
 	return r
 def observed_use(root, result):
-	directory = Path(root) / 'ꘖ/data'
-	path = directory / 'research-metrics.json'
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	directory = pp.data_dir
+	path = pp.metrics_json
 	event = {k: result.get(k) for k in ('url', 'cached', 'observation', 'status', 'error', 'kind', 'request_key')}
 	event['time'] = datetime.now(timezone.utc).isoformat(timespec='microseconds')
 	with locked(directory / 'research-metrics.lock'):
@@ -236,8 +241,11 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 	context = request_context(context)
 	url, key = request_key(url, headers, scope + ':' + observation_kind, context)
 	legacy_key = request_key(url, legacy_headers, scope + ':' + observation_kind, context)[1] if None is not legacy_headers else None
-	data_dir = root / 'ꘖ/data'
-	index_file = data_dir / 'http-index.json'
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
+	data_dir = pp.data_dir
+	index_file = pp.http_index_json
 	with locked(data_dir / ('http-' + key[:24] + '.lock'), timeout=max(30, timeout + 15)):
 		index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {}
 		entry = index.get(key) or (index.get(legacy_key) if legacy_key else None)
@@ -262,7 +270,7 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 			response = Response(url, 0, 'application/octet-stream', b'')
 			error = type(exc).__name__
 			error_kind, dns_resolved = classify_network_error(exc)
-		folder = root / 'ꘖ/KB/Evidence/HTTP' / key[:24] / uuid.uuid4().hex
+		folder = pp.evidence_dir / 'HTTP' / key[:24] / uuid.uuid4().hex
 		folder.mkdir(parents=True, exist_ok=False)
 		create_bytes(folder / 'response.bin', response.body)
 		meta = {'schema_version': 1, 'kind': observation_kind, 'request_key': key, 'url': url, 'final_url': response.url, 'method': 'GET' if 'http' == observation_kind else 'READ_DOM', 'request_scope': scope, 'observed_at': when, 'status': response.status if 'http' == observation_kind else None, 'http_status_verified': 'http' == observation_kind and response.status > 0, 'content_type': response.content_type, 'charset': response.charset, 'redirects': list(response.redirects), 'body_sha256': hashlib.sha256(response.body).hexdigest(), 'body_bytes': len(response.body), 'refresh_reason': refresh_reason, 'error': error, 'error_kind': error_kind, 'dns_resolved': dns_resolved, 'conditions': {'header_names': sorted((k.lower() for k in headers)), 'values_fingerprint': key, 'reported_context': context, 'context_fingerprint': _fingerprint(context)}, 'collector': 'read-only-http' if 'http' == observation_kind else 'read-only-dom', 'interaction_checked': False}
@@ -271,14 +279,16 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 				if isinstance(extra_meta.get(k), str) and extra_meta[k]:
 					meta[k] = extra_meta[k]
 		create_bytes(folder / 'observation.json', json_data(meta))
-		reference = (folder / 'observation.json').relative_to(root / 'ꘖ/KB').as_posix()
+		reference = (folder / 'observation.json').relative_to(pp.kb_dir).as_posix()
 		with locked(data_dir / 'http-index.lock'):
 			index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {}
 			index[key] = {'observation': reference}
 			replace_bytes(index_file, json_data(index))
 		return observed_use(root, {'cached': False, 'observation': reference, **meta})
 def load_observation(root, reference):
-	file = inside(Path(root).resolve() / 'ꘖ/KB', urldefrag(reference)[0])
+	from .path_registry import project_paths
+	kb_dir = project_paths(root, exact_root=True).kb_dir.resolve()
+	file = inside(kb_dir, urldefrag(reference)[0])
 	meta = json.loads(file.read_text(encoding='utf-8'))
 	if 1 != meta.get('schema_version') or not isinstance(meta.get('body_sha256'), str):
 		raise ValueError('Invalid observation metadata')
@@ -758,13 +768,15 @@ def compact_extraction_for_disk(data):
 	r = out
 	return r
 def extract_observation(root, reference, profile='html'):
+	from .path_registry import project_paths
+	kb_dir = project_paths(root, exact_root=True).kb_dir.resolve()
 	meta = load_observation(root, reference)
-	folder = inside(Path(root) / 'ꘖ/KB', urldefrag(reference)[0]).parent
+	folder = inside(kb_dir, urldefrag(reference)[0]).parent
 	if meta.get('error') or ('http' == meta.get('kind', 'http') and (not 200 <= meta['status'] < 300)):
 		raise ValueError('Observation is unavailable; preserve it and choose a different check method')
 	target = folder / f'extracted-{profile}.json'
 	data = _write_cached_extraction(target, f'extracted-{profile}-*.json', 'body_sha256', meta['body_sha256'], lambda version: {'profile': profile, 'extractor_version': version, 'observation': reference, 'body_sha256': meta['body_sha256'], 'observed_at': meta['observed_at'], **compact_extraction_for_disk(extract_bytes((folder / 'response.bin').read_bytes(), meta['content_type'], profile, meta.get('charset') or 'utf-8', status=meta.get('status')))})
-	r = {'extraction': target.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix(), 'observation': reference, 'profile': profile, 'observed_at': meta['observed_at']}
+	r = {'extraction': target.relative_to(kb_dir).as_posix(), 'observation': reference, 'profile': profile, 'observed_at': meta['observed_at']}
 	if 'browser_check_required' in data:
 		r['browser_check_required'] = bool(data['browser_check_required'])
 	if 'word_count' in data:
@@ -772,15 +784,17 @@ def extract_observation(root, reference, profile='html'):
 	return r
 def extract_file(root, file, profile='document'):
 	import mimetypes
-	file = inside(root, file)
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	file = inside(pp.root, file)
 	body = file.read_bytes()
 	if MAX_BYTES < len(body):
 		raise ValueError('Source file exceeds 16 MiB')
 	kind = mimetypes.guess_type(file.name)[0] or 'text/plain'
 	source_sha = hashlib.sha256(body).hexdigest()
-	target = Path(root) / 'ꘖ/KB/Evidence/Extracted' / source_sha / f'{profile}.json'
-	_write_cached_extraction(target, f'{profile}-*.json', 'source_sha256', source_sha, lambda version: {'profile': profile, 'source': file.relative_to(Path(root).resolve()).as_posix(), 'source_sha256': source_sha, 'extractor_version': version, **compact_extraction_for_disk(extract_bytes(body, kind, profile))})
-	return {'extraction': target.relative_to(Path(root).resolve() / 'ꘖ/KB').as_posix(), 'source_sha256': source_sha}
+	target = pp.evidence_dir / 'Extracted' / source_sha / f'{profile}.json'
+	_write_cached_extraction(target, f'{profile}-*.json', 'source_sha256', source_sha, lambda version: {'profile': profile, 'source': file.relative_to(pp.root).as_posix(), 'source_sha256': source_sha, 'extractor_version': version, **compact_extraction_for_disk(extract_bytes(body, kind, profile))})
+	return {'extraction': target.relative_to(pp.kb_dir.resolve()).as_posix(), 'source_sha256': source_sha}
 def select_dom_tab(tabs, url, tab_id):
 	matches = [t for t in tabs if 'page' == t.get('type') and t.get('id') == tab_id and (urldefrag(t.get('url', ''))[0] == urldefrag(url)[0])]
 	if 1 != len(matches):
@@ -850,8 +864,8 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 	r = item
 	return r
 def compute_site_summary(root, results):
-	root = Path(root).resolve()
-	kb_dir = root / 'ꘖ/KB'
+	from .path_registry import project_paths
+	kb_dir = project_paths(root, exact_root=True).kb_dir
 	titles, descriptions = ({}, {})
 	missing_h1, multiple_h1, overlong_titles, thin_urls = ([], [], [], [])
 	all_identifiers, cms_domains = (set(), set())

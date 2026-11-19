@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
@@ -61,10 +64,12 @@ def summarize(paths, bindings=None):
 		r = summarize_token_records(events, bindings, tools=tools, extra={'observed_error_results': error_results, 'repeated_read_url_calls': sum((n - 1 for n in urls.values())), 'repeated_exact_search_queries': sum((n - 1 for n in queries.values())), 'interpretation': 'Observed native log counters; not quota percentage, currency or proof of content quality'})
 	return r
 def project_metrics(root):
+	from .path_registry import project_paths
 	from .workflow import load, stage_statuses
-	root = Path(root).resolve()
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
 	state = load(root)
-	path = root / 'ꘖ/data/research-metrics.json'
+	path = pp.metrics_json
 	uses = json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
 	from .research import bounded_metrics
 	collector = None if None is uses else {**bounded_metrics(uses)['totals'], 'scope': 'Only recorded collector operations since instrumentation; earlier requests unknown'}
@@ -74,7 +79,7 @@ def project_metrics(root):
 		report = json.loads((root / review['report']).read_text(encoding='utf-8'))
 		reviews.append({'reviewer_id': review['reviewer_id'], 'independent': review.get('independent', True), 'risk': review['risk'], 'result': report.get('result'), 'findings': dict(Counter((f.get('status', 'unknown') for f in report.get('findings', []))))})
 	executors, executor_issues = ([], [])
-	registry = root / 'ꘖ/data/executors.json'
+	registry = pp.executors_json
 	if registry.exists():
 		import hashlib
 		from .research import inside
@@ -169,14 +174,16 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 	return _save_executor_metadata(root, result) if write else result
 def _save_executor_metadata(root, result):
 	import hashlib
+	from .path_registry import project_paths
 	from .research import json_data
 	from .storage import locked, replace_bytes, write_immutable_bytes
-	root = Path(root).resolve()
+	pp = project_paths(root, exact_root=True)
+	root = pp.root
 	payload = json_data(result)
 	sha = hashlib.sha256(payload).hexdigest()
-	target = write_immutable_bytes(root / 'ꘖ/KB/Evidence/Executors' / f"{result['conversation_id']}-{sha}.json", payload, diff_error='Immutable executor metadata changed')
-	receipt = {'proof': target.relative_to(root).as_posix(), 'sha256': sha, 'conversation_id': result['conversation_id'], 'role': result['role'], 'surface': result['surface'], 'verification': result['verification']}
-	index_file = root / 'ꘖ/data/executors.json'
+	target = write_immutable_bytes(pp.evidence_dir / 'Executors' / f"{result['conversation_id']}-{sha}.json", payload, diff_error='Immutable executor metadata changed')
+	receipt = {'proof': target.relative_to(root).as_posix() if target.is_relative_to(root) else target.as_posix(), 'sha256': sha, 'conversation_id': result['conversation_id'], 'role': result['role'], 'surface': result['surface'], 'verification': result['verification']}
+	index_file = pp.executors_json
 	with locked(index_file.with_suffix('.lock')):
 		index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {'schema_version': 1, 'snapshots': []}
 		if 1 != index.get('schema_version') or not isinstance(index.get('snapshots'), list):

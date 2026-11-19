@@ -17,7 +17,9 @@ The user starts with `/upwork-init <URL>` and continues with ordinary messages i
 Work on the same directory may be resumed in a new chat of the other platform, including semi-manual proposal preparation under a separate instruction.  
 All commands below are executed by the agent; Python 3.12+ is required, with dependencies listed in `requirements-agent-tools.txt`.  
 General entry point: `python <scripts>/harness.py <command> --help` (`upwork_project.py` remains a backward-compatible alias).  
-A single shared library services declared agent environments and instances; workspace root, daily directory, environments, per-instance `enabled` toggles, `system_paths`, models, time zone, and paths are defined in `../runtime.json` (schema v2).  
+A single shared library services declared agent environments and instances; workspace root, daily directory, environments, per-instance `enabled` toggles, `system_paths`, models, and time zone are defined in [runtime.json](../runtime.json) (schema v2), while filesystem roots, tool binaries, central stores, relocations, platform layouts, and project topology profiles live in [paths.json](../paths.json) (`R`, schema v1) using `${VAR}` and `%ENV%` template variables.  
+Individual projects may override or extend variables, paths, tools, `code_repos`, and external `linked_roots` via a local overlay (`R+`) at `.agents/paths.json`, `_/ꘖ/paths.json`, or `ꘖ/paths.json`; `paths [<project>] [--expand <template>] [--check]` inspects and validates `R` and all discovered `R+` overlays.  
+<!-- https://github.com/dmitry-ai/harness/issues/96 -->  
 Pass `--platform <env>` to every operation; omitting the flag preserves Antigravity compatibility.  
 Codex resolves active instances from `CODEX_HOME`, or accepts an explicit `--codex-profile <id>` or `--instance <id>` (usable across platforms).  
 `instances [--platform <env>] [--instance <id>] [--conversation <uuid>] [--only-enabled]` inspects configured environments, per-instance `enabled` status, and exact `system_paths` to support usage-limit handoffs and cross-instance audits (`metrics [--conversation <uuid>] [--instance <id>]`).  

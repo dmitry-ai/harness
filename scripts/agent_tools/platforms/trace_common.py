@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
@@ -288,14 +291,16 @@ def partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 				r.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} ({detail})')
 	return r
 def persist_review_proof(root, reviewer_id, digest, final_text, proof, *, write=True, diff_error='Existing reviewer proof changed; preserve both and recheck native progress'):
-	root_p = Path(root).resolve()
-	target = root_p / '\ua616/KB/Evidence/Reviews' / f'{reviewer_id}-{digest[:16]}-native.json'
+	from ..path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	root_p = pp.root
+	target = pp.evidence_dir / 'Reviews' / f'{reviewer_id}-{digest[:16]}-native.json'
 	authored = target.with_name(target.stem + '-authored.txt')
-	proof['authored_response'] = authored.relative_to(root_p).as_posix()
+	proof['authored_response'] = authored.relative_to(root_p).as_posix() if authored.is_relative_to(root_p) else authored.as_posix()
 	if write:
 		write_immutable_bytes(authored, final_text.encode('utf-8'), diff_error='Immutable native authored response differs')
 		write_immutable_bytes(target, json_data(proof), diff_error=diff_error)
-	return {'proof': target.relative_to(root_p).as_posix(), **proof}
+	return {'proof': target.relative_to(root_p).as_posix() if target.is_relative_to(root_p) else target.as_posix(), **proof}
 def prompt_bias_issues(prompt_text):
 	if not isinstance(prompt_text, str) or not prompt_text.strip():
 		r = []

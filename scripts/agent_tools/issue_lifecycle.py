@@ -1,4 +1,7 @@
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Integrate declarative Antigravity addons health and sanctioning into Harness":
 # https://github.com/dmitry-ai/harness/issues/92
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -298,9 +301,11 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 					if rel and '.' != rel and (not rel.startswith(('.git/', '\ua616/', '\ua66e/', '_/'))):
 						repo_touched.setdefault(anc, set()).add(rel)
 					break
+	from .path_registry import project_paths, store_path
+	pp_root = project_paths(root)
 	turn_issues = _collect_turn_issues(turn, turn_state)
 	candidate_repos = list(repo_touched.keys())
-	for cand in (root, root / 'code', root.parent / 'code'):
+	for cand in (*pp_root.code_repos, root, root / 'code', root.parent / 'code'):
 		cand_res = cand.resolve()
 		if is_issue_tracked_code_repo(cand_res) and cand_res not in candidate_repos:
 			candidate_repos.append(cand_res)
@@ -310,7 +315,7 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 			found_res = found_repo.resolve()
 			if is_issue_tracked_code_repo(found_res) and found_res not in candidate_repos:
 				candidate_repos.append(found_res)
-	workspace_code_repos = {c.resolve() for c in (root, root / 'code', root.parent / 'code') if is_issue_tracked_code_repo(c.resolve())}
+	workspace_code_repos = {c.resolve() for c in (*pp_root.code_repos, root, root / 'code', root.parent / 'code') if is_issue_tracked_code_repo(c.resolve())}
 	required_issues_by_repo: dict[Path, set[str]] = {rep: set() for rep in candidate_repos}
 	repo_by_issue_url: dict[str, Path] = {}
 	for url, info in turn_issues.items():
@@ -350,15 +355,21 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 	_check_multi_subtask_decomposition(root, response, repo_touched, committed_by_repo, turn_issues, required_issues_by_repo, candidate_repos, violations)
 	return {'verified': not violations, 'touched_repos': {str(k): sorted(v) for k, v in repo_touched.items()}, 'issues': checked_issues, 'violations': violations}
 def evidence_issue_files(root: Path, repo_slug: str, fname: str, candidate_repos=()) -> list[Path]:
+	from .path_registry import project_paths, store_path
 	safe_repo = repo_slug.replace('/', '__')
-	roots = [Path(root).resolve()] + [Path(rep).resolve().parent for rep in candidate_repos]
+	roots = [Path(root).resolve()] + [Path(rep).resolve() for rep in candidate_repos] + [Path(rep).resolve().parent for rep in candidate_repos]
 	ev_files: list[Path] = []
 	for rt in roots:
-		for rel in ('_/\ua616/KB/Evidence/GitHub', '\ua616/KB/Evidence/GitHub'):
-			p = rt / rel / safe_repo / fname
+		cands = [rt / '_/\ua616/KB/Evidence/GitHub', rt / '\ua616/KB/Evidence/GitHub']
+		try:
+			cands.insert(0, project_paths(rt).evidence_dir / 'GitHub')
+		except (OSError, ValueError):
+			pass
+		for base_gh in cands:
+			p = (base_gh / safe_repo / fname).resolve()
 			if p.is_file() and p not in ev_files:
 				ev_files.append(p)
-	hm = (HARNESS_META / '\ua616/KB/Evidence/GitHub' / safe_repo / fname).resolve()
+	hm = (store_path('github_evidence_dir') / safe_repo / fname).resolve()
 	if hm.is_file() and hm not in ev_files:
 		ev_files.append(hm)
 	return ev_files
