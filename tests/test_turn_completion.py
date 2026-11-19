@@ -1906,5 +1906,171 @@ class WatcherLifecycleTests(unittest.TestCase):
 			self.assertFalse(directory.exists())
 			dry = journal_watch.once(state_dir=directory, dry_run=True)
 			self.assertTrue(dry['dry_run'])
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
+class AntigravityAddonsIntegrationTests(unittest.TestCase):
+	def test_sanctioned_addon_roots_and_cdp_bypass_gate(self):
+		import tempfile
+		from unittest.mock import patch
+		import check_rules_and_server_gate as gate
+		from agent_tools import runtime, shell_audit
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			addons_code = t / 'Addons/code'
+			other_code = t / 'Other/code'
+			addons_code.mkdir(parents=True)
+			other_code.mkdir(parents=True)
+			cfg = {
+				'platforms': {
+					'antigravity': {
+						'enabled': True,
+						'browser': {'cdp_port': 9222},
+						'addons': {'code_dir': str(addons_code)},
+					}
+				},
+				'text': {
+					'browser': {
+						'sessions': {
+							'chrome_primary': {
+								'endpoint': 'http://127.0.0.1:9222',
+								'devtools_active_port': 'C:/ChromeU/DevToolsActivePort',
+								'profile': {'path': 'C:/ChromeU/Default'},
+							}
+						}
+					}
+				},
+			}
+			self.assertEqual(runtime.sanctioned_addon_code_roots(cfg), [addons_code])
+			inspector = shell_audit.ShellCommandInspector()
+			self.assertEqual(inspector.prohibited_cdp_bypass_commands(f'node "{addons_code}/Upgrade/upgrade.js" --check', config=cfg), [])
+			self.assertEqual(inspector.prohibited_cdp_bypass_commands(f'node "{addons_code}/Upgrade/profile-endpoints.js" DevToolsActivePort', config=cfg), [])
+			self.assertTrue(inspector.prohibited_cdp_bypass_commands(f'node -e "console.log(\'DevToolsActivePort\')" "{addons_code}/Upgrade/upgrade.js"', config=cfg))
+			self.assertTrue(inspector.prohibited_cdp_bypass_commands(f'node "{other_code}/foo.js" DevToolsActivePort', config=cfg))
+			self.assertTrue(inspector.prohibited_cdp_bypass_commands('curl http://127.0.0.1:9222/json/list', config=cfg))
+			with patch('agent_tools.runtime.settings', return_value=cfg):
+				self.assertIsNone(gate.check_cdp_bypass_gate('write_file', {'Path': str(addons_code / 'Upgrade/test.js'), 'Content': 'DevToolsActivePort'}))
+				self.assertIsNotNone(gate.check_cdp_bypass_gate('write_file', {'Path': str(other_code / 'bad.js'), 'Content': 'http://127.0.0.1:9222/devtools/page/1'}))
+				self.assertIsNotNone(gate.check_cdp_bypass_gate('read_file', {'Path': 'C:/ChromeU/DevToolsActivePort'}))
+				self.assertIsNone(gate.check_cdp_bypass_gate('run_command', {'CommandLine': f'node "{addons_code}/Upgrade/runtime-health.js"'}))
+				self.assertIsNotNone(gate.check_cdp_bypass_gate('run_command', {'CommandLine': 'curl http://127.0.0.1:9222/json/version'}))
+	def test_addons_health_states_and_doctor_integration(self):
+		from datetime import datetime, timezone
+		import json
+		import os
+		import tempfile
+		from agent_tools import addons_health, upwork_project as up
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			primary = t / 'harness/code'
+			(primary / 'rules').mkdir(parents=True)
+			(primary / 'skills/upwork-init').mkdir(parents=True)
+			(primary / 'agents').mkdir(parents=True)
+			(primary / 'rules/00-scope.md').write_text('---\ntrigger: always_on\n---\n# Scope\nUse canonical sources.  \n', encoding='utf-8')
+			(primary / 'skills/upwork-init/SKILL.md').write_text('---\nname: upwork-init\ndescription: Init workflow.\n---\nBody.\n', encoding='utf-8')
+			ag_home = t / 'ag/A0'
+			(ag_home / '.gemini/config/projects').mkdir(parents=True)
+			(ag_home / '.gemini/antigravity').mkdir(parents=True)
+			udd = t / 'udd/A0'
+			udd.mkdir(parents=True)
+			addons_dir = t / 'addons'
+			addons_dir.mkdir(parents=True)
+			up_cli = addons_dir / 'upgrade.js'
+			hp_cli = addons_dir / 'runtime-health.js'
+			up_cli.write_text('console.log("{}")', encoding='utf-8')
+			hp_cli.write_text('console.log(JSON.stringify({state:"ready",windows:[{profile:"A0",state:"ready"}]}))', encoding='utf-8')
+			st_path = t / 'AntigravityTools/runtime.json'
+			st_path.parent.mkdir(parents=True)
+			now_iso = datetime.now(timezone.utc).isoformat()
+			cfg = {
+				'version': 2,
+				'workspace_root': str(t / 'ws'),
+				'daily_root': 'proposals/daily',
+				'platforms': {
+					'antigravity': {
+						'enabled': True,
+						'folders_json': str(t / 'folders.json'),
+						'addons': {
+							'code_dir': str(addons_dir),
+							'upgrade_cli': str(up_cli),
+							'health_cli': str(hp_cli),
+							'runtime_state_json': str(st_path),
+							'node': 'node',
+						},
+						'instances': {
+							'A0': {'enabled': True, 'primary': True, 'home': str(ag_home), 'user_data_dir': str(udd)}
+						},
+					}
+				},
+			}
+			self.assertEqual(addons_health.check_antigravity_addons({'platforms': {'antigravity': {'enabled': True, 'instances': {}}}}), {'configured': False, 'valid': True, 'status': 'not_configured'})
+			disabled_cfg = {'platforms': {'antigravity': {'enabled': False, 'addons': cfg['platforms']['antigravity']['addons'], 'instances': {}}}}
+			self.assertEqual(addons_health.check_antigravity_addons(disabled_cfg), {'configured': True, 'valid': True, 'status': 'disabled'})
+			st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'waiting-for-antigravity', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'unavailable', 'windows': 0}]}), encoding='utf-8')
+			idle_res = addons_health.check_antigravity_addons(cfg, run_cli=lambda s, _a: (2, {'state': 'unavailable'}))
+			self.assertEqual((idle_res['status'], idle_res['valid']), ('idle', True))
+			(udd / 'main-runtime.json').write_text(json.dumps({'id': 'A0', 'pid': os.getpid()}), encoding='utf-8')
+			st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'waiting-for-antigravity', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'unavailable', 'windows': 0}]}), encoding='utf-8')
+			fail_res = addons_health.check_antigravity_addons(cfg, heal=False, run_cli=lambda s, _a: (2, {'state': 'unavailable'}))
+			self.assertEqual((fail_res['status'], fail_res['valid'], fail_res['active_profiles']), ('error', False, ['A0']))
+			tray_state = {'pid': os.getpid(), 'state': 'waiting-for-shell', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'available', 'windows': 0}]}
+			st_path.write_text(json.dumps(tray_state), encoding='utf-8')
+			tray_res = addons_health.check_antigravity_addons(cfg, heal=False, run_cli=lambda s, _a: (2, {'state': 'unavailable'}))
+			self.assertEqual((tray_res['status'], tray_res['valid']), ('idle', True))
+			healed_calls = []
+			def fake_runner(script, _args):
+				healed_calls.append(Path(script).name)
+				if 'upgrade.js' == Path(script).name:
+					st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'connected', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'available', 'windows': 1}]}), encoding='utf-8')
+					return (0, 'ready')
+				return (0, {'state': 'ready', 'windows': [{'profile': 'A0', 'state': 'ready'}]}) if 'upgrade.js' in healed_calls else (2, {'state': 'unavailable'})
+			st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'error', 'updated': now_iso}), encoding='utf-8')
+			heal_res = addons_health.check_antigravity_addons(cfg, heal=True, run_cli=fake_runner)
+			self.assertEqual((heal_res['status'], heal_res['valid'], heal_res['healed']), ('ready', True, True))
+			doc_cfg = dict(cfg)
+			doc_cfg['platforms'] = {'antigravity': {**cfg['platforms']['antigravity'], 'addons': {**cfg['platforms']['antigravity']['addons'], 'health_cli': str(hp_cli), 'upgrade_cli': str(up_cli)}}}
+			hp_cli.write_text('process.exit(1);', encoding='utf-8')
+			up_cli.write_text('process.exit(0);', encoding='utf-8')
+			(primary / 'runtime.json').write_text(json.dumps(doc_cfg), encoding='utf-8')
+			(t / 'folders.json').write_text('{"folders":[],"projectFolderMap":{}}', encoding='utf-8')
+			from unittest.mock import patch
+			with patch('agent_tools.runtime.settings', return_value=doc_cfg), patch('agent_tools.upwork_project.platform_settings', return_value=doc_cfg['platforms']['antigravity']):
+				doc = up.doctor(primary=primary)
+			self.assertEqual(doc['addons_health']['status'], 'error')
+			self.assertFalse(doc['valid'])
+	def test_multi_subtask_decomposition_aggregates_across_repositories(self):
+		import json
+		import tempfile
+		from agent_tools.issue_lifecycle import _check_multi_subtask_decomposition
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			root = t / 'proj'
+			repo_a = t / 'repo_a/code'
+			repo_b = t / 'repo_b/code'
+			for r, slug in ((repo_a, 'dmitry-ai/harness'), (repo_b, 'dmitry-ai/antigravity-addons')):
+				(r / '.git').mkdir(parents=True)
+				(r / '.git/config').write_text(f'[remote "origin"]\n\turl = https://github.com/{slug}.git\n', encoding='utf-8')
+			ev = root / '_/ꘖ/KB/Evidence/GitHub'
+			for slug, num in (('dmitry-ai/harness', 91), ('dmitry-ai/antigravity-addons', 51)):
+				p = ev / slug.replace('/', '__') / f'issue-{num}.json'
+				p.parent.mkdir(parents=True, exist_ok=True)
+				p.write_text(json.dumps({'issue': {'number': num, 'state': 'closed'}}), encoding='utf-8')
+			turn_issues = {
+				'https://github.com/dmitry-ai/harness/issues/92': {'url': 'https://github.com/dmitry-ai/harness/issues/92', 'repo': 'dmitry-ai/harness', 'number': 92, 'state': 'closed', 'parent_number': 91, 'last_action': 'close', 'actions': ['create', 'close']},
+				'https://github.com/dmitry-ai/antigravity-addons/issues/52': {'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/52', 'repo': 'dmitry-ai/antigravity-addons', 'number': 52, 'state': 'closed', 'parent_number': 51, 'last_action': 'close', 'actions': ['create', 'close']},
+				'https://github.com/dmitry-ai/antigravity-addons/issues/53': {'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/53', 'repo': 'dmitry-ai/antigravity-addons', 'number': 53, 'state': 'closed', 'parent_number': 51, 'last_action': 'close', 'actions': ['create', 'close']},
+				'https://github.com/dmitry-ai/antigravity-addons/issues/54': {'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/54', 'repo': 'dmitry-ai/antigravity-addons', 'number': 54, 'state': 'closed', 'parent_number': 51, 'last_action': 'close', 'actions': ['create', 'close']},
+			}
+			response = '1. `M-1` ...\n2. `M-2` ...\n3. `M-3` ...\n4. `M-4` ...\n'
+			repo_touched = {repo_a: {'a.py'}, repo_b: {'b.js'}}
+			committed = {repo_a: {'https://github.com/dmitry-ai/harness/issues/92'}, repo_b: {'https://github.com/dmitry-ai/antigravity-addons/issues/52', 'https://github.com/dmitry-ai/antigravity-addons/issues/53', 'https://github.com/dmitry-ai/antigravity-addons/issues/54'}}
+			req = {repo_a: set(committed[repo_a]), repo_b: set(committed[repo_b])}
+			violations_ok = []
+			_check_multi_subtask_decomposition(root, response, repo_touched, committed, turn_issues, req, [repo_a, repo_b], violations_ok)
+			self.assertEqual(violations_ok, [])
+			violations_missing = []
+			committed_short = {repo_a: set(), repo_b: set(committed[repo_b])}
+			_check_multi_subtask_decomposition(root, response, repo_touched, committed_short, turn_issues, req, [repo_a, repo_b], violations_missing)
+			self.assertEqual(len(violations_missing), 2)
 if '__main__' == __name__:
 	unittest.main()

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
@@ -24,6 +27,7 @@
 # "Replace per-profile Harness projections with shared native connections":
 # https://github.com/dmitry-ai/harness/issues/35
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import os
@@ -32,6 +36,7 @@ from datetime import datetime, timezone
 import re
 import sqlite3
 import sys
+import tempfile
 from .configuration import DISCOVERY_KINDS, configure_codex_project, is_linked_path, load_discovery_manifest, project_discovery_entries
 from .context import generate as generate_context
 from .knowledge import create_once, json_bytes, populate_agent_kb, render_analysis, validate_analysis
@@ -275,6 +280,9 @@ def save_registration(root, platform, result):
 	from .registration import save_registration as save
 	r = save(root, platform, result)
 	return r
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Audit and integrate official Antigravity hooks and slash-commands capabilities into platform adapters":
 # https://github.com/dmitry-ai/harness/issues/25
@@ -286,13 +294,16 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
 		raise ValueError('Rules are missing or exceed the 24,000-byte per-file limit')
 	if any((not re.search('^trigger: always_on\\s*$', p.read_text(encoding='utf-8'), re.M) for p in files)):
 		raise ValueError('Every shared rule must remain always_on')
+	from .addons_health import check_antigravity_addons
 	from .operations import COMMANDS
 	version_files = sorted((p for p in primary.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.json') and ('__pycache__' not in p.parts)))
 	tool_version = hashlib.sha256(b''.join((p.relative_to(primary).as_posix().encode() + hashlib.sha256(p.read_bytes()).digest() for p in version_files))).hexdigest()
-	active_platform = platform_name()
-	plat_cfg = platform_settings(active_platform)
+	cfg_file = primary / 'runtime.json'
+	doc_config = settings(cfg_file) if cfg_file.is_file() else ({} if primary.resolve() != PRIMARY_AGENTS_DIR.resolve() else settings())
+	active_platform = platform_name(config=doc_config) if doc_config else platform_name()
+	plat_cfg = deepcopy(doc_config['platforms'][active_platform]) if doc_config else platform_settings(active_platform)
 	roles_cfg = plat_cfg.get('roles') or {}
-	env_inventory = all_instances(check_exists=True)
+	env_inventory = all_instances(config=doc_config if doc_config else None, check_exists=True)
 	r = {
 		'tool_version': tool_version,
 		'rules': len(files),
@@ -317,7 +328,12 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
 	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 	# https://github.com/dmitry-ai/harness/issues/33
 	r['global_customizations'] = check_global_customizations(primary=primary)
-	r['valid'] = r['global_customizations']['valid']
+	temp_root = Path(tempfile.gettempdir()).resolve()
+	addons_cfg = (((doc_config or {}).get('platforms') or {}).get('antigravity') or {}).get('addons') if isinstance(doc_config, dict) else None
+	health_raw = str((addons_cfg or {}).get('health_cli') or '').strip() if isinstance(addons_cfg, dict) else ''
+	skip_host_addons = bool(primary.resolve() != PRIMARY_AGENTS_DIR.resolve() and primary.resolve().is_relative_to(temp_root) and health_raw and (not Path(os.path.expanduser(health_raw)).resolve().is_relative_to(temp_root)))
+	r['addons_health'] = check_antigravity_addons(doc_config, heal=False) if (doc_config and not skip_host_addons) else {'configured': False, 'valid': True, 'status': 'not_configured'}
+	r['valid'] = r['global_customizations']['valid'] and r['addons_health']['valid']
 	return r
 def instances_report(*, platform=None, instance=None, conversation=None, include_disabled=True, check_exists=True):
 	config = settings()

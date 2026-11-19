@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/87
@@ -31,7 +34,7 @@ import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_tools.git_gate import prohibited_git_write_commands
-from agent_tools.runtime import PRIMARY
+from agent_tools.runtime import PRIMARY, sanctioned_addon_code_roots
 from agent_tools.shell_audit import _CDP_PROTOCOL_RE, is_code_file, prohibited_cdp_bypass_commands, protected_browser_perimeter
 MAX_UNPERSISTED_SOURCE_READS = 10
 def check_rules_budget(name: str, args: dict) -> str | None:
@@ -206,6 +209,16 @@ def _is_inside_harness_code(raw_path: str) -> bool:
 		return Path(raw_path).resolve().is_relative_to(PRIMARY.resolve())
 	except OSError:
 		return False
+def _is_inside_sanctioned_code(raw_path: str) -> bool:
+	if _is_inside_harness_code(raw_path):
+		return True
+	if not raw_path:
+		return False
+	try:
+		resolved = Path(raw_path).resolve()
+		return any((resolved.is_relative_to(root) for root in sanctioned_addon_code_roots()))
+	except OSError:
+		return False
 def check_cdp_bypass_gate(name: str, args: dict) -> str | None:
 	if 'run_command' == name:
 		cmd = args.get('CommandLine') or ''
@@ -225,7 +238,7 @@ def check_cdp_bypass_gate(name: str, args: dict) -> str | None:
 	elif name in ('write_file', 'edit_file'):
 		raw_p = (args.get('Path') or '').strip()
 		content = args.get('Content') if 'write_file' == name else args.get('Replacement')
-		if raw_p and isinstance(content, str) and content and (not _is_inside_harness_code(raw_p)) and is_code_file(raw_p):
+		if raw_p and isinstance(content, str) and content and (not _is_inside_sanctioned_code(raw_p)) and is_code_file(raw_p):
 			if _CDP_PROTOCOL_RE.search(content):
 				return 'EXEC-1 / EXEC-3 / M-4: Writing external scripts that directly access loopback CDP endpoints (/json, /devtools/page/, /devtools/browser/, DevToolsActivePort) outside AI/harness/code is prohibited; use harness.py or df_text.py.'
 	return None

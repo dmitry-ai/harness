@@ -699,20 +699,33 @@ def _active(native):
 			raise ValueError('No active native user turn belonging entirely to this project')
 		r = turn
 	return r
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
 def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None):
+	import tempfile
 	root = Path(root).resolve()
 	native = _native(root, conversation, platform=platform, backend=backend)
 	turn = _active(native)
 	if None is turn:
 		r = {'role': 'child', 'journal_required': False, 'reason': 'The primary conversation owns the user journal'}
 	else:
+		addons_health = None
+		temp_root = Path(tempfile.gettempdir()).resolve()
+		if 'antigravity' == native.get('platform') and None is backend and (not root.is_relative_to(temp_root)):
+			from .addons_health import check_antigravity_addons
+			addons_health = check_antigravity_addons(heal=True)
 		with locked(_turn_lock(root, _key(native, turn))):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
+			if None is not addons_health:
+				value['addons_health'] = addons_health
 			_persist(path, value)
 		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		if None is not addons_health:
+			result['addons_health'] = addons_health
 		result['execution_mode'] = 'foreground-only'
 		if any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) for t in native.get('turns', []))):
 			try:

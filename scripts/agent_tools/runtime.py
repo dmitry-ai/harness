@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
@@ -706,3 +709,25 @@ def request_day(value=None):
 	from zoneinfo import ZoneInfo
 	r = date.fromisoformat(value) if value else datetime.now(ZoneInfo(settings()['timezone'])).date()
 	return r
+def sanctioned_addon_code_roots(config=None):
+	cfg_all = config
+	if None is cfg_all:
+		try:
+			cfg_all = settings()
+		except Exception:
+			cfg_all = {}
+	roots = []
+	for plat_cfg in ((cfg_all or {}).get('platforms') or {}).values():
+		if not isinstance(plat_cfg, dict):
+			continue
+		addons_cfg = plat_cfg.get('addons')
+		if isinstance(addons_cfg, dict) and isinstance(addons_cfg.get('code_dir'), str) and addons_cfg['code_dir'].strip():
+			roots.append(Path(_expand_path(addons_cfg['code_dir'])).resolve())
+		ui_manage = plat_cfg.get('ui_manage')
+		if isinstance(ui_manage, str) and ui_manage.strip():
+			ui_p = Path(_expand_path(ui_manage)).resolve()
+			for anc in ui_p.parents:
+				if 'code' == anc.name.lower() and (anc.parent / '_').is_dir():
+					roots.append(anc)
+					break
+	return list(dict.fromkeys(roots))

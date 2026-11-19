@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/87
@@ -85,6 +88,8 @@ def _check_multi_subtask_decomposition(root: Path, response, repo_touched: dict,
 	if not active_repos:
 		return
 	impl_m_roots = _extract_implemented_m_roots_from_response(response or '')
+	total_committed_child_urls = 0
+	per_repo_child_counts: list[tuple[Path, str, list[str]]] = []
 	for code_repo in active_repos:
 		slug = origin_repo_slug(code_repo)
 		if not slug:
@@ -107,8 +112,8 @@ def _check_multi_subtask_decomposition(root: Path, response, repo_touched: dict,
 				if None is not parsed and parsed[0].lower() == slug.lower():
 					if None is not _resolve_issue_parent_number(root, parsed[0], parsed[1], turn_issues, candidate_repos):
 						committed_child_urls.append(c_url)
-			if len(committed_child_urls) < len(impl_m_roots):
-				violations.append(f'EXEC-5 violation: response implements {len(impl_m_roots)} autonomous M-* subtasks ({", ".join(impl_m_roots)}) in {slug}, which requires a parent problem issue and at least {len(impl_m_roots)} separate child subtask issues (--parent <N>) with separate commits, found {len(committed_child_urls)} parent-linked committed child issue(s)')
+			total_committed_child_urls += len(committed_child_urls)
+			per_repo_child_counts.append((code_repo, slug, committed_child_urls))
 		elif 2 <= len(committed_urls):
 			for c_url in sorted(committed_urls):
 				c_info = turn_issues.get(c_url) or {}
@@ -123,6 +128,17 @@ def _check_multi_subtask_decomposition(root: Path, response, repo_touched: dict,
 				p_state = evidence_issue_state(root, slug, pnum, candidate_repos) or (turn_issues.get(p_url) or {}).get('state') or 'open'
 				if 'closed' != p_state:
 					violations.append(f'EXEC-5 violation: parent issue {p_url} in {slug} remains {p_state} after all tracked child subtask issues are closed; close it via df_github_issue.py close')
+	if 2 <= len(impl_m_roots) and per_repo_child_counts:
+		if 1 == len(per_repo_child_counts):
+			_, slug, committed_child_urls = per_repo_child_counts[0]
+			if len(committed_child_urls) < len(impl_m_roots):
+				violations.append(f'EXEC-5 violation: response implements {len(impl_m_roots)} autonomous M-* subtasks ({", ".join(impl_m_roots)}) in {slug}, which requires a parent problem issue and at least {len(impl_m_roots)} separate child subtask issues (--parent <N>) with separate commits, found {len(committed_child_urls)} parent-linked committed child issue(s)')
+		else:
+			for _, slug, committed_child_urls in per_repo_child_counts:
+				if not committed_child_urls:
+					violations.append(f'EXEC-5 violation: touched repository {slug} in multi-repository M-* implementation lacks a parent-linked committed child subtask issue (--parent <N>)')
+			if total_committed_child_urls < len(impl_m_roots):
+				violations.append(f'EXEC-5 violation: response implements {len(impl_m_roots)} autonomous M-* subtasks ({", ".join(impl_m_roots)}) across {len(per_repo_child_counts)} repositories, which requires at least {len(impl_m_roots)} parent-linked committed child subtask issues in total, found {total_committed_child_urls}')
 def _check_repo_commits_and_files(code_repo: Path, rel_paths: list[str], turn_issues: dict, required_issues: set[str], violations: list[str]) -> set[str]:
 	committed_urls: set[str] = set()
 	if rel_paths:

@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
 # https://github.com/dmitry-ai/harness/issues/88
@@ -26,6 +29,17 @@ _ISSUE_LINKED_CODE_SUFFIXES = ('.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.js
 _SANCTIONED_CDP_RUNNER_RE = re.compile('(?:harness\\.py|upwork_project\\.py|df_text\\.py|df_article\\.py|df_proposal\\.py|df_github_issue\\.py|validate_links\\.py|safe_commit\\.py|\\bunittest\\b|\\bpytest\\b)', re.I)
 _SANCTIONED_HTTP_RUNNER_RE = re.compile('(?:harness\\.py|upwork_project\\.py|validate_links\\.py|df_github_issue\\.py|\\bunittest\\b|\\bpytest\\b)', re.I)
 _VALUE_GLOBAL_OPTS = ('-C', '--git-dir', '--work-tree', '-c', '--exec-path', '--namespace', '--super-prefix', '--config-env')
+def _is_sanctioned_addon_command(seg_norm: str, *, config=None) -> bool:
+	try:
+		from .runtime import sanctioned_addon_code_roots
+		roots = sanctioned_addon_code_roots(config)
+	except Exception:
+		roots = []
+	for root in roots:
+		r_norm = root.as_posix().rstrip('/').casefold()
+		if r_norm and (r_norm + '/' in seg_norm or seg_norm.endswith(r_norm)):
+			return True
+	return False
 def protected_browser_perimeter(config=None) -> dict:
 	cfg = config
 	if None is cfg:
@@ -283,10 +297,11 @@ class ShellCommandInspector:
 		port_re = re.compile(f'(?:(?:https?|wss?)://)?(?:127\\.0\\.0\\.1|localhost|\\[::1\\]):(?:{port_alt})\\b', re.I) if port_alt else None
 		r: list[str] = []
 		for seg in self._split_segments(text):
-			is_sanctioned = bool(_SANCTIONED_CDP_RUNNER_RE.search(seg)) and (not bool(_INLINE_EXEC_RE.search(seg)))
+			seg_norm = seg.replace('\\\\', '/').replace('\\', '/').casefold()
+			is_inline = bool(_INLINE_EXEC_RE.search(seg))
+			is_sanctioned = (not is_inline) and (bool(_SANCTIONED_CDP_RUNNER_RE.search(seg)) or _is_sanctioned_addon_command(seg_norm, config=config))
 			if is_sanctioned:
 				continue
-			seg_norm = seg.replace('\\\\', '/').replace('\\', '/').casefold()
 			hit = bool(_CDP_PROTOCOL_RE.search(seg))
 			if not hit and None is not port_re and port_re.search(seg):
 				if re.search('(?:\\b(?:urlopen|urllib|requests|httpx|websockets|WebSocket|curl|wget|iwr|irm|Invoke-WebRequest|Invoke-RestMethod|TcpClient|netstat|Get-NetTCPConnection)\\b)', seg, re.I):
