@@ -120,11 +120,7 @@
       "folders_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Folders/folders.json",
       "addons_profiles_json": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Multi-Account/profiles.json",
       "addons": {
-        "code_dir": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code",
-        "upgrade_cli": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Upgrade/upgrade.js",
-        "health_cli": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code/Upgrade/runtime-health.js",
-        "runtime_state_json": "C:/Users/dfedi/AppData/Roaming/AntigravityTools/runtime.json",
-        "node": "C:/tools/nodejs/node.exe"
+        "code_dir": "C:/work/research/provision/code/AI/products/Google/Antigravity/Addons/code"
       },
       "browser": {
         "cdp_port": 9222,

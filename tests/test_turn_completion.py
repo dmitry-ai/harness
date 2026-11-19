@@ -1907,6 +1907,9 @@ class WatcherLifecycleTests(unittest.TestCase):
 			dry = journal_watch.once(state_dir=directory, dry_run=True)
 			self.assertTrue(dry['dry_run'])
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove Antigravity addons runtime health probing from Harness":
+# https://github.com/dmitry-ai/harness/issues/93
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Integrate declarative Antigravity addons health and sanctioning into Harness":
 # https://github.com/dmitry-ai/harness/issues/92
 class AntigravityAddonsIntegrationTests(unittest.TestCase):
@@ -1954,12 +1957,13 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 				self.assertIsNotNone(gate.check_cdp_bypass_gate('read_file', {'Path': 'C:/ChromeU/DevToolsActivePort'}))
 				self.assertIsNone(gate.check_cdp_bypass_gate('run_command', {'CommandLine': f'node "{addons_code}/Upgrade/runtime-health.js"'}))
 				self.assertIsNotNone(gate.check_cdp_bypass_gate('run_command', {'CommandLine': 'curl http://127.0.0.1:9222/json/version'}))
-	def test_addons_health_states_and_doctor_integration(self):
-		from datetime import datetime, timezone
+	def test_doctor_and_turn_begin_exclude_addons_health(self):
+		import importlib.util
 		import json
-		import os
 		import tempfile
-		from agent_tools import addons_health, upwork_project as up
+		from unittest.mock import patch
+		from agent_tools import upwork_project as up
+		self.assertIsNone(importlib.util.find_spec('agent_tools.addons_health'))
 		with tempfile.TemporaryDirectory() as tmp:
 			t = Path(tmp).resolve()
 			primary = t / 'harness/code'
@@ -1975,14 +1979,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			udd.mkdir(parents=True)
 			addons_dir = t / 'addons'
 			addons_dir.mkdir(parents=True)
-			up_cli = addons_dir / 'upgrade.js'
-			hp_cli = addons_dir / 'runtime-health.js'
-			up_cli.write_text('console.log("{}")', encoding='utf-8')
-			hp_cli.write_text('console.log(JSON.stringify({state:"ready",windows:[{profile:"A0",state:"ready"}]}))', encoding='utf-8')
-			st_path = t / 'AntigravityTools/runtime.json'
-			st_path.parent.mkdir(parents=True)
-			now_iso = datetime.now(timezone.utc).isoformat()
-			cfg = {
+			doc_cfg = {
 				'version': 2,
 				'workspace_root': str(t / 'ws'),
 				'daily_root': 'proposals/daily',
@@ -1990,54 +1987,43 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 					'antigravity': {
 						'enabled': True,
 						'folders_json': str(t / 'folders.json'),
-						'addons': {
-							'code_dir': str(addons_dir),
-							'upgrade_cli': str(up_cli),
-							'health_cli': str(hp_cli),
-							'runtime_state_json': str(st_path),
-							'node': 'node',
-						},
-						'instances': {
-							'A0': {'enabled': True, 'primary': True, 'home': str(ag_home), 'user_data_dir': str(udd)}
-						},
+						'addons': {'code_dir': str(addons_dir)},
+						'instances': {'A0': {'enabled': True, 'primary': True, 'home': str(ag_home), 'user_data_dir': str(udd)}},
 					}
 				},
 			}
-			self.assertEqual(addons_health.check_antigravity_addons({'platforms': {'antigravity': {'enabled': True, 'instances': {}}}}), {'configured': False, 'valid': True, 'status': 'not_configured'})
-			disabled_cfg = {'platforms': {'antigravity': {'enabled': False, 'addons': cfg['platforms']['antigravity']['addons'], 'instances': {}}}}
-			self.assertEqual(addons_health.check_antigravity_addons(disabled_cfg), {'configured': True, 'valid': True, 'status': 'disabled'})
-			st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'waiting-for-antigravity', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'unavailable', 'windows': 0}]}), encoding='utf-8')
-			idle_res = addons_health.check_antigravity_addons(cfg, run_cli=lambda s, _a: (2, {'state': 'unavailable'}))
-			self.assertEqual((idle_res['status'], idle_res['valid']), ('idle', True))
-			(udd / 'main-runtime.json').write_text(json.dumps({'id': 'A0', 'pid': os.getpid()}), encoding='utf-8')
-			st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'waiting-for-antigravity', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'unavailable', 'windows': 0}]}), encoding='utf-8')
-			fail_res = addons_health.check_antigravity_addons(cfg, heal=False, run_cli=lambda s, _a: (2, {'state': 'unavailable'}))
-			self.assertEqual((fail_res['status'], fail_res['valid'], fail_res['active_profiles']), ('error', False, ['A0']))
-			tray_state = {'pid': os.getpid(), 'state': 'waiting-for-shell', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'available', 'windows': 0}]}
-			st_path.write_text(json.dumps(tray_state), encoding='utf-8')
-			tray_res = addons_health.check_antigravity_addons(cfg, heal=False, run_cli=lambda s, _a: (2, {'state': 'unavailable'}))
-			self.assertEqual((tray_res['status'], tray_res['valid']), ('idle', True))
-			healed_calls = []
-			def fake_runner(script, _args):
-				healed_calls.append(Path(script).name)
-				if 'upgrade.js' == Path(script).name:
-					st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'connected', 'updated': now_iso, 'profiles': [{'id': 'A0', 'state': 'available', 'windows': 1}]}), encoding='utf-8')
-					return (0, 'ready')
-				return (0, {'state': 'ready', 'windows': [{'profile': 'A0', 'state': 'ready'}]}) if 'upgrade.js' in healed_calls else (2, {'state': 'unavailable'})
-			st_path.write_text(json.dumps({'pid': os.getpid(), 'state': 'error', 'updated': now_iso}), encoding='utf-8')
-			heal_res = addons_health.check_antigravity_addons(cfg, heal=True, run_cli=fake_runner)
-			self.assertEqual((heal_res['status'], heal_res['valid'], heal_res['healed']), ('ready', True, True))
-			doc_cfg = dict(cfg)
-			doc_cfg['platforms'] = {'antigravity': {**cfg['platforms']['antigravity'], 'addons': {**cfg['platforms']['antigravity']['addons'], 'health_cli': str(hp_cli), 'upgrade_cli': str(up_cli)}}}
-			hp_cli.write_text('process.exit(1);', encoding='utf-8')
-			up_cli.write_text('process.exit(0);', encoding='utf-8')
 			(primary / 'runtime.json').write_text(json.dumps(doc_cfg), encoding='utf-8')
 			(t / 'folders.json').write_text('{"folders":[],"projectFolderMap":{}}', encoding='utf-8')
-			from unittest.mock import patch
 			with patch('agent_tools.runtime.settings', return_value=doc_cfg), patch('agent_tools.upwork_project.platform_settings', return_value=doc_cfg['platforms']['antigravity']):
 				doc = up.doctor(primary=primary)
-			self.assertEqual(doc['addons_health']['status'], 'error')
-			self.assertFalse(doc['valid'])
+			self.assertNotIn('addons_health', doc)
+			self.assertEqual(doc['valid'], doc['global_customizations']['valid'])
+			proj = t / 'proj'
+			(proj / '_/ꙮ/req').mkdir(parents=True)
+			(proj / '_/ꙮ/res').mkdir(parents=True)
+			(proj / '_/ꙮ/README.md').write_text('# Journal\n', encoding='utf-8')
+			req = {'id': 'r-1', 'text': 'Check state', 'native_step': 1}
+			open_turn = {'turn_id': 't-open', 'start_step': 1, 'owned': True, 'aborted': False, 'completed': False, 'requests': [req]}
+			open_native = {'platform': 'antigravity', 'native_backend': str(t / 'backend'), 'conversation_id': str(uuid.uuid4()), 'primary': True, 'active_turn_id': 't-open', 'turns': [open_turn], 'source_file': 'trace.jsonl'}
+			legacy_health = {'status': 'ready', 'health': {'windows': [{'collapsed': ['project:1']}]}}
+			with patch.object(completion, '_native', return_value=open_native):
+				begun_fresh = completion.begin(proj, open_native['conversation_id'], platform='antigravity')
+				self.assertNotIn('addons_health', begun_fresh)
+				open_path = proj / begun_fresh['state']
+				saved_open = json.loads(open_path.read_text(encoding='utf-8'))
+				self.assertNotIn('addons_health', saved_open)
+				saved_open['addons_health'] = legacy_health
+				open_path.write_text(json.dumps(saved_open), encoding='utf-8')
+				begun = completion.begin(proj, open_native['conversation_id'], platform='antigravity')
+			self.assertNotIn('addons_health', begun)
+			self.assertNotIn('addons_health', json.loads(open_path.read_text(encoding='utf-8')))
+			del_turn = {'turn_id': 't-del', 'start_step': 2, 'owned': True, 'aborted': False, 'completed': True, 'requests': [req]}
+			del_native = {**open_native, 'active_turn_id': 't-del', 'turns': [del_turn]}
+			del_key = completion._key(del_native, del_turn)
+			del_state = {**saved_open, 'key': del_key, 'native_turn_id': 't-del', 'status': 'delivered', 'addons_health': legacy_health}
+			(open_path.parent / (del_key + '.json')).write_text(json.dumps(del_state), encoding='utf-8')
+			_, kept = completion._state(proj, del_native, del_turn)
+			self.assertEqual(kept['addons_health'], legacy_health)
 	def test_multi_subtask_decomposition_aggregates_across_repositories(self):
 		import json
 		import tempfile
