@@ -1,0 +1,1005 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
+from copy import deepcopy
+import glob
+import json
+import os
+from pathlib import Path
+import re
+import stat
+from typing import Any
+_CODE_ANCHOR = Path(__file__).resolve().parents[2]
+DEFAULT_REGISTRY_FILE = _CODE_ANCHOR / 'paths.json'
+_VAR_NAME_RE = re.compile('^[A-Za-z_][A-Za-z0-9_]*$')
+_TOKEN_RE = re.compile('\\$\\$\\{|%%|\\$\\{([^}]*)\\}|%([A-Za-z_][A-Za-z0-9_]*)%')
+_URI_SCHEME_RE = re.compile('^[A-Za-z][A-Za-z0-9+.-]*://')
+_ESC_DOLLAR = '\x00HARNESS_DOLLAR_LBRACE\x00'
+_ESC_PERCENT = '\x00HARNESS_PERCENT\x00'
+_INITIAL_HOME = Path.home().as_posix().rstrip('/')
+_REGISTRY_CACHE: dict[tuple, 'PathRegistry'] = {}
+_PROJECT_PATHS_CACHE: dict[tuple, 'ProjectPaths'] = {}
+_OVERLAY_REVERSE_MAP: dict[str, Path] = {}
+_DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}}
+def clear_registry_cache() -> None:
+	_REGISTRY_CACHE.clear()
+	_PROJECT_PATHS_CACHE.clear()
+	_OVERLAY_REVERSE_MAP.clear()
+	_DISCOVERY_STATE['roots_key'] = None
+	_DISCOVERY_STATE['candidate_roots'] = ()
+	_DISCOVERY_STATE['fingerprint'] = None
+	_DISCOVERY_STATE['links'] = {}
+def escape_template_literal(value: str) -> str:
+	return str(value).replace('%', '%%').replace('${', '$${')
+def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
+	stop_norm = os.path.normcase(os.path.abspath(stop_at)) if None is not stop_at else None
+	cur = Path(os.path.abspath(path))
+	while True:
+		if None is not stop_norm and os.path.normcase(str(cur)) == stop_norm:
+			break
+		try:
+			if os.path.lexists(cur) and (cur.is_symlink() or cur.is_junction()):
+				return True
+		except OSError:
+			pass
+		if cur.parent == cur:
+			break
+		cur = cur.parent
+	return False
+def _path_key(value: str | Path) -> str:
+	return str(value).replace('\\', '/').rstrip('/').casefold()
+def _lookup_env(name: str, env: dict[str, str] | None=None) -> str | None:
+	environ = os.environ if None is env else env
+	if name in environ and str(environ[name]).strip():
+		return str(environ[name]).replace('\\', '/')
+	upper = name.upper()
+	for k, v in environ.items():
+		if k.upper() == upper and str(v).strip():
+			return str(v).replace('\\', '/')
+	home = None
+	for hk in ('USERPROFILE', 'HOME'):
+		for k, v in environ.items():
+			if k.upper() == hk and str(v).strip():
+				home = str(v).replace('\\', '/').rstrip('/')
+				break
+		if home:
+			break
+	if not home:
+		try:
+			home = Path.home().as_posix().rstrip('/')
+		except RuntimeError:
+			home = _INITIAL_HOME
+	if 'USERPROFILE' == upper or 'HOME' == upper:
+		return home
+	if 'APPDATA' == upper:
+		return f'{home}/AppData/Roaming'
+	if 'LOCALAPPDATA' == upper:
+		return f'{home}/AppData/Local'
+	if 'PROGRAMFILES' == upper:
+		return 'C:/Program Files'
+	if 'SYSTEMROOT' == upper or 'WINDIR' == upper:
+		return 'C:/Windows'
+	return None
+def normalize_path_str(raw: str, *, preserve_trailing_slash: bool=False) -> str:
+	if not isinstance(raw, str):
+		raise TypeError('Path template value must be a string')
+	if not raw:
+		return raw
+	if _URI_SCHEME_RE.match(raw) or raw.startswith('mailto:'):
+		return raw
+	had_trailing = raw.endswith(('/', '\\'))
+	text = raw.replace('\\', '/')
+	if text.startswith('~'):
+		text = os.path.expanduser(text).replace('\\', '/')
+	is_unc = text.startswith('//') and (not text.startswith('///'))
+	drive = ''
+	rest = text
+	if is_unc:
+		rest = text[2:]
+	elif re.match('^[A-Za-z]:(?:/|$)', text):
+		drive = text[:2]
+		rest = text[2:]
+	is_abs = bool(drive) or is_unc or rest.startswith('/')
+	parts = [seg for seg in rest.split('/') if seg and '.' != seg]
+	resolved_parts: list[str] = []
+	for seg in parts:
+		if '..' == seg:
+			if resolved_parts and '..' != resolved_parts[-1] and ('*' not in resolved_parts[-1]) and ('?' not in resolved_parts[-1]):
+				resolved_parts.pop()
+			elif not is_abs:
+				resolved_parts.append(seg)
+		else:
+			resolved_parts.append(seg)
+	joined = '/'.join(resolved_parts)
+	if is_unc:
+		out = '//' + joined
+	elif drive:
+		out = f'{drive}/{joined}' if joined else f'{drive}/'
+	elif is_abs:
+		out = '/' + joined
+	else:
+		out = joined or '.'
+	if preserve_trailing_slash and had_trailing and (not out.endswith('/')):
+		out += '/'
+	return out
+def expand_template(template: str, variables: dict[str, str], *, env: dict[str, str] | None=None, normalize: bool=True, _resolving: tuple[str, ...]=()) -> str:
+	if not isinstance(template, str):
+		raise TypeError(f'Template must be a string, got {type(template).__name__}')
+	if 32 < len(_resolving):
+		raise ValueError(f"Path template recursion depth exceeded: {' -> '.join(_resolving)}")
+	if '$' not in template and '%' not in template:
+		return normalize_path_str(template) if normalize else template
+	unclosed_check = template.replace('$${', '')
+	if '${' in unclosed_check and None is re.search('\\$\\{[^}]*\\}', unclosed_check):
+		raise ValueError(f'Unclosed template variable in {template!r}')
+	def _replace(match: re.Match) -> str:
+		full = match.group(0)
+		if '$${' == full:
+			return _ESC_DOLLAR
+		if '%%' == full:
+			return _ESC_PERCENT
+		braced = match.group(1)
+		pct = match.group(2)
+		if None is not pct:
+			val = _lookup_env(pct, env)
+			if None is val:
+				raise ValueError(f'Unresolved environment variable in path template: %{pct}%')
+			return val.replace('${', _ESC_DOLLAR).replace('%', _ESC_PERCENT)
+		expr = (braced or '').strip()
+		if expr.upper().startswith('ENV:'):
+			env_name = expr[4:].strip()
+			if not _VAR_NAME_RE.match(env_name):
+				raise ValueError(f'Invalid environment variable name in template: ${{{braced}}}')
+			val = _lookup_env(env_name, env)
+			if None is val:
+				raise ValueError(f'Unresolved environment variable in path template: ${{{braced}}}')
+			return val.replace('${', _ESC_DOLLAR).replace('%', _ESC_PERCENT)
+		if not _VAR_NAME_RE.match(expr):
+			raise ValueError(f'Invalid path template variable syntax: ${{{braced}}}')
+		if expr in _resolving:
+			chain = ' -> '.join((*_resolving, expr))
+			raise ValueError(f'Cyclic path template variable reference: {chain}')
+		if expr not in variables:
+			raise ValueError(f'Unknown path template variable: ${{{expr}}}')
+		raw_target = variables[expr]
+		resolved_target = expand_template(raw_target, variables, env=env, normalize=False, _resolving=(*_resolving, expr))
+		return normalize_path_str(resolved_target, preserve_trailing_slash=True)
+	expanded = _TOKEN_RE.sub(_replace, template)
+	rem_check = expanded.replace(_ESC_DOLLAR, '')
+	if '${' in rem_check:
+		raise ValueError(f'Malformed template variable syntax in {template!r}')
+	if _resolving:
+		return normalize_path_str(expanded) if normalize else expanded
+	expanded = expanded.replace(_ESC_DOLLAR, '${').replace(_ESC_PERCENT, '%')
+	return normalize_path_str(expanded) if normalize else expanded
+def expand_structure(value: Any, variables: dict[str, str], *, env: dict[str, str] | None=None) -> Any:
+	if isinstance(value, str):
+		if '${' in value or '$${' in value or '%%' in value or re.search('%[A-Za-z_][A-Za-z0-9_]*%', value):
+			return expand_template(value, variables, env=env, normalize=True)
+		return value
+	if isinstance(value, list):
+		return [expand_structure(item, variables, env=env) for item in value]
+	if isinstance(value, tuple):
+		return tuple((expand_structure(item, variables, env=env) for item in value))
+	if isinstance(value, dict):
+		return {expand_structure(k, variables, env=env) if isinstance(k, str) else k: expand_structure(v, variables, env=env) for k, v in value.items()}
+	return value
+def _validate_variables_map(raw: Any, label: str) -> dict[str, str]:
+	if None is raw:
+		return {}
+	if not isinstance(raw, dict):
+		raise ValueError(f'{label} must be an object mapping variable names to strings')
+	out: dict[str, str] = {}
+	for k, v in raw.items():
+		if not isinstance(k, str) or not _VAR_NAME_RE.match(k):
+			raise ValueError(f'{label} contains invalid variable name: {k!r}')
+		if not isinstance(v, str) or not v.strip():
+			raise ValueError(f'{label}.{k} must be a non-empty string')
+		out[k] = v
+	return out
+def _validate_string_map(raw: Any, label: str) -> dict[str, str]:
+	if None is raw:
+		return {}
+	if not isinstance(raw, dict):
+		raise ValueError(f'{label} must be an object')
+	out: dict[str, str] = {}
+	for k, v in raw.items():
+		if not isinstance(k, str) or not k.strip() or (not isinstance(v, str)) or (not v.strip()):
+			raise ValueError(f'{label} entries must map non-empty keys to non-empty path strings')
+		out[k] = v
+	return out
+def _validate_string_list(raw: Any, label: str) -> list[str]:
+	if None is raw:
+		return []
+	if not isinstance(raw, list) or any((not isinstance(x, str) or not x.strip() for x in raw)):
+		raise ValueError(f'{label} must be a list of non-empty path strings')
+	return list(raw)
+class PathRegistry:
+	def __init__(self, source_path: Path, raw: dict[str, Any], *, primary: Path | None=None, env: dict[str, str] | None=None):
+		self.source_path = Path(source_path).resolve()
+		self.env = dict(env) if None is not env else None
+		if not isinstance(raw, dict) or 1 != raw.get('version'):
+			raise ValueError(f'{self.source_path.name} requires version 1')
+		variables = _validate_variables_map(raw.get('variables'), 'paths.json variables')
+		if not variables:
+			raise ValueError('paths.json requires non-empty variables')
+		anchor_code = Path(primary).resolve() if None is not primary else self.source_path.parent.resolve()
+		if _path_key(anchor_code) != _path_key(_CODE_ANCHOR):
+			anchor_root = anchor_code.parent if (anchor_code.parent / '_').is_dir() else anchor_code.parent
+			anchor_meta = anchor_root / '_' if (anchor_root / '_').is_dir() else anchor_root
+			variables = {**variables, 'HARNESS_CODE': escape_template_literal(anchor_code.as_posix()), 'HARNESS_ROOT': escape_template_literal(anchor_root.as_posix()), 'HARNESS_META': escape_template_literal(anchor_meta.as_posix())}
+		self.raw = deepcopy(raw)
+		self.raw_variables = variables
+		self.resolved_variables = {name: expand_template(val, variables, env=self.env, normalize=True) for name, val in variables.items()}
+		if not isinstance(raw.get('tools'), dict):
+			raise ValueError('paths.json requires a tools object')
+		self.tools = expand_structure(raw['tools'], variables, env=self.env)
+		if not isinstance(raw.get('harness_stores'), dict):
+			raise ValueError('paths.json requires a harness_stores object')
+		self.harness_stores = expand_structure(raw['harness_stores'], variables, env=self.env)
+		raw_ws = raw.get('workspace_overrides') or {}
+		if not isinstance(raw_ws, dict):
+			raise ValueError('paths.json workspace_overrides must be an object')
+		self.workspace_overrides: dict[str, dict[str, Any]] = {}
+		for ws_tpl, ws_cfg in raw_ws.items():
+			if not isinstance(ws_cfg, dict):
+				raise ValueError('paths.json workspace_overrides values must be objects')
+			ws_resolved = expand_template(ws_tpl, variables, env=self.env, normalize=True)
+			self.workspace_overrides[_path_key(ws_resolved)] = {'root': ws_resolved, **expand_structure(ws_cfg, variables, env=self.env)}
+		raw_reloc = _validate_string_map(raw.get('relocations') or {}, 'paths.json relocations')
+		self.relocations = {_path_key(expand_template(src, variables, env=self.env, normalize=True)): expand_template(dst, variables, env=self.env, normalize=True) for src, dst in raw_reloc.items()}
+		raw_plats = raw.get('platform_layouts') or {}
+		if not isinstance(raw_plats, dict):
+			raise ValueError('paths.json platform_layouts must be an object')
+		self.platform_layouts = deepcopy(raw_plats)
+		raw_overlays = raw.get('project_overlays') or {}
+		if not isinstance(raw_overlays, dict):
+			raise ValueError('paths.json project_overlays must be an object')
+		self.overlay_candidates = [expand_template(c, variables, env=self.env, normalize=True) for c in _validate_string_list(raw_overlays.get('candidates') or ['.agents/paths.json'], 'project_overlays.candidates')]
+		self.overlay_discovery_roots = [expand_template(r, variables, env=self.env, normalize=True) for r in _validate_string_list(raw_overlays.get('discovery_roots') or [], 'project_overlays.discovery_roots')]
+		self.overlay_discovery_globs = [expand_template(g, variables, env=self.env, normalize=True) for g in _validate_string_list(raw_overlays.get('discovery_globs') or [], 'project_overlays.discovery_globs')]
+		raw_profiles = raw.get('project_profiles') or {}
+		if not isinstance(raw_profiles, dict) or 'default' not in raw_profiles:
+			raise ValueError('paths.json project_profiles must define at least "default"')
+		self.project_profiles = deepcopy(raw_profiles)
+		for prof_name in self.project_profiles:
+			self._resolve_profile_chain(prof_name)
+	def _resolve_profile_chain(self, name: str, seen: tuple[str, ...]=()) -> dict[str, Any]:
+		if name in seen:
+			raise ValueError(f"Cyclic project profile inheritance: {' -> '.join((*seen, name))}")
+		if name not in self.project_profiles:
+			raise ValueError(f'Unknown project path profile: {name!r}')
+		cfg = self.project_profiles[name]
+		if not isinstance(cfg, dict):
+			raise ValueError(f'project_profiles.{name} must be an object')
+		parent_name = cfg.get('extends')
+		if None is not parent_name:
+			if not isinstance(parent_name, str) or not parent_name.strip():
+				raise ValueError(f'project_profiles.{name}.extends must be a profile name')
+			base = self._resolve_profile_chain(parent_name, (*seen, name))
+		else:
+			base = {'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'journal_legacy_fallbacks': []}
+		prof_vars = _validate_variables_map(cfg.get('variables'), f'project_profiles.{name}.variables')
+		prof_paths = _validate_string_map(cfg.get('paths'), f'project_profiles.{name}.paths')
+		prof_tools = deepcopy(cfg.get('tools') or {})
+		if not isinstance(prof_tools, dict):
+			raise ValueError(f'project_profiles.{name}.tools must be an object')
+		prof_code = _validate_string_list(cfg.get('code_repos'), f'project_profiles.{name}.code_repos')
+		prof_aux = _validate_string_map(cfg.get('auxiliary_repos'), f'project_profiles.{name}.auxiliary_repos')
+		prof_links = _validate_string_list(cfg.get('linked_roots'), f'project_profiles.{name}.linked_roots')
+		prof_jfb = _validate_string_list(cfg.get('journal_legacy_fallbacks'), f'project_profiles.{name}.journal_legacy_fallbacks')
+		return {
+			'variables': {**base['variables'], **prof_vars},
+			'paths': {**base['paths'], **prof_paths},
+			'tools': {**base['tools'], **prof_tools},
+			'code_repos': prof_code if 'code_repos' in cfg else list(base['code_repos']),
+			'auxiliary_repos': {**base['auxiliary_repos'], **prof_aux},
+			'linked_roots': prof_links if 'linked_roots' in cfg else list(base['linked_roots']),
+			'journal_legacy_fallbacks': prof_jfb if 'journal_legacy_fallbacks' in cfg else list(base['journal_legacy_fallbacks']),
+		}
+	def expand(self, template: str, extra_variables: dict[str, str] | None=None) -> str:
+		merged = self.raw_variables if not extra_variables else {**self.raw_variables, **extra_variables}
+		return expand_template(template, merged, env=self.env, normalize=True)
+	def expand_data(self, data: Any, extra_variables: dict[str, str] | None=None) -> Any:
+		merged = self.raw_variables if not extra_variables else {**self.raw_variables, **extra_variables}
+		return expand_structure(data, merged, env=self.env)
+def _env_fingerprint(env: dict[str, str] | None) -> tuple:
+	if None is env:
+		keys = ('USERPROFILE', 'HOME', 'APPDATA', 'LOCALAPPDATA', 'PROGRAMFILES', 'SYSTEMROOT', 'HARNESS_PATHS_FILE')
+		return tuple(((k, os.environ.get(k)) for k in keys))
+	return tuple(sorted(((str(k), str(v)) for k, v in env.items())))
+def load_registry(registry_path: str | Path | None=None, *, primary: str | Path | None=None, env: dict[str, str] | None=None) -> PathRegistry:
+	explicit_env = (env if None is not env else os.environ).get('HARNESS_PATHS_FILE')
+	if None is not registry_path:
+		target = Path(registry_path)
+	elif None is not primary and (Path(primary) / 'paths.json').is_file():
+		target = Path(primary) / 'paths.json'
+	elif explicit_env:
+		target = Path(explicit_env)
+	else:
+		target = DEFAULT_REGISTRY_FILE
+	target_abs = Path(os.path.abspath(target))
+	try:
+		lst = os.lstat(target_abs)
+		if stat.S_ISLNK(lst.st_mode) or target_abs.is_junction():
+			raise ValueError(f'Linked paths.json registry refused: {target}')
+	except FileNotFoundError:
+		if _is_linked(target):
+			raise ValueError(f'Linked paths.json registry refused: {target}')
+		raise
+	primary_key = os.path.normcase(os.path.abspath(primary)) if None is not primary else ''
+	fast_key = (os.path.normcase(str(target_abs)), lst.st_mtime_ns, lst.st_size, primary_key, _env_fingerprint(env))
+	cached = _REGISTRY_CACHE.get(fast_key)
+	if None is not cached:
+		return cached
+	if _is_linked(target):
+		raise ValueError(f'Linked paths.json registry refused: {target}')
+	resolved = target.resolve()
+	raw = json.loads(resolved.read_text(encoding='utf-8-sig'))
+	reg = PathRegistry(resolved, raw, primary=Path(primary) if None is not primary else None, env=env)
+	if 64 < len(_REGISTRY_CACHE):
+		_REGISTRY_CACHE.clear()
+	_REGISTRY_CACHE[fast_key] = reg
+	return reg
+def var_value(name: str, *, registry: PathRegistry | None=None) -> str:
+	reg = registry or load_registry()
+	if name not in reg.resolved_variables:
+		raise KeyError(f'Unknown registry variable: {name}')
+	return reg.resolved_variables[name]
+def store_value(name: str, *, registry: PathRegistry | None=None) -> Any:
+	reg = registry or load_registry()
+	if name not in reg.harness_stores:
+		raise KeyError(f'Unknown harness store entry: {name}')
+	return deepcopy(reg.harness_stores[name])
+def store_path(name: str, *, registry: PathRegistry | None=None) -> Path:
+	val = store_value(name, registry=registry)
+	if not isinstance(val, str):
+		raise TypeError(f'Harness store {name!r} is not a single path string')
+	return Path(val)
+def tool_value(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> Any:
+	reg = registry or load_registry()
+	if None is not project_root:
+		pp = project_paths(project_root, registry=reg)
+		if name in pp.tools:
+			return deepcopy(pp.tools[name])
+	if name not in reg.tools:
+		raise KeyError(f'Unknown tool entry in paths.json: {name}')
+	return deepcopy(reg.tools[name])
+def tool_path(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> Path:
+	val = tool_value(name, project_root=project_root, registry=registry)
+	if not isinstance(val, str):
+		raise TypeError(f'Tool entry {name!r} is not a single path string')
+	return Path(val)
+def tool_list(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> list[str]:
+	val = tool_value(name, project_root=project_root, registry=registry)
+	if isinstance(val, list):
+		return [str(x) for x in val]
+	if isinstance(val, str):
+		return [val]
+	raise TypeError(f'Tool entry {name!r} is not a list of strings')
+def workspace_override(path: str | Path, key: str | None=None, *, registry: PathRegistry | None=None) -> Any:
+	reg = registry or load_registry()
+	entry = reg.workspace_overrides.get(_path_key(Path(path).resolve()))
+	if None is entry:
+		return None
+	return entry.get(key) if None is not key else deepcopy(entry)
+def relocated_roots(*, registry: PathRegistry | None=None) -> dict[str, str]:
+	reg = registry or load_registry()
+	return dict(reg.relocations)
+def derive_platform_system_paths(adapter_kind: str, explicit_paths: dict[str, str] | None=None, *, home: str | Path | None=None, user_data_dir: str | Path | None=None, plat_cfg: dict[str, Any] | None=None, registry: PathRegistry | None=None) -> dict[str, str]:
+	reg = registry or load_registry()
+	layout = reg.platform_layouts.get(adapter_kind)
+	explicit = dict(explicit_paths or {})
+	plat_cfg = plat_cfg if isinstance(plat_cfg, dict) else {}
+	if not isinstance(layout, dict):
+		paths: dict[str, str] = {}
+		if home:
+			paths['home'] = normalize_path_str(str(home))
+		if user_data_dir:
+			paths['user_data_dir'] = normalize_path_str(str(user_data_dir))
+		paths.update(explicit)
+		return paths
+	has_wildcard = lambda s: '*' in str(s or '') or '?' in str(s or '')
+	raw_home = explicit.get('home') if 'home' in explicit else (str(home) if home else None)
+	home_norm = normalize_path_str(raw_home) if isinstance(raw_home, str) and raw_home.strip() and (not has_wildcard(raw_home)) else None
+	raw_udd = explicit.get('user_data_dir') if 'user_data_dir' in explicit else (str(user_data_dir) if user_data_dir else None)
+	udd_norm = normalize_path_str(raw_udd) if isinstance(raw_udd, str) and raw_udd.strip() and (not has_wildcard(raw_udd)) else None
+	if None is home_norm and 'codex' == adapter_kind:
+		for key in ('config_toml', 'agents_md', 'session_index', 'global_state', 'ui_folders', 'logs_db', 'memories_db', 'models_cache_json', 'sessions_dir', 'agents_dir', 'skills_dir', 'state_db_glob'):
+			if key in explicit and (not has_wildcard(Path(explicit[key]).parent)):
+				home_norm = Path(explicit[key]).parent.as_posix()
+				break
+	ctx_vars = dict(reg.raw_variables)
+	if home_norm:
+		ctx_vars['INSTANCE_HOME'] = home_norm
+	if udd_norm:
+		ctx_vars['INSTANCE_USER_DATA'] = udd_norm
+	if 'antigravity' == adapter_kind:
+		defaults_cfg = layout.get('defaults') or {}
+		gemini_norm = explicit.get('gemini_dir')
+		if not gemini_norm and home_norm and defaults_cfg.get('gemini_dir'):
+			gemini_norm = expand_template(defaults_cfg['gemini_dir'], ctx_vars, env=reg.env, normalize=True)
+		if gemini_norm:
+			ctx_vars['INSTANCE_GEMINI_DIR'] = gemini_norm
+		cfg_dir_norm = explicit.get('config_dir')
+		if not cfg_dir_norm:
+			if 'projects_dir' in explicit and 'projects' == Path(explicit['projects_dir']).name:
+				cfg_dir_norm = Path(explicit['projects_dir']).parent.as_posix()
+			elif gemini_norm and defaults_cfg.get('config_dir'):
+				cfg_dir_norm = expand_template(defaults_cfg['config_dir'], ctx_vars, env=reg.env, normalize=True)
+		if cfg_dir_norm:
+			ctx_vars['INSTANCE_CONFIG_DIR'] = cfg_dir_norm
+		backend_norm = explicit.get('backend_dir')
+		if not backend_norm:
+			for key in ('conversations_db', 'brain_dir', 'conversations_dir', 'annotations_dir', 'knowledge_dir'):
+				if key in explicit:
+					backend_norm = Path(explicit[key]).parent.as_posix()
+					break
+		if not backend_norm and gemini_norm and defaults_cfg.get('backend_dir'):
+			backend_norm = expand_template(defaults_cfg['backend_dir'], ctx_vars, env=reg.env, normalize=True)
+		if backend_norm:
+			ctx_vars['INSTANCE_BACKEND_DIR'] = backend_norm
+	paths_out: dict[str, str] = {}
+	for slot_key, tpl in (layout.get('system_paths') or {}).items():
+		needed_vars = [m.group(1).strip() for m in _TOKEN_RE.finditer(tpl) if m.group(1) and (not m.group(1).strip().upper().startswith('ENV:'))]
+		if all((v in ctx_vars for v in needed_vars)):
+			paths_out[slot_key] = expand_template(tpl, ctx_vars, env=reg.env, normalize=True)
+	if 'antigravity' == adapter_kind:
+		if isinstance(plat_cfg.get('folders_json'), str) and plat_cfg['folders_json'].strip():
+			paths_out['folders_json'] = reg.expand(plat_cfg['folders_json'])
+		if isinstance(plat_cfg.get('addons_profiles_json'), str) and plat_cfg['addons_profiles_json'].strip():
+			paths_out['addons_profiles_json'] = reg.expand(plat_cfg['addons_profiles_json'])
+	elif 'codex' == adapter_kind:
+		if isinstance(plat_cfg.get('ui_manage'), str) and plat_cfg['ui_manage'].strip():
+			paths_out['ui_manage'] = reg.expand(plat_cfg['ui_manage'])
+	paths_out.update(explicit)
+	if 'antigravity' == adapter_kind:
+		if 'gemini_dir' not in paths_out:
+			if 'config_dir' in paths_out and 'config' == Path(paths_out['config_dir']).name:
+				paths_out['gemini_dir'] = Path(paths_out['config_dir']).parent.as_posix()
+			elif 'backend_dir' in paths_out and 'antigravity' == Path(paths_out['backend_dir']).name:
+				paths_out['gemini_dir'] = Path(paths_out['backend_dir']).parent.as_posix()
+		if 'home' not in paths_out and 'config_dir' in paths_out:
+			cfg_p = Path(paths_out['config_dir'])
+			if 'config' == cfg_p.name and '.gemini' == cfg_p.parent.name:
+				paths_out['home'] = cfg_p.parent.parent.as_posix()
+	return paths_out
+def default_platform_paths(adapter_kind: str, *, home: str | Path | None=None, user_data_dir: str | Path | None=None, registry: PathRegistry | None=None) -> dict[str, str]:
+	reg = registry or load_registry()
+	layout = reg.platform_layouts.get(adapter_kind) or {}
+	extra_vars = None
+	if None is home and None is reg.env:
+		try:
+			extra_vars = {'USER_HOME': Path.home().as_posix()}
+		except RuntimeError:
+			extra_vars = None
+	eff_home = normalize_path_str(str(home)) if None is not home else (reg.expand(layout['default_home'], extra_vars) if layout.get('default_home') else (extra_vars['USER_HOME'] if extra_vars else _INITIAL_HOME))
+	eff_udd = normalize_path_str(str(user_data_dir)) if None is not user_data_dir else (reg.expand(layout['default_user_data_dir'], extra_vars) if layout.get('default_user_data_dir') else None)
+	return derive_platform_system_paths(adapter_kind, None, home=eff_home, user_data_dir=eff_udd, registry=reg)
+def discover_overlay_file(root: str | Path, *, registry: PathRegistry | None=None, _resolved_root: bool=False) -> Path | None:
+	reg = registry or load_registry()
+	root_p = Path(root) if _resolved_root else Path(root).resolve()
+	if not root_p.is_dir():
+		return None
+	found: list[Path] = []
+	for rel in reg.overlay_candidates:
+		cand = root_p / rel
+		if not os.path.lexists(cand):
+			continue
+		if _is_linked(cand, stop_at=root_p):
+			raise ValueError(f'Linked project paths.json overlay preserved and refused: {cand}')
+		if cand.is_file():
+			found.append(cand.resolve())
+	if 1 < len(found):
+		contents = {p.read_bytes() for p in found}
+		if 1 < len(contents):
+			joined = ', '.join((str(p) for p in found))
+			raise ValueError(f'Conflicting project paths.json overlays in {root_p}: {joined}')
+	return found[0] if found else None
+def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[str, Any]:
+	if not isinstance(raw, dict):
+		raise ValueError(f'Project overlay {overlay_path} must be a JSON object')
+	version = raw.get('version', 1)
+	if 1 != version:
+		raise ValueError(f'Project overlay {overlay_path} requires version 1')
+	allowed_keys = {'version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'deliverable_segments', 'source_dirs', 'notes'}
+	unknown = set(raw) - allowed_keys
+	if unknown:
+		raise ValueError(f"Unknown keys in project overlay {overlay_path}: {', '.join(sorted(unknown))}")
+	profile = raw.get('profile') or raw.get('extends')
+	if None is not profile:
+		if not isinstance(profile, str) or profile not in reg.project_profiles:
+			raise ValueError(f'Unknown profile {profile!r} in {overlay_path}')
+	return {
+		'version': 1,
+		'profile': profile,
+		'variables': _validate_variables_map(raw.get('variables'), f'{overlay_path} variables'),
+		'paths': _validate_string_map(raw.get('paths'), f'{overlay_path} paths'),
+		'tools': deepcopy(raw.get('tools') or {}) if isinstance(raw.get('tools') or {}, dict) else (_ for _ in ()).throw(ValueError(f'{overlay_path} tools must be an object')),
+		'code_repos': _validate_string_list(raw.get('code_repos'), f'{overlay_path} code_repos'),
+		'auxiliary_repos': _validate_string_map(raw.get('auxiliary_repos'), f'{overlay_path} auxiliary_repos'),
+		'linked_roots': _validate_string_list(raw.get('linked_roots'), f'{overlay_path} linked_roots'),
+		'deliverable_segments': _validate_string_list(raw.get('deliverable_segments'), f'{overlay_path} deliverable_segments'),
+		'source_dirs': _validate_string_list(raw.get('source_dirs'), f'{overlay_path} source_dirs'),
+	}
+def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=None) -> Path:
+	reg = registry or load_registry()
+	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
+	path = Path(value).resolve()
+	if path.name in ('code', meta_name) and (path.parent / 'code').is_dir() and (path.parent / meta_name).is_dir():
+		path = path.parent.resolve()
+	key = _path_key(path)
+	if key in reg.relocations:
+		return Path(reg.relocations[key]).resolve()
+	return path
+def _glob_parent_stat(pattern: str) -> tuple:
+	prefix = re.split('[*?\\[]', pattern, maxsplit=1)[0].rstrip('/\\')
+	parent = Path(prefix) if prefix else Path('.')
+	if not parent.is_dir():
+		parent = parent.parent
+	try:
+		st = os.stat(parent)
+		return (str(parent), st.st_mtime_ns, st.st_size)
+	except OSError:
+		return (str(parent), None, None)
+def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ...]]:
+	idx_str = reg.harness_stores.get('upwork_projects_index')
+	daily_str = reg.resolved_variables.get('UPWORK_DAILY_ROOT')
+	idx_stat = None
+	if isinstance(idx_str, str):
+		try:
+			st = os.stat(idx_str)
+			idx_stat = (st.st_mtime_ns, st.st_size)
+		except OSError:
+			idx_stat = None
+	glob_stats = tuple((_glob_parent_stat(g_str) for g_str in reg.overlay_discovery_globs))
+	disc_stats = []
+	for r_str in reg.overlay_discovery_roots:
+		disc_stats.append((r_str, os.path.isdir(r_str)))
+	roots_key = (reg.source_path.as_posix(), idx_stat, glob_stats, tuple(disc_stats))
+	if _DISCOVERY_STATE['roots_key'] == roots_key:
+		return (roots_key, _DISCOVERY_STATE['candidate_roots'])
+	candidate_roots: list[Path] = []
+	seen_keys: set[str] = set()
+	def _push(p: Path) -> None:
+		rk = _path_key(p)
+		if rk not in seen_keys:
+			seen_keys.add(rk)
+			candidate_roots.append(p)
+	for r_str in reg.overlay_discovery_roots:
+		rp = Path(r_str)
+		if rp.is_dir():
+			_push(rp.resolve())
+	for g_str in reg.overlay_discovery_globs:
+		for match in sorted(glob.glob(g_str)):
+			mp = Path(match)
+			if mp.is_dir():
+				_push(mp.resolve())
+	if None is not idx_stat and isinstance(idx_str, str) and isinstance(daily_str, str):
+		idx_file = Path(idx_str)
+		daily_dir = Path(daily_str)
+		if daily_dir.is_dir():
+			try:
+				entries = json.loads(idx_file.read_text(encoding='utf-8'))
+				if isinstance(entries, dict):
+					for rel in entries.values():
+						if isinstance(rel, str) and rel.strip():
+							cand = daily_dir / rel
+							if cand.is_dir():
+								_push(cand.resolve())
+			except (OSError, ValueError):
+				pass
+	frozen = tuple(candidate_roots)
+	_DISCOVERY_STATE['roots_key'] = roots_key
+	_DISCOVERY_STATE['candidate_roots'] = frozen
+	return (roots_key, frozen)
+def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
+	roots_key, candidate_roots = _candidate_discovery_roots(reg)
+	ov_sig: list[tuple] = []
+	for root_p in candidate_roots:
+		root_posix = root_p.as_posix()
+		for rel in reg.overlay_candidates:
+			p_str = f'{root_posix}/{rel}'
+			try:
+				st = os.lstat(p_str)
+				content_hash = hash(Path(p_str).read_bytes()) if stat.S_ISREG(st.st_mode) else 0
+				ov_sig.append((p_str, st.st_mtime_ns, st.st_size, content_hash))
+			except OSError:
+				pass
+	fp = (roots_key, tuple(ov_sig))
+	if _DISCOVERY_STATE['fingerprint'] == fp:
+		return dict(_DISCOVERY_STATE['links'])
+	links: dict[str, Path] = {}
+	for root_p in candidate_roots:
+		rk = _path_key(root_p)
+		try:
+			ov_file = discover_overlay_file(root_p, registry=reg)
+			if None is not ov_file:
+				pp = ProjectPaths(root_p, registry=reg, _register_links=False)
+				for ext in (*pp.linked_roots, *pp.code_repos, *pp.auxiliary_repos.values()):
+					ek = _path_key(ext)
+					if ek != rk:
+						links[ek] = root_p
+		except (OSError, ValueError):
+			continue
+	_DISCOVERY_STATE['fingerprint'] = fp
+	_DISCOVERY_STATE['links'] = links
+	return dict(links)
+def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None, Path | None]:
+	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
+	journal_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
+	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
+	for idx, anc in enumerate((start, *start.parents)):
+		ak = _path_key(anc)
+		if ak in reg.workspace_overrides and anc != start:
+			break
+		if anc.name in (agent_name, journal_name) and anc.parent.name == meta_name and anc.parent.parent.is_dir():
+			return (idx, canonicalize_root_dir(anc.parent.parent, registry=reg))
+		if (anc / meta_name).is_dir() and ((anc / 'code').is_dir() or (anc / meta_name / journal_name).is_dir() or (anc / meta_name / agent_name).is_dir()):
+			return (idx, canonicalize_root_dir(anc, registry=reg))
+		if (anc / agent_name / 'project.json').is_file():
+			return (idx, anc)
+		if anc.name == agent_name and anc.parent.is_dir():
+			p = anc.parent
+			if _path_key(p) not in reg.workspace_overrides:
+				return (idx, canonicalize_root_dir(p, registry=reg))
+		if (anc / agent_name).is_dir():
+			return (idx, anc)
+		if '.agents' == anc.name and anc.parent.is_dir():
+			return (idx, canonicalize_root_dir(anc.parent, registry=reg))
+		if (anc / '.agents').is_dir():
+			return (idx, anc)
+		if anc.name == journal_name and anc.parent.is_dir() and _path_key(anc.parent) not in reg.workspace_overrides:
+			return (idx, anc.parent)
+		if (anc / journal_name).is_dir():
+			return (idx, anc)
+	return (None, None)
+def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None) -> Path:
+	reg = registry or load_registry(env=env)
+	raw_p = Path(target)
+	resolved = raw_p.resolve()
+	start = resolved.parent if resolved.exists() and (not resolved.is_dir()) else resolved
+	start = canonicalize_root_dir(start, registry=reg)
+	start_key = _path_key(start)
+	if start_key in reg.workspace_overrides:
+		return start
+	if start.name in ('.agents', '.codex') and _path_key(start.parent) in reg.workspace_overrides:
+		return start.parent
+	for anc in (start, *start.parents):
+		ak = _path_key(anc)
+		if ak in reg.workspace_overrides and anc != start:
+			break
+		if discover_overlay_file(anc, registry=reg, _resolved_root=True):
+			return canonicalize_root_dir(anc, registry=reg)
+	local_idx, local_root = _find_local_marker_root(start, reg)
+	if 0 == local_idx and None is not _DISCOVERY_STATE['fingerprint']:
+		reverse_map = {**_DISCOVERY_STATE['links'], **_OVERLAY_REVERSE_MAP}
+		if start_key in reverse_map and reverse_map[start_key].is_dir():
+			return reverse_map[start_key]
+		return local_root
+	reverse_map = {**_refresh_known_overlay_links(reg), **_OVERLAY_REVERSE_MAP}
+	if reverse_map:
+		ancestors = (start, *start.parents)
+		bound = len(ancestors) if None is local_idx else local_idx + 1
+		for anc in ancestors[:bound]:
+			ak = _path_key(anc)
+			if ak in reverse_map and reverse_map[ak].is_dir():
+				return reverse_map[ak]
+	if None is not local_root:
+		return local_root
+	return start
+def _infer_default_profile(root: Path, overlay_file: Path | None, reg: PathRegistry) -> str:
+	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
+	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
+	journal_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
+	if None is not overlay_file and overlay_file.parent.name == agent_name and overlay_file.parent.parent.name == meta_name:
+		return 'dual_repo'
+	if (root / meta_name).is_dir() and ((root / 'code').is_dir() or (root / meta_name / journal_name).is_dir() or (root / meta_name / agent_name).is_dir()):
+		return 'dual_repo'
+	if (root / agent_name / 'project.json').is_file():
+		return 'upwork'
+	return 'default'
+class ProjectPaths:
+	def __init__(self, root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, _register_links: bool=True):
+		self.registry = registry or load_registry(env=env)
+		self.root = canonicalize_root_dir(root, registry=self.registry)
+		self.overlay_file = discover_overlay_file(self.root, registry=self.registry)
+		self.overlay = _validate_overlay(json.loads(self.overlay_file.read_text(encoding='utf-8-sig')), self.overlay_file, self.registry) if None is not self.overlay_file else None
+		self.has_overlay = None is not self.overlay
+		self.profile = (self.overlay.get('profile') if self.overlay else None) or _infer_default_profile(self.root, self.overlay_file, self.registry)
+		prof_spec = self.registry._resolve_profile_chain(self.profile)
+		ws_ovr = self.registry.workspace_overrides.get(_path_key(self.root))
+		raw_paths = dict(prof_spec['paths'])
+		if ws_ovr:
+			for k in ('data_dir', 'cleanup_log_dir', 'browser_locks_dir'):
+				if k in ws_ovr and isinstance(ws_ovr[k], str):
+					raw_paths[k] = ws_ovr[k]
+		self._explicit_overlay_paths: set[str] = set()
+		if self.overlay:
+			raw_paths.update(self.overlay['paths'])
+			self._explicit_overlay_paths = set(self.overlay['paths'])
+		merged_vars = dict(self.registry.raw_variables)
+		merged_vars.update(prof_spec['variables'])
+		if self.overlay:
+			merged_vars.update(self.overlay['variables'])
+		merged_vars['PROJECT_ROOT'] = escape_template_literal(self.root.as_posix())
+		eff_slot_tpls: dict[str, str] = {}
+		slot_vars: dict[str, str] = {}
+		var_to_slot: dict[str, str] = {}
+		for slot_key, slot_tpl in raw_paths.items():
+			slot_var = re.sub('[^A-Za-z0-9_]', '_', slot_key).upper()
+			eff_tpl = slot_tpl
+			if _VAR_NAME_RE.match(slot_var):
+				self_tok = f'${{{slot_var}}}'
+				if self_tok in eff_tpl and slot_var in merged_vars:
+					eff_tpl = eff_tpl.replace(self_tok, merged_vars[slot_var])
+				slot_vars[slot_key] = slot_var
+				var_to_slot[slot_var] = slot_key
+			eff_slot_tpls[slot_key] = eff_tpl
+		self._variables = merged_vars
+		self.paths_str: dict[str, str] = {}
+		def _resolve_slot(slot_key: str, resolving_vars: tuple[str, ...]=()) -> str:
+			if slot_key in self.paths_str:
+				return self.paths_str[slot_key]
+			slot_var = slot_vars.get(slot_key)
+			eff_tpl = eff_slot_tpls[slot_key]
+			next_chain = (*resolving_vars, slot_var) if slot_var else resolving_vars
+			for m in _TOKEN_RE.finditer(eff_tpl):
+				ref = (m.group(1) or '').strip()
+				if not ref or ref.upper().startswith('ENV:'):
+					continue
+				if ref in next_chain:
+					raise ValueError(f"Cyclic path template variable reference: {' -> '.join((*next_chain, ref))}")
+				if ref in var_to_slot:
+					_resolve_slot(var_to_slot[ref], next_chain)
+			had_trailing = eff_tpl.endswith(('/', '\\'))
+			resolved_val = expand_template(eff_tpl, merged_vars, env=self.registry.env, normalize=True)
+			if not Path(resolved_val).is_absolute() and (not _URI_SCHEME_RE.match(resolved_val)):
+				resolved_val = normalize_path_str(f'{self.root.as_posix()}/{resolved_val}')
+			self.paths_str[slot_key] = resolved_val
+			if slot_var:
+				var_val = resolved_val + ('/' if had_trailing and (not resolved_val.endswith('/')) else '')
+				merged_vars[slot_var] = escape_template_literal(var_val)
+			return resolved_val
+		for slot_key in raw_paths:
+			_resolve_slot(slot_key)
+		merged_tools = deepcopy(self.registry.tools)
+		merged_tools.update(expand_structure(prof_spec['tools'], merged_vars, env=self.registry.env))
+		if self.overlay and self.overlay['tools']:
+			merged_tools.update(expand_structure(self.overlay['tools'], merged_vars, env=self.registry.env))
+		self.tools = merged_tools
+		raw_code = self.overlay['code_repos'] if self.overlay and self.overlay['code_repos'] else prof_spec['code_repos']
+		self.code_repos = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_code))
+		raw_aux = {**prof_spec['auxiliary_repos'], **(self.overlay['auxiliary_repos'] if self.overlay else {})}
+		self.auxiliary_repos = {k: Path(self._resolve_rel_to_root(v)).resolve() for k, v in raw_aux.items()}
+		raw_links = self.overlay['linked_roots'] if self.overlay and self.overlay['linked_roots'] else prof_spec['linked_roots']
+		self.linked_roots = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_links))
+		self.journal_legacy_fallbacks = tuple((Path(self._resolve_rel_to_root(item)) for item in prof_spec['journal_legacy_fallbacks']))
+		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/')))
+		self.source_dirs = tuple((Path(self._resolve_rel_to_root(item)) for item in (self.overlay['source_dirs'] if self.overlay else ())))
+		if _register_links and self.has_overlay:
+			self._register_reverse_links()
+	def _register_reverse_links(self) -> None:
+		rk = _path_key(self.root)
+		for ext in (*self.linked_roots, *self.code_repos, *self.auxiliary_repos.values()):
+			ek = _path_key(ext)
+			if ek != rk:
+				_OVERLAY_REVERSE_MAP[ek] = self.root
+	def rel_to_root(self, target: str | Path) -> str:
+		p = Path(target).resolve()
+		return p.relative_to(self.root).as_posix() if p.is_relative_to(self.root) else p.as_posix()
+	def _resolve_rel_to_root(self, tpl: str) -> str:
+		val = expand_template(tpl, self._variables, env=self.registry.env, normalize=True)
+		if not Path(val).is_absolute() and (not _URI_SCHEME_RE.match(val)):
+			val = normalize_path_str(f'{self.root.as_posix()}/{val}')
+		return val
+	def has_explicit_path(self, name: str) -> bool:
+		return name in self._explicit_overlay_paths
+	def path(self, name: str, default: str | Path | None=None) -> Path | None:
+		if name in self.paths_str:
+			return Path(self.paths_str[name])
+		return Path(default) if None is not default else None
+	def var(self, name: str, default: str | None=None) -> str | None:
+		if name in self._variables:
+			return expand_template(f'${{{name}}}', self._variables, env=self.registry.env, normalize=True)
+		return default
+	def expand(self, template: str) -> str:
+		return self._resolve_rel_to_root(template)
+	@property
+	def agents_config_dir(self) -> Path:
+		return Path(self.paths_str['agents_config_dir'])
+	@property
+	def codex_config_toml(self) -> Path:
+		return Path(self.paths_str['codex_config_toml'])
+	@property
+	def agent_dir(self) -> Path:
+		return Path(self.paths_str['agent_dir'])
+	@property
+	def data_dir(self) -> Path:
+		return Path(self.paths_str['data_dir'])
+	@property
+	def kb_dir(self) -> Path:
+		return Path(self.paths_str['kb_dir'])
+	@property
+	def manual_kb_dir(self) -> Path:
+		return Path(self.paths_str['manual_kb_dir'])
+	@property
+	def source_dir(self) -> Path:
+		return Path(self.paths_str['source_dir'])
+	@property
+	def evidence_dir(self) -> Path:
+		return Path(self.paths_str['evidence_dir'])
+	@property
+	def scratch_dir(self) -> Path:
+		return Path(self.paths_str['scratch_dir'])
+	@property
+	def turns_dir(self) -> Path:
+		return Path(self.paths_str['turns_dir'])
+	@property
+	def worktrees_dir(self) -> Path:
+		return Path(self.paths_str['worktrees_dir'])
+	@property
+	def journal_root_dir(self) -> Path:
+		return Path(self.paths_str['journal_root_dir'])
+	@property
+	def journal_dir(self) -> Path:
+		if not self.has_explicit_path('journal_dir') and self.journal_glob:
+			matches = sorted((Path(m).resolve() for m in glob.glob(self.journal_glob, recursive=True) if Path(m).is_dir()))
+			if matches:
+				return matches[-1]
+		return Path(self.paths_str['journal_dir'])
+	@property
+	def journal_glob(self) -> str | None:
+		return self.paths_str.get('journal_glob')
+	@property
+	def context_output(self) -> Path:
+		return Path(self.paths_str['context_output'])
+	@property
+	def context_config(self) -> Path:
+		return Path(self.paths_str['context_config'])
+	@property
+	def project_json(self) -> Path:
+		return Path(self.paths_str['project_json'])
+	@property
+	def text_project_json(self) -> Path:
+		return Path(self.paths_str['text_project_json'])
+	@property
+	def workflow_json(self) -> Path:
+		return Path(self.paths_str['workflow_json'])
+	@property
+	def continuation_md(self) -> Path:
+		return Path(self.paths_str['continuation_md'])
+	@property
+	def registrations_json(self) -> Path:
+		return Path(self.paths_str['registrations_json'])
+	@property
+	def verified_claims_json(self) -> Path:
+		return Path(self.paths_str['verified_claims_json'])
+	@property
+	def facts_json(self) -> Path:
+		return Path(self.paths_str['facts_json'])
+	@property
+	def grounding_cache_json(self) -> Path:
+		return Path(self.paths_str['grounding_cache_json'])
+	@property
+	def metrics_json(self) -> Path:
+		return Path(self.paths_str['metrics_json'])
+	@property
+	def executors_json(self) -> Path:
+		return Path(self.paths_str['executors_json'])
+	@property
+	def rendered_json(self) -> Path:
+		return Path(self.paths_str['rendered_json'])
+	@property
+	def http_index_json(self) -> Path:
+		return Path(self.paths_str['http_index_json'])
+	def to_dict(self, *, check_exists: bool=True) -> dict[str, Any]:
+		def _exists(p_str: str) -> bool:
+			if '*' in p_str or '?' in p_str:
+				return any((Path(m).exists() for m in glob.glob(p_str, recursive=True)))
+			return Path(p_str).exists()
+		paths_view = dict(self.paths_str)
+		paths_view['journal_dir'] = self.journal_dir.as_posix()
+		out: dict[str, Any] = {
+			'project_root': self.root.as_posix(),
+			'profile': self.profile,
+			'has_overlay': self.has_overlay,
+			'overlay_file': self.overlay_file.as_posix() if self.overlay_file else None,
+			'paths': paths_view,
+			'code_repos': [p.as_posix() for p in self.code_repos],
+			'auxiliary_repos': {k: p.as_posix() for k, p in self.auxiliary_repos.items()},
+			'linked_roots': [p.as_posix() for p in self.linked_roots],
+			'tools': deepcopy(self.tools),
+		}
+		if check_exists:
+			out['paths_exist'] = {k: _exists(v) for k, v in paths_view.items()}
+			out['code_repos_exist'] = {p.as_posix(): p.is_dir() for p in self.code_repos}
+			out['linked_roots_exist'] = {p.as_posix(): p.exists() for p in self.linked_roots}
+		return out
+def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, exact_root: bool=False) -> ProjectPaths:
+	reg = registry or load_registry(env=env)
+	root = canonicalize_root_dir(path_or_root, registry=reg) if exact_root else resolve_project_root(path_or_root, registry=reg, env=env)
+	ov_file = discover_overlay_file(root, registry=reg, _resolved_root=True)
+	ov_sig = None
+	if None is not ov_file:
+		st = ov_file.stat()
+		ov_sig = (ov_file.as_posix(), st.st_mtime_ns, st.st_size, hash(ov_file.read_bytes()))
+	inferred = _infer_default_profile(root, ov_file, reg)
+	cache_key = (id(reg), root.as_posix(), ov_sig, inferred)
+	cached = _PROJECT_PATHS_CACHE.get(cache_key)
+	if None is not cached:
+		if cached.has_overlay:
+			cached._register_reverse_links()
+		return cached
+	pp = ProjectPaths(root, registry=reg, env=env)
+	if 256 < len(_PROJECT_PATHS_CACHE):
+		_PROJECT_PATHS_CACHE.clear()
+	_PROJECT_PATHS_CACHE[cache_key] = pp
+	return pp
+def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:
+	reg = registry or load_registry()
+	issues: list[dict[str, str]] = []
+	discovered_overlays: list[dict[str, Any]] = []
+	if check or None is project:
+		roots_to_check: list[Path] = []
+		for r_str in reg.overlay_discovery_roots:
+			if Path(r_str).is_dir():
+				roots_to_check.append(Path(r_str).resolve())
+		for g_str in reg.overlay_discovery_globs:
+			for m in sorted(glob.glob(g_str)):
+				if Path(m).is_dir():
+					roots_to_check.append(Path(m).resolve())
+		idx_str = reg.harness_stores.get('upwork_projects_index')
+		daily_str = reg.resolved_variables.get('UPWORK_DAILY_ROOT')
+		if isinstance(idx_str, str) and isinstance(daily_str, str) and Path(idx_str).is_file() and Path(daily_str).is_dir():
+			try:
+				entries = json.loads(Path(idx_str).read_text(encoding='utf-8'))
+				if isinstance(entries, dict):
+					for rel in entries.values():
+						if isinstance(rel, str) and (Path(daily_str) / rel).is_dir():
+							roots_to_check.append((Path(daily_str) / rel).resolve())
+			except (OSError, ValueError) as exc:
+				issues.append({'file': idx_str, 'message': str(exc)})
+		seen: set[str] = set()
+		for rp in roots_to_check:
+			rk = _path_key(rp)
+			if rk in seen:
+				continue
+			seen.add(rk)
+			try:
+				ov = discover_overlay_file(rp, registry=reg)
+				if None is not ov:
+					pp_i = ProjectPaths(rp, registry=reg)
+					discovered_overlays.append({'project_root': pp_i.root.as_posix(), 'overlay_file': ov.as_posix(), 'profile': pp_i.profile})
+			except (OSError, ValueError) as exc:
+				issues.append({'file': rp.as_posix(), 'message': str(exc)})
+	if None is not project:
+		try:
+			pp = project_paths(project, registry=reg)
+			payload = pp.to_dict(check_exists=True)
+			if None is not expand:
+				payload['expanded'] = pp.expand(expand)
+			payload['registry_file'] = reg.source_path.as_posix()
+			if check:
+				payload['valid'] = not issues
+				payload['issues'] = issues
+			return payload
+		except (OSError, ValueError) as exc:
+			if check:
+				return {'valid': False, 'registry_file': reg.source_path.as_posix(), 'issues': [*issues, {'file': str(project), 'message': str(exc)}]}
+			raise
+	out: dict[str, Any] = {
+		'valid': not issues,
+		'registry_file': reg.source_path.as_posix(),
+		'variables': dict(reg.resolved_variables),
+		'tools': deepcopy(reg.tools),
+		'harness_stores': deepcopy(reg.harness_stores),
+		'workspace_overrides': deepcopy(reg.workspace_overrides),
+		'relocations': dict(reg.relocations),
+		'profiles': list(reg.project_profiles),
+		'discovered_overlays': discovered_overlays,
+		'issues': issues,
+	}
+	if None is not expand:
+		out['expanded'] = reg.expand(expand)
+	return out

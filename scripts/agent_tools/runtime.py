@@ -1,4 +1,7 @@
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Integrate declarative Antigravity addons health and sanctioning into Harness":
 # https://github.com/dmitry-ai/harness/issues/92
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -22,19 +25,23 @@ import os
 from pathlib import Path
 import re
 import sqlite3
-PRIMARY = Path(__file__).resolve().parents[2]
-HARNESS_ROOT = PRIMARY.parent if (PRIMARY.parent / '_').is_dir() else PRIMARY.parent.parent
-HARNESS_META = HARNESS_ROOT / '_' if (HARNESS_ROOT / '_').is_dir() else HARNESS_ROOT
-LEGACY_PRIMARY = Path('C:/work/upwork/code/AI/primary') / 'result/.agents'
+from .path_registry import default_platform_paths, derive_platform_system_paths, load_registry, normalize_path_str, store_path, tool_path, var_value
+PRIMARY = Path(var_value('HARNESS_CODE')).resolve()
+HARNESS_ROOT = Path(var_value('HARNESS_ROOT')).resolve()
+HARNESS_META = Path(var_value('HARNESS_META')).resolve()
+LEGACY_PRIMARY = store_path('legacy_primary')
 os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
-_SHIM_DIR = str((PRIMARY / 'scripts/shim').resolve())
+_SHIM_DIR = str(tool_path('git_shim_dir').resolve())
 if _SHIM_DIR not in os.environ.get('PATH', '').split(os.pathsep):
 	os.environ['PATH'] = _SHIM_DIR + os.pathsep + os.environ.get('PATH', '')
 _platform = ContextVar('upwork_platform', default=None)
 _profile = ContextVar('upwork_profile', default=None)
 _instance = ContextVar('upwork_instance', default=None)
 def _expand_path(value):
-	return Path(os.path.expanduser(str(value))).as_posix()
+	text = str(value)
+	if '${' in text or re.search('%[A-Za-z_][A-Za-z0-9_]*%', text):
+		return load_registry().expand(text)
+	return normalize_path_str(os.path.expanduser(text))
 def _validate_runtime(value):
 	if 2 != value.get('version') or not value.get('workspace_root') or (not isinstance(value.get('platforms'), dict)) or (not value['platforms']):
 		raise ValueError('runtime.json needs version 2, workspace_root and platforms')
@@ -67,7 +74,12 @@ def _validate_runtime(value):
 		if 'homes' in plat_cfg and 'instances' in plat_cfg:
 			raise ValueError(f'runtime.json platforms.{plat_id} cannot define both instances and legacy homes')
 def settings(path=None):
-	value = json.loads(Path(path or PRIMARY / 'runtime.json').read_text(encoding='utf-8-sig'))
+	runtime_file = Path(path) if None is not path else PRIMARY / 'runtime.json'
+	raw = json.loads(runtime_file.read_text(encoding='utf-8-sig'))
+	reg_rel = raw.get('paths_registry') if isinstance(raw, dict) else None
+	reg_cand = runtime_file.parent / reg_rel if isinstance(reg_rel, str) and reg_rel.strip() else runtime_file.parent / 'paths.json'
+	reg = load_registry(reg_cand if reg_cand.is_file() else None, primary=runtime_file.parent if (runtime_file.parent / 'rules').is_dir() else None)
+	value = reg.expand_data(raw)
 	_validate_runtime(value)
 	r = value
 	return r
@@ -110,94 +122,11 @@ def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 		if not isinstance(key, str) or not key.strip() or (not isinstance(val, str)) or (not val.strip()):
 			raise ValueError(f'system_paths.{key} for {platform}/{inst_id} must be a non-empty string')
 		explicit[key] = _expand_path(val)
-	paths = {}
 	raw_home = explicit.get('home') if 'home' in explicit else inst_cfg.get('home')
-	home = Path(os.path.expanduser(raw_home)) if isinstance(raw_home, str) and raw_home.strip() and (not _has_glob_wildcard(raw_home)) else None
-	if home:
-		paths['home'] = home.as_posix()
+	home_exp = _expand_path(raw_home) if isinstance(raw_home, str) and raw_home.strip() and (not _has_glob_wildcard(raw_home)) else None
 	raw_udd = explicit.get('user_data_dir') if 'user_data_dir' in explicit else inst_cfg.get('user_data_dir')
-	udd = Path(os.path.expanduser(raw_udd)) if isinstance(raw_udd, str) and raw_udd.strip() and (not _has_glob_wildcard(raw_udd)) else None
-	if udd:
-		paths['user_data_dir'] = udd.as_posix()
-	if 'antigravity' == adapter_kind:
-		gemini = Path(explicit['gemini_dir']) if 'gemini_dir' in explicit else (home / '.gemini' if home else None)
-		if gemini:
-			paths['gemini_dir'] = gemini.as_posix()
-		cfg_dir = None
-		if 'config_dir' in explicit:
-			cfg_dir = Path(explicit['config_dir'])
-		elif 'projects_dir' in explicit and 'projects' == Path(explicit['projects_dir']).name:
-			cfg_dir = Path(explicit['projects_dir']).parent
-		elif gemini:
-			cfg_dir = gemini / 'config'
-		if cfg_dir:
-			paths['config_dir'] = cfg_dir.as_posix()
-			paths['config_json'] = (cfg_dir / 'config.json').as_posix()
-			paths['hooks_json'] = (cfg_dir / 'hooks.json').as_posix()
-			paths['mcp_config_json'] = (cfg_dir / 'mcp_config.json').as_posix()
-			paths['rules_json'] = (cfg_dir / 'rules.json').as_posix()
-			paths['skills_json'] = (cfg_dir / 'skills.json').as_posix()
-			paths['agents_json'] = (cfg_dir / 'agents.json').as_posix()
-			paths['projects_dir'] = (cfg_dir / 'projects').as_posix()
-		backend = Path(explicit['backend_dir']) if 'backend_dir' in explicit else None
-		if None is backend:
-			for key in ('conversations_db', 'brain_dir', 'conversations_dir', 'annotations_dir', 'knowledge_dir'):
-				if key in explicit:
-					backend = Path(explicit[key]).parent
-					break
-		if None is backend and gemini:
-			backend = gemini / 'antigravity'
-		if backend:
-			paths['backend_dir'] = backend.as_posix()
-			paths['conversations_db'] = (backend / 'conversation_summaries.db').as_posix()
-			paths['conversations_dir'] = (backend / 'conversations').as_posix()
-			paths['brain_dir'] = (backend / 'brain').as_posix()
-			paths['annotations_dir'] = (backend / 'annotations').as_posix()
-			paths['knowledge_dir'] = (backend / 'knowledge').as_posix()
-		if udd:
-			paths.setdefault('logs_dir', (udd / 'logs').as_posix())
-			paths.setdefault('local_state', (udd / 'Local State').as_posix())
-			paths.setdefault('preferences', (udd / 'Preferences').as_posix())
-			paths.setdefault('window_state', (udd / 'window_state.json').as_posix())
-		if isinstance(plat_cfg.get('folders_json'), str) and plat_cfg['folders_json'].strip():
-			paths['folders_json'] = _expand_path(plat_cfg['folders_json'])
-		if isinstance(plat_cfg.get('addons_profiles_json'), str) and plat_cfg['addons_profiles_json'].strip():
-			paths['addons_profiles_json'] = _expand_path(plat_cfg['addons_profiles_json'])
-		if 'gemini_dir' not in paths:
-			if 'config_dir' in paths and 'config' == Path(paths['config_dir']).name:
-				paths['gemini_dir'] = Path(paths['config_dir']).parent.as_posix()
-			elif 'backend_dir' in paths and 'antigravity' == Path(paths['backend_dir']).name:
-				paths['gemini_dir'] = Path(paths['backend_dir']).parent.as_posix()
-	elif 'codex' == adapter_kind:
-		if None is home:
-			for key in ('config_toml', 'agents_md', 'session_index', 'global_state', 'ui_folders', 'logs_db', 'memories_db', 'models_cache_json', 'sessions_dir', 'agents_dir', 'skills_dir', 'state_db_glob'):
-				if key in explicit and (not _has_glob_wildcard(Path(explicit[key]).parent)):
-					home = Path(explicit[key]).parent
-					paths['home'] = home.as_posix()
-					break
-		if home:
-			paths.update({
-				'config_toml': (home / 'config.toml').as_posix(),
-				'agents_md': (home / 'AGENTS.md').as_posix(),
-				'agents_dir': (home / 'agents').as_posix(),
-				'skills_dir': (home / 'skills').as_posix(),
-				'sessions_dir': (home / 'sessions').as_posix(),
-				'session_index': (home / 'session_index.jsonl').as_posix(),
-				'state_db_glob': (home / 'state_*.sqlite').as_posix(),
-				'logs_db': (home / 'logs_2.sqlite').as_posix(),
-				'memories_db': (home / 'memories_1.sqlite').as_posix(),
-				'models_cache_json': (home / 'models_cache.json').as_posix(),
-				'global_state': (home / '.codex-global-state.json').as_posix(),
-				'ui_folders': (home / 'ui-folders.json').as_posix(),
-			})
-		if isinstance(plat_cfg.get('ui_manage'), str) and plat_cfg['ui_manage'].strip():
-			paths['ui_manage'] = _expand_path(plat_cfg['ui_manage'])
-	paths.update(explicit)
-	if 'home' not in paths and 'config_dir' in paths:
-		cfg_p = Path(paths['config_dir'])
-		if 'config' == cfg_p.name and '.gemini' == cfg_p.parent.name:
-			paths['home'] = cfg_p.parent.parent.as_posix()
-	return paths
+	udd_exp = _expand_path(raw_udd) if isinstance(raw_udd, str) and raw_udd.strip() and (not _has_glob_wildcard(raw_udd)) else None
+	return derive_platform_system_paths(adapter_kind, explicit, home=home_exp, user_data_dir=udd_exp, plat_cfg=plat_cfg)
 def extract_platform_instances(plat_cfg, *, platform='', include_disabled=False):
 	if not isinstance(plat_cfg, dict):
 		return {}
@@ -488,15 +417,16 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 			elif 1 < len(matches):
 				ids = ', '.join((m['id'] for m in matches))
 				raise ValueError(f'Conversation UUID {conversation_id} exists in multiple Antigravity instances ({ids}); pass --instance')
+		default_ag_backend = Path(default_platform_paths('antigravity')['backend_dir'])
 		if None is matched_entry:
-			home_backend = Path.home() / '.gemini/antigravity'
+			home_backend = default_ag_backend
 			home_res = home_backend.resolve()
 			home_matches = [cand for cand in ag_insts.values() if cand['system_paths'].get('backend_dir') and Path(cand['system_paths']['backend_dir']).resolve() == home_res]
 			if 1 == len(home_matches):
 				matched_entry = home_matches[0]
 			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else home_backend
 		else:
-			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else Path.home() / '.gemini/antigravity'
+			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else default_ag_backend
 		sp = dict((matched_entry or {}).get('system_paths') or {})
 	backend_res = backend_p.resolve()
 	return {

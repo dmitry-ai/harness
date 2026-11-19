@@ -1,0 +1,288 @@
+{
+  "version": 1,
+  "variables": {
+    "USER_HOME": "%USERPROFILE%",
+    "APPDATA": "%APPDATA%",
+    "LOCALAPPDATA": "%LOCALAPPDATA%",
+    "PROGRAM_FILES": "%ProgramFiles%",
+    "SYSTEM_ROOT": "%SystemRoot%",
+    "WORK_ROOT": "C:/work",
+    "TOOLS_ROOT": "C:/tools",
+    "SERVER_ROOT": "C:/server",
+    "CHROME_PROFILE_DIR": "C:/ChromeU",
+    "DF_CLIENTS": "${WORK_ROOT}/clients/",
+    "UPWORK_ROOT": "${WORK_ROOT}/upwork/code",
+    "UPWORK_DAILY_REL": "proposals/daily",
+    "UPWORK_DAILY_ROOT": "${UPWORK_ROOT}/${UPWORK_DAILY_REL}",
+    "GIT_WORK_ROOT": "${WORK_ROOT}/git",
+    "DF_GIT_ROOT": "${GIT_WORK_ROOT}/dmitrii-fediuk",
+    "DF_GIT_CODE_ROOT": "${DF_GIT_ROOT}/code",
+    "M2_VERSIONS_ROOT": "${WORK_ROOT}/m2/v",
+    "PROVISION_ROOT": "${WORK_ROOT}/research/provision",
+    "PROVISION_CODE": "${PROVISION_ROOT}/code",
+    "AI_ROOT": "${PROVISION_CODE}/AI",
+    "HARNESS_ROOT": "${AI_ROOT}/harness",
+    "HARNESS_CODE": "${HARNESS_ROOT}/code",
+    "HARNESS_META": "${HARNESS_ROOT}/_",
+    "AI_PRODUCTS_ROOT": "${AI_ROOT}/products",
+    "ANTIGRAVITY_ADDONS_ROOT": "${AI_PRODUCTS_ROOT}/Google/Antigravity/Addons",
+    "ANTIGRAVITY_ADDONS_CODE": "${ANTIGRAVITY_ADDONS_ROOT}/code",
+    "ANTIGRAVITY_ADDONS_META": "${ANTIGRAVITY_ADDONS_ROOT}/_",
+    "CHATGPT_ADDONS_ROOT": "${AI_PRODUCTS_ROOT}/OpenAI/ChatGPT/Desktop/Addons",
+    "CHATGPT_ADDONS_CODE": "${CHATGPT_ADDONS_ROOT}/code",
+    "CHATGPT_ADDONS_META": "${CHATGPT_ADDONS_ROOT}/_",
+    "AGENT_DIR_NAME": "ꘖ",
+    "JOURNAL_DIR_NAME": "ꙮ",
+    "META_DIR_NAME": "_",
+    "SHELL_HOME": "${TOOLS_ROOT}/shell/home",
+    "SSH_DIR": "${SHELL_HOME}/.ssh",
+    "CYGWIN_ROOT": "${TOOLS_ROOT}/cygwin",
+    "CYGWIN_BIN": "${CYGWIN_ROOT}/bin",
+    "CYGWIN_BASH": "${CYGWIN_BIN}/bash.exe",
+    "CYGWIN_SSH": "${CYGWIN_BIN}/ssh.exe",
+    "NODE_DIR": "${TOOLS_ROOT}/nodejs",
+    "NODE_EXE": "${NODE_DIR}/node.exe",
+    "GIT_EXE": "${TOOLS_ROOT}/git/cmd/git.exe",
+    "CHROME_HEADLESS_ROOT": "${TOOLS_ROOT}/chrome-headless-shell",
+    "CHROME_HEADLESS_VERSION": "139.0.7258.155",
+    "CHROME_HEADLESS_SHELL": "${CHROME_HEADLESS_ROOT}/${CHROME_HEADLESS_VERSION}/chrome-headless-shell.exe",
+    "CHROME_HEADLESS_GLOB": "${CHROME_HEADLESS_ROOT}/*/chrome-headless-shell.exe",
+    "POPPLER_BIN": "${TOOLS_ROOT}/poppler/Library/bin",
+    "PHP_ROOT": "${SERVER_ROOT}/php",
+    "PHP_CURRENT_DIR": "${PHP_ROOT}/current",
+    "PHP_EXE": "${PHP_CURRENT_DIR}/php.exe",
+    "APACHE_SITES_DIR": "${SERVER_ROOT}/apache/conf/sites",
+    "HARNESS_RUNTIME_JSON": "${HARNESS_CODE}/runtime.json",
+    "HARNESS_PATHS_JSON": "${HARNESS_CODE}/paths.json",
+    "HARNESS_SCRIPTS_DIR": "${HARNESS_CODE}/scripts",
+    "HARNESS_SHIM_DIR": "${HARNESS_SCRIPTS_DIR}/shim",
+    "HARNESS_GIT_HOOKS_DIR": "${HARNESS_SCRIPTS_DIR}/git_hooks",
+    "HARNESS_RULES_DIR": "${HARNESS_CODE}/rules",
+    "HARNESS_SKILLS_DIR": "${HARNESS_CODE}/skills",
+    "HARNESS_AGENTS_DIR": "${HARNESS_CODE}/agents",
+    "HARNESS_PLATFORMS_DIR": "${HARNESS_CODE}/platforms",
+    "HARNESS_BROWSER_EXT_DIR": "${HARNESS_CODE}/browser_extension",
+    "HARNESS_AGENT_DIR": "${HARNESS_META}/${AGENT_DIR_NAME}",
+    "HARNESS_DATA_DIR": "${HARNESS_AGENT_DIR}/data",
+    "HARNESS_KB_DIR": "${HARNESS_AGENT_DIR}/KB",
+    "HARNESS_EVIDENCE_DIR": "${HARNESS_KB_DIR}/Evidence",
+    "HARNESS_JOURNAL_DIR": "${HARNESS_META}/${JOURNAL_DIR_NAME}"
+  },
+  "tools": {
+    "node": "${NODE_EXE}",
+    "php": "${PHP_EXE}",
+    "bash": "${CYGWIN_BASH}",
+    "bash_candidates": [
+      "${CYGWIN_BASH}",
+      "C:/cygwin64/bin/bash.exe",
+      "C:/cygwin/bin/bash.exe"
+    ],
+    "ssh": "${CYGWIN_SSH}",
+    "git_candidates": [
+      "${GIT_EXE}",
+      "${PROGRAM_FILES}/Git/cmd/git.exe"
+    ],
+    "git_hooks_dir": "${HARNESS_GIT_HOOKS_DIR}",
+    "git_shim_dir": "${HARNESS_SHIM_DIR}",
+    "git_credential_lock_homes": [
+      "${USER_HOME}",
+      "${SHELL_HOME}"
+    ],
+    "git_credential_lock_relpaths": [
+      ".git-credentials.lock",
+      ".config/git/credentials.lock"
+    ],
+    "posix_drive_prefixes": [
+      "/cygdrive/",
+      "/mnt/"
+    ],
+    "poppler_bin_dirs": [
+      "${POPPLER_BIN}",
+      "${PROGRAM_FILES}/poppler/bin"
+    ],
+    "headless_shell": "${CHROME_HEADLESS_SHELL}",
+    "headless_shell_glob": "${CHROME_HEADLESS_GLOB}"
+  },
+  "harness_stores": {
+    "legacy_primary": "${UPWORK_ROOT}/AI/primary/result/.agents",
+    "agent_dir": "${HARNESS_AGENT_DIR}",
+    "data_dir": "${HARNESS_DATA_DIR}",
+    "incoming_dir": "${HARNESS_DATA_DIR}/incoming",
+    "upwork_projects_dir": "${HARNESS_DATA_DIR}/upwork-projects",
+    "upwork_projects_index": "${HARNESS_DATA_DIR}/upwork-projects/projects.json",
+    "journal_watch_dir": "${HARNESS_DATA_DIR}/journal-watch",
+    "browser_locks_dir": "${HARNESS_DATA_DIR}/browser-locks",
+    "cleanup_lock": "${HARNESS_DATA_DIR}/cleanup.lock",
+    "cleanup_log_dir": "${HARNESS_META}/Data/Log/cleanup",
+    "workspace_cleanup_log_rel": "AI/log/cleanup",
+    "github_evidence_dir": "${HARNESS_EVIDENCE_DIR}/GitHub",
+    "primary_github_repo": "dmitry-ai/harness",
+    "code_repo_search_roots": [
+      "${AI_ROOT}",
+      "${DF_GIT_CODE_ROOT}"
+    ]
+  },
+  "workspace_overrides": {
+    "${UPWORK_ROOT}": {
+      "data_dir": "${HARNESS_DATA_DIR}/workspaces/upwork",
+      "cleanup_log_dir": "${HARNESS_META}/Data/Log/cleanup",
+      "browser_locks_dir": "${HARNESS_DATA_DIR}/browser-locks"
+    }
+  },
+  "relocations": {
+    "${UPWORK_ROOT}/AI": "${HARNESS_ROOT}",
+    "${UPWORK_ROOT}/AI/primary": "${HARNESS_ROOT}",
+    "${UPWORK_ROOT}/AI/primary/result": "${HARNESS_ROOT}",
+    "${PROVISION_CODE}/AI/primary": "${HARNESS_ROOT}",
+    "${PROVISION_CODE}/AI/harness": "${HARNESS_ROOT}",
+    "${PROVISION_CODE}/Software/OpenAI/Codex": "${CHATGPT_ADDONS_ROOT}",
+    "${AI_PRODUCTS_ROOT}/OpenAI/ChatGPT/Desktop/Addons": "${CHATGPT_ADDONS_ROOT}",
+    "${PROVISION_CODE}/Software/Google/AI/Antigravity": "${ANTIGRAVITY_ADDONS_ROOT}",
+    "${AI_PRODUCTS_ROOT}/Google/Antigravity/Addons": "${ANTIGRAVITY_ADDONS_ROOT}"
+  },
+  "platform_layouts": {
+    "antigravity": {
+      "default_home": "${USER_HOME}",
+      "default_user_data_dir": "${APPDATA}/Antigravity",
+      "defaults": {
+        "gemini_dir": "${INSTANCE_HOME}/.gemini",
+        "config_dir": "${INSTANCE_GEMINI_DIR}/config",
+        "backend_dir": "${INSTANCE_GEMINI_DIR}/antigravity"
+      },
+      "system_paths": {
+        "home": "${INSTANCE_HOME}",
+        "user_data_dir": "${INSTANCE_USER_DATA}",
+        "logs_dir": "${INSTANCE_USER_DATA}/logs",
+        "local_state": "${INSTANCE_USER_DATA}/Local State",
+        "preferences": "${INSTANCE_USER_DATA}/Preferences",
+        "window_state": "${INSTANCE_USER_DATA}/window_state.json",
+        "gemini_dir": "${INSTANCE_GEMINI_DIR}",
+        "config_dir": "${INSTANCE_CONFIG_DIR}",
+        "config_json": "${INSTANCE_CONFIG_DIR}/config.json",
+        "hooks_json": "${INSTANCE_CONFIG_DIR}/hooks.json",
+        "mcp_config_json": "${INSTANCE_CONFIG_DIR}/mcp_config.json",
+        "rules_json": "${INSTANCE_CONFIG_DIR}/rules.json",
+        "skills_json": "${INSTANCE_CONFIG_DIR}/skills.json",
+        "agents_json": "${INSTANCE_CONFIG_DIR}/agents.json",
+        "projects_dir": "${INSTANCE_CONFIG_DIR}/projects",
+        "backend_dir": "${INSTANCE_BACKEND_DIR}",
+        "conversations_db": "${INSTANCE_BACKEND_DIR}/conversation_summaries.db",
+        "conversations_dir": "${INSTANCE_BACKEND_DIR}/conversations",
+        "brain_dir": "${INSTANCE_BACKEND_DIR}/brain",
+        "annotations_dir": "${INSTANCE_BACKEND_DIR}/annotations",
+        "knowledge_dir": "${INSTANCE_BACKEND_DIR}/knowledge"
+      }
+    },
+    "codex": {
+      "default_home": "${USER_HOME}/.codex",
+      "system_paths": {
+        "home": "${INSTANCE_HOME}",
+        "config_toml": "${INSTANCE_HOME}/config.toml",
+        "agents_md": "${INSTANCE_HOME}/AGENTS.md",
+        "agents_dir": "${INSTANCE_HOME}/agents",
+        "skills_dir": "${INSTANCE_HOME}/skills",
+        "sessions_dir": "${INSTANCE_HOME}/sessions",
+        "session_index": "${INSTANCE_HOME}/session_index.jsonl",
+        "state_db_glob": "${INSTANCE_HOME}/state_*.sqlite",
+        "logs_db": "${INSTANCE_HOME}/logs_2.sqlite",
+        "memories_db": "${INSTANCE_HOME}/memories_1.sqlite",
+        "models_cache_json": "${INSTANCE_HOME}/models_cache.json",
+        "global_state": "${INSTANCE_HOME}/.codex-global-state.json",
+        "ui_folders": "${INSTANCE_HOME}/ui-folders.json"
+      }
+    }
+  },
+  "project_overlays": {
+    "candidates": [
+      ".agents/paths.json",
+      "${META_DIR_NAME}/${AGENT_DIR_NAME}/paths.json",
+      "${AGENT_DIR_NAME}/paths.json"
+    ],
+    "discovery_roots": [
+      "${HARNESS_ROOT}",
+      "${ANTIGRAVITY_ADDONS_ROOT}",
+      "${CHATGPT_ADDONS_ROOT}"
+    ],
+    "discovery_globs": [
+      "${DF_GIT_CODE_ROOT}/*"
+    ]
+  },
+  "project_profiles": {
+    "default": {
+      "paths": {
+        "agents_config_dir": "${PROJECT_ROOT}/.agents",
+        "codex_config_toml": "${PROJECT_ROOT}/.codex/config.toml",
+        "agent_dir": "${PROJECT_ROOT}/${AGENT_DIR_NAME}",
+        "data_dir": "${AGENT_DIR}/data",
+        "kb_dir": "${AGENT_DIR}/KB",
+        "manual_kb_dir": "${PROJECT_ROOT}/KB",
+        "source_dir": "${PROJECT_ROOT}/source",
+        "evidence_dir": "${KB_DIR}/Evidence",
+        "scratch_dir": "${DATA_DIR}/scratch",
+        "turns_dir": "${DATA_DIR}/turns",
+        "worktrees_dir": "${DATA_DIR}/worktrees",
+        "journal_root_dir": "${PROJECT_ROOT}/${JOURNAL_DIR_NAME}",
+        "journal_dir": "${JOURNAL_ROOT_DIR}/1 - Analysis",
+        "context_output": "${JOURNAL_ROOT_DIR}/0/Context.md",
+        "context_config": "${AGENTS_CONFIG_DIR}/context.json",
+        "project_json": "${AGENT_DIR}/project.json",
+        "text_project_json": "${DATA_DIR}/text-project.json",
+        "workflow_json": "${DATA_DIR}/workflow.json",
+        "continuation_md": "${DATA_DIR}/continuation.md",
+        "registrations_json": "${DATA_DIR}/registrations.json",
+        "verified_claims_json": "${DATA_DIR}/verified-claims.json",
+        "facts_json": "${DATA_DIR}/facts.json",
+        "grounding_cache_json": "${DATA_DIR}/grounding-cache.json",
+        "metrics_json": "${DATA_DIR}/research-metrics.json",
+        "executors_json": "${DATA_DIR}/executors.json",
+        "rendered_json": "${DATA_DIR}/rendered.json",
+        "http_index_json": "${DATA_DIR}/http-index.json"
+      },
+      "journal_legacy_fallbacks": [
+        "${JOURNAL_ROOT_DIR}/1 - Анализ",
+        "${JOURNAL_ROOT_DIR}"
+      ]
+    },
+    "upwork": {
+      "extends": "default",
+      "paths": {
+        "proposals_dir": "${PROJECT_ROOT}/result",
+        "letters_dir": "${PROJECT_ROOT}/Letters",
+        "overview_md": "${PROJECT_ROOT}/.md"
+      }
+    },
+    "dual_repo": {
+      "extends": "default",
+      "variables": {
+        "PROJECT_CODE_ROOT": "${PROJECT_ROOT}/code",
+        "PROJECT_META_ROOT": "${PROJECT_ROOT}/${META_DIR_NAME}"
+      },
+      "paths": {
+        "code_dir": "${PROJECT_CODE_ROOT}",
+        "meta_dir": "${PROJECT_META_ROOT}",
+        "agent_dir": "${PROJECT_META_ROOT}/${AGENT_DIR_NAME}",
+        "manual_kb_dir": "${PROJECT_META_ROOT}/KB",
+        "journal_root_dir": "${PROJECT_META_ROOT}/${JOURNAL_DIR_NAME}",
+        "journal_dir": "${JOURNAL_ROOT_DIR}"
+      },
+      "code_repos": [
+        "${PROJECT_CODE_ROOT}"
+      ],
+      "auxiliary_repos": {
+        "meta": "${PROJECT_META_ROOT}"
+      }
+    },
+    "server": {
+      "extends": "default",
+      "variables": {
+        "PRIVATE_WORK_DIR": "${PROJECT_ROOT}/_my"
+      },
+      "paths": {
+        "private_work_dir": "${PRIVATE_WORK_DIR}"
+      },
+      "code_repos": [
+        "${PROJECT_ROOT}"
+      ]
+    }
+  }
+}

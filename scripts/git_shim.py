@@ -1,3 +1,6 @@
+# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 # 2026-10-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 # https://github.com/dmitry-ai/harness/issues/17
@@ -20,9 +23,11 @@ import subprocess
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_tools.git_gate import READ_SUBCOMMANDS, classify_git_argv, cleanup_stale_credential_locks, is_agent_git_context, normalize_host_path, run_git_hook, verify_git_write_invocation
+from agent_tools.path_registry import tool_list, tool_path
 _NET_SUBCOMMANDS = ('push', 'fetch', 'pull', 'clone', 'ls-remote', 'submodule')
 def _normalize_arg_token(token: str) -> str:
-	if token.startswith(('/cygdrive/', '/mnt/')) and len(token.split('/')) >= 3:
+	prefixes = tuple(tool_list('posix_drive_prefixes'))
+	if token.startswith(prefixes) and len(token.split('/')) >= 3:
 		r = str(normalize_host_path(token)).replace('\\', '/')
 	else:
 		r = token
@@ -33,7 +38,7 @@ def resolve_system_git() -> str:
 	if explicit and normalize_host_path(explicit).is_file():
 		r = str(normalize_host_path(explicit).resolve())
 	else:
-		shim_dir = (Path(__file__).resolve().parent / 'shim').resolve()
+		shim_dir = tool_path('git_shim_dir').resolve()
 		script_dir = Path(__file__).resolve().parent.resolve()
 		filtered_paths = []
 		for entry in os.environ.get('PATH', '').split(os.pathsep):
@@ -48,7 +53,8 @@ def resolve_system_git() -> str:
 		if found:
 			r = found
 		else:
-			for candidate in (Path('C:/tools/git/cmd/git.exe'), Path('C:/Program Files/Git/cmd/git.exe')):
+			for raw_cand in tool_list('git_candidates'):
+				candidate = Path(raw_cand)
 				if candidate.is_file():
 					r = str(candidate)
 					break
