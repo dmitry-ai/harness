@@ -175,8 +175,7 @@ A programmatic receipt does not guarantee substantive truth: A.A evaluates meani
 `journal-sync <project> --conversation <native-uuid>` synchronously reconciles a completed native reply against the journal; a skipped preparation is recovered post-hoc, and any byte discrepancy is saved as a conflict without overwriting history.  
 All journal execution is foreground-only: `turn-begin` reconciles earlier completed turns of its current conversation, and `answer-prepare` records the present response without registering or launching a persistent process.  
 Native delivery is confirmed on the next foreground working call after publication; if no later call occurs, it remains unverified.  
-`journal-watch --action once [--dry-run]` explicitly audits saved legacy bindings once and returns; `status` is read-only, `stop` cooperatively retires an older verifier, and `start`/`run` reject persistent execution.  
-`--no-watch` and the Python `watch` parameter are compatibility inputs and never enable autonomous work; `journal-unwatch <project> --conversation <native-uuid>` removes only a legacy binding.  
+`--no-watch` and the Python `watch` parameter are compatibility inputs and never enable autonomous work; confirmed `delivered` turns prune temporary `<turn_key>-recovery/` checkpoint directories.  
 Repeated unchanged reconciliation preserves domain-state bytes, timestamps and mtime; real changes and conflicts are recorded without silently replacing history.  
 New answers pass the current applicable document, source, and approval gates and retain an immutable admission proof; repeated historical verification checks the selected recorded sources and approvals without reapplying wall-clock freshness rules.  
 Missing legacy admission proofs remain visible gaps, and prior failed admission is not bypassed by recovery.  

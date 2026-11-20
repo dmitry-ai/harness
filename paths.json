@@ -123,7 +123,6 @@
     "incoming_dir": "${HARNESS_DATA_DIR}/incoming",
     "upwork_projects_dir": "${HARNESS_DATA_DIR}/upwork-projects",
     "upwork_projects_index": "${HARNESS_DATA_DIR}/upwork-projects/projects.json",
-    "journal_watch_dir": "${HARNESS_DATA_DIR}/journal-watch",
     "browser_locks_dir": "${HARNESS_DATA_DIR}/browser-locks",
     "cleanup_lock": "${HARNESS_DATA_DIR}/cleanup.lock",
     "cleanup_log_dir": "${HARNESS_CLEANUP_LOG_DIR}",

@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "output": "ꙮ/0/Context.md",
-  "sections": [
-    {"title": "Agent KB", "globs": ["ꘖ/KB/**/*.md"], "exclude": ["ꘖ/KB/Evidence/**"], "optional": true}
-  ]
-}

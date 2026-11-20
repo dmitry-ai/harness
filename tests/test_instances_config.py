@@ -1,6 +1,12 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
@@ -19,7 +25,7 @@ import uuid
 from test_agent_tools import SCRIPTS, TemporaryCase
 from test_onboarding import source
 import check_stop_gate
-from agent_tools import cleanup, completion, configuration, journal_watch, metrics, native_profiles as native, registration, runtime, text_diagnostics, upwork_project as up, workflow
+from agent_tools import cleanup, completion, configuration, metrics, native_profiles as native, registration, runtime, text_diagnostics, upwork_project as up, workflow
 from agent_tools.platforms import adapter, antigravity, codex
 class RuntimeInstancesTests(TemporaryCase):
 	def setUp(self):
@@ -569,15 +575,6 @@ class RuntimeInstancesTests(TemporaryCase):
 		diag = text_diagnostics.diagnose_sources(cc_proj, config=cc_cfg, primary=cc_primary)
 		self.assertTrue(diag['valid'], diag)
 		self.assertEqual(diag['conflicts'], [])
-		with patch.object(journal_watch, 'settings', return_value=cc_cfg), patch.object(runtime, 'settings', return_value=cc_cfg):
-			binding_cc = {'project_root': str(cc_proj), 'platform': 'claude_code', 'native_backend': str(cc_home), 'conversation_id': str(uuid.uuid4()), 'source_file': str(cc_proj / 'res.md'), 'from_step': 0}
-			journal_watch._validate_binding(binding_cc)
-			self.assertEqual(len(journal_watch._signature(binding_cc)), 1)
-		with patch.object(journal_watch, 'settings', return_value=cfg), patch.object(runtime, 'settings', return_value=cfg):
-			sig_a9 = journal_watch._signature({'project_root': str(kept_proj), 'platform': 'antigravity', 'instance': 'A9', 'native_backend': str(custom_backend), 'conversation_id': cid_primary, 'source_file': str(kept_proj / 'res.md'), 'from_step': 0})
-			sig_paths = {Path(item[0]).resolve() for item in sig_a9}
-			self.assertIn(custom_conv_db.resolve(), sig_paths)
-			self.assertIn((custom_convs / f'{cid_primary}.db').resolve(), sig_paths)
 	def test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6(self):
 		a8_home = self.root / 'ag/A8'
 		(a8_home / '.gemini/config/projects').mkdir(parents=True)

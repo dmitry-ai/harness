@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
 # https://github.com/dmitry-ai/harness/issues/69
@@ -24,7 +27,6 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 	ctx_specs = (('root_pos', {'nargs': '?', 'type': Path, 'default': None, 'help': 'Project root directory'}), ('--root', {'type': Path, 'default': root_default, 'help': 'Project root directory'}), ('--config', {'type': Path, 'default': context_default, 'help': 'Context configuration file'}), (('--output', '-o'), {'type': Path, 'help': 'Output path (defaults to \ua66e/0/Context.md)'}), ('--dry-run', {'action': 'store_true', 'help': 'Check inputs without writing output'}))
 	specs_map = {
 		'generate_context': ctx_specs,
-		'rebuild_context': ctx_specs,
 		'safe_commit': (('--repo', {'type': Path, 'required': True}), ('--file', {'action': 'append', 'required': True}), (('--message', '-m'), {'required': True}), ('--execute', {'action': 'store_true'}), ('--worktree', {'action': 'store_true', 'help': 'Commit explicit files in an isolated temporary linked git worktree'})),
 		'snapshot_draft': (('target', {'type': Path}), ('--turn', {'required': True})),
 		'validate_anchors': _LINK_SPECS,
@@ -60,7 +62,7 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			if errors:
 				raise ValueError('\n'.join(errors))
 			print('Statement and Test.md files exist and are nonempty UTF-8; evidence truth was not checked')
-		elif command in ('generate_context', 'rebuild_context'):
+		elif 'generate_context' == command:
 			from .context import generate
 			root = args.root or args.root_pos or root_default or Path('.')
 			target, content, sources = generate(root, args.config, args.output, args.dry_run)

@@ -28,8 +28,7 @@ Execution is foreground-only: `turn-begin` reconciles earlier completed turns of
 Neither command registers or starts a background process, including calls using the legacy `watch` parameter; `--no-watch` remains a compatibility option.  
 No persistent verifier, detached worker, polling loop, or timer runs between working calls, whether applications are open or closed.  
 Prepared response bytes are saved before publication; native delivery can only be confirmed during a later foreground call after the completion event exists.  
-When the user explicitly opts out of journaling, first run `journal-unwatch <root> --conversation <native-uuid> --platform <platform>`, then honor the opt-out and do not call `answer-prepare` for that response.  
-The command removes only the legacy binding and waits for any in-progress explicit foreground verification pass to finish; previously saved history remains intact.  
+When the user explicitly opts out of journaling under SCOPE-1, honor the opt-out and do not call `answer-prepare` for that response; previously saved history remains intact.  
 
 ## Answer Preparation
 
@@ -77,16 +76,10 @@ This check does not identify hidden causes, does not forbid justified equal prio
 
 ```text
 python <agents>/scripts/harness.py journal-sync <root> --conversation <native-uuid> --platform codex
-python <agents>/scripts/harness.py journal-watch --action status
-python <agents>/scripts/harness.py journal-watch --action once
-python <agents>/scripts/harness.py journal-watch --action once --dry-run
-python <agents>/scripts/harness.py journal-watch --action stop
 ```
 
 The foreground reconciler reads the explicitly selected conversation, its exact user requests, and completed final messages; private reasoning traces are never exported.  
-The next `turn-begin` performs this check for earlier completed turns in the current conversation; `journal-sync` requests it explicitly without starting any later work.  
-`journal-watch --action once` is a bounded compatibility command for explicitly auditing saved legacy bindings; it does not schedule another pass.  
-`journal-watch --action start` and `--action run` reject persistent execution, `status` is read-only, and `stop` can cooperatively retire a verifier from an older installation.  
+The next `turn-begin` performs this check for earlier completed turns in the current conversation; `journal-sync` requests it explicitly without starting any later work, and confirmed `delivered` turns automatically prune temporary `<turn_key>-recovery/` checkpoint directories.  
 Codex requires a native turn-completion event and a final assistant message matching that completion event.  
 Antigravity verifies a completed step; for the active tail, it additionally requires native idle state, `not_fully_idle: 0`, absence of killed status, and consistent indices for the last user request and planner step.  
 Incomplete entries, explicitly aborted Codex turns, a killed Antigravity tail, unrelated projects, child subagents, and truncated JSONL lines never count as successful delivery.  
@@ -109,8 +102,8 @@ A stable native ID and request check prevent duplicates; identical wording in di
 
 ## Limits and Verification
 
-The shared source remains `AI/harness/Ⰿ/≻/♕/⛯`; legacy audit bindings and retirement metadata remain in `AI/harness/ꘖ/data/journal-watch`, and native databases are never modified.  
-Foreground reconciliation does not close windows, restart Codex or Antigravity, or terminate third-party processes; legacy `stop` targets only the old verifier's own token.  
+The shared source remains `AI/harness/Ⰿ/≻/♕/⛯`, and native databases are never modified.  
+Foreground reconciliation does not close windows, restart Codex or Antigravity, or terminate third-party processes.  
 The contract does not intercept platform message submission: an agent can still bypass preparation by emitting a direct final reply, after which the next foreground reconciliation detects the violation and recovers the journal entry.  
 If no later working call occurs, native delivery remains unverified; there is no autonomous post-delivery repair or promise of immediate background recovery.  
 Criteria: routine analysis and articles use the same FILE-3 contract; an incomplete reply is not imported; a skipped preparation is recovered; retries do not duplicate pairs; a foreign root/profile/child is rejected; a conflict preserves the original bytes.  

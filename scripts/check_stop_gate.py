@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -133,7 +136,6 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	segment = [r for r in rows if isinstance(r, dict) and isinstance(r.get('step_index'), int) and (r.get('step_index') > last_user_step)]
 	spawned = 0
 	completed = 0
-	unwatched = False
 	last_planner_text = ''
 	for r in segment:
 		if 'EPHEMERAL_MESSAGE' == r.get('type') and re.search('<SYSTEM_MESSAGE>.*\\bSubagent\\b.*\\bcompleted\\b', str(r.get('content') or ''), re.S):
@@ -142,14 +144,9 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 		for c in calls:
 			if 'invoke_subagent' == c.get('name'):
 				spawned += 1
-			if 'run_command' == c.get('name'):
-				args = c.get('args') or {}
-				cmd = args.get('CommandLine', '') if isinstance(args, dict) else str(args)
-				if re.search('\\bjournal-unwatch\\b', cmd):
-					unwatched = True
 		if 'PLANNER_RESPONSE' == r.get('type') and (not calls) and str(r.get('content') or '').strip():
 			last_planner_text = str(r.get('content'))
-	if unwatched or completed < spawned:
+	if completed < spawned:
 		return {'decision': 'allow'}
 	t_dir = _turns_dir(root)
 	matched_state = None

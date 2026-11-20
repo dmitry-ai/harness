@@ -1,6 +1,12 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/87
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
@@ -89,7 +95,7 @@ from unittest.mock import patch
 import uuid
 SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
-from agent_tools import completion, journal, journal_watch, storage, workflow, text_workflow
+from agent_tools import completion, journal, storage, workflow, text_workflow
 from agent_tools.causal_checks import unsupported_probability_claims
 from agent_tools.platforms import codex, antigravity
 def wire(field, payload):
@@ -132,17 +138,14 @@ def completed_tail_is_immutable(case, *, platform, backend, prepared):
 	state = json.loads(state_file.read_text(encoding='utf-8'))
 	case.assertEqual(state['status'], 'delivered')
 	case.assertEqual(state['prepared'] is not None, prepared)
-def foreground_once_preserves_admitted_delivery(case, *, platform, backend):
-	watch_dir = case.root / 'legacy-explicit-scan'
-	native = completion._native(case.project, case.cid, platform=platform, backend=backend)
-	journal_watch.register(case.project, native, native['turns'][0]['start_step'], state_dir=watch_dir)
+def foreground_sync_preserves_admitted_delivery(case, *, platform, backend):
 	case.finish('Foreground admission result')
-	first = journal_watch.once(state_dir=watch_dir)
+	first = completion.sync(case.project, case.cid, platform=platform, backend=backend)
 	case.assertTrue(first['valid'], first)
-	case.assertEqual(first['results'][0]['turns'][0]['admission_verification']['scope'], 'original_publication_admission')
+	case.assertEqual(first['turns'][0]['admission_verification']['scope'], 'original_publication_admission')
 	before = {path.relative_to(case.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in case.root.rglob('*') if path.is_file()}
-	with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(journal_watch, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(storage.os, 'replace', side_effect=AssertionError('Repeated explicit scans must preserve admission and binding bytes')):
-		case.assertEqual(journal_watch.once(state_dir=watch_dir), first)
+	with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(storage.os, 'replace', side_effect=AssertionError('Repeated explicit scans must preserve admission and turn bytes')):
+		case.assertEqual(completion.sync(case.project, case.cid, platform=platform, backend=backend), first)
 	after = {path.relative_to(case.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in case.root.rglob('*') if path.is_file()}
 	case.assertEqual(after, before)
 class AnswerPreparationRunnerTests(unittest.TestCase):
@@ -299,7 +302,7 @@ class CompletionCase(unittest.TestCase):
 	def test_repeated_recovered_delivery_preserves_all_domain_bytes_and_mtimes(self):
 		self.assert_repeated_delivery_is_read_only(prepared=False)
 	def test_explicit_once_preserves_real_admission_scope_and_binding(self):
-		foreground_once_preserves_admitted_delivery(self, platform='codex', backend=self.home)
+		foreground_sync_preserves_admitted_delivery(self, platform='codex', backend=self.home)
 	def test_repeated_conflict_preserves_all_domain_bytes_and_mtimes(self):
 		self.prepare('Prepared original')
 		self.finish('Different native response')
@@ -362,9 +365,8 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(second['recorded_at'], first['recorded_at'])
 		self.assertEqual(self.project_snapshot(), before)
 	def test_begin_and_prepare_cannot_register_or_start_a_daemon_even_with_legacy_watch_true(self):
-		with patch.object(journal_watch, 'register', side_effect=AssertionError('No implicit global registration')), patch.object(journal_watch, 'start', side_effect=AssertionError('No persistent process')):
-			begun = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
-			prepared = completion.prepare(self.project, 'Explicit foreground answer', self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
+		begun = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
+		prepared = completion.prepare(self.project, 'Explicit foreground answer', self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
 		self.assertEqual(begun['execution_mode'], 'foreground-only')
 		self.assertTrue(prepared['ready'])
 		self.assertFalse((self.root / 'unused daemon').exists())
@@ -484,14 +486,11 @@ class CompletionCase(unittest.TestCase):
 		with self.assertRaisesRegex(ValueError, 'changed without a current apply receipt'):
 			self.prepare('Claiming completion without the document check', journal_directory=selected)
 		self.assertFalse((selected / 'res').exists())
-	def test_watcher_respects_the_custom_journal_of_an_unprepared_turn(self):
+	def test_sync_respects_the_custom_journal_of_an_unprepared_turn(self):
 		selected = self.root / 'selected journal'
 		self.begin(journal_directory=selected)
 		self.finish('Actual final without preparation')
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watcher custom journal'
-		journal_watch.register(self.project, native, 0, state_dir=directory, journal_directory=selected)
-		self.assertTrue(journal_watch.once(state_dir=directory)['valid'])
+		self.assertTrue(self.sync()['valid'])
 		self.assertEqual((selected / 'res/1.md').read_bytes(), b'Actual final without preparation')
 		self.assertFalse((self.project / 'ꙮ').exists())
 	def test_native_sync_recovers_a_completely_skipped_prepare_once(self):
@@ -698,108 +697,44 @@ class CompletionCase(unittest.TestCase):
 		result = self.sync()['turns'][0]
 		self.assertEqual(result['journal_steps'], [1, 2])
 		self.assertEqual(self.saved('req', 2), 'Clarification.'.encode())
-	def test_explicit_foreground_pass_recovers_without_another_model_tool_call(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watch state'
-		journal_watch.register(self.project, native, 0, state_dir=directory)
-		journal_watch.once(state_dir=directory)
-		self.finish('Native final')
-		result = journal_watch.once(state_dir=directory)
-		self.assertTrue(result['results'][0]['turns'][0]['delivery_verified'])
-		self.assertEqual(self.saved('res'), b'Native final')
-		self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
-	def test_corrupt_binding_does_not_disable_other_conversations_or_rewrite_evidence(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watch state'
-		journal_watch.register(self.project, native, 0, state_dir=directory)
-		broken = directory / 'bindings/000-broken.json'
-		broken.write_bytes(b'{"partial":')
-		self.finish('Recovered despite another corrupt binding')
-		result = journal_watch.once(state_dir=directory)
-		self.assertFalse(result['valid'])
-		self.assertTrue(any((r.get('turns') for r in result['results'])))
-		self.assertEqual(broken.read_bytes(), b'{"partial":')
-	def test_structurally_invalid_bindings_are_isolated_without_rewriting_them(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watch state'
-		binding = Path(journal_watch.register(self.project, native, 0, state_dir=directory)['binding'])
-		template = json.loads(binding.read_text(encoding='utf-8'))
-		invalid = [{'platform': ['codex']}, {'platform': 'unknown'}, {'from_step': True}, {'conversation_id': 42}, {'conversation_id': 'not-a-uuid'}, {'project_root': 'relative-root'}, {'native_backend': {}}, {'journal_directory': []}, {'last_result': []}]
-		evidence = {}
-		for number, change in enumerate(invalid):
-			path = directory / f'bindings/000-invalid-{number}.json'
-			content = json.dumps({**template, **change}).encode()
-			path.write_bytes(content)
-			evidence[path] = content
-		self.finish('Recovered despite structurally invalid bindings')
-		result = journal_watch.once(state_dir=directory)
-		self.assertFalse(result['valid'])
-		self.assertEqual(sum((False is r.get('valid') for r in result['results'])), len(invalid))
-		self.assertEqual(self.saved('res'), b'Recovered despite structurally invalid bindings')
-		for path, content in evidence.items():
-			self.assertEqual(path.read_bytes(), content)
 	def registered_delivery(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watch state'
-		binding = Path(journal_watch.register(self.project, native, 0, state_dir=directory)['binding'])
 		self.finish('Original native final')
-		self.assertTrue(journal_watch.once(state_dir=directory)['valid'])
-		self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
-		r = (directory, binding)
-		return r
-	def expire_binding(self, binding):
-		value = json.loads(binding.read_text(encoding='utf-8'))
-		value['last_checked_at'] = '2000-01-01T00:00:00+00:00'
-		binding.write_text(json.dumps(value), encoding='utf-8')
+		self.assertTrue(self.sync()['valid'])
 	def test_foreground_integrity_check_detects_changed_journal_without_native_changes(self):
-		directory, binding = self.registered_delivery()
+		self.registered_delivery()
 		native_before = self.path.read_bytes()
 		response = self.project / 'ꙮ/1 - Analysis/res/1.md'
 		response.write_bytes(b'Externally changed response')
-		self.expire_binding(binding)
-		result = journal_watch.once(state_dir=directory)
+		result = self.sync()
 		self.assertFalse(result['valid'])
 		self.assertEqual(response.read_bytes(), b'Externally changed response')
 		self.assertEqual(self.path.read_bytes(), native_before)
-		evidence = self.project / result['results'][0]['turns'][0]['evidence']
+		evidence = self.project / result['turns'][0]['evidence']
 		self.assertEqual(evidence.read_bytes(), b'Original native final')
 		response.write_bytes(b'Original native final')
-		self.expire_binding(binding)
-		restored = journal_watch.once(state_dir=directory)
+		restored = self.sync()
 		self.assertTrue(restored['valid'])
-		self.assertTrue(restored['results'][0]['turns'][0]['recovered_after_delivery'])
-		self.assertEqual(restored['results'][0]['turns'][0]['completion_provenance'], 'recovered_native')
+		self.assertTrue(restored['turns'][0]['recovered_after_delivery'])
+		self.assertEqual(restored['turns'][0]['completion_provenance'], 'recovered_native')
 	def test_foreground_integrity_check_preserves_a_deleted_completed_journal_file(self):
-		directory, binding = self.registered_delivery()
+		self.registered_delivery()
 		request = self.project / 'ꙮ/1 - Analysis/req/1.md'
 		request.unlink()
-		self.expire_binding(binding)
-		result = journal_watch.once(state_dir=directory)
+		result = self.sync()
 		self.assertFalse(result['valid'])
 		self.assertFalse(request.exists())
 		self.assertEqual(self.saved('res'), b'Original native final')
 		self.assertEqual(len(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md'))), 1)
 	def test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange(self):
-		directory, binding = self.registered_delivery()
+		self.registered_delivery()
 		groups = journal.state_dir(self.project / 'ꙮ/1 - Analysis') / 'answer-groups'
 		next(groups.glob('*.json')).unlink()
-		self.expire_binding(binding)
-		result = journal_watch.once(state_dir=directory)
+		result = self.sync()
 		self.assertFalse(result['valid'])
 		self.assertEqual(self.saved('res'), b'Original native final')
 		self.assertEqual(len(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md'))), 1)
-	def test_transient_recheck_failure_is_reported_and_retried_without_native_changes(self):
-		directory, binding = self.registered_delivery()
-		self.expire_binding(binding)
-		with patch.object(completion, 'sync', side_effect=OSError('Temporarily unavailable')):
-			failed = journal_watch.once(state_dir=directory)
-		self.assertFalse(failed['valid'])
-		retried = journal_watch.once(state_dir=directory)
-		self.assertTrue(retried['valid'])
-		self.assertEqual(retried['bindings_checked'], 1)
 	def test_temporary_permission_failure_reading_actual_journal_retries_next_pass(self):
-		directory, binding = self.registered_delivery()
-		self.expire_binding(binding)
+		self.registered_delivery()
 		response = self.project / 'ꙮ/1 - Analysis/res/1.md'
 		original = Path.read_bytes
 		def unavailable(path):
@@ -808,106 +743,22 @@ class CompletionCase(unittest.TestCase):
 			r = original(path)
 			return r
 		with patch.object(Path, 'read_bytes', unavailable):
-			failed = journal_watch.once(state_dir=directory)
+			failed = self.sync()
 		self.assertFalse(failed['valid'])
-		self.assertTrue(failed['results'][0]['retryable'])
-		retried = journal_watch.once(state_dir=directory)
+		self.assertTrue(failed['retryable'])
+		retried = self.sync()
 		self.assertTrue(retried['valid'])
-		self.assertEqual(retried['bindings_checked'], 1)
-		self.assertTrue(retried['results'][0]['turns'][0]['recovered_after_delivery'])
+		self.assertTrue(retried['turns'][0]['recovered_after_delivery'])
 		self.assertEqual(response.read_bytes(), b'Original native final')
-	def test_explicit_integrity_check_never_skips_an_unchanged_native_source(self):
-		directory, binding = self.registered_delivery()
-		value = json.loads(binding.read_text(encoding='utf-8'))
-		value['last_checked_at'] = '2026-01-01T00:00:00+00:00'
-		binding.write_text(json.dumps(value), encoding='utf-8')
-		with patch.object(journal_watch, '_now', return_value='2026-01-01T00:00:59+00:00'):
-			self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
-		with patch.object(journal_watch, '_now', return_value='2026-01-01T00:01:00+00:00'):
-			self.assertEqual(journal_watch.once(state_dir=directory)['bindings_checked'], 1)
-	def test_binding_corrupted_during_sync_is_preserved_and_reported_without_crashing(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watch state'
-		binding = Path(journal_watch.register(self.project, native, 0, state_dir=directory)['binding'])
-		self.finish('Final before binding corruption')
-		original = completion.sync
-		def corrupt(*args, **kwargs):
-			result = original(*args, **kwargs)
-			binding.write_bytes(b'null')
-			r = result
-			return r
-		with patch.object(completion, 'sync', side_effect=corrupt):
-			result = journal_watch.once(state_dir=directory)
-		self.assertFalse(result['valid'])
-		self.assertEqual(binding.read_bytes(), b'null')
-		self.assertEqual(self.saved('res'), b'Final before binding corruption')
-	def test_earlier_registration_boundary_is_rechecked_without_native_file_change(self):
-		self.finish('Earlier response')
-		second = str(uuid.uuid4())
-		self.rows += self.turn_rows(second, 'Later request')
-		self.finish('Later response', turn=second)
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watch state'
-		journal_watch.register(self.project, native, native['turns'][1]['start_step'], state_dir=directory)
-		journal_watch.once(state_dir=directory)
-		self.assertEqual(self.saved('res'), b'Later response')
-		journal_watch.register(self.project, native, 0, state_dir=directory)
-		self.assertEqual(len(journal_watch.once(state_dir=directory)['results'][0]['turns']), 2)
-		self.assertEqual(self.saved('res', 2), b'Earlier response')
-	def test_user_exception_removes_only_its_own_registration(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'watch state'
-		own = journal_watch.register(self.project, native, 0, state_dir=directory)['binding']
-		other = {**native, 'conversation_id': str(uuid.uuid4())}
-		other_binding = journal_watch.register(self.project, other, 0, state_dir=directory)['binding']
-		self.assertTrue(journal_watch.unregister(self.project, native, state_dir=directory)['binding_removed'])
-		self.assertFalse(Path(own).exists())
-		self.assertTrue(Path(other_binding).exists())
 	def test_begin_reconciles_previous_delivery_in_the_same_foreground_call(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
 		self.finish('Foreground reconciliation at next turn')
 		second = str(uuid.uuid4())
 		self.rows += self.turn_rows(second, 'Next explicit work')
 		self.write()
-		with patch.object(journal_watch, 'register', side_effect=AssertionError('No background registration')), patch.object(journal_watch, 'start', side_effect=AssertionError('No autonomous process')):
-			result = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True)
+		result = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True)
 		self.assertEqual(result['execution_mode'], 'foreground-only')
 		self.assertTrue(result['native_reconciliation']['turns'][0]['delivery_verified'])
 		self.assertEqual(self.saved('res'), b'Foreground reconciliation at next turn')
-	def test_foreground_pass_isolates_a_binding_with_wrong_types(self):
-		native = codex.native_answers(self.project, self.cid, backend=self.home)
-		directory = self.root / 'typed corrupt watcher'
-		binding = Path(journal_watch.register(self.project, native, 0, state_dir=directory)['binding'])
-		broken = directory / 'bindings/000-wrong-types.json'
-		invalid = {**json.loads(binding.read_text(encoding='utf-8')), 'platform': ['codex']}
-		content = json.dumps(invalid).encode()
-		broken.write_bytes(content)
-		self.finish('Foreground pass isolates wrong binding types')
-		result = journal_watch.once(state_dir=directory)
-		self.assertFalse(result['valid'])
-		self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'stopped')
-		self.assertEqual(self.saved('res'), b'Foreground pass isolates wrong binding types')
-		self.assertEqual(broken.read_bytes(), content)
-	def test_foreground_pass_preserves_a_corrupt_group_and_records_another_project(self):
-		directory, binding = self.registered_delivery()
-		groups = journal.state_dir(self.project / 'ꙮ/1 - Analysis') / 'answer-groups'
-		broken = next(groups.glob('*.json'))
-		broken.write_bytes(b'null')
-		self.expire_binding(binding)
-		other = CompletionCase()
-		other.setUp()
-		self.addCleanup(other.doCleanups)
-		other.finish('Healthy conversation remains observed')
-		native = codex.native_answers(other.project, other.cid, backend=other.home)
-		journal_watch.register(other.project, native, 0, state_dir=directory)
-		result = journal_watch.once(state_dir=directory)
-		response = other.project / 'ꙮ/1 - Analysis/res/1.md'
-		self.assertFalse(result['valid'])
-		self.assertEqual(journal_watch.status(state_dir=directory)['status'], 'stopped')
-		self.assertEqual(response.read_bytes(), b'Healthy conversation remains observed')
-		value = json.loads(binding.read_text(encoding='utf-8'))
-		self.assertFalse(value['last_result']['valid'])
-		self.assertEqual(broken.read_bytes(), b'null')
 class AntigravityCompletionTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -972,9 +823,8 @@ class AntigravityCompletionTests(unittest.TestCase):
 			self.assertEqual(self.sync(), first)
 		self.assertEqual(self.project_snapshot(), before)
 	def test_antigravity_begin_and_prepare_never_register_or_start_background_work(self):
-		with patch.object(journal_watch, 'register', side_effect=AssertionError('No implicit registration')), patch.object(journal_watch, 'start', side_effect=AssertionError('No autonomous process')):
-			begun = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=True)
-			prepared = completion.prepare(self.project, 'Foreground Antigravity preparation', self.cid, platform='antigravity', backend=self.backend, watch=True)
+		begun = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=True)
+		prepared = completion.prepare(self.project, 'Foreground Antigravity preparation', self.cid, platform='antigravity', backend=self.backend, watch=True)
 		self.assertEqual(begun['execution_mode'], 'foreground-only')
 		self.assertTrue(prepared['ready'])
 	def test_repeated_antigravity_preparation_preserves_all_domain_bytes_and_mtimes(self):
@@ -984,8 +834,8 @@ class AntigravityCompletionTests(unittest.TestCase):
 			second = completion.prepare(self.project, 'Stable Antigravity preparation', self.cid, platform='antigravity', backend=self.backend)
 		self.assertEqual(second['recorded_at'], first['recorded_at'])
 		self.assertEqual(self.project_snapshot(), before)
-	def test_explicit_once_preserves_real_antigravity_admission_scope_and_binding(self):
-		foreground_once_preserves_admitted_delivery(self, platform='antigravity', backend=self.backend)
+	def test_explicit_sync_preserves_real_antigravity_admission_scope(self):
+		foreground_sync_preserves_admitted_delivery(self, platform='antigravity', backend=self.backend)
 	def test_prepared_completed_antigravity_tail_is_monotonic_and_read_only(self):
 		completed_tail_is_immutable(self, platform='antigravity', backend=self.backend, prepared=True)
 	def test_recovered_completed_antigravity_tail_is_not_retroactively_prepared(self):
@@ -1009,17 +859,14 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c.close()
 		with self.assertRaisesRegex(ValueError, 'child'):
 			self.sync()
-	def test_watcher_rechecks_native_step_status_without_a_transcript_or_summary_change(self):
+	def test_sync_rechecks_native_step_status_without_a_transcript_or_summary_change(self):
 		self.finish(partial=True)
-		native = antigravity.native_answers(self.project, self.cid, backend=self.backend)
-		directory = self.root / 'AG watcher'
-		journal_watch.register(self.project, native, 0, state_dir=directory)
-		self.assertEqual(journal_watch.once(state_dir=directory)['results'][0]['turns'], [])
+		self.assertEqual(self.sync()['turns'], [])
 		c = sqlite3.connect(self.backend / 'conversations' / (self.cid + '.db'))
 		c.execute('UPDATE steps SET status=3 WHERE idx=1')
 		c.commit()
 		c.close()
-		self.assertTrue(journal_watch.once(state_dir=directory)['results'][0]['turns'][0]['delivery_verified'])
+		self.assertTrue(self.sync()['turns'][0]['delivery_verified'])
 	def test_mid_turn_checkpoint_blocks_until_recover_checkpoint(self):
 		self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'echo ok'}}]}, {'step_index': 2, 'type': 'GENERIC', 'content': '2722: Resolving Next.js interference'}, {'step_index': 3, 'type': 'CHECKPOINT', 'content': 'Compacted summary omitting 2722'}]
 		self.write()
@@ -1028,8 +875,17 @@ class AntigravityCompletionTests(unittest.TestCase):
 		recovered = completion.recover_checkpoint(self.project, self.cid, platform='antigravity', backend=self.backend)
 		self.assertTrue(recovered['compaction_check']['verified'])
 		self.assertIn('2722: Resolving Next.js interference', recovered['pre_checkpoint_records'][0]['outputs'][0])
+		t_key = recovered['turn_key']
+		turns_dir = self.project / 'ꘖ/data/turns'
+		self.assertTrue((turns_dir / f'{t_key}-recovery').is_dir())
+		self.assertTrue((turns_dir / f'{t_key}-checkpoint-recovery.json').is_file())
 		prepared = completion.prepare(self.project, 'Response after compaction.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+		self.finish('Response after compaction.')
+		synced = self.sync()
+		self.assertTrue(synced['valid'])
+		self.assertFalse((turns_dir / f'{t_key}-recovery').exists())
+		self.assertFalse((turns_dir / f'{t_key}-checkpoint-recovery.json').exists())
 	def test_adhoc_http_fetch_in_shell_blocks_and_collect_http_persists(self):
 		from agent_tools import research
 		self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'python -c "import urllib.request; urllib.request.urlopen(\'https://df.tips/tag/google-analytics.json\')"'}}]}]
@@ -1896,16 +1752,9 @@ class WatcherLifecycleTests(unittest.TestCase):
 				storage.replace_bytes(path, b'{"domain":"same"}')
 			self.assertEqual(path.stat().st_mtime_ns, before)
 			self.assertEqual(path.read_bytes(), b'{"domain":"same"}')
-	def test_legacy_daemon_entry_points_refuse_without_creating_state(self):
-		with tempfile.TemporaryDirectory() as temp:
-			directory = Path(temp) / 'watcher with spaces'
-			with self.assertRaisesRegex(ValueError, 'foreground'):
-				journal_watch.start(state_dir=directory)
-			with self.assertRaisesRegex(ValueError, 'foreground'):
-				journal_watch.run(state_dir=directory, token='0' * 32)
-			self.assertFalse(directory.exists())
-			dry = journal_watch.once(state_dir=directory, dry_run=True)
-			self.assertTrue(dry['dry_run'])
+	def test_retired_journal_watch_commands_are_removed(self):
+		self.assertNotIn('journal-watch', completion.COMMANDS)
+		self.assertNotIn('journal-unwatch', completion.COMMANDS)
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove Antigravity addons runtime health probing from Harness":
 # https://github.com/dmitry-ai/harness/issues/93

@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -99,7 +102,7 @@ from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
-COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'journal-watch', 'journal-unwatch', 'reconcile-unprepared-delivery')
+COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'reconcile-unprepared-delivery')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
@@ -338,14 +341,14 @@ class TurnJournalReconciler:
 			r = self._record_conflict(path, value, turn, response, 'A prior preparation/admission gate failed; recovery cannot grant publication approval')
 		else:
 			conflict_res = None
-			effective_response, conflict_detail = self._resolve_effective_response(value, turn, response, sha)
-			if None is not conflict_detail:
-				conflict_res = self._record_conflict(path, value, turn, response, conflict_detail)
-			else:
-				try:
+			try:
+				effective_response, conflict_detail = self._resolve_effective_response(value, turn, response, sha)
+				if None is not conflict_detail:
+					conflict_res = self._record_conflict(path, value, turn, response, conflict_detail)
+				else:
 					recorded, admission_check = _record(self.root, self.native, turn, effective_response, value['journal'], existing=_recorded(value), purpose='observation')
-				except (OSError, ValueError) as exc:
-					conflict_res = self._record_conflict(path, value, turn, response, str(exc), retryable=isinstance(exc, OSError) and (not isinstance(exc, FileNotFoundError)))
+			except (OSError, ValueError) as exc:
+				conflict_res = self._record_conflict(path, value, turn, response, str(exc), retryable=isinstance(exc, OSError) and (not isinstance(exc, FileNotFoundError)))
 			if None is not conflict_res:
 				r = conflict_res
 			elif 'legacy_proof_gap' == admission_check['status'] and value['status'] in ('delivered', 'conflict'):
@@ -367,8 +370,21 @@ class TurnJournalReconciler:
 				if self.adopt_conflict:
 					value['readiness_check'] = {'verified': True, 'checked_at': _now(), 'detail': 'Adopted into journal via --adopt-conflict'}
 				_persist(path, value)
+				self._prune_delivered_checkpoint_recovery(value['key'])
 				r = {'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True, 'journal_steps': recorded['journal_steps'], 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check}
 		return r
+	def _prune_delivered_checkpoint_recovery(self, key: str) -> None:
+		import shutil
+		folder = _folder(self.root)
+		rec_dir = folder / f'{key}-recovery'
+		if rec_dir.is_dir() and (not os.path.islink(rec_dir)):
+			shutil.rmtree(rec_dir, ignore_errors=True)
+		rec_file = folder / f'{key}-checkpoint-recovery.json'
+		if rec_file.is_file() and (not os.path.islink(rec_file)):
+			try:
+				rec_file.unlink()
+			except OSError:
+				pass
 	def _record_conflict(self, path, value, turn, response, detail, *, retryable=False):
 		return _conflict(self.root, path, value, self.native, turn, response, detail, retryable=retryable)
 	def _resolve_effective_response(self, value, turn, response, sha):
@@ -1033,23 +1049,20 @@ def reconcile_unprepared_delivery(root, conversation=None, *, platform=None, bac
 	return sync(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=True)
 def add_parser_arguments(parser, command):
 	from .cli_common import add_arg_specs
-	if 'journal-watch' == command:
-		add_arg_specs(parser, (('--action', {'choices': ('start', 'status', 'stop', 'once', 'run'), 'default': 'status'}), ('--state-dir', {'type': Path}), ('--interval', {'type': float, 'default': 5}), ('--token', {'help': 'Internal watcher ownership token'}), ('--dry-run', {'action': 'store_true'})))
-	else:
-		specs = [('project', {'type': Path}), ('--conversation', {'help': 'Actual current native conversation UUID; Codex can use CODEX_THREAD_ID'})]
-		if 'recover-turn-violation' == command:
-			specs.append(('--reason', {'help': 'Audit note for retrospective turn violation recovery'}))
-		if command not in ('journal-unwatch', 'recover-checkpoint', 'recover-turn-violation'):
-			specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
-		if command in ('turn-begin', 'answer-prepare'):
-			specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
-		if 'answer-prepare' == command:
-			specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
-		if command in ('journal-sync', 'reconcile-unprepared-delivery'):
-			specs.append(('--from-step', {'type': int, 'default': 0}))
-		if 'journal-sync' == command:
-			specs.append(('--adopt-conflict', {'action': 'store_true', 'help': 'Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries'}))
-		add_arg_specs(parser, specs)
+	specs = [('project', {'type': Path}), ('--conversation', {'help': 'Actual current native conversation UUID; Codex can use CODEX_THREAD_ID'})]
+	if 'recover-turn-violation' == command:
+		specs.append(('--reason', {'help': 'Audit note for retrospective turn violation recovery'}))
+	if command not in ('recover-checkpoint', 'recover-turn-violation'):
+		specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
+	if command in ('turn-begin', 'answer-prepare'):
+		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
+	if 'answer-prepare' == command:
+		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
+	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
+		specs.append(('--from-step', {'type': int, 'default': 0}))
+	if 'journal-sync' == command:
+		specs.append(('--adopt-conflict', {'action': 'store_true', 'help': 'Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries'}))
+	add_arg_specs(parser, specs)
 def execute(args):
 	if 'turn-begin' == args.command:
 		r = begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal)
@@ -1066,20 +1079,6 @@ def execute(args):
 		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)
 	elif 'journal-sync' == args.command:
 		r = sync(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal, adopt_conflict=getattr(args, 'adopt_conflict', False))
-	elif 'journal-unwatch' == args.command:
-		from .journal_watch import unregister
-		native = _native(args.project, args.conversation)
-		if not native['primary'] or not any((turn['owned'] for turn in native['turns'])):
-			raise ValueError('Only the owned primary conversation can remove its watcher binding')
-		r = unregister(args.project, native)
-	elif 'journal-watch' != args.command:
-		raise ValueError('Unknown completion operation')
 	else:
-		from . import journal_watch
-		if 'run' == args.action:
-			r = journal_watch.run(state_dir=args.state_dir, token=args.token, interval=args.interval)
-		elif 'once' == args.action:
-			r = journal_watch.once(state_dir=args.state_dir, dry_run=args.dry_run)
-		else:
-			r = getattr(journal_watch, args.action)(state_dir=args.state_dir)
+		raise ValueError('Unknown completion operation')
 	return r
