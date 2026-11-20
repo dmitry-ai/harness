@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
@@ -214,6 +217,13 @@ def _validate_string_list(raw: Any, label: str) -> list[str]:
 	if not isinstance(raw, list) or any((not isinstance(x, str) or not x.strip() for x in raw)):
 		raise ValueError(f'{label} must be a list of non-empty path strings')
 	return list(raw)
+def _infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
+	if '\u26ef' == anchor_code.name and 4 <= len(anchor_code.parents) and ('Deliverables', '\u227b', 'Artifacts') == (anchor_code.parent.name, anchor_code.parents[1].name, anchor_code.parents[2].name):
+		root = anchor_code.parents[3].resolve()
+		return (root, root, 2)
+	root = anchor_code.parent.resolve()
+	meta = (root / '_').resolve() if (root / '_').is_dir() else root
+	return (root, meta, 1)
 class PathRegistry:
 	def __init__(self, source_path: Path, raw: dict[str, Any], *, primary: Path | None=None, env: dict[str, str] | None=None):
 		self.source_path = Path(source_path).resolve()
@@ -224,10 +234,13 @@ class PathRegistry:
 		if not variables:
 			raise ValueError('paths.json requires non-empty variables')
 		anchor_code = Path(primary).resolve() if None is not primary else self.source_path.parent.resolve()
-		if _path_key(anchor_code) != _path_key(_CODE_ANCHOR):
-			anchor_root = anchor_code.parent if (anchor_code.parent / '_').is_dir() else anchor_code.parent
-			anchor_meta = anchor_root / '_' if (anchor_root / '_').is_dir() else anchor_root
-			variables = {**variables, 'HARNESS_CODE': escape_template_literal(anchor_code.as_posix()), 'HARNESS_ROOT': escape_template_literal(anchor_root.as_posix()), 'HARNESS_META': escape_template_literal(anchor_meta.as_posix())}
+		configured_code = expand_template(variables['HARNESS_CODE'], variables, env=self.env, normalize=True) if 'HARNESS_CODE' in variables else ''
+		if _path_key(anchor_code) != _path_key(configured_code) or _path_key(anchor_code) != _path_key(_CODE_ANCHOR):
+			anchor_root, anchor_meta, anchor_ver = _infer_harness_anchor(anchor_code)
+			overrides = {'HARNESS_CODE': escape_template_literal(anchor_code.as_posix()), 'HARNESS_ROOT': escape_template_literal(anchor_root.as_posix()), 'HARNESS_META': escape_template_literal(anchor_meta.as_posix())}
+			if 1 == anchor_ver and 'HARNESS_CLEANUP_LOG_DIR' in variables:
+				overrides['HARNESS_CLEANUP_LOG_DIR'] = escape_template_literal((anchor_meta / 'Data/Log/cleanup').as_posix())
+			variables = {**variables, **overrides}
 		self.raw = deepcopy(raw)
 		self.raw_variables = variables
 		self.resolved_variables = {name: expand_template(val, variables, env=self.env, normalize=True) for name, val in variables.items()}
@@ -278,7 +291,10 @@ class PathRegistry:
 				raise ValueError(f'project_profiles.{name}.extends must be a profile name')
 			base = self._resolve_profile_chain(parent_name, (*seen, name))
 		else:
-			base = {'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'journal_legacy_fallbacks': []}
+			base = {'fs_version': 1, 'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'journal_legacy_fallbacks': []}
+		raw_fs_ver = cfg.get('fs_version', base['fs_version'])
+		if int is not type(raw_fs_ver) or raw_fs_ver not in (1, 2):
+			raise ValueError(f'project_profiles.{name}.fs_version must be 1 or 2')
 		prof_vars = _validate_variables_map(cfg.get('variables'), f'project_profiles.{name}.variables')
 		prof_paths = _validate_string_map(cfg.get('paths'), f'project_profiles.{name}.paths')
 		prof_tools = deepcopy(cfg.get('tools') or {})
@@ -289,6 +305,7 @@ class PathRegistry:
 		prof_links = _validate_string_list(cfg.get('linked_roots'), f'project_profiles.{name}.linked_roots')
 		prof_jfb = _validate_string_list(cfg.get('journal_legacy_fallbacks'), f'project_profiles.{name}.journal_legacy_fallbacks')
 		return {
+			'fs_version': raw_fs_ver,
 			'variables': {**base['variables'], **prof_vars},
 			'paths': {**base['paths'], **prof_paths},
 			'tools': {**base['tools'], **prof_tools},
@@ -386,6 +403,27 @@ def workspace_override(path: str | Path, key: str | None=None, *, registry: Path
 def relocated_roots(*, registry: PathRegistry | None=None) -> dict[str, str]:
 	reg = registry or load_registry()
 	return dict(reg.relocations)
+def relocated_harness_code_dirs(*, primary: str | Path | None=None, registry: PathRegistry | None=None) -> tuple[Path, ...]:
+	reg = registry or load_registry()
+	cur_code = Path(os.path.abspath(primary)) if None is not primary else (Path(reg.resolved_variables.get('HARNESS_CODE', '')).resolve() if reg.resolved_variables.get('HARNESS_CODE') else None)
+	h_root = reg.resolved_variables.get('HARNESS_ROOT')
+	legacy_prim = reg.harness_stores.get('legacy_primary')
+	cands: list[str] = []
+	if None is not cur_code:
+		if ('Artifacts', '\u227b', 'Deliverables', '\u26ef') == cur_code.parts[-4:]:
+			cands.append(str(cur_code.parents[3] / 'code'))
+		elif 'code' == cur_code.name:
+			cands.append(str(cur_code.parent / 'Artifacts/\u227b/Deliverables/\u26ef'))
+	if h_root:
+		cands.extend([f'{h_root}/code', f'{h_root}/Artifacts/\u227b/Deliverables/\u26ef'])
+	if isinstance(legacy_prim, str):
+		cands.append(legacy_prim)
+	out: list[Path] = []
+	for raw in cands:
+		p = Path(os.path.abspath(raw))
+		if (None is cur_code or _path_key(p) != _path_key(cur_code)) and all((_path_key(p) != _path_key(x) for x in out)):
+			out.append(p)
+	return tuple(out)
 def derive_platform_system_paths(adapter_kind: str, explicit_paths: dict[str, str] | None=None, *, home: str | Path | None=None, user_data_dir: str | Path | None=None, plat_cfg: dict[str, Any] | None=None, registry: PathRegistry | None=None) -> dict[str, str]:
 	reg = registry or load_registry()
 	layout = reg.platform_layouts.get(adapter_kind)
@@ -502,16 +540,20 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	version = raw.get('version', 1)
 	if 1 != version:
 		raise ValueError(f'Project overlay {overlay_path} requires version 1')
-	allowed_keys = {'version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'deliverable_segments', 'source_dirs', 'notes'}
+	allowed_keys = {'version', 'fs_version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'deliverable_segments', 'source_dirs', 'notes'}
 	unknown = set(raw) - allowed_keys
 	if unknown:
 		raise ValueError(f"Unknown keys in project overlay {overlay_path}: {', '.join(sorted(unknown))}")
+	fs_ver = raw.get('fs_version')
+	if None is not fs_ver and (int is not type(fs_ver) or fs_ver not in (1, 2)):
+		raise ValueError(f'Project overlay {overlay_path} fs_version must be 1 or 2')
 	profile = raw.get('profile') or raw.get('extends')
 	if None is not profile:
 		if not isinstance(profile, str) or profile not in reg.project_profiles:
 			raise ValueError(f'Unknown profile {profile!r} in {overlay_path}')
 	return {
 		'version': 1,
+		'fs_version': fs_ver,
 		'profile': profile,
 		'variables': _validate_variables_map(raw.get('variables'), f'{overlay_path} variables'),
 		'paths': _validate_string_map(raw.get('paths'), f'{overlay_path} paths'),
@@ -522,12 +564,34 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 		'deliverable_segments': _validate_string_list(raw.get('deliverable_segments'), f'{overlay_path} deliverable_segments'),
 		'source_dirs': _validate_string_list(raw.get('source_dirs'), f'{overlay_path} source_dirs'),
 	}
+def _has_v2_markers(root: Path, reg: PathRegistry) -> bool:
+	book_name = reg.resolved_variables.get('BOOK_DIR_NAME', '\U0001f56e')
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
+	art_in = reg.resolved_variables.get('ARTIFACTS_IN_DIR_NAME', '\u227a')
+	j_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
+	j_out = reg.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b')
+	j_in = reg.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')
+	return (root / book_name).is_dir() or (root / art_name / art_out).is_dir() or (root / art_name / art_in).is_dir() or (root / j_name / j_out).is_dir() or (root / j_name / j_in).is_dir()
+def _v2_software_deliverable_dir(root: Path, reg: PathRegistry) -> Path:
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
+	sw_name = reg.resolved_variables.get('SOFTWARE_DIR_NAME', '\u26ef')
+	return root / art_name / art_out / 'Deliverables' / sw_name
 def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=None) -> Path:
 	reg = registry or load_registry()
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
+	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
+	sw_name = reg.resolved_variables.get('SOFTWARE_DIR_NAME', '\u26ef')
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
 	path = Path(value).resolve()
 	if path.name in ('code', meta_name) and (path.parent / 'code').is_dir() and (path.parent / meta_name).is_dir():
 		path = path.parent.resolve()
+	elif path.name == sw_name and 4 <= len(path.parents) and ('Deliverables', art_out, art_name) == (path.parent.name, path.parents[1].name, path.parents[2].name):
+		cand_root = path.parents[3].resolve()
+		if (cand_root / agent_name).is_dir() or (cand_root / '.agents').is_dir() or _has_v2_markers(cand_root, reg):
+			path = cand_root
 	key = _path_key(path)
 	if key in reg.relocations:
 		return Path(reg.relocations[key]).resolve()
@@ -629,10 +693,17 @@ def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None,
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
 	journal_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
+	book_name = reg.resolved_variables.get('BOOK_DIR_NAME', '\U0001f56e')
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
+	art_in = reg.resolved_variables.get('ARTIFACTS_IN_DIR_NAME', '\u227a')
+	bounded: list[tuple[int, Path]] = []
 	for idx, anc in enumerate((start, *start.parents)):
 		ak = _path_key(anc)
 		if ak in reg.workspace_overrides and anc != start:
 			break
+		bounded.append((idx, anc))
+	for idx, anc in bounded:
 		if anc.name in (agent_name, journal_name) and anc.parent.name == meta_name and anc.parent.parent.is_dir():
 			return (idx, canonicalize_root_dir(anc.parent.parent, registry=reg))
 		if (anc / meta_name).is_dir() and ((anc / 'code').is_dir() or (anc / meta_name / journal_name).is_dir() or (anc / meta_name / agent_name).is_dir()):
@@ -649,6 +720,11 @@ def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None,
 			return (idx, canonicalize_root_dir(anc.parent, registry=reg))
 		if (anc / '.agents').is_dir():
 			return (idx, anc)
+		if anc.name == book_name and anc.parent.is_dir() and _path_key(anc.parent) not in reg.workspace_overrides:
+			return (idx, canonicalize_root_dir(anc.parent, registry=reg))
+		if (anc / book_name).is_dir() or (anc / art_name / art_out).is_dir() or (anc / art_name / art_in).is_dir():
+			return (idx, anc)
+	for idx, anc in bounded:
 		if anc.name == journal_name and anc.parent.is_dir() and _path_key(anc.parent) not in reg.workspace_overrides:
 			return (idx, anc.parent)
 		if (anc / journal_name).is_dir():
@@ -688,15 +764,30 @@ def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=No
 	if None is not local_root:
 		return local_root
 	return start
-def _infer_default_profile(root: Path, overlay_file: Path | None, reg: PathRegistry) -> str:
+def _infer_default_profile(root: Path, overlay_file: Path | None, reg: PathRegistry, *, explicit_fs_version: int | None=None) -> str:
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
 	journal_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
+	if 2 == explicit_fs_version:
+		return 'v2_software' if (_v2_software_deliverable_dir(root, reg) / '.git').exists() and 'v2_software' in reg.project_profiles else ('v2' if 'v2' in reg.project_profiles else 'default')
 	if None is not overlay_file and overlay_file.parent.name == agent_name and overlay_file.parent.parent.name == meta_name:
 		return 'dual_repo'
 	if (root / meta_name).is_dir() and ((root / 'code').is_dir() or (root / meta_name / journal_name).is_dir() or (root / meta_name / agent_name).is_dir()):
 		return 'dual_repo'
-	if (root / agent_name / 'project.json').is_file():
+	if 1 != explicit_fs_version and _has_v2_markers(root, reg):
+		if (_v2_software_deliverable_dir(root, reg) / '.git').exists() and 'v2_software' in reg.project_profiles:
+			return 'v2_software'
+		if 'v2' in reg.project_profiles:
+			return 'v2'
+	pjson = root / agent_name / 'project.json'
+	if pjson.is_file():
+		if 1 != explicit_fs_version and 'v2' in reg.project_profiles:
+			try:
+				pdata = json.loads(pjson.read_text(encoding='utf-8-sig'))
+				if isinstance(pdata, dict) and 2 == pdata.get('fs_version'):
+					return 'v2'
+			except (OSError, ValueError):
+				pass
 		return 'upwork'
 	return 'default'
 class ProjectPaths:
@@ -706,8 +797,10 @@ class ProjectPaths:
 		self.overlay_file = discover_overlay_file(self.root, registry=self.registry)
 		self.overlay = _validate_overlay(json.loads(self.overlay_file.read_text(encoding='utf-8-sig')), self.overlay_file, self.registry) if None is not self.overlay_file else None
 		self.has_overlay = None is not self.overlay
-		self.profile = (self.overlay.get('profile') if self.overlay else None) or _infer_default_profile(self.root, self.overlay_file, self.registry)
+		ov_fs_ver = self.overlay.get('fs_version') if self.overlay else None
+		self.profile = (self.overlay.get('profile') if self.overlay else None) or _infer_default_profile(self.root, self.overlay_file, self.registry, explicit_fs_version=ov_fs_ver)
 		prof_spec = self.registry._resolve_profile_chain(self.profile)
+		self.fs_version = ov_fs_ver if None is not ov_fs_ver else prof_spec['fs_version']
 		ws_ovr = self.registry.workspace_overrides.get(_path_key(self.root))
 		raw_paths = dict(prof_spec['paths'])
 		if ws_ovr:
@@ -775,7 +868,7 @@ class ProjectPaths:
 		raw_links = self.overlay['linked_roots'] if self.overlay and self.overlay['linked_roots'] else prof_spec['linked_roots']
 		self.linked_roots = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_links))
 		self.journal_legacy_fallbacks = tuple((Path(self._resolve_rel_to_root(item)) for item in prof_spec['journal_legacy_fallbacks']))
-		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/')))
+		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/', '/artifacts/\u227b/deliverables/')))
 		self.source_dirs = tuple((Path(self._resolve_rel_to_root(item)) for item in (self.overlay['source_dirs'] if self.overlay else ())))
 		if _register_links and self.has_overlay:
 			self._register_reverse_links()
@@ -902,6 +995,7 @@ class ProjectPaths:
 		paths_view['journal_dir'] = self.journal_dir.as_posix()
 		out: dict[str, Any] = {
 			'project_root': self.root.as_posix(),
+			'fs_version': self.fs_version,
 			'profile': self.profile,
 			'has_overlay': self.has_overlay,
 			'overlay_file': self.overlay_file.as_posix() if self.overlay_file else None,
@@ -970,7 +1064,7 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 				ov = discover_overlay_file(rp, registry=reg)
 				if None is not ov:
 					pp_i = ProjectPaths(rp, registry=reg)
-					discovered_overlays.append({'project_root': pp_i.root.as_posix(), 'overlay_file': ov.as_posix(), 'profile': pp_i.profile})
+					discovered_overlays.append({'project_root': pp_i.root.as_posix(), 'overlay_file': ov.as_posix(), 'profile': pp_i.profile, 'fs_version': pp_i.fs_version})
 			except (OSError, ValueError) as exc:
 				issues.append({'file': rp.as_posix(), 'message': str(exc)})
 	if None is not project:

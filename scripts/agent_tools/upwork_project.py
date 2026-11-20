@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -75,8 +78,13 @@ def default_context_config(root: Path | None=None):
 		proposals_rel = pp.rel_to_root(prop_p)
 		let_p = pp.path('letters_dir', pp.root / 'Letters')
 		let_rel = pp.rel_to_root(let_p)
-		letters_my = f'{let_rel}/my'
-		letters_client = f'{let_rel}/client'
+		if 2 <= pp.fs_version:
+			letters_my = let_rel
+			cli_let_p = pp.path('client_letters_dir', pp.root / 'Artifacts/\u227a/\U0001f582/\ua19c')
+			letters_client = pp.rel_to_root(cli_let_p)
+		else:
+			letters_my = f'{let_rel}/my'
+			letters_client = f'{let_rel}/client'
 	return {'version': 1, 'output': out_rel, 'sections': [{'title': 'Project', 'files': [overview_rel]}, {'title': 'Manual KB', 'globs': [manual_kb_glob], 'optional': True}, {'title': 'Agent KB', 'globs': [agent_kb_glob], 'optional': True}, {'title': 'Analysis', 'journals': [journal_rel], 'optional': True}, {'title': 'Proposals', 'globs': [f'{proposals_rel}/**/final/*.md', f'{proposals_rel}/**/final.md'], 'drafts': [proposals_rel], 'optional': True}, {'title': 'Correspondence', 'optional': True, 'letters': [{'root': letters_my, 'author': 'Consultant', 'languages': ['EN', 'RU']}, {'root': letters_client, 'author': 'Client', 'languages': ['EN', 'RU']}]}]}
 def validate_label(value):
 	if not value or len(value) > 120 or value != value.strip().rstrip('.') or re.search('[\\\\/:\\x00-\\x1f<>"|?*]', value):
@@ -87,7 +95,7 @@ def validate_label(value):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_url=None, domain_or_topic=None, *, platform=None):
-	from .path_registry import project_paths
+	from .path_registry import project_paths, relocated_harness_code_dirs
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
 	pp = project_paths(root, exact_root=True)
 	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
@@ -98,23 +106,27 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
 	if is_linked_path(rules):
 		raise ValueError('Local rules directory is linked; preserved without conversion')
 	rules.mkdir(exist_ok=True)
+	relocated_codes = relocated_harness_code_dirs(primary=primary)
 	for kind in DISCOVERY_KINDS:
 		expected = project_discovery_entries(primary, kind, require_dir=True)
+		relocated_shared = {(rc / kind).as_posix() for rc in relocated_codes}
 		path = agents / f'{kind}.json'
 		if not path.exists():
 			create_once(path, json_bytes({'entries': expected}).decode('utf-8'))
 		else:
 			existing = load_discovery_manifest(path, missing_ok=False, entries_error=f'Native manifest needs an entries list; preserved: {path}')
-			missing = [entry for entry in expected if entry not in existing.setdefault('entries', [])]
-			if missing:
-				existing['entries'].extend(missing)
+			cur_entries = [e for e in existing.get('entries', []) if not (isinstance(e, dict) and set(e) == {'path'} and isinstance(e.get('path'), str) and Path(e['path']).as_posix() in relocated_shared)]
+			missing = [entry for entry in expected if entry not in cur_entries]
+			if cur_entries != existing.get('entries', []) or missing:
+				existing['entries'] = [*cur_entries, *missing]
 				replace_bytes(path, json_bytes(existing))
 	context_path = pp.context_config if pp.agents_config_dir.resolve() != primary else (agents / 'context.json')
-	context_config = default_context_config(root if pp.has_overlay else None)
+	use_project_ctx = pp.has_overlay or 2 <= pp.fs_version
+	context_config = default_context_config(root if use_project_ctx else None)
 	if not context_path.exists():
 		create_once(context_path, json_bytes(context_config).decode('utf-8'))
 	else:
-		old_config = default_context_config(root if pp.has_overlay else None)
+		old_config = default_context_config(root if use_project_ctx else None)
 		next((section for section in old_config['sections'] if 'Proposals' == section['title'])).pop('drafts')
 		if json.loads(context_path.read_text(encoding='utf-8-sig')) == old_config:
 			previous = context_path.read_bytes()
@@ -132,12 +144,13 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 def check_configuration(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR):
-	from .path_registry import project_paths
+	from .path_registry import project_paths, relocated_harness_code_dirs
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
 	pp = project_paths(root, exact_root=True)
 	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
 	cfg = settings(primary / 'runtime.json') if primary != Path(PRIMARY_AGENTS_DIR).resolve() and (primary / 'runtime.json').is_file() else settings()
 	result = configure_codex_project(root, primary, check=True) if 'codex' in (cfg.get('platforms') or {}) else {'valid': True, 'issues': [], 'written': []}
+	relocated_codes = relocated_harness_code_dirs(primary=primary)
 	for kind in DISCOVERY_KINDS:
 		path = agents / f'{kind}.json'
 		try:
@@ -146,7 +159,11 @@ def check_configuration(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR):
 			result['valid'] = False
 			result['issues'].append({'file': str(path), 'message': str(exc)})
 			continue
-		if any((entry not in entries for entry in project_discovery_entries(primary, kind))):
+		shared_equivs = {expected_entry['path'] for expected_entry in project_discovery_entries(primary, kind) if expected_entry['path'] != 'rules'} | {(rc / kind).as_posix() for rc in relocated_codes if (rc / kind).is_dir()}
+		entry_paths = {Path(e['path']).as_posix() if Path(e['path']).is_absolute() else e['path'] for e in entries if isinstance(e, dict) and isinstance(e.get('path'), str)}
+		missing_shared = not bool(entry_paths & shared_equivs)
+		missing_local_rules = 'rules' == kind and 'rules' not in entry_paths
+		if missing_shared or missing_local_rules:
 			result['valid'] = False
 			result['issues'].append({'file': str(path), 'message': 'Antigravity common/local discovery entry is missing; run configure'})
 	return result
@@ -278,7 +295,9 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		if state['job_id'] != job_id:
 			raise ValueError('Project identity mismatch')
 		configure_project(root, primary_agents_dir, canonical_job_url(job_id), root.name.split(' - ', 1)[-1], platform=platform)
-		for folder in (pp.manual_kb_dir, pp.kb_dir, pp.context_output.parent, pp.journal_dir / 'req', pp.journal_dir / 'res'):
+		from .journal import journal_pair_dirs
+		req_dir, res_dir = journal_pair_dirs(pp.journal_dir)
+		for folder in (pp.manual_kb_dir, pp.kb_dir, pp.context_output.parent, req_dir, res_dir):
 			folder.mkdir(parents=True, exist_ok=True)
 		from .knowledge import sync_source_folder_attachments, build_project_extra_sources
 		assets = sync_source_folder_attachments(root, data.get('saved_attachments') or [])

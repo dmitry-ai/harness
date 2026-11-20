@@ -21,9 +21,23 @@
     "PROVISION_ROOT": "${WORK_ROOT}/research/provision",
     "PROVISION_CODE": "${PROVISION_ROOT}/code",
     "AI_ROOT": "${PROVISION_CODE}/AI",
+    "AGENT_DIR_NAME": "ꘖ",
+    "JOURNAL_DIR_NAME": "ꙮ",
+    "JOURNAL_OUT_DIR_NAME": "≻",
+    "JOURNAL_IN_DIR_NAME": "≺",
+    "BOOK_DIR_NAME": "🕮",
+    "ARTIFACTS_DIR_NAME": "Artifacts",
+    "ARTIFACTS_OUT_DIR_NAME": "≻",
+    "ARTIFACTS_IN_DIR_NAME": "≺",
+    "SOFTWARE_DIR_NAME": "⛯",
+    "MAIL_DIR_NAME": "🖂",
+    "CLIENT_DIR_NAME": "ꆜ",
+    "RECORDS_DIR_NAME": "☰",
+    "META_DIR_NAME": "_",
     "HARNESS_ROOT": "${AI_ROOT}/harness",
-    "HARNESS_CODE": "${HARNESS_ROOT}/code",
-    "HARNESS_META": "${HARNESS_ROOT}/_",
+    "HARNESS_CODE": "${HARNESS_ROOT}/${ARTIFACTS_DIR_NAME}/${ARTIFACTS_OUT_DIR_NAME}/Deliverables/${SOFTWARE_DIR_NAME}",
+    "HARNESS_META": "${HARNESS_ROOT}",
+    "HARNESS_CLEANUP_LOG_DIR": "${HARNESS_ROOT}/${ARTIFACTS_DIR_NAME}/${ARTIFACTS_IN_DIR_NAME}/Logs/Cleanup/${RECORDS_DIR_NAME}",
     "AI_PRODUCTS_ROOT": "${AI_ROOT}/products",
     "ANTIGRAVITY_ADDONS_ROOT": "${AI_PRODUCTS_ROOT}/Google/Antigravity/Addons",
     "ANTIGRAVITY_ADDONS_CODE": "${ANTIGRAVITY_ADDONS_ROOT}/code",
@@ -31,9 +45,6 @@
     "CHATGPT_ADDONS_ROOT": "${AI_PRODUCTS_ROOT}/OpenAI/ChatGPT/Desktop/Addons",
     "CHATGPT_ADDONS_CODE": "${CHATGPT_ADDONS_ROOT}/code",
     "CHATGPT_ADDONS_META": "${CHATGPT_ADDONS_ROOT}/_",
-    "AGENT_DIR_NAME": "ꘖ",
-    "JOURNAL_DIR_NAME": "ꙮ",
-    "META_DIR_NAME": "_",
     "SHELL_HOME": "${TOOLS_ROOT}/shell/home",
     "SSH_DIR": "${SHELL_HOME}/.ssh",
     "CYGWIN_ROOT": "${TOOLS_ROOT}/cygwin",
@@ -113,7 +124,7 @@
     "journal_watch_dir": "${HARNESS_DATA_DIR}/journal-watch",
     "browser_locks_dir": "${HARNESS_DATA_DIR}/browser-locks",
     "cleanup_lock": "${HARNESS_DATA_DIR}/cleanup.lock",
-    "cleanup_log_dir": "${HARNESS_META}/Data/Log/cleanup",
+    "cleanup_log_dir": "${HARNESS_CLEANUP_LOG_DIR}",
     "workspace_cleanup_log_rel": "AI/log/cleanup",
     "github_evidence_dir": "${HARNESS_EVIDENCE_DIR}/GitHub",
     "primary_github_repo": "dmitry-ai/harness",
@@ -125,7 +136,7 @@
   "workspace_overrides": {
     "${UPWORK_ROOT}": {
       "data_dir": "${HARNESS_DATA_DIR}/workspaces/upwork",
-      "cleanup_log_dir": "${HARNESS_META}/Data/Log/cleanup",
+      "cleanup_log_dir": "${HARNESS_CLEANUP_LOG_DIR}",
       "browser_locks_dir": "${HARNESS_DATA_DIR}/browser-locks"
     }
   },
@@ -135,6 +146,8 @@
     "${UPWORK_ROOT}/AI/primary/result": "${HARNESS_ROOT}",
     "${PROVISION_CODE}/AI/primary": "${HARNESS_ROOT}",
     "${PROVISION_CODE}/AI/harness": "${HARNESS_ROOT}",
+    "${HARNESS_ROOT}/${META_DIR_NAME}": "${HARNESS_ROOT}",
+    "${HARNESS_ROOT}/code": "${HARNESS_ROOT}",
     "${PROVISION_CODE}/Software/OpenAI/Codex": "${CHATGPT_ADDONS_ROOT}",
     "${AI_PRODUCTS_ROOT}/OpenAI/ChatGPT/Desktop/Addons": "${CHATGPT_ADDONS_ROOT}",
     "${PROVISION_CODE}/Software/Google/AI/Antigravity": "${ANTIGRAVITY_ADDONS_ROOT}",
@@ -209,6 +222,7 @@
   },
   "project_profiles": {
     "default": {
+      "fs_version": 1,
       "paths": {
         "agents_config_dir": "${PROJECT_ROOT}/.agents",
         "codex_config_toml": "${PROJECT_ROOT}/.codex/config.toml",
@@ -223,6 +237,8 @@
         "worktrees_dir": "${DATA_DIR}/worktrees",
         "journal_root_dir": "${PROJECT_ROOT}/${JOURNAL_DIR_NAME}",
         "journal_dir": "${JOURNAL_ROOT_DIR}/1 - Analysis",
+        "journal_req_dir": "${JOURNAL_DIR}/req",
+        "journal_res_dir": "${JOURNAL_DIR}/res",
         "context_output": "${JOURNAL_ROOT_DIR}/0/Context.md",
         "context_config": "${AGENTS_CONFIG_DIR}/context.json",
         "project_json": "${AGENT_DIR}/project.json",
@@ -283,6 +299,81 @@
       "code_repos": [
         "${PROJECT_ROOT}"
       ]
+    },
+    "v2": {
+      "fs_version": 2,
+      "variables": {
+        "ARTIFACTS_DIR": "${PROJECT_ROOT}/${ARTIFACTS_DIR_NAME}",
+        "ARTIFACTS_OUT_DIR": "${ARTIFACTS_DIR}/${ARTIFACTS_OUT_DIR_NAME}",
+        "ARTIFACTS_IN_DIR": "${ARTIFACTS_DIR}/${ARTIFACTS_IN_DIR_NAME}",
+        "DELIVERABLES_DIR": "${ARTIFACTS_OUT_DIR}/Deliverables",
+        "INTERMEDIARY_DIR": "${ARTIFACTS_OUT_DIR}/Intermediary"
+      },
+      "paths": {
+        "agents_config_dir": "${PROJECT_ROOT}/.agents",
+        "codex_config_toml": "${PROJECT_ROOT}/.codex/config.toml",
+        "agent_dir": "${PROJECT_ROOT}/${AGENT_DIR_NAME}",
+        "data_dir": "${AGENT_DIR}/data",
+        "kb_dir": "${AGENT_DIR}/KB",
+        "manual_kb_dir": "${PROJECT_ROOT}/${BOOK_DIR_NAME}",
+        "source_dir": "${PROJECT_ROOT}/source",
+        "evidence_dir": "${KB_DIR}/Evidence",
+        "scratch_dir": "${DATA_DIR}/scratch",
+        "turns_dir": "${DATA_DIR}/turns",
+        "worktrees_dir": "${DATA_DIR}/worktrees",
+        "artifacts_dir": "${ARTIFACTS_DIR}",
+        "artifacts_out_dir": "${ARTIFACTS_OUT_DIR}",
+        "artifacts_in_dir": "${ARTIFACTS_IN_DIR}",
+        "deliverables_dir": "${DELIVERABLES_DIR}",
+        "software_deliverables_dir": "${DELIVERABLES_DIR}/${SOFTWARE_DIR_NAME}",
+        "mail_deliverables_dir": "${DELIVERABLES_DIR}/${MAIL_DIR_NAME}",
+        "letters_dir": "${MAIL_DELIVERABLES_DIR}/Letters",
+        "articles_dir": "${MAIL_DELIVERABLES_DIR}/Articles",
+        "proposals_dir": "${LETTERS_DIR}",
+        "intermediary_dir": "${INTERMEDIARY_DIR}",
+        "context_dir": "${INTERMEDIARY_DIR}/Context",
+        "context_output": "${CONTEXT_DIR}/output/Context.md",
+        "logs_in_dir": "${ARTIFACTS_IN_DIR}/Logs",
+        "mail_in_dir": "${ARTIFACTS_IN_DIR}/${MAIL_DIR_NAME}",
+        "client_letters_dir": "${MAIL_IN_DIR}/${CLIENT_DIR_NAME}",
+        "journal_root_dir": "${PROJECT_ROOT}/${JOURNAL_DIR_NAME}",
+        "journal_dir": "${JOURNAL_ROOT_DIR}",
+        "journal_req_dir": "${JOURNAL_DIR}/${JOURNAL_OUT_DIR_NAME}",
+        "journal_res_dir": "${JOURNAL_DIR}/${JOURNAL_IN_DIR_NAME}",
+        "context_config": "${AGENTS_CONFIG_DIR}/context.json",
+        "overview_md": "${PROJECT_ROOT}/readme.md",
+        "project_json": "${AGENT_DIR}/project.json",
+        "text_project_json": "${DATA_DIR}/text-project.json",
+        "workflow_json": "${DATA_DIR}/workflow.json",
+        "continuation_md": "${DATA_DIR}/continuation.md",
+        "registrations_json": "${DATA_DIR}/registrations.json",
+        "verified_claims_json": "${DATA_DIR}/verified-claims.json",
+        "facts_json": "${DATA_DIR}/facts.json",
+        "grounding_cache_json": "${DATA_DIR}/grounding-cache.json",
+        "metrics_json": "${DATA_DIR}/research-metrics.json",
+        "executors_json": "${DATA_DIR}/executors.json",
+        "rendered_json": "${DATA_DIR}/rendered.json",
+        "http_index_json": "${DATA_DIR}/http-index.json"
+      },
+      "journal_legacy_fallbacks": []
+    },
+    "v2_software": {
+      "extends": "v2",
+      "fs_version": 2,
+      "variables": {
+        "PROJECT_CODE_ROOT": "${ARTIFACTS_OUT_DIR}/Deliverables/${SOFTWARE_DIR_NAME}",
+        "PROJECT_META_ROOT": "${PROJECT_ROOT}"
+      },
+      "paths": {
+        "code_dir": "${PROJECT_CODE_ROOT}",
+        "meta_dir": "${PROJECT_META_ROOT}"
+      },
+      "code_repos": [
+        "${PROJECT_CODE_ROOT}"
+      ],
+      "auxiliary_repos": {
+        "meta": "${PROJECT_META_ROOT}"
+      }
     }
   }
 }

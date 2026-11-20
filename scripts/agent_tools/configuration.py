@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -237,7 +240,7 @@ def global_codex_instructions():
 	r = {'developer_instructions': values[0], 'profile': names[0] if 1 == len(names) else 'identical across configured profiles'}
 	return r
 def _project_rule_paths(root, primary):
-	from .path_registry import project_paths
+	from .path_registry import project_paths, relocated_harness_code_dirs
 	pp = project_paths(root, exact_root=True)
 	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != Path(primary).resolve() else (root / '.agents')
 	paths = list(sorted((agents / 'rules').glob('*.md')))
@@ -245,20 +248,21 @@ def _project_rule_paths(root, primary):
 	if data.get('inherits'):
 		raise ValueError('Codex projection does not support rules.json inherits; preserve it and resolve explicitly')
 	shared = (primary / 'rules').resolve()
+	shared_equivalents = {shared, *((rc / 'rules').resolve() for rc in relocated_harness_code_dirs(primary=primary))}
 	for entry in data.get('entries', []):
 		source, has_extra = resolve_manifest_entry(agents, entry)
 		if None is source:
 			raise ValueError('Each rules.json entry needs a path')
 		if has_extra:
 			raise ValueError('Codex projection does not support filtered rules.json entries; preserve them and resolve explicitly')
-		if source != shared:
+		if source not in shared_equivalents:
 			if source.is_dir():
 				paths.extend(sorted(source.rglob('*.md')))
 			elif source.is_file() and '.md' == source.suffix:
 				paths.append(source)
 			else:
 				raise ValueError(f'Configured rule source is missing or unsupported: {source}')
-	return list(dict.fromkeys((path.resolve() for path in paths if not path.resolve().is_relative_to(shared))))
+	return list(dict.fromkeys((path.resolve() for path in paths if not any((path.resolve().is_relative_to(sh) for sh in shared_equivalents)))))
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6

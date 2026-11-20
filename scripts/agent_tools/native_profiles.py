@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
@@ -43,6 +46,22 @@ def _exists(path):
 	return os.path.lexists(path)
 def _same_path(first, second):
 	return Path(first).resolve() == Path(second).resolve()
+def _link_target_path(path):
+	raw = os.readlink(path)
+	if raw.startswith('\\\\?\\'):
+		raw = raw[4:]
+	cand = Path(raw)
+	return _absolute(cand if cand.is_absolute() else (Path(path).parent / cand))
+def _link_matches_target(path, target):
+	try:
+		if _same_path(path, target):
+			return True
+	except OSError:
+		pass
+	return _linked(path) and os.path.normcase(str(_link_target_path(path))) == os.path.normcase(str(_absolute(target)))
+def _relocated_primaries(primary):
+	from .path_registry import relocated_harness_code_dirs
+	return tuple((_absolute(p) for p in relocated_harness_code_dirs(primary=primary)))
 def _normalized(text):
 	return text.replace('\r\n', '\n').replace('/scripts/upwork_project.py', '/scripts/harness.py').replace('via upwork_project.py git-read', 'via harness.py git-read').replace('run upwork_project.py build-native', 'run harness.py build-native').strip()
 def _skills(primary):
@@ -178,9 +197,11 @@ class _ManagedLink:
 			_remove_link(self.path, self.target)
 		else:
 			_retire_directory_link(self.path, self.identity_dict())
-	def verify_before_create(self, files):
+	def verify_before_create(self, files, retired_links=()):
 		if _linked_ancestor(self.path, include_self=False):
 			raise ValueError(f'Linked {self.label} parent directory appeared during migration; preserved: {self.path}')
+		if self.path in retired_links:
+			return
 		if 'file-symlink' == self.kind:
 			if _exists(self.path) and (self.path not in files or None is not files[self.path][1]):
 				raise ValueError(f'Role destination appeared during migration; preserved: {self.path}')
@@ -199,7 +220,7 @@ class _ManagedLink:
 	def verify_retired(self):
 		if 'file-symlink' != self.kind:
 			_verify_retired_directory_link(self.path, self.identity_dict())
-		elif _linked_ancestor(self.path, include_self=False) or not self.path.is_symlink() or (not _same_path(self.path, self.target)):
+		elif _linked_ancestor(self.path, include_self=False) or not self.path.is_symlink() or (not _link_matches_target(self.path, self.target)):
 			raise ValueError(f'Obsolete role link changed during migration; preserved: {self.path}')
 class _Plan:
 	def __init__(self):
@@ -228,20 +249,33 @@ class _Plan:
 		retired = [link.readonly_issue(retired=True) for link in self.retired_links.values()]
 		return self.issues + [{'file': str(path), 'message': 'Native connection is missing, stale or requires owned legacy retirement'} for path in self.files] + active + retired
 def _shared_plan(plan, primary, state):
+	primary = _absolute(primary)
+	relocated = _relocated_primaries(primary)
+	shared_state = state.get('shared', {})
 	for path, text in shared_native_outputs(primary).items():
+		path = _absolute(path)
 		if _linked_ancestor(path):
 			plan.issue(path, 'Linked shared native definition preserved')
 			continue
 		actual = path.read_bytes() if path.is_file() else None
 		payload = text.encode('utf-8')
-		if actual != payload and None is not actual and (state.get('shared', {}).get(str(path)) != _hash(actual)):
+		owned_hash = shared_state.get(str(path))
+		rel = path.relative_to(primary)
+		for rc in relocated:
+			old_key = str(_absolute(rc / rel))
+			if old_key in shared_state:
+				if None is owned_hash:
+					owned_hash = shared_state[old_key]
+				plan.removed_shared.add(old_key)
+		if actual != payload and None is not actual and (owned_hash != _hash(actual)):
 			plan.issue(path, 'Shared native definition was modified without ownership; preserved')
 			continue
 		plan.file(path, payload)
 		plan.shared[str(path)] = _hash(payload)
 def _role_identity(path, target, home, primary):
 	path, target = (_absolute(path), _absolute(target))
-	return path.parent == _absolute(home) / 'agents' and '.toml' == path.suffix and bool(re.fullmatch('[A-Za-z0-9_-]+', path.stem)) and (target == _absolute(primary) / 'platforms/codex/agents' / path.name)
+	valid_targets = {_absolute(cand) / 'platforms/codex/agents' / path.name for cand in (primary, *_relocated_primaries(primary))}
+	return path.parent == _absolute(home) / 'agents' and '.toml' == path.suffix and bool(re.fullmatch('[A-Za-z0-9_-]+', path.stem)) and (target in valid_targets)
 def _retire_profile_roles(plan, profile, previous, home, primary, state):
 	wanted = {_absolute(home) / f'agents/{name}.toml' for _, name, _, _ in _role_values(primary)}
 	prior = previous.get('role_targets', {})
@@ -256,7 +290,7 @@ def _retire_profile_roles(plan, profile, previous, home, primary, state):
 			if path not in wanted:
 				if _linked_ancestor(path, include_self=False):
 					plan.issue(path, 'Linked obsolete role parent directory preserved')
-				elif _exists(path) and (not path.is_symlink() or (not _same_path(path, target))):
+				elif _exists(path) and (not path.is_symlink() or (not _link_matches_target(path, target))):
 					plan.issue(path, 'Obsolete managed role link changed; preserved')
 				elif _exists(path) and target.is_file() and (state.get('shared', {}).get(str(target)) != _hash(target.read_bytes())):
 					plan.issue(target, 'Obsolete shared role definition changed; preserved')
@@ -288,11 +322,12 @@ def _retire_profile_skills(plan, profile, previous, home, primary, skills):
 				if raw_path not in previous.get('role_targets', {}):
 					profile['links'].setdefault(raw_path, raw_target)
 			elif path not in wanted:
-				if target != _absolute(primary) / 'skills' / path.name:
+				valid_skill_targets = {_absolute(cand) / 'skills' / path.name for cand in (primary, *_relocated_primaries(primary))}
+				if target not in valid_skill_targets:
 					plan.issue(path, 'Obsolete skill link ownership is outside its exact managed target; preserved')
 				elif _linked_ancestor(path, include_self=False):
 					plan.issue(path, 'Linked obsolete skill parent directory preserved')
-				elif (_exists(path) or _linked(path)) and (not _linked(path) or (not _same_path(path, target))):
+				elif (_exists(path) or _linked(path)) and (not _linked(path) or (not _link_matches_target(path, target))):
 					plan.issue(path, 'Obsolete managed skill link changed; preserved')
 				else:
 					if _exists(path) or _linked(path):
@@ -304,14 +339,21 @@ def _retire_shared_roles(plan, primary, state):
 	profiles = {**state.get('profiles', {}), **plan.profiles}
 	if not any(('codex' == profile.get('platform') and 'file-links' != profile.get('role_registration') for profile in profiles.values())):
 		referenced = {_absolute(target) for profile in profiles.values() for target in profile.get('role_targets', {}).values() if isinstance(target, str)}
+		valid_agent_dirs = {_absolute(cand) / 'platforms/codex/agents' for cand in (primary, *_relocated_primaries(primary))}
 		for raw_path, owned in state.get('shared', {}).items():
+			if raw_path in plan.removed_shared:
+				continue
 			path = _absolute(raw_path)
-			if str(path) in plan.shared or path.parent != _absolute(primary) / 'platforms/codex/agents' or '.toml' != path.suffix or (not re.fullmatch('[A-Za-z0-9_-]+', path.stem)) or (path in referenced):
+			if str(path) in plan.shared or path.parent not in valid_agent_dirs or '.toml' != path.suffix or (not re.fullmatch('[A-Za-z0-9_-]+', path.stem)) or (path in referenced):
+				continue
+			if not path.exists() and path.parent != _absolute(primary) / 'platforms/codex/agents':
+				plan.removed_shared.add(raw_path)
 				continue
 			if _linked_ancestor(path) or (path.exists() and (not path.is_file() or _hash(path.read_bytes()) != owned)):
 				plan.issue(path, 'Obsolete shared role definition changed or is linked; preserved')
 				continue
-			plan.file(path, None)
+			if path.exists():
+				plan.file(path, None)
 			plan.removed_shared.add(str(path))
 def _manifest(payload, kind, config, primary):
 	if not isinstance(payload, dict):
@@ -320,25 +362,40 @@ def _manifest(payload, kind, config, primary):
 	entries, inherits = (r.get('entries', []), r.get('inherits', []))
 	if not isinstance(entries, list) or not isinstance(inherits, list):
 		raise ValueError('Discovery manifest entries/inherits must be lists; preserved')
-	legacy, shared = (Path(primary) / kind, Path(primary) / f'platforms/antigravity/{kind}.json')
+	relocated = _relocated_primaries(primary)
+	legacy_dirs = [Path(primary) / kind, *(rc / kind for rc in relocated)]
+	shared = Path(primary) / f'platforms/antigravity/{kind}.json'
+	relocated_shared = [rc / f'platforms/antigravity/{kind}.json' for rc in relocated]
 	remaining = []
 	for entry in entries:
 		source, has_extra = resolve_manifest_entry(config, entry)
-		if None is source or (not _same_path(source, legacy)):
+		if None is source or not any((_same_path(source, leg) for leg in legacy_dirs)):
 			remaining.append(entry)
 		elif has_extra:
 			raise ValueError('Filtered legacy Harness discovery entry needs explicit reconciliation; preserved')
 	if 'entries' in r or remaining:
 		r['entries'] = remaining
 	already = False
+	new_inherits = []
 	for entry in inherits:
 		source, has_extra = resolve_manifest_entry(config, entry)
 		if None is not source and _same_path(source, shared):
 			if has_extra:
 				raise ValueError('Filtered inherited Harness manifest needs explicit reconciliation; preserved')
-			already = True
+			if not already:
+				new_inherits.append(entry)
+				already = True
+		elif None is not source and any((_same_path(source, rs) for rs in relocated_shared)):
+			if has_extra:
+				raise ValueError('Filtered inherited Harness manifest needs explicit reconciliation; preserved')
+			if not already:
+				new_inherits.append({'path': shared.as_posix()})
+				already = True
+		else:
+			new_inherits.append(entry)
 	if not already:
-		r['inherits'] = [*inherits, {'path': shared.as_posix()}]
+		new_inherits.append({'path': shared.as_posix()})
+	r['inherits'] = new_inherits
 	return r
 def _profile_state(state, name, path):
 	previous = state.get('profiles', {}).get(name, {})
@@ -456,6 +513,10 @@ def _role_config(text, definitions, previous, state, path, primary):
 			if not key.startswith(str(path) + ':') or (not isinstance(saved, str)):
 				continue
 			backup = Path(saved)
+			if not backup.is_file():
+				cand_bk = backup_root / backup.parent.name / backup.name
+				if cand_bk.is_file():
+					backup = cand_bk
 			if not backup.resolve().is_relative_to(backup_root.resolve()) or (not backup.is_file()):
 				continue
 			payload = backup.read_bytes()
@@ -478,7 +539,7 @@ def _role_config(text, definitions, previous, state, path, primary):
 		if any((name in remaining.get('agents', {}) for name in definitions)):
 			raise ValueError('Same-name role tables outside the owned installer block are preserved')
 	return r
-def _plan_codex_link(plan, profile, link, active_valid, active_error, retire_path, legacy_valid, legacy_error):
+def _plan_codex_link(plan, profile, link, active_valid, active_error, retire_path, legacy_valid, legacy_error, relocated_valid=lambda: False):
 	path = link.path
 	profile['links'][str(path)] = str(link.target)
 	profile['retired'] = [item for item in profile['retired'] if str(path) != item]
@@ -486,7 +547,15 @@ def _plan_codex_link(plan, profile, link, active_valid, active_error, retire_pat
 		plan.issue(path, f'Linked {link.label} parent directory preserved')
 	elif _linked(path):
 		if not active_valid():
-			plan.issue(path, active_error)
+			if relocated_valid():
+				if 'file-symlink' == link.kind:
+					plan.retired_links[path] = _ManagedLink(path, _link_target_path(path), 'file-symlink', label=f'relocated {link.label}')
+				else:
+					identity = _directory_link_identity(path)
+					plan.retired_links[path] = _ManagedLink(path, identity['target'], identity['kind'], label=f'relocated {link.label}')
+				plan.managed_links[path] = link
+			else:
+				plan.issue(path, active_error)
 	elif not _exists(path):
 		plan.managed_links[path] = link
 	elif not legacy_valid():
@@ -510,6 +579,7 @@ def _disable_codex_bundled_chrome_plugin(text):
 def _codex_plan(plan, name, home, primary, state):
 	home = _absolute(home)
 	previous = _profile_state(state, name, home)
+	relocated = _relocated_primaries(primary)
 	profile = {'platform': 'codex', 'path': str(home), 'files': {}, 'links': {}, 'retired': list(previous.get('retired', [])), 'role_registration': 'file-links', 'role_targets': {}}
 	_retire_profile_roles(plan, profile, previous, home, primary, state)
 	skills = _skills(primary)
@@ -535,14 +605,20 @@ def _codex_plan(plan, name, home, primary, state):
 			profile['files'][str(path)] = _hash(wanted)
 	except (ValueError, OSError) as exc:
 		plan.issue(path, str(exc))
+	prior_links = previous.get('links') if isinstance(previous.get('links'), dict) else {}
+	prior_roles = previous.get('role_targets') if isinstance(previous.get('role_targets'), dict) else {}
 	for skill, (source, _) in skills.items():
 		skill_path, skill_target = (home / 'skills' / skill, source.parent.resolve())
 		wrapper = skill_path / 'SKILL.md'
-		_plan_codex_link(plan, profile, _ManagedLink(skill_path, skill_target, 'directory', label='skill'), lambda p=skill_path, t=skill_target: p.is_dir() and _same_path(p, t), 'Skill link points to a different or missing directory; preserved', wrapper, lambda p=skill_path, w=wrapper, s=skill: p.is_dir() and ['SKILL.md'] == sorted((c.name for c in p.iterdir())) and (not _linked(w)) and w.is_file() and (_normalized(w.read_text(encoding='utf-8-sig')) == _normalized(_legacy_skill(s, primary))), 'Existing skill directory is not an exact generated wrapper; preserved')
+		prior_skill_target = prior_links.get(str(_absolute(skill_path)))
+		relocated_skill_targets = {_absolute(rc / 'skills' / skill) for rc in relocated}
+		_plan_codex_link(plan, profile, _ManagedLink(skill_path, skill_target, 'directory', label='skill'), lambda p=skill_path, t=skill_target: p.is_dir() and _same_path(p, t), 'Skill link points to a different or missing directory; preserved', wrapper, lambda p=skill_path, w=wrapper, s=skill: p.is_dir() and ['SKILL.md'] == sorted((c.name for c in p.iterdir())) and (not _linked(w)) and w.is_file() and (_normalized(w.read_text(encoding='utf-8-sig')) == _normalized(_legacy_skill(s, primary))), 'Existing skill directory is not an exact generated wrapper; preserved', relocated_valid=lambda p=skill_path, pt=prior_skill_target, rts=relocated_skill_targets: isinstance(pt, str) and _absolute(pt) in rts and _link_matches_target(p, pt))
 	for role, agent, purpose, _ in _role_values(primary):
 		role_path, role_target = (home / f'agents/{agent}.toml', Path(primary) / f'platforms/codex/agents/{agent}.toml')
 		profile['role_targets'][str(_absolute(role_path))] = str(role_target)
-		_plan_codex_link(plan, profile, _ManagedLink(role_path, role_target, 'file-symlink', label='role'), lambda p=role_path, t=role_target: p.is_symlink() and p.is_file() and _same_path(p, t) and (p.read_bytes() == t.read_bytes()), 'Role link points to a different or missing file; preserved', role_path, lambda p=role_path, rl=role, ag=agent, pr=purpose: p.is_file() and _normalized(p.read_text(encoding='utf-8-sig')) == _normalized(_legacy_role(primary, rl, ag, pr)), 'Legacy role differs from its exact generated template; preserved')
+		prior_role_target = prior_roles.get(str(_absolute(role_path))) or prior_links.get(str(_absolute(role_path)))
+		relocated_role_targets = {_absolute(rc / f'platforms/codex/agents/{agent}.toml') for rc in relocated}
+		_plan_codex_link(plan, profile, _ManagedLink(role_path, role_target, 'file-symlink', label='role'), lambda p=role_path, t=role_target: p.is_symlink() and p.is_file() and _same_path(p, t) and (p.read_bytes() == t.read_bytes()), 'Role link points to a different or missing file; preserved', role_path, lambda p=role_path, rl=role, ag=agent, pr=purpose: p.is_file() and _normalized(p.read_text(encoding='utf-8-sig')) == _normalized(_legacy_role(primary, rl, ag, pr)), 'Legacy role differs from its exact generated template; preserved', relocated_valid=lambda p=role_path, pt=prior_role_target, rts=relocated_role_targets: p.is_symlink() and isinstance(pt, str) and _absolute(pt) in rts and _link_matches_target(p, pt))
 	plan.profiles[name] = profile
 def _prepare_link_parent(path, label, action='creation'):
 	if _linked_ancestor(path, include_self=False):
@@ -569,7 +645,7 @@ def _restore_directory_link(path, identity, primary):
 		_prepare_link_parent(path, 'obsolete skill', 'restoration')
 		path.symlink_to(identity['target'], target_is_directory=True)
 def _remove_link(path, target):
-	if _linked_ancestor(path, include_self=False) or not _linked(path) or (not _same_path(path, target)):
+	if _linked_ancestor(path, include_self=False) or not _linked(path) or (not _link_matches_target(path, target)):
 		raise ValueError(f'Created link changed before rollback; preserved: {path}')
 	path.rmdir() if bool(getattr(path, 'is_junction', lambda: False)()) else path.unlink()
 def _verify(plan):
@@ -577,7 +653,7 @@ def _verify(plan):
 		if _linked_ancestor(path) or (path.read_bytes() if path.is_file() else None) != before:
 			raise ValueError(f'Configuration changed during migration; external edit preserved: {path}')
 	for link in plan.managed_links.values():
-		link.verify_before_create(plan.files)
+		link.verify_before_create(plan.files, plan.retired_links)
 	for link in plan.retired_links.values():
 		link.verify_retired()
 def _backup(primary, state, path, payload):

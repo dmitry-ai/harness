@@ -1,28 +1,29 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+from contextlib import redirect_stdout
 from copy import deepcopy
+import hashlib
 import io
 import json
 import os
 from pathlib import Path
-from contextlib import redirect_stdout
 import sys
 import unittest
 for _d in (Path(__file__).resolve().parent, Path(__file__).resolve().parents[1] / 'scripts'):
 	if str(_d) not in sys.path:
 		sys.path.insert(0, str(_d))
 from test_agent_tools import TemporaryCase
-from agent_tools import git_gate, github_issue, journal, path_registry as pr, runtime, storage, upwork_project as up
+from agent_tools import admission, context as ctx_mod, git_gate, github_issue, journal, path_registry as pr, runtime, source_grounding, storage, upwork_project as up
 import check_markdown_slop
 import check_stop_gate
-
-
 class PathRegistryTests(TemporaryCase):
 	def tearDown(self):
 		pr.clear_registry_cache()
 		super().tearDown()
-
 	def test_live_registry_and_runtime_contain_no_hardcoded_host_paths_outside_r_and_validate_five_overlays(self):
 		raw_runtime = json.loads((runtime.PRIMARY / 'runtime.json').read_text(encoding='utf-8'))
 		serialized_runtime = json.dumps(raw_runtime)
@@ -33,7 +34,7 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(rep['issues'], [])
 		by_root = {item['project_root']: item for item in rep['discovered_overlays']}
 		expected_projects = {
-			'C:/work/research/provision/code/AI/harness': 'dual_repo',
+			'C:/work/research/provision/code/AI/harness': 'v2_software',
 			'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com': 'upwork',
 			'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons': 'dual_repo',
 			'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons': 'dual_repo',
@@ -42,7 +43,6 @@ class PathRegistryTests(TemporaryCase):
 		for root_str, expected_profile in expected_projects.items():
 			self.assertIn(root_str, by_root)
 			self.assertEqual(by_root[root_str]['profile'], expected_profile)
-
 	def test_apache_prefix_concatenation_windows_env_vars_globs_and_escapes(self):
 		vars_map = {
 			'WORK_ROOT': 'C:/work',
@@ -69,7 +69,6 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(pr.expand_template('//fileserver/share//a/../b/', vars_map, env=env), '//fileserver/share/b')
 		empty_env_res = pr.expand_template('%LOCALAPPDATA%/Sub', {}, env={})
 		self.assertTrue(empty_env_res.endswith('/AppData/Local/Sub'))
-
 	def test_template_and_schema_error_paths_reject_cycles_unknowns_symlinks_and_conflicts(self):
 		with self.assertRaisesRegex(ValueError, 'Cyclic path template variable reference: A -> A'):
 			pr.expand_template('${A}', {'A': '${A}'})
@@ -87,24 +86,20 @@ class PathRegistryTests(TemporaryCase):
 			pr.expand_template('${123_BAD}', {})
 		with self.assertRaisesRegex(ValueError, 'Invalid path template variable syntax'):
 			pr.expand_template('${}', {})
-
 		bad_reg = self.put('bad-paths.json', json.dumps({'version': 2}))
 		with self.assertRaisesRegex(ValueError, 'version 1'):
 			pr.load_registry(bad_reg)
-
 		cyclic_prof_data = deepcopy(pr.load_registry().raw)
 		cyclic_prof_data['project_profiles']['p1'] = {'extends': 'p2', 'paths': {}}
 		cyclic_prof_data['project_profiles']['p2'] = {'extends': 'p1', 'paths': {}}
 		cyclic_reg = self.put('cyclic-prof.json', json.dumps(cyclic_prof_data))
 		with self.assertRaisesRegex(ValueError, 'Cyclic project profile inheritance'):
 			pr.load_registry(cyclic_reg)
-
 		proj = self.root / 'conflict_proj'
 		self.put('conflict_proj/.agents/paths.json', json.dumps({'version': 1, 'paths': {'scratch_dir': 'a'}}))
 		self.put('conflict_proj/\ua616/paths.json', json.dumps({'version': 1, 'paths': {'scratch_dir': 'b'}}))
 		with self.assertRaisesRegex(ValueError, 'Conflicting project paths.json overlays'):
 			pr.project_paths(proj)
-
 		real_ov = self.put('outside.json', json.dumps({'version': 1}))
 		sym_proj = self.root / 'sym_proj'
 		(sym_proj / '.agents').mkdir(parents=True)
@@ -116,7 +111,6 @@ class PathRegistryTests(TemporaryCase):
 		else:
 			with self.assertRaisesRegex(ValueError, 'Linked project paths.json overlay'):
 				pr.project_paths(sym_proj)
-
 	def test_project_overlay_dag_cascades_and_remains_isolated_per_project(self):
 		proj_a = self.root / 'proj_a'
 		ext_client = self.root / 'external_client'
@@ -141,7 +135,6 @@ class PathRegistryTests(TemporaryCase):
 		self.put('proj_a/.agents/paths.json', json.dumps(overlay_a))
 		proj_b = self.root / 'proj_b'
 		(proj_b / '\ua616').mkdir(parents=True)
-
 		pp_a = pr.project_paths(proj_a)
 		pp_b = pr.project_paths(proj_b)
 		self.assertEqual(pp_a.agent_dir, (proj_a / '_isolated_agent').resolve())
@@ -157,26 +150,33 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(journal.resolve_journal_dir(proj_a), (proj_a / '\ua66e/CustomJournal').resolve())
 		self.assertEqual(pr.resolve_project_root(ext_client / 'Letters/EN/1.md'), proj_a.resolve())
 		self.assertTrue(git_gate.GitRepoGate(ext_code).is_issue_tracked())
-
 		self.assertEqual(pp_b.agent_dir, (proj_b / '\ua616').resolve())
 		self.assertIsNone(pp_b.path('custom_slot'))
-
 	def test_live_five_projects_integration_across_harness_subsystems_and_cli(self):
 		harness_pp = pr.project_paths('C:/work/research/provision/code/AI/harness')
-		self.assertEqual(harness_pp.agent_dir.as_posix(), 'C:/work/research/provision/code/AI/harness/_/\ua616')
-		self.assertEqual(harness_pp.metrics_json.as_posix(), 'C:/work/research/provision/code/AI/harness/_/\ua616/data/research-metrics.json')
-		self.assertEqual(journal.resolve_journal_dir(harness_pp.root).as_posix(), 'C:/work/research/provision/code/AI/harness/_/\ua66e')
-
+		self.assertEqual(harness_pp.profile, 'v2_software')
+		self.assertEqual(harness_pp.fs_version, 2)
+		self.assertEqual(harness_pp.agent_dir.as_posix(), 'C:/work/research/provision/code/AI/harness/\ua616')
+		self.assertEqual(harness_pp.metrics_json.as_posix(), 'C:/work/research/provision/code/AI/harness/\ua616/data/research-metrics.json')
+		self.assertEqual(journal.resolve_journal_dir(harness_pp.root).as_posix(), 'C:/work/research/provision/code/AI/harness/\ua66e')
+		self.assertEqual(
+			tuple((p.name for p in journal.journal_pair_dirs(journal.resolve_journal_dir(harness_pp.root)))),
+			('\u227b', '\u227a'),
+		)
+		self.assertEqual(
+			harness_pp.code_repos,
+			(Path('C:/work/research/provision/code/AI/harness/Artifacts/\u227b/Deliverables/\u26ef').resolve(),),
+		)
 		smokeday_root = Path('C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com')
 		smokeday_client_code = Path('C:/work/clients/smokeday.com/m/2026-10-26/code')
 		smokeday_pp = pr.project_paths(smokeday_root)
+		self.assertEqual(smokeday_pp.fs_version, 1)
 		self.assertEqual(smokeday_pp.path('client_code_dir'), smokeday_client_code)
-		self.assertEqual(journal.resolve_journal_dir(smokeday_root).as_posix(), 'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com/\ua66e/1 - Анализ')
+		self.assertEqual(journal.resolve_journal_dir(smokeday_root).as_posix(), 'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com/\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437')
 		self.assertEqual(pr.resolve_project_root(smokeday_client_code / '_my/public/Letters/my/EN/1.md'), smokeday_root.resolve())
 		self.assertEqual(check_markdown_slop._infer_project_root(smokeday_client_code / '_my/public/Letters/my/EN/1.md'), smokeday_root.resolve())
 		self.assertTrue(git_gate.GitRepoGate(smokeday_client_code).is_issue_tracked())
 		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/m', project_root=smokeday_root), smokeday_client_code.resolve())
-
 		srv_root = Path('C:/work/git/dmitrii-fediuk/code/5.9.188.84')
 		self.assertTrue(git_gate.GitRepoGate(srv_root).is_issue_tracked())
 		self.assertTrue(check_stop_gate._is_tracked_workspace(srv_root))
@@ -185,7 +185,6 @@ class PathRegistryTests(TemporaryCase):
 			journal.resolve_journal_dir(srv_root).as_posix(),
 			'C:/work/git/dmitrii-fediuk/code/5.9.188.84/_my/daily/2026/11/07/1 - Nginx/\ua66e',
 		)
-
 		buf = io.StringIO()
 		with redirect_stdout(buf):
 			rc = up.main(['paths', str(smokeday_root), '--expand', '${DF_CLIENTS}smokeday.com/m/2026-10-26/code', '--check'])
@@ -195,7 +194,6 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(cli_out['expanded'], 'C:/work/clients/smokeday.com/m/2026-10-26/code')
 		self.assertTrue(check_stop_gate._is_tracked_workspace(smokeday_client_code))
 		self.assertEqual(check_stop_gate._turns_dir(smokeday_client_code), smokeday_pp.turns_dir)
-
 	def test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring(self):
 		self.assertEqual(
 			pr.expand_template('${B}/end', {'A': '$${LITERAL_VAR}', 'B': '${A}/mid'}),
@@ -228,7 +226,6 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(pp.var('DATA_DIR'), expected_data)
 		self.assertEqual(pp.path('sub_tool'), (proj.resolve() / '_rel_agent/data/sub/tool.exe'))
 		self.assertEqual(pp.tools['runner'], f'{expected_data}/sub/runner.exe')
-
 	def test_mid_process_overlay_creation_and_edit_invalidate_reverse_links_and_stay_fast(self):
 		import time
 		disc = (self.root / 'disc_proj').resolve()
@@ -247,7 +244,6 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(pr.resolve_project_root(ext_one, registry=reg), disc)
 		self.put('disc_proj/.agents/paths.json', json.dumps({'version': 1, 'linked_roots': [ext_two.as_posix()]}))
 		self.assertEqual(pr.resolve_project_root(ext_two, registry=reg), disc)
-
 		perf_proj = self.root / 'perf_proj'
 		(perf_proj / '\ua616').mkdir(parents=True)
 		storage.data_dir_for(perf_proj)
@@ -256,10 +252,9 @@ class PathRegistryTests(TemporaryCase):
 			storage.data_dir_for(perf_proj)
 		elapsed = time.perf_counter() - t0
 		self.assertLess(elapsed, 2.0, f'200 warm data_dir_for calls took {elapsed:.3f}s')
-
 	def test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization(self):
 		from unittest.mock import patch
-		from agent_tools import completion, context as ctx_mod, text_claims, text_diagnostics, text_workflow, workflow
+		from agent_tools import completion, text_claims, text_diagnostics, text_workflow, workflow
 		dual = self.root / 'dual_proj'
 		(dual / 'code').mkdir(parents=True)
 		(dual / '_/\ua616/KB/Evidence').mkdir(parents=True)
@@ -269,7 +264,6 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(target_ctx, (dual / '_/\ua66e/0/Context.md').resolve())
 		self.assertEqual(selected_ctx, [(dual / '_/\ua616/KB/Overview.md').resolve()])
 		self.assertNotIn('Excluded Evidence', content_ctx)
-
 		custom = self.root / 'custom_upwork'
 		ext_letters = self.root / 'ext_letters_store'
 		self.put(
@@ -301,11 +295,9 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(c_target, (custom / '\ua66e/0/Context.md').resolve())
 		self.assertIn('Hello from linked root.', c_text)
 		self.assertIn('Single sentence note.', c_text)
-
 		st = workflow.status(custom)
 		self.assertEqual(Path(st['agent_kb']), (custom / '_custom_agent/KB').resolve())
 		self.assertEqual(st['kb_hashes'], {'_custom_agent/KB/Notes.md': workflow.file_hash(custom / '_custom_agent/KB/Notes.md')})
-
 		self.put('custom_upwork/article.md', '# Heading\n\nInitial text.  \n')
 		ws = text_workflow.ClientTextWorkspace(custom)
 		self.assertEqual(ws.folder, (custom / '_custom_agent/data/texts').resolve())
@@ -313,14 +305,12 @@ class PathRegistryTests(TemporaryCase):
 		self.assertTrue((custom / '_custom_agent/data/texts/operations' / op['id'] / 'operation.json').is_file())
 		reg_res = text_claims.save_registry(custom, {'schema_version': 3, 'facts': []})
 		self.assertEqual(reg_res['registry'], '_custom_agent/KB/TextClaims.json')
-
 		proj_file = self.put('dual_proj/AGENTS.md', '# Projected\n')
 		proj_sha = workflow.file_hash(proj_file)
 		self.put('dual_proj/_/\ua616/data/native-config.json', json.dumps({str(proj_file.resolve()): proj_sha}))
 		diag = text_diagnostics.diagnose_sources(dual)
 		rec_items = [s for s in diag['sources'] if 'projection-receipt' == s['kind']]
 		self.assertTrue(any((item['exists'] and Path(item['path']).resolve() == (dual / '_/\ua616/data/native-config.json').resolve() for item in rec_items)))
-
 		fake_turn = {
 			'turn_id': 'turn-1',
 			'start_step': 1,
@@ -329,7 +319,7 @@ class PathRegistryTests(TemporaryCase):
 			'owned': True,
 			'completed': False,
 			'aborted': False,
-			'requests': [{'id': 'req-1', 'text': 'Привет'}],
+			'requests': [{'id': 'req-1', 'text': '\u041f\u0440\u0438\u0432\u0435\u0442'}],
 			'response': '',
 		}
 		fake_native = {
@@ -345,7 +335,6 @@ class PathRegistryTests(TemporaryCase):
 			b1 = completion.begin(dual / '_')
 			b2 = completion.begin(dual / 'code')
 			self.assertEqual(b1['turn_key'], b2['turn_key'])
-
 		ext_turns = self.root / 'external_turns_store'
 		ext_proj = self.root / 'ext_turns_proj'
 		self.put('ext_turns_proj/.agents/paths.json', json.dumps({'version': 1, 'paths': {'turns_dir': ext_turns.as_posix()}}))
@@ -354,7 +343,6 @@ class PathRegistryTests(TemporaryCase):
 		conf = completion._conflict(ext_proj, state_path, state_val, fake_native, fake_turn, 'mismatch', 'test external turns conflict')
 		self.assertEqual(conf['status'], 'conflict')
 		self.assertTrue(Path(conf['evidence']).is_file())
-
 		ws_fake = self.root / 'fake_upwork_ws'
 		ws_fake.mkdir(parents=True)
 		ws_data = self.root / 'fake_ws_data'
@@ -373,7 +361,88 @@ class PathRegistryTests(TemporaryCase):
 			)
 			self.assertFalse((ws_fake / '\ua616').exists())
 			self.assertTrue(Path(saved_ev).resolve().is_relative_to(gh_ev.resolve()))
-
-
+	def test_v2_filesystem_auto_detection_journals_context_provenance_and_migration(self):
+		os_demo = Path('C:/work/clients/smokeday.com--new')
+		if os_demo.is_dir():
+			os_pp = pr.project_paths(os_demo)
+			self.assertEqual(os_pp.profile, 'v2')
+			self.assertEqual(os_pp.fs_version, 2)
+			self.assertEqual(os_pp.manual_kb_dir, (os_demo / '\U0001f56e').resolve())
+			self.assertEqual(os_pp.context_output, (os_demo / 'Artifacts/\u227b/Intermediary/Context/output/Context.md').resolve())
+			self.assertEqual(os_pp.path('journal_req_dir'), (os_demo / '\ua66e/\u227b').resolve())
+			self.assertEqual(os_pp.path('journal_res_dir'), (os_demo / '\ua66e/\u227a').resolve())
+			nested_sub = os_demo / 'Artifacts/\u227a/\U0001f582/Nexcess/\ua66e'
+			if nested_sub.exists():
+				self.assertEqual(pr.resolve_project_root(nested_sub), os_demo.resolve())
+		v2_proj = self.root / 'v2_proj'
+		(v2_proj / '\U0001f56e').mkdir(parents=True)
+		(v2_proj / 'Artifacts/\u227b/Deliverables/\u26ef/.git').mkdir(parents=True)
+		(v2_proj / '\ua616/KB/Evidence').mkdir(parents=True)
+		self.put('v2_proj/readme.md', '# V2 Software Project  \n')
+		self.put('v2_proj/\ua616/KB/Spec.md', '# Spec  \nVerified specification sentence.  \n')
+		self.put('v2_proj/\ua616/KB/Evidence/raw.md', '# Raw  \nExcluded from Context.md.  \n')
+		v2_pp = pr.project_paths(v2_proj)
+		self.assertEqual(v2_pp.profile, 'v2_software')
+		self.assertEqual(v2_pp.fs_version, 2)
+		self.assertTrue(git_gate.GitRepoGate(v2_proj / 'Artifacts/\u227b/Deliverables/\u26ef').is_issue_tracked())
+		j_dir = journal.resolve_journal_dir(v2_proj)
+		self.assertEqual(j_dir, (v2_proj / '\ua66e').resolve())
+		self.assertEqual(tuple((p.name for p in journal.journal_pair_dirs(j_dir))), ('\u227b', '\u227a'))
+		rec = journal.record_step(j_dir, 'First V2 request', 'First V2 response.  \n')
+		self.assertTrue((j_dir / '\u227b/1.md').is_file())
+		self.assertTrue((j_dir / '\u227a/1.md').is_file())
+		self.assertEqual(rec, 1)
+		(j_dir / 'req').mkdir()
+		(j_dir / 'req/1.md').write_text('x\n', encoding='utf-8')
+		with self.assertRaisesRegex(ValueError, 'Conflicting V1'):
+			journal.journal_pair_dirs(j_dir)
+		(j_dir / 'req/1.md').unlink()
+		(j_dir / 'req').rmdir()
+		ctx_out, ctx_body, _ = ctx_mod.generate(v2_proj)
+		self.assertEqual(ctx_out, (v2_proj / 'Artifacts/\u227b/Intermediary/Context/output/Context.md').resolve())
+		self.assertIn('Verified specification sentence.', ctx_body)
+		self.assertNotIn('Excluded from Context.md.', ctx_body)
+		p_res = self.put('v2_proj/\ua66e/\u227a/2.md', 'Model reply  \n')
+		p_req = self.put('v2_proj/\ua66e/\u227b/2.md', 'User prompt  \n')
+		p_book = self.put('v2_proj/\U0001f56e/Project.md', '# Project  \n')
+		p_log = self.put('v2_proj/Artifacts/\u227a/Logs/Magento/\u2630/system.log', 'ERR 1  \n')
+		p_sub_res = self.put('v2_proj/Artifacts/\u227a/\U0001f582/Nexcess/\ua66e/\u227a/1.md', 'Sub reply  \n')
+		p_sub_code = self.put('v2_proj/Artifacts/\u227a/Logs/Magento/\u26ef/parse.py', 'x = 1\n')
+		self.assertEqual(source_grounding.classify_provenance_tier(p_res, v2_proj), 'tier_2')
+		self.assertEqual(source_grounding.classify_provenance_tier(p_req, v2_proj), 'tier_0')
+		self.assertEqual(source_grounding.classify_provenance_tier(p_book, v2_proj), 'tier_0')
+		self.assertEqual(source_grounding.classify_provenance_tier(p_log, v2_proj), 'tier_0')
+		self.assertNotEqual(source_grounding.classify_provenance_tier(p_sub_res, v2_proj), 'tier_0')
+		self.assertNotEqual(source_grounding.classify_provenance_tier(p_sub_code, v2_proj), 'tier_0')
+		mig_proj = self.root / 'mig_proj'
+		(mig_proj / '\U0001f56e').mkdir(parents=True)
+		(mig_proj / '\ua66e/\u227b').mkdir(parents=True)
+		(mig_proj / '\ua66e/\u227a').mkdir(parents=True)
+		old_j = mig_proj / '_/\ua66e'
+		old_id = admission.binding(old_j, ['Migrated request'], 'Migrated response  \n', 'turn-5', ['req-5'])
+		proof_payload = {'schema_version': 1, 'kind': 'publication_admission', 'binding': old_id, 'integrity': []}
+		proof_bytes = admission._bytes(proof_payload)
+		proof_sha = hashlib.sha256(proof_bytes).hexdigest()
+		proof_dir = mig_proj / '\ua616/data/publication-admissions'
+		proof_dir.mkdir(parents=True)
+		(proof_dir / f'{proof_sha}.json').write_bytes(proof_bytes)
+		new_id = admission.binding(mig_proj / '\ua66e', ['Migrated request'], 'Migrated response  \n', 'turn-5', ['req-5'])
+		ver = admission.verify(
+			{'schema_version': 1, 'file': str((mig_proj / f'_/\ua616/data/publication-admissions/{proof_sha}.json').resolve()), 'sha256': proof_sha},
+			new_id,
+		)
+		self.assertEqual(ver['status'], 'verified')
+		v1_job = self.root / 'v1_job'
+		v1_agents = v1_job / '.agents'
+		(v1_agents / 'rules').mkdir(parents=True)
+		stale_code = Path('C:/work/research/provision/code/AI/harness/code')
+		for kind in ('rules', 'skills', 'agents'):
+			entries = [{'path': (stale_code / kind).as_posix()}]
+			if 'rules' == kind:
+				entries.append({'path': 'rules'})
+			(v1_agents / f'{kind}.json').write_text(json.dumps({'entries': entries}), encoding='utf-8')
+		self.assertFalse(up.check_configuration(v1_job)['valid'])
+		up.configure_project(v1_job)
+		self.assertTrue(up.check_configuration(v1_job)['valid'])
 if '__main__' == __name__:
 	unittest.main()
