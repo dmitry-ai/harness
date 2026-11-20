@@ -13,6 +13,7 @@ Changed conditions, required refreshes, and longitudinal measurements are separa
 After three fruitless searches on the same question, return the specific gap or justify a method change; hitting the search limit does not confirm a hypothesis.  
 ## EXEC-2
 A test must verify material behavior and reproduce the defect; distinguish mocks, integration tests, and live execution.  
+For code managing persistent connections, daemons, or child-process lifecycles, verify handle release and clean exit on a real process rather than mocks alone.  
 Verify your own changes and the requested environments; a third-party defect does not authorize modifying unrelated files, weakening a check, or substituting a source.  
 ## EXEC-3
 Determine the browser profile and account from the instruction and environment settings, then verify them; when ambiguous, do not pick an arbitrary profile or CDP target.  
@@ -45,4 +46,5 @@ Do not scrape all cookies or storage searching for `token`/`auth`; identify the 
 Distinguish a missing tab, expired login, insufficient operation permissions, and tool policy rejection; successful page reading does not prove write permission.  
 Before working with an authenticated portal, read the [authenticated access procedure](../skills/upwork-init/references/authenticated-access.md); permission to use a session does not expand the scope of the instruction to sending messages, making payments, or performing other external changes under [SCOPE-2](00-scope.md#scope-2).  
 <!-- https://github.com/dmitry-ai/harness/issues/48 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/85 -->
+<!-- https://github.com/dmitry-ai/harness/issues/85 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/98 -->
