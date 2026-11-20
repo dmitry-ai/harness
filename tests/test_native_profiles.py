@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
 # https://github.com/dmitry-ai/harness/issues/86
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
@@ -754,3 +757,34 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(codex_cfg['plugins']['chrome@openai-bundled']['enabled'])
 		self.assertTrue(codex_cfg['plugins']['browser@openai-bundled']['enabled'])
 		self.assertTrue(self.install(('A6', 'C2'), check=True)['valid'])
+	def test_v2_unicode_primary_generates_ascii_hook_runner_upgrades_legacy_hooks_and_runs_via_cmd_exe(self):
+		import shutil
+		import subprocess
+		from agent_tools import upwork_project as up
+		v2_primary = self.root / 'v2_harness/\u2c0f/\u227b/\u2655/\u26ef'
+		shutil.copytree(self.primary, v2_primary)
+		(v2_primary / 'scripts/agent_tools').mkdir(parents=True, exist_ok=True)
+		for rel in ('scripts/check_markdown_slop.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/source_grounding.py', 'paths.json'):
+			src = runtime.PRIMARY / rel
+			dst = v2_primary / rel
+			dst.parent.mkdir(parents=True, exist_ok=True)
+			shutil.copyfile(src, dst)
+		for py_src in (runtime.PRIMARY / 'scripts/agent_tools').glob('*.py'):
+			shutil.copyfile(py_src, v2_primary / 'scripts/agent_tools' / py_src.name)
+		old_primary = self.root / 'v2_harness/Artifacts/\u227b/Deliverables/\u26ef'
+		self.write(self.gravity['A6'] / 'hooks.json', json.dumps(up.legacy_direct_global_hooks(old_primary)))
+		res = native.install_native_profiles(('A6',), primary=v2_primary)
+		self.assertTrue(res['valid'], res)
+		runner_file = self.gravity['A6'] / 'harness_hook_runner.py'
+		self.assertTrue(runner_file.is_file())
+		self.assertTrue(runner_file.read_text(encoding='utf-8').isascii())
+		hooks = json.loads((self.gravity['A6'] / 'hooks.json').read_text(encoding='utf-8'))
+		slop_cmd = hooks['doc4-anti-slop-gate']['PreToolUse'][0]['hooks'][0]['command']
+		self.assertTrue(slop_cmd.isascii(), slop_cmd)
+		self.assertNotIn('\u2c0f', slop_cmd)
+		payload = json.dumps({'toolCall': {'name': 'write_file', 'args': {'Path': str(self.root / 'sample.md'), 'Content': 'First short sentence. Second sentence on same line.\n'}}})
+		proc = subprocess.run(['cmd', '/c', slop_cmd], cwd=str(self.gravity['A6']), input=payload, text=True, encoding='utf-8', capture_output=True, check=False)
+		self.assertEqual(proc.returncode, 0, proc.stderr)
+		decision = json.loads(proc.stdout)
+		self.assertEqual(decision['decision'], 'deny')
+		self.assertIn('multiple sentences', decision['reason'])

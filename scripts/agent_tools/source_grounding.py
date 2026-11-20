@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -635,7 +638,7 @@ def classify_provenance_tier(path: Path, root: Path | None=None) -> str:
 	name = path.name.lower()
 	if name in {'draft.md', 'draft.prev.md', 'context.md'} or '/.agents/rules/' in norm or '/rules/' in norm or ('/skills/' in norm) or ('/references/' in norm) or ('/platforms/' in norm) or ('/candidates/' in norm) or ('/data/scratch/' in norm) or ('/evidence/reviews/' in norm) or ('/res/' in norm) or bool(re.search('/\\ua66e/(?:[^/]+/)?\\u227a/', norm)) or norm.endswith('-audit.json'):
 		r = 'tier_2'
-	elif 'source.md' == name or ('/source/' in norm and 'analysis.md' != name) or ('/kb/evidence/' in norm and (not norm.endswith('-audit.json')) and ('/evidence/github/' not in norm) and ('/evidence/reviews/' not in norm)) or norm.endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md', '/\U0001f56e/project.md')) or ('/req/' in norm) or bool(re.search('/\\ua66e/(?:[^/]+/)?\\u227b/', norm)) or ('/artifacts/\u227a/' in norm and 'analysis.md' != name and ('/\ua66e/' not in norm) and ('/\u26ef/' not in norm)):
+	elif 'source.md' == name or ('/source/' in norm and 'analysis.md' != name) or ('/kb/evidence/' in norm and (not norm.endswith('-audit.json')) and ('/evidence/github/' not in norm) and ('/evidence/reviews/' not in norm)) or norm.endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md', '/\U0001f56e/project.md')) or ('/req/' in norm) or bool(re.search('/\\ua66e/(?:[^/]+/)?\\u227b/', norm)) or (('/\u2c3f/\u227a/' in norm or '/artifacts/\u227a/' in norm) and 'analysis.md' != name and ('/\ua66e/' not in norm) and ('/\u26ef/' not in norm)):
 		r = 'tier_0'
 	else:
 		r = 'tier_1'

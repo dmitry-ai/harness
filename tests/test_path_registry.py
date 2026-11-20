@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
 # https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -33,10 +36,11 @@ class PathRegistryTests(TemporaryCase):
 		self.assertTrue(rep['valid'], rep['issues'])
 		self.assertEqual(rep['issues'], [])
 		by_root = {item['project_root']: item for item in rep['discovered_overlays']}
+		addons_root = 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons'
 		expected_projects = {
 			'C:/work/research/provision/code/AI/harness': 'v2_software',
 			'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com': 'upwork',
-			'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons': 'dual_repo',
+			addons_root: 'dual_repo' if (Path(addons_root) / '_').is_dir() else 'v2_software',
 			'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons': 'dual_repo',
 			'C:/work/git/dmitrii-fediuk/code/5.9.188.84': 'server',
 		}
@@ -163,9 +167,10 @@ class PathRegistryTests(TemporaryCase):
 			tuple((p.name for p in journal.journal_pair_dirs(journal.resolve_journal_dir(harness_pp.root)))),
 			('\u227b', '\u227a'),
 		)
+		expected_harness_code = Path('C:/work/research/provision/code/AI/harness/\u2c0f/\u227b/\u2655/\u26ef') if Path('C:/work/research/provision/code/AI/harness/\u2c0f').is_dir() else Path('C:/work/research/provision/code/AI/harness/Artifacts/\u227b/Deliverables/\u26ef')
 		self.assertEqual(
 			harness_pp.code_repos,
-			(Path('C:/work/research/provision/code/AI/harness/Artifacts/\u227b/Deliverables/\u26ef').resolve(),),
+			(expected_harness_code.resolve(),),
 		)
 		smokeday_root = Path('C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com')
 		smokeday_client_code = Path('C:/work/clients/smokeday.com/m/2026-10-26/code')
@@ -368,15 +373,15 @@ class PathRegistryTests(TemporaryCase):
 			self.assertEqual(os_pp.profile, 'v2')
 			self.assertEqual(os_pp.fs_version, 2)
 			self.assertEqual(os_pp.manual_kb_dir, (os_demo / '\U0001f56e').resolve())
-			self.assertEqual(os_pp.context_output, (os_demo / 'Artifacts/\u227b/Intermediary/Context/output/Context.md').resolve())
+			self.assertEqual(os_pp.context_output, (os_demo / '\u2c0f/\u227b/\u2659/Context/output/Context.md').resolve())
 			self.assertEqual(os_pp.path('journal_req_dir'), (os_demo / '\ua66e/\u227b').resolve())
 			self.assertEqual(os_pp.path('journal_res_dir'), (os_demo / '\ua66e/\u227a').resolve())
-			nested_sub = os_demo / 'Artifacts/\u227a/\U0001f582/Nexcess/\ua66e'
+			nested_sub = os_demo / '\u2c0f/\u227a/\U0001f582/Nexcess/\ua66e'
 			if nested_sub.exists():
 				self.assertEqual(pr.resolve_project_root(nested_sub), os_demo.resolve())
 		v2_proj = self.root / 'v2_proj'
 		(v2_proj / '\U0001f56e').mkdir(parents=True)
-		(v2_proj / 'Artifacts/\u227b/Deliverables/\u26ef/.git').mkdir(parents=True)
+		(v2_proj / '\u2c0f/\u227b/\u2655/\u26ef/.git').mkdir(parents=True)
 		(v2_proj / '\ua616/KB/Evidence').mkdir(parents=True)
 		self.put('v2_proj/readme.md', '# V2 Software Project  \n')
 		self.put('v2_proj/\ua616/KB/Spec.md', '# Spec  \nVerified specification sentence.  \n')
@@ -384,7 +389,12 @@ class PathRegistryTests(TemporaryCase):
 		v2_pp = pr.project_paths(v2_proj)
 		self.assertEqual(v2_pp.profile, 'v2_software')
 		self.assertEqual(v2_pp.fs_version, 2)
-		self.assertTrue(git_gate.GitRepoGate(v2_proj / 'Artifacts/\u227b/Deliverables/\u26ef').is_issue_tracked())
+		self.assertIn('/\u2c3f/\u227b/\u2655/', v2_pp.deliverable_segments)
+		self.assertTrue(git_gate.GitRepoGate(v2_proj / '\u2c0f/\u227b/\u2655/\u26ef').is_issue_tracked())
+		(v2_proj / '\ua616/data/turns').mkdir(parents=True, exist_ok=True)
+		(v2_proj / '\ua616/data/turns/t1.json').write_text(json.dumps({'status': 'open', 'budget_check': {'graceful_checkpoint_required': True, 'continuation_saved': False}}), encoding='utf-8')
+		self.assertIsNotNone(check_markdown_slop._check_turn_budget_gate(v2_proj, v2_proj / '\u2c0f/\u227b/\u2655/\U0001f582/Letters/1.md'))
+		self.assertIsNone(check_markdown_slop._check_turn_budget_gate(v2_proj, v2_proj / '\u2c0f/\u227b/\u2655/\u26ef/rules/00-scope.md'))
 		j_dir = journal.resolve_journal_dir(v2_proj)
 		self.assertEqual(j_dir, (v2_proj / '\ua66e').resolve())
 		self.assertEqual(tuple((p.name for p in journal.journal_pair_dirs(j_dir))), ('\u227b', '\u227a'))
@@ -399,15 +409,15 @@ class PathRegistryTests(TemporaryCase):
 		(j_dir / 'req/1.md').unlink()
 		(j_dir / 'req').rmdir()
 		ctx_out, ctx_body, _ = ctx_mod.generate(v2_proj)
-		self.assertEqual(ctx_out, (v2_proj / 'Artifacts/\u227b/Intermediary/Context/output/Context.md').resolve())
+		self.assertEqual(ctx_out, (v2_proj / '\u2c0f/\u227b/\u2659/Context/output/Context.md').resolve())
 		self.assertIn('Verified specification sentence.', ctx_body)
 		self.assertNotIn('Excluded from Context.md.', ctx_body)
 		p_res = self.put('v2_proj/\ua66e/\u227a/2.md', 'Model reply  \n')
 		p_req = self.put('v2_proj/\ua66e/\u227b/2.md', 'User prompt  \n')
 		p_book = self.put('v2_proj/\U0001f56e/Project.md', '# Project  \n')
-		p_log = self.put('v2_proj/Artifacts/\u227a/Logs/Magento/\u2630/system.log', 'ERR 1  \n')
-		p_sub_res = self.put('v2_proj/Artifacts/\u227a/\U0001f582/Nexcess/\ua66e/\u227a/1.md', 'Sub reply  \n')
-		p_sub_code = self.put('v2_proj/Artifacts/\u227a/Logs/Magento/\u26ef/parse.py', 'x = 1\n')
+		p_log = self.put('v2_proj/\u2c0f/\u227a/Logs/Magento/\u2630/system.log', 'ERR 1  \n')
+		p_sub_res = self.put('v2_proj/\u2c0f/\u227a/\U0001f582/Nexcess/\ua66e/\u227a/1.md', 'Sub reply  \n')
+		p_sub_code = self.put('v2_proj/\u2c0f/\u227a/Logs/Magento/\u26ef/parse.py', 'x = 1\n')
 		self.assertEqual(source_grounding.classify_provenance_tier(p_res, v2_proj), 'tier_2')
 		self.assertEqual(source_grounding.classify_provenance_tier(p_req, v2_proj), 'tier_0')
 		self.assertEqual(source_grounding.classify_provenance_tier(p_book, v2_proj), 'tier_0')

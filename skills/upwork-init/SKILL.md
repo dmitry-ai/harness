@@ -15,7 +15,7 @@ Determine the active platform and read only its adapter: [Codex](../../platforms
 Pass `--platform` of the active environment to internal commands; inspect default models, effort, and profile settings in `runtime.json` via `doctor`.  
 In Codex, verify native projections via `build-native --check`; if rule paths, roles, or `runtime.json` changed, run `build-native`.  
 Canonical texts are read from their single source without creating `CODEX.md`.  
-Tool: `C:/work/research/provision/code/AI/harness/Artifacts/≻/Deliverables/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
+Tool: `C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
 `doctor` reports version digests, existing paths, default models, and selection policy; it does not prove the active session model.  
 Roles A.A/A.F, default models, and selection policy are defined solely by `runtime.json`; never substitute memorized model names.  
 Verify available actual metadata and mark anything unknown explicitly.  

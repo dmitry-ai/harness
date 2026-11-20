@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -336,7 +339,7 @@ def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
 def _find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> Path | None:
 	from .path_registry import project_paths, store_value
 	r = None
-	v2_code_rel = 'Artifacts/\u227b/Deliverables/\u26ef'
+	v2_code_rels = ('\u2c0f/\u227b/\u2655/\u26ef', 'Artifacts/\u227b/Deliverables/\u26ef')
 	candidates: list[Path] = []
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
@@ -345,7 +348,7 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 			candidates.extend([*pp.code_repos, *pp.auxiliary_repos.values()])
 		except (OSError, ValueError):
 			pass
-		candidates.extend([pr, pr / 'code', pr / v2_code_rel, pr.parent, pr.parent / 'code', pr.parent / v2_code_rel])
+		candidates.extend([pr, pr / 'code', *(pr / rel for rel in v2_code_rels), pr.parent, pr.parent / 'code', *(pr.parent / rel for rel in v2_code_rels)])
 	for fpath, _ in source_files or []:
 		resolved = fpath.resolve()
 		try:
@@ -354,10 +357,10 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 		except (OSError, ValueError):
 			pass
 		for anc in (resolved, *resolved.parents):
-			candidates.extend([anc, anc / 'code', anc / v2_code_rel])
+			candidates.extend([anc, anc / 'code', *(anc / rel for rel in v2_code_rels)])
 	cwd = Path.cwd().resolve()
 	for anc in (cwd, *cwd.parents):
-		candidates.extend([anc, anc / 'code', anc / v2_code_rel])
+		candidates.extend([anc, anc / 'code', *(anc / rel for rel in v2_code_rels)])
 	seen: set[Path] = set()
 	for cand in candidates:
 		if cand not in seen:

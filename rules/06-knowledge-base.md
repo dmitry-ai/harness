@@ -30,7 +30,7 @@ Preserve provenance of prior versions and material sources; handle temporary fil
 Perform network HTTP(S) and browser DOM observations through `harness.py collect`, `collect-http`, or `collect-browser` (with `upwork_project.py` retained as a compatibility alias), saving into `ꘖ/KB/Evidence/HTTP` and `ꘖ/data/http-index.json`; ad-hoc network calls in the shell that bypass evidence storage are prohibited.  
 If context compaction (`CHECKPOINT`/`compaction`) occurs after tool calls before publishing the response, restore pre-compaction results via `recover-checkpoint` or by reading the full transcript.  
 ## KB-4
-`Artifacts/≻/Intermediary/Context/output/Context.md` in `V2` (`O`) projects (legacy `V1`: `ꙮ/0/Context.md`) exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
+`Ⰿ/≻/♙/Context/output/Context.md` in `V2` (`O`) projects (legacy `V1`: `ꙮ/0/Context.md`) exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
 It is the unified export for external agents, primarily Gemini DeepThink in the web UI at `https://gemini.google.com`; the user submits it manually.  
 Internal agents do not use `Context.md` as their working KB; build the external export when requested by the user.  
 All paths are confined to the project root; an export never overwrites a source file.  

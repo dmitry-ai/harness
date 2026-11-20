@@ -8,7 +8,7 @@ The user invokes `/upwork-init <URL>` (in Codex also `$upwork-init <URL>`); the 
 After an interruption, the user writes `"Continue analysis"` in the same chat; re-running `/upwork-init` is not required.  
 First read the current agent KB and stage status of the project; resume unfinished work while preserving completed checks and source files.  
 Create `proposals/daily/YYYY/MM/DD/N - domain_or_topic`: use the initial request date in `Europe/Istanbul`, allocate the number under a lock, and name the folder without unproven website attribution.  
-Structure (`V1` `upwork` profile; `V2` `O` projects resolve `🕮/`, `ꙮ/{≻,≺}`, and `Artifacts/≻/Intermediary/Context/output/Context.md` via `paths.json`): `.md`, root `source/` folder (all client-attached files), local `.agents` with native settings, `.codex/config.toml` loader, `KB/Project.md`, `ꘖ/{KB,data}`, `ꙮ/1 - Analysis/{req,res}`, and `ꙮ/0/Context.md`.  
+Structure (`V1` `upwork` profile; `V2` `O` projects resolve `🕮/`, `ꙮ/{≻,≺}`, and `Ⰿ/≻/♙/Context/output/Context.md` via `paths.json`): `.md`, root `source/` folder (all client-attached files), local `.agents` with native settings, `.codex/config.toml` loader, `KB/Project.md`, `ꘖ/{KB,data}`, `ꙮ/1 - Analysis/{req,res}`, and `ꙮ/0/Context.md`.  
 ## INIT-2
 Single capture → identity and completeness verification → `init` from saved JSON; re-capturing the page is not needed for formatting.  
 Save the original job post text, actually available client history, coverage errors/boundaries, and all client-attached files simultaneously in the root `source/` folder of the project and in `ꘖ/KB/Evidence/Attachments/<sha256>/` with hash verification.  

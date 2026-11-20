@@ -10,7 +10,7 @@ A partial deletion records a minimal `cleanupHold` until the next run, which fin
 All of `proposals/daily` remains untouched on disk; its `ꘖ/data/projects.json` serves as the historical job index.  
 For new `init` runs, the exact creation timestamp is stored in `ꘖ/project.json:created_at`; re-running `init` preserves it.  
 Before publishing the final `/upwork-cleanup` response, pass it via stdin to `cleanup-report --answer - --platform <platform>`.  
-The command saves the full text to `AI/harness/Artifacts/≺/Logs/Cleanup/☰/YYYY/MM/DD--HH-mm.md`, prepending a first line `YYYY-MM-DD HH:mm UTC+3` in `Europe/Istanbul`, and returns the verbatim `answer` field for chat publication.  
+The command saves the full text to `AI/harness/Ⰿ/≺/Logs/Cleanup/☰/YYYY/MM/DD--HH-mm.md`, prepending a first line `YYYY-MM-DD HH:mm UTC+3` in `Europe/Istanbul`, and returns the verbatim `answer` field for chat publication.  
 Multiple reports within the same minute receive suffixes `--2`, `--3`, etc.; prior logs are never overwritten.  
 
 The user starts with `/upwork-init <URL>` and continues with ordinary messages in the same chat.  
@@ -18,7 +18,7 @@ Work on the same directory may be resumed in a new chat of the other platform, i
 All commands below are executed by the agent; Python 3.12+ is required, with dependencies listed in `requirements-agent-tools.txt`.  
 General entry point: `python <scripts>/harness.py <command> --help` (`upwork_project.py` remains a backward-compatible alias).  
 A single shared library services declared agent environments and instances; workspace root, daily directory, environments, per-instance `enabled` toggles, `system_paths`, models, and time zone are defined in [runtime.json](../runtime.json) (schema v2), while filesystem roots, tool binaries, central stores, relocations, platform layouts, and project topology profiles live in [paths.json](../paths.json) (`R`, schema v1) using `${VAR}` and `%ENV%` template variables.  
-Individual projects may override or extend variables, paths, tools, `code_repos`, and external `linked_roots` via a local overlay (`R+`) at `.agents/paths.json`, `_/ꘖ/paths.json`, or `ꘖ/paths.json`, with versioned filesystem profiles (`fs_version: 1` for legacy `V1` layouts and `fs_version: 2` for `O` / `V2` layouts using `🕮/`, `ꙮ/{≻,≺}`, and `Artifacts/{≻,≺}`); `paths [<project>] [--expand <template>] [--check]` inspects and validates `R` and all discovered `R+` overlays.  
+Individual projects may override or extend variables, paths, tools, `code_repos`, and external `linked_roots` via a local overlay (`R+`) at `.agents/paths.json`, `_/ꘖ/paths.json`, or `ꘖ/paths.json`, with versioned filesystem profiles (`fs_version: 1` for legacy `V1` layouts and `fs_version: 2` for `O` / `V2` layouts using `🕮/`, `ꙮ/{≻,≺}`, and `Ⰿ/{≻,≺}`); `paths [<project>] [--expand <template>] [--check]` inspects and validates `R` and all discovered `R+` overlays.  
 <!-- https://github.com/dmitry-ai/harness/issues/96 -->  
 Pass `--platform <env>` to every operation; omitting the flag preserves Antigravity compatibility.  
 Codex resolves active instances from `CODEX_HOME`, or accepts an explicit `--codex-profile <id>` or `--instance <id>` (usable across platforms).  

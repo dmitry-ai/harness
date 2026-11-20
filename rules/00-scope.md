@@ -19,7 +19,7 @@ Do not replace missing confirmation of rule loading with a promise to follow the
 Once the exact root of the current chat is established, execute `turn-begin` per the [turn completion contract](../references/turn-completion.md#turn-begin); applicability of shared rules does not depend on skill selection or response format.  
 At the start of a turn in Codex, first run `policy-instructions`, `turn-begin`, and batched reading of missing rules without output truncation (do not concatenate all `rules/*.md` into a single `Get-Content` call), and launch `git` commands only after receiving their output.  
 ## SCOPE-4
-Shared rules, skills, and tools have a single source: `AI/harness/Artifacts/≻/Deliverables/⛯` relative to the repository (legacy `V1`: `AI/harness/code`).  
+Shared rules, skills, and tools have a single source: `AI/harness/Ⰿ/≻/♕/⛯` relative to the repository (legacy `V1`: `AI/harness/code`).  
 Project settings supplement it with native environment configuration; apply shared changes to the source and local changes to the project.  
 Codex projections are generated from the shared source; models and environment differences are defined in `runtime.json`.  
 Store facts per [KB-2](06-knowledge-base.md#kb-2) and procedures in skills; do not turn an isolated incident into a universal prohibition.  

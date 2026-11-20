@@ -10,7 +10,7 @@ A standard `/upwork-cleanup` invocation cleans all environments and instances th
 In Codex, `$upwork-cleanup` is also available when Codex instances are enabled.  
 If the user asks for a preview or dry run only, run the check without `--apply`.  
 
-Shared tool: `C:/work/research/provision/code/AI/harness/Artifacts/≻/Deliverables/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
+Shared tool: `C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
 Determine the active platform from the conversation and pass `--platform codex` or `--platform antigravity`.  
 
 1. Run `cleanup --platform <platform>` and inspect the JSON output.  
@@ -25,7 +25,7 @@ Determine the active platform from the conversation and pass `--platform codex` 
    Publish the verbatim `answer` field returned by the command: it contains the exact bytes written and verified by read-back.  
    Logging is mandatory even for dry-run previews, zero candidates, waiting on a closed profile, or cleanup errors; intermediate JSON dumps never substitute for the final response.  
 
-The response log is saved to `C:/work/research/provision/code/AI/harness/Artifacts/≺/Logs/Cleanup/☰/YYYY/MM/DD--HH-mm.md`.  
+The response log is saved to `C:/work/research/provision/code/AI/harness/Ⰿ/≺/Logs/Cleanup/☰/YYYY/MM/DD--HH-mm.md`.  
 The first line is the `Europe/Istanbul` timestamp in `2026-10-18 00:49 UTC+3` format, followed by a blank line and the full response.  
 Both the first-line timestamp and the file path derive from the same instant; subsequent reports within the same minute receive suffixes `--2`, `--3`, etc., without overwriting existing logs.  
 If writing the log fails, report the write error; never claim that the log was saved when it failed.  

@@ -109,7 +109,7 @@ A stable native ID and request check prevent duplicates; identical wording in di
 
 ## Limits and Verification
 
-The shared source remains `AI/harness/Artifacts/≻/Deliverables/⛯`; legacy audit bindings and retirement metadata remain in `AI/harness/ꘖ/data/journal-watch`, and native databases are never modified.  
+The shared source remains `AI/harness/Ⰿ/≻/♕/⛯`; legacy audit bindings and retirement metadata remain in `AI/harness/ꘖ/data/journal-watch`, and native databases are never modified.  
 Foreground reconciliation does not close windows, restart Codex or Antigravity, or terminate third-party processes; legacy `stop` targets only the old verifier's own token.  
 The contract does not intercept platform message submission: an agent can still bypass preparation by emitting a direct final reply, after which the next foreground reconciliation detects the violation and recovers the journal entry.  
 If no later working call occurs, native delivery remains unverified; there is no autonomous post-delivery repair or promise of immediate background recovery.  

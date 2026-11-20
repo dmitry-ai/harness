@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -48,7 +51,7 @@ def _infer_project_root(target: Path) -> Path:
 def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
 	pp = project_paths(proj_root)
 	norm_p = target.as_posix().lower()
-	if not any((seg in norm_p for seg in pp.deliverable_segments)) or '/\ua616/' in norm_p or '/\ua66e/' in norm_p:
+	if not any((seg in norm_p for seg in pp.deliverable_segments)) or '/\ua616/' in norm_p or '/\ua66e/' in norm_p or '/\u26ef/' in norm_p:
 		return None
 	turns_dir = pp.turns_dir
 	if not turns_dir.is_dir():

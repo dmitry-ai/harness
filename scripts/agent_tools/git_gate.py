@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -158,7 +161,7 @@ class GitRepoGate:
 				return True
 		except (OSError, ValueError):
 			pass
-		if ('Artifacts', '\u227b', 'Deliverables', '\u26ef') == resolved.parts[-4:] and ((resolved.parents[3] / '\ua616').is_dir() or (resolved.parents[3] / '\U0001f56e').is_dir() or (resolved.parents[3] / '.agents').is_dir()):
+		if resolved.parts[-4:] in (('\u2c0f', '\u227b', '\u2655', '\u26ef'), ('Artifacts', '\u227b', 'Deliverables', '\u26ef')) and ((resolved.parents[3] / '\ua616').is_dir() or (resolved.parents[3] / '\U0001f56e').is_dir() or (resolved.parents[3] / '.agents').is_dir()):
 			return True
 		return 'code' == resolved.name and ((resolved.parent / '_').is_dir() or (resolved.parent / '.agents').is_dir())
 	def main_repo(self) -> Path:

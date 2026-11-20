@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
 # https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -401,7 +404,7 @@ def _profile_state(state, name, path):
 	previous = state.get('profiles', {}).get(name, {})
 	return previous if previous.get('path') == str(_absolute(path)) else {}
 def _antigravity_plan(plan, name, config, primary, state):
-	from .upwork_project import canonical_global_hooks
+	from .upwork_project import HOOK_RUNNER_HEADER, canonical_global_hooks, harness_hook_runner_source, legacy_direct_global_hooks
 	config = _absolute(config)
 	previous = _profile_state(state, name, config)
 	profile = {'platform': 'antigravity', 'path': str(config), 'files': {}, 'hook_hashes': {}}
@@ -417,13 +420,33 @@ def _antigravity_plan(plan, name, config, primary, state):
 			profile['files'][str(path)] = _hash(wanted)
 		except (ValueError, OSError) as exc:
 			plan.issue(path, str(exc))
+	runner_path = config / 'harness_hook_runner.py'
+	try:
+		wanted_runner = harness_hook_runner_source(primary).encode('utf-8')
+		if _linked_ancestor(runner_path):
+			plan.issue(runner_path, 'Linked native configuration preserved')
+		elif runner_path.exists() and (not runner_path.is_file()):
+			plan.issue(runner_path, 'Expected a regular configuration file; preserved')
+		else:
+			actual_runner = runner_path.read_bytes() if runner_path.is_file() else None
+			owned_runner = previous.get('files', {}).get(str(runner_path))
+			if actual_runner != wanted_runner and None is not actual_runner and (owned_runner != _hash(actual_runner)) and (not actual_runner.startswith(HOOK_RUNNER_HEADER.encode('utf-8'))):
+				plan.issue(runner_path, 'Existing harness_hook_runner.py differs from its owned definition; preserved')
+			else:
+				plan.file(runner_path, wanted_runner)
+				profile['files'][str(runner_path)] = _hash(wanted_runner)
+	except (ValueError, OSError) as exc:
+		plan.issue(runner_path, str(exc))
 	path = config / 'hooks.json'
 	try:
 		hooks = json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else {}
 		if not isinstance(hooks, dict):
 			raise ValueError('hooks.json must be a JSON object; preserved')
-		for hook, desired in canonical_global_hooks(primary).items():
-			if hook in hooks and hooks[hook] != desired and (previous.get('hook_hashes', {}).get(hook) != _hash(_json(hooks[hook]))):
+		relocated = _relocated_primaries(primary)
+		owned_legacy_variants = [legacy_direct_global_hooks(cand) for cand in (primary, *relocated)] + [canonical_global_hooks(primary)]
+		for hook, desired in canonical_global_hooks(primary, config_dir=config).items():
+			is_owned_legacy = hook in hooks and any((hooks[hook] == variant.get(hook) for variant in owned_legacy_variants))
+			if hook in hooks and hooks[hook] != desired and (not is_owned_legacy) and (previous.get('hook_hashes', {}).get(hook) != _hash(_json(hooks[hook]))):
 				plan.issue(path, f'Existing hook {hook} differs from its owned definition; preserved')
 			else:
 				if hooks.get(hook) != desired:

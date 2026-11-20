@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
 # https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -218,7 +221,7 @@ def _validate_string_list(raw: Any, label: str) -> list[str]:
 		raise ValueError(f'{label} must be a list of non-empty path strings')
 	return list(raw)
 def _infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
-	if '\u26ef' == anchor_code.name and 4 <= len(anchor_code.parents) and ('Deliverables', '\u227b', 'Artifacts') == (anchor_code.parent.name, anchor_code.parents[1].name, anchor_code.parents[2].name):
+	if '\u26ef' == anchor_code.name and 4 <= len(anchor_code.parents) and (anchor_code.parent.name, anchor_code.parents[1].name, anchor_code.parents[2].name) in (('\u2655', '\u227b', '\u2c0f'), ('Deliverables', '\u227b', 'Artifacts')):
 		root = anchor_code.parents[3].resolve()
 		return (root, root, 2)
 	root = anchor_code.parent.resolve()
@@ -408,14 +411,17 @@ def relocated_harness_code_dirs(*, primary: str | Path | None=None, registry: Pa
 	cur_code = Path(os.path.abspath(primary)) if None is not primary else (Path(reg.resolved_variables.get('HARNESS_CODE', '')).resolve() if reg.resolved_variables.get('HARNESS_CODE') else None)
 	h_root = reg.resolved_variables.get('HARNESS_ROOT')
 	legacy_prim = reg.harness_stores.get('legacy_primary')
+	v2_rels = ('\u2c0f/\u227b/\u2655/\u26ef', 'Artifacts/\u227b/Deliverables/\u26ef', 'code')
 	cands: list[str] = []
 	if None is not cur_code:
-		if ('Artifacts', '\u227b', 'Deliverables', '\u26ef') == cur_code.parts[-4:]:
-			cands.append(str(cur_code.parents[3] / 'code'))
+		if cur_code.parts[-4:] in (('\u2c0f', '\u227b', '\u2655', '\u26ef'), ('Artifacts', '\u227b', 'Deliverables', '\u26ef')):
+			base = cur_code.parents[3]
+			cands.extend((str(base / rel) for rel in v2_rels))
 		elif 'code' == cur_code.name:
-			cands.append(str(cur_code.parent / 'Artifacts/\u227b/Deliverables/\u26ef'))
+			base = cur_code.parent
+			cands.extend((str(base / rel) for rel in v2_rels))
 	if h_root:
-		cands.extend([f'{h_root}/code', f'{h_root}/Artifacts/\u227b/Deliverables/\u26ef'])
+		cands.extend((f'{h_root}/{rel}' for rel in v2_rels))
 	if isinstance(legacy_prim, str):
 		cands.append(legacy_prim)
 	out: list[Path] = []
@@ -566,29 +572,34 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	}
 def _has_v2_markers(root: Path, reg: PathRegistry) -> bool:
 	book_name = reg.resolved_variables.get('BOOK_DIR_NAME', '\U0001f56e')
-	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
 	art_in = reg.resolved_variables.get('ARTIFACTS_IN_DIR_NAME', '\u227a')
 	j_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
 	j_out = reg.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b')
 	j_in = reg.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')
-	return (root / book_name).is_dir() or (root / art_name / art_out).is_dir() or (root / art_name / art_in).is_dir() or (root / j_name / j_out).is_dir() or (root / j_name / j_in).is_dir()
+	return (root / book_name).is_dir() or (root / art_name / art_out).is_dir() or (root / art_name / art_in).is_dir() or (root / 'Artifacts' / art_out).is_dir() or (root / 'Artifacts' / art_in).is_dir() or (root / j_name / j_out).is_dir() or (root / j_name / j_in).is_dir()
 def _v2_software_deliverable_dir(root: Path, reg: PathRegistry) -> Path:
-	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
+	deliv_name = reg.resolved_variables.get('DELIVERABLES_DIR_NAME', '\u2655')
 	sw_name = reg.resolved_variables.get('SOFTWARE_DIR_NAME', '\u26ef')
-	return root / art_name / art_out / 'Deliverables' / sw_name
+	cand = root / art_name / art_out / deliv_name / sw_name
+	if not cand.exists() and (root / 'Artifacts' / art_out / 'Deliverables' / sw_name).exists():
+		return root / 'Artifacts' / art_out / 'Deliverables' / sw_name
+	return cand
 def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=None) -> Path:
 	reg = registry or load_registry()
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
 	sw_name = reg.resolved_variables.get('SOFTWARE_DIR_NAME', '\u26ef')
-	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
+	deliv_name = reg.resolved_variables.get('DELIVERABLES_DIR_NAME', '\u2655')
 	path = Path(value).resolve()
 	if path.name in ('code', meta_name) and (path.parent / 'code').is_dir() and (path.parent / meta_name).is_dir():
 		path = path.parent.resolve()
-	elif path.name == sw_name and 4 <= len(path.parents) and ('Deliverables', art_out, art_name) == (path.parent.name, path.parents[1].name, path.parents[2].name):
+	elif path.name == sw_name and 4 <= len(path.parents) and (path.parent.name, path.parents[1].name, path.parents[2].name) in ((deliv_name, art_out, art_name), ('Deliverables', art_out, 'Artifacts')):
 		cand_root = path.parents[3].resolve()
 		if (cand_root / agent_name).is_dir() or (cand_root / '.agents').is_dir() or _has_v2_markers(cand_root, reg):
 			path = cand_root
@@ -694,7 +705,7 @@ def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None,
 	journal_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
 	book_name = reg.resolved_variables.get('BOOK_DIR_NAME', '\U0001f56e')
-	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', 'Artifacts')
+	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
 	art_in = reg.resolved_variables.get('ARTIFACTS_IN_DIR_NAME', '\u227a')
 	bounded: list[tuple[int, Path]] = []
@@ -722,7 +733,7 @@ def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None,
 			return (idx, anc)
 		if anc.name == book_name and anc.parent.is_dir() and _path_key(anc.parent) not in reg.workspace_overrides:
 			return (idx, canonicalize_root_dir(anc.parent, registry=reg))
-		if (anc / book_name).is_dir() or (anc / art_name / art_out).is_dir() or (anc / art_name / art_in).is_dir():
+		if (anc / book_name).is_dir() or (anc / art_name / art_out).is_dir() or (anc / art_name / art_in).is_dir() or (anc / 'Artifacts' / art_out).is_dir() or (anc / 'Artifacts' / art_in).is_dir():
 			return (idx, anc)
 	for idx, anc in bounded:
 		if anc.name == journal_name and anc.parent.is_dir() and _path_key(anc.parent) not in reg.workspace_overrides:
@@ -815,6 +826,16 @@ class ProjectPaths:
 		merged_vars.update(prof_spec['variables'])
 		if self.overlay:
 			merged_vars.update(self.overlay['variables'])
+		ov_vars = self.overlay['variables'] if self.overlay else {}
+		if 2 == self.fs_version and 'ARTIFACTS_DIR_NAME' not in ov_vars and 'ARTIFACTS_DIR' not in ov_vars:
+			cur_art = self.registry.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
+			if not (self.root / cur_art).exists() and (self.root / 'Artifacts').is_dir():
+				merged_vars['ARTIFACTS_DIR_NAME'] = 'Artifacts'
+				art_out = self.registry.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
+				if 'DELIVERABLES_DIR_NAME' not in ov_vars and (self.root / 'Artifacts' / art_out / 'Deliverables').is_dir():
+					merged_vars['DELIVERABLES_DIR_NAME'] = 'Deliverables'
+				if 'INTERMEDIARY_DIR_NAME' not in ov_vars and (self.root / 'Artifacts' / art_out / 'Intermediary').is_dir():
+					merged_vars['INTERMEDIARY_DIR_NAME'] = 'Intermediary'
 		merged_vars['PROJECT_ROOT'] = escape_template_literal(self.root.as_posix())
 		eff_slot_tpls: dict[str, str] = {}
 		slot_vars: dict[str, str] = {}
@@ -868,7 +889,7 @@ class ProjectPaths:
 		raw_links = self.overlay['linked_roots'] if self.overlay and self.overlay['linked_roots'] else prof_spec['linked_roots']
 		self.linked_roots = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_links))
 		self.journal_legacy_fallbacks = tuple((Path(self._resolve_rel_to_root(item)) for item in prof_spec['journal_legacy_fallbacks']))
-		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/', '/artifacts/\u227b/deliverables/')))
+		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/', '/\u2c3f/\u227b/\u2655/', '/artifacts/\u227b/deliverables/')))
 		self.source_dirs = tuple((Path(self._resolve_rel_to_root(item)) for item in (self.overlay['source_dirs'] if self.overlay else ())))
 		if _register_links and self.has_overlay:
 			self._register_reverse_links()
