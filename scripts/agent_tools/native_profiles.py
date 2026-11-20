@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
+# https://github.com/dmitry-ai/harness/issues/106
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -51,10 +54,23 @@ def _same_path(first, second):
 	return Path(first).resolve() == Path(second).resolve()
 def _link_target_path(path):
 	raw = os.readlink(path)
-	if raw.startswith('\\\\?\\'):
+	if raw.startswith(('\\\\?\\', '\\??\\')):
 		raw = raw[4:]
 	cand = Path(raw)
 	return _absolute(cand if cand.is_absolute() else (Path(path).parent / cand))
+def _direct_link_matches_target(path, target):
+	return _linked(path) and os.path.normcase(str(_link_target_path(path))) == os.path.normcase(str(_absolute(target)))
+def _is_relocated_owned_link(path, prior_target, current_target, relocated_targets):
+	if not isinstance(prior_target, str):
+		return False
+	owned = {os.path.normcase(str(_absolute(t))) for t in (current_target, *relocated_targets)}
+	if os.path.normcase(str(_absolute(prior_target))) not in owned:
+		return False
+	try:
+		actual = os.path.normcase(str(_link_target_path(path)))
+	except OSError:
+		return False
+	return actual in {os.path.normcase(str(_absolute(t))) for t in relocated_targets}
 def _link_matches_target(path, target):
 	try:
 		if _same_path(path, target):
@@ -382,13 +398,7 @@ def _manifest(payload, kind, config, primary):
 	new_inherits = []
 	for entry in inherits:
 		source, has_extra = resolve_manifest_entry(config, entry)
-		if None is not source and _same_path(source, shared):
-			if has_extra:
-				raise ValueError('Filtered inherited Harness manifest needs explicit reconciliation; preserved')
-			if not already:
-				new_inherits.append(entry)
-				already = True
-		elif None is not source and any((_same_path(source, rs) for rs in relocated_shared)):
+		if None is not source and (_same_path(source, shared) or any((_same_path(source, rs) for rs in relocated_shared))):
 			if has_extra:
 				raise ValueError('Filtered inherited Harness manifest needs explicit reconciliation; preserved')
 			if not already:
@@ -635,13 +645,13 @@ def _codex_plan(plan, name, home, primary, state):
 		wrapper = skill_path / 'SKILL.md'
 		prior_skill_target = prior_links.get(str(_absolute(skill_path)))
 		relocated_skill_targets = {_absolute(rc / 'skills' / skill) for rc in relocated}
-		_plan_codex_link(plan, profile, _ManagedLink(skill_path, skill_target, 'directory', label='skill'), lambda p=skill_path, t=skill_target: p.is_dir() and _same_path(p, t), 'Skill link points to a different or missing directory; preserved', wrapper, lambda p=skill_path, w=wrapper, s=skill: p.is_dir() and ['SKILL.md'] == sorted((c.name for c in p.iterdir())) and (not _linked(w)) and w.is_file() and (_normalized(w.read_text(encoding='utf-8-sig')) == _normalized(_legacy_skill(s, primary))), 'Existing skill directory is not an exact generated wrapper; preserved', relocated_valid=lambda p=skill_path, pt=prior_skill_target, rts=relocated_skill_targets: isinstance(pt, str) and _absolute(pt) in rts and _link_matches_target(p, pt))
+		_plan_codex_link(plan, profile, _ManagedLink(skill_path, skill_target, 'directory', label='skill'), lambda p=skill_path, t=skill_target: p.is_dir() and _same_path(p, t) and _direct_link_matches_target(p, t), 'Skill link points to a different or missing directory; preserved', wrapper, lambda p=skill_path, w=wrapper, s=skill: p.is_dir() and ['SKILL.md'] == sorted((c.name for c in p.iterdir())) and (not _linked(w)) and w.is_file() and (_normalized(w.read_text(encoding='utf-8-sig')) == _normalized(_legacy_skill(s, primary))), 'Existing skill directory is not an exact generated wrapper; preserved', relocated_valid=lambda p=skill_path, pt=prior_skill_target, t=skill_target, rts=relocated_skill_targets: _is_relocated_owned_link(p, pt, t, rts))
 	for role, agent, purpose, _ in _role_values(primary):
 		role_path, role_target = (home / f'agents/{agent}.toml', Path(primary) / f'platforms/codex/agents/{agent}.toml')
 		profile['role_targets'][str(_absolute(role_path))] = str(role_target)
 		prior_role_target = prior_roles.get(str(_absolute(role_path))) or prior_links.get(str(_absolute(role_path)))
 		relocated_role_targets = {_absolute(rc / f'platforms/codex/agents/{agent}.toml') for rc in relocated}
-		_plan_codex_link(plan, profile, _ManagedLink(role_path, role_target, 'file-symlink', label='role'), lambda p=role_path, t=role_target: p.is_symlink() and p.is_file() and _same_path(p, t) and (p.read_bytes() == t.read_bytes()), 'Role link points to a different or missing file; preserved', role_path, lambda p=role_path, rl=role, ag=agent, pr=purpose: p.is_file() and _normalized(p.read_text(encoding='utf-8-sig')) == _normalized(_legacy_role(primary, rl, ag, pr)), 'Legacy role differs from its exact generated template; preserved', relocated_valid=lambda p=role_path, pt=prior_role_target, rts=relocated_role_targets: p.is_symlink() and isinstance(pt, str) and _absolute(pt) in rts and _link_matches_target(p, pt))
+		_plan_codex_link(plan, profile, _ManagedLink(role_path, role_target, 'file-symlink', label='role'), lambda p=role_path, t=role_target: p.is_symlink() and p.is_file() and _same_path(p, t) and _direct_link_matches_target(p, t) and (p.read_bytes() == t.read_bytes()), 'Role link points to a different or missing file; preserved', role_path, lambda p=role_path, rl=role, ag=agent, pr=purpose: p.is_file() and _normalized(p.read_text(encoding='utf-8-sig')) == _normalized(_legacy_role(primary, rl, ag, pr)), 'Legacy role differs from its exact generated template; preserved', relocated_valid=lambda p=role_path, pt=prior_role_target, t=role_target, rts=relocated_role_targets: p.is_symlink() and _is_relocated_owned_link(p, pt, t, rts))
 	plan.profiles[name] = profile
 def _prepare_link_parent(path, label, action='creation'):
 	if _linked_ancestor(path, include_self=False):

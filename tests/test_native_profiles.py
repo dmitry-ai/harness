@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
+# https://github.com/dmitry-ai/harness/issues/106
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
 # https://github.com/dmitry-ai/harness/issues/86
@@ -788,3 +791,55 @@ class NativeProfileTests(TemporaryCase):
 		decision = json.loads(proc.stdout)
 		self.assertEqual(decision['decision'], 'deny')
 		self.assertIn('multiple sentences', decision['reason'])
+	def test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists(self):
+		import shutil
+		old_primary = self.root / 'v2_mig/Artifacts/\u227b/Deliverables/\u26ef'
+		shutil.copytree(self.primary, old_primary)
+		self.assertTrue(native.install_native_profiles(('A6', 'C2'), primary=old_primary)['valid'])
+		new_primary = self.root / 'v2_mig/\u2c0f/\u227b/\u2655/\u26ef'
+		new_primary.parent.mkdir(parents=True, exist_ok=True)
+		shutil.move(str(old_primary), str(new_primary))
+		native._directory_link(new_primary, old_primary, new_primary)
+		self.assertFalse(native.install_native_profiles(('A6', 'C2'), primary=new_primary, check=True)['valid'])
+		res = native.install_native_profiles(('A6', 'C2'), primary=new_primary)
+		self.assertTrue(res['valid'], res)
+		for kind in ('rules', 'skills', 'agents'):
+			data = json.loads((self.gravity['A6'] / f'{kind}.json').read_text(encoding='utf-8'))
+			self.assertEqual([{'path': (new_primary / f'platforms/antigravity/{kind}.json').as_posix()}], data['inherits'])
+			self.assertNotIn('Artifacts', json.dumps(data))
+		skill_link = self.homes['C2'] / 'skills/df-article'
+		role_link = self.homes['C2'] / 'agents/upwork-aa.toml'
+		self.assertEqual(str(native._link_target_path(skill_link)), str(native._absolute(new_primary / 'skills/df-article')))
+		self.assertEqual(str(native._link_target_path(role_link)), str(native._absolute(new_primary / 'platforms/codex/agents/upwork-aa.toml')))
+		old_primary.rmdir()
+		self.assertTrue(native.install_native_profiles(('A6', 'C2'), primary=new_primary, check=True)['valid'])
+		self.assertEqual((skill_link / 'SKILL.md').read_text(encoding='utf-8'), (new_primary / 'skills/df-article/SKILL.md').read_text(encoding='utf-8'))
+		self.assertEqual(role_link.read_bytes(), (new_primary / 'platforms/codex/agents/upwork-aa.toml').read_bytes())
+	def test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary(self):
+		import shutil
+		old_primary = self.root / 'v2_rec/Artifacts/\u227b/Deliverables/\u26ef'
+		shutil.copytree(self.primary, old_primary)
+		self.assertTrue(native.install_native_profiles(('C2',), primary=old_primary)['valid'])
+		new_primary = self.root / 'v2_rec/\u2c0f/\u227b/\u2655/\u26ef'
+		new_primary.parent.mkdir(parents=True, exist_ok=True)
+		shutil.move(str(old_primary), str(new_primary))
+		state_path = native._state_path(new_primary)
+		state = json.loads(state_path.read_text(encoding='utf-8'))
+		state['profiles']['C2']['links'] = {k: v.replace('Artifacts\\\u227b\\Deliverables\\\u26ef', '\u2c0f\\\u227b\\\u2655\\\u26ef').replace('Artifacts/\u227b/Deliverables/\u26ef', '\u2c0f/\u227b/\u2655/\u26ef') for k, v in state['profiles']['C2']['links'].items()}
+		state['profiles']['C2']['role_targets'] = {k: v.replace('Artifacts\\\u227b\\Deliverables\\\u26ef', '\u2c0f\\\u227b\\\u2655\\\u26ef').replace('Artifacts/\u227b/Deliverables/\u26ef', '\u2c0f/\u227b/\u2655/\u26ef') for k, v in state['profiles']['C2']['role_targets'].items()}
+		self.write(state_path, json.dumps(state))
+		personal_target = self.root / 'personal-skill'
+		(personal_target / 'SKILL.md').parent.mkdir(parents=True, exist_ok=True)
+		self.write(personal_target / 'SKILL.md', 'Keep my personal linked skill.\n')
+		personal_link = self.homes['C2'] / 'skills/personal'
+		native._directory_link(personal_target, personal_link, new_primary)
+		res = native.install_native_profiles(('C2',), primary=new_primary)
+		self.assertTrue(res['valid'], res)
+		skill_link = self.homes['C2'] / 'skills/df-article'
+		role_link = self.homes['C2'] / 'agents/upwork-aa.toml'
+		self.assertEqual(str(native._link_target_path(skill_link)), str(native._absolute(new_primary / 'skills/df-article')))
+		self.assertEqual(str(native._link_target_path(role_link)), str(native._absolute(new_primary / 'platforms/codex/agents/upwork-aa.toml')))
+		self.assertEqual((skill_link / 'SKILL.md').read_text(encoding='utf-8'), (new_primary / 'skills/df-article/SKILL.md').read_text(encoding='utf-8'))
+		self.assertEqual(role_link.read_bytes(), (new_primary / 'platforms/codex/agents/upwork-aa.toml').read_bytes())
+		self.assertEqual(str(native._link_target_path(personal_link)), str(native._absolute(personal_target)))
+		self.assertTrue(native.install_native_profiles(('C2',), primary=new_primary, check=True)['valid'])
