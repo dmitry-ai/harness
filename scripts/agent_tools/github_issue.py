@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -333,6 +336,7 @@ def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
 def _find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> Path | None:
 	from .path_registry import project_paths, store_value
 	r = None
+	v2_code_rel = 'Artifacts/\u227b/Deliverables/\u26ef'
 	candidates: list[Path] = []
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
@@ -341,7 +345,7 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 			candidates.extend([*pp.code_repos, *pp.auxiliary_repos.values()])
 		except (OSError, ValueError):
 			pass
-		candidates.extend([pr, pr / 'code', pr.parent, pr.parent / 'code'])
+		candidates.extend([pr, pr / 'code', pr / v2_code_rel, pr.parent, pr.parent / 'code', pr.parent / v2_code_rel])
 	for fpath, _ in source_files or []:
 		resolved = fpath.resolve()
 		try:
@@ -350,10 +354,10 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 		except (OSError, ValueError):
 			pass
 		for anc in (resolved, *resolved.parents):
-			candidates.extend([anc, anc / 'code'])
+			candidates.extend([anc, anc / 'code', anc / v2_code_rel])
 	cwd = Path.cwd().resolve()
 	for anc in (cwd, *cwd.parents):
-		candidates.extend([anc, anc / 'code'])
+		candidates.extend([anc, anc / 'code', anc / v2_code_rel])
 	seen: set[Path] = set()
 	for cand in candidates:
 		if cand not in seen:
@@ -367,7 +371,7 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 			if not search_root.is_dir():
 				continue
 			try:
-				for pattern in ('*/.git/config', '**/code/.git/config'):
+				for pattern in ('*/.git/config', '**/code/.git/config', '**/\u26ef/.git/config'):
 					for cfg in search_root.glob(pattern):
 						code_dir = cfg.parent.parent.resolve()
 						if code_dir not in seen:
@@ -388,7 +392,7 @@ def _meta_dir_for_project_root(proj_root: Path) -> Path | None:
 	proj_root = proj_root.resolve()
 	try:
 		pp = project_paths(proj_root)
-		if pp.agent_dir.is_dir() or pp.has_overlay or (pp.root / '_').is_dir():
+		if pp.agent_dir.is_dir() or pp.has_overlay or 2 <= pp.fs_version or (pp.root / '_').is_dir():
 			return pp.agent_dir
 	except (OSError, ValueError):
 		pass
@@ -406,7 +410,7 @@ def _issue_target_for_path(target_path: Path) -> tuple[Path, Path] | None:
 		pp = project_paths(target_path)
 		if None is not workspace_override(pp.root):
 			return (store_path('github_evidence_dir'), pp.turns_dir)
-		if pp.agent_dir.is_dir() or pp.has_overlay or (pp.root / '_').is_dir() or pp.turns_dir.is_dir() or pp.evidence_dir.is_dir():
+		if pp.agent_dir.is_dir() or pp.has_overlay or 2 <= pp.fs_version or (pp.root / '_').is_dir() or pp.turns_dir.is_dir() or pp.evidence_dir.is_dir():
 			return (pp.evidence_dir / 'GitHub', pp.turns_dir)
 	except (OSError, ValueError):
 		pass

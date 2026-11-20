@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -77,8 +80,8 @@ def check_git_write_gate(name: str, args: dict) -> str | None:
 def check_journal_write_gate(name: str, args: dict) -> str | None:
 	if name in ('write_file', 'edit_file'):
 		path = (args.get('Path') or '').replace('\\', '/')
-		if re.search('(?:^|/)\\ua66e/(?:[^/]+/)?(?:req|res)/[^/]+\\.md$', path, re.IGNORECASE):
-			return 'FILE-3 / FILE-4: Direct write_file or edit_file to journal req/res files is prohibited; use harness.py answer-prepare to record primary responses with answer-groups receipts.'
+		if re.search('(?:^|/)\\ua66e/(?:[^/]+/)?(?:req|res|\\u227b|\\u227a)/[^/]+\\.md$', path, re.IGNORECASE):
+			return 'FILE-3 / FILE-4: Direct write_file or edit_file to journal req/res (or \u227b/\u227a) files is prohibited; use harness.py answer-prepare to record primary responses with answer-groups receipts.'
 	elif 'run_command' == name:
 		cmd = args.get('CommandLine') or ''
 		if re.search('\\brecord_step\\.py\\b', cmd, re.IGNORECASE) and (not re.search('\\bgit\\b[^;|\\n]*\\brm\\b[^;|\\n]*\\brecord_step\\.py\\b', cmd, re.IGNORECASE)):
@@ -251,7 +254,7 @@ def check_cdp_bypass_gate(name: str, args: dict) -> str | None:
 		content = args.get('Content') if 'write_file' == name else args.get('Replacement')
 		if raw_p and isinstance(content, str) and content and (not _is_inside_sanctioned_code(raw_p)) and is_code_file(raw_p):
 			if _CDP_PROTOCOL_RE.search(content):
-				return 'EXEC-1 / EXEC-3 / M-4: Writing external scripts that directly access loopback CDP endpoints (/json, /devtools/page/, /devtools/browser/, DevToolsActivePort) outside AI/harness/code is prohibited; use harness.py or df_text.py.'
+				return 'EXEC-1 / EXEC-3 / M-4: Writing external scripts that directly access loopback CDP endpoints (/json, /devtools/page/, /devtools/browser/, DevToolsActivePort) outside sanctioned Harness code is prohibited; use harness.py or df_text.py.'
 	return None
 def _turn_has_background_mcp_new_page(payload: dict) -> bool:
 	t_path_raw = payload.get('transcriptPath') or ''

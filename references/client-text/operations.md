@@ -1,7 +1,7 @@
 # Commands and Service Data
 
 All commands below are executed by the agent.  
-`<scripts>` denotes `AI/harness/code/scripts`, and `<root>` denotes the exact root of the instruction.  
+`<scripts>` denotes `AI/harness/Artifacts/≻/Deliverables/⛯/scripts`, and `<root>` denotes the exact root of the instruction.  
 `df_text.py`, `df_article.py`, and `df_proposal.py` import the same CLI; the latter two select their default format.  
 UTF-8 JSON/Markdown may be piped via `-` on stdin (subject to the UTF-8 file rule on Windows PowerShell).  
 Exit code `0` means the check passed, `1` indicates substantive findings, and `2` indicates invalid input or an operation refusal.  

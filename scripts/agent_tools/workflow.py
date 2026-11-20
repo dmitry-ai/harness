@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -354,7 +357,7 @@ class WorkflowStateEngine:
 		state['requests'] = [x for x in state.get('requests', []) if not ((conversation_id and x.get('native_conversation_id') == conversation_id) or (req_ids and x.get('id') in req_ids))]
 	def _finalize_stage(self, state, out_hashes, outputs):
 		from .context import generate
-		from .journal import get_existing_step_ids, resolve_journal_dir, step_errors
+		from .journal import get_existing_step_ids, journal_pair_dirs, resolve_journal_dir, step_errors
 		from .links import readable_link_issues
 		from .review import authorize
 		from .text_workflow import gate_paths
@@ -367,14 +370,15 @@ class WorkflowStateEngine:
 		ids = get_existing_step_ids(journal)
 		if not ids or any((step_errors(journal, ident) for ident in ids)):
 			raise ValueError('Complete exact req/res journal pairs before external export')
+		req_dir, res_dir = journal_pair_dirs(journal)
 		latest = max(ids)
-		reply = journal / 'res' / f'{latest}.md'
+		reply = res_dir / f'{latest}.md'
 		link_issues = readable_link_issues(reply.read_text(encoding='utf-8'))
 		if link_issues:
 			raise ValueError('\n'.join(link_issues))
 		if reply.relative_to(self.root).as_posix() not in out_hashes:
 			raise ValueError('Declare the actual final reply file as a finalize output')
-		if state['requests'] and (journal / 'req' / f'{latest}.md').read_bytes().decode('utf-8') != state['requests'][-1]['text']:
+		if state['requests'] and (req_dir / f'{latest}.md').read_bytes().decode('utf-8') != state['requests'][-1]['text']:
 			raise ValueError('Latest journal request differs from the recorded current continuation request')
 		r = authorize(self.root, state, response=reply.read_bytes().decode('utf-8'))
 		if any((not request.get('response_prepared') for request in state['requests'])) or not state['requests'] or state['requests'][-1]['response_prepared'].get('sha256') != r['response_sha256']:

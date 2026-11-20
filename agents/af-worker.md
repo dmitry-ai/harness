@@ -5,6 +5,6 @@ model: flash
 subagent: true
 mainAgent: false
 ---
-Read the shared worker protocol: C:/work/research/provision/code/AI/harness/code/agents/worker.md  
+Read the shared worker protocol: C:/work/research/provision/code/AI/harness/Artifacts/≻/Deliverables/⛯/agents/worker.md  
 Environment: Antigravity.  
 Follow the platform protocol and runtime.json; the configured tier does not prove the exact model.  

@@ -15,7 +15,7 @@ Determine the active platform and read only its adapter: [Codex](../../platforms
 Pass `--platform` of the active environment to internal commands; inspect default models, effort, and profile settings in `runtime.json` via `doctor`.  
 In Codex, verify native projections via `build-native --check`; if rule paths, roles, or `runtime.json` changed, run `build-native`.  
 Canonical texts are read from their single source without creating `CODEX.md`.  
-Tool: `C:/work/research/provision/code/AI/harness/code/scripts/upwork_project.py`.  
+Tool: `C:/work/research/provision/code/AI/harness/Artifacts/≻/Deliverables/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
 `doctor` reports version digests, existing paths, default models, and selection policy; it does not prove the active session model.  
 Roles A.A/A.F, default models, and selection policy are defined solely by `runtime.json`; never substitute memorized model names.  
 Verify available actual metadata and mark anything unknown explicitly.  
@@ -25,7 +25,7 @@ All commands below are executed internally by the agent; the user only enters ch
 ## New Project
 
 The user starts with `/upwork-init <URL>`.  
-Save the exact request and raw capture materials in a dedicated staging folder `AI/harness/_/ꘖ/data/incoming/<job_id>-<ID>`.  
+Save the exact request and raw capture materials in a dedicated staging folder `AI/harness/ꘖ/data/incoming/<job_id>-<ID>`.  
 Run `inspect <URL> --output <staging>/source.json` once; when multiple tabs match, pass an explicit `--tab-id`.  
 Inspect all attachments and `coverage`; `history_complete: false` never means complete client history.  
 All client-attached files must be saved simultaneously in the root `source/` folder of the project and in `ꘖ/KB/Evidence/Attachments/<sha256>/`.  

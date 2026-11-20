@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -193,11 +196,11 @@ class AnswerPreparationRunner:
 						lpaths, _ = extract_block_links(blk, self.root, None)
 						for rp in lpaths:
 							rlow = rp.as_posix().lower()
-							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
+							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/\u227a/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
 								unreread_cited.append(ev_map[rlow])
 				for ev_low, ev_orig in ev_map.items():
-					m_res = re.search('/res/(\\d+\\.md)$', ev_low)
-					if m_res and re.search(f'\\bres/{re.escape(m_res.group(1))}\\b', self.response, re.I) and (ev_orig not in unreread_cited):
+					m_res = re.search('/(?:res|\\u227a)/(\\d+\\.md)$', ev_low)
+					if m_res and re.search(f'(?:\\bres|\\u227a)/{re.escape(m_res.group(1))}\\b', self.response, re.I) and (ev_orig not in unreread_cited):
 						unreread_cited.append(ev_orig)
 				if unreread_cited:
 					detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
@@ -826,6 +829,7 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 	native_ids = [req['id'] for req in turn['requests']]
 	norm_turn_reqs = [_norm_journal_text(req['text']) for req in turn['requests']]
 	norm_turn_resp = _norm_journal_text(response)
+	_, res_dir = journal.journal_pair_dirs(directory)
 	matches = []
 	for _, old in journal.iter_answer_group_records(directory):
 		if old.get('request_ids') == native_ids:
@@ -833,7 +837,7 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 			reqs_ok = old_reqs == [req['text'] for req in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
 			resp_ok = old.get('response_sha256') == _hash(response.encode('utf-8'))
 			if not resp_ok and old.get('steps'):
-				res_p = directory / 'res' / f"{old['steps'][0]}.md"
+				res_p = res_dir / f"{old['steps'][0]}.md"
 				if res_p.is_file():
 					try:
 						disk_r = res_p.read_bytes().decode('utf-8')
@@ -868,10 +872,27 @@ def _intermediate_or_language_issues(requests, response: str) -> list[str]:
 	for err in verify_target_locale(response or '', target_locale='und', container_text=req_raw, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20):
 		r.append(err['message'])
 	return r
+def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str, *, kind: str) -> bool:
+	if saved_str == current_str:
+		return True
+	if not isinstance(saved_str, str) or not saved_str.strip():
+		return False
+	saved_p, cur_p = (Path(saved_str), Path(current_str))
+	if saved_p.exists() or saved_p.name != cur_p.name:
+		return False
+	from .path_registry import canonicalize_root_dir
+	canon_root = canonicalize_root_dir(root)
+	if 'response' == kind:
+		return saved_p.parent.name in ('res', '\u227a') and journal.same_journal_identity(saved_p.parent.parent, cur_p.parent.parent)
+	if 'group' == kind and 'answer-groups' == saved_p.parent.name and '.journal' == saved_p.parents[2].name:
+		old_anc = saved_p.parents[5] if 6 <= len(saved_p.parents) and '_' == saved_p.parents[4].name else saved_p.parents[4]
+		return canonicalize_root_dir(old_anc) == canon_root and canonicalize_root_dir(cur_p.parents[4]) == canon_root
+	return False
 def _record(root, native, turn, response, directory, *, existing=None, purpose='publication', allow_reprepare=False):
 	if purpose not in ('publication', 'observation'):
 		raise ValueError('Choose publication admission or historical observation')
 	directory = _directory(root, directory)
+	req_dir, res_dir = journal.journal_pair_dirs(directory)
 	from . import admission
 	token, request_ids = _group(root, native, turn, response, directory, allow_reprepare=allow_reprepare)
 	group_file = journal.state_dir(directory) / 'answer-groups' / (token + '.json')
@@ -896,7 +917,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		if [_norm_journal_text(x) for x in g_reqs] == [_norm_journal_text(x) for x in effective_requests]:
 			effective_requests = list(g_reqs)
 		if g_data.get('steps') and _hash(effective_response.encode('utf-8')) != g_data.get('response_sha256'):
-			res_p = directory / 'res' / f"{g_data['steps'][0]}.md"
+			res_p = res_dir / f"{g_data['steps'][0]}.md"
 			if res_p.is_file():
 				try:
 					disk_r = res_p.read_bytes().decode('utf-8')
@@ -928,13 +949,13 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		proof = capability.reference
 		verification = {'status': 'verified', 'scope': 'original_publication_admission' if purpose == 'observation' else 'current_publication_readiness'}
 	for step, request in zip(steps, effective_requests):
-		if (directory / 'req' / f'{step}.md').read_bytes() != request.encode('utf-8'):
+		if (req_dir / f'{step}.md').read_bytes() != request.encode('utf-8'):
 			raise ValueError('Recorded request read-back differs from native text')
-		if (directory / 'res' / f'{step}.md').read_bytes() != effective_response.encode('utf-8'):
+		if (res_dir / f'{step}.md').read_bytes() != effective_response.encode('utf-8'):
 			raise ValueError('Recorded response read-back differs from prepared text')
-	recorded = {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'response_file': str(directory / 'res' / f'{steps[0]}.md'), 'group_file': str(group_file)}
+	recorded = {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'response_file': str(res_dir / f'{steps[0]}.md'), 'group_file': str(group_file)}
 	if existing:
-		if any((existing.get(name) != expected for name, expected in recorded.items())):
+		if existing.get('journal_steps') != recorded['journal_steps'] or existing.get('response_sha256') != recorded['response_sha256'] or (not _same_turn_artifact_path(root, existing.get('response_file'), recorded['response_file'], kind='response')) or (not _same_turn_artifact_path(root, existing.get('group_file'), recorded['group_file'], kind='group')):
 			raise ValueError('Recorded answer receipt differs from its verified journal identity; preserve history')
 		if existing.get('group_sha256') and existing['group_sha256'] != _hash(group_file.read_bytes()):
 			raise ValueError('Recorded answer-group bytes changed; preserve history')

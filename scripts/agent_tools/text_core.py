@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -286,7 +289,8 @@ def check_response(path: Path, text: str | None=None, against=(), lexicon=None, 
 	text = path.read_bytes().decode('utf-8') if None is text else text
 	findings = []
 	check_prose(scan(text), 'response', detect_language(text), findings, load_lexicon() if None is lexicon else lexicon, [])
-	folder = Path(journal) / 'res' if journal else path.parent if 'res' == path.parent.name else None
+	from .journal import journal_pair_dirs
+	folder = journal_pair_dirs(Path(journal))[1] if journal else path.parent if path.parent.name in ('res', '\u227a') else None
 	if None is not folder and folder.is_dir():
 		mine = normalized(text)
 		for other in sorted(folder.glob('*.md')):

@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -305,7 +308,8 @@ class Tier0SourceIndex:
 	def _candidate_files(self, tickets: list[str] | tuple[str, ...]=()) -> list[Path]:
 		r: list[Path] = []
 		seen: set[Path] = set()
-		scan_bases = [self.pp.evidence_dir, self.pp.source_dir, self.pp.manual_kb_dir, self.root / 'tickets', *self.pp.source_dirs]
+		art_in = self.pp.path('artifacts_in_dir')
+		scan_bases = [self.pp.evidence_dir, self.pp.source_dir, self.pp.manual_kb_dir, *([art_in] if None is not art_in else []), self.root / 'tickets', *self.pp.source_dirs]
 		for base in scan_bases:
 			if base.is_dir():
 				for dirpath, dirs, filenames in os.walk(base):
@@ -629,9 +633,9 @@ def _tier0_candidate_files(root: Path, tickets: list[str] | tuple[str, ...]=()) 
 def classify_provenance_tier(path: Path, root: Path | None=None) -> str:
 	norm = '/' + path.as_posix().lower().lstrip('/')
 	name = path.name.lower()
-	if name in {'draft.md', 'draft.prev.md', 'context.md'} or '/.agents/rules/' in norm or '/rules/' in norm or ('/skills/' in norm) or ('/references/' in norm) or ('/platforms/' in norm) or ('/candidates/' in norm) or ('/data/scratch/' in norm) or ('/evidence/reviews/' in norm) or ('/res/' in norm) or norm.endswith('-audit.json'):
+	if name in {'draft.md', 'draft.prev.md', 'context.md'} or '/.agents/rules/' in norm or '/rules/' in norm or ('/skills/' in norm) or ('/references/' in norm) or ('/platforms/' in norm) or ('/candidates/' in norm) or ('/data/scratch/' in norm) or ('/evidence/reviews/' in norm) or ('/res/' in norm) or bool(re.search('/\\ua66e/(?:[^/]+/)?\\u227a/', norm)) or norm.endswith('-audit.json'):
 		r = 'tier_2'
-	elif 'source.md' == name or ('/source/' in norm and 'analysis.md' != name) or ('/kb/evidence/' in norm and (not norm.endswith('-audit.json')) and ('/evidence/github/' not in norm) and ('/evidence/reviews/' not in norm)) or norm.endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md')) or ('/req/' in norm):
+	elif 'source.md' == name or ('/source/' in norm and 'analysis.md' != name) or ('/kb/evidence/' in norm and (not norm.endswith('-audit.json')) and ('/evidence/github/' not in norm) and ('/evidence/reviews/' not in norm)) or norm.endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md', '/\U0001f56e/project.md')) or ('/req/' in norm) or bool(re.search('/\\ua66e/(?:[^/]+/)?\\u227b/', norm)) or ('/artifacts/\u227a/' in norm and 'analysis.md' != name and ('/\ua66e/' not in norm) and ('/\u26ef/' not in norm)):
 		r = 'tier_0'
 	else:
 		r = 'tier_1'
@@ -728,7 +732,7 @@ def is_primary_local_source(path: Path) -> bool:
 	elif 'tier_0' == tier:
 		r = True
 	else:
-		r = path.as_posix().lower().endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md'))
+		r = path.as_posix().lower().endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md', '/\U0001f56e/project.md'))
 	return r
 def load_fact_ledger(root: Path) -> list[dict]:
 	from .path_registry import project_paths

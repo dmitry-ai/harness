@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Bind publication admission to immutable historical integrity proofs":
 # https://github.com/dmitry-ai/harness/issues/41
@@ -38,16 +41,36 @@ def capture(paths, requests, response, identity):
 				raise ValueError('Concurrent publication admission proof differs')
 	reference = {'schema_version': 1, 'file': str(path), 'sha256': _digest(raw)}
 	return PublicationAdmission(reference, identity, seal=_SEAL)
+def _same_binding(saved: dict | None, current: dict) -> bool:
+	if not isinstance(saved, dict) or set(saved) != set(current):
+		return False
+	if saved == current:
+		return True
+	from .journal import same_journal_identity
+	return same_journal_identity(saved.get('journal'), current.get('journal')) and all((saved.get(k) == current.get(k) for k in current if 'journal' != k))
+def _resolve_proof_file(raw_file: str, journal_dir: str) -> Path:
+	path = Path(raw_file)
+	if path.is_file():
+		return path
+	if 'publication-admissions' == path.parent.name and 'data' == path.parents[1].name and '\ua616' == path.parents[2].name:
+		cand = data_dir_for(Path(journal_dir)) / 'publication-admissions' / path.name
+		if cand.is_file():
+			from .path_registry import canonicalize_root_dir
+			old_anc = path.parents[4] if 5 <= len(path.parents) and '_' == path.parents[3].name else path.parents[3]
+			new_anc = cand.parents[4] if 5 <= len(cand.parents) and '_' == cand.parents[3].name else cand.parents[3]
+			if canonicalize_root_dir(old_anc) == canonicalize_root_dir(new_anc):
+				return cand
+	return path
 def verify(reference, identity):
 	from .text_workflow import verify_integrity
 	if not isinstance(reference, dict) or reference.get('schema_version') != 1 or not isinstance(reference.get('file'), str) or not Path(reference['file']).is_absolute():
 		raise ValueError('A historical publication admission proof is required')
-	path = Path(reference['file'])
+	path = _resolve_proof_file(reference['file'], identity['journal'])
 	raw = path.read_bytes()
 	if _digest(raw) != reference.get('sha256') or path.name != reference['sha256'] + '.json':
 		raise ValueError('Publication admission proof changed')
 	proof = json.loads(raw)
-	if proof.get('schema_version') != 1 or proof.get('kind') != 'publication_admission' or proof.get('binding') != identity or not isinstance(proof.get('integrity'), list):
+	if proof.get('schema_version') != 1 or proof.get('kind') != 'publication_admission' or (not _same_binding(proof.get('binding'), identity)) or not isinstance(proof.get('integrity'), list):
 		raise ValueError('Publication admission proof belongs to another journal/request/response identity')
 	for graph in proof['integrity']:
 		verify_integrity(graph)

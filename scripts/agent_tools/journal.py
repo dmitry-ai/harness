@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -28,18 +31,69 @@ from pathlib import Path
 import re
 import uuid
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
+V1_PAIR = ('req', 'res')
+V2_PAIR = ('\u227b', '\u227a')
 def digest(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()
+def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
+	p = Path(journal_path).resolve()
+	if p.is_dir():
+		return p
+	from .path_registry import project_paths
+	cands = (
+		p.parent.parent if '_' == p.parent.name and '\ua66e' == p.name else None,
+		p.parent.parent if '\ua66e' == p.parent.name and p.name in ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437') else None,
+	)
+	for cand_root in cands:
+		if None is not cand_root and cand_root.is_dir():
+			try:
+				pp = project_paths(cand_root, exact_root=True)
+				if 2 <= pp.fs_version:
+					return pp.journal_dir.resolve()
+			except (OSError, ValueError):
+				pass
+	return p
+def same_journal_identity(first: str | Path | None, second: str | Path | None) -> bool:
+	if not isinstance(first, (str, Path)) or not isinstance(second, (str, Path)) or not str(first).strip() or not str(second).strip():
+		return False
+	return canonicalize_journal_dir_identity(first) == canonicalize_journal_dir_identity(second)
+def journal_pair_names(directory: Path) -> tuple[str, str]:
+	directory = Path(directory)
+	has_v2 = (directory / V2_PAIR[0]).is_dir() or (directory / V2_PAIR[1]).is_dir()
+	has_v1 = (directory / V1_PAIR[0]).is_dir() or (directory / V1_PAIR[1]).is_dir()
+	if has_v2 and has_v1:
+		v2_files = any((p.is_file() for sub in V2_PAIR if (directory / sub).is_dir() for p in (directory / sub).glob('*.md')))
+		v1_files = any((p.is_file() for sub in V1_PAIR if (directory / sub).is_dir() for p in (directory / sub).glob('*.md')))
+		if v2_files and v1_files:
+			raise ValueError(f'Conflicting V1 (req/res) and V2 (\u227b/\u227a) journal entries in {directory}')
+		return V2_PAIR if v2_files or (not v1_files) else V1_PAIR
+	if has_v2:
+		return V2_PAIR
+	if has_v1:
+		return V1_PAIR
+	from .path_registry import project_paths
+	try:
+		if 2 <= project_paths(directory).fs_version:
+			return V2_PAIR
+	except (OSError, ValueError):
+		pass
+	return V1_PAIR
+def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
+	d = Path(directory)
+	req_name, res_name = journal_pair_names(d)
+	return (d / req_name, d / res_name)
 def state_dir(directory: Path) -> Path:
-	identity = str(Path(directory).resolve()).casefold()
-	r = data_dir_for(directory) / '.journal' / digest(identity.encode('utf-8'))[:24]
+	eff = canonicalize_journal_dir_identity(directory)
+	identity = str(eff).casefold()
+	r = data_dir_for(eff) / '.journal' / digest(identity.encode('utf-8'))[:24]
 	return r
 def get_existing_step_ids(directory: Path) -> set[int]:
 	directory = Path(directory)
-	sources = [(directory / 'req', '.md'), (directory / 'res', '.md'), (state_dir(directory), '.json')]
+	req_dir, res_dir = journal_pair_dirs(directory)
+	sources = [(req_dir, '.md'), (res_dir, '.md'), (state_dir(directory), '.json')]
 	ids = {int(p.stem) for folder, suffix in sources if folder.exists() for p in folder.glob(f'*{suffix}') if p.stem.isascii() and p.stem.isdigit()}
 	for _, group in iter_answer_group_records(directory):
-		if group.get('journal') != str(directory.resolve()) or not isinstance(group.get('steps'), list) or any((int is not type(x) or 1 > x for x in group['steps'])):
+		if not same_journal_identity(group.get('journal'), directory.resolve()) or not isinstance(group.get('steps'), list) or any((int is not type(x) or 1 > x for x in group['steps'])):
 			raise ValueError('Damaged answer-group reservation')
 		ids.update(group['steps'])
 	r = ids
@@ -52,8 +106,9 @@ def _payload(request: str, response: str):
 		if '�' in text or '/?/KB/' in text or '/?/data/' in text or ('\\?\\KB\\' in text) or ('\\?\\data\\' in text) or re.search('(?:^|[\\s*#(])(?:\\?{2,}\\s+){2,}\\?{2,}', text):
 			raise ValueError(f'Corrupted UTF-8 {label} detected (PowerShell pipe OEM/ASCII "?" substitution or U+FFFD); write UTF-8 directly to ꘖ/data/scratch/answer.md via write_file or UTF8Encoding($false) and pass --response-file <path> --consume-input')
 def _publish(directory: Path, step: int, state: dict, *, recovering=False):
-	for folder, key in [('req', 'request'), ('res', 'response')]:
-		path = directory / folder / f'{step}.md'
+	req_dir, res_dir = journal_pair_dirs(directory)
+	for folder_dir, key in [(req_dir, 'request'), (res_dir, 'response')]:
+		path = folder_dir / f'{step}.md'
 		data = state[key].encode('utf-8')
 		if not path.exists():
 			create_bytes(path, data)
@@ -75,7 +130,8 @@ def record_step(journal_dir: Path, req_content: str, res_content: str, target_st
 	from .text_workflow import gate_requests
 	gate_requests([directory], [req_content], res_content)
 	journal_state = state_dir(directory)
-	for folder in (directory / 'req', directory / 'res', journal_state):
+	req_dir, res_dir = journal_pair_dirs(directory)
+	for folder in (req_dir, res_dir, journal_state):
 		folder.mkdir(parents=True, exist_ok=True)
 	with locked(journal_state / 'writer.lock'):
 		used = get_existing_step_ids(directory)
@@ -99,7 +155,7 @@ def recover_step(directory: Path, step: int, token: str):
 	with locked(journal_state / 'writer.lock'):
 		receipt = journal_state / f'{step}.json'
 		state = json.loads(receipt.read_text(encoding='utf-8'))
-		if state.get('journal') != str(directory) or state['token'] != token or state['step'] != step:
+		if not same_journal_identity(state.get('journal'), directory) or state['token'] != token or state['step'] != step:
 			raise ValueError('Reservation journal, token or step mismatch')
 		_payload(state['request'], state['response'])
 		for key in ('request', 'response'):
@@ -112,8 +168,8 @@ def resolve_journal_dir(root: Path, selected=None) -> Path:
 	pp = project_paths(root_p, exact_root=True)
 	if selected:
 		sel_str = pp.expand(str(selected)) if '${' in str(selected) else str(selected)
-		r = (pp.root / sel_str).resolve()
-	elif pp.has_explicit_path('journal_dir') or pp.journal_glob:
+		r = canonicalize_journal_dir_identity((pp.root / sel_str).resolve())
+	elif pp.has_explicit_path('journal_dir') or pp.journal_glob or 2 <= pp.fs_version:
 		r = pp.journal_dir.resolve()
 	elif 'dual_repo' == pp.profile and pp.journal_dir.is_dir():
 		r = pp.journal_dir.resolve()
@@ -137,8 +193,9 @@ def step_errors(directory: Path, step: int) -> list[str]:
 		r = ['Step must be a positive integer']
 	else:
 		errors = []
-		for folder in ('req', 'res'):
-			path = directory / folder / f'{step}.md'
+		req_dir, res_dir = journal_pair_dirs(directory)
+		for folder_dir in (req_dir, res_dir):
+			path = folder_dir / f'{step}.md'
 			try:
 				data = path.read_bytes()
 				if not data.decode('utf-8').strip():
@@ -162,18 +219,19 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 	directory = Path(directory).resolve()
 	file = state_dir(directory) / 'answer-groups' / (turn + '.json')
 	group = json.loads(file.read_text(encoding='utf-8'))
-	if 'complete' != group.get('status') or group.get('journal') != str(directory) or group.get('turn') != turn or group.get('requests') != requests or group.get('request_ids') != request_ids or group.get('response_sha256') != digest(response.encode('utf-8')):
+	if 'complete' != group.get('status') or (not same_journal_identity(group.get('journal'), directory)) or group.get('turn') != turn or group.get('requests') != requests or group.get('request_ids') != request_ids or group.get('response_sha256') != digest(response.encode('utf-8')):
 		raise ValueError('Historical answer-group identity changed; preserve it')
 	steps = group.get('steps')
 	if not isinstance(steps, list) or len(steps) != len(requests) or len(set(steps)) != len(steps) or any((int is not type(step) or 1 > step for step in steps)):
 		raise ValueError('Historical answer-group steps changed')
 	if not isinstance(group.get('tokens'), list) or len(group['tokens']) != len(steps) or any((not isinstance(token, str) or not token for token in group['tokens'])):
 		raise ValueError('Historical answer-group reservation identity changed')
+	req_dir, res_dir = journal_pair_dirs(directory)
 	for step, request in zip(steps, requests):
 		if (state_dir(directory) / f'{step}.json').exists():
 			raise ValueError('Completed historical answer has an incomplete reservation')
-		for folder, expected in (('req', request), ('res', response)):
-			if (directory / folder / f'{step}.md').read_bytes() != expected.encode('utf-8'):
+		for folder_dir, expected in ((req_dir, request), (res_dir, response)):
+			if (folder_dir / f'{step}.md').read_bytes() != expected.encode('utf-8'):
 				raise ValueError('Historical journal bytes changed; preserve them')
 	return steps
 def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, admission_roots=None, allow_reprepare=False):
@@ -191,13 +249,14 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 	proof = require_current(capability, identity)
 	journal_state = state_dir(directory)
 	groups = journal_state / 'answer-groups'
-	for path in (directory / 'req', directory / 'res', groups):
+	req_dir, res_dir = journal_pair_dirs(directory)
+	for path in (req_dir, res_dir, groups):
 		path.mkdir(parents=True, exist_ok=True)
 	file = groups / (turn + '.json')
 	with locked(journal_state / 'writer.lock'):
 		if file.exists():
 			group = json.loads(file.read_text(encoding='utf-8'))
-			if group.get('journal') != str(directory) or group.get('requests') != requests or group.get('request_ids') != request_ids:
+			if not same_journal_identity(group.get('journal'), directory) or group.get('requests') != requests or group.get('request_ids') != request_ids:
 				raise ValueError('Answer group differs from its original journal/requests/response; preserve it')
 			if group.get('response_sha256') != digest(response.encode()):
 				if not allow_reprepare:
@@ -206,7 +265,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 				group['admission'] = proof
 				group['status'] = 'pending'
 				for st in group.get('steps') or []:
-					res_file = directory / 'res' / f'{st}.md'
+					res_file = res_dir / f'{st}.md'
 					if res_file.exists():
 						replace_bytes(res_file, response.encode('utf-8'))
 		else:
@@ -223,8 +282,8 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 			receipt = journal_state / f'{step}.json'
 			state = {'version': 2, 'journal': str(directory), 'step': step, 'token': token, 'status': 'pending', 'request': request, 'response': response, 'request_sha256': digest(request.encode()), 'response_sha256': digest(response.encode())}
 			if 'complete' == group['status']:
-				for sub, text in [('req', request), ('res', response)]:
-					if (directory / sub / f'{step}.md').read_bytes() != text.encode():
+				for folder_dir, text in [(req_dir, request), (res_dir, response)]:
+					if (folder_dir / f'{step}.md').read_bytes() != text.encode():
 						raise ValueError('Completed answer group changed; journal is preserved')
 				continue
 			if receipt.exists():
@@ -232,7 +291,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 				if saved != state:
 					raise ValueError('Reserved answer step belongs to another payload; preserved')
 			else:
-				req, res = (directory / 'req' / f'{step}.md', directory / 'res' / f'{step}.md')
+				req, res = (req_dir / f'{step}.md', res_dir / f'{step}.md')
 				if req.exists() and res.exists():
 					if req.read_bytes() == request.encode() and res.read_bytes() == response.encode():
 						continue
@@ -246,16 +305,17 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 	return r
 def answer_groups(directory, *, request_ids=None):
 	directory = Path(directory).resolve()
+	req_dir, res_dir = journal_pair_dirs(directory)
 	filter_ids = set(request_ids) if None is not request_ids else None
 	groups = []
 	for _, group in iter_answer_group_records(directory):
 		if None is not filter_ids and (not set(group.get('request_ids') or []) & filter_ids):
 			continue
-		if group.get('journal') != str(directory) or 'complete' != group.get('status'):
+		if not same_journal_identity(group.get('journal'), directory) or 'complete' != group.get('status'):
 			raise ValueError('Incomplete or mismatched answer group; recover it before context export')
 		for step, request in zip(group['steps'], group['requests']):
-			req_path = directory / 'req' / f'{step}.md'
-			res_path = directory / 'res' / f'{step}.md'
+			req_path = req_dir / f'{step}.md'
+			res_path = res_dir / f'{step}.md'
 			if not req_path.is_file() or not res_path.is_file() or req_path.read_bytes() != request.encode() or (digest(res_path.read_bytes()) != group['response_sha256']):
 				if None is not filter_ids:
 					break
@@ -274,7 +334,7 @@ def completed_request_group_index(directory: Path) -> dict[str, tuple[dict, int]
 def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], response: str, native_ids: list[str]):
 	directory = Path(directory).resolve()
 	n = len(requests or [])
-	req_dir, res_dir = (directory / 'req', directory / 'res')
+	req_dir, res_dir = journal_pair_dirs(directory)
 	r = (None, None, None)
 	if 0 < n and req_dir.is_dir() and res_dir.is_dir():
 		norm_reqs = [norm_journal_text(req) for req in requests]
@@ -330,10 +390,11 @@ def iter_answer_group_records(directory: Path, *, ignore_errors: bool=False) -> 
 	return r
 def matching_group_response(directory: Path, req_ids: list[str], response: str) -> str | None:
 	directory = Path(directory).resolve()
+	_, res_dir = journal_pair_dirs(directory)
 	r = None
 	for _, group in iter_answer_group_records(directory):
 		if group.get('request_ids') == req_ids and group.get('steps'):
-			res_path = directory / 'res' / f"{group['steps'][0]}.md"
+			res_path = res_dir / f"{group['steps'][0]}.md"
 			res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
 			if res_text and norm_journal_text(res_text) == norm_journal_text(response):
 				r = res_text

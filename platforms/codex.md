@@ -1,9 +1,9 @@
 # Codex Adapter
 
 These instructions apply in Codex within the Upwork workspace.  
-The unified configuration for environments, roles, and models is `AI/harness/code/runtime.json` relative to the repository root.  
-The shared skill and workflow are in `AI/harness/code/skills/upwork-init/SKILL.md`.  
-The shared tool is `AI/harness/code/scripts/upwork_project.py`.  
+The unified configuration for environments, roles, and models is `AI/harness/Artifacts/≻/Deliverables/⛯/runtime.json` relative to the repository root.  
+The shared skill and workflow are in `AI/harness/Artifacts/≻/Deliverables/⛯/skills/upwork-init/SKILL.md`.  
+The shared tool is `AI/harness/Artifacts/≻/Deliverables/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
 Pass `--platform codex` to every internal command; declared Codex instances and their `enabled` flags and `system_paths` live under `platforms.codex.instances` in `runtime.json`, and the active profile is determined from `CODEX_HOME` or passed explicitly via `--codex-profile` / `--instance` when ambiguous.  
 `doctor --platform codex` reports default models, selection policy, configured environments/instances, and verification limits; do not substitute its output for actual session metadata.  
 The global profile `AGENTS.md` preserves personal instructions and points to the common `platforms/codex/AGENTS.md` bootstrap, which lists mandatory canonical sources.  

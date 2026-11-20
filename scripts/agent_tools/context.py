@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -15,7 +18,7 @@ import json
 from pathlib import Path
 import re
 from .storage import data_dir_for, locked, replace_bytes
-from .journal import get_existing_step_ids, step_errors, answer_groups
+from .journal import get_existing_step_ids, journal_pair_dirs, step_errors, answer_groups
 def default_context_config(root: Path | str | None=None) -> dict:
 	out_rel = 'ꙮ/0/Context.md'
 	kb_glob = 'ꘖ/KB/**/*.md'
@@ -170,6 +173,7 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 					continue
 				raise FileNotFoundError(f'Missing journal directory: {raw_jrel}')
 			step_ids = sorted(get_existing_step_ids(jdir))
+			req_dir, res_dir = journal_pair_dirs(jdir)
 			groups = answer_groups(jdir)
 			group_by_step = {step: group for group in groups for step in group['steps']}
 			added_groups = set()
@@ -183,12 +187,12 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 						continue
 					added_groups.add(group['turn'])
 					for member in group['steps']:
-						items.append((_inside_allowed(root, jdir / 'req' / f'{member}.md', allowed_roots), 'User (req; shared answer group ' + group['turn'] + ')'))
+						items.append((_inside_allowed(root, req_dir / f'{member}.md', allowed_roots), 'User (req; shared answer group ' + group['turn'] + ')'))
 					for member in group['steps']:
-						items.append((_inside_allowed(root, jdir / 'res' / f'{member}.md', allowed_roots), 'Agent (one final answer shared across requests; group ' + group['turn'] + ')'))
+						items.append((_inside_allowed(root, res_dir / f'{member}.md', allowed_roots), 'Agent (one final answer shared across requests; group ' + group['turn'] + ')'))
 					continue
-				for sub, role in (('req', 'User (req)'), ('res', 'Agent (res)')):
-					candidate = jdir / sub / f'{step_id}.md'
+				for folder_dir, role in ((req_dir, 'User (req)'), (res_dir, 'Agent (res)')):
+					candidate = folder_dir / f'{step_id}.md'
 					if candidate.is_file() and candidate.read_text(encoding='utf-8').strip():
 						items.append((_inside_allowed(root, candidate, allowed_roots), role))
 		for group in section.get('letters', []):

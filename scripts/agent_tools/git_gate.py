@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -151,10 +154,12 @@ class GitRepoGate:
 			return False
 		try:
 			pp = project_paths(resolved)
-			if pp.has_overlay and any((resolved == cr for cr in pp.code_repos)):
+			if any((resolved == cr for cr in pp.code_repos)):
 				return True
 		except (OSError, ValueError):
 			pass
+		if ('Artifacts', '\u227b', 'Deliverables', '\u26ef') == resolved.parts[-4:] and ((resolved.parents[3] / '\ua616').is_dir() or (resolved.parents[3] / '\U0001f56e').is_dir() or (resolved.parents[3] / '.agents').is_dir()):
+			return True
 		return 'code' == resolved.name and ((resolved.parent / '_').is_dir() or (resolved.parent / '.agents').is_dir())
 	def main_repo(self) -> Path:
 		r = self.root

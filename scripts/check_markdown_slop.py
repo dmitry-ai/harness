@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -32,12 +35,14 @@ MULTI_SENT_RE = re.compile('(?:[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9\\u00ab\\u
 def is_abbreviation_end(text):
 	r = bool(ABBR_RE.search(text.rstrip()))
 	return r
+def _is_request_journal_file(norm_p: str) -> bool:
+	return '/req/' in norm_p or bool(re.search('(?:^|/)\\ua66e/(?:[^/]+/)?\\u227b/', norm_p))
 def _infer_project_root(target: Path) -> Path:
 	resolved = resolve_project_root(target)
-	if resolved != target.resolve().parent or (resolved / '\ua616').is_dir() or (resolved / '_/\ua616').is_dir() or (resolved / '\ua66e').is_dir():
+	if resolved != target.resolve().parent or (resolved / '\ua616').is_dir() or (resolved / '_/\ua616').is_dir() or (resolved / '\ua66e').is_dir() or (resolved / '\U0001f56e').is_dir():
 		return resolved
 	cwd_res = resolve_project_root(Path.cwd().resolve())
-	if (cwd_res / '\ua616').is_dir() or (cwd_res / '_/\ua616').is_dir() or (cwd_res / '\ua66e').is_dir():
+	if (cwd_res / '\ua616').is_dir() or (cwd_res / '_/\ua616').is_dir() or (cwd_res / '\ua66e').is_dir() or (cwd_res / '\U0001f56e').is_dir():
 		return cwd_res
 	return resolved
 def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
@@ -95,7 +100,7 @@ def check_markdown_content(content, path=None):
 		if None is r and path:
 			p_obj = Path(path)
 			norm_p = path.replace('\\', '/').lower()
-			if '/req/' not in norm_p and '/source/' not in norm_p and 'source.md' != p_obj.name.lower():
+			if not _is_request_journal_file(norm_p) and '/source/' not in norm_p and 'source.md' != p_obj.name.lower():
 				proj_root = _infer_project_root(p_obj)
 				r = _check_turn_budget_gate(proj_root, p_obj)
 				if None is r:
@@ -114,7 +119,7 @@ def main():
 			args = tool_call.get('args', {})
 			path = args.get('Path', '')
 			normalized_path = path.replace('\\', '/').lower()
-			if name in ('write_file', 'edit_file') and path and path.lower().endswith('.md') and ('/req/' not in normalized_path):
+			if name in ('write_file', 'edit_file') and path and path.lower().endswith('.md') and (not _is_request_journal_file(normalized_path)):
 				if 'write_file' == name:
 					content = args.get('Content')
 				else:

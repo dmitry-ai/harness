@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -185,8 +188,10 @@ class AntigravityTurnScanner:
 		if intermediate_wait:
 			completed, resp_text = (False, None)
 		elif None is not j_entry and (not final or 1 < len(j_entry[0].get('request_ids', []))):
+			from ..journal import journal_pair_dirs
 			completed = req_id == j_entry[0]['request_ids'][-1] and (None is not end or idle)
-			resp_text = (self.jdir / 'res' / f'{j_entry[1]}.md').read_bytes().decode('utf-8') if completed else None
+			_, res_dir = journal_pair_dirs(self.jdir)
+			resp_text = (res_dir / f'{j_entry[1]}.md').read_bytes().decode('utf-8') if completed else None
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None

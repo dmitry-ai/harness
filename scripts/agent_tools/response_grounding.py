@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -102,7 +105,7 @@ class ResponseEvidenceAuditor:
 		for tf in self.touched_files or []:
 			tf_str = str(tf).strip()
 			tf_norm = '/' + tf_str.replace('\\', '/').lower().lstrip('/')
-			if tf_str and tf_norm.endswith('.md') and ('/req/' not in tf_norm) and ('/res/' not in tf_norm) and ('/source/' not in tf_norm) and (not tf_norm.endswith('/source.md')) and (not is_normative_harness_doc(Path(tf_norm))):
+			if tf_str and tf_norm.endswith('.md') and ('/req/' not in tf_norm) and ('/res/' not in tf_norm) and (not re.search('/\\ua66e/(?:[^/]+/)?[\\u227a\\u227b]/', tf_norm)) and ('/source/' not in tf_norm) and (not tf_norm.endswith('/source.md')) and (not is_normative_harness_doc(Path(tf_norm))):
 				try:
 					tf_path = Path(tf_str)
 					tf_path = tf_path.resolve() if tf_path.is_absolute() else (self.root / tf_path).resolve()
@@ -132,7 +135,7 @@ class ResponseEvidenceAuditor:
 					job_ids.add(pdata['job_id'].strip())
 			except (OSError, ValueError):
 				pass
-		for pfile in (pjson, pp.manual_kb_dir / 'Project.md', pp.kb_dir / 'Project.md'):
+		for pfile in (pjson, pp.manual_kb_dir / 'Project.md', pp.manual_kb_dir / '.md', pp.kb_dir / 'Project.md'):
 			if pfile.is_file():
 				try:
 					for u in _bare_urls(pfile.read_text(encoding='utf-8')):

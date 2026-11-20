@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
 # https://github.com/dmitry-ai/harness/issues/70
@@ -43,7 +46,7 @@ def _iter_headings(lines: list[Line]):
 			match = PART.match(text)
 			part = match.group(1) if match else part
 def detect_kind(path: Path | None, text: str) -> str:
-	return 'response' if None is not path and 'res' == path.parent.name else 'article'
+	return 'response' if None is not path and path.parent.name in ('res', '\u227a') else 'article'
 def parse_sections(lines: list[Line], findings: list[Finding] | None=None):
 	findings = findings if None is not findings else []
 	r, by_key, roots = ([], {}, {})

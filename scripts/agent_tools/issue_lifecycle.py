@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -298,14 +301,15 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 						rel = p.relative_to(anc).as_posix()
 					except ValueError:
 						break
-					if rel and '.' != rel and (not rel.startswith(('.git/', '\ua616/', '\ua66e/', '_/'))):
+					if rel and '.' != rel and (not rel.startswith(('.git/', '\ua616/', '\ua66e/', '_/', '\U0001f56e/', 'Artifacts/\u227a/'))):
 						repo_touched.setdefault(anc, set()).add(rel)
 					break
 	from .path_registry import project_paths, store_path
 	pp_root = project_paths(root)
+	v2_code_rel = 'Artifacts/\u227b/Deliverables/\u26ef'
 	turn_issues = _collect_turn_issues(turn, turn_state)
 	candidate_repos = list(repo_touched.keys())
-	for cand in (*pp_root.code_repos, root, root / 'code', root.parent / 'code'):
+	for cand in (*pp_root.code_repos, root, root / 'code', root / v2_code_rel, root.parent / 'code', root.parent / v2_code_rel):
 		cand_res = cand.resolve()
 		if is_issue_tracked_code_repo(cand_res) and cand_res not in candidate_repos:
 			candidate_repos.append(cand_res)
@@ -315,7 +319,7 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 			found_res = found_repo.resolve()
 			if is_issue_tracked_code_repo(found_res) and found_res not in candidate_repos:
 				candidate_repos.append(found_res)
-	workspace_code_repos = {c.resolve() for c in (*pp_root.code_repos, root, root / 'code', root.parent / 'code') if is_issue_tracked_code_repo(c.resolve())}
+	workspace_code_repos = {c.resolve() for c in (*pp_root.code_repos, root, root / 'code', root / v2_code_rel, root.parent / 'code', root.parent / v2_code_rel) if is_issue_tracked_code_repo(c.resolve())}
 	required_issues_by_repo: dict[Path, set[str]] = {rep: set() for rep in candidate_repos}
 	repo_by_issue_url: dict[str, Path] = {}
 	for url, info in turn_issues.items():

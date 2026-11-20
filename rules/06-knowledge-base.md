@@ -4,7 +4,7 @@ description: "KB ownership, knowledge types, stable IDs, and agent KB context ex
 ---
 # Knowledge Base
 ## KB-1
-`KB/` belongs to the user; the agent creates `KB/Project.md` once during initial analysis (and synchronizes the `# 2. Current Client Project` section during `sync-attachments`), and thereafter does not modify it or other manual KB files without a new direct instruction.  
+`🕮/` in `V2` (`O`) projects (legacy `V1`: `KB/`) belongs to the user; the agent creates `Project.md` inside that manual KB directory once during initial analysis (and synchronizes the `# 2. Current Client Project` section during `sync-attachments`), and thereafter does not modify it or other manual KB files without a new direct instruction.  
 Immediately port the complete initial document into `ꘖ/KB/Project.md` (as well as `ꘖ/KB/Projects.md` and `ꘖ/KB/Evidence.md`), including verbatim and in full all attached text files (including PDF and DOCX) with Markdown formatting, complete transcripts of client videos (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:` with `[MM:SS]` timestamps), and complete descriptions of images (verbatim text and UI labels in `«»`, confirmations and contradictions against client statements with `%` scores); store all further research exclusively in `ꘖ/KB`.  
 External `http(s)://` links in a project response must be backed by entries in `ꘖ/KB` (modules, `Analysis.json`, or `Project.md`) and saved primary observations; adding external URLs to a response while bypassing `ꘖ/KB` is blocked.  
 Re-running `init` does not regenerate user-authored or agent-enriched documents.  
@@ -30,7 +30,7 @@ Preserve provenance of prior versions and material sources; handle temporary fil
 Perform network HTTP(S) and browser DOM observations through `harness.py collect`, `collect-http`, or `collect-browser` (with `upwork_project.py` retained as a compatibility alias), saving into `ꘖ/KB/Evidence/HTTP` and `ꘖ/data/http-index.json`; ad-hoc network calls in the shell that bypass evidence storage are prohibited.  
 If context compaction (`CHECKPOINT`/`compaction`) occurs after tool calls before publishing the response, restore pre-compaction results via `recover-checkpoint` or by reading the full transcript.  
 ## KB-4
-`ꙮ/0/Context.md` exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
+`Artifacts/≻/Intermediary/Context/output/Context.md` in `V2` (`O`) projects (legacy `V1`: `ꙮ/0/Context.md`) exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
 It is the unified export for external agents, primarily Gemini DeepThink in the web UI at `https://gemini.google.com`; the user submits it manually.  
 Internal agents do not use `Context.md` as their working KB; build the external export when requested by the user.  
 All paths are confined to the project root; an export never overwrites a source file.  
