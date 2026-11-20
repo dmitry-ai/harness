@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove automatic Context.md generation from project initialization and finalize stage":
+# https://github.com/dmitry-ai/harness/issues/104
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -49,7 +52,6 @@ import re
 import sqlite3
 import sys
 from .configuration import DISCOVERY_KINDS, configure_codex_project, is_linked_path, load_discovery_manifest, project_discovery_entries
-from .context import generate as generate_context
 from .knowledge import create_once, json_bytes, populate_agent_kb, render_analysis, validate_analysis
 from .storage import create_bytes, locked, replace_bytes
 from .upwork_data import canonical_job_url, normalize_job_id, format_kb_project_md
@@ -258,12 +260,7 @@ def legacy_direct_global_hooks(primary=PRIMARY_AGENTS_DIR):
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
 def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR, *, config_dir: str | Path | None=None):
-	runner_arg = 'harness_hook_runner.py'
-	if None is not config_dir:
-		runner_posix = (Path(os.path.abspath(config_dir)) / 'harness_hook_runner.py').as_posix()
-		if runner_posix.isascii():
-			runner_arg = f'"{runner_posix}"' if ' ' in runner_posix else runner_posix
-	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': f'python {runner_arg} check_markdown_slop.py', 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': f'python {runner_arg} check_rules_and_server_gate.py', 'timeout': 10}]}]}, 'final-turn-gate': {'Stop': [{'type': 'command', 'command': f'python {runner_arg} check_stop_gate.py', 'timeout': 15}]}}
+	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_markdown_slop.py', 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]}, 'final-turn-gate': {'Stop': [{'type': 'command', 'command': 'python harness_hook_runner.py check_stop_gate.py', 'timeout': 15}]}}
 	return r
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
@@ -383,7 +380,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		configure_project(root, primary_agents_dir, canonical_job_url(job_id), root.name.split(' - ', 1)[-1], platform=platform)
 		from .journal import journal_pair_dirs
 		req_dir, res_dir = journal_pair_dirs(pp.journal_dir)
-		for folder in (pp.manual_kb_dir, pp.kb_dir, pp.context_output.parent, req_dir, res_dir):
+		for folder in (pp.manual_kb_dir, pp.kb_dir, req_dir, res_dir):
 			folder.mkdir(parents=True, exist_ok=True)
 		from .knowledge import sync_source_folder_attachments, build_project_extra_sources
 		assets = sync_source_folder_attachments(root, data.get('saved_attachments') or [])
@@ -402,7 +399,6 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		state.update(initialized=True, snapshot=str(snapshot.relative_to(root)))
 		state.setdefault('request_date', day.isoformat())
 		replace_bytes(state_file, json_bytes(state))
-		target, _, _ = generate_context(root, pp.context_config)
 	should_register = register_native if None is not register_native else register_antigravity
 	if None is should_register:
 		plat_caps = platform_settings(platform).get('capabilities')
@@ -414,7 +410,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		both = all_platforms if None is not all_platforms else Path(daily_root).resolve() == DAILY_PROPOSALS_ROOT.resolve()
 		registrars = {'antigravity': lambda project, label, day: register_antigravity_default(project, label, day, projects_dir=antigravity_projects_dir, folders_json_path=antigravity_folders_json)}
 		info = register_projects(root, root.name.split(' - ', 1)[1], initial_day, platform=platform, targets=None if both else [platform], registrars=registrars)
-	r = {'project_dir': str(root), 'job_id': job_id, 'domain_or_topic': label, 'context_path': str(target), 'snapshot': str(snapshot), 'registration': info, 'platform': platform, 'registrations': info['registrations'] if info else {}, 'antigravity': info['registrations'].get('antigravity') if info else None, 'analysis_status': 'pending; initialization is not a completed analysis'}
+	r = {'project_dir': str(root), 'job_id': job_id, 'domain_or_topic': label, 'context_path': None, 'snapshot': str(snapshot), 'registration': info, 'platform': platform, 'registrations': info['registrations'] if info else {}, 'antigravity': info['registrations'].get('antigravity') if info else None, 'analysis_status': 'pending; initialization is not a completed analysis'}
 	return r
 def register_project(project, label=None, day=None, *, platform=None):
 	from .registration import register_project as register_one

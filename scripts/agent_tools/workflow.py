@@ -1,4 +1,7 @@
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove automatic Context.md generation from project initialization and finalize stage":
+# https://github.com/dmitry-ai/harness/issues/104
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -356,7 +359,6 @@ class WorkflowStateEngine:
 	def _apply_unadopt(self, state, conversation_id, req_ids):
 		state['requests'] = [x for x in state.get('requests', []) if not ((conversation_id and x.get('native_conversation_id') == conversation_id) or (req_ids and x.get('id') in req_ids))]
 	def _finalize_stage(self, state, out_hashes, outputs):
-		from .context import generate
 		from .journal import get_existing_step_ids, journal_pair_dirs, resolve_journal_dir, step_errors
 		from .links import readable_link_issues
 		from .review import authorize
@@ -369,7 +371,7 @@ class WorkflowStateEngine:
 		journal = resolve_journal_dir(self.root, prepared.get('journal'))
 		ids = get_existing_step_ids(journal)
 		if not ids or any((step_errors(journal, ident) for ident in ids)):
-			raise ValueError('Complete exact req/res journal pairs before external export')
+			raise ValueError('Complete exact req/res journal pairs before finalizing')
 		req_dir, res_dir = journal_pair_dirs(journal)
 		latest = max(ids)
 		reply = res_dir / f'{latest}.md'
@@ -383,9 +385,6 @@ class WorkflowStateEngine:
 		r = authorize(self.root, state, response=reply.read_bytes().decode('utf-8'))
 		if any((not request.get('response_prepared') for request in state['requests'])) or not state['requests'] or state['requests'][-1]['response_prepared'].get('sha256') != r['response_sha256']:
 			raise ValueError('Record the exact approved answer for current requests before finalizing')
-		ctx_cfg = self.pp.context_config if self.pp.context_config.is_file() else None
-		target, _, _ = generate(self.root, ctx_cfg)
-		out_hashes[target.relative_to(self.root).as_posix()] = file_hash(target)
 		return r
 	def adopt_requests(self, conversation_id, *, allow_finalized=False, backend=None, platform=None):
 		from .journal import answer_groups, resolve_journal_dir

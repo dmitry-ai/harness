@@ -188,7 +188,7 @@ Exact guarantees and limits are in the [turn completion contract](../references/
 Service records in `ꘖ/data/.journal` are bound to the journal path, token, and SHA-256 digests; file publication is atomic.  
 Legacy `record-answer <project> --response-file <exact-final-answer>` and `agent_tools.journal` (`record_step` / `recover_step`) remain as internal compatibility and recovery primitives; standard primary turn completion uses `answer-prepare`.  
 Reserving the entire request group upfront prevents sequence gaps after crashes.  
-`stage ... finalize` verifies the current KB, reviews, journal, emptiness of `ꘖ/data/scratch`, and absence of one-off scripts in the project, then builds `Context.md`; this certifies response readiness rather than confirmed UI delivery.  
+`stage ... finalize` verifies the current KB, reviews, journal, emptiness of `ꘖ/data/scratch`, and absence of one-off scripts in the project without automatically building `Context.md`; this certifies response readiness rather than confirmed UI delivery.  
 
 `generate_context.py [<project> | --root <project>] [--config <context.json>] [--output <path>] [--dry-run]` exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
 If `--config` is omitted, it defaults to `default_context_config()`; custom manifests remain supported via `--config`.  

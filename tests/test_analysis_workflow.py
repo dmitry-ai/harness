@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove automatic Context.md generation from project initialization and finalize stage":
+# https://github.com/dmitry-ai/harness/issues/104
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
 # https://github.com/dmitry-ai/harness/issues/74
@@ -307,6 +310,7 @@ class ContinuationTests(ProjectCase):
 		capture = self.project / json.loads((self.project / 'ꘖ/project.json').read_text())['snapshot']
 		request = 'Continue analysis. Analysis was interrupted due to a power outage.\n'
 		context = self.project / 'ꙮ/0/Context.md'
+		context.parent.mkdir(parents=True, exist_ok=True)
 		context.write_text('EXTERNAL_ONLY_INFORMATION')
 		result = flow.resume(self.project, 'power failure', request)
 		self.assertEqual(result['stages']['capture'], 'complete')
@@ -445,6 +449,9 @@ class NativeReviewTests(ProjectCase):
 			flow.record_current_answer(self.project, 'Final response exactly as saved: Client task')
 			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/1 - Analysis/res/1.md'])
 			self.assertTrue(all(('complete' == x for x in flow.status(self.project)['stages'].values())))
+			self.assertFalse((self.project / 'ꙮ/0/Context.md').exists())
+			from agent_tools.context import generate
+			generate(self.project, self.project / '.agents/context.json')
 			context = (self.project / 'ꙮ/0/Context.md').read_text(encoding='utf-8')
 			self.assertIn('Final response exactly as saved', context)
 			self.assertIn((self.project / 'ꘖ/KB/Progress.md').read_text(encoding='utf-8'), context)

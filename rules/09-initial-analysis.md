@@ -8,7 +8,7 @@ The user invokes `/upwork-init <URL>` (in Codex also `$upwork-init <URL>`); the 
 After an interruption, the user writes `"Continue analysis"` in the same chat; re-running `/upwork-init` is not required.  
 First read the current agent KB and stage status of the project; resume unfinished work while preserving completed checks and source files.  
 Create `proposals/daily/YYYY/MM/DD/N - domain_or_topic`: use the initial request date in `Europe/Istanbul`, allocate the number under a lock, and name the folder without unproven website attribution.  
-Structure (`V1` `upwork` profile; `V2` `O` projects resolve `🕮/`, `ꙮ/{≻,≺}`, and `Ⰿ/≻/♙/Context/output/Context.md` via `paths.json`): `.md`, root `source/` folder (all client-attached files), local `.agents` with native settings, `.codex/config.toml` loader, `KB/Project.md`, `ꘖ/{KB,data}`, `ꙮ/1 - Analysis/{req,res}`, and `ꙮ/0/Context.md`.  
+Structure (`V1` `upwork` profile; `V2` `O` projects resolve `🕮/`, `ꙮ/{≻,≺}`, and optional on-demand `Ⰿ/≻/♙/Context/output/Context.md` via `paths.json`): `.md`, root `source/` folder (all client-attached files), local `.agents` with native settings, `.codex/config.toml` loader, `KB/Project.md`, `ꘖ/{KB,data}`, and `ꙮ/1 - Analysis/{req,res}`.  
 ## INIT-2
 Single capture → identity and completeness verification → `init` from saved JSON; re-capturing the page is not needed for formatting.  
 Save the original job post text, actually available client history, coverage errors/boundaries, and all client-attached files simultaneously in the root `source/` folder of the project and in `ꘖ/KB/Evidence/Attachments/<sha256>/` with hash verification.  
@@ -24,7 +24,7 @@ The initial analysis comprises five connected stages:
 Frame H per [DOC-2](04-statement-structure.md#doc-2) and M per [DOC-3](04-statement-structure.md#doc-3); back all evidence per [LINK-1](02-link-standards.md#link-1).  
 During a technical/SEO website audit, sample all primary templates from `sitemap.xml`, check cross-page uniqueness and length of `<title>`/`<meta description>`, verify the presence of exactly one `<h1>` per page, inspect the `URL`/`title`/`image` structure in `sitemap.xml`, and check for tracking codes (`GA4`/`GTM`/`GSC`).  
 ## INIT-4
-Populate the KB and evidence first, then the exact journal, link/analysis validations, and full context export.  
+Populate the KB and evidence first, then the exact journal and link/analysis validations; build `Context.md` only when explicitly requested by the user.  
 `Context.md` is the external export per KB-4; internal continuation and delegation use the agent KB.  
 Before finalizing, address findings from the A.A substantive review and verify KB consistency; engage independent auditors per REVIEW-3, as a green schema check does not replace substantive evaluation.  
 New publications must pass the current evidence contract and exact-response review; reading a legacy format does not grant clearance for a new publication.  

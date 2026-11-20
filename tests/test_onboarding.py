@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove automatic Context.md generation from project initialization and finalize stage":
+# https://github.com/dmitry-ai/harness/issues/104
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
@@ -123,7 +126,7 @@ class InitializationTests(TemporaryCase):
 		result = self.cli('upwork_project', 'init', source()['job_id'], '--from-json', capture, '--domain', 'Topic', '--date', '2026-10-15', '--daily-root', self.root / 'daily', '--no-register')
 		self.assertEqual(result.returncode, 0, result.stderr)
 		root = Path(json.loads(result.stdout)['project_dir'])
-		self.assertTrue((root / 'ꙮ/0/Context.md').is_file())
+		self.assertFalse((root / 'ꙮ/0/Context.md').exists())
 	def test_attachment_evidence_retained_with_hash(self):
 		asset = self.put('capture/attachments/proof.txt', 'primary evidence')
 		data = {**source(), 'saved_attachments': [{'path': str(asset), 'filename': asset.name, 'sha256': hashlib.sha256(asset.read_bytes()).hexdigest()}]}

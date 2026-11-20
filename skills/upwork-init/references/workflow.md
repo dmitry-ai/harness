@@ -252,7 +252,7 @@ python <tool> stage <project> finalize --input "ꘖ/KB/Analysis.json" --output "
 Only the exact bytes of the approved candidate may be recorded; any edit to the response requires a new review package even if the KB is unchanged.  
 UI message delivery is distinct from file recording; publish in chat the exact saved response bytes.  
 After a publication crash, recover the response from the saved group without inventing intermediate messages.  
-Build the full `Context.md` export after completing the A.A review, KB consistency check, and journal recording, for manual submission to an external agent.  
+Build the full `Context.md` export via `generate_context.py` only when explicitly requested by the user for manual submission to an external agent.  
 Pass specific topical KB modules and primary sources to internal subagents; they do not use `Context.md`.  
 
 `metrics` parses explicitly selected complete JSONL traces without copying private reasoning or launching models.  

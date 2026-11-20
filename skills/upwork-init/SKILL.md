@@ -4,11 +4,11 @@ description: "Creates a project workspace and performs the five-stage initial an
 ---
 # Initial Upwork Analysis
 
-Deliverable: complete initial project card, current self-consistent agent KB, five INIT-3 stages, resolved A.A review findings, exact journal, and complete external `Context.md` export.  
+Deliverable: complete initial project card, current self-consistent agent KB, five INIT-3 stages, resolved A.A review findings, and exact journal.  
 Material Red Flags appear at the very top of the report before detailed analysis and are duplicated at the end of the project's root `.md` inside a dedicated level-1 section (`# Red Flags`) per INIT-5.  
 Internal agents work with `ꘖ/KB`, its overview/topical modules, and primary evidence.  
 All agents format intermediate and final documents, including proposals, articles, and client letters, with human-readable links without URL encoding per [LINK-5](../../rules/02-link-standards.md#link-5).  
-`Context.md` is built for manual submission to an external agent, primarily Gemini DeepThink via `https://gemini.google.com`.  
+`Context.md` is built only when explicitly requested by the user for manual submission to an external agent, primarily Gemini DeepThink via `https://gemini.google.com`.  
 
 Shared rules are connected natively; read them directly if their full current text is not yet loaded in context.  
 Determine the active platform and read only its adapter: [Codex](../../platforms/codex.md) or [Antigravity](../../platforms/antigravity.md).  
@@ -140,6 +140,6 @@ Validate authored Markdown/text files with `validate_links.py --readable <files>
 When Red Flags are present, verify their prominent placement at the very top of the final response and at the end of the root `.md` inside the level-1 section; mentioning them only inside KB modules is insufficient.  
 Save the exact requests and complete final response; when multiple requests share a single response, link them explicitly via `record-answer` / `answer-prepare`.  
 Publish the exact verified response bytes; adding new claims after review requires clearance of the new version, including when continuing a previously finalized project.  
-After recording the journal and passing all checks, build the external `Context.md` export without summarizing or truncating sources.  
+Build the external `Context.md` export only when explicitly requested by the user, without summarizing or truncating sources.  
 `stage ... finalize` requires a current A.A substantive review (plus independent reviews when required), a consistent KB, a complete journal, an empty `ꘖ/data/scratch` directory, and no one-off scripts in the project; it certifies file and response readiness rather than confirmed UI message delivery.  
 Delete only your own temporary scratch files after verifying permanent copies (`--consume-input`); preserve snapshots, material screenshots, and primary evidence.  

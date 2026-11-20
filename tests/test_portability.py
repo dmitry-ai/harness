@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove automatic Context.md generation from project initialization and finalize stage":
+# https://github.com/dmitry-ai/harness/issues/104
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -444,6 +447,8 @@ class CodexEvidenceTests(ProjectCase):
 				flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init.json'])
 		expected = self.parent_rows[2]['payload']['content'][0]['text']
 		self.assertEqual((self.project / 'ꙮ/1 - Analysis/req/1.md').read_bytes().decode(), expected)
+		self.assertFalse((self.project / 'ꙮ/0/Context.md').exists())
+		generate(self.project, self.project / '.agents/context.json')
 		context = (self.project / 'ꙮ/0/Context.md').read_text(encoding='utf-8')
 		self.assertIn(expected, context)
 		self.assertIn(answer, context)

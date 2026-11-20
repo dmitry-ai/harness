@@ -1,3 +1,6 @@
+# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove automatic Context.md generation from project initialization and finalize stage":
+# https://github.com/dmitry-ai/harness/issues/104
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
@@ -82,6 +85,7 @@ class ResumeExportTests(ProjectCase):
 	def test_group_crash_reserves_all_numbers_and_preserves_previous_context(self):
 		directory = self.project / 'ꙮ/1 - Analysis'
 		target = self.project / 'ꙮ/0/Context.md'
+		generate(self.project, self.project / '.agents/context.json')
 		previous = target.read_bytes()
 		real = journal.create_bytes
 		def fail_on_second_request(path, data):
