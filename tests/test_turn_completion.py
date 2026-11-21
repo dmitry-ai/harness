@@ -2142,6 +2142,34 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.assertTrue(json.loads(good_proc.stdout)['valid'])
 			self.assertFalse((proj / '\ua616/data/turns').exists())
 			self.assertFalse((proj / '\ua616/data/grounding-cache.json').exists())
+			real_child_cid = str(uuid.uuid4())
+			real_child_log = backend / 'brain' / real_child_cid / '.system_generated/logs/transcript_full.jsonl'
+			real_child_log.parent.mkdir(parents=True)
+			real_child_log.write_text(
+				json.dumps({'step_index': 0, 'type': 'SYSTEM_MESSAGE', 'content': 'Subagent task without step_type=14.'}) + '\n'
+				+ json.dumps({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'run_command', 'args': {'CommandLine': 'git status'}}]}) + '\n',
+				encoding='utf-8',
+			)
+			with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as conn:
+				conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (real_child_cid, primary_cid, json.dumps([proj.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, -1, 'self'))
+				conn.commit()
+			with closing(sqlite3.connect(backend / 'conversations' / f'{real_child_cid}.db')) as conn:
+				conn.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+				conn.execute('INSERT INTO steps VALUES(0, 101, 3, 0, ?)', (b'',))
+				conn.commit()
+			bad_child_res = completion.check_answer(proj, good_cand.read_text(encoding='utf-8'), real_child_cid, response_path=good_cand, platform='antigravity', backend=backend)
+			self.assertFalse(bad_child_res['valid'])
+			self.assertEqual(bad_child_res['role'], 'child')
+			self.assertFalse(bad_child_res['checks']['exec5'])
+			scratch_nested = proj / '\ua616/data/scratch/nested/draft.md'
+			scratch_nested.parent.mkdir(parents=True)
+			scratch_nested.write_text('Scratch-relative [Note.md](../../../KB/Note.md#section-one).  \n', encoding='utf-8')
+			scratch_bad = completion.check_answer(proj, scratch_nested.read_text(encoding='utf-8'), child_cid, response_path=scratch_nested, platform='antigravity', backend=backend)
+			self.assertFalse(scratch_bad['valid'])
+			self.assertFalse(scratch_bad['checks']['links'])
+			scratch_nested.write_text('Root-relative [Note.md](\ua616/KB/Note.md#section-one).  \n', encoding='utf-8')
+			scratch_ok = completion.check_answer(proj, scratch_nested.read_text(encoding='utf-8'), child_cid, response_path=scratch_nested, platform='antigravity', backend=backend)
+			self.assertTrue(scratch_ok['valid'], scratch_ok)
 	def test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass(self):
 		from contextlib import closing
 		import hashlib

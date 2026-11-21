@@ -121,7 +121,6 @@ from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
 COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'reconcile-unprepared-delivery')
-_ANSWER_CHECK_CACHE: dict[tuple, dict] = {}
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
@@ -1232,7 +1231,7 @@ def _authored_nonquote_hrefs(content: str) -> list[str]:
 				elif 'text' == token.type and 0 == depth:
 					hrefs.extend(_bare_urls(token.content))
 	return [*hrefs, *html.links]
-def _response_link_issues(root_p: Path, response: str, *, response_path: Path | None = None) -> list[str]:
+def _response_link_issues(root_p: Path, response: str, *, response_path: Path | None = None, scratch_dir: Path | None = None) -> list[str]:
 	from urllib.parse import unquote, urldefrag, urlsplit
 	from .links import heading_anchors, readable_link_issues, references
 	errors: list[str] = list(readable_link_issues(response, allow_unencoded_file_uri=True))
@@ -1240,9 +1239,13 @@ def _response_link_issues(root_p: Path, response: str, *, response_path: Path | 
 	base_dirs = [root_p]
 	if None is not response_path and '-' != str(response_path):
 		try:
-			rp_parent = Path(response_path).resolve().parent
-			if rp_parent not in base_dirs:
-				base_dirs.append(rp_parent)
+			rp_res = Path(response_path).resolve()
+			scr_res = Path(scratch_dir).resolve() if None is not scratch_dir else None
+			in_scratch = None is not scr_res and (rp_res == scr_res or rp_res.is_relative_to(scr_res))
+			if rp_res.is_relative_to(root_p) and (not in_scratch):
+				rp_parent = rp_res.parent
+				if rp_parent not in base_dirs:
+					base_dirs.append(rp_parent)
 		except OSError:
 			pass
 	for href in dict.fromkeys(_authored_nonquote_hrefs(response)):
@@ -1316,6 +1319,56 @@ def _response_link_issues(root_p: Path, response: str, *, response_path: Path | 
 			except (OSError, KeyError, ValueError, IndexError, TypeError):
 				errors.append(f'LINK-4: Missing JSON pointer: {href}')
 	return errors
+def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
+	if native.get('turns'):
+		return native['turns'][-1]
+	from .platforms.trace_common import init_turn_accumulator, merge_turn_accumulators, parse_tool_args, read_jsonl_objects, record_normalized_tool_effects
+	from .shell_audit import extract_issue_actions_from_outputs
+	seg = init_turn_accumulator(extra={'turn_id': f'child-{eff_conv}', 'start_step': 0, 'requests': [], 'owned': True, 'issue_actions': []})
+	src_raw = str(native.get('source_file') or '').strip()
+	src_file = Path(src_raw) if src_raw else None
+	if None is not src_file and src_file.is_file():
+		try:
+			rows = read_jsonl_objects(src_file)
+		except (OSError, ValueError):
+			rows = []
+		for pos, row in enumerate(rows):
+			if not isinstance(row, dict):
+				continue
+			step_idx = row.get('step_index') if isinstance(row.get('step_index'), int) else pos
+			if 'CHECKPOINT' == row.get('type') or ('event_msg' == row.get('type') and 'context_compacted' == (row.get('payload') or {}).get('type')):
+				seg['checkpoint_steps'].append(step_idx)
+			calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
+			if calls:
+				outs = []
+				for cand in rows[pos + 1:]:
+					if not isinstance(cand, dict):
+						continue
+					if cand.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
+						break
+					if 'GENERIC' == cand.get('type') and cand.get('content'):
+						c_str = str(cand.get('content'))
+						outs.append(c_str[:4000])
+						for m_out in re.finditer('file:///+([A-Za-z]:/[^\\s"\\\'<>`]+?/\\.system_generated/steps/\\d+/output\\.txt)', c_str):
+							seg['file_reads'].append((step_idx, m_out.group(1).replace('\\', '/')))
+				seg['tool_steps'].append(step_idx)
+				seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outs})
+				for act_item in extract_issue_actions_from_outputs(outs):
+					seg['issue_actions'].append({**act_item, 'step': step_idx})
+				for call in calls:
+					raw_args = call.get('args', {})
+					args = parse_tool_args(raw_args)
+					args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
+					record_normalized_tool_effects(root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True)
+			elif 'response_item' == row.get('type'):
+				pay = row.get('payload') if isinstance(row.get('payload'), dict) else {}
+				if pay.get('type') in ('function_call', 'custom_tool_call'):
+					seg['tool_steps'].append(step_idx)
+					raw_in = pay.get('arguments', pay.get('input', {}))
+					raw_cmd = raw_in if isinstance(raw_in, str) else json.dumps(raw_in, ensure_ascii=False)
+					seg['tool_records'].append({'step': step_idx, 'tools': [str(pay.get('name') or '')], 'outputs': []})
+					record_normalized_tool_effects(root_p, step_idx, str(pay.get('name') or ''), raw_in, raw_cmd, seg, track_turn_steps=True)
+	return merge_turn_accumulators([seg], allow_step_output_recovery=True)
 def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 candidate response is required')
@@ -1343,16 +1396,14 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 				turn_key = value_obj['key']
 			else:
 				role = 'child'
-				turn_obj = (native.get('turns') or [])[-1] if native.get('turns') else {'turn_id': f'child-{eff_conv}', 'start_step': 0, 'requests': [], 'touched_files': [], 'issue_actions': [], 'exec5_violations': [], 'http_fetch_violations': [], 'compaction': {}, 'delegation': {}}
+				turn_obj = _scan_child_trace_turn(root_p, eff_conv, native)
 				turn_key = _key(native, turn_obj)
 				value_obj = {'key': turn_key, 'platform': native['platform'], 'conversation_id': native['conversation_id'], 'exec5_check': _exec5_status(turn_obj, root_p, turn_key), 'http_fetch_check': _http_fetch_status(turn_obj, root_p, turn_key), 'compaction_check': _compaction_status(root_p, turn_key, turn_obj), 'delegation_check': _delegation_status(root_p, turn_obj)}
 		else:
 			turn_obj = {'turn_id': 'standalone', 'start_step': 0, 'requests': [], 'touched_files': [], 'issue_actions': [], 'exec5_violations': [], 'http_fetch_violations': [], 'compaction': {}, 'delegation': {}}
 			value_obj = {'key': None, 'exec5_check': {'verified': True, 'violations': []}, 'http_fetch_check': {'verified': True, 'violations': []}, 'compaction_check': {'verified': True, 'occurred': False, 'evicted_unreread_files': [], 'unreread_analysis_sources': []}, 'delegation_check': {'verified': True, 'aa_partial_read_violations': []}}
-		step_cnt = int((turn_obj.get('delegation') or {}).get('tool_step_count') or 0)
-		cache_key = (str(root_p), role, str(eff_conv or ''), sha, step_cnt, str(Path(response_path).resolve()) if None is not response_path and '-' != str(response_path) else '-')
 		doc4_errs = markdown_slop_issues(response)
-		link_errs = _response_link_issues(root_p, response, response_path=response_path)
+		link_errs = _response_link_issues(root_p, response, response_path=response_path, scratch_dir=pp.scratch_dir)
 		prob_errs = [f'DOC-2: Unsupported causal probability basis: {item}' for item in unsupported_probability_claims(response)]
 		requests_list = list(turn_obj.get('requests') or []) if 'primary' == role else []
 		source_errs = response_source_and_kb_issues(root_p, response, requests_list, touched_files=turn_obj.get('touched_files'))
@@ -1360,7 +1411,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		exec5_chk = value_obj['exec5_check']
 		http_chk = value_obj['http_fetch_check']
 		comp_chk = value_obj['compaction_check']
-		evicted_cited = _find_evicted_cited_files(root_p, pp, turn_key, comp_chk, response) if 'primary' == role else []
+		evicted_cited = _find_evicted_cited_files(root_p, pp, turn_key, comp_chk, response) if role in ('primary', 'child') else []
 		del_chk = value_obj['delegation_check']
 		lifecycle_chk = _code_and_issue_lifecycle_status(root_p, turn_obj, value_obj if 'primary' == role else None, response=response)
 		wf_errs: list[str] = []
@@ -1387,6 +1438,12 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 					authorize(root_p, wf_state, response=response, request_ids=wf_ids)
 				except (OSError, ValueError) as exc:
 					wf_errs.append(str(exc))
+		if 'primary' == role and (pp.data_dir / 'client-text/index.json').is_file():
+			from .text_workflow import gate_requests
+			try:
+				gate_requests([root_p, _directory(root_p, value_obj.get('journal') or journal_directory)], [r['text'] for r in requests_list], response, capture=False)
+			except (OSError, ValueError) as exc:
+				wf_errs.append(str(exc))
 		all_issues: list[dict] = []
 		seen_msgs: set[str] = set()
 		def _push(gate_id: str, code: str, msgs: list[str]) -> None:
@@ -1405,7 +1462,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		if not http_chk.get('verified', True):
 			cmds = [cmd for item in http_chk.get('violations') or [] for cmd in item.get('commands', [])]
 			_push('http_fetch', 'turn.http_fetch', ['KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection): ' + '; '.join(cmds)])
-		if 'primary' == role and (not comp_chk.get('verified', True)):
+		if role in ('primary', 'child') and (not comp_chk.get('verified', True)):
 			unreread_src = comp_chk.get('unreread_analysis_sources') or []
 			msg_c = ('COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md: ' + ', '.join(unreread_src)) if unreread_src else 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
 			_push('compaction', 'turn.compaction', [msg_c])
@@ -1418,7 +1475,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		if not lifecycle_chk.get('verified', True):
 			_push('code_lifecycle', 'turn.code_lifecycle', [f'EXEC-5 violation in active turn (code/issue lifecycle incomplete): {v}' for v in lifecycle_chk.get('violations') or []])
 		_push('workflow', 'turn.workflow', wf_errs)
-		out = {
+		return {
 			'valid': not all_issues,
 			'read_only': True,
 			'role': role,
@@ -1440,8 +1497,6 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 				'workflow': not wf_errs,
 			},
 		}
-		_ANSWER_CHECK_CACHE[cache_key] = out
-		return out
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
