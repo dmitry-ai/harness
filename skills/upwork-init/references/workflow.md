@@ -22,7 +22,7 @@ python <tool> adopt-requests <project> --conversation <UUID of current parent ch
 `resume` verifies the saved snapshot and updates `ꘖ/KB/Progress.md`.  
 `adopt-requests` reads the exact user messages for the job through the active platform adapter, records native message IDs, and never reconstructs text from collapsed summaries.  
 Codex reads the selected profile's native SQLite/session JSONL in read-only mode; Antigravity reads native `USER_INPUT` steps.  
-In a new chat without `/upwork-init`, the adapter requires the exact native project `cwd`/`workspace_uri` or an explicit `"Project root: `<absolute path>`"` in the user request.  
+In a new chat without `/upwork-init`, the adapter requires the exact native project `cwd` or single-folder `workspace_uri`.  
 A shared repository root or multi-folder workspace does not identify a specific project; explicitly switching to another job post closes the prior request scope.  
 Importing requests from the second platform appends to prior exact requests while preserving already prepared responses.  
 If the native database format is unavailable, preserve verified exact requests of the current chat and pass `resume --request-file <file>` to record the current request in service state.  

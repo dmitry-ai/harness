@@ -24,7 +24,8 @@ In Antigravity, native IDs and settings are saved and the Folders branch is assi
 A secondary error or pending state does not block the active registration; check the individual receipts, `complete`, and `all_registered`.  
 Without `CODEX_HOME`, the source profile for Codex registration alone is taken from `runtime.platforms.codex.registration_profile`; it is never used as a chat history source.  
 `adopt-requests` reads the exact `USER_INPUT` steps of the current parent chat from the native store.  
-In a new chat without a job URL, request ownership is confirmed by a single exact project `workspace_uri` or an explicit `"Project root: <absolute path>"` in the user message; a shared repository root or ambiguous multi-workspace is insufficient.  
+In a new chat without a job URL, request ownership is confirmed by a single exact project `workspace_uri` (or single-folder `project_id` resource); a shared repository root or ambiguous multi-workspace is insufficient.  
 `native-review-proof` verifies the parent, child `self`/`inherit`, prompt neutrality (absence of pre-filled `approved`/`supported`/`direct`/`findings: []`), read-only operation of the reviewer inside the current project root without accessing neighboring projects, successful completion, and the assigned KB package (`review-input`).  
 If the native store format is unavailable, record the exact current request via `resume --request-file`; do not reconstruct historical texts from summaries.  
 Creation, research, continuation, review, and completion behavior are governed by the shared skill.  
+<!-- https://github.com/dmitry-ai/harness/issues/112 -->  

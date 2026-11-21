@@ -57,9 +57,8 @@ To finish an incomplete registration, run `register <project>`, which preserves 
 
 When the user writes `"Continue analysis. Analysis was interrupted due to ..."` (or hits an instance usage limit), resume the same project.  
 Use `harness.py instances [--conversation <uuid>]` to inspect configured environments, `enabled` states, and per-instance `system_paths` for cross-instance continuation or efficiency audits without scanning unrelated directories.  
-This also applies in a new chat of another instance or environment when the user specifies the exact project or when the UI workspace uniquely binds the project root.  
-Match the native Codex `cwd` or single Antigravity `workspace_uri` against the exact project root; if native binding is ambiguous, require an explicit `"Project root: <absolute path>"` in the user's message.  
-Example of an unambiguous prompt: `"Continue preparing the proposal. Project root: `<absolute path>`"`.  
+This also applies in a new chat of another instance or environment when the UI workspace uniquely binds the project root.  
+Match the native Codex `cwd` or single Antigravity `workspace_uri` against the exact project root; a shared repository root or multi-folder workspace is rejected rather than overridden by text in the message.  
 Do not ask the user to re-run `/upwork-init`.  
 Take the exact root/URL from the current chat history; never pick the most recently modified or neighboring project by guesswork.  
 Read the overview, topical modules, and saved results in the agent KB, then run `status <project>` and `resume <project> --reason <reason>`.  

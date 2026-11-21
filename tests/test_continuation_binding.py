@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Restrict explicit project root binding to full root labels":
 # https://github.com/dmitry-ai/harness/issues/111
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -178,29 +181,39 @@ class AntigravityContinuationTests(ProjectCase):
 			self.workspace(paths)
 			with self.assertRaises(ValueError):
 				antigravity.native_requests(self.project, self.parent, backend=self.backend)
-	def test_explicit_exact_root_binds_generic_workspace_without_rewriting_user_text(self):
+	def test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text(self):
 		self.workspace([self.root])
-		request = f'Continue analysis.\nProject root: `{self.project}`'
-		self.inputs([request])
+		job_id = flow.load(self.project)['job_id']
+		init_request = f'/upwork-init https://www.upwork.com/jobs/{job_id}\nContinue analysis.'
+		self.inputs([init_request])
 		saved = antigravity.native_requests(self.project, self.parent, backend=self.backend)
-		self.assertEqual(saved[0]['text'], request)
-		self.assertEqual(saved[0]['project_binding']['kind'], 'explicit-project-root')
+		self.assertEqual(saved[0]['text'], init_request)
+		self.assertEqual(saved[0]['project_binding']['kind'], 'explicit-upwork-init')
 		self.assertEqual(antigravity.native_review_proof(self.project, self.parent, self.child, backend=self.backend, write=False)['status'], 'completed')
-	def test_wrong_explicit_root_or_foreign_job_does_not_claim_parent_or_self_review(self):
-		for request in (f'Continue analysis.\nProject root: `{self.root}`', '/upwork-init https://www.upwork.com/jobs/~0299999'):
-			self.inputs(['Own request', request, 'Continue analysis.'])
-			self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 1)
+		for text_override in (f'Continue analysis.\nProject root: `{self.project}`', f'Продолжай.\nКорень проекта: `{self.project}`'):
+			self.inputs([text_override])
 			with self.assertRaises(ValueError):
-				antigravity.native_review_proof(self.project, self.parent, self.child, backend=self.backend, write=False)
-			with self.assertRaises(ValueError):
-				antigravity.require_current_binding(self.project, self.parent, backend=self.backend)
-	def test_explicit_root_supports_self_review_and_empty_metadata_keeps_legacy_job_id(self):
-		self.workspace([])
-		self.inputs([f'Continue analysis.\nProject root: `{self.project}`'])
+				antigravity.native_requests(self.project, self.parent, backend=self.backend)
+	def test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace(self):
+		self.inputs(['Own request', '/upwork-init https://www.upwork.com/jobs/~0299999', 'Continue analysis.'])
+		self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 1)
+		with self.assertRaises(ValueError):
+			antigravity.native_review_proof(self.project, self.parent, self.child, backend=self.backend, write=False)
+		with self.assertRaises(ValueError):
+			antigravity.require_current_binding(self.project, self.parent, backend=self.backend)
+		self.inputs(['Own request', f'Continue analysis.\nProject root: `{self.root}`', 'Continue analysis.'])
+		self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 3)
+	def test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id(self):
+		self.workspace([self.project])
+		self.inputs(['Continue analysis.'])
 		report = self.review_report(self.package, self_review=True)
 		self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
 		with patch.object(Path, 'home', return_value=self.home), runtime.using('antigravity'):
 			flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=self.parent, reviewer_id=self.parent)
+		self.workspace([])
+		self.inputs([f'Continue analysis.\nProject root: `{self.project}`'])
+		with self.assertRaises(ValueError):
+			antigravity.native_requests(self.project, self.parent, backend=self.backend)
 		self.inputs(['Exact native job ' + flow.load(self.project)['job_id']])
 		self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 1)
 	def test_legacy_job_mention_after_foreign_init_cannot_reactivate_old_project(self):
@@ -256,16 +269,20 @@ class AntigravityContinuationTests(ProjectCase):
 			conn.close()
 		with self.assertRaises(ValueError):
 			antigravity.native_requests(self.project, self.parent, backend=self.backend)
-	def test_russian_root_label_binds_while_bare_project_mention_preserves_workspace(self):
+	def test_text_root_labels_neither_break_valid_workspace_nor_claim_foreign_workspace(self):
 		self.workspace([self.project])
-		bare_mention = f'# 1\nПроект: `{self.root}`\nПредложи решения.'
-		self.inputs([bare_mention])
-		requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
-		self.assertEqual([item['text'] for item in requests], [bare_mention])
-		self.assertEqual(requests[0]['project_binding']['kind'], 'antigravity-workspace-uris')
+		for text_mention in (
+			f'# 1\nПроект: `{self.root}`\nПредложи решения.',
+			f'Продолжай.\nКорень проекта: `{self.root}`',
+			f'Continue.\nProject root: `{self.root}`',
+			f'> Project root: `{self.root}`\n```text\nКорень проекта: {self.root}\n```',
+		):
+			self.inputs([text_mention])
+			requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+			self.assertEqual([item['text'] for item in requests], [text_mention])
+			self.assertEqual(requests[0]['project_binding']['kind'], 'antigravity-workspace-uris')
 		self.workspace([self.root])
-		explicit_ru = f'Продолжай.\nКорень проекта: `{self.project}`'
-		self.inputs([explicit_ru])
-		saved = antigravity.native_requests(self.project, self.parent, backend=self.backend)
-		self.assertEqual([item['text'] for item in saved], [explicit_ru])
-		self.assertEqual(saved[0]['project_binding']['kind'], 'explicit-project-root')
+		for explicit_text in (f'Продолжай.\nКорень проекта: `{self.project}`', f'Continue.\nProject root: `{self.project}`'):
+			self.inputs([explicit_text])
+			with self.assertRaises(ValueError):
+				antigravity.native_requests(self.project, self.parent, backend=self.backend)

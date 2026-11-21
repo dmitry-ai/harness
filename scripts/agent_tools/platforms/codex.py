@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
@@ -324,7 +327,7 @@ def native_requests(root, conversation_id, *, backend=None, instance=None):
 	paths = _paths(backend, profile=instance, conversation_id=conversation_id)
 	home = paths['home']
 	selected, _, _ = _request_scope(root, _trace(home, conversation_id, paths=paths)[3])
-	return current_turn_requests(selected, conversation_id, 'codex-ui', 'Native Codex requests do not identify this project; use its exact project root or /upwork-init URL', id_fmt='codex:{cid}:{idx}', extra={'native_profile_home': str(home)})
+	return current_turn_requests(selected, conversation_id, 'codex-ui', 'Native Codex requests do not identify this project; open the session in the exact project directory or pass its /upwork-init URL', id_fmt='codex:{cid}:{idx}', extra={'native_profile_home': str(home)})
 def require_current_binding(root, conversation_id, *, backend=None, instance=None, rows=None, until=None):
 	if None is rows:
 		paths = _paths(backend, profile=instance, conversation_id=conversation_id)

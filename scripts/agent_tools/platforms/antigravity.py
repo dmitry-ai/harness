@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -715,7 +718,7 @@ def native_requests(root, conversation_id, *, backend=None, instance=None):
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
 	selected, _, _ = _request_scope(root, conversation_id, backend, paths=paths)
-	return current_turn_requests(selected, conversation_id, 'antigravity-ui', 'Native requests do not identify this project; say "Continue analysis. Project root: `<absolute path>`"')
+	return current_turn_requests(selected, conversation_id, 'antigravity-ui', 'Native Antigravity requests do not identify this project; open the chat in the exact project workspace or pass its /upwork-init URL')
 def require_current_binding(root, conversation_id, *, backend=None, instance=None, inputs=None, until=None):
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])

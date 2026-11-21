@@ -61,6 +61,7 @@ A shared Harness skill is discovered through the profile's link to its canonical
 The Codex adapter reads exact requests and review provenance from the selected profile in read-only mode.  
 `adopt-requests` uses the UUID of the current chat (`CODEX_THREAD_ID`); before the final response, write the UTF-8 text to `<root>/ꘖ/data/scratch/answer.md` via `[System.IO.File]::WriteAllText(..., [System.Text.UTF8Encoding]::new($false))` and run `answer-prepare <root> --response-file "<root>/ꘖ/data/scratch/answer.md" --consume-input --platform codex` (do not pipe Cyrillic or `ꘖ`/`ꙮ` through a PowerShell `| python` pipeline without `[System.Text.UTF8Encoding]::new($false)`) per the [unified contract](../references/turn-completion.md#answer-preparation).  
 Low-level `record-answer` is retained for compatibility and recovery, but does not by itself confirm delivery.  
-In a new chat without a URL, request ownership is confirmed by the exact native project `cwd` or an explicit `"Project root: <absolute path>"` in the user message; a shared repository `cwd` is insufficient.  
+In a new chat without a URL, request ownership is confirmed by the exact native project `cwd`; a shared repository `cwd` is insufficient.  
 When continuing from the other platform, preserve its journal and evidence; the prior receipt platform remains part of provenance.  
 Do not reconstruct requests from summaries and do not declare an unverified receipt confirmed.  
+<!-- https://github.com/dmitry-ai/harness/issues/112 -->  

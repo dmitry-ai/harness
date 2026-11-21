@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
@@ -50,14 +53,15 @@ class TextNativeBindingTests(unittest.TestCase):
 		project.write_text('{"job_id":"text-forged"}', encoding='utf-8')
 		with self.assertRaises(ValueError):
 			native_project_id(self.root)
-	def test_internal_id_mention_never_substitutes_for_actual_cwd_or_explicit_root(self):
+	def test_internal_id_or_text_root_never_substitutes_for_actual_cwd(self):
 		identifier = self.identity['id']
-		selected, active, _ = scoped_inputs(self.root, identifier, [(1, 'Reference ' + identifier)])
-		self.assertEqual(selected, [])
-		self.assertFalse(active)
-		request = f'Write an article.\nProject root: `{self.root}`'
-		selected, active, _ = scoped_inputs(self.root, identifier, [(1, request)])
-		self.assertEqual(selected[0][1], request)
+		for msg in ('Reference ' + identifier, f'Write an article.\nProject root: `{self.root}`', f'Продолжай.\nКорень проекта: `{self.root}`'):
+			selected, active, _ = scoped_inputs(self.root, identifier, [(1, msg)])
+			self.assertEqual(selected, [])
+			self.assertFalse(active)
+		foreign_quote = f'Quote:\n> Project root: `{self.base}`\n```text\nКорень проекта: {self.base}\n```'
+		selected, active, _ = scoped_inputs(self.root, identifier, [(1, foreign_quote)], [(0, str(self.root), 'native-cwd')])
+		self.assertEqual([item[1] for item in selected], [foreign_quote])
 		self.assertTrue(active)
 		selected, active, _ = scoped_inputs(self.root, identifier, [(1, 'Write'), (2, '/upwork-init https://upwork.com/jobs/~0299999'), (3, 'Continue')], [(0, str(self.root), 'native-cwd'), (4, str(self.root), 'native-cwd')])
 		self.assertEqual([item[1] for item in selected], ['Write'])
@@ -111,27 +115,30 @@ class TextNativeBindingTests(unittest.TestCase):
 		requests = codex.native_requests(self.root, self.parent, backend=home)
 		self.assertEqual([request['text'] for request in requests], ['  Exact article request.  '])
 		self.assertEqual(requests[0]['project_binding']['kind'], 'codex-session-cwd')
+		foreign_mention = f'Write an article.\nProject root: `{self.base}`'
+		self.codex_fixture(request=foreign_mention)
+		self.assertEqual(codex.native_requests(self.root, self.parent, backend=home)[0]['text'], foreign_mention)
 		self.codex_fixture(cwd=self.base)
 		with self.assertRaises(ValueError):
 			codex.native_requests(self.root, self.parent, backend=home)
 		exact = f'Write an article.\nProject root: `{self.root}`'
 		self.codex_fixture(cwd=self.base, request=exact)
-		self.assertEqual(codex.native_requests(self.root, self.parent, backend=home)[0]['text'], exact)
-	def test_antigravity_scope_uses_workspace_or_explicit_root_for_text(self):
+		with self.assertRaises(ValueError):
+			codex.native_requests(self.root, self.parent, backend=home)
+	def test_antigravity_scope_uses_workspace_only_for_text(self):
 		backend = self.antigravity_fixture()
-		selected, active, _ = antigravity._request_scope(self.root, self.parent, backend, inputs=[(0, 'Exact article request')])
-		self.assertEqual(selected[0][1], 'Exact article request')
+		foreign_mention = f'Exact article request.\nProject root: `{self.base}`'
+		selected, active, _ = antigravity._request_scope(self.root, self.parent, backend, inputs=[(0, foreign_mention)])
+		self.assertEqual(selected[0][1], foreign_mention)
 		self.assertTrue(active)
 		connection = sqlite3.connect(backend / 'conversation_summaries.db')
 		connection.execute('UPDATE conversation_summaries SET workspace_uris=? WHERE conversation_id=?', (json.dumps([self.base.as_uri()]), self.parent))
 		connection.commit()
 		connection.close()
-		selected, active, _ = antigravity._request_scope(self.root, self.parent, backend, inputs=[(0, 'Exact article request')])
-		self.assertEqual(selected, [])
-		exact = f'Write an article.\nProject root: `{self.root}`'
-		selected, active, _ = antigravity._request_scope(self.root, self.parent, backend, inputs=[(0, exact)])
-		self.assertEqual(selected[0][1], exact)
-		self.assertTrue(active)
+		for msg in ('Exact article request', f'Write an article.\nProject root: `{self.root}`'):
+			selected, active, _ = antigravity._request_scope(self.root, self.parent, backend, inputs=[(0, msg)])
+			self.assertEqual(selected, [])
+			self.assertFalse(active)
 	def test_codex_native_review_for_text_has_no_fabricated_upwork_job(self):
 		home = self.codex_fixture()
 		proof = codex.native_review_proof(self.root, self.parent, self.child, backend=home, write=False)

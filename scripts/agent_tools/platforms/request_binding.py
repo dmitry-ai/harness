@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Restrict explicit project root binding to full root labels":
 # https://github.com/dmitry-ai/harness/issues/111
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -68,17 +71,12 @@ def _same_root(value, root):
 	else:
 		r = _canonical_root(value) == _canonical_root(root)
 	return r
-def _explicit(text, root, job_id):
+def _explicit(text, job_id):
 	commands = re.findall('(?:/|\\$)upwork-init\\s+https?://[^\\s]*?~(\\d+)', text)
-	if commands:
-		r = (all(('~' + ident == job_id for ident in commands)), 'explicit-upwork-init')
+	if not commands:
+		r = (None, None)
 	else:
-		declarations = re.findall('(?im)(?:\\u043a\\u043e\\u0440\\u0435\\u043d\\u044c \\u043f\\u0440\\u043e\\u0435\\u043a\\u0442\\u0430|project root)\\s*:\\s*([^\\r\\n]+)', text)
-		if not declarations:
-			r = (None, None)
-		else:
-			paths = [value.strip().strip('.,;:').strip('`"<>«»\'').strip('.,;:') for value in declarations]
-			r = (all((_same_root(value, root) for value in paths)), 'explicit-project-root')
+		r = (all(('~' + ident == job_id for ident in commands)), 'explicit-upwork-init')
 	return r
 def scoped_inputs(root, job_id, inputs, contexts=(), *, until=None):
 	events = [(step, 1, text, None) for step, text in inputs if None is until or step <= until]
@@ -93,7 +91,7 @@ def scoped_inputs(root, job_id, inputs, contexts=(), *, until=None):
 				previous_root, active = (normalized, _same_root(normalized, root))
 				binding = {'kind': source, 'native_step': step, 'root': normalized}
 			continue
-		choice, source = _explicit(value, root, job_id)
+		choice, source = _explicit(value, job_id)
 		if None is not choice:
 			active, legacy = (choice, False)
 			binding = {'kind': source, 'native_step': step, 'root': str(Path(root).resolve())}
