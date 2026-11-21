@@ -672,7 +672,32 @@ class MetricsTests(TemporaryCase):
 			self.assertEqual(gh_obs['github_line_range'], '#LC1..#LC120')
 			self.assertNotIn('LC1', gh_obs['anchors'])
 			self.assertIn('LocalFileSystemBase', gh_obs['matches'][0]['verbatim_context'])
-			self.assertTrue(gh_obs['matches'][0]['anchor'].startswith('#LC'))
+			self.assertEqual(gh_obs['matches'][0]['anchor'], '#LC43')
+			self.assertEqual(gh_obs['matches'][0]['range_anchor'], '#L41-L45')
+			from agent_tools.response_grounding import response_source_and_kb_issues
+			(proj / '\ua616/KB/Sources.md').write_text(f'# Sources\n- {gh_url}  \n', encoding='utf-8')
+			cite_md = f'See [intellij-community/LocalFileSystemBase.java at master]({gh_url}{gh_obs["matches"][0]["anchor"]}): \u00abpublic abstract class LocalFileSystemBase extends NewVirtualFileSystem {{\n  // target_token_gh verified implementation note\u00bb.  \n'
+			self.assertEqual(response_source_and_kb_issues(proj, cite_md, []), [])
+			gh_react_only_url = 'https://github.com/JetBrains/intellij-community/blob/master/platform/platform-impl/src/ReactOnlyBlob.java'
+			react_lines = [f'// line {ln}' for ln in range(1, 21)]
+			react_lines[9] = 'public class ReactOnlyBlob {'
+			react_lines[10] = '  if (name.equals("ProjectFiles")) return true;'
+			react_lines[11] = '}'
+			filler = ' '.join(['Repository', 'Java', 'source', 'viewer', 'navigation', 'breadcrumbs'] * 12)
+			react_emb = json.dumps({'payload': {'blob': {'rawLines': react_lines}}})
+			react_html = f'<!doctype html><html><head><title>intellij-community/ReactOnlyBlob.java at master</title></head><body><h1>ReactOnlyBlob.java</h1><p>{filler}</p><script type="application/json" data-target="react-app.embeddedData">{react_emb}</script></body></html>'.encode('utf-8')
+			collect_http(proj, gh_react_only_url, profile='html', browser='never', fetcher=lambda u, h, t: Response(u, 200, 'text/html; charset=utf-8', react_html))
+			(proj / '\ua616/KB/Sources.md').write_text(f'# Sources\n- {gh_url}  \n- {gh_react_only_url}  \n', encoding='utf-8')
+			cite_react = f'See [intellij-community/ReactOnlyBlob.java at master]({gh_react_only_url}#LC11): \u00abpublic class ReactOnlyBlob {{ if (name.equals("ProjectFiles")) return true;\u00bb.  \n'
+			self.assertEqual(response_source_and_kb_issues(proj, cite_react, []), [])
+			gh_dom_url = 'https://github.com/JetBrains/intellij-community/blob/master/platform/platform-impl/src/DomOnlyBlob.java'
+			dom_rows = ''.join((f'<tr><td id="L{ln}"></td><td id="LC{ln}"><span class="pl-k">public</span> class DomOnlyBlob // dom_hit_17</td></tr>' if 17 == ln else f'<tr><td id="L{ln}"></td><td id="LC{ln}">// line {ln}</td></tr>' for ln in range(1, 25)))
+			dom_html = f'<!doctype html><html><head><title>DomOnlyBlob.java</title></head><body><h1>DomOnlyBlob.java</h1><p>{filler}</p><table>{dom_rows}</table></body></html>'.encode('utf-8')
+			collect_http(proj, gh_dom_url, profile='html', browser='never', fetcher=lambda u, h, t: Response(u, 200, 'text/html; charset=utf-8', dom_html))
+			eq_dom = evidence_query(proj, urls=[gh_dom_url], include_anchors=True, grep_pattern='dom_hit_17')
+			self.assertEqual(eq_dom['observations'][0]['matches'][0]['anchor'], '#LC17')
+			self.assertEqual(eq_dom['observations'][0]['matches'][0]['line_start'], 15)
+			self.assertEqual(eq_dom['observations'][0]['matches'][0]['line_end'], 19)
 			miss_res = evidence_query(proj, urls=['https://example.invalid/not-collected'])
 			self.assertFalse(miss_res['valid'])
 			self.assertEqual(miss_res['missing_urls'], ['https://example.invalid/not-collected'])

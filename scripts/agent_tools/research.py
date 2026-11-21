@@ -1024,21 +1024,35 @@ def collect_browser_batch(root, urls, *, profile='html', scope='public', session
 	return {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and ('dom' == x.get('kind') or 0 < (x.get('status') or 0)) for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and ('dom' == x.get('kind') or 200 <= (x.get('status') or 0) < 300) and (not x.get('browser_check_required')) for x in results))}
 def _norm_query_url(url: str) -> str:
 	return urldefrag(str(url or '').strip())[0].rstrip('/')
-def _extract_github_blob_lines(raw_text: str) -> list[str]:
-	if not raw_text or 'react-app.embeddedData' not in raw_text:
+def extract_github_blob_lines(raw_text: str) -> list[str]:
+	if not raw_text:
 		return []
-	for m in re.finditer('<script[^>]*data-target=["\\\']react-app\\.embeddedData["\\\'][^>]*>(.*?)</script>', raw_text, re.I | re.S):
-		try:
-			emb = json.loads(m.group(1))
-		except ValueError:
-			continue
-		payload = emb.get('payload') if isinstance(emb, dict) else None
-		if not isinstance(payload, dict):
-			continue
-		for cand in (payload.get('blob'), (payload.get('codeViewBlobLayoutRoute') or {}).get('blob') if isinstance(payload.get('codeViewBlobLayoutRoute'), dict) else None):
-			if isinstance(cand, dict) and isinstance(cand.get('rawLines'), list):
-				return [str(ln) for ln in cand['rawLines']]
+	if 'react-app.embeddedData' in raw_text:
+		for m in re.finditer('<script[^>]*data-target=["\\\']react-app\\.embeddedData["\\\'][^>]*>(.*?)</script>', raw_text, re.I | re.S):
+			try:
+				emb = json.loads(m.group(1))
+			except ValueError:
+				continue
+			payload = emb.get('payload') if isinstance(emb, dict) else None
+			if not isinstance(payload, dict):
+				continue
+			for cand in (payload.get('blob'), (payload.get('codeViewBlobLayoutRoute') or {}).get('blob') if isinstance(payload.get('codeViewBlobLayoutRoute'), dict) else None):
+				if isinstance(cand, dict) and isinstance(cand.get('rawLines'), list):
+					return [str(ln) for ln in cand['rawLines']]
+	if 'LC' in raw_text:
+		by_ln: dict[int, str] = {}
+		for pat in ('<(td|div)\\b[^>]*\\bid=["\\\']LC(\\d+)["\\\'][^>]*>(.*?)</\\1>', '<(span)\\b[^>]*\\bid=["\\\']LC(\\d+)["\\\'][^>]*>(.*?)</\\1>'):
+			for m_lc in re.finditer(pat, raw_text, re.I | re.S):
+				ln_no = int(m_lc.group(2))
+				if 1 <= ln_no <= 200000 and ln_no not in by_ln:
+					by_ln[ln_no] = html_lib.unescape(re.sub('<[^>]+>', '', m_lc.group(3))).replace('\xa0', ' ').rstrip('\r\n')
+			if by_ln:
+				break
+		if by_ln:
+			max_ln = max(by_ln)
+			return [by_ln.get(idx, '') for idx in range(1, max_ln + 1)]
 	return []
+_extract_github_blob_lines = extract_github_blob_lines
 def _grep_blob_windows(blob_lines: list[str], rx: re.Pattern, *, has_lc_anchors: bool, context_lines: int = 2, max_matches: int = 20) -> list[dict]:
 	hit_indices = [idx for idx, ln in enumerate(blob_lines) if rx.search(ln)]
 	if not hit_indices:
@@ -1050,14 +1064,15 @@ def _grep_blob_windows(blob_lines: list[str], rx: re.Pattern, *, has_lc_anchors:
 		if windows and s <= windows[-1][1] + 1:
 			windows[-1][1] = max(windows[-1][1], e)
 		else:
-			windows.append([s, e])
+			windows.append([s, e, idx])
 		if len(windows) >= max_matches:
 			break
 	out: list[dict] = []
-	for s, e in windows[:max_matches]:
-		s1, e1 = (s + 1, e + 1)
-		anchor = (f'#LC{s1}' if s1 == e1 else f'#LC{s1}-#LC{e1}') if has_lc_anchors else (f'#L{s1}' if s1 == e1 else f'#L{s1}-L{e1}')
-		out.append({'line_start': s1, 'line_end': e1, 'anchor': anchor, 'heading': None, 'verbatim_context': '\n'.join(blob_lines[s:e + 1])})
+	for s, e, first_hit in windows[:max_matches]:
+		s1, e1, hit1 = (s + 1, e + 1, first_hit + 1)
+		range_anchor = f'#L{s1}' if s1 == e1 else f'#L{s1}-L{e1}'
+		anchor = f'#LC{hit1}' if has_lc_anchors else range_anchor
+		out.append({'line_start': s1, 'line_end': e1, 'hit_line': hit1, 'anchor': anchor, 'line_anchor': f'#LC{hit1}', 'range_anchor': range_anchor, 'heading': None, 'verbatim_context': '\n'.join(blob_lines[s:e + 1])})
 	return out
 def _grep_section_windows(sections: list[dict], fallback_text: str, rx: re.Pattern, *, context_lines: int = 2, max_matches: int = 20) -> list[dict]:
 	out: list[dict] = []

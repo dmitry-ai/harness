@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add compact evidence-query command and unify collect-http CLI flags":
+# https://github.com/dmitry-ai/harness/issues/118
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
@@ -18,7 +21,7 @@ from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
 from .links import _bare_urls, readable_link_issues
-from .research import MAX_BYTES, classify_html_challenge, extract_markdown, extractor_version
+from .research import MAX_BYTES, classify_html_challenge, extract_github_blob_lines, extract_markdown, extractor_version
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
 from .upwork_data import extract_upwork_job_url_id
 class ResponseEvidenceAuditor:
@@ -365,6 +368,11 @@ class ResponseEvidenceAuditor:
 							t = ' '.join(m_t.group(1).split())
 							if t:
 								ext_titles.append(t)
+						if 'github.com' == host and any(('/blob/' in (urlsplit(u).path or '') for u in urls_here)):
+							gh_lines = extract_github_blob_lines(raw_text)
+							if gh_lines:
+								ext_texts.append('\n'.join(gh_lines))
+								ext_anchors.update((f'LC{ln_no}' for ln_no in range(1, len(gh_lines) + 1)))
 					if raw_text.strip():
 						ext_texts.append(raw_text)
 					if ('json' in ctype or raw_text.lstrip().startswith('{')) and valid_status and (not is_shell_or_empty):
