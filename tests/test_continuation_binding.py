@@ -286,3 +286,39 @@ class AntigravityContinuationTests(ProjectCase):
 			self.inputs([explicit_text])
 			with self.assertRaises(ValueError):
 				antigravity.native_requests(self.project, self.parent, backend=self.backend)
+	def test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state(self):
+		from agent_tools import completion
+		self.workspace([self.project])
+		prompt = f'Continue.\nProject root: `{self.project}`'
+		self.inputs([prompt])
+		res = completion.begin(self.project, self.parent, platform='antigravity', backend=self.backend)
+		state_path = self.project / res['state']
+		saved = json.loads(state_path.read_text(encoding='utf-8'))
+		saved['requests'][0]['project_binding'] = {'kind': 'explicit-project-root', 'native_step': 0, 'root': str(self.project)}
+		saved['status'] = 'prepared'
+		saved['prepared'] = {'journal_steps': [2], 'response_sha256': '0' * 64, 'response_file': str(self.project / 'res.md'), 'group_file': str(self.project / 'grp.json')}
+		raw_bytes = (json.dumps(saved, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+		state_path.write_bytes(raw_bytes)
+		native = completion._native(self.project, self.parent, platform='antigravity', backend=self.backend)
+		turn = completion._active(native)
+		_, loaded = completion._state(self.project, native, turn, recovered=True, allow_extended=False)
+		self.assertEqual(loaded['requests'][0]['project_binding']['kind'], 'explicit-project-root')
+		self.assertNotIn('uncovered_requests', loaded)
+		saved['status'] = 'delivered'
+		turn_done = {**turn, 'completed': True}
+		delivered_bytes = (json.dumps(saved, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+		state_path.write_bytes(delivered_bytes)
+		_, loaded_del = completion._state(self.project, native, turn_done, recovered=True, allow_extended=True)
+		completion._persist(state_path, loaded_del)
+		self.assertEqual(state_path.read_bytes(), delivered_bytes)
+		for bad_binding, bad_text in (
+			({'kind': 'explicit-project-root', 'native_step': 0, 'root': str(self.root)}, prompt),
+			({'kind': 'codex-session-cwd', 'native_step': 0, 'root': str(self.project)}, prompt),
+			({'kind': 'explicit-project-root', 'native_step': 0, 'root': str(self.project)}, 'Tampered prompt'),
+		):
+			tampered = json.loads(delivered_bytes.decode('utf-8'))
+			tampered['requests'][0]['project_binding'] = bad_binding
+			tampered['requests'][0]['text'] = bad_text
+			state_path.write_bytes((json.dumps(tampered, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
+			with self.assertRaisesRegex(ValueError, 'Native requests changed before the saved boundary'):
+				completion._state(self.project, native, turn_done, recovered=True, allow_extended=True)

@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -722,6 +725,19 @@ def _recoverable_step_status(turn, violations_key, covered_key, root=None, key=N
 	if violations and (not unrecovered):
 		r['recovered_via_receipt'] = True
 	return r
+def _same_saved_request(old_req, cur_req, root):
+	if old_req == cur_req:
+		return True
+	if not isinstance(old_req, dict) or not isinstance(cur_req, dict):
+		return False
+	if {k: v for k, v in old_req.items() if 'project_binding' != k} != {k: v for k, v in cur_req.items() if 'project_binding' != k}:
+		return False
+	old_b, cur_b = (old_req.get('project_binding'), cur_req.get('project_binding'))
+	if not isinstance(old_b, dict) or not isinstance(cur_b, dict) or 'explicit-project-root' != old_b.get('kind'):
+		return False
+	from .path_registry import canonicalize_root_dir
+	old_r, cur_r = (old_b.get('root'), cur_b.get('root'))
+	return bool(old_r and cur_r and canonicalize_root_dir(old_r) == canonicalize_root_dir(root) and canonicalize_root_dir(cur_r) == canonicalize_root_dir(root))
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
 	from .path_registry import canonicalize_root_dir
 	root = canonicalize_root_dir(root)
@@ -755,10 +771,11 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 		if value.get(name) != expected:
 			raise ValueError('Completion state has a different native owner; preserved')
 	old, current = (value['requests'], turn['requests'])
-	if current[:len(old)] != old:
+	if len(current) < len(old) or not all((_same_saved_request(old_item, cur_item, root) for old_item, cur_item in zip(old, current))):
 		raise ValueError('Native requests changed before the saved boundary; preserved')
-	if not (value.get('prepared') and current != old):
-		value['requests'] = current
+	merged_requests = [*old, *current[len(old):]]
+	if not (value.get('prepared') and len(current) > len(old)):
+		value['requests'] = merged_requests
 		r = (path, value)
 	else:
 		if not allow_extended:
