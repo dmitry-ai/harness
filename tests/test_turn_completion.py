@@ -2034,6 +2034,26 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			with patch('agent_tools.completion.begin', side_effect=AssertionError('Second PreInvocation of same turn must fast-exit without calling completion.begin')):
 				second_out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': primary_cid, 'cwd': str(proj_a), 'transcriptPath': str(t_log), 'invocationNum': 1, 'initialNumSteps': 4}, backend_override=backend)
 			self.assertEqual(second_out, {})
+			unflushed_cid = str(uuid.uuid4())
+			unflushed_log = backend / 'brain' / unflushed_cid / '.system_generated/logs/transcript_full.jsonl'
+			proj_c = t / 'proj_c'
+			(proj_c / '\ua66e/\u227b').mkdir(parents=True)
+			(proj_c / '\ua66e/\u227a').mkdir(parents=True)
+			with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as conn:
+				conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (unflushed_cid, '', json.dumps([proj_c.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'primary'))
+				conn.commit()
+			with closing(sqlite3.connect(backend / 'conversations' / f'{unflushed_cid}.db')) as conn:
+				conn.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+				conn.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, b'Unflushed first user step.')),))
+				conn.commit()
+			self.assertFalse(unflushed_log.exists())
+			bad_unflushed = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': unflushed_cid, 'cwd': str(proj_b), 'transcriptPath': str(unflushed_log), 'invocationNum': 0, 'initialNumSteps': 1}, backend_override=backend)
+			self.assertEqual(bad_unflushed.get('terminationBehavior'), 'terminate', bad_unflushed)
+			self.assertFalse(unflushed_log.exists())
+			ok_unflushed = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': unflushed_cid, 'cwd': str(proj_c), 'transcriptPath': str(unflushed_log), 'invocationNum': 0, 'initialNumSteps': 1}, backend_override=backend)
+			self.assertIn('injectSteps', ok_unflushed)
+			self.assertFalse(unflushed_log.exists())
+			self.assertTrue(any((proj_c / '\ua616/data/turns').glob('*.json')))
 	def test_answer_check_detects_link5_doc4_verify1_and_exec5_without_disk_side_effects(self):
 		from contextlib import closing
 		import os

@@ -1,6 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
+from contextlib import contextmanager
 import hashlib
 import json
 from pathlib import Path
@@ -115,6 +116,40 @@ def _latest_completed_user_step(conversations_dir: Path, conversation_id: str) -
 		return None
 	finally:
 		conn.close()
+def _has_planner_steps(conversations_dir: Path, conversation_id: str) -> bool:
+	conv_db = conversations_dir / f'{conversation_id}.db'
+	if not conv_db.is_file():
+		return False
+	conn = sqlite3.connect(conv_db.resolve().as_uri() + '?mode=ro', uri=True)
+	try:
+		return None is not conn.execute('SELECT 1 FROM steps WHERE step_type=15 LIMIT 1').fetchone()
+	except Exception:
+		return False
+	finally:
+		conn.close()
+@contextmanager
+def _pre_flush_begin_context(brain_dir: Path, conversations_dir: Path, conversation_id: str):
+	logs_dir = brain_dir / conversation_id / '.system_generated/logs'
+	full_t = logs_dir / 'transcript_full.jsonl'
+	comp_t = logs_dir / 'transcript.jsonl'
+	if full_t.is_file() or comp_t.is_file() or _has_planner_steps(conversations_dir, conversation_id):
+		yield
+		return
+	_ensure_scripts_on_path()
+	from agent_tools.platforms import antigravity as ag_mod
+	orig_reader = ag_mod.read_jsonl_objects
+	allowed = {full_t.resolve(), comp_t.resolve()}
+	def _empty_if_unflushed(source, *, partial_error=None):
+		if not isinstance(source, (bytes, bytearray)):
+			src_p = Path(source)
+			if not src_p.is_file() and src_p.resolve() in allowed:
+				return []
+		return orig_reader(source, partial_error=partial_error)
+	ag_mod.read_jsonl_objects = _empty_if_unflushed
+	try:
+		yield
+	finally:
+		ag_mod.read_jsonl_objects = orig_reader
 def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> str:
 	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
 	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
@@ -170,7 +205,7 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	t_path_raw = str(payload.get('transcriptPath') or '').strip()
 	t_path = Path(t_path_raw).resolve() if t_path_raw else None
 	try:
-		backend, _, conversations_db, conversations_dir = _resolve_ag_paths(conversation_id, t_path=t_path, backend_override=backend_override)
+		backend, brain_dir, conversations_db, conversations_dir = _resolve_ag_paths(conversation_id, t_path=t_path, backend_override=backend_override)
 	except ValueError as exc:
 		if 'exists in multiple Antigravity instances' in str(exc):
 			return _terminate_error(str(exc))
@@ -186,15 +221,16 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	t_dir = _turns_dir(canon_root)
 	if _turn_step_already_covered(t_dir, backend, conversation_id, max_user_step):
 		return {}
-	try:
-		from agent_tools import completion
-		res = completion.begin(canon_root, conversation_id, platform='antigravity', backend=backend)
-	except ValueError as exc:
-		if _is_binding_violation(exc, canon_root, conversation_id, backend):
-			return _terminate_error(str(exc))
-		return {}
-	except Exception:
-		return {}
+	with _pre_flush_begin_context(brain_dir, conversations_dir, conversation_id):
+		try:
+			from agent_tools import completion
+			res = completion.begin(canon_root, conversation_id, platform='antigravity', backend=backend)
+		except ValueError as exc:
+			if _is_binding_violation(exc, canon_root, conversation_id, backend):
+				return _terminate_error(str(exc))
+			return {}
+		except Exception:
+			return {}
 	if 'primary' == res.get('role') and res.get('turn_key'):
 		turn_key = str(res['turn_key'])
 		scratch_ans = _scratch_answer_path(canon_root, turn_key)
