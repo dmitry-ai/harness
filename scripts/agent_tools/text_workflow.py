@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -35,8 +38,10 @@ from .text_sections import TEXT_KINDS as KINDS, lint_document as _lint, mechanic
 _APPLIED_CHECK_KEYS = ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks')
 class ClientTextWorkspace:
 	def __init__(self, root, *, strict=False):
-		from .path_registry import project_paths
-		resolved = Path(root).resolve(strict=strict)
+		from .path_registry import canonicalize_root_dir, project_paths
+		raw_p = Path(root)
+		canon = canonicalize_root_dir(raw_p)
+		resolved = canon.resolve(strict=strict) if canon != raw_p.resolve(strict=False) else raw_p.resolve(strict=strict)
 		self.pp = project_paths(resolved, exact_root=True)
 		self.root = self.pp.root
 		self.folder = self.pp.data_dir / 'texts'
@@ -281,15 +286,17 @@ class ClientTextWorkspace:
 			raise ValueError('Captured baseline bytes changed')
 		return (result, base)
 	def operation_meta(self, ident):
+		from .path_registry import same_project_root
 		if not isinstance(ident, str) or not re.fullmatch('[a-f0-9]{32}', ident):
 			raise ValueError('Use the exact operation ID returned by text-begin')
 		r = _read(self.folder / 'operations' / ident / 'operation.json')
-		if r.get('root') != str(self.root) or r.get('id') != ident:
+		if not same_project_root(r.get('root'), self.root) or r.get('id') != ident:
 			raise ValueError('Text operation belongs to another workspace')
 		return r
 	def read_check(self, reference):
+		from .path_registry import same_project_root
 		_, data = read_addressed_json(inside(self.root, reference), suffix='-check.json', error_msg='Invalid/changed text check receipt')
-		if data.get('root') != str(self.root):
+		if not same_project_root(data.get('root'), self.root):
 			raise ValueError('Invalid/changed text check receipt')
 		candidate = inside(self.root, data['candidate']).read_bytes()
 		if digest(candidate) != data['candidate_sha256']:
@@ -418,11 +425,12 @@ class TextIntegrityVerifier:
 			r = {'registry': reference, 'versions': versions, 'snapshot': snapshot}
 		return r
 	def reconciled_integrity(self, name, entry):
+		from .path_registry import same_project_root
 		reference = entry.get('reconciliation')
 		if not reference or entry.get('receipt'):
 			raise ValueError('Explicit text baseline reconciliation is missing: ' + name)
 		raw, saved = read_addressed_json(inside(self.ws.root, reference), suffix='-reconciled.json', error_msg='Explicit text baseline reconciliation identity changed: ' + name)
-		if 1 != saved.get('schema_version') or 'baseline_reconciliation' != saved.get('kind') or saved.get('root') != str(self.ws.root) or saved.get('target') != name or saved.get('document_kind') != entry.get('kind') or (not isinstance(saved.get('previous'), dict)) or saved.get('baseline', {}).get('sha256') != entry.get('sha256'):
+		if 1 != saved.get('schema_version') or 'baseline_reconciliation' != saved.get('kind') or (not same_project_root(saved.get('root'), self.ws.root)) or saved.get('target') != name or saved.get('document_kind') != entry.get('kind') or (not isinstance(saved.get('previous'), dict)) or saved.get('baseline', {}).get('sha256') != entry.get('sha256'):
 			raise ValueError('Explicit text baseline reconciliation identity changed: ' + name)
 		op, base = self.ws.operation(saved['operation'])
 		op_dir = self.ws.folder / 'operations' / op['id']
@@ -574,9 +582,10 @@ def verify_integrity(graph):
 		raise ValueError('Invalid historical text integrity graph')
 	return TextIntegrityVerifier(ClientTextWorkspace(graph['root'])).verify(graph)
 def _roots(paths):
+	from .path_registry import canonicalize_root_dir
 	roots = set()
 	for value in paths:
-		path = Path(value).resolve()
+		path = canonicalize_root_dir(value)
 		for root in (path, *path.parents):
 			if (_folder(root) / 'index.json').is_file():
 				roots.add(root)

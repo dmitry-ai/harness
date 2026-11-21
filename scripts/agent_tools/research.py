@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add compact evidence-query command and unify collect-http CLI flags":
 # https://github.com/dmitry-ai/harness/issues/118
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -113,6 +116,18 @@ def inside(root, relative):
 	root = Path(root).resolve()
 	target = (root / relative).resolve()
 	if not target.is_relative_to(root):
+		rel_p = Path(relative)
+		if rel_p.is_absolute() and (not target.exists()):
+			from .path_registry import _path_key, load_registry, same_project_root
+			reg = load_registry()
+			for anc in target.parents:
+				if _path_key(anc) in reg.relocations and same_project_root(anc, root, registry=reg):
+					tail = target.relative_to(anc)
+					if 2 <= len(tail.parts) and '_' == tail.parts[0] and '\ua616' == tail.parts[1] and (not (root / '_').exists()):
+						tail = Path(*tail.parts[1:])
+					mapped = (root / tail).resolve()
+					if mapped.is_relative_to(root):
+						return mapped
 		raise ValueError(f'Path escapes project: {relative}')
 	r = target
 	return r

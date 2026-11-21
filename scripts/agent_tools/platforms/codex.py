@@ -482,6 +482,7 @@ def _json_objects(value):
 	return iter_embedded_json_objects(value, parse_root=False)
 def _review_inputs(root, rows, parent_id, reviewer_id):
 	from ..path_registry import canonicalize_root_dir, same_project_root
+	from ..research import inside
 	calls, r, root_p = ({}, [], canonicalize_root_dir(root))
 	for index, item in rows:
 		payload = item.get('payload', {})
@@ -494,8 +495,11 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 			elif kind in ('function_call_output', 'custom_tool_call_output') and call_id in calls:
 				for receipt in _json_objects(payload.get('output')):
 					if 1 == receipt.get('upwork_review_input') and True is receipt.get('verified') and (receipt.get('reviewer_id') == reviewer_id) and (receipt.get('parent_id') == parent_id) and same_project_root(receipt.get('project_root'), root_p):
-						package = root_p / receipt.get('package', '')
-						if package.resolve().is_relative_to(root_p) and package.is_file() and (package.name in calls[call_id]) and (hashlib.sha256(package.read_bytes()).hexdigest() == receipt.get('package_sha256')):
+						try:
+							package = inside(root_p, receipt.get('package', ''))
+						except ValueError:
+							continue
+						if package.is_file() and (package.name in calls[call_id]) and (hashlib.sha256(package.read_bytes()).hexdigest() == receipt.get('package_sha256')):
 							r.append({'package': receipt['package'], 'package_sha256': receipt['package_sha256'], 'call_id': call_id, 'output_step': index})
 	if not r:
 		raise ValueError('Native reviewer has no successful review-input execution for this immutable package')

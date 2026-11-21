@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -18,10 +21,10 @@ import json
 from pathlib import Path
 import re
 from ..path_registry import canonicalize_root_dir, project_paths, relocated_roots
+def _raw_text_project_id(path_val):
+	return 'text-' + hashlib.sha256(str(Path(path_val).resolve()).encode('utf-8')).hexdigest()
 def text_project_id(root):
-	root = canonical_path(root)
-	r = 'text-' + hashlib.sha256(str(root).encode('utf-8')).hexdigest()
-	return r
+	return _raw_text_project_id(canonical_path(root))
 def native_project_id(root):
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
@@ -37,7 +40,9 @@ def native_project_id(root):
 		if not marker.is_file():
 			raise ValueError('No native project identity; initialize an explicit text workspace first')
 		value = json.loads(marker.read_text(encoding='utf-8-sig'))
-		if not isinstance(value, dict) or type(value.get('schema_version')) is not int or 1 != value['schema_version'] or ('client_text_workspace' != value.get('kind')) or (not _same_root(value.get('project_root'), root)) or (value.get('id') != text_project_id(root)):
+		saved_root = value.get('project_root') if isinstance(value, dict) else None
+		valid_ids = {text_project_id(root)} | ({_raw_text_project_id(saved_root)} if isinstance(saved_root, str) and saved_root.strip() and Path(saved_root).is_absolute() else set())
+		if not isinstance(value, dict) or type(value.get('schema_version')) is not int or 1 != value['schema_version'] or ('client_text_workspace' != value.get('kind')) or (not _same_root(saved_root, root)) or (value.get('id') not in valid_ids):
 			raise ValueError('Text workspace marker has the wrong root, kind, schema or internal ID')
 		r = value['id']
 	return r

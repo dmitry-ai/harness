@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -71,18 +74,17 @@ def project_metrics(root):
 	state = load(root)
 	path = pp.metrics_json
 	uses = json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
-	from .research import bounded_metrics
+	from .research import bounded_metrics, inside
 	collector = None if None is uses else {**bounded_metrics(uses)['totals'], 'scope': 'Only recorded collector operations since instrumentation; earlier requests unknown'}
 	questions = [{'id': q['id'], 'status': q['status'], 'searches': len(q.get('searches', [])), 'unsuccessful_searches': sum((not s['useful'] for s in q.get('searches', []))), 'method_changes': sum((bool(s.get('method_change')) for s in q.get('searches', []))), 'gap': q.get('gap')} for q in state['questions'].values()]
 	reviews = []
 	for review in state['reviews']:
-		report = json.loads((root / review['report']).read_text(encoding='utf-8'))
+		report = json.loads(inside(root, review['report']).read_text(encoding='utf-8'))
 		reviews.append({'reviewer_id': review['reviewer_id'], 'independent': review.get('independent', True), 'risk': review['risk'], 'result': report.get('result'), 'findings': dict(Counter((f.get('status', 'unknown') for f in report.get('findings', []))))})
 	executors, executor_issues = ([], [])
 	registry = pp.executors_json
 	if registry.exists():
 		import hashlib
-		from .research import inside
 		try:
 			index = json.loads(registry.read_text(encoding='utf-8'))
 			for receipt in index.get('snapshots', []):

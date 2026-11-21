@@ -673,10 +673,15 @@ class PathRegistryTests(TemporaryCase):
 			self.assertTrue(doc_out['valid'], doc_out)
 			self.assertNotEqual(doc_out['instances']['A0']['home'], doc_out['instances']['A6']['home'])
 	def test_cross_root_relocation_workflow_completion_review_and_antigravity_registration(self):
-		from agent_tools import completion, review, workflow
-		from agent_tools.platforms import antigravity
+		from agent_tools import completion, metrics, research, review, text_workflow, workflow
+		from agent_tools.platforms import antigravity, codex, request_binding
 		old_su = self.root / 'old_proposals/2026/10/26/1 - reloc_shop'
 		old_sc = self.root / 'old_clients/reloc_shop/m/2026-10-26/code/_my'
+		old_txt = self.root / 'old_text_ws'
+		new_txt = (self.root / 'new_text_ws').resolve()
+		(new_txt / '\ua616/data').mkdir(parents=True)
+		old_txt_id = 'text-' + hashlib.sha256(str(old_txt.resolve()).encode('utf-8')).hexdigest()
+		self.put('new_text_ws/\ua616/data/text-project.json', json.dumps({'schema_version': 1, 'kind': 'client_text_workspace', 'project_root': str(old_txt.resolve()), 'id': old_txt_id}))
 		new_m = (self.root / 'new_clients/reloc_shop').resolve()
 		other_proj = (self.root / 'other_clients/other_shop').resolve()
 		other_proj.mkdir(parents=True)
@@ -697,6 +702,7 @@ class PathRegistryTests(TemporaryCase):
 		reg_raw = deepcopy(pr.load_registry().raw)
 		reg_raw['relocations'][old_su.as_posix()] = new_m.as_posix()
 		reg_raw['relocations'][old_sc.as_posix()] = new_m.as_posix()
+		reg_raw['relocations'][old_txt.as_posix()] = new_txt.as_posix()
 		reg_file = self.put('reloc-cross-paths.json', json.dumps(reg_raw))
 		with patch.dict(os.environ, {'HARNESS_PATHS_FILE': str(reg_file)}):
 			pr.clear_registry_cache()
@@ -751,6 +757,52 @@ class PathRegistryTests(TemporaryCase):
 			env_root, _, env_data, _ = review.read_package_envelope(new_m, pkg_rel, expected_kind='analysis')
 			self.assertEqual(env_root, new_m)
 			self.assertEqual(env_data['subject_sha256'], pkg_body['subject_sha256'])
+			old_abs_pkg = str((old_su / pkg_rel).resolve())
+			self.assertEqual(research.inside(new_m, old_abs_pkg), (new_m / pkg_rel).resolve())
+			env_root_abs, _, _, _ = review.read_package_envelope(new_m, old_abs_pkg, expected_kind='analysis')
+			self.assertEqual(env_root_abs, new_m)
+			with self.assertRaises(ValueError):
+				research.inside(other_proj, old_abs_pkg)
+			codex_rows = [
+				(1, {'type': 'response_item', 'payload': {'type': 'function_call', 'call_id': 'c1', 'arguments': f'review-input "{old_abs_pkg}"'}}),
+				(2, {'type': 'response_item', 'payload': {'type': 'function_call_output', 'call_id': 'c1', 'output': json.dumps({'upwork_review_input': 1, 'verified': True, 'reviewer_id': 'rev-1', 'parent_id': 'parent-1', 'project_root': str(old_su), 'package': old_abs_pkg, 'package_sha256': pkg_sha})}}),
+			]
+			cx_inputs = codex._review_inputs(new_m, codex_rows, 'parent-1', 'rev-1')
+			self.assertEqual(len(cx_inputs), 1)
+			self.assertEqual(cx_inputs[0]['package_sha256'], pkg_sha)
+			rep_rel = f'\ua616/KB/Evidence/Reviews/{pkg_sha}/rep.json'
+			(new_m / rep_rel).parent.mkdir(parents=True, exist_ok=True)
+			(new_m / rep_rel).write_text(json.dumps({'result': 'approved', 'findings': []}), encoding='utf-8')
+			wf_engine.update({'action': 'add_reloc_review'}, lambda s: s['reviews'].append({'reviewer_id': 'rev-1', 'independent': True, 'risk': 'routine', 'report': str((old_su / rep_rel).resolve())}))
+			pm = metrics.project_metrics(new_m)
+			self.assertEqual(len(pm['reviews']), 1)
+			self.assertEqual(pm['reviews'][0]['result'], 'approved')
+			self.assertEqual(request_binding.native_project_id(new_txt), old_txt_id)
+			bad_txt = (self.root / 'bad_text_ws').resolve()
+			(bad_txt / '\ua616/data').mkdir(parents=True)
+			self.put('bad_text_ws/\ua616/data/text-project.json', json.dumps({'schema_version': 1, 'kind': 'client_text_workspace', 'project_root': str(bad_txt), 'id': 'text-forged'}))
+			with self.assertRaises(ValueError):
+				request_binding.native_project_id(bad_txt)
+			letter_rel = '\u2c0f/\u227b/\u2655/\U0001f582/Letters/draft.md'
+			letter_bytes = b'# Draft Letter\n'
+			self.put('new_clients/reloc_shop/' + letter_rel, letter_bytes.decode('utf-8'))
+			letter_sha = review.digest(letter_bytes)
+			ws_new = text_workflow.ClientTextWorkspace(old_su)
+			self.assertEqual(ws_new.root, new_m)
+			op_id = 'a' * 32
+			op_dir = ws_new.folder / 'operations' / op_id
+			op_dir.mkdir(parents=True, exist_ok=True)
+			(op_dir / 'base.bin').write_bytes(letter_bytes)
+			rec_body = {'schema_version': 1, 'kind': 'baseline_reconciliation', 'root': str(old_su), 'target': letter_rel, 'document_kind': 'letter', 'operation': op_id, 'previous': {'sha256': None, 'kind': 'letter', 'receipt': None}, 'baseline': {'file': f'\ua616/data/texts/operations/{op_id}/base.bin', 'sha256': letter_sha}}
+			rec_raw = review.json_data(rec_body)
+			rec_rel = f'\ua616/data/texts/operations/{op_id}/{review.digest(rec_raw)}-reconciled.json'
+			(new_m / rec_rel).write_bytes(rec_raw)
+			(op_dir / 'operation.json').write_bytes(review.json_data({'schema_version': 1, 'id': op_id, 'root': str(old_su), 'target': letter_rel, 'kind': 'letter', 'mode': 'edit', 'changes': 'prose', 'base_sha256': letter_sha, 'base_exists': True, 'reconcile_sha256': letter_sha, 'reconciliation': rec_rel}))
+			t_entry = {'sha256': letter_sha, 'kind': 'letter', 'receipt': None, 'reconciliation': rec_rel}
+			ws_new.save_index({'schema_version': 1, 'targets': {letter_rel: t_entry}, 'operations': [], 'protected': []})
+			snap = text_workflow.integrity_snapshot(new_m, {letter_rel: t_entry})
+			snap['root'] = str(old_su)
+			self.assertTrue(text_workflow.verify_integrity(snap)['valid'])
 			(other_proj / pkg_rel).parent.mkdir(parents=True, exist_ok=True)
 			(other_proj / pkg_rel).write_bytes(pkg_bytes)
 			with self.assertRaises(ValueError):
