@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Restrict explicit project root binding to full root labels":
+# https://github.com/dmitry-ai/harness/issues/111
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -70,7 +73,7 @@ def _explicit(text, root, job_id):
 	if commands:
 		r = (all(('~' + ident == job_id for ident in commands)), 'explicit-upwork-init')
 	else:
-		declarations = re.findall('(?im)(?:\\u043a\\u043e\\u0440\\u0435\\u043d\\u044c \\u043f\\u0440\\u043e\\u0435\\u043a\\u0442\\u0430|project root|\\u043f\\u0440\\u043e\\u0435\\u043a\\u0442)\\s*:\\s*([^\\r\\n]+)', text)
+		declarations = re.findall('(?im)(?:\\u043a\\u043e\\u0440\\u0435\\u043d\\u044c \\u043f\\u0440\\u043e\\u0435\\u043a\\u0442\\u0430|project root)\\s*:\\s*([^\\r\\n]+)', text)
 		if not declarations:
 			r = (None, None)
 		else:

@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Restrict explicit project root binding to full root labels":
+# https://github.com/dmitry-ai/harness/issues/111
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
@@ -253,3 +256,16 @@ class AntigravityContinuationTests(ProjectCase):
 			conn.close()
 		with self.assertRaises(ValueError):
 			antigravity.native_requests(self.project, self.parent, backend=self.backend)
+	def test_russian_root_label_binds_while_bare_project_mention_preserves_workspace(self):
+		self.workspace([self.project])
+		bare_mention = f'# 1\nПроект: `{self.root}`\nПредложи решения.'
+		self.inputs([bare_mention])
+		requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		self.assertEqual([item['text'] for item in requests], [bare_mention])
+		self.assertEqual(requests[0]['project_binding']['kind'], 'antigravity-workspace-uris')
+		self.workspace([self.root])
+		explicit_ru = f'Продолжай.\nКорень проекта: `{self.project}`'
+		self.inputs([explicit_ru])
+		saved = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		self.assertEqual([item['text'] for item in saved], [explicit_ru])
+		self.assertEqual(saved[0]['project_binding']['kind'], 'explicit-project-root')
