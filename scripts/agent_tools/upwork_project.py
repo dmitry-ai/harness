@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove automatic Context.md generation from project initialization and finalize stage":
 # https://github.com/dmitry-ai/harness/issues/104
@@ -65,7 +68,7 @@ def default_context_config(root: Path | None=None):
 	overview_rel = '.md'
 	manual_kb_glob = 'KB/**/*.md'
 	agent_kb_glob = 'ꘖ/KB/**/*.md'
-	journal_rel = 'ꙮ/1 - Analysis'
+	journal_rel = 'ꙮ'
 	proposals_rel = 'result'
 	letters_my = 'Letters/my'
 	letters_client = 'Letters/client'
@@ -100,8 +103,10 @@ def validate_label(value):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_url=None, domain_or_topic=None, *, platform=None):
+	from .journal import ensure_project_journal_upgraded
 	from .path_registry import project_paths, relocated_harness_code_dirs
 	root, primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
+	ensure_project_journal_upgraded(root)
 	pp = project_paths(root, exact_root=True)
 	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
 	if is_linked_path(agents):
@@ -378,6 +383,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		if state['job_id'] != job_id:
 			raise ValueError('Project identity mismatch')
 		configure_project(root, primary_agents_dir, canonical_job_url(job_id), root.name.split(' - ', 1)[-1], platform=platform)
+		pp = project_paths(root, exact_root=True)
 		from .journal import journal_pair_dirs
 		req_dir, res_dir = journal_pair_dirs(pp.journal_dir)
 		for folder in (pp.manual_kb_dir, pp.kb_dir, req_dir, res_dir):
@@ -514,6 +520,7 @@ def main(argv=None):
 		'validate-analysis': ('Check all five analysis stages and their evidence graph', (('input', {'type': Path}), ('--render', {'type': Path}), ('--format', {'choices': ('text', 'json'), 'default': 'text'}), ('--evidence', {'action': 'store_true', 'help': 'Verify saved sources and quotes without network requests'}))),
 		'doctor': ('Check discovery inputs, always_on rules, size and model settings', ()),
 		'paths': ('Inspect global path registry R, project overlay R+, and template variable expansion', (('project', {'nargs': '?', 'type': Path, 'help': 'Optional project root or child path'}), ('--expand', {'help': 'Optional path template string to expand'}), ('--check', {'action': 'store_true', 'help': 'Validate registry R and discovered project overlays R+'}))),
+		'journal-upgrade': ('Upgrade project journal structure to versioned 20-entry range buckets', (('project', {'type': Path}), ('--journal', {'type': Path, 'help': 'Optional explicit journal directory'}), ('--dry-run', {'action': 'store_true', 'help': 'Preview planned file moves without modifying disk'}))),
 		'instances': ('Inspect configured environments, instances, enabled status, and system paths for handoff/audit', (('--conversation', {'help': 'Locate the instance owning this conversation UUID'}), ('--only-enabled', {'action': 'store_true', 'help': 'Show only enabled instances'}), ('--no-exists-check', {'action': 'store_true', 'help': 'Skip checking whether each system path currently exists on disk'}))),
 		'install-global': ('Connect selected Antigravity/Codex profiles to shared native Harness sources', (('--target-profile', {'action': 'append', 'choices': all_profiles, 'help': 'Profile to configure; repeat for a pilot, default: enabled profiles'}), ('--check', {'action': 'store_true', 'help': 'Verify shared sources, inherited manifests, directory links and role paths without writing'}))),
 		'build-native': ('Generate/check native projections from canonical policy and runtime', (('--root', {'type': Path}), ('--check', {'action': 'store_true'}))),
@@ -572,6 +579,18 @@ def run(args):
 			elif 'paths' == args.command:
 				from .path_registry import paths_report
 				result = paths_report(getattr(args, 'project', None), expand=getattr(args, 'expand', None), check=bool(getattr(args, 'check', False)))
+			elif 'journal-upgrade' == args.command:
+				from .journal import ensure_project_journal_upgraded, upgrade_journal
+				from .path_registry import project_paths, resolve_project_root
+				proj_root = resolve_project_root(args.project)
+				if getattr(args, 'journal', None):
+					j_target = args.journal if args.journal.is_absolute() else (proj_root / args.journal)
+					result = upgrade_journal(j_target, project_root=proj_root, dry_run=bool(getattr(args, 'dry_run', False)))
+				elif getattr(args, 'dry_run', False):
+					pp_u = project_paths(proj_root, exact_root=True)
+					result = upgrade_journal(pp_u.journal_dir if pp_u.journal_glob else pp_u.journal_root_dir, project_root=pp_u.root, dry_run=True)
+				else:
+					result = ensure_project_journal_upgraded(proj_root)
 			elif 'instances' == args.command:
 				result = instances_report(platform=args.platform, instance=getattr(args, 'instance', None), conversation=getattr(args, 'conversation', None), include_disabled=not getattr(args, 'only_enabled', False), check_exists=not getattr(args, 'no_exists_check', False))
 			elif 'build-native' == args.command:

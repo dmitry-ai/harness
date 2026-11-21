@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 # https://github.com/dmitry-ai/harness/issues/105
@@ -202,8 +205,8 @@ class AnswerPreparationRunner:
 							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/\u227a/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
 								unreread_cited.append(ev_map[rlow])
 				for ev_low, ev_orig in ev_map.items():
-					m_res = re.search('/(?:res|\\u227a)/(\\d+\\.md)$', ev_low)
-					if m_res and re.search(f'(?:\\bres|\\u227a)/{re.escape(m_res.group(1))}\\b', self.response, re.I) and (ev_orig not in unreread_cited):
+					m_res = re.search('/(?:res|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?(\\d+\\.md)$', ev_low)
+					if m_res and re.search(f'(?:\\bres|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?{re.escape(m_res.group(1))}\\b', self.response, re.I) and (ev_orig not in unreread_cited):
 						unreread_cited.append(ev_orig)
 				if unreread_cited:
 					detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
@@ -406,6 +409,7 @@ class TurnJournalReconciler:
 			raise ValueError('A child executor has no primary user journal to synchronize')
 		if not any((turn['owned'] for turn in self.native['turns'])):
 			raise ValueError('Native conversation has no user turns owned by this project')
+		journal.ensure_project_journal_upgraded(self.root, selected=self.journal_directory)
 		eligible = [turn for turn in self.native['turns'] if turn['owned'] and turn['completed'] and (not turn['aborted']) and (turn['start_step'] >= self.from_step)]
 		if not eligible:
 			r = {'valid': True, 'conversation_id': self.native['conversation_id'], 'source_file': self.native['source_file'], 'turns': [], 'pending_native_turn': self.native['active_turn_id'], 'private_reasoning_retained': False}
@@ -788,6 +792,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 	if None is turn:
 		r = {'role': 'child', 'journal_required': False, 'reason': 'The primary conversation owns the user journal'}
 	else:
+		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
 		with locked(_turn_lock(root, _key(native, turn))):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
 			_persist(path, value)
@@ -853,7 +858,7 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 			reqs_ok = old_reqs == [req['text'] for req in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
 			resp_ok = old.get('response_sha256') == _hash(response.encode('utf-8'))
 			if not resp_ok and old.get('steps'):
-				res_p = res_dir / f"{old['steps'][0]}.md"
+				res_p = journal.step_file(res_dir, old['steps'][0], directory=directory)
 				if res_p.is_file():
 					try:
 						disk_r = res_p.read_bytes().decode('utf-8')
@@ -899,7 +904,8 @@ def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str
 	from .path_registry import canonicalize_root_dir
 	canon_root = canonicalize_root_dir(root)
 	if 'response' == kind:
-		return saved_p.parent.name in ('res', '\u227a') and journal.same_journal_identity(saved_p.parent.parent, cur_p.parent.parent)
+		s_info, c_info = (journal.parse_step_file_path(saved_p), journal.parse_step_file_path(cur_p))
+		return None is not s_info and None is not c_info and s_info[1] in ('res', '\u227a') and c_info[1] in ('res', '\u227a') and (s_info[2] == c_info[2]) and journal.same_journal_identity(s_info[0], c_info[0])
 	if 'group' == kind and 'answer-groups' == saved_p.parent.name and '.journal' == saved_p.parents[2].name:
 		old_anc = saved_p.parents[5] if 6 <= len(saved_p.parents) and '_' == saved_p.parents[4].name else saved_p.parents[4]
 		return canonicalize_root_dir(old_anc) == canon_root and canonicalize_root_dir(cur_p.parents[4]) == canon_root
@@ -933,7 +939,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		if [_norm_journal_text(x) for x in g_reqs] == [_norm_journal_text(x) for x in effective_requests]:
 			effective_requests = list(g_reqs)
 		if g_data.get('steps') and _hash(effective_response.encode('utf-8')) != g_data.get('response_sha256'):
-			res_p = res_dir / f"{g_data['steps'][0]}.md"
+			res_p = journal.step_file(res_dir, g_data['steps'][0], directory=directory)
 			if res_p.is_file():
 				try:
 					disk_r = res_p.read_bytes().decode('utf-8')
@@ -965,11 +971,11 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		proof = capability.reference
 		verification = {'status': 'verified', 'scope': 'original_publication_admission' if purpose == 'observation' else 'current_publication_readiness'}
 	for step, request in zip(steps, effective_requests):
-		if (req_dir / f'{step}.md').read_bytes() != request.encode('utf-8'):
+		if journal.step_file(req_dir, step, directory=directory).read_bytes() != request.encode('utf-8'):
 			raise ValueError('Recorded request read-back differs from native text')
-		if (res_dir / f'{step}.md').read_bytes() != effective_response.encode('utf-8'):
+		if journal.step_file(res_dir, step, directory=directory).read_bytes() != effective_response.encode('utf-8'):
 			raise ValueError('Recorded response read-back differs from prepared text')
-	recorded = {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'response_file': str(res_dir / f'{steps[0]}.md'), 'group_file': str(group_file)}
+	recorded = {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'response_file': str(journal.step_file(res_dir, steps[0], directory=directory)), 'group_file': str(group_file)}
 	if existing:
 		if existing.get('journal_steps') != recorded['journal_steps'] or existing.get('response_sha256') != recorded['response_sha256'] or (not _same_turn_artifact_path(root, existing.get('response_file'), recorded['response_file'], kind='response')) or (not _same_turn_artifact_path(root, existing.get('group_file'), recorded['group_file'], kind='group')):
 			raise ValueError('Recorded answer receipt differs from its verified journal identity; preserve history')

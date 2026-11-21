@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
@@ -188,10 +191,11 @@ class AntigravityTurnScanner:
 		if intermediate_wait:
 			completed, resp_text = (False, None)
 		elif None is not j_entry and (not final or 1 < len(j_entry[0].get('request_ids', []))):
-			from ..journal import journal_pair_dirs
+			from ..journal import journal_pair_dirs, step_file
 			completed = req_id == j_entry[0]['request_ids'][-1] and (None is not end or idle)
 			_, res_dir = journal_pair_dirs(self.jdir)
-			resp_text = (res_dir / f'{j_entry[1]}.md').read_bytes().decode('utf-8') if completed else None
+			res_p = step_file(res_dir, j_entry[1], directory=self.jdir)
+			resp_text = res_p.read_bytes().decode('utf-8') if completed and res_p.is_file() else None
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None

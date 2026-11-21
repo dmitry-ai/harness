@@ -18,7 +18,7 @@ Antigravity requires the valid UUID of the current conversation.
 The tool verifies native request ownership for the root and the `primary`/`child` role; an ordinary agent project does not require a synthetic job post or client article.  
 `ꘖ/data/turns` records the root, native turn, exact requests, applicable FILE-3/EXEC-5/DOC-2 rules, their sources, and mandatory stages.  
 In the first phase of a turn, run `policy-instructions` (in Codex), `turn-begin`, and batched reading of rules without output truncation; launch any `git` commands only after receiving the first-phase output and strictly with `--no-optional-locks` (or via `git-read`).  
-The `--journal <directory>` option records a journal explicitly chosen by the user; without it, a new turn uses `ꙮ/1 - Analysis` (or `ꙮ` when configured at the root) and an existing turn retains its prior binding.  
+The `--journal <directory>` option records a journal explicitly chosen by the user; without it, a new turn uses `ꙮ/{≻,≺}` (`O-ꙮ` 20-entry subfolders `1–20`, `21–40`, …) and automatically upgrades any legacy `ꙮ` layout (`V1` `1 - Analysis/{req,res}` / `req,res` or flat `≻,≺`) inside `ꙮ` to `O-ꙮ` (`journal_version: 3`) while preserving `V1` project structure outside `ꙮ`.  
 The journal of an already started turn cannot be silently redirected; the verifier preserves its binding and also checks linked documents against the project root.  
 This record is evidence of applicability and configuration, not proof that the model read or understood the rules.  
 `instruction_snapshot` records the list and SHA256 digests of shared rules, the adapter, `runtime.json`, local registration, and its path sources; for Codex it also records discovered `AGENTS.md`/`AGENTS.override.md` candidates along the configured root and in the active profile.  
@@ -108,4 +108,5 @@ The contract does not intercept platform message submission: an agent can still 
 If no later working call occurs, native delivery remains unverified; there is no autonomous post-delivery repair or promise of immediate background recovery.  
 Criteria: routine analysis and articles use the same FILE-3 contract; an incomplete reply is not imported; a skipped preparation is recovered; retries do not duplicate pairs; a foreign root/profile/child is rejected; a conflict preserves the original bytes.  
 <!-- https://github.com/dmitry-ai/harness/issues/41 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/48 -->
+<!-- https://github.com/dmitry-ai/harness/issues/48 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/109 -->

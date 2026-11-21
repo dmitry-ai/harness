@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove automatic Context.md generation from project initialization and finalize stage":
 # https://github.com/dmitry-ai/harness/issues/104
@@ -445,9 +448,8 @@ class NativeReviewTests(ProjectCase):
 			flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/report.json', parent_id=parent, reviewer_id=child, native_evidence=native['proof'])
 			flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/report.json'])
 			flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.md'], note='Reviewed contradictions and missing evidence in the present KB')
-			journal = self.project / 'ꙮ/1 - Analysis'
 			flow.record_current_answer(self.project, 'Final response exactly as saved: Client task')
-			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/1 - Analysis/res/1.md'])
+			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
 			self.assertTrue(all(('complete' == x for x in flow.status(self.project)['stages'].values())))
 			self.assertFalse((self.project / 'ꙮ/0/Context.md').exists())
 			from agent_tools.context import generate

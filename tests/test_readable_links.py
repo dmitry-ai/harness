@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
@@ -8,7 +11,7 @@ from test_agent_tools import TemporaryCase
 from test_analysis_workflow import ProjectCase
 from agent_tools.analysis import publish_owned, render_analysis
 from agent_tools.context import assemble
-from agent_tools.journal import record_step
+from agent_tools.journal import iter_side_step_files, record_step
 from agent_tools.knowledge import sync_website_card
 from agent_tools.links import markdown_link, readable_link_issues, readable_reference, references, validate_file
 from agent_tools.project_card import sync_block
@@ -142,3 +145,4 @@ class ReadableProjectTests(ProjectCase):
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
 			workflow.record_current_answer(self.project, '[Source](https://example.org/with%20space)')
 		self.assertFalse(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md')))
+		self.assertFalse(iter_side_step_files(self.project / 'ꙮ/≺'))

@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove automatic Context.md generation from project initialization and finalize stage":
 # https://github.com/dmitry-ai/harness/issues/104
@@ -74,22 +77,22 @@ class ResumeExportTests(ProjectCase):
 			self.assertFalse(result['delivery_verified'])
 			flow.adopt_requests(self.project, cid)
 			self.assertTrue(all((x.get('response_prepared') for x in flow.load(self.project)['requests'])))
-		directory = self.project / 'ꙮ/1 - Analysis'
+		directory = self.project / 'ꙮ'
 		self.assertEqual(journal.get_existing_step_ids(directory), {1, 2})
 		for index, text in enumerate(texts, 1):
-			self.assertEqual((directory / 'req' / f'{index}.md').read_bytes(), text.encode())
-			self.assertEqual((directory / 'res' / f'{index}.md').read_bytes(), answer.encode())
+			self.assertEqual((directory / '≻/1–20' / f'{index}.md').read_bytes(), text.encode())
+			self.assertEqual((directory / '≺/1–20' / f'{index}.md').read_bytes(), answer.encode())
 		target, content, sources = generate(self.project, self.project / '.agents/context.json')
 		self.assertLess(content.index(texts[1]), content.index(answer))
 		self.assertIn('one final answer shared', content)
 	def test_group_crash_reserves_all_numbers_and_preserves_previous_context(self):
-		directory = self.project / 'ꙮ/1 - Analysis'
+		directory = self.project / 'ꙮ'
 		target = self.project / 'ꙮ/0/Context.md'
 		generate(self.project, self.project / '.agents/context.json')
 		previous = target.read_bytes()
 		real = journal.create_bytes
 		def fail_on_second_request(path, data):
-			if Path(path) == directory / 'req/2.md':
+			if Path(path).resolve() == (directory / '≻/1–20/2.md').resolve():
 				raise OSError('simulated power failure')
 			r = real(path, data)
 			return r

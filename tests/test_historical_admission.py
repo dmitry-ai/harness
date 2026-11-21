@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Regress immutable historical admission with real current-source and semantic gates":
 # https://github.com/dmitry-ai/harness/issues/41
@@ -117,6 +120,7 @@ class HistoricalAdmissionTests(unittest.TestCase):
 				self.assertEqual(result['turns'][0]['status'], 'conflict')
 				self.assertIn('prior preparation/admission gate failed', result['turns'][0]['detail'])
 				self.assertFalse((case.project / 'ꙮ/1 - Analysis/res/1.md').exists())
+				self.assertFalse((case.project / 'ꙮ/≺/1–20/1.md').exists())
 	def test_proof_evidence_review_document_and_journal_changes_remain_conflicts(self):
 		for platform in ('codex', 'antigravity'):
 			for kind in ('proof', 'source', 'evidence', 'check', 'applied', 'review', 'target', 'journal', 'group'):

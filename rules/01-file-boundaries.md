@@ -10,8 +10,8 @@ Re-read the current version before writing; if a concurrent edit occurred, recon
 Before the first edit to an existing `draft.md` in a turn, save its exact bytes to a sibling `draft.prev.md` and an archive with the turn and file ID; verify the match.  
 Do not overwrite the snapshot with an intermediate revision; save new user edits separately.  
 ## FILE-3
-Journal: the user-specified directory, otherwise `ꙮ/{≻,≺}` in `V2` (`O`) projects (legacy `V1`: `ꙮ/1 - Analysis/{req,res}` or `ꙮ/{req,res}`).  
-`≻/N.md` (legacy `V1`: `req/N.md`) holds the verbatim user request; `≺/N.md` (legacy `V1`: `res/N.md`) holds the complete final response matching the chat; save before publication and verify by reading back.  
+Journal: the user-specified directory, otherwise `ꙮ/{≻,≺}` (`O-ꙮ`, `journal_version: 3`, with legacy `journal_version: 2` flat `ꙮ/{≻,≺}` and `journal_version: 1` `ꙮ/1 - Analysis/{req,res}` or `ꙮ/{req,res}` temporarily supported and automatically upgraded inside `ꙮ` on the next project operation without altering `V1` project structure outside `ꙮ`).  
+`≻/<range>/<N>.md` (20-entry subfolders `1–20`, `21–40`, … using `U+2013` `–`; legacy: `≻/<N>.md` or `req/<N>.md`) holds the verbatim user request; `≺/<range>/<N>.md` (legacy: `≺/<N>.md` or `res/<N>.md`) holds the complete final response matching the chat; save before publication and verify by reading back.  
 Link multiple requests answered by a single response explicitly; do not invent intermediate responses.  
 For the primary agent, completing any response, including analysis of the instructions themselves, goes through `answer-prepare` per the [turn completion contract](../references/turn-completion.md#answer-preparation).  
 Publish the verified bytes without subsequent editing; a prepared record and delivery confirmed by a native message are distinct states.  
@@ -32,4 +32,5 @@ After a confirmed write, only an unchanged input is deleted; an error or conflic
 `incoming` is staging prior to import: after copying and verifying unique materials in Evidence and recording the `intake-drain` receipt, it is emptied.  
 Age does not authorize deleting the sole copy of a source file.  
 Do not use `git clean`, mass rollback, or `untracked` status as permission to delete.  
-<!-- https://github.com/dmitry-ai/harness/issues/41 -->
+<!-- https://github.com/dmitry-ai/harness/issues/41 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/109 -->

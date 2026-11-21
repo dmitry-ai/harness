@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
 # https://github.com/dmitry-ai/harness/issues/73
@@ -60,7 +63,7 @@ class ReviewContractTests(ProjectCase):
 		self.self_record(package)
 		result = flow.record_current_answer(self.project, self.answer)
 		self.assertFalse(result['delivery_verified'])
-		self.assertEqual((self.project / 'ꙮ/1 - Analysis/res/1.md').read_bytes(), self.answer.encode())
+		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_bytes(), self.answer.encode())
 		self.assertEqual(flow.load(self.project)['requests'][-1]['response_prepared']['review_approval']['package'], package['package'])
 	def test_answer_change_and_new_request_need_new_review_even_without_kb_change(self):
 		package = self.package()
@@ -177,10 +180,10 @@ class ReviewContractTests(ProjectCase):
 		flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], [package['package']])
 		flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.json'], note='Checked consistency.')
 		flow.record_current_answer(self.project, self.answer)
-		reply = self.project / 'ꙮ/1 - Analysis/res/1.md'
+		reply = self.project / 'ꙮ/≺/1–20/1.md'
 		reply.write_bytes((self.answer + 'Unreviewed addition.').encode())
 		with self.assertRaises(ValueError):
-			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/1 - Analysis/res/1.md'])
+			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
 	def test_handwritten_routine_package_cannot_bypass_computed_risk(self):
 		self.value['identity'][0]['category'] = 'pricing'
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
@@ -259,7 +262,7 @@ class ReviewContractTests(ProjectCase):
 		with patch('agent_tools.platforms.adapter'):
 			self.cli(['record-review', str(self.project), '--parent', self.parent, '--reviewer', self.parent, '--report', '-'], json_data(report))
 		self.cli(['record-answer', str(self.project), '--response-file', '-'], exact)
-		self.assertEqual((self.project / 'ꙮ/1 - Analysis/res/1.md').read_bytes(), exact)
+		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_bytes(), exact)
 	def test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap(self):
 		requirement = self.experiment_requirement()
 		question = {'id': 'Q-CONTENT', 'question': 'Inspect source content.', 'impact': 'Limits attribution.', 'done_when': 'Saved response or explicit gap.', 'inputs': ['ꘖ/project.json'], 'outputs': ['ꘖ/KB/Evidence/question-report.json'], 'requirements': [requirement]}

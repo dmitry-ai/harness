@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 # https://github.com/dmitry-ai/harness/issues/105
@@ -176,7 +179,7 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 			res_file = Path(prep.get('response_file') or '')
 			prep_text = res_file.read_text(encoding='utf-8', errors='replace') if res_file.is_file() else ''
 			if not prep_text or _strip_local_file_scheme(prep_text) != _strip_local_file_scheme(last_planner_text):
-				return {'decision': 'continue', 'reason': 'FILE-3 Stop Gate: Final response text does not match the prepared response in res/<N>.md (or \u227a/<N>.md). Read back the prepared response file and output its exact bytes without post-prepare edits.'}
+				return {'decision': 'continue', 'reason': 'FILE-3 Stop Gate: Final response text does not match the prepared response in \u227a/<range>/<N>.md (or legacy res/<N>.md). Read back the prepared response file and output its exact bytes without post-prepare edits.'}
 	return {'decision': 'allow'}
 def main():
 	decision = {'decision': 'allow'}

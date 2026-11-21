@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -276,6 +279,11 @@ def validate_file(file_path: Path, **options) -> list[str]:
 			if not path_text:
 				continue
 			target = (file_path.parent / path_text).resolve()
+			if not target.exists():
+				from .journal import resolve_migrated_step_file
+				migrated = resolve_migrated_step_file(target)
+				if migrated.exists():
+					target = migrated
 			if not target.exists():
 				errors.append(f'Missing local file: {href}')
 				continue

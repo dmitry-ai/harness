@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 # https://github.com/dmitry-ai/harness/issues/105
@@ -157,13 +160,16 @@ class AnswerPreparationRunnerTests(unittest.TestCase):
 			root_j = base / 'root_j'
 			(root_j / 'ꙮ').mkdir(parents=True, exist_ok=True)
 			(root_j / 'ꙮ/README.md').write_text('# Journal\n', encoding='utf-8')
+			legacy_proj = base / 'legacy_proj'
+			(legacy_proj / 'ꙮ/1 - Analysis/req').mkdir(parents=True, exist_ok=True)
 			proj = base / 'proj'
 			(proj / 'ꘖ/KB').mkdir(parents=True, exist_ok=True)
 			(proj / 'ꘖ/data').mkdir(parents=True, exist_ok=True)
 			(proj / 'ꘖ/project.json').write_text('{"job_id":"p1"}', encoding='utf-8')
 			self.assertEqual((meta / '_/ꙮ').resolve(), journal.resolve_journal_dir(meta))
 			self.assertEqual((root_j / 'ꙮ').resolve(), journal.resolve_journal_dir(root_j))
-			self.assertEqual((proj / 'ꙮ/1 - Analysis').resolve(), journal.resolve_journal_dir(proj))
+			self.assertEqual((legacy_proj / 'ꙮ/1 - Analysis').resolve(), journal.resolve_journal_dir(legacy_proj))
+			self.assertEqual((proj / 'ꙮ').resolve(), journal.resolve_journal_dir(proj))
 			note = proj / 'ꘖ/KB/Notes.md'
 			note.write_text('Unregistered H-1 hypothesis.\n', encoding='utf-8')
 			wf_path = proj / 'ꘖ/data/workflow.json'
@@ -203,6 +209,54 @@ class AnswerPreparationRunnerTests(unittest.TestCase):
 				reread_turn = {**ev_turn, 'compaction': {**ev_turn['compaction'], 'evicted_unreread_files': []}}
 				_, cleared_ev = completion._state(proj, {**native, 'turns': [reread_turn]}, reread_turn)
 				self.assertNotIn('readiness_check', cleared_ev)
+	def test_automatic_journal_only_upgrade_and_cli_subcommand(self):
+		from contextlib import redirect_stdout
+		from io import StringIO
+		from agent_tools import path_registry, upwork_project as up
+		with tempfile.TemporaryDirectory() as temp:
+			base = Path(temp)
+			v1 = base / 'v1_proj'
+			(v1 / 'KB').mkdir(parents=True, exist_ok=True)
+			(v1 / 'KB/Project.md').write_text('# Manual KB\n', encoding='utf-8')
+			(v1 / 'ꙮ/0').mkdir(parents=True, exist_ok=True)
+			(v1 / 'ꙮ/0/Context.md').write_text('# Legacy context\n', encoding='utf-8')
+			(v1 / 'ꙮ/1 - Analysis/req').mkdir(parents=True, exist_ok=True)
+			(v1 / 'ꙮ/1 - Analysis/res').mkdir(parents=True, exist_ok=True)
+			(v1 / 'ꙮ/1 - Analysis/req/1.md').write_text('Req 1\n', encoding='utf-8')
+			(v1 / 'ꙮ/1 - Analysis/res/1.md').write_text('Res 1\n', encoding='utf-8')
+			(v1 / 'ꙮ/1 - Analysis/req/25.md').write_text('Req 25\n', encoding='utf-8')
+			(v1 / 'ꙮ/1 - Analysis/res/25.md').write_text('Res 25\n', encoding='utf-8')
+			(v1 / '.agents').mkdir(parents=True, exist_ok=True)
+			(v1 / '.agents/paths.json').write_text(json.dumps({'version': 1, 'profile': 'upwork', 'paths': {'journal_dir': '${JOURNAL_ROOT_DIR}/1 - Analysis'}}), encoding='utf-8')
+			buf_dry = StringIO()
+			with redirect_stdout(buf_dry):
+				self.assertEqual(0, up.main(['journal-upgrade', str(v1), '--dry-run']))
+			dry = json.loads(buf_dry.getvalue())
+			self.assertFalse(dry['upgraded'])
+			self.assertTrue(dry['dry_run'])
+			self.assertEqual(4, dry['moved_files'])
+			self.assertTrue((v1 / 'ꙮ/1 - Analysis/req/1.md').is_file())
+			req = {'id': 'r-1', 'text': 'Next work on project', 'native_step': 1}
+			turn = {'turn_id': 't-1', 'start_step': 1, 'owned': True, 'aborted': False, 'completed': False, 'requests': [req], 'touched_files': []}
+			native = {'platform': 'antigravity', 'native_backend': str(base), 'conversation_id': str(uuid.uuid4()), 'primary': True, 'active_turn_id': 't-1', 'turns': [turn], 'source_file': 'trace.jsonl'}
+			with patch.object(completion, '_native', return_value=native):
+				completion.begin(v1, native['conversation_id'], platform='antigravity', backend=base)
+			self.assertFalse((v1 / 'ꙮ/1 - Analysis').exists())
+			self.assertEqual('Req 1\n', (v1 / 'ꙮ/≻/1–20/1.md').read_text(encoding='utf-8'))
+			self.assertEqual('Res 25\n', (v1 / 'ꙮ/≺/21–40/25.md').read_text(encoding='utf-8'))
+			self.assertEqual('# Legacy context\n', (v1 / 'ꙮ/0/Context.md').read_text(encoding='utf-8'))
+			self.assertEqual('# Manual KB\n', (v1 / 'KB/Project.md').read_text(encoding='utf-8'))
+			pp = path_registry.project_paths(v1, exact_root=True)
+			self.assertEqual(1, pp.fs_version)
+			self.assertEqual(3, pp.journal_version)
+			self.assertEqual('${JOURNAL_ROOT_DIR}', json.loads((v1 / '.agents/paths.json').read_text(encoding='utf-8'))['paths']['journal_dir'])
+			buf_idemp = StringIO()
+			with redirect_stdout(buf_idemp):
+				self.assertEqual(0, up.main(['journal-upgrade', str(v1)]))
+			idemp = json.loads(buf_idemp.getvalue())
+			self.assertFalse(idemp['upgraded'])
+			self.assertEqual(3, idemp['to_version'])
+			self.assertEqual(2, idemp['verified_steps'])
 class CodexTurnScannerTests(unittest.TestCase):
 	def test_service_steps_parity_subagent_cache_and_bfs_depth_cap(self):
 		with tempfile.TemporaryDirectory() as temp:
@@ -285,7 +339,8 @@ class CompletionCase(unittest.TestCase):
 	def sync(self, **kw):
 		return completion.sync(self.project, self.cid, platform='codex', backend=self.home, **kw)
 	def saved(self, sub, step=1):
-		return (self.project / 'ꙮ/1 - Analysis' / sub / f'{step}.md').read_bytes()
+		side = '≻' if sub in ('req', '≻') else '≺'
+		return journal.step_file(self.project / 'ꙮ' / side, step).read_bytes()
 	def project_snapshot(self):
 		return {path.relative_to(self.project).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in self.project.rglob('*') if path.is_file()}
 	def assert_repeated_delivery_is_read_only(self, *, prepared):
@@ -327,7 +382,7 @@ class CompletionCase(unittest.TestCase):
 		self.prepare('Bound group identity')
 		self.finish('Bound group identity')
 		self.sync()
-		group_file = next((journal.state_dir(self.project / 'ꙮ/1 - Analysis') / 'answer-groups').glob('*.json'))
+		group_file = next((journal.state_dir(self.project / 'ꙮ') / 'answer-groups').glob('*.json'))
 		group = json.loads(group_file.read_text(encoding='utf-8'))
 		group['tokens'][0] = 'changed-reservation-identity'
 		group_file.write_text(json.dumps(group), encoding='utf-8')
@@ -353,7 +408,8 @@ class CompletionCase(unittest.TestCase):
 			result = self.sync()
 		self.assertTrue(result['valid'])
 		self.assertEqual(result['turns'][0]['admission_verification']['status'], 'legacy_proof_gap')
-		self.assertEqual((group_file.read_bytes(), group_file.stat().st_mtime_ns), old_group)
+		migrated_group = journal.state_dir(self.project / 'ꙮ') / 'answer-groups' / (token + '.json')
+		self.assertEqual((migrated_group.read_bytes(), migrated_group.stat().st_mtime_ns), old_group)
 		before = self.project_snapshot()
 		self.assertEqual(self.sync(), result)
 		self.assertEqual(self.project_snapshot(), before)
@@ -500,13 +556,13 @@ class CompletionCase(unittest.TestCase):
 		again = self.sync()['turns'][0]
 		self.assertTrue(again['recovered_after_delivery'])
 		self.assertEqual(again['journal_steps'], first['journal_steps'])
-		self.assertEqual(len(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md'))), 1)
+		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
 	def test_concurrent_native_reconciliation_creates_one_pair(self):
 		self.finish('One delivered response')
 		with ThreadPoolExecutor(max_workers=3) as pool:
 			results = list(pool.map(lambda _: self.sync(), range(3)))
 		self.assertEqual([r['turns'][0]['journal_steps'] for r in results], [[1], [1], [1]])
-		self.assertEqual(len(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md'))), 1)
+		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
 	def test_switching_active_native_turn_during_prepare_records_no_answer(self):
 		second = str(uuid.uuid4())
 		real = completion.begin
@@ -646,7 +702,8 @@ class CompletionCase(unittest.TestCase):
 		journal.record_answer(self.project / 'ꙮ/1 - Analysis', [request['text']], 'Exact', 'older-record-api', [request['id']])
 		self.finish('Exact')
 		self.assertEqual(self.sync()['turns'][0]['journal_steps'], [1])
-		self.assertEqual(len(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md'))), 1)
+		self.assertFalse((self.project / 'ꙮ/1 - Analysis').exists())
+		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
 	def test_old_exact_native_turn_receipts_are_not_duplicated(self):
 		journal.record_answer(self.project / 'ꙮ/1 - Analysis', ['Check .agents.  \nExact.'], 'Exact', self.turn)
 		self.finish('Exact')
@@ -703,7 +760,7 @@ class CompletionCase(unittest.TestCase):
 	def test_foreground_integrity_check_detects_changed_journal_without_native_changes(self):
 		self.registered_delivery()
 		native_before = self.path.read_bytes()
-		response = self.project / 'ꙮ/1 - Analysis/res/1.md'
+		response = self.project / 'ꙮ/≺/1–20/1.md'
 		response.write_bytes(b'Externally changed response')
 		result = self.sync()
 		self.assertFalse(result['valid'])
@@ -718,24 +775,24 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(restored['turns'][0]['completion_provenance'], 'recovered_native')
 	def test_foreground_integrity_check_preserves_a_deleted_completed_journal_file(self):
 		self.registered_delivery()
-		request = self.project / 'ꙮ/1 - Analysis/req/1.md'
+		request = self.project / 'ꙮ/≻/1–20/1.md'
 		request.unlink()
 		result = self.sync()
 		self.assertFalse(result['valid'])
 		self.assertFalse(request.exists())
 		self.assertEqual(self.saved('res'), b'Original native final')
-		self.assertEqual(len(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md'))), 1)
+		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
 	def test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange(self):
 		self.registered_delivery()
-		groups = journal.state_dir(self.project / 'ꙮ/1 - Analysis') / 'answer-groups'
+		groups = journal.state_dir(self.project / 'ꙮ') / 'answer-groups'
 		next(groups.glob('*.json')).unlink()
 		result = self.sync()
 		self.assertFalse(result['valid'])
 		self.assertEqual(self.saved('res'), b'Original native final')
-		self.assertEqual(len(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md'))), 1)
+		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
 	def test_temporary_permission_failure_reading_actual_journal_retries_next_pass(self):
 		self.registered_delivery()
-		response = self.project / 'ꙮ/1 - Analysis/res/1.md'
+		response = self.project / 'ꙮ/≺/1–20/1.md'
 		original = Path.read_bytes
 		def unavailable(path):
 			if path == response:
@@ -849,7 +906,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c.close()
 		result = self.sync()['turns'][0]
 		self.assertTrue(result['delivery_verified'])
-		self.assertEqual((self.project / 'ꙮ/1 - Analysis/res/1.md').read_text(encoding='utf-8'), 'Final ꘖ')
+		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_text(encoding='utf-8'), 'Final ꘖ')
 	def test_partial_step_and_child_are_not_completed_public_answers(self):
 		self.finish(partial=True)
 		self.assertEqual(self.sync()['turns'], [])
@@ -1147,7 +1204,8 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertEqual(synced['journal_steps'], [75])
 		self.assertEqual(synced['completion_provenance'], 'existing_journal')
 		self.assertFalse(synced['recovered_after_delivery'])
-		self.assertFalse((jdir / 'req/76.md').exists())
+		self.assertTrue((self.project / 'ꙮ/≻/61–80/75.md').is_file())
+		self.assertIsNone(journal.find_step_file(self.project / 'ꙮ/≻', 76))
 		again = self.sync()['turns'][0]
 		self.assertEqual(again['status'], 'delivered')
 		self.assertEqual(again['journal_steps'], [75])
@@ -1167,11 +1225,13 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertFalse(conflict_res['valid'])
 		self.assertEqual(conflict_res['turns'][0]['status'], 'conflict')
 		self.assertIn('claimed by another answer group', conflict_res['turns'][0]['detail'])
-		self.assertFalse((ojdir / 'req/37.md').exists())
+		self.assertTrue((other.project / 'ꙮ/≻/21–40/36.md').is_file())
+		self.assertIsNone(journal.find_step_file(other.project / 'ꙮ/≻', 37))
 	def test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes(self):
 		import check_rules_and_server_gate as gate
 		self.assertIsNotNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437/req/36.md'}))
 		self.assertIsNotNone(gate.check_journal_write_gate('edit_file', {'Path': 'C:/work/project/ꙮ/res/120.md'}))
+		self.assertIsNotNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꙮ/≺/201–220/202.md'}))
 		self.assertIsNotNone(gate.check_journal_write_gate('run_command', {'CommandLine': 'python scripts/record_step.py --dir ꙮ'}))
 		self.assertIsNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꘖ/data/scratch/answer.md'}))
 		self.rows += [

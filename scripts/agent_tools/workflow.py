@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove automatic Context.md generation from project initialization and finalize stage":
 # https://github.com/dmitry-ai/harness/issues/104
@@ -359,14 +362,14 @@ class WorkflowStateEngine:
 	def _apply_unadopt(self, state, conversation_id, req_ids):
 		state['requests'] = [x for x in state.get('requests', []) if not ((conversation_id and x.get('native_conversation_id') == conversation_id) or (req_ids and x.get('id') in req_ids))]
 	def _finalize_stage(self, state, out_hashes, outputs):
-		from .journal import get_existing_step_ids, journal_pair_dirs, resolve_journal_dir, step_errors
+		from .journal import get_existing_step_ids, journal_pair_dirs, resolve_journal_dir, step_errors, step_file
 		from .links import readable_link_issues
 		from .review import authorize
 		from .text_workflow import gate_paths
 		gate_paths([self.root / name for name in outputs])
 		scratch_dir = self.pp.scratch_dir
 		if scratch_dir.is_dir() and any((p.is_file() for p in scratch_dir.rglob('*'))):
-			raise ValueError('Clean or consume all temporary files in ꘖ/data/scratch before finalizing')
+			raise ValueError('Clean or consume all temporary files in \ua616/data/scratch before finalizing')
 		prepared = state['requests'][-1].get('response_prepared', {}) if state['requests'] else {}
 		journal = resolve_journal_dir(self.root, prepared.get('journal'))
 		ids = get_existing_step_ids(journal)
@@ -374,24 +377,27 @@ class WorkflowStateEngine:
 			raise ValueError('Complete exact req/res journal pairs before finalizing')
 		req_dir, res_dir = journal_pair_dirs(journal)
 		latest = max(ids)
-		reply = res_dir / f'{latest}.md'
+		reply = step_file(res_dir, latest, directory=journal)
 		link_issues = readable_link_issues(reply.read_text(encoding='utf-8'))
 		if link_issues:
 			raise ValueError('\n'.join(link_issues))
 		if reply.relative_to(self.root).as_posix() not in out_hashes:
 			raise ValueError('Declare the actual final reply file as a finalize output')
-		if state['requests'] and (req_dir / f'{latest}.md').read_bytes().decode('utf-8') != state['requests'][-1]['text']:
+		if state['requests'] and step_file(req_dir, latest, directory=journal).read_bytes().decode('utf-8') != state['requests'][-1]['text']:
 			raise ValueError('Latest journal request differs from the recorded current continuation request')
 		r = authorize(self.root, state, response=reply.read_bytes().decode('utf-8'))
 		if any((not request.get('response_prepared') for request in state['requests'])) or not state['requests'] or state['requests'][-1]['response_prepared'].get('sha256') != r['response_sha256']:
 			raise ValueError('Record the exact approved answer for current requests before finalizing')
 		return r
 	def adopt_requests(self, conversation_id, *, allow_finalized=False, backend=None, platform=None):
-		from .journal import answer_groups, resolve_journal_dir
+		from .journal import answer_groups, ensure_project_journal_upgraded, resolve_journal_dir
 		from .metrics import native_requests
+		from .path_registry import project_paths
 		state = self.load()
 		if 'complete' == state.get('stages', {}).get('finalize', {}).get('status') and (not allow_finalized):
 			raise ValueError('Initial analysis finalize stage is already complete. Post-finalize questions do not require adopt-requests unless explicitly reopening analysis with --allow-finalized')
+		ensure_project_journal_upgraded(self.root)
+		self.pp = project_paths(self.root, exact_root=True)
 		requests = native_requests(self.root, conversation_id, backend=backend, platform=platform)
 		saved_answers = {}
 		for group in answer_groups(resolve_journal_dir(self.root), request_ids={x['id'] for x in requests}):
@@ -460,12 +466,23 @@ class WorkflowStateEngine:
 		lines += ['- ' + markdown_link(p.name, p.name) for p in sorted(self.pp.kb_dir.glob('*.md')) if 'Progress.md' != p.name]
 		lines += ['', 'Before new research, check the overview and topical KB modules.', 'Corrections propagate to linked claims and documents; anything unverified is marked explicitly.', 'Context.md is intended for handoff to an external agent, not for internal work.', '']
 		return publish_owned(self.pp.kb_dir / 'Progress.md', '\n'.join(lines), source=self.state_path(), history=False)
+	def _resolve_receipt_artifact(self, path: str) -> Path:
+		target = inside(self.root, path)
+		if not target.is_file():
+			from .journal import resolve_migrated_step_file
+			cand = resolve_migrated_step_file(target)
+			if cand.is_file() and cand.is_relative_to(self.root):
+				return cand
+		return target
 	def receipt_current(self, receipt):
-		return all((inside(self.root, path).is_file() and file_hash(inside(self.root, path)) == digest for group in ('inputs', 'outputs') for path, digest in receipt.get(group, {}).items())) and ('kb_inputs' not in receipt or receipt['kb_inputs'] == self.kb_hashes()) and ('evidence_inputs' not in receipt or receipt['evidence_inputs'] == self.evidence_hashes())
+		return all(((t := self._resolve_receipt_artifact(path)).is_file() and file_hash(t) == digest for group in ('inputs', 'outputs') for path, digest in receipt.get(group, {}).items())) and ('kb_inputs' not in receipt or receipt['kb_inputs'] == self.kb_hashes()) and ('evidence_inputs' not in receipt or receipt['evidence_inputs'] == self.evidence_hashes())
 	def record_current_answer(self, response, *, journal_directory=None, request_ids=None, preauthorized=None, recorded_steps=None, turn_token=None):
-		from .journal import record_answer, resolve_journal_dir
+		from .journal import ensure_project_journal_upgraded, record_answer, resolve_journal_dir
 		from .links import readable_link_issues
+		from .path_registry import project_paths
 		from .review import authorize
+		ensure_project_journal_upgraded(self.root, selected=journal_directory)
+		self.pp = project_paths(self.root, exact_root=True)
 		issues = readable_link_issues(response, allow_unencoded_file_uri=True)
 		if issues:
 			raise ValueError('\n'.join(issues))
@@ -522,6 +539,10 @@ class WorkflowStateEngine:
 			raise ValueError('Record why the current analysis is being continued')
 		if None is not request and (not isinstance(request, str) or not request.strip()):
 			raise ValueError('Continuation request must preserve exact nonempty user text')
+		from .journal import ensure_project_journal_upgraded
+		from .path_registry import project_paths
+		ensure_project_journal_upgraded(self.root)
+		self.pp = project_paths(self.root, exact_root=True)
 		return update(self.root, {'action': 'resume', 'reason': reason}, lambda state: self._apply_resume(state, request))
 	def stage_statuses(self, state):
 		r, dependency_ok = ({}, True)

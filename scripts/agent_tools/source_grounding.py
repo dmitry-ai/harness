@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
@@ -795,6 +798,11 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 			try:
 				res = cand.resolve()
 				is_valid_file = res.is_file()
+				if not is_valid_file and None is not res:
+					from .journal import resolve_migrated_step_file
+					mig = resolve_migrated_step_file(res)
+					if mig.is_file():
+						res, is_valid_file = (mig, True)
 			except OSError:
 				res, is_valid_file = (None, False)
 			if is_valid_file and None is not res:

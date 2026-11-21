@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
@@ -80,7 +83,7 @@ def check_git_write_gate(name: str, args: dict) -> str | None:
 def check_journal_write_gate(name: str, args: dict) -> str | None:
 	if name in ('write_file', 'edit_file'):
 		path = (args.get('Path') or '').replace('\\', '/')
-		if re.search('(?:^|/)\\ua66e/(?:[^/]+/)?(?:req|res|\\u227b|\\u227a)/[^/]+\\.md$', path, re.IGNORECASE):
+		if re.search('(?:^|/)\\ua66e/(?:[^/]+/)?(?:req|res|\\u227b|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?[^/]+\\.md$', path, re.IGNORECASE):
 			return 'FILE-3 / FILE-4: Direct write_file or edit_file to journal req/res (or \u227b/\u227a) files is prohibited; use harness.py answer-prepare to record primary responses with answer-groups receipts.'
 	elif 'run_command' == name:
 		cmd = args.get('CommandLine') or ''

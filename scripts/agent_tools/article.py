@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
@@ -46,7 +49,11 @@ def _iter_headings(lines: list[Line]):
 			match = PART.match(text)
 			part = match.group(1) if match else part
 def detect_kind(path: Path | None, text: str) -> str:
-	return 'response' if None is not path and path.parent.name in ('res', '\u227a') else 'article'
+	if None is not path:
+		from .journal import is_bucket_dir_name
+		if path.parent.name in ('res', '\u227a') or (is_bucket_dir_name(path.parent.name) and path.parent.parent.name in ('res', '\u227a')):
+			return 'response'
+	return 'article'
 def parse_sections(lines: list[Line], findings: list[Finding] | None=None):
 	findings = findings if None is not findings else []
 	r, by_key, roots = ([], {}, {})

@@ -245,10 +245,10 @@ A.A evaluates the substantive meaning of reviews and sources; a programmatic rec
 
 ```text
 python <tool> record-answer <project> --response-file -
-python <tool> stage <project> finalize --input "ꘖ/KB/Analysis.json" --output "ꙮ/1 - Analysis/res/<N>.md"
+python <tool> stage <project> finalize --input "ꘖ/KB/Analysis.json" --output "ꙮ/≺/1–20/1.md"
 ```
 
-`record-answer` (invoked directly or via `answer-prepare`) binds all adopted, unrecorded exact requests to a single actual final response, writing complete `req/res` (or `≻/≺` in `V2` projects) pairs and an explicit shared-response group.  
+`record-answer` (invoked directly or via `answer-prepare`) binds all adopted, unrecorded exact requests to a single actual final response, writing complete `≻/<range>/<N>.md` and `≺/<range>/<N>.md` (`O-ꙮ` 20-entry subfolders `1–20`, `21–40`, …; legacy `req/res` is supported and upgraded automatically inside `ꙮ`) pairs and an explicit shared-response group.  
 Only the exact bytes of the approved candidate may be recorded; any edit to the response requires a new review package even if the KB is unchanged.  
 UI message delivery is distinct from file recording; publish in chat the exact saved response bytes.  
 After a publication crash, recover the response from the saved group without inventing intermediate messages.  
@@ -260,3 +260,4 @@ Optional `--project <project>` attaches registered cache hits, fresh fetches, se
 For per-stage breakdowns, optional `--bindings` maps `conversation UUID -> [{stage, first_step, last_step}]`; unmapped steps are grouped under `unassigned`.  
 Duplicate exports of the same step are deduplicated; missing token fields remain `unknown`, and cache reads are tracked separately.  
 Token counts do not equal quota percentages or billing currency; quality is judged by evidence completeness, reviewer findings, and their resolution.  
+<!-- https://github.com/dmitry-ai/harness/issues/109 -->  

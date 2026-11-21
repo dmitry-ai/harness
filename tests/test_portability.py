@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove automatic Context.md generation from project initialization and finalize stage":
 # https://github.com/dmitry-ai/harness/issues/104
@@ -428,7 +431,7 @@ class CodexEvidenceTests(ProjectCase):
 			flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/report.json'])
 			flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.md'], note='Checked current KB')
 			flow.record_current_answer(self.project, answer)
-			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/1 - Analysis/res/1.md'])
+			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
 			self.assertTrue(all(('complete' == value for value in flow.status(self.project)['stages'].values())))
 			draft = self.put_project('result/EN/draft.md', 'User draft\r\n')
 			self.put_project('ꘖ/data/continuation.md', 'Current goal: revise the existing proposal.\n')
@@ -446,7 +449,7 @@ class CodexEvidenceTests(ProjectCase):
 			with self.assertRaisesRegex(ValueError, 'registration'):
 				flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init.json'])
 		expected = self.parent_rows[2]['payload']['content'][0]['text']
-		self.assertEqual((self.project / 'ꙮ/1 - Analysis/req/1.md').read_bytes().decode(), expected)
+		self.assertEqual((self.project / 'ꙮ/≻/1–20/1.md').read_bytes().decode(), expected)
 		self.assertFalse((self.project / 'ꙮ/0/Context.md').exists())
 		generate(self.project, self.project / '.agents/context.json')
 		context = (self.project / 'ꙮ/0/Context.md').read_text(encoding='utf-8')

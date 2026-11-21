@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
@@ -289,11 +292,11 @@ def check_response(path: Path, text: str | None=None, against=(), lexicon=None, 
 	text = path.read_bytes().decode('utf-8') if None is text else text
 	findings = []
 	check_prose(scan(text), 'response', detect_language(text), findings, load_lexicon() if None is lexicon else lexicon, [])
-	from .journal import journal_pair_dirs
-	folder = journal_pair_dirs(Path(journal))[1] if journal else path.parent if path.parent.name in ('res', '\u227a') else None
+	from .journal import is_bucket_dir_name, iter_side_step_files, journal_pair_dirs
+	folder = journal_pair_dirs(Path(journal))[1] if journal else (path.parent if path.parent.name in ('res', '\u227a') else (path.parent.parent if is_bucket_dir_name(path.parent.name) and path.parent.parent.name in ('res', '\u227a') else None))
 	if None is not folder and folder.is_dir():
 		mine = normalized(text)
-		for other in sorted(folder.glob('*.md')):
+		for _, other in iter_side_step_files(folder):
 			if other.resolve() == path.resolve():
 				continue
 			if path.stem.isdigit() and other.stem.isdigit() and (int(other.stem) > int(path.stem)):

@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
@@ -18,7 +21,7 @@ import json
 from pathlib import Path
 import re
 from .storage import data_dir_for, locked, replace_bytes
-from .journal import get_existing_step_ids, journal_pair_dirs, step_errors, answer_groups
+from .journal import canonicalize_journal_dir_identity, get_existing_step_ids, journal_pair_dirs, step_errors, step_file, answer_groups
 def default_context_config(root: Path | str | None=None) -> dict:
 	out_rel = 'ꙮ/0/Context.md'
 	kb_glob = 'ꘖ/KB/**/*.md'
@@ -164,10 +167,14 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 		for raw_jrel in section.get('journals', []):
 			journal_rel = _expand_entry(pp, raw_jrel)
 			jdir = _inside_allowed(root, journal_rel, allowed_roots)
-			if not jdir.is_dir() and journal_rel in ('ꙮ/1 - Analysis', 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437'):
-				alt = _inside_allowed(root, 'ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437' if 'ꙮ/1 - Analysis' == journal_rel else 'ꙮ/1 - Analysis', allowed_roots)
-				if alt.is_dir():
-					jdir = alt
+			if not jdir.is_dir():
+				canon_j = canonicalize_journal_dir_identity(jdir)
+				if canon_j.is_dir():
+					jdir = _inside_allowed(root, canon_j, allowed_roots)
+				elif journal_rel in ('\ua66e/1 - Analysis', '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437'):
+					alt = _inside_allowed(root, '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437' if '\ua66e/1 - Analysis' == journal_rel else '\ua66e/1 - Analysis', allowed_roots)
+					if alt.is_dir():
+						jdir = alt
 			if not jdir.is_dir():
 				if section.get('optional', False):
 					continue
@@ -187,12 +194,12 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 						continue
 					added_groups.add(group['turn'])
 					for member in group['steps']:
-						items.append((_inside_allowed(root, req_dir / f'{member}.md', allowed_roots), 'User (req; shared answer group ' + group['turn'] + ')'))
+						items.append((_inside_allowed(root, step_file(req_dir, member, directory=jdir), allowed_roots), 'User (req; shared answer group ' + group['turn'] + ')'))
 					for member in group['steps']:
-						items.append((_inside_allowed(root, res_dir / f'{member}.md', allowed_roots), 'Agent (one final answer shared across requests; group ' + group['turn'] + ')'))
+						items.append((_inside_allowed(root, step_file(res_dir, member, directory=jdir), allowed_roots), 'Agent (one final answer shared across requests; group ' + group['turn'] + ')'))
 					continue
 				for folder_dir, role in ((req_dir, 'User (req)'), (res_dir, 'Agent (res)')):
-					candidate = folder_dir / f'{step_id}.md'
+					candidate = step_file(folder_dir, step_id, directory=jdir)
 					if candidate.is_file() and candidate.read_text(encoding='utf-8').strip():
 						items.append((_inside_allowed(root, candidate, allowed_roots), role))
 		for group in section.get('letters', []):
