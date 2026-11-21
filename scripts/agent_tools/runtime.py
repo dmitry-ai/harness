@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+# https://github.com/dmitry-ai/harness/issues/115
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
@@ -408,6 +411,17 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 					matched_entry = matches[0]
 		sp = dict((matched_entry or {}).get('system_paths') or {})
 	else:
+		try:
+			active_home = Path.home().resolve()
+		except RuntimeError:
+			active_home = None
+		active_home_matches = [cand for cand in ag_insts.values() if None is not active_home and cand.get('home') and Path(cand['home']).resolve() == active_home]
+		raw_ad = normalize_path_str(os.environ.get('APPDATA', '')).rstrip('/') if os.environ.get('APPDATA', '').strip() else ''
+		in_appdata = False
+		if None is not active_home and raw_ad and raw_ad.casefold().endswith('/appdata/roaming'):
+			ad_res = Path(raw_ad).resolve()
+			in_appdata = active_home == ad_res or ad_res in active_home.parents
+		is_redirected_instance_home = None is not active_home and (1 == len(active_home_matches)) and (in_appdata or False is active_home_matches[0].get('primary'))
 		if explicit_inst:
 			matched_entry = instance_entry(explicit_inst, platform=ag_plat or 'antigravity', config=cfg_all, include_disabled=True)
 		elif conversation_id and cfg_all and ag_plat and (ag_plat in cfg_all.get('platforms', {})):
@@ -415,16 +429,22 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 			if 1 == len(matches):
 				matched_entry = ag_insts.get(matches[0]['id']) or {'id': matches[0]['id'], 'system_paths': matches[0]['system_paths']}
 			elif 1 < len(matches):
-				ids = ', '.join((m['id'] for m in matches))
-				raise ValueError(f'Conversation UUID {conversation_id} exists in multiple Antigravity instances ({ids}); pass --instance')
+				if is_redirected_instance_home and active_home_matches[0]['id'] in {m['id'] for m in matches}:
+					matched_entry = ag_insts.get(active_home_matches[0]['id']) or active_home_matches[0]
+				else:
+					ids = ', '.join((m['id'] for m in matches))
+					raise ValueError(f'Conversation UUID {conversation_id} exists in multiple Antigravity instances ({ids}); pass --instance')
 		default_ag_backend = Path(default_platform_paths('antigravity')['backend_dir'])
 		if None is matched_entry:
-			home_backend = default_ag_backend
-			home_res = home_backend.resolve()
-			home_matches = [cand for cand in ag_insts.values() if cand['system_paths'].get('backend_dir') and Path(cand['system_paths']['backend_dir']).resolve() == home_res]
-			if 1 == len(home_matches):
-				matched_entry = home_matches[0]
-			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else home_backend
+			if 1 == len(active_home_matches):
+				matched_entry = active_home_matches[0]
+			else:
+				home_backend = default_ag_backend
+				home_res = home_backend.resolve()
+				home_matches = [cand for cand in ag_insts.values() if cand['system_paths'].get('backend_dir') and Path(cand['system_paths']['backend_dir']).resolve() == home_res]
+				if 1 == len(home_matches):
+					matched_entry = home_matches[0]
+			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else default_ag_backend
 		else:
 			backend_p = Path(matched_entry['system_paths']['backend_dir']) if matched_entry and matched_entry['system_paths'].get('backend_dir') else default_ag_backend
 		sp = dict((matched_entry or {}).get('system_paths') or {})

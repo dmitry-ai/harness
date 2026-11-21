@@ -1,7 +1,8 @@
 {
   "version": 1,
   "variables": {
-    "USER_HOME": "%USERPROFILE%",
+    "OS_USER_HOME": "%OS_USER_HOME%",
+    "USER_HOME": "${OS_USER_HOME}",
     "APPDATA": "%APPDATA%",
     "LOCALAPPDATA": "%LOCALAPPDATA%",
     "PROGRAM_FILES": "%ProgramFiles%",

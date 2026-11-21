@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+# https://github.com/dmitry-ai/harness/issues/115
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -599,5 +602,75 @@ class PathRegistryTests(TemporaryCase):
 		readme_txt = (dual / '_/\ua66e/README.md').read_text(encoding='utf-8')
 		self.assertIn('(\u227b/1\u201320/1.md)', readme_txt)
 		self.assertIn('(\u227a/21\u201340/25.md)', readme_txt)
+	def test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6(self):
+		from contextlib import closing
+		import sqlite3
+		import subprocess
+		import uuid
+		from agent_tools import completion
+		from test_turn_completion import wire
+		os_home = (self.root / 'Users/alice').resolve()
+		roaming = os_home / 'AppData/Roaming'
+		a6_home = roaming / 'Antigravity-A6/home'
+		for base_h in (os_home, a6_home):
+			(base_h / '.gemini/config/projects').mkdir(parents=True, exist_ok=True)
+			(base_h / '.gemini/antigravity/conversations').mkdir(parents=True, exist_ok=True)
+		a6_env = {'APPDATA': str(roaming), 'USERPROFILE': str(a6_home), 'LOCALAPPDATA': str(os_home / 'AppData/Local')}
+		reg_a6 = pr.load_registry(env=a6_env)
+		self.assertEqual(reg_a6.resolved_variables['OS_USER_HOME'], os_home.as_posix())
+		self.assertEqual(reg_a6.resolved_variables['USER_HOME'], os_home.as_posix())
+		self.assertEqual(pr.default_platform_paths('antigravity', registry=reg_a6)['home'], a6_home.as_posix())
+		nonstandard_roaming = (self.root / 'custom_sandbox/roaming_alt').resolve()
+		nonstandard_home = nonstandard_roaming / 'Antigravity-A6/home'
+		reg_sandbox = pr.load_registry(env={'APPDATA': str(nonstandard_roaming), 'USERPROFILE': str(nonstandard_home)})
+		self.assertEqual(reg_sandbox.resolved_variables['OS_USER_HOME'], nonstandard_home.as_posix())
+		self.assertEqual(reg_sandbox.resolved_variables['USER_HOME'], nonstandard_home.as_posix())
+		isolated_user = (self.root / 'isolated_user').resolve()
+		reg_outside = pr.load_registry(env={'APPDATA': str(roaming), 'USERPROFILE': str(isolated_user)})
+		self.assertEqual(reg_outside.resolved_variables['OS_USER_HOME'], isolated_user.as_posix())
+		self.assertEqual(reg_outside.resolved_variables['USER_HOME'], isolated_user.as_posix())
+		proj = (self.root / 'a6_tracked_proj').resolve()
+		(proj / '\ua616/data').mkdir(parents=True, exist_ok=True)
+		(proj / '\ua66e').mkdir(parents=True, exist_ok=True)
+		cid = str(uuid.uuid4())
+		a6_backend = a6_home / '.gemini/antigravity'
+		t_log = a6_backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
+		t_log.parent.mkdir(parents=True, exist_ok=True)
+		t_log.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Verify A6 auto-detection.'}) + '\n', encoding='utf-8')
+		with closing(sqlite3.connect(a6_backend / 'conversation_summaries.db')) as conn:
+			conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
+			conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (cid, '', json.dumps([proj.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'primary'))
+			conn.commit()
+		with closing(sqlite3.connect(a6_backend / 'conversations' / f'{cid}.db')) as conn:
+			conn.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+			conn.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, b'Verify A6 auto-detection.')),))
+			conn.commit()
+		with closing(sqlite3.connect(os_home / '.gemini/antigravity/conversation_summaries.db')) as conn:
+			conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT)')
+			conn.execute('INSERT INTO conversation_summaries VALUES(?)', (cid,))
+			conn.commit()
+		with patch.dict(os.environ, a6_env, clear=False):
+			pr.clear_registry_cache()
+			live_cfg = runtime.settings()
+			self.assertEqual(live_cfg['platforms']['antigravity']['instances']['A0']['home'], os_home.as_posix())
+			self.assertEqual(live_cfg['platforms']['antigravity']['instances']['A6']['home'], a6_home.as_posix())
+			resolved_no_cid = runtime.resolve_antigravity_paths(config=live_cfg)
+			self.assertEqual(resolved_no_cid['instance'], 'A6')
+			self.assertEqual(Path(resolved_no_cid['backend_dir']).resolve(), a6_backend.resolve())
+			resolved_ambig = runtime.resolve_antigravity_paths(conversation_id=cid, config=live_cfg)
+			self.assertEqual(resolved_ambig['instance'], 'A6')
+			begun = completion.begin(proj, cid, platform='antigravity')
+			self.assertEqual(begun['status'], 'open')
+			prepared = completion.prepare(proj, 'Verified A6 response without manual instance flag.  \n', cid, platform='antigravity')
+			self.assertTrue(prepared['ready'])
+		real_roaming = Path(os.environ.get('APPDATA', 'C:/Users/dfedi/AppData/Roaming'))
+		real_a6_home = real_roaming / 'Antigravity-A6/home'
+		if real_a6_home.is_dir():
+			sub_env = {**os.environ, 'USERPROFILE': str(real_a6_home), 'APPDATA': str(real_roaming)}
+			proc = subprocess.run([sys.executable, str(runtime.PRIMARY / 'scripts/harness.py'), 'doctor'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
+			self.assertEqual(proc.returncode, 0, proc.stderr or proc.stdout)
+			doc_out = json.loads(proc.stdout)
+			self.assertTrue(doc_out['valid'], doc_out)
+			self.assertNotEqual(doc_out['instances']['A0']['home'], doc_out['instances']['A6']['home'])
 if '__main__' == __name__:
 	unittest.main()

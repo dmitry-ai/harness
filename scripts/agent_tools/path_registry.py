@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+# https://github.com/dmitry-ai/harness/issues/115
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -60,19 +63,12 @@ def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
 	return False
 def _path_key(value: str | Path) -> str:
 	return str(value).replace('\\', '/').rstrip('/').casefold()
-def _lookup_env(name: str, env: dict[str, str] | None=None) -> str | None:
-	environ = os.environ if None is env else env
-	if name in environ and str(environ[name]).strip():
-		return str(environ[name]).replace('\\', '/')
-	upper = name.upper()
-	for k, v in environ.items():
-		if k.upper() == upper and str(v).strip():
-			return str(v).replace('\\', '/')
+def _resolve_process_home(environ) -> str:
 	home = None
 	for hk in ('USERPROFILE', 'HOME'):
 		for k, v in environ.items():
 			if k.upper() == hk and str(v).strip():
-				home = str(v).replace('\\', '/').rstrip('/')
+				home = normalize_path_str(str(v)).rstrip('/')
 				break
 		if home:
 			break
@@ -81,6 +77,35 @@ def _lookup_env(name: str, env: dict[str, str] | None=None) -> str | None:
 			home = Path.home().as_posix().rstrip('/')
 		except RuntimeError:
 			home = _INITIAL_HOME
+	return home
+def _resolve_os_user_home(environ) -> str:
+	proc_home = _resolve_process_home(environ)
+	raw_appdata = None
+	for k, v in environ.items():
+		if 'APPDATA' == k.upper() and str(v).strip():
+			raw_appdata = normalize_path_str(str(v)).rstrip('/')
+			break
+	if raw_appdata and raw_appdata.casefold().endswith('/appdata/roaming'):
+		proc_key = _path_key(proc_home)
+		app_key = _path_key(raw_appdata)
+		if proc_key == app_key or proc_key.startswith(app_key + '/'):
+			app_p = Path(raw_appdata)
+			if 2 <= len(app_p.parents):
+				cand = app_p.parents[1].as_posix().rstrip('/')
+				if cand and Path(cand).parent != Path(cand):
+					return cand
+	return proc_home
+def _lookup_env(name: str, env: dict[str, str] | None=None) -> str | None:
+	environ = os.environ if None is env else env
+	if name in environ and str(environ[name]).strip():
+		return str(environ[name]).replace('\\', '/')
+	upper = name.upper()
+	for k, v in environ.items():
+		if k.upper() == upper and str(v).strip():
+			return str(v).replace('\\', '/')
+	if 'OS_USER_HOME' == upper:
+		return _resolve_os_user_home(environ)
+	home = _resolve_process_home(environ)
 	if 'USERPROFILE' == upper or 'HOME' == upper:
 		return home
 	if 'APPDATA' == upper:
@@ -335,7 +360,7 @@ class PathRegistry:
 		return expand_structure(data, merged, env=self.env)
 def _env_fingerprint(env: dict[str, str] | None) -> tuple:
 	if None is env:
-		keys = ('USERPROFILE', 'HOME', 'APPDATA', 'LOCALAPPDATA', 'PROGRAMFILES', 'SYSTEMROOT', 'HARNESS_PATHS_FILE')
+		keys = ('OS_USER_HOME', 'USERPROFILE', 'HOME', 'APPDATA', 'LOCALAPPDATA', 'PROGRAMFILES', 'SYSTEMROOT', 'HARNESS_PATHS_FILE')
 		return tuple(((k, os.environ.get(k)) for k in keys))
 	return tuple(sorted(((str(k), str(v)) for k, v in env.items())))
 def load_registry(registry_path: str | Path | None=None, *, primary: str | Path | None=None, env: dict[str, str] | None=None) -> PathRegistry:
@@ -522,12 +547,17 @@ def default_platform_paths(adapter_kind: str, *, home: str | Path | None=None, u
 	reg = registry or load_registry()
 	layout = reg.platform_layouts.get(adapter_kind) or {}
 	extra_vars = None
-	if None is home and None is reg.env:
-		try:
-			extra_vars = {'USER_HOME': Path.home().as_posix()}
-		except RuntimeError:
-			extra_vars = None
-	eff_home = normalize_path_str(str(home)) if None is not home else (reg.expand(layout['default_home'], extra_vars) if layout.get('default_home') else (extra_vars['USER_HOME'] if extra_vars else _INITIAL_HOME))
+	if None is home:
+		if None is reg.env:
+			try:
+				extra_vars = {'USER_HOME': escape_template_literal(Path.home().as_posix())}
+			except RuntimeError:
+				extra_vars = None
+		else:
+			proc_h = _lookup_env('USERPROFILE', reg.env)
+			if proc_h:
+				extra_vars = {'USER_HOME': escape_template_literal(proc_h)}
+	eff_home = normalize_path_str(str(home)) if None is not home else (reg.expand(layout['default_home'], extra_vars) if layout.get('default_home') else (normalize_path_str(Path.home().as_posix()) if None is reg.env else _INITIAL_HOME))
 	eff_udd = normalize_path_str(str(user_data_dir)) if None is not user_data_dir else (reg.expand(layout['default_user_data_dir'], extra_vars) if layout.get('default_user_data_dir') else None)
 	return derive_platform_system_paths(adapter_kind, None, home=eff_home, user_data_dir=eff_udd, registry=reg)
 def discover_overlay_file(root: str | Path, *, registry: PathRegistry | None=None, _resolved_root: bool=False) -> Path | None:
