@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
@@ -156,8 +159,12 @@ class GitRepoGate:
 		if not (resolved / '.git').exists():
 			return False
 		try:
+			from .path_registry import canonicalize_root_dir
 			pp = project_paths(resolved)
 			if any((resolved == cr for cr in pp.code_repos)):
+				return True
+			canon = canonicalize_root_dir(resolved)
+			if canon != resolved and 2 <= pp.fs_version:
 				return True
 		except (OSError, ValueError):
 			pass

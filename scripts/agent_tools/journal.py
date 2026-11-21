@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -98,12 +101,22 @@ def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 		return p
 	if '\ua66e' == p.parent.name and p.name in _LEGACY_ANALYSIS_NAMES and ((p.parent / V2_PAIR[0]).is_dir() or (p.parent / V2_PAIR[1]).is_dir()):
 		return p.parent.resolve()
-	if '_' == p.parent.name and '\ua66e' == p.name and p.parent.parent.is_dir():
-		from .path_registry import project_paths
+	cand_proj_root = None
+	if '\ua66e' == p.parent.name and p.name in _LEGACY_ANALYSIS_NAMES:
+		cand_proj_root = p.parent.parent
+	elif '_' == p.parent.name and '\ua66e' == p.name:
+		cand_proj_root = p.parent.parent
+	elif '\ua66e' == p.name:
+		cand_proj_root = p.parent
+	if None is not cand_proj_root:
+		from .path_registry import canonicalize_root_dir, project_paths
 		try:
-			pp = project_paths(p.parent.parent, exact_root=True)
-			if 2 <= pp.fs_version:
-				return pp.journal_dir.resolve()
+			canon_root = canonicalize_root_dir(cand_proj_root)
+			if canon_root.is_dir():
+				pp = project_paths(canon_root, exact_root=True)
+				if canon_root != cand_proj_root.resolve() or 2 <= pp.fs_version:
+					if pp.journal_dir.is_dir():
+						return pp.journal_dir.resolve()
 		except (OSError, ValueError):
 			pass
 	return p

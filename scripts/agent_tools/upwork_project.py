@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Initialize new Upwork projects in the V2 filesystem layout":
 # https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -343,10 +346,19 @@ def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_
 		index_file = state / 'projects.json'
 		index = json.loads(index_file.read_text(encoding='utf-8')) if index_file.exists() else {}
 		if job_id in index:
-			target = (daily / index[job_id]).resolve()
-			if not target.is_relative_to(daily) or not target.is_dir():
+			cand = (daily / str(index[job_id])).resolve()
+			if cand.is_relative_to(daily):
+				from .path_registry import _path_key, load_registry
+				reg = load_registry()
+				ck = _path_key(cand)
+				if not cand.is_dir() and ck in reg.relocations:
+					reloc = Path(reg.relocations[ck]).resolve()
+					if reloc.is_dir():
+						r = reloc
+				elif cand.is_dir():
+					r = cand
+			if None is r:
 				raise ValueError('Project registry points to a missing or external directory')
-			r = target
 		else:
 			parent = daily / f'{day.year:04d}' / f'{day.month:02d}' / f'{day.day:02d}'
 			parent.mkdir(parents=True, exist_ok=True)

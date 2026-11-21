@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
@@ -369,12 +372,32 @@ def _find_local_code_repo(repo: str, project_root: str | Path | None=None, sourc
 				r = cand
 				break
 	if None is r:
+		try:
+			from .path_registry import _candidate_discovery_roots, load_registry
+			reg = load_registry()
+			_, disc_roots = _candidate_discovery_roots(reg)
+			for d_root in disc_roots:
+				try:
+					pp_d = project_paths(d_root, registry=reg)
+					for cand in (*pp_d.code_repos, *pp_d.auxiliary_repos.values()):
+						if cand not in seen:
+							seen.add(cand)
+							if cand.is_dir() and _repo_matches_github_slug(cand, repo):
+								r = cand
+								break
+				except (OSError, ValueError):
+					continue
+				if None is not r:
+					break
+		except (OSError, ValueError):
+			pass
+	if None is r:
 		for raw_search_root in store_value('code_repo_search_roots'):
 			search_root = Path(raw_search_root)
 			if not search_root.is_dir():
 				continue
 			try:
-				for pattern in ('*/.git/config', '**/code/.git/config', '**/\u26ef/.git/config'):
+				for pattern in ('*/.git/config', '**/code/.git/config', '**/\u26ef/.git/config', '**/\U0001d412/.git/config'):
 					for cfg in search_root.glob(pattern):
 						code_dir = cfg.parent.parent.resolve()
 						if code_dir not in seen:

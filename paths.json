@@ -33,6 +33,9 @@
     "DELIVERABLES_DIR_NAME": "♕",
     "INTERMEDIARY_DIR_NAME": "♙",
     "SOFTWARE_DIR_NAME": "⛯",
+    "SERVER_DIR_NAME": "𝐒",
+    "WEBSITE_DIR_NAME": "𝐖",
+    "IDEA_DIR_NAME": ".idea",
     "MAIL_DIR_NAME": "🖂",
     "CLIENT_DIR_NAME": "ꆜ",
     "RECORDS_DIR_NAME": "☰",
@@ -66,6 +69,7 @@
     "PHP_CURRENT_DIR": "${PHP_ROOT}/current",
     "PHP_EXE": "${PHP_CURRENT_DIR}/php.exe",
     "APACHE_SITES_DIR": "${SERVER_ROOT}/apache/conf/sites",
+    "NGINX_SITES_DIR": "${SERVER_ROOT}/nginx/conf/sites",
     "HARNESS_RUNTIME_JSON": "${HARNESS_CODE}/runtime.json",
     "HARNESS_PATHS_JSON": "${HARNESS_CODE}/paths.json",
     "HARNESS_SCRIPTS_DIR": "${HARNESS_CODE}/scripts",
@@ -156,7 +160,11 @@
     "${PROVISION_CODE}/Software/Google/AI/Antigravity": "${ANTIGRAVITY_ADDONS_ROOT}",
     "${AI_PRODUCTS_ROOT}/Google/Antigravity/Addons": "${ANTIGRAVITY_ADDONS_ROOT}",
     "${ANTIGRAVITY_ADDONS_ROOT}/${META_DIR_NAME}": "${ANTIGRAVITY_ADDONS_ROOT}",
-    "${ANTIGRAVITY_ADDONS_ROOT}/code": "${ANTIGRAVITY_ADDONS_ROOT}"
+    "${ANTIGRAVITY_ADDONS_ROOT}/code": "${ANTIGRAVITY_ADDONS_ROOT}",
+    "${UPWORK_DAILY_ROOT}/2026/10/26/1 - smokeday.com": "${DF_CLIENTS}smokeday.com",
+    "${DF_CLIENTS}smokeday.com/m/2026-10-26": "${DF_CLIENTS}smokeday.com",
+    "${DF_CLIENTS}smokeday.com/m/2026-10-26/code": "${DF_CLIENTS}smokeday.com",
+    "${DF_CLIENTS}smokeday.com/m/2026-10-26/code/_my": "${DF_CLIENTS}smokeday.com"
   },
   "platform_layouts": {
     "antigravity": {
@@ -219,7 +227,8 @@
     "discovery_roots": [
       "${HARNESS_ROOT}",
       "${ANTIGRAVITY_ADDONS_ROOT}",
-      "${CHATGPT_ADDONS_ROOT}"
+      "${CHATGPT_ADDONS_ROOT}",
+      "${DF_CLIENTS}smokeday.com"
     ],
     "discovery_globs": [
       "${DF_GIT_CODE_ROOT}/*"
@@ -319,6 +328,7 @@
       "paths": {
         "agents_config_dir": "${PROJECT_ROOT}/.agents",
         "codex_config_toml": "${PROJECT_ROOT}/.codex/config.toml",
+        "idea_dir": "${PROJECT_ROOT}/${IDEA_DIR_NAME}",
         "agent_dir": "${PROJECT_ROOT}/${AGENT_DIR_NAME}",
         "data_dir": "${AGENT_DIR}/data",
         "kb_dir": "${AGENT_DIR}/KB",
@@ -333,6 +343,8 @@
         "artifacts_in_dir": "${ARTIFACTS_IN_DIR}",
         "deliverables_dir": "${DELIVERABLES_DIR}",
         "software_deliverables_dir": "${DELIVERABLES_DIR}/${SOFTWARE_DIR_NAME}",
+        "server_deliverables_dir": "${SOFTWARE_DELIVERABLES_DIR}/${SERVER_DIR_NAME}",
+        "website_deliverables_dir": "${SOFTWARE_DELIVERABLES_DIR}/${WEBSITE_DIR_NAME}",
         "mail_deliverables_dir": "${DELIVERABLES_DIR}/${MAIL_DIR_NAME}",
         "letters_dir": "${MAIL_DELIVERABLES_DIR}/Letters",
         "articles_dir": "${MAIL_DELIVERABLES_DIR}/Articles",

@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -20,6 +23,7 @@ from pathlib import Path
 import re
 import sys
 import unittest
+from unittest.mock import patch
 for _d in (Path(__file__).resolve().parent, Path(__file__).resolve().parents[1] / 'scripts'):
 	if str(_d) not in sys.path:
 		sys.path.insert(0, str(_d))
@@ -43,7 +47,7 @@ class PathRegistryTests(TemporaryCase):
 		addons_root = 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons'
 		expected_projects = {
 			'C:/work/research/provision/code/AI/harness': 'v2_software',
-			'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com': 'upwork',
+			'C:/work/clients/smokeday.com': 'v2',
 			addons_root: 'dual_repo' if (Path(addons_root) / '_').is_dir() else 'v2_software',
 			'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons': 'dual_repo',
 			'C:/work/git/dmitrii-fediuk/code/5.9.188.84': 'server',
@@ -176,22 +180,40 @@ class PathRegistryTests(TemporaryCase):
 			harness_pp.code_repos,
 			(expected_harness_code.resolve(),),
 		)
-		smokeday_root = Path('C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com')
-		smokeday_client_code = Path('C:/work/clients/smokeday.com/m/2026-10-26/code')
+		smokeday_root = Path('C:/work/clients/smokeday.com')
+		smokeday_legacy_su = Path('C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com')
+		smokeday_legacy_sc = Path('C:/work/clients/smokeday.com/m/2026-10-26/code')
+		smokeday_client_code = smokeday_root / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d416/smokeday.com/2026-10-26/\u26ef'
+		smokeday_server_code = smokeday_root / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d412'
+		smokeday_core_mod = smokeday_client_code / 'vendor/smokeday/core'
 		smokeday_pp = pr.project_paths(smokeday_root)
-		self.assertEqual(smokeday_pp.fs_version, 1)
-		self.assertEqual(smokeday_pp.path('client_code_dir'), smokeday_client_code)
-		self.assertIn(
-			journal.resolve_journal_dir(smokeday_root).as_posix(),
-			(
-				'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com/\ua66e',
-				'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com/\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437',
-			),
-		)
-		self.assertEqual(pr.resolve_project_root(smokeday_client_code / '_my/public/Letters/my/EN/1.md'), smokeday_root.resolve())
-		self.assertEqual(check_markdown_slop._infer_project_root(smokeday_client_code / '_my/public/Letters/my/EN/1.md'), smokeday_root.resolve())
+		self.assertEqual(smokeday_pp.profile, 'v2')
+		self.assertEqual(smokeday_pp.fs_version, 2)
+		self.assertEqual(smokeday_pp.journal_version, 3)
+		self.assertEqual(smokeday_pp.path('idea_dir'), (smokeday_root / '.idea').resolve())
+		self.assertEqual(smokeday_pp.path('server_deliverables_dir'), smokeday_server_code.resolve())
+		self.assertEqual(smokeday_pp.path('website_deliverables_dir'), (smokeday_root / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d416').resolve())
+		self.assertEqual(smokeday_pp.path('client_code_dir'), smokeday_client_code.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(smokeday_legacy_su), smokeday_root.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(smokeday_legacy_sc), smokeday_root.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(smokeday_client_code), smokeday_root.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(smokeday_server_code), smokeday_root.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(smokeday_core_mod), smokeday_root.resolve())
+		self.assertEqual(up.resolve_or_create_project_dir('~022114446200656909202', 'smokeday.com', '2026-10-26'), smokeday_root.resolve())
+		self.assertEqual(journal.resolve_journal_dir(smokeday_root), (smokeday_root / '\ua66e').resolve())
+		self.assertTrue(journal.same_journal_identity(smokeday_legacy_su / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437', smokeday_root / '\ua66e'))
+		self.assertTrue(journal.same_journal_identity(smokeday_legacy_su / '\ua66e', smokeday_root / '\ua66e'))
+		self.assertIn(309, journal.get_existing_step_ids(smokeday_root / '\ua66e'))
+		self.assertEqual(pr.resolve_project_root(smokeday_root / '\u2c0f/\u227b/\u2655/\U0001f582/Letters/2026/11/07/result/draft.md'), smokeday_root.resolve())
+		self.assertEqual(check_markdown_slop._infer_project_root(smokeday_root / '\u2c0f/\u227b/\u2655/\U0001f582/Letters/2026/11/07/result/draft.md'), smokeday_root.resolve())
 		self.assertTrue(git_gate.GitRepoGate(smokeday_client_code).is_issue_tracked())
-		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/m', project_root=smokeday_root), smokeday_client_code.resolve())
+		self.assertTrue(git_gate.GitRepoGate(smokeday_server_code).is_issue_tracked())
+		self.assertTrue(git_gate.GitRepoGate(smokeday_core_mod).is_issue_tracked())
+		self.assertFalse(git_gate.GitRepoGate(smokeday_root).is_issue_tracked())
+		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/m'), smokeday_client_code.resolve())
+		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/s'), smokeday_server_code.resolve())
+		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/core'), smokeday_core_mod.resolve())
+		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/meta'), smokeday_root.resolve())
 		srv_root = Path('C:/work/git/dmitrii-fediuk/code/5.9.188.84')
 		self.assertTrue(git_gate.GitRepoGate(srv_root).is_issue_tracked())
 		self.assertTrue(check_stop_gate._is_tracked_workspace(srv_root))
@@ -202,12 +224,13 @@ class PathRegistryTests(TemporaryCase):
 		)
 		buf = io.StringIO()
 		with redirect_stdout(buf):
-			rc = up.main(['paths', str(smokeday_root), '--expand', '${DF_CLIENTS}smokeday.com/m/2026-10-26/code', '--check'])
+			rc = up.main(['paths', str(smokeday_root), '--expand', '${MAGENTO_CODE_DIR}', '--check'])
 		self.assertEqual(rc, 0)
 		cli_out = json.loads(buf.getvalue())
 		self.assertTrue(cli_out['valid'])
-		self.assertEqual(cli_out['expanded'], 'C:/work/clients/smokeday.com/m/2026-10-26/code')
+		self.assertEqual(cli_out['expanded'], smokeday_client_code.as_posix())
 		self.assertTrue(check_stop_gate._is_tracked_workspace(smokeday_client_code))
+		self.assertTrue(check_stop_gate._is_tracked_workspace(smokeday_server_code))
 		self.assertEqual(check_stop_gate._turns_dir(smokeday_client_code), smokeday_pp.turns_dir)
 	def test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring(self):
 		self.assertEqual(
@@ -399,8 +422,30 @@ class PathRegistryTests(TemporaryCase):
 		v2_pp = pr.project_paths(v2_proj)
 		self.assertEqual(v2_pp.profile, 'v2_software')
 		self.assertEqual(v2_pp.fs_version, 2)
+		self.assertEqual(v2_pp.path('idea_dir'), (v2_proj / '.idea').resolve())
+		self.assertEqual(v2_pp.path('server_deliverables_dir'), (v2_proj / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d412').resolve())
+		self.assertEqual(v2_pp.path('website_deliverables_dir'), (v2_proj / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d416').resolve())
 		self.assertIn('/\u2c3f/\u227b/\u2655/', v2_pp.deliverable_segments)
 		self.assertTrue(git_gate.GitRepoGate(v2_proj / '\u2c0f/\u227b/\u2655/\u26ef').is_issue_tracked())
+		v2_multi = self.root / 'v2_multi'
+		(v2_multi / '\U0001f56e').mkdir(parents=True)
+		(v2_multi / '.git').mkdir(parents=True)
+		v2_srv = v2_multi / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d412'
+		v2_web = v2_multi / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d416/example.com/2026-10-26/\u26ef'
+		v2_mod = v2_web / 'vendor/example/core'
+		v2_db = v2_multi / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d416/example.com/2026-10-26/db'
+		for repo_p in (v2_srv, v2_web, v2_mod):
+			(repo_p / '.git').mkdir(parents=True)
+		v2_db.mkdir(parents=True)
+		self.assertEqual(pr.project_paths(v2_multi).profile, 'v2')
+		self.assertEqual(pr.canonicalize_root_dir(v2_srv), v2_multi.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(v2_web), v2_multi.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(v2_mod), v2_multi.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(v2_db), v2_db.resolve())
+		self.assertTrue(git_gate.GitRepoGate(v2_srv).is_issue_tracked())
+		self.assertTrue(git_gate.GitRepoGate(v2_web).is_issue_tracked())
+		self.assertTrue(git_gate.GitRepoGate(v2_mod).is_issue_tracked())
+		self.assertFalse(git_gate.GitRepoGate(v2_multi).is_issue_tracked())
 		(v2_proj / '\ua616/data/turns').mkdir(parents=True, exist_ok=True)
 		(v2_proj / '\ua616/data/turns/t1.json').write_text(json.dumps({'status': 'open', 'budget_check': {'graceful_checkpoint_required': True, 'continuation_saved': False}}), encoding='utf-8')
 		self.assertIsNotNone(check_markdown_slop._check_turn_budget_gate(v2_proj, v2_proj / '\u2c0f/\u227b/\u2655/\U0001f582/Letters/1.md'))
@@ -453,6 +498,42 @@ class PathRegistryTests(TemporaryCase):
 			new_id,
 		)
 		self.assertEqual(ver['status'], 'verified')
+		journal.record_step(mig_proj / '\ua66e', 'Cross-root req 1', 'Cross-root res 1  \n')
+		fake_daily = self.root / 'fake_daily'
+		fake_state = fake_daily / '\ua616/data'
+		fake_state.mkdir(parents=True)
+		reloc_su = fake_daily / '2026/10/26/1 - ex.com'
+		reloc_sc = self.root / 'fake_clients/ex.com/m/2026-10-26/code'
+		(fake_state / 'projects.json').write_text(
+			json.dumps({'~01reloc': '2026/10/26/1 - ex.com', '~01missing': '2026/10/26/2 - gone.com'}),
+			encoding='utf-8',
+		)
+		reloc_reg_raw = deepcopy(pr.load_registry().raw)
+		reloc_reg_raw['relocations'][reloc_su.as_posix()] = mig_proj.as_posix()
+		reloc_reg_raw['relocations'][reloc_sc.as_posix()] = reloc_su.as_posix()
+		reloc_reg_file = self.put('reloc-paths.json', json.dumps(reloc_reg_raw))
+		with patch.dict(os.environ, {'HARNESS_PATHS_FILE': str(reloc_reg_file)}):
+			pr.clear_registry_cache()
+			self.assertEqual(pr.canonicalize_root_dir(reloc_su), mig_proj.resolve())
+			self.assertEqual(pr.canonicalize_root_dir(reloc_sc), mig_proj.resolve())
+			self.assertTrue(journal.same_journal_identity(reloc_su / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437', mig_proj / '\ua66e'))
+			self.assertEqual(
+				journal.resolve_migrated_step_file(reloc_su / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437/res/1.md'),
+				(mig_proj / '\ua66e/\u227a/1\u201320/1.md').resolve(),
+			)
+			su_id = admission.binding(reloc_su / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437', ['Migrated request'], 'Migrated response  \n', 'turn-6', ['req-6'])
+			su_proof_bytes = admission._bytes({'schema_version': 1, 'kind': 'publication_admission', 'binding': su_id, 'integrity': []})
+			su_sha = hashlib.sha256(su_proof_bytes).hexdigest()
+			(proof_dir / f'{su_sha}.json').write_bytes(su_proof_bytes)
+			mig_id6 = admission.binding(mig_proj / '\ua66e', ['Migrated request'], 'Migrated response  \n', 'turn-6', ['req-6'])
+			self.assertEqual(
+				admission.verify({'schema_version': 1, 'file': str((reloc_su / f'\ua616/data/publication-admissions/{su_sha}.json').resolve()), 'sha256': su_sha}, mig_id6)['status'],
+				'verified',
+			)
+			self.assertEqual(up.resolve_or_create_project_dir('~01reloc', 'ex.com', '2026-10-26', daily_root=fake_daily), mig_proj.resolve())
+			with self.assertRaisesRegex(ValueError, 'missing or external'):
+				up.resolve_or_create_project_dir('~01missing', 'gone.com', '2026-10-26', daily_root=fake_daily)
+		pr.clear_registry_cache()
 		v1_job = self.root / 'v1_job'
 		v1_agents = v1_job / '.agents'
 		(v1_agents / 'rules').mkdir(parents=True)

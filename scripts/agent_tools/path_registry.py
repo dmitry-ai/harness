@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -650,6 +653,8 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
 	sw_name = reg.resolved_variables.get('SOFTWARE_DIR_NAME', '\u26ef')
+	srv_name = reg.resolved_variables.get('SERVER_DIR_NAME', '\U0001d412')
+	web_name = reg.resolved_variables.get('WEBSITE_DIR_NAME', '\U0001d416')
 	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
 	deliv_name = reg.resolved_variables.get('DELIVERABLES_DIR_NAME', '\u2655')
@@ -660,9 +665,23 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 		cand_root = path.parents[3].resolve()
 		if (cand_root / agent_name).is_dir() or (cand_root / '.agents').is_dir() or _has_v2_markers(cand_root, reg):
 			path = cand_root
-	key = _path_key(path)
-	if key in reg.relocations:
-		return Path(reg.relocations[key]).resolve()
+	elif path.name in (sw_name, srv_name) or (path / '.git').exists():
+		chain = (path, *path.parents)
+		for idx, node in enumerate(chain):
+			if node.name in (srv_name, web_name) and idx + 5 < len(chain):
+				if chain[idx + 1].name == sw_name and (chain[idx + 2].name, chain[idx + 3].name) in ((deliv_name, art_out), ('Deliverables', art_out)) and chain[idx + 4].name in (art_name, 'Artifacts'):
+					cand_root = chain[idx + 5].resolve()
+					if (cand_root / agent_name).is_dir() or (cand_root / '.agents').is_dir() or _has_v2_markers(cand_root, reg):
+						path = cand_root
+						break
+	for _ in range(4):
+		key = _path_key(path)
+		if key not in reg.relocations:
+			break
+		next_p = Path(reg.relocations[key]).resolve()
+		if next_p == path:
+			break
+		path = next_p
 	return path
 def _glob_parent_stat(pattern: str) -> tuple:
 	prefix = re.split('[*?\\[]', pattern, maxsplit=1)[0].rstrip('/\\')
@@ -716,9 +735,15 @@ def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ..
 				if isinstance(entries, dict):
 					for rel in entries.values():
 						if isinstance(rel, str) and rel.strip():
-							cand = daily_dir / rel
+							cand = (daily_dir / rel).resolve()
 							if cand.is_dir():
-								_push(cand.resolve())
+								_push(cand)
+							else:
+								ck = _path_key(cand)
+								if ck in reg.relocations:
+									reloc = Path(reg.relocations[ck]).resolve()
+									if reloc.is_dir():
+										_push(reloc)
 			except (OSError, ValueError):
 				pass
 	frozen = tuple(candidate_roots)
