@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -127,15 +130,15 @@ class ReadableProjectTests(ProjectCase):
 		value['websites'] = [{'url': url, 'role': 'target', 'basis_id': 'H-SITE-1'}]
 		result = sync_website_card(self.project, value)
 		self.assertEqual(result['status'], 'published')
-		content = (self.project / '.md').read_text(encoding='utf-8')
+		content = (self.project / 'readme.md').read_text(encoding='utf-8')
 		self.assertIn('https://example.org/with space/ꘖ?sig=x%2Fy', content)
 		self.assertNotIn('%EA%98%96', content)
 		self.assertEqual(value['websites'][0]['url'], url)
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
-			sync_block(self.project, self.project / '.md', 'unsafe', '[Source](https://example.org/a%20b)')
+			sync_block(self.project, self.project / 'readme.md', 'unsafe', '[Source](https://example.org/a%20b)')
 	def test_project_check_covers_agent_kb_and_client_markdown_text_and_html(self):
 		self.valid_analysis()
-		files = ['ꘖ/KB/Notes.md', 'result/EN/draft.md', 'result/EN/final.txt', 'result/publish.html']
+		files = ['ꘖ/KB/Notes.md', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/final.txt', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/publish.html']
 		for relative in files:
 			self.put_project(relative, '[Source](https://example.org/with%20space)')
 		issues = workflow.check_project(self.project)['issues']

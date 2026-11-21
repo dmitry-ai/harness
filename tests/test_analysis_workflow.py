@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -312,7 +315,7 @@ class ContinuationTests(ProjectCase):
 		original = {p: p.read_bytes() for p in (self.project / 'ꘖ/KB').glob('*.md')}
 		capture = self.project / json.loads((self.project / 'ꘖ/project.json').read_text())['snapshot']
 		request = 'Continue analysis. Analysis was interrupted due to a power outage.\n'
-		context = self.project / 'ꙮ/0/Context.md'
+		context = self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md'
 		context.parent.mkdir(parents=True, exist_ok=True)
 		context.write_text('EXTERNAL_ONLY_INFORMATION')
 		result = flow.resume(self.project, 'power failure', request)
@@ -451,10 +454,10 @@ class NativeReviewTests(ProjectCase):
 			flow.record_current_answer(self.project, 'Final response exactly as saved: Client task')
 			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
 			self.assertTrue(all(('complete' == x for x in flow.status(self.project)['stages'].values())))
-			self.assertFalse((self.project / 'ꙮ/0/Context.md').exists())
+			self.assertFalse((self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').exists())
 			from agent_tools.context import generate
 			generate(self.project, self.project / '.agents/context.json')
-			context = (self.project / 'ꙮ/0/Context.md').read_text(encoding='utf-8')
+			context = (self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').read_text(encoding='utf-8')
 			self.assertIn('Final response exactly as saved', context)
 			self.assertIn((self.project / 'ꘖ/KB/Progress.md').read_text(encoding='utf-8'), context)
 			self.put_project('ꘖ/KB/Website.md', '# Website\nNew evidence changes this module\n')

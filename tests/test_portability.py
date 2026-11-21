@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -433,14 +436,14 @@ class CodexEvidenceTests(ProjectCase):
 			flow.record_current_answer(self.project, answer)
 			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
 			self.assertTrue(all(('complete' == value for value in flow.status(self.project)['stages'].values())))
-			draft = self.put_project('result/EN/draft.md', 'User draft\r\n')
+			draft = self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', 'User draft\r\n')
 			self.put_project('ꘖ/data/continuation.md', 'Current goal: revise the existing proposal.\n')
 			snapshot_draft(draft, 'cross_system_proposal')
 			draft.write_text('Revised proposal', encoding='utf-8')
 			status = flow.status(self.project)
 			self.assertEqual(status['scope'], 'initial_analysis')
 			self.assertTrue(all(('complete' == value for value in status['stages'].values())))
-			self.assertIn('result/EN/draft.md', [item['path'] for item in status['proposal_artifacts']])
+			self.assertIn('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', [item['path'] for item in status['proposal_artifacts']])
 			self.assertEqual((draft.parent / 'draft.prev.md').read_bytes(), b'User draft\r\n')
 			flow.resume(self.project, 'another request', 'New exact request')
 			self.assertEqual(flow.status(self.project)['next_stage'], 'review')
@@ -450,13 +453,13 @@ class CodexEvidenceTests(ProjectCase):
 				flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init.json'])
 		expected = self.parent_rows[2]['payload']['content'][0]['text']
 		self.assertEqual((self.project / 'ꙮ/≻/1–20/1.md').read_bytes().decode(), expected)
-		self.assertFalse((self.project / 'ꙮ/0/Context.md').exists())
+		self.assertFalse((self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').exists())
 		generate(self.project, self.project / '.agents/context.json')
-		context = (self.project / 'ꙮ/0/Context.md').read_text(encoding='utf-8')
+		context = (self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').read_text(encoding='utf-8')
 		self.assertIn(expected, context)
 		self.assertIn(answer, context)
 	def test_second_platform_keeps_original_date_root_manual_kb_and_saved_snapshot(self):
-		manual = self.project / 'KB/Project.md'
+		manual = self.project / '\U0001f56e/Project.md'
 		manual.write_bytes(manual.read_bytes() + b'\nUSER TEXT\n')
 		before = manual.read_bytes()
 		state_before = json.loads((self.project / 'ꘖ/project.json').read_text(encoding='utf-8'))
@@ -469,15 +472,15 @@ class CodexEvidenceTests(ProjectCase):
 		self.assertFalse((self.project / '.codex/config.toml').exists())
 		self.assertIn('`Topic`', (self.project / '.agents/rules/90-project.md').read_text(encoding='utf-8'))
 	def test_proposal_export_selects_each_language_final_or_existing_draft(self):
-		en = self.put_project('result/EN/draft.md', 'English draft')
-		self.put_project('result/RU/draft.md', 'Russian draft')
-		self.put_project('result/EN/draft.prev.md', 'Earlier version')
+		en = self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', 'English draft')
+		self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/RU/draft.md', 'Russian draft')
+		self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.prev.md', 'Earlier version')
 		target, _, _ = generate(self.project, self.project / '.agents/context.json')
 		first = target.read_text(encoding='utf-8')
 		self.assertIn('English draft', first)
 		self.assertIn('Russian draft', first)
 		self.assertNotIn('Earlier version', first)
-		final = self.put_project('result/EN/final.md', 'Approved English version')
+		final = self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/final.md', 'Approved English version')
 		generate(self.project, self.project / '.agents/context.json')
 		saved = target.read_bytes()
 		self.assertIn(b'Approved English version', saved)
@@ -489,11 +492,11 @@ class CodexEvidenceTests(ProjectCase):
 		self.assertEqual(en.read_text(), 'English draft')
 	def test_known_old_context_is_upgraded_with_a_preserved_original(self):
 		context = self.project / '.agents/context.json'
-		legacy = up.default_context_config()
+		legacy = up.default_context_config(self.project)
 		next((section for section in legacy['sections'] if 'Proposals' == section['title'])).pop('drafts')
 		original = json.dumps(legacy, ensure_ascii=False).encode('utf-8')
 		context.write_bytes(original)
 		up.configure_project(self.project)
 		saved = json.loads(context.read_text(encoding='utf-8'))
-		self.assertEqual(next((section for section in saved['sections'] if 'Proposals' == section['title']))['drafts'], ['result'])
+		self.assertEqual(next((section for section in saved['sections'] if 'Proposals' == section['title']))['drafts'], ['\u2c0f/\u227b/\u2655/\U0001f582/Letters'])
 		self.assertIn(original, [file.read_bytes() for file in (self.project / 'ꘖ/data/config-history').glob('*.json')])

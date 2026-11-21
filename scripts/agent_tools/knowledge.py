@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -175,7 +178,7 @@ def sync_initial_website(root, snapshot, hypothesis=None):
 	overview_md = pp.path('overview_md', root / '.md')
 	if not hypothesis:
 		source = Path(snapshot).resolve()
-		content = f'## Client and Project Website\n\nURL is not yet established by initial extraction; identification requires analysis. [Source job post](<{source.relative_to(root).as_posix()}#/description>).\n'
+		content = f'## Client and Project Website\n\nURL is not yet established by initial extraction; identification requires analysis.  \n[Source job post](<{source.relative_to(root).as_posix()}#/description>).  \n'
 	else:
 		if 'website_url' not in hypothesis:
 			return {'status': 'unassessed'}
@@ -187,7 +190,7 @@ def sync_initial_website(root, snapshot, hypothesis=None):
 		address = markdown_link(None, url) if url else '**unresolved**'
 		manual_proj = pp.manual_kb_dir / 'Project.md'
 		manual_rel = pp.rel_to_root(manual_proj)
-		content = f"## Client and Project Website\n\n**Target project website:** {address}. Hypothesis score: {hypothesis['probability_percent']}%. [Basis: {hypothesis['id']}]({manual_rel}#13-website).\n"
+		content = f"## Client and Project Website\n\n**Target project website:** {address}.  \nHypothesis score: {hypothesis['probability_percent']}%.  \n[Basis: {hypothesis['id']}](<{manual_rel}#13-website>).  \n"
 		source = manual_proj
 	return sync_block(root, overview_md, 'websites', content, source=source)
 def json_bytes(value):
@@ -363,14 +366,14 @@ def populate_agent_kb(project_root: Path, data: dict):
 	if data.get('client_names'):
 		client.extend(['## F-CLIENT-3', 'Heuristic name matches in reviews; client identity is not established:', '```json', json.dumps(data['client_names'], ensure_ascii=False, indent=2), '```', f'[Reviews]({source_link}#/client_names).', ''])
 	create_once(kb / 'Client.md', '\n'.join(client))
-	website = ['# Website', '', '## F-SITE-1', 'Website ownership is not established by automated extraction.', 'The folder name and discovered URLs do not confirm ownership.', '', '## F-SITE-2', 'Domains mentioned in source texts:', '```json', json.dumps(data.get('candidate_domains') or [], ensure_ascii=False, indent=2), '```', f'[Snapshot]({source_link}#/candidate_domains).', '']
+	website = ['# Website', '', '## F-SITE-1', 'Website ownership is not established by automated extraction.  ', 'The folder name and discovered URLs do not confirm ownership.  ', '', '## F-SITE-2', 'Domains mentioned in source texts:', '```json', json.dumps(data.get('candidate_domains') or [], ensure_ascii=False, indent=2), '```', f'[Snapshot]({source_link}#/candidate_domains).', '']
 	create_once(kb / 'Website.md', '\n'.join(website))
 	create_once(kb / 'Projects.md', _render_projects_md(data, url, source_link, extra_sources, pp.root))
 	ev_md = _render_evidence_md(source.get('asset_evidence') or [], extra_sources, pp.root)
 	if None is not ev_md:
 		create_once(kb / 'Evidence.md', ev_md)
 	create_once(kb / 'Glossary.md', '# Glossary\n\nDefinitions are added when used; each term includes a link to its source.\n')
-	create_once(kb / '.md', '# Knowledge Base\n\n[Client](Client.md) · [Website](Website.md) · [Projects](Projects.md) · [Glossary](Glossary.md) · [Initial Description](Project.md).\n\nF — observation or quoted source words; H — hypothesis; M — solution method.\nFor H/M: essence, for, against, score in %, assessment basis; links point to primary data.\n')
+	create_once(kb / '.md', '# Knowledge Base\n\n[Client](Client.md) · [Website](Website.md) · [Projects](Projects.md) · [Glossary](Glossary.md) · [Initial Description](Project.md).\n\nF — observation or quoted source words; H — hypothesis; M — solution method.  \nFor H/M: essence, for, against, score in %, assessment basis; links point to primary data.  \n')
 	r = snapshot
 	return r
 def _replace_section2_in_project_md(existing_md: str, data: dict, extra_sources: list[dict]) -> str:

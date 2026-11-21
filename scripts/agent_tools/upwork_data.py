@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -598,7 +601,7 @@ def format_kb_project_md(data: dict) -> str:
 	name_str = 'unresolved; names from reviews require verification' if data.get('client_names') else 'unknown'
 	country = (loc.get('country') or 'unknown').strip()
 	city = (loc.get('city') or '').strip()
-	loc_lines = [country] + ([city] if city else [])
+	loc_lines = ['  \n'.join([country] + ([city] if city else []))]
 	site_str = 'unresolved; domain mentions and folder names do not prove ownership'
 	if data.get('site_hypothesis'):
 		h = data['site_hypothesis']
@@ -606,7 +609,7 @@ def format_kb_project_md(data: dict) -> str:
 		analysis = {key: [h] if 'identity' == key else [] for key in SECTIONS}
 		analysis['notes'] = {key: 'Separate analysis stage.' for key in SECTIONS if 'identity' != key}
 		validate_analysis(analysis)
-		site_str = '\n'.join([h['essence'], 'For: ' + '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['for'])), 'Against: ' + '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['against'])), f"Expert plausibility: {h['probability_percent']}%.", h['assessment_basis']])
+		site_str = '  \n'.join([h['essence'], 'For: ' + '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['for'])), 'Against: ' + '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['against'])), f"Expert plausibility: {h['probability_percent']}%.", h['assessment_basis']])
 	job_url = canonical_job_url(data.get('job_id') or data.get('url') or '')
 	job_title = (data.get('title') or '').strip()
 	structured_desc = structure_job_description(data.get('description') or '', data.get('questions'))
@@ -622,7 +625,7 @@ def format_kb_project_md(data: dict) -> str:
 			src_body = (src.get('body') or '').strip()
 			src_fence = markdown_fence(src_body)
 			lines.extend(['', f'## 2.{s_idx}. {src_heading}', src_fence + 'markdown', src_body, src_fence])
-	lines.extend(['', '# 3. Past Client Projects', '## 3.0', 'Projects were posted by the same account; their connection to the current website is not established.', '##', 'Use these projects to understand context.', 'Working on these projects is outside the scope of the current task.'])
+	lines.extend(['', '# 3. Past Client Projects', '## 3.0', 'Projects were posted by the same account; their connection to the current website is not established.', '##', 'Use these projects to understand context.  ', 'Working on these projects is outside the scope of the current task.  '])
 	for idx, pjob in enumerate(collect_unique_public_past_jobs(data), start=1):
 		p_structured = structure_job_description(pjob['description'])
 		pfence = markdown_fence(p_structured)

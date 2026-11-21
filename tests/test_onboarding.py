@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove automatic Context.md generation from project initialization and finalize stage":
 # https://github.com/dmitry-ai/harness/issues/104
@@ -54,10 +57,27 @@ class InitializationTests(TemporaryCase):
 		r = up.initialize_upwork_project(data['job_id'], domain_or_topic='Topic', date_str='2026-10-15', daily_root=self.root / 'daily', extracted_data=data, register_antigravity=False, **kwargs)
 		return r
 	def test_native_manifests_and_full_initial_port(self):
+		from check_markdown_slop import check_markdown_content
 		result = self.init()
 		root = Path(result['project_dir'])
-		self.assertEqual((root / 'ꘖ/KB/Project.md').read_bytes(), (root / 'KB/Project.md').read_bytes())
+		state = json.loads((root / 'ꘖ/project.json').read_text(encoding='utf-8'))
+		self.assertEqual(state['fs_version'], 2)
+		self.assertEqual(state['journal_version'], 3)
+		self.assertTrue((root / 'readme.md').is_file())
+		self.assertFalse((root / '.md').exists())
+		self.assertFalse((root / 'KB').exists())
+		self.assertTrue((root / '\u2c0f/\u227b').is_dir())
+		self.assertTrue((root / '\u2c0f/\u227a').is_dir())
+		self.assertTrue((root / '\ua66e/\u227b').is_dir())
+		self.assertTrue((root / '\ua66e/\u227a').is_dir())
+		self.assertEqual((root / 'ꘖ/KB/Project.md').read_bytes(), (root / '\U0001f56e/Project.md').read_bytes())
 		self.assertIn(source()['description'], (root / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8'))
+		ctx_cfg = json.loads((root / '.agents/context.json').read_text(encoding='utf-8'))
+		self.assertEqual(ctx_cfg['output'], '\u2c0f/\u227b/\u2659/Context/output/Context.md')
+		agent_kb_sec = next((s for s in ctx_cfg['sections'] if 'Agent KB' == s['title']))
+		self.assertEqual(agent_kb_sec['exclude'], ['\ua616/KB/Evidence/**'])
+		for md_file in [root / 'readme.md', root / '\U0001f56e/Project.md', root / '.agents/rules/90-project.md', *(root / '\ua616/KB').glob('*.md')]:
+			self.assertIsNone(check_markdown_content(md_file.read_text(encoding='utf-8'), str(md_file)), str(md_file))
 		for kind in ('rules', 'skills', 'agents'):
 			cfg = json.loads((root / f'.agents/{kind}.json').read_text(encoding='utf-8'))
 			self.assertEqual(Path(cfg['entries'][0]['path']), up.PRIMARY_AGENTS_DIR / kind)
@@ -67,10 +87,10 @@ class InitializationTests(TemporaryCase):
 		website = (root / 'ꘖ/KB/Website.md').read_text(encoding='utf-8')
 		self.assertNotIn('`verified`', website)
 		self.assertIn('reference.example', website)
-		self.assertNotIn('These projects belong to the same website', (root / 'KB/Project.md').read_text(encoding='utf-8'))
+		self.assertNotIn('These projects belong to the same website', (root / '\U0001f56e/Project.md').read_text(encoding='utf-8'))
 	def test_repeat_preserves_every_curated_file_and_configuration(self):
 		root = Path(self.init()['project_dir'])
-		files = [root / '.md', root / 'KB/Project.md', *(root / 'ꘖ/KB').glob('*.md')]
+		files = [root / 'readme.md', root / '\U0001f56e/Project.md', *(root / 'ꘖ/KB').glob('*.md')]
 		for path in files:
 			path.write_bytes(path.read_bytes() + b'\nCURATED_CONTENT\n')
 		before = {p: p.read_bytes() for p in files}
@@ -82,9 +102,37 @@ class InitializationTests(TemporaryCase):
 		updated = {**source(), 'description': 'A new capture must not erase previous research'}
 		self.init(updated)
 		self.assertEqual({p: p.read_bytes() for p in before}, before)
-		(root / 'KB/Project.md').unlink()
+		(root / '\U0001f56e/Project.md').unlink()
 		self.init(updated)
-		self.assertFalse((root / 'KB/Project.md').exists())
+		self.assertFalse((root / '\U0001f56e/Project.md').exists())
+	def test_reinit_preserves_legacy_v1_project_without_v2_migration(self):
+		data = source('~02777777')
+		legacy_dir = self.root / 'daily/2026/10/15/1 - Legacy'
+		legacy_dir.mkdir(parents=True)
+		(legacy_dir / '.md').write_text(f"# Client task\nhttps://www.upwork.com/jobs/{data['job_id']}\n", encoding='utf-8')
+		(legacy_dir / 'KB').mkdir()
+		(legacy_dir / 'KB/Project.md').write_text('# 1. Client\nLegacy KB\n', encoding='utf-8')
+		(legacy_dir / '\ua616').mkdir()
+		(legacy_dir / '\ua616/project.json').write_text(json.dumps({'job_id': data['job_id'], 'initialized': True}), encoding='utf-8')
+		result = self.init(data)
+		root = Path(result['project_dir'])
+		self.assertEqual(root, legacy_dir.resolve())
+		state = json.loads((root / '\ua616/project.json').read_text(encoding='utf-8'))
+		self.assertEqual(state['fs_version'], 1)
+		self.assertFalse((root / '\U0001f56e').exists())
+		self.assertFalse((root / 'readme.md').exists())
+		self.assertTrue((root / '.md').is_file())
+		self.assertTrue((root / 'KB/Project.md').is_file())
+	def test_resolve_or_create_reuses_unindexed_v2_project_dir(self):
+		daily = self.root / 'daily'
+		v2_readme = daily / '2026/10/15/1 - Unindexed Readme'
+		v2_readme.mkdir(parents=True)
+		(v2_readme / 'readme.md').write_text('# Task\nhttps://www.upwork.com/jobs/~02987654\n', encoding='utf-8')
+		self.assertEqual(up.resolve_or_create_project_dir('~02987654', 'Other', '2026-10-15', daily), v2_readme.resolve())
+		v2_state = daily / '2026/10/15/2 - Unindexed State'
+		(v2_state / '\ua616').mkdir(parents=True)
+		(v2_state / '\ua616/project.json').write_text(json.dumps({'job_id': '~02987655'}), encoding='utf-8')
+		self.assertEqual(up.resolve_or_create_project_dir('~02987655', 'Other', '2026-10-15', daily), v2_state.resolve())
 	def test_existing_neighbor_material_is_untouched(self):
 		root = self.root / 'project'
 		note = self.put('project/.agents/private/work.txt', 'user material')
@@ -126,7 +174,7 @@ class InitializationTests(TemporaryCase):
 		result = self.cli('upwork_project', 'init', source()['job_id'], '--from-json', capture, '--domain', 'Topic', '--date', '2026-10-15', '--daily-root', self.root / 'daily', '--no-register')
 		self.assertEqual(result.returncode, 0, result.stderr)
 		root = Path(json.loads(result.stdout)['project_dir'])
-		self.assertFalse((root / 'ꙮ/0/Context.md').exists())
+		self.assertFalse((root / '\u2c0f/\u227b/\u2659/Context/output/Context.md').exists())
 	def test_attachment_evidence_retained_with_hash(self):
 		asset = self.put('capture/attachments/proof.txt', 'primary evidence')
 		data = {**source(), 'saved_attachments': [{'path': str(asset), 'filename': asset.name, 'sha256': hashlib.sha256(asset.read_bytes()).hexdigest()}]}
@@ -154,9 +202,9 @@ class CapturedProjectTests(TemporaryCase):
 			with self.subTest(job_id=data['job_id']):
 				kwargs = dict(url_or_id=data['job_id'], extracted_data=data, date_str='2026-10-15', daily_root=self.root / 'daily', register_antigravity=False)
 				root = Path(up.initialize_upwork_project(**kwargs)['project_dir'])
-				self.assertEqual((root / 'KB/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
+				self.assertEqual((root / '\U0001f56e/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
 				self.assertIn(data['description'], (root / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8'))
-				paths = [root / '.md', root / 'KB/Project.md', root / '.agents/context.json', *(root / 'ꘖ/KB').glob('*.md')]
+				paths = [root / 'readme.md', root / '\U0001f56e/Project.md', root / '.agents/context.json', *(root / 'ꘖ/KB').glob('*.md')]
 				for file in paths:
 					if '.json' != file.suffix:
 						file.write_bytes(file.read_bytes() + b'\nCURATED_IN_REAL_CAPTURE_TEST\n')
@@ -265,7 +313,7 @@ class AttachmentTests(TemporaryCase):
 			root = Path(up.initialize_upwork_project(data['job_id'], domain_or_topic='Topic', date_str='2026-10-15', daily_root=self.root / 'daily', extracted_data=data, register_antigravity=False)['project_dir'])
 		self.assertEqual((root / 'source/Expectations.docx').read_bytes(), docx_path.read_bytes())
 		self.assertEqual((root / 'source/checkout-error.png').read_bytes(), img_path.read_bytes())
-		manual_kb = (root / 'KB/Project.md').read_text(encoding='utf-8')
+		manual_kb = (root / '\U0001f56e/Project.md').read_text(encoding='utf-8')
 		agent_kb = (root / 'ꘖ/KB/Project.md').read_text(encoding='utf-8')
 		projects_kb = (root / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8')
 		evidence_kb = (root / 'ꘖ/KB/Evidence.md').read_text(encoding='utf-8')
@@ -279,7 +327,7 @@ class AttachmentTests(TemporaryCase):
 		self.assertIn('attachment.image_incomplete', issues_before)
 		media_descriptions = {'https://www.loom.com/share/abcd1234ef567890abcd1234ef567890': '# Video:\nhttps://www.loom.com/share/abcd1234ef567890abcd1234ef567890\n\n# Key Spoken Commentary Points (Additions to Document Text):\n- **Context:** Client shows GTM container settings.\n\n# Full Audio Transcript:\n- **[00:00]** Hello, here is our current GTM setup and what needs fixing.', 'checkout-error.png': '# 1. Verbatim Text in Image\n- «Payment failed: invalid merchant configuration»\n- Button «Try Again»\n\n# 2. User Interface (UI) Elements Description\n- Checkout error modal window with red banner «Error».\n\n# 3. Relation to Client Statements\n## 3.1. Confirmations of Client Statements\n### 1\n- **Essence:** Screenshot confirms checkout payment failure.\n- **Arguments for:** Text «Payment failed: invalid merchant configuration» directly indicates a configuration error.\n- **Arguments against:** Screenshot does not show the server gateway log.\n- **Score:** `95%`\n\n## 3.2. Contradictions to Client Statements\n### 1\n- **Essence:** Error occurs at initialization step, not after 3DS.\n- **Arguments for:** Card field is not yet active on screen.\n- **Arguments against:** Client could have taken the screenshot after form reset.\n- **Score:** `70%`'}
 		sync_project_attachments_and_kb(root, media_descriptions=media_descriptions)
-		self.assertEqual((root / 'KB/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
+		self.assertEqual((root / '\U0001f56e/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
 		self.assertEqual(attachment_issues(root), [])
 class RPCTests(unittest.IsolatedAsyncioTestCase):
 	async def test_events_and_unrelated_responses_do_not_complete_call(self):

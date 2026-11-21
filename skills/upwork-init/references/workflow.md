@@ -106,7 +106,7 @@ A saved HTTP 403/404 is an observed outcome; do not retry it blindly.
 A JS challenge page is a prompt to choose an appropriate browser check, not proof that verified search crawlers are blocked.  
 HTML and bundle captures show static source rather than runtime execution (including the extracted `links` array with all `<a href>` targets and visible anchor text); JSON extraction computes a deterministic `summary` across object arrays (`record_count`, `timestamp_ranges` with `min`, `max`, `by_date`, `earliest_record`, `latest_record`, and `field_counts`); DOCX/PDF extraction preserves hyperlinks and Markdown formatting.  
 Re-running `collect --output` into an existing `ꘖ/KB/Evidence/*.json` report merges prior `results` without losing earlier observations.  
-All client-attached files are saved simultaneously in the root `source/` folder and in `ꘖ/KB/Evidence/Attachments/<sha256>/`, and their full text, video transcripts (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:` with `[MM:SS]`), and image descriptions (verbatim text in `«»`, UI description, confirmations and contradictions against client statements with `%` scores) are synchronized into both KBs (`KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`) during `init` and via `sync-attachments`.  
+All client-attached files are saved simultaneously in the root `source/` folder and in `ꘖ/KB/Evidence/Attachments/<sha256>/`, and their full text, video transcripts (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:` with `[MM:SS]`), and image descriptions (verbatim text in `«»`, UI description, confirmations and contradictions against client statements with `%` scores) are synchronized into both KBs (`🕮/Project.md` / legacy `KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`) during `init` and via `sync-attachments`.  
 
 For post-JavaScript DOM inspection, only read-only capture of an explicitly selected tab at an exact URL is permitted:  
 
@@ -152,7 +152,7 @@ Format all authored links across intermediate and final texts per [LINK-5](../..
 `links.markdown_link(label, target)` formats Markdown links (wrapping in `<...>` when needed), and `readable_reference` decodes unnecessary percent-encoding in paths/fragments while preserving significant query parameters and delimiters.  
 `validate_links.py --readable <files>` inspects authored source links rather than percent-encoded `href` attributes produced by a HTML renderer.  
 This check also covers authored links in plain text and HTML; verbatim quotes, code blocks, and imported source copies retain their original bytes.  
-`check-project` validates the agent KB, root project card, and text deliverables under `result/`; `record-answer`, `answer-prepare`, and `finalize` validate the new final response before writing or completing the stage.  
+`check-project` validates the agent KB, `readme.md` (legacy root `.md`), and text deliverables under `Ⰿ/≻/♕/🖂/{Letters,Articles}` (legacy `result/`); `record-answer`, `answer-prepare`, and `finalize` validate the new final response before writing or completing the stage.  
 Shared publication helpers reject new percent-encoded authored links before modifying an existing file; historical entries and raw JSON captures are not reformatted.  
 
 ## Red Flags
@@ -181,10 +181,10 @@ A missing `red_flags` key in a legacy file means `"not evaluated"` rather than `
 
 Replace the example claim IDs with actual IDs from `identity`; when intermediation is a hypothesis rather than a confirmed fact, use `suspected` instead of `confirmed`.  
 Each active flag is rendered independently; when both flags are present simultaneously, a separate bold warning highlights the high likelihood of declining the project.  
-`render-analysis` and `validate-analysis --render` output the block ahead of the five stages and, for the canonical `ꘖ/KB/Analysis.json`, also synchronize it at the end of the root `.md` inside a dedicated level-1 section.  
+`render-analysis` and `validate-analysis --render` output the block ahead of the five stages and, for the canonical `ꘖ/KB/Analysis.json`, also synchronize it at the end of `readme.md` (legacy root `.md`) inside a dedicated level-1 section.  
 Links in the root project card point to `identity` claims in `Analysis.json`, whereas links in the chat report point to the corresponding report headings.  
 The renderer preserves all card bytes outside the managed block and archives prior block versions in `ꘖ/data/red-flags-history`.  
-At the end of the root `.md`, the level-1 heading `# Red Flags — N` appears first, followed inside that section by `<!-- upwork-init:red-flags:start -->`, the flag items, and `<!-- upwork-init:red-flags:end -->`.  
+At the end of `readme.md` (legacy root `.md`), the level-1 heading `# Red Flags — N` appears first, followed inside that section by `<!-- upwork-init:red-flags:start -->`, the flag items, and `<!-- upwork-init:red-flags:end -->`.  
 A legacy unmodified block at the top of the card is automatically migrated to the end; re-running the renderer does not create duplicates or empty sections.  
 Manual edits inside the managed block or its heading—or corrupted markers—raise a conflict and preserve the file for explicit reconciliation.  
 An early warning block may be added manually once backed by verified data; if a conflict arises later, reconcile it with the rendered block rather than overwriting the entire card.  
@@ -192,7 +192,7 @@ An explicit verified `red_flags: []` removes a prior managed block while preserv
 Before publishing the final response, reproduce the exact same set and statuses of active Red Flags at the very beginning of the response with chat-adapted links; never rewrite prior journal responses.  
 
 In `websites`, explicitly list each client or target project URL (or `null`), its role (`client|target`), and its `basis_id` from `identity`.  
-The root `.md` displays these addresses, their score, and the link to the proof; the folder name is never used as confirmation.  
+`readme.md` (legacy root `.md`) displays these addresses, their score, and the link to the proof; the folder name is never used as confirmation.  
 `Progress.md` is updated in place without accumulating historical copies, whereas primary evidence, analysis versions, and review packages are archived.  
 
 ## Independent Review

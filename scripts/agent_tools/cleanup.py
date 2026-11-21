@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -193,7 +196,7 @@ def _load_conversation_index(backend, homes):
 def legacy_initialization(root):
 	agents = root / '.agents'
 	rule = agents / 'rules/90-project.md'
-	kb = root / 'KB/Project.md'
+	kb = next((p for p in (root / '\U0001f56e/Project.md', root / 'KB/Project.md') if p.is_file()), root / 'KB/Project.md')
 	manifests = [agents / (kind + '.json') for kind in ('rules', 'skills', 'agents')]
 	if not all((p.is_file() for p in [rule, kb, *manifests])):
 		return None

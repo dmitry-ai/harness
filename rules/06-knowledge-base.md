@@ -4,7 +4,7 @@ description: "KB ownership, knowledge types, stable IDs, and agent KB context ex
 ---
 # Knowledge Base
 ## KB-1
-`🕮/` in `V2` (`O`) projects (legacy `V1`: `KB/`) belongs to the user; the agent creates `Project.md` inside that manual KB directory once during initial analysis (and synchronizes the `# 2. Current Client Project` section during `sync-attachments`), and thereafter does not modify it or other manual KB files without a new direct instruction.  
+`🕮/` (legacy `V1`: `KB/`) belongs to the user; the agent creates `Project.md` inside that manual KB directory once during initial analysis (and synchronizes the `# 2. Current Client Project` section during `sync-attachments`), and thereafter does not modify it or other manual KB files without a new direct instruction.  
 Immediately port the complete initial document into `ꘖ/KB/Project.md` (as well as `ꘖ/KB/Projects.md` and `ꘖ/KB/Evidence.md`), including verbatim and in full all attached text files (including PDF and DOCX) with Markdown formatting, complete transcripts of client videos (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:` with `[MM:SS]` timestamps), and complete descriptions of images (verbatim text and UI labels in `«»`, confirmations and contradictions against client statements with `%` scores); store all further research exclusively in `ꘖ/KB`.  
 External `http(s)://` links in a project response must be backed by entries in `ꘖ/KB` (modules, `Analysis.json`, or `Project.md`) and saved primary observations; adding external URLs to a response while bypassing `ꘖ/KB` is blocked.  
 Re-running `init` does not regenerate user-authored or agent-enriched documents.  
@@ -22,7 +22,7 @@ Internal agents of every active environment work with their own agent KB (`ꘖ/K
 Keep the KB current and self-consistent at all times: after new data arrives, audit dependent claims, update permitted modules, and explicitly mark anything unverified or stale.  
 After an interruption and a `"Continue analysis"` request in the current chat, restore the next step from the KB and service receipts; the mere presence of an old file does not prove stage completion.  
 A project may be continued in another environment or instance and in a new chat using the same root on disk, including semi-manual proposal preparation after initial analysis.  
-Also read the exact journal and existing `result/**/draft.md`/`final.md`; do not carry over a conversation from one platform to another via fabricated history.  
+Also read the exact journal and existing `draft.md`/`final.md` deliverables (`Ⰿ/≻/♕/🖂/Letters/**` or legacy `result/**`); do not carry over a conversation from one platform to another via fabricated history.  
 Record the current instruction, working files, open questions, and next step in `ꘖ/data/continuation.md` with links to real artifacts.  
 Completion of initial analysis and readiness of a proposal are distinct; a new instruction regarding a draft does not by itself require re-collection or all five analysis stages.  
 H percentages change with evidence; promotion to a fact requires a separate observation rather than a high score.  

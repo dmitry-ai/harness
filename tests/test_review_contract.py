@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -391,7 +394,7 @@ class ReviewContractTests(ProjectCase):
 		claim['essence'] = 'The client and website owner is Jean Pierre.'
 		claim['verification_status'] = 'verified'
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
-		self.put_project('KB/Project.md', '# 1. Client\n## 1.1 Name\nunknown\n')
+		self.put_project('\U0001f56e/Project.md', '# 1. Client\n## 1.1 Name\nunknown\n')
 		self.put_project('ꘖ/KB/Project.md', '# 1. Client\n## 1.1 Name\nunknown\n')
 		res = flow.check_project(self.project)
 		codes = {issue['code'] for issue in res['issues']}

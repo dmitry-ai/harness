@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -87,7 +90,7 @@ class ResumeExportTests(ProjectCase):
 		self.assertIn('one final answer shared', content)
 	def test_group_crash_reserves_all_numbers_and_preserves_previous_context(self):
 		directory = self.project / 'ꙮ'
-		target = self.project / 'ꙮ/0/Context.md'
+		target = self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md'
 		generate(self.project, self.project / '.agents/context.json')
 		previous = target.read_bytes()
 		real = journal.create_bytes

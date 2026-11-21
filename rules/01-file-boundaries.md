@@ -22,8 +22,8 @@ Reserve the number across both folders; do not overwrite an occupied pair.
 Place state and locks in `ꘖ/data`, isolating different journals and source files.  
 Bind a recovery token to the exact journal, number, and hashes; matching requests do not prove ownership.  
 ## FILE-5
-Agent files belong inside `ꘖ`; exceptions are the requested journal, context export, the root `source/` folder with client attachments, initial structure creation per [INIT-1](09-initial-analysis.md#init-1), and website/Red Flags blocks of the root `.md` per [INIT-5](09-initial-analysis.md#init-5).  
-When instructed to prepare or edit a proposal, also work with user files under `result/**` and `draft.md` snapshots per FILE-2, preserving the existing structure and versions.  
+Agent files belong inside `ꘖ`; exceptions are the requested journal, context export, the root `source/` folder with client attachments, initial structure creation per [INIT-1](09-initial-analysis.md#init-1), and website/Red Flags blocks of `readme.md` (legacy root `.md`) per [INIT-5](09-initial-analysis.md#init-5).  
+When instructed to prepare or edit a proposal, also work with user files under `Ⰿ/≻/♕/🖂/Letters/**` (legacy `result/**`) and `draft.md` snapshots per FILE-2, preserving the existing structure and versions.  
 Distinguish the deliverable, permanent evidence, and temporary material; delete only the last when it is no longer needed.  
 Before deletion, verify the absolute path, ownership, and link redirects; keep any ambiguous file.  
 Executable code resides only in the shared toolkit; do not create one-off `.py` scripts inside projects.  

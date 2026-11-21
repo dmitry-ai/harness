@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -68,6 +71,7 @@ def default_context_config(root: Path | None=None):
 	overview_rel = '.md'
 	manual_kb_glob = 'KB/**/*.md'
 	agent_kb_glob = 'ꘖ/KB/**/*.md'
+	ev_excl = '\ua616/KB/Evidence/**'
 	journal_rel = 'ꙮ'
 	proposals_rel = 'result'
 	letters_my = 'Letters/my'
@@ -81,6 +85,7 @@ def default_context_config(root: Path | None=None):
 		overview_rel = pp.rel_to_root(ov_p)
 		manual_kb_glob = f'{pp.rel_to_root(pp.manual_kb_dir)}/**/*.md'
 		agent_kb_glob = f'{pp.rel_to_root(pp.kb_dir)}/**/*.md'
+		ev_excl = f'{pp.rel_to_root(pp.evidence_dir)}/**'
 		journal_rel = pp.rel_to_root(pp.journal_dir)
 		prop_p = pp.path('proposals_dir', pp.root / 'result')
 		proposals_rel = pp.rel_to_root(prop_p)
@@ -93,7 +98,7 @@ def default_context_config(root: Path | None=None):
 		else:
 			letters_my = f'{let_rel}/my'
 			letters_client = f'{let_rel}/client'
-	return {'version': 1, 'output': out_rel, 'sections': [{'title': 'Project', 'files': [overview_rel]}, {'title': 'Manual KB', 'globs': [manual_kb_glob], 'optional': True}, {'title': 'Agent KB', 'globs': [agent_kb_glob], 'optional': True}, {'title': 'Analysis', 'journals': [journal_rel], 'optional': True}, {'title': 'Proposals', 'globs': [f'{proposals_rel}/**/final/*.md', f'{proposals_rel}/**/final.md'], 'drafts': [proposals_rel], 'optional': True}, {'title': 'Correspondence', 'optional': True, 'letters': [{'root': letters_my, 'author': 'Consultant', 'languages': ['EN', 'RU']}, {'root': letters_client, 'author': 'Client', 'languages': ['EN', 'RU']}]}]}
+	return {'version': 1, 'output': out_rel, 'sections': [{'title': 'Project', 'files': [overview_rel]}, {'title': 'Manual KB', 'globs': [manual_kb_glob], 'optional': True}, {'title': 'Agent KB', 'globs': [agent_kb_glob], 'exclude': [ev_excl], 'optional': True}, {'title': 'Analysis', 'journals': [journal_rel], 'optional': True}, {'title': 'Proposals', 'globs': [f'{proposals_rel}/**/final/*.md', f'{proposals_rel}/**/final.md'], 'drafts': [proposals_rel], 'optional': True}, {'title': 'Correspondence', 'optional': True, 'letters': [{'root': letters_my, 'author': 'Consultant', 'languages': ['EN', 'RU']}, {'root': letters_client, 'author': 'Client', 'languages': ['EN', 'RU']}]}]}
 def validate_label(value):
 	if not value or len(value) > 120 or value != value.strip().rstrip('.') or re.search('[\\\\/:\\x00-\\x1f<>"|?*]', value):
 		raise ValueError('Project name must be a Windows-safe domain or short topic, without a URL scheme')
@@ -136,16 +141,20 @@ def configure_project(project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_u
 	if not context_path.exists():
 		create_once(context_path, json_bytes(context_config).decode('utf-8'))
 	else:
-		old_config = default_context_config(root if use_project_ctx else None)
-		next((section for section in old_config['sections'] if 'Proposals' == section['title'])).pop('drafts')
-		if json.loads(context_path.read_text(encoding='utf-8-sig')) == old_config:
+		v_no_drafts = deepcopy(context_config)
+		next((section for section in v_no_drafts['sections'] if 'Proposals' == section['title'])).pop('drafts')
+		v_no_excl = deepcopy(context_config)
+		next((section for section in v_no_excl['sections'] if 'Agent KB' == section['title'])).pop('exclude')
+		v_neither = deepcopy(v_no_drafts)
+		next((section for section in v_neither['sections'] if 'Agent KB' == section['title'])).pop('exclude')
+		if json.loads(context_path.read_text(encoding='utf-8-sig')) in (v_no_drafts, v_no_excl, v_neither):
 			previous = context_path.read_bytes()
 			history = pp.data_dir / 'config-history' / (hashlib.sha256(previous).hexdigest() + '-context.json')
 			history.parent.mkdir(parents=True, exist_ok=True)
 			if not history.exists():
 				create_bytes(history, previous)
 			replace_bytes(context_path, json_bytes(context_config))
-	create_once(rules / '90-project.md', '\n'.join(['---', 'trigger: always_on', 'description: "Project parameters"', '---', '', '# Project', f"Job post: {job_url or 'not specified'}.", f'Folder name: `{domain_or_topic or root.name}`; domain ownership is not proven by this.', 'Paths and boundaries: shared rules KB-1 and FILE-4.', '']))
+	create_once(rules / '90-project.md', '\n'.join(['---', 'trigger: always_on', 'description: "Project parameters"', '---', '', '# Project', f"Job post: {job_url or 'not specified'}.  ", f'Folder name: `{domain_or_topic or root.name}`; domain ownership is not proven by this.  ', 'Paths and boundaries: shared rules KB-1 and FILE-4.  ', '']))
 	cfg = settings(primary / 'runtime.json') if primary != Path(PRIMARY_AGENTS_DIR).resolve() and (primary / 'runtime.json').is_file() else settings()
 	if 'codex' in (cfg.get('platforms') or {}):
 		configure_codex_project(root, primary, job_url, domain_or_topic)
@@ -346,8 +355,14 @@ def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_
 				match = re.match('^(\\d+) - ', child.name)
 				if child.is_dir() and match:
 					numbers.append(int(match[1]))
-					overview = child / '.md'
-					if overview.is_file() and canonical_job_url(job_id) in overview.read_text(encoding='utf-8'):
+					state_path = child / '\ua616/project.json'
+					matched_state = False
+					if state_path.is_file():
+						try:
+							matched_state = json.loads(state_path.read_text(encoding='utf-8')).get('job_id') == job_id
+						except Exception:
+							matched_state = False
+					if matched_state or any((ov.is_file() and any((u in ov.read_text(encoding='utf-8') for u in (canonical_job_url(job_id), f'https://www.upwork.com/jobs/{job_id}'))) for ov in (child / 'readme.md', child / '.md'))):
 						index[job_id] = child.relative_to(daily).as_posix()
 						replace_bytes(index_file, json_bytes(index))
 						r = child
@@ -375,15 +390,25 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 	label = domain_or_topic or ' '.join(re.findall('[\\w-]+', data['title'])[:5])
 	from .path_registry import project_paths
 	root = resolve_or_create_project_dir(job_id, label, day.isoformat(), daily_root)
-	pp = project_paths(root, exact_root=True)
-	pp.agent_dir.mkdir(parents=True, exist_ok=True)
-	with locked(pp.data_dir / 'init.lock'):
-		state_file = pp.project_json
-		state = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {'job_id': job_id, 'initialized': False, 'created_by': 'upwork-init', 'created_at': datetime.now(timezone.utc).isoformat()}
+	(root / '\ua616/data').mkdir(parents=True, exist_ok=True)
+	with locked(root / '\ua616/data/init.lock'):
+		state_file = root / '\ua616/project.json'
+		existing_state = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else None
+		state = existing_state if None is not existing_state else {'job_id': job_id, 'initialized': False, 'created_by': 'upwork-init', 'created_at': datetime.now(timezone.utc).isoformat()}
 		if state['job_id'] != job_id:
 			raise ValueError('Project identity mismatch')
+		is_legacy_v1 = (isinstance(existing_state, dict) and 1 == existing_state.get('fs_version')) or ((root / 'KB/Project.md').is_file() and not (root / '\U0001f56e').is_dir() and not (root / '\u2c0f').is_dir())
+		if not is_legacy_v1:
+			for v2_dir in (root / '\U0001f56e', root / '\u2c0f/\u227b', root / '\u2c0f/\u227a'):
+				v2_dir.mkdir(parents=True, exist_ok=True)
+			state['fs_version'] = 2
+			state.setdefault('journal_version', 3)
+		else:
+			state.setdefault('fs_version', 1)
+		replace_bytes(state_file, json_bytes(state))
 		configure_project(root, primary_agents_dir, canonical_job_url(job_id), root.name.split(' - ', 1)[-1], platform=platform)
 		pp = project_paths(root, exact_root=True)
+		state_file = pp.project_json
 		from .journal import journal_pair_dirs
 		req_dir, res_dir = journal_pair_dirs(pp.journal_dir)
 		for folder in (pp.manual_kb_dir, pp.kb_dir, req_dir, res_dir):
@@ -393,7 +418,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		extra_sources = build_project_extra_sources(root, data, assets)
 		overview_md = pp.path('overview_md', root / '.md')
 		if not state['initialized']:
-			create_once(overview_md, f"# {data['title']}\n{canonical_job_url(job_id)}\n")
+			create_once(overview_md, f"# {data['title']}\n\n{canonical_job_url(job_id)}\n")
 			create_once(pp.manual_kb_dir / 'Project.md', format_kb_project_md({**data, 'extra_sources': extra_sources, **({'site_hypothesis': site_hypothesis} if site_hypothesis else {})}))
 		source_data = {**data, 'asset_evidence': [{'file': a['file'], 'sha256': a['sha256']} for a in assets], 'extra_sources': extra_sources}
 		snapshot = populate_agent_kb(root, source_data)

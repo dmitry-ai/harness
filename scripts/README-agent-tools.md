@@ -69,7 +69,7 @@ The date is the initial request date in `Europe/Istanbul`; website ownership is 
 `--site-hypothesis site.json` supplies a separate DOC-2 hypothesis containing `id`, `essence`, `for`/`against`, `probability_percent`, and `assessment_basis`.  
 Each argument entry contains `argument`/`source`/`quote`; absence of contrary evidence is documented via `counterevidence` per the contract below.  
 
-`init` creates the root project card, manual and agent KBs, an immutable SHA-256 snapshot, hash-verified attachment copies, and the shared native manifest.  
+`init` creates a `𑀣` (`fs_version: 2`, `journal_version: 3`) project by default (while preserving existing `fs_version: 1` projects), creating `readme.md` (legacy `.md`), `🕮/Project.md` (legacy `KB/Project.md`), `Ⰿ/{≻,≺}`, `ꘖ/KB`, `ꙮ/{≻,≺}`, an immutable SHA-256 snapshot, hash-verified attachment copies, and the shared native manifest.  
 Re-running the internal operation preserves the sequence number, manual documents, and IDs; normal continuation never re-runs `init`.  
 An active daily project is registered under `Upwork / Proposals / YYYY / MM / DD`, verifying `project_id`, `folder_id`, and `folder_path`.  
 In Codex, registration uses Shared-Projects via the UI helper: `shared_id`, the shared catalog/assignment, and `profiles` with distinct native C1/C2 IDs.  
@@ -93,7 +93,7 @@ Legacy standard `context.json` files are upgraded to `draft-or-final` selection 
 `status <project>` reads the agent KB, file hashes, registered questions, and workflow stages.  
 `scope=initial_analysis` explicitly bounds the meaning of stage statuses; `proposal_artifacts` lists existing `draft`/`final`/previous snapshot files separately.  
 `ꘖ/data/continuation.md` records the current instruction, working files, and next step for cross-platform handoff; its presence does not certify proposal readiness.  
-During semi-manual proposal work, read the exact journal and user-indicated `result/**` files, snapshot any existing `draft.md` with `snapshot_draft.py`, and execute the specific instruction.  
+During semi-manual proposal work, read the exact journal and user-indicated deliverables (`Ⰿ/≻/♕/🖂/Letters/**` or legacy `result/**`), snapshot any existing `draft.md` with `snapshot_draft.py`, and execute the specific instruction.  
 No new automated proposal stages are added; switching UI platforms does not require re-running `inspect`/`init` or re-collecting evidence.  
 `resume <project> --reason <reason> [--request-file <exact-text>]` verifies the prior snapshot, records continuation state, and updates `Progress.md` inside the agent KB without reading `Context.md`.  
 `adopt-requests <project> --conversation <UUID>` imports the exact user messages for the job from the active platform's local native store (`USER_INPUT` in Antigravity or user messages in Codex).  
@@ -116,7 +116,7 @@ Deterministic scripts compare bytes, hashes, and JSON pointers; A.A evaluates ca
 Extraction profiles: `html` (title/meta/meta_all/canonical/text/sections/anchors/links/JSON-LD), `shopify` (public JSON plus a deterministic `summary` across object arrays: `record_count`, `timestamp_ranges`, `field_counts`), `tracking` (identifiers and literal JSON), and `document` (text/PDF/DOCX with Markdown formatting, plus `summary` for JSON).  
 `extract <project> <observation> --profile <name>` re-extracts from a saved response without making a new HTTP request.  
 `extract-file <project> <project-relative-path> --profile document` saves the extraction alongside the source file's SHA-256 digest.  
-`sync-attachments <project> [--media-descriptions <JSON|->] [--no-fetch-videos]` synchronizes all client attachments into both the root `source/` folder and `ꘖ/KB/Evidence/Attachments/`, extracting verbatim Markdown of documents (PDF, DOCX, TXT, MD, etc.), video transcripts (including Loom), and image descriptions into both knowledge bases (`KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`).  
+`sync-attachments <project> [--media-descriptions <JSON|->] [--no-fetch-videos]` synchronizes all client attachments into both the root `source/` folder and `ꘖ/KB/Evidence/Attachments/`, extracting verbatim Markdown of documents (PDF, DOCX, TXT, MD, etc.), video transcripts (including Loom), and image descriptions into both knowledge bases (`🕮/Project.md` / legacy `KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`).  
 Complete raw responses and metadata stay in `Evidence`; selected excerpts may be passed to a model.  
 Distinct URLs, headers, scopes, or contexts produce distinct cache keys; secret header values are redacted from saved metadata.  
 By default, successful responses are cached for 24 hours and errors for up to 5 minutes; `refresh_reason` records the reason for forcing a fresh capture.  
@@ -145,7 +145,7 @@ Amending criteria creates a new plan version via `--amendment-of`/`--amendment-r
 `question-finish` accepts `--results <JSON|->` for each requirement, including specific unavailable checks; a qualified result is valid.  
 
 `red_flags` references `identity` claims; criteria and statuses are in [Red Flags](../skills/upwork-init/references/workflow.md#red-flags).  
-Rendering places active risks at the top of the report and synchronizes the managed level-1 section at the end of the root project card while preserving authored text and history.  
+Rendering places active risks at the top of the report and synchronizes the managed level-1 section at the end of `readme.md` (legacy root `.md`) while preserving authored text and history.  
 
 # Substantive Audit and KB
 
@@ -190,7 +190,7 @@ Legacy `record-answer <project> --response-file <exact-final-answer>` and `agent
 Reserving the entire request group upfront prevents sequence gaps after crashes.  
 `stage ... finalize` verifies the current KB, reviews, journal, emptiness of `ꘖ/data/scratch`, and absence of one-off scripts in the project without automatically building `Context.md`; this certifies response readiness rather than confirmed UI delivery.  
 
-`generate_context.py [<project> | --root <project>] [--config <context.json>] [--output <path>] [--dry-run]` exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
+`generate_context.py [<project> | --root <project>] [--config <context.json>] [--output <path>] [--dry-run]` exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder) to `Ⰿ/≻/♙/Context/output/Context.md` (legacy `ꙮ/0/Context.md`).  
 If `--config` is omitted, it defaults to `default_context_config()`; custom manifests remain supported via `--config`.  
 All paths are confined to the project root; an export never overwrites a source file.  
 `Context.md` is built for manual submission to an external agent, primarily Gemini DeepThink; internal agents never use it as their working KB.  
@@ -242,6 +242,6 @@ Do not create one-off scripts inside projects (`check-project` rejects executabl
 
 Canonical analysis publication updates the explicit `websites` block in the root project card: URL or `null`, role (`client|target`), and `basis_id` of the `identity` claim.  
 The managed block protects surrounding manual text.  
-User `KB/` files are not modified.  
+User `🕮/` (legacy `KB/`) files are not modified.  
 `Progress.md` is updated in place without archiving old navigation snapshots.  
 Collector metrics maintain cumulative counters and the last 32 diagnostic events; legacy list formats migrate without losing known totals.  

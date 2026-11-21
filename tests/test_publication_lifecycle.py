@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
@@ -28,9 +31,9 @@ class PublicationLifecycleTests(ProjectCase):
 		kwargs = dict(domain_or_topic='Known', extracted_data=data, daily_root=self.root / 'new-daily', register_native=False)
 		result = initialize_upwork_project(data['job_id'], site_hypothesis=hypothesis, **kwargs)
 		from pathlib import Path
-		card = Path(result['project_dir']) / '.md'
+		card = Path(result['project_dir']) / 'readme.md'
 		self.assertIn('https://example.org/', card.read_text(encoding='utf-8'))
-		self.assertIn('KB/Project.md#13-website', card.read_text(encoding='utf-8'))
+		self.assertIn('<\U0001f56e/Project.md#13-website>', card.read_text(encoding='utf-8'))
 		from agent_tools.links import validate_file
 		self.assertEqual(validate_file(card, local_anchors=True), [])
 		previous = card.read_bytes()
@@ -44,7 +47,7 @@ class PublicationLifecycleTests(ProjectCase):
 		value = v3_analysis(self.project, value)
 		source = self.project / 'ꘖ/KB/Analysis.json'
 		source.write_text(json.dumps(value), encoding='utf-8')
-		card = self.project / '.md'
+		card = self.project / 'readme.md'
 		original = card.read_bytes()
 		old_state = json.loads((self.project / 'ꘖ/project.json').read_text())
 		result = publish_analysis(source)
@@ -103,7 +106,7 @@ class PublicationLifecycleTests(ProjectCase):
 		path = self.project / 'ꘖ/KB/Analysis.json'
 		path.write_text(json.dumps(value), encoding='utf-8')
 		publish_analysis(path)
-		card = self.project / '.md'
+		card = self.project / 'readme.md'
 		original = card.read_bytes()
 		publish_analysis(path)
 		self.assertEqual(card.read_bytes(), original)

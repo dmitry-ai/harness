@@ -5,7 +5,7 @@ description: "Creates a project workspace and performs the five-stage initial an
 # Initial Upwork Analysis
 
 Deliverable: complete initial project card, current self-consistent agent KB, five INIT-3 stages, resolved A.A review findings, and exact journal.  
-Material Red Flags appear at the very top of the report before detailed analysis and are duplicated at the end of the project's root `.md` inside a dedicated level-1 section (`# Red Flags`) per INIT-5.  
+Material Red Flags appear at the very top of the report before detailed analysis and are duplicated at the end of `readme.md` (legacy root `.md`) inside a dedicated level-1 section (`# Red Flags`) per INIT-5.  
 Internal agents work with `ꘖ/KB`, its overview/topical modules, and primary evidence.  
 All agents format intermediate and final documents, including proposals, articles, and client letters, with human-readable links without URL encoding per [LINK-5](../../rules/02-link-standards.md#link-5).  
 `Context.md` is built only when explicitly requested by the user for manual submission to an external agent, primarily Gemini DeepThink via `https://gemini.google.com`.  
@@ -29,7 +29,7 @@ Save the exact request and raw capture materials in a dedicated staging folder `
 Run `inspect <URL> --output <staging>/source.json` once; when multiple tabs match, pass an explicit `--tab-id`.  
 Inspect all attachments and `coverage`; `history_complete: false` never means complete client history.  
 All client-attached files must be saved simultaneously in the root `source/` folder of the project and in `ꘖ/KB/Evidence/Attachments/<sha256>/`.  
-Include all attached text documents (PDF, DOCX, TXT, MD, etc.) verbatim and in full in both knowledge bases (`KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`) with proper Markdown formatting; transcribe all client-referenced videos (including Loom links in the job description or attached documents) in full with `[MM:SS]` timestamps; transcribe all attached images in full (verbatim text in `«»`, complete UI description, confirmations and contradictions against client statements with `%` scores) via `sync-attachments <project> --media-descriptions -`.  
+Include all attached text documents (PDF, DOCX, TXT, MD, etc.) verbatim and in full in both knowledge bases (`🕮/Project.md` / legacy `KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`) with proper Markdown formatting; transcribe all client-referenced videos (including Loom links in the job description or attached documents) in full with `[MM:SS]` timestamps; transcribe all attached images in full (verbatim text in `«»`, complete UI description, confirmations and contradictions against client statements with `%` scores) via `sync-attachments <project> --media-descriptions -`.  
 If anything material could not be extracted automatically, inspect it via an available authenticated session with separate evidence or document the exact limitation.  
 
 Name the project directory after the verified domain without scheme or `www`, or use a concise topic label when no domain is proven.  
@@ -37,12 +37,12 @@ Website ownership is established via a DOC-2 hypothesis rather than a folder nam
 The `site.json` hypothesis specifies an explicit `website_url` (HTTP(S) or `null`, for the initial block in the root card), `id`, `essence`, `for`, `against`, `probability_percent`, and `assessment_basis`; each argument includes `argument`, `source`, and `quote`; documented absence of counterevidence is permitted under DOC-2.  
 Run `init <URL> --from-json <staging>/source.json --domain <label> --date YYYY-MM-DD`, adding `--site-hypothesis <staging>/site.json` only when a website hypothesis is substantiated.  
 Use the initial request date in `Europe/Istanbul`, not the continuation date.  
-The initial manual `KB/Project.md` card is created once and ported in full into the agent KB along with all attachments in `source/`.  
+The initial manual `🕮/Project.md` (legacy `KB/Project.md`) card is created once and ported in full into the agent KB along with all attachments in `source/`.  
 After `init`, staging materials are imported into `Evidence` with hashes and an `intake-drain` receipt, and `incoming` is emptied; any incomplete capture is preserved.  
 `intake-drain --apply` completes prior imports.  
 When adding attachments or video/image transcripts later, run `sync-attachments <project>`.  
-Subsequent research never overwrites manual `KB/Project.md`.  
-When instructed by the user, maintain the managed website and Red Flags blocks in the root `.md` while preserving all other authored text and manual `KB/` per KB-1.  
+Subsequent research never overwrites manual `🕮/Project.md` (legacy `KB/Project.md`).  
+When instructed by the user, maintain the managed website and Red Flags blocks in `readme.md` (legacy root `.md`) while preserving all other authored text and manual `🕮/` (legacy `KB/`) per KB-1.  
 In `Analysis.json`, populate `websites`: a non-empty list of `{url: HTTP(S) or null, role: client|target, basis_id: identity ID}`.  
 Distinguish an intermediary agency's website from the target website; the folder name is never evidence.  
 Standard `init` requests registration of the same directory across all enabled environments in `runtime.registration.targets` and all enabled Antigravity instances declared in `runtime.json`; disabled instances and disabled environments are skipped automatically.  
@@ -75,7 +75,7 @@ Exact request adoption and continuation commands are detailed in [workflow.md](r
 ## Post-Analysis: Proposal Work
 
 A completed initial analysis serves as the input to subsequent work; completing `finalize` does not mean a proposal is ready.  
-When the user instructs you to draft or edit a proposal, execute that specific semi-manual task using the shared KB, exact journal, `ꘖ/data/continuation.md`, and actual `result/**` files.  
+When the user instructs you to draft or edit a proposal, execute that specific semi-manual task using the shared KB, exact journal, `ꘖ/data/continuation.md`, and actual `Ⰿ/≻/♕/🖂/Letters/**` (legacy `result/**`) files.  
 Read the requested `draft.md` and any existing `final.md` as distinct versions; never pick a draft by modification timestamp or from a neighboring project.  
 Before the first edit to `draft.md` in a turn, save its exact bytes via `snapshot_draft.py` per FILE-2.  
 Record completed work, the active working file, open questions, and the next step in `continuation.md`; keep facts and primary grounds in the topical KB modules and evidence store.  
@@ -99,12 +99,12 @@ Being an agency does not by itself prove intermediation on the current job: weig
 The second flag applies to tasks targeting a specific website or checkout flow; a URL not yet provided prior to research, downtime of an already known domain, or a greenfield/non-website task does not trigger it.  
 Check the job post, saved history/attachments, and targeted search per EXEC-1; if the website remains unidentified, state the search scope, limitations, and what must be requested from the client.  
 Never substitute the website of an agency, platform vendor, past/unrelated client, or unverified candidate for the target website.  
-As soon as a Red Flag is substantiated, report it in the current update and write the managed block at the end of the root `.md` inside the level-1 `# Red Flags` section without waiting for later stages to finish.  
-At the very beginning of the final report/response (immediately after the title, if any), before client identification, technical details, completed actions, or recommendations, place a prominent `Red Flags` heading and a separate bold bullet for each active flag with its brief basis, status, and link; when `red_flags` is empty (`[]`), omit the `Red Flags` heading and block from both the response and the root `.md`.  
+As soon as a Red Flag is substantiated, report it in the current update and write the managed block at the end of `readme.md` (legacy root `.md`) inside the level-1 `# Red Flags` section without waiting for later stages to finish.  
+At the very beginning of the final report/response (immediately after the title, if any), before client identification, technical details, completed actions, or recommendations, place a prominent `Red Flags` heading and a separate bold bullet for each active flag with its brief basis, status, and link; when `red_flags` is empty (`[]`), omit the `Red Flags` heading and block from both the response and `readme.md` (legacy root `.md`).  
 When both flags are active, add the bold warning: `"Both Red Flags simultaneously: high likelihood of declining the project"`, noting explicitly if intermediation is hypothetical.  
 This block informs the user's decision; it is not an automatic project cancellation or permission to abort the requested analysis unilaterally.  
 In `Analysis.json`, populate `red_flags` explicitly (using an empty list `[]` only after evaluating both risks); follow the [Red Flags contract](references/workflow.md#red-flags) for statuses and `identity` claim links.  
-`render-analysis` duplicates the block at the end of the root `.md`: first the level-1 heading `# Red Flags`, then the opening marker, content, and closing marker inside that section; if adding the block manually early on, use the exact same markers and keep it synchronized with current evidence.  
+`render-analysis` duplicates the block at the end of `readme.md` (legacy root `.md`): first the level-1 heading `# Red Flags`, then the opening marker, content, and closing marker inside that section; if adding the block manually early on, use the exact same markers and keep it synchronized with current evidence.  
 Update both placements whenever new data arrives; remove a cleared flag from active warnings while preserving the historical basis in the KB.  
 Before starting an investigation, define the question, its impact on conclusions, and the completion criterion.  
 Assign a single owner per question; justify any repeat independent extraction by pointing to a specific disputed claim.  
@@ -135,11 +135,11 @@ Save the report and native launch/completion proof; fix each finding or reject i
 After modifying any affected conclusion, update dependent KB modules and obtain a new review clearance for the revised version; never claim an older audit cleared a modified response.  
 
 Before responding, verify task completeness, KB consistency, sources, links, and remaining unknowns.  
-Omit internal procedural sections about artifact generation (`finalize`, `Context.md`, internal folder paths) from the final response; comply with DOC-4 (one sentence per line with `  \n`) and synchronize the established client name in `KB/Project.md`.  
+Omit internal procedural sections about artifact generation (`finalize`, `Context.md`, internal folder paths) from the final response; comply with DOC-4 (one sentence per line with `  \n`) and synchronize the established client name in `🕮/Project.md` (legacy `KB/Project.md`).  
 Validate authored Markdown/text files with `validate_links.py --readable <files>`; use human-readable `<...>` paths and never alter exact source captures or journals.  
-When Red Flags are present, verify their prominent placement at the very top of the final response and at the end of the root `.md` inside the level-1 section; mentioning them only inside KB modules is insufficient.  
+When Red Flags are present, verify their prominent placement at the very top of the final response and at the end of `readme.md` (legacy root `.md`) inside the level-1 section; mentioning them only inside KB modules is insufficient.  
 Save the exact requests and complete final response; when multiple requests share a single response, link them explicitly via `record-answer` / `answer-prepare`.  
 Publish the exact verified response bytes; adding new claims after review requires clearance of the new version, including when continuing a previously finalized project.  
-Build the external `Context.md` export only when explicitly requested by the user, without summarizing or truncating sources.  
+Build the external `Ⰿ/≻/♙/Context/output/Context.md` (legacy `ꙮ/0/Context.md`) export only when explicitly requested by the user, without summarizing or truncating sources.  
 `stage ... finalize` requires a current A.A substantive review (plus independent reviews when required), a consistent KB, a complete journal, an empty `ꘖ/data/scratch` directory, and no one-off scripts in the project; it certifies file and response readiness rather than confirmed UI message delivery.  
 Delete only your own temporary scratch files after verifying permanent copies (`--consume-input`); preserve snapshots, material screenshots, and primary evidence.  

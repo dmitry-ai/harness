@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -554,7 +557,7 @@ def _is_client_deliverable_doc(doc_path: Path | None) -> bool:
 		r = False
 	else:
 		norm_p = '/' + doc_path.as_posix().lower().lstrip('/')
-		r = False if '/\ua616/' in norm_p or '/\ua66e/' in norm_p else any((seg in norm_p for seg in ('/letters/', '/result/', '/defects/')))
+		r = False if '/\ua616/' in norm_p or '/\ua66e/' in norm_p else any((seg.lower() in norm_p for seg in ('/letters/', '/result/', '/defects/', '/articles/', '/\u2c0f/\u227b/\u2655/\U0001f582/')))
 	return r
 def _is_normative_harness_doc(path: Path) -> bool:
 	return is_normative_harness_doc(path)

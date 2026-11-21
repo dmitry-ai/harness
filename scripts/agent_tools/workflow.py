@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -144,9 +147,9 @@ class ProjectHealthAuditor:
 					if script.is_file() and script.suffix.lower() in ('.py', '.ps1', '.sh', '.bat', '.cmd'):
 						issues.append(problem('project.one_off_script', self.pp.rel_to_root(script), 'Executable one-off scripts are prohibited in project directories (FILE-5/EXEC-1); use shared upwork_project.py commands', file=script))
 		from .links import readable_link_issues
-		proposals_dir = self.pp.path('proposals_dir', self.root / 'result')
+		deliverable_dirs = list(dict.fromkeys((d.resolve() for d in (self.pp.path('proposals_dir', self.root / 'result'), self.pp.path('letters_dir', self.root / 'Letters'), self.pp.path('articles_dir', self.root / '\u2c0f/\u227b/\u2655/\U0001f582/Articles'), self.root / 'result') if d.is_dir())))
 		overview_file = self.pp.path('overview_md', self.root / '.md')
-		proposal_docs = sorted(proposals_dir.rglob('*')) if proposals_dir.is_dir() else []
+		proposal_docs = list({p.resolve(): p for d in deliverable_dirs for p in sorted(d.rglob('*'))}.values())
 		for document in [overview_file, *proposal_docs]:
 			if document.is_file() and 'draft.prev.md' != document.name and ('.md' == document.name or document.suffix.lower() in ('.md', '.markdown', '.txt', '.html', '.htm')):
 				for error in readable_link_issues(document.read_text(encoding='utf-8')):
@@ -568,8 +571,8 @@ class WorkflowStateEngine:
 		resolved_state = self.load() if None is state else state
 		resolved_statuses = self.stage_statuses(resolved_state) if None is statuses else statuses
 		existing = {name: (self.pp.kb_dir / name).is_file() for name in ('Analysis.json', 'Analysis.md', 'Progress.md')}
-		proposals_dir = self.pp.path('proposals_dir', self.root / 'result')
-		prop_files = sorted(proposals_dir.rglob('*.md')) if proposals_dir.is_dir() and proposals_dir.resolve().is_relative_to(self.root) else []
+		prop_dirs = list(dict.fromkeys((d.resolve() for d in (self.pp.path('proposals_dir', self.root / 'result'), self.root / 'result') if d.is_dir() and d.resolve().is_relative_to(self.root))))
+		prop_files = list({p.resolve(): p for d in prop_dirs for p in sorted(d.rglob('*.md'))}.values())
 		proposals = [{'path': inside(self.root, path).relative_to(self.root).as_posix(), 'sha256': file_hash(inside(self.root, path))} for path in prop_files if path.is_file() and path.name in ('draft.md', 'final.md', 'draft.prev.md')]
 		checkpoint = self.pp.continuation_md
 		return {'project': str(self.root), 'job_id': resolved_state['job_id'], 'legacy': resolved_state['legacy'], 'stages': resolved_statuses, 'scope': 'initial_analysis', 'proposal_artifacts': proposals, 'continuation': {'file': self.pp.rel_to_root(checkpoint), 'exists': checkpoint.is_file()}, 'next_stage': next((s for s in STAGES if 'complete' != resolved_statuses[s]), None), 'agent_kb': str(self.pp.kb_dir), 'existing_drafts': existing, 'kb_hashes': self.kb_hashes(), 'questions': list(resolved_state['questions'].values()), 'registration': self.registration_status(), 'detail': 'Stages track saved analysis. Every new analytical reply requires current request/answer-bound approval. Continue the same filesystem project in either UI using agent KB, journal and actual proposal files; Context.md is an external export.'}
