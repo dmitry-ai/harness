@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+# https://github.com/dmitry-ai/harness/issues/119
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add compact evidence-query command and unify collect-http CLI flags":
 # https://github.com/dmitry-ai/harness/issues/118
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -364,8 +367,9 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 	if track_turn_steps:
 		if is_shell and 'answer_prepared_in_segment' in acc and re.search('\\banswer-prepare\\b', shell_cmd):
 			acc['answer_prepared_in_segment'] = True
-		t_tokens = ('transcript_full.jsonl', 'transcript.jsonl', 'recover-checkpoint') + tuple(transcript_tokens or ())
-		if any((tok in scan_text for tok in t_tokens)) and step_idx not in acc['transcript_read_steps']:
+		t_tokens = ('transcript_full.jsonl', 'transcript.jsonl') + tuple(transcript_tokens or ())
+		is_real_recover = 'recover-checkpoint' in scan_text and (not re.search('--dry-run\\b', scan_text))
+		if (is_real_recover or any((tok in scan_text for tok in t_tokens))) and step_idx not in acc['transcript_read_steps']:
 			acc['transcript_read_steps'].append(step_idx)
 		if 'invoke_subagent' != name and (name.endswith(('spawn_agent', 'invoke_subagent', 'send_input', 'send_message', 'wait', 'wait_agent')) or ((not is_file_tool) and (not is_shell) and ('spawn_agent' in scan_text))):
 			if step_idx not in acc['subagent_steps']:

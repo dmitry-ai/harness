@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+# https://github.com/dmitry-ai/harness/issues/119
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -2119,5 +2122,110 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.assertTrue(json.loads(good_proc.stdout)['valid'])
 			self.assertFalse((proj / '\ua616/data/turns').exists())
 			self.assertFalse((proj / '\ua616/data/grounding-cache.json').exists())
+	def test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass(self):
+		from contextlib import closing
+		import hashlib
+		import os
+		import subprocess
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			proj = t / 'proj_compact'
+			(proj / '\U0001f56e').mkdir(parents=True)
+			(proj / '\ua66e/\u227b').mkdir(parents=True)
+			(proj / '\ua66e/\u227a').mkdir(parents=True)
+			(proj / '\ua616/KB/Evidence').mkdir(parents=True)
+			(proj / 'source').mkdir(parents=True)
+			brief = proj / 'source/brief.md'
+			brief_bytes = b'# Brief\nExact metric 9182 in primary brief.  \nLine three.\n'
+			brief.write_bytes(brief_bytes)
+			read_files = [brief]
+			for idx in range(1, 25):
+				fp = proj / '\ua616/KB/Evidence' / f'ev-{idx:02d}.json'
+				fp.write_text(json.dumps({'idx': idx, 'payload': 'x' * 200}), encoding='utf-8')
+				read_files.append(fp)
+			ag_home = t / 'ag_home'
+			backend = ag_home / '.gemini/antigravity'
+			(ag_home / '.gemini/config/projects').mkdir(parents=True)
+			(backend / 'conversations').mkdir(parents=True)
+			cid = str(uuid.uuid4())
+			rows = [{'step_index': 0, 'type': 'USER_INPUT', 'content': 'Summarize primary brief.'}]
+			step_no = 1
+			for idx in range(30):
+				rf = read_files[idx % len(read_files)]
+				rows.append({'step_index': step_no, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'c-{idx}', 'name': 'read_file', 'args': {'Path': str(rf)}}]})
+				rows.append({'step_index': step_no + 1, 'type': 'GENERIC', 'content': f'Step {idx} output: ' + ('Z' * 1500)})
+				step_no += 2
+			cp_step = step_no
+			rows.append({'step_index': cp_step, 'type': 'CHECKPOINT', 'content': 'Summary after 30 tool steps'})
+			t_log = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
+			t_log.parent.mkdir(parents=True)
+			t_log.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
+			with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as conn:
+				conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
+				conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (cid, '', json.dumps([proj.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'primary'))
+				conn.commit()
+			with closing(sqlite3.connect(backend / 'conversations' / f'{cid}.db')) as conn:
+				conn.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+				conn.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, b'Summarize primary brief.')),))
+				conn.commit()
+			sub_env = {**os.environ, 'USERPROFILE': str(ag_home), 'APPDATA': str(t / 'sandbox_roaming')}
+			dry_proc = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'recover-checkpoint', str(proj), '--conversation', cid, '--platform', 'antigravity', '--dry-run'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
+			self.assertEqual(dry_proc.returncode, 0, dry_proc.stderr or dry_proc.stdout)
+			self.assertLess(len(dry_proc.stdout), 12000)
+			dry_json = json.loads(dry_proc.stdout)
+			self.assertTrue(dry_json['dry_run'])
+			self.assertEqual(dry_json['file_index_count'], 25)
+			self.assertEqual(dry_json['pre_checkpoint_record_count'], 30)
+			brief_entry = next((it for it in dry_json['file_index'] if it['path'].endswith('source/brief.md')))
+			self.assertEqual(brief_entry['sha256'], hashlib.sha256(brief_bytes).hexdigest())
+			self.assertEqual(brief_entry['bytes'], len(brief_bytes))
+			self.assertEqual(brief_entry['lines'], 3)
+			self.assertTrue(brief_entry['evicted_unreread'])
+			self.assertTrue(brief_entry['reread_required_if_cited'])
+			self.assertFalse((proj / '\ua616/data/turns').exists())
+			rows.append({'step_index': cp_step + 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c-dry', 'name': 'run_command', 'args': {'CommandLine': f'python harness.py recover-checkpoint "{proj}" --conversation {cid} --dry-run'}}]})
+			t_log.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
+			with self.assertRaisesRegex(ValueError, 'COMPACT-1 / KB-3 violation'):
+				completion.prepare(proj, 'Attempted answer after dry-run only.  \n', cid, platform='antigravity', backend=backend)
+			begun = completion.begin(proj, cid, platform='antigravity', backend=backend)
+			self.assertLess(len(json.dumps(begun)), 10000)
+			self.assertNotIn('pre_checkpoint_read_files', begun['compaction_check'])
+			self.assertNotIn('evicted_unreread_files', begun['compaction_check'])
+			self.assertEqual(begun['compaction_check']['pre_checkpoint_read_count'], 25)
+			self.assertEqual(begun['compaction_check']['evicted_unreread_count'], 25)
+			idx_path = proj / begun['compaction_check']['index_file']
+			self.assertTrue(idx_path.is_file())
+			rec_out = completion.recover_checkpoint(proj, cid, platform='antigravity', backend=backend)
+			self.assertTrue(rec_out['compact_mode'])
+			self.assertTrue(rec_out['compaction_check']['verified'])
+			self.assertLess(len(json.dumps(rec_out)), 8000)
+			self.assertNotIn('pre_checkpoint_records', rec_out)
+			self.assertEqual(len(rec_out['pre_checkpoint_records_preview']), 5)
+			idx_data = json.loads(idx_path.read_text(encoding='utf-8'))
+			self.assertEqual(len(idx_data['pre_checkpoint_records']), 30)
+			self.assertEqual(len(idx_data['pre_checkpoint_read_files']), 25)
+			self.assertEqual(len(idx_data['evicted_unreread_files']), 25)
+			cited_resp = 'Verified metric `9182` in [brief.md](source/brief.md).  \n'
+			with self.assertRaisesRegex(ValueError, 'cited in response without re-reading'):
+				completion.prepare(proj, cited_resp, cid, platform='antigravity', backend=backend)
+			rows.append({'step_index': cp_step + 2, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c-reread', 'name': 'read_file', 'args': {'Path': str(brief)}}]})
+			t_log.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
+			prep_out = completion.prepare(proj, cited_resp, cid, platform='antigravity', backend=backend)
+			self.assertTrue(prep_out['ready'])
+			self.assertLess(len(json.dumps(prep_out)), 10000)
+			self.assertNotIn('pre_checkpoint_read_files', prep_out['compaction_check'])
+			final_idx = cp_step + 3
+			rows.append({'step_index': final_idx, 'type': 'PLANNER_RESPONSE', 'content': cited_resp})
+			t_log.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
+			with closing(sqlite3.connect(backend / 'conversations' / f'{cid}.db')) as conn:
+				conn.execute('INSERT INTO steps VALUES(?, 15, 3, 0, ?)', (final_idx, b''))
+				conn.commit()
+			with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as conn:
+				conn.execute("UPDATE conversation_summaries SET status='CASCADE_RUN_STATUS_IDLE', not_fully_idle=0 WHERE conversation_id=?", (cid,))
+				conn.commit()
+			synced = completion.sync(proj, cid, platform='antigravity', backend=backend)
+			self.assertTrue(synced['valid'], synced)
+			self.assertFalse(idx_path.exists())
+			self.assertFalse(idx_path.parent.exists())
 if '__main__' == __name__:
 	unittest.main()

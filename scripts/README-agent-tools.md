@@ -178,7 +178,7 @@ A programmatic receipt does not guarantee substantive truth: A.A evaluates meani
 `journal-sync <project> --conversation <native-uuid>` synchronously reconciles a completed native reply against the journal; a skipped preparation is recovered post-hoc, and any byte discrepancy is saved as a conflict without overwriting history.  
 All journal execution is foreground-only: `turn-begin` reconciles earlier completed turns of its current conversation, and `answer-prepare` records the present response without registering or launching a persistent process.  
 Native delivery is confirmed on the next foreground working call after publication; if no later call occurs, it remains unverified.  
-`--no-watch` and the Python `watch` parameter are compatibility inputs and never enable autonomous work; confirmed `delivered` turns prune temporary `<turn_key>-recovery/` checkpoint directories.  
+`--no-watch` and the Python `watch` parameter are compatibility inputs and never enable autonomous work; on compacted turns, `turn-begin`, `recover-checkpoint`, and `answer-prepare` offload full `pre_checkpoint_records` and read/evicted file lists to `ꘖ/data/turns/<turn_key>-recovery/index.json` (keeping `stdout` concise), `recover-checkpoint <project> [--conversation <native-uuid>] [--dry-run]` supports a read-only `--dry-run` `file_index` (`SHA-256`, byte/line counts, and citation re-read flags) for Plan Mode without bypassing `COMPACT-1`, and confirmed `delivered` turns prune temporary `<turn_key>-recovery/` checkpoint directories.  
 Repeated unchanged reconciliation preserves domain-state bytes, timestamps and mtime; real changes and conflicts are recorded without silently replacing history.  
 New answers pass the current applicable document, source, and approval gates and retain an immutable admission proof; repeated historical verification checks the selected recorded sources and approvals without reapplying wall-clock freshness rules.  
 Missing legacy admission proofs remain visible gaps, and prior failed admission is not bypassed by recovery.  
@@ -200,6 +200,7 @@ All paths are confined to the project root; an export never overwrites a source 
 <!-- https://github.com/dmitry-ai/harness/issues/116 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/117 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/118 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/119 -->  
 
 # Additional Tools
 

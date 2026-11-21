@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+# https://github.com/dmitry-ai/harness/issues/119
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -285,8 +288,11 @@ class AnswerPreparationRunner:
 			self.value['status'] = 'prepared'
 			if not self.value.get('readiness_check', {}).get('verified'):
 				self.value['readiness_check'] = {'verified': True, 'checked_at': _now()}
+			if self.value.get('compaction_check', {}).get('occurred') and (not self.turn.get('completed')):
+				idx_rel = _write_compaction_index_file(self.root, self.value['key'], self.turn, self.value['compaction_check'])
+				self.value['compaction_check']['index_file'] = idx_rel
 			_persist(self.path, self.value)
-			r = {**self.result, **self.value['prepared'], 'ready': True, 'status': 'prepared', 'delivery_verified': False, 'admission_verification': self.admission_check}
+			r = {**self.result, 'compaction_check': _compact_compaction_check(self.value['compaction_check']), **self.value['prepared'], 'ready': True, 'status': 'prepared', 'delivery_verified': False, 'admission_verification': self.admission_check}
 		return r
 class TurnJournalReconciler:
 	def __init__(self, root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, preloaded_native=None):
@@ -549,8 +555,91 @@ def _compaction_status(root, key, turn):
 		except (OSError, ValueError):
 			pass
 	verified = bool((not occurred or not pre_steps or recovered_in_trace or recovered_via_receipt) and (not unreread_analysis_sources))
-	r = {'verified': verified, 'occurred': occurred, 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_steps, 'post_checkpoint_recovery_steps': post_rec, 'recovered_in_trace': recovered_in_trace, 'recovered_via_receipt': recovered_via_receipt, 'pre_checkpoint_read_files': pre_reads, 'post_checkpoint_read_files': post_reads, 'post_checkpoint_written_files': post_writes, 'evicted_unreread_files': evicted_unreread, 'unreread_analysis_sources': unreread_analysis_sources}
+	idx_path = (_folder(root) / f'{key}-recovery/index.json') if key else None
+	idx_rel = (idx_path.relative_to(root).as_posix() if idx_path.is_relative_to(root) else str(idx_path)) if None is not idx_path and occurred else None
+	r = {'verified': verified, 'occurred': occurred, 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_steps, 'post_checkpoint_recovery_steps': post_rec, 'recovered_in_trace': recovered_in_trace, 'recovered_via_receipt': recovered_via_receipt, 'pre_checkpoint_read_files': pre_reads, 'post_checkpoint_read_files': post_reads, 'post_checkpoint_written_files': post_writes, 'evicted_unreread_files': evicted_unreread, 'unreread_analysis_sources': unreread_analysis_sources, 'index_file': idx_rel}
 	return r
+def _build_compaction_file_index(root: Path, pre_reads: list[str], post_reads: list[str], evicted_unreread: list[str]) -> list[dict]:
+	ev_set = {str(p).replace('\\', '/').lower() for p in (evicted_unreread or ())}
+	post_set = {str(p).replace('\\', '/').lower() for p in (post_reads or ())}
+	seen: set[str] = set()
+	ordered: list[str] = []
+	for p in [*(pre_reads or ()), *(evicted_unreread or ())]:
+		ps = str(p or '').strip()
+		pk = ps.replace('\\', '/').lower()
+		if ps and pk not in seen:
+			seen.add(pk)
+			ordered.append(ps)
+	items: list[dict] = []
+	for raw_p in ordered:
+		pk = raw_p.replace('\\', '/').lower()
+		p_obj = Path(raw_p)
+		if not p_obj.is_absolute():
+			p_obj = (root / p_obj).resolve()
+		exists = False
+		sha = None
+		byte_len = None
+		line_cnt = None
+		try:
+			if p_obj.is_file():
+				exists = True
+				st = p_obj.stat()
+				byte_len = st.st_size
+				if byte_len <= 16 * 1024 * 1024:
+					raw_b = p_obj.read_bytes()
+					sha = _hash(raw_b)
+					line_cnt = max(1, raw_b.count(b'\n') + (0 if raw_b.endswith(b'\n') or (not raw_b) else 1))
+		except OSError:
+			pass
+		is_ev = pk in ev_set
+		reread_req = bool(is_ev and (pk.endswith('/kb/source.md') or '/source/' in pk or '/res/' in pk or '/\u227a/' in pk or '/kb/' in pk))
+		rel_p = p_obj.relative_to(root).as_posix() if p_obj.is_relative_to(root) else p_obj.as_posix()
+		items.append({'path': rel_p, 'exists': exists, 'sha256': sha, 'bytes': byte_len, 'lines': line_cnt, 'evicted_unreread': is_ev, 'reread_after_checkpoint': pk in post_set, 'reread_required_if_cited': reread_req})
+	return items
+def _write_compaction_index_file(root: Path, key: str, turn: dict, comp_check: dict, *, step_records: list[dict] | None = None) -> str:
+	rec_dir = _folder(root) / f'{key}-recovery'
+	rec_dir.mkdir(parents=True, exist_ok=True)
+	idx_path = rec_dir / 'index.json'
+	pre_reads = list(comp_check.get('pre_checkpoint_read_files') or [])
+	post_reads = list(comp_check.get('post_checkpoint_read_files') or [])
+	evicted = list(comp_check.get('evicted_unreread_files') or [])
+	raw_recs = step_records if None is not step_records else list(((turn.get('compaction') or {}).get('pre_checkpoint_records')) or [])
+	payload = {
+		'schema_version': 1,
+		'turn_key': key,
+		'updated_at': _now(),
+		'covered_checkpoint_step': comp_check.get('last_checkpoint_step'),
+		'checkpoint_steps': list(comp_check.get('checkpoint_steps') or []),
+		'pre_checkpoint_tool_steps': list(comp_check.get('pre_checkpoint_tool_steps') or []),
+		'post_checkpoint_recovery_steps': list(comp_check.get('post_checkpoint_recovery_steps') or []),
+		'pre_checkpoint_read_files': pre_reads,
+		'post_checkpoint_read_files': post_reads,
+		'post_checkpoint_written_files': list(comp_check.get('post_checkpoint_written_files') or []),
+		'evicted_unreread_files': evicted,
+		'unreread_analysis_sources': list(comp_check.get('unreread_analysis_sources') or []),
+		'file_index': _build_compaction_file_index(root, pre_reads, post_reads, evicted),
+		'pre_checkpoint_records': raw_recs,
+	}
+	replace_bytes(idx_path, _json(payload))
+	return idx_path.relative_to(root).as_posix() if idx_path.is_relative_to(root) else str(idx_path)
+def _compact_compaction_check(comp_check: dict, *, index_file: str | None = None) -> dict:
+	occurred = bool(comp_check.get('occurred'))
+	eff_idx = (index_file if None is not index_file else comp_check.get('index_file')) if occurred else None
+	return {
+		'verified': bool(comp_check.get('verified')),
+		'occurred': occurred,
+		'checkpoint_steps': list(comp_check.get('checkpoint_steps') or []),
+		'last_checkpoint_step': comp_check.get('last_checkpoint_step'),
+		'recovered_in_trace': bool(comp_check.get('recovered_in_trace')),
+		'recovered_via_receipt': bool(comp_check.get('recovered_via_receipt')),
+		'pre_checkpoint_tool_step_count': len(comp_check.get('pre_checkpoint_tool_steps') or []),
+		'pre_checkpoint_read_count': len(comp_check.get('pre_checkpoint_read_files') or []),
+		'post_checkpoint_read_count': len(comp_check.get('post_checkpoint_read_files') or []),
+		'post_checkpoint_write_count': len(comp_check.get('post_checkpoint_written_files') or []),
+		'evicted_unreread_count': len(comp_check.get('evicted_unreread_files') or []),
+		'index_file': eff_idx,
+		'unreread_analysis_sources': list(comp_check.get('unreread_analysis_sources') or []),
+	}
 DEL_MAX_UNPERSISTED_STEPS = 40
 DEL_MAX_UNPERSISTED_SOURCE_READS = 10
 DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS = 60
@@ -797,13 +886,15 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		from .source_grounding import read_only_grounding
 		with read_only_grounding():
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
-		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
+		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
 	else:
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
 		with locked(_turn_lock(root, _key(native, turn))):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
+			if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
+				value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
 			_persist(path, value)
-		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		result['execution_mode'] = 'foreground-only'
 		if any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) for t in native.get('turns', []))):
 			try:
@@ -818,14 +909,55 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
-def recover_checkpoint(root, conversation=None, *, platform=None, backend=None):
-	def build_receipt(root_p, key, turn):
-		comp = dict(turn.get('compaction') or {})
-		raw_records = list(comp.get('pre_checkpoint_records') or [])
-		rec_dir = _folder(root_p) / f'{key}-recovery'
+def recover_checkpoint(root, conversation=None, *, platform=None, backend=None, dry_run=False):
+	if dry_run:
+		from .path_registry import canonicalize_root_dir
+		from .source_grounding import read_only_grounding
+		root_p = canonicalize_root_dir(root)
+		with read_only_grounding():
+			native = _native(root_p, conversation, platform=platform, backend=backend)
+			turn = _active(native)
+			if None is turn:
+				raise ValueError('No active primary native turn to recover')
+			key = _key(native, turn)
+			comp = dict(turn.get('compaction') or {})
+			comp_check = _compaction_status(root_p, key, turn)
+			from collections import Counter
+			raw_records = list(comp.get('pre_checkpoint_records') or [])
+			file_index = _build_compaction_file_index(root_p, list(comp.get('pre_checkpoint_read_files') or []), list(comp.get('post_checkpoint_read_files') or []), list(comp.get('evicted_unreread_files') or []))
+			file_index.sort(key=lambda it: (not it['reread_required_if_cited'], not it['evicted_unreread'], it['path']))
+			tool_counts = dict(Counter((t for rec in raw_records for t in (rec.get('tools') or ()))))
+			step_summary = [{'step': rec.get('step'), 'tools': list(rec.get('tools') or []), 'output_chars': sum((len(str(o)) for o in (rec.get('outputs') or [])))} for rec in raw_records[-10:]]
+			return {
+				'turn_key': key,
+				'dry_run': True,
+				'covered_checkpoint_step': comp.get('last_checkpoint_step'),
+				'checkpoint_steps': list(comp.get('checkpoint_steps') or []),
+				'file_index_count': len(file_index),
+				'file_index': file_index[:30],
+				'file_index_truncated': 30 < len(file_index),
+				'pre_checkpoint_record_count': len(raw_records),
+				'tool_counts': tool_counts,
+				'step_summary': step_summary,
+				'step_summary_truncated': 10 < len(raw_records),
+				'compaction_check': _compact_compaction_check(comp_check),
+			}
+	from .path_registry import canonicalize_root_dir
+	root_p = canonicalize_root_dir(root)
+	native = _native(root_p, conversation, platform=platform, backend=backend)
+	turn = _active(native)
+	if None is turn:
+		raise ValueError('No active primary native turn to recover')
+	key = _key(native, turn)
+	comp = dict(turn.get('compaction') or {})
+	raw_records = list(comp.get('pre_checkpoint_records') or [])
+	rec_dir = _folder(root_p) / f'{key}-recovery'
+	compact_mode = 5 < len(raw_records)
+	receipt_path = _folder(root_p) / f'{key}-checkpoint-recovery.json'
+	with locked(_turn_lock(root_p, key)):
 		rec_dir.mkdir(parents=True, exist_ok=True)
-		stdout_records = []
-		compact_mode = 5 < len(raw_records)
+		indexed_records = []
+		inline_records = []
 		for rec in raw_records:
 			st = rec.get('step')
 			outs = list(rec.get('outputs') or [])
@@ -833,14 +965,35 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None):
 			if outs:
 				replace_bytes(step_file, ('\n--- OUTPUT ---\n'.join(outs) + '\n').encode('utf-8'))
 			rel_step = step_file.relative_to(root_p).as_posix() if step_file.is_relative_to(root_p) else str(step_file)
+			indexed_records.append({'step': st, 'tools': list(rec.get('tools') or []), 'output_file': rel_step if outs else None, 'output_preview': [o[:200] for o in outs[:2]]})
 			if not compact_mode:
-				stdout_records.append({**rec, 'output_file': rel_step if outs else None})
-			else:
-				stdout_records.append({'step': st, 'tools': list(rec.get('tools') or []), 'output_file': rel_step if outs else None, 'output_preview': [o[:200] for o in outs[:2]]})
+				inline_records.append({**rec, 'output_file': rel_step if outs else None})
 		rel_dir = rec_dir.relative_to(root_p).as_posix() if rec_dir.is_relative_to(root_p) else str(rec_dir)
-		receipt = {'turn_key': key, 'recovered_at': _now(), 'compact_mode': compact_mode, 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_read_files': list(comp.get('pre_checkpoint_read_files') or []), 'post_checkpoint_read_files': list(comp.get('post_checkpoint_read_files') or []), 'evicted_unreread_files': list(comp.get('evicted_unreread_files') or []), 'recovery_dir': rel_dir, 'pre_checkpoint_records': raw_records}
-		return (receipt, lambda value: {'pre_checkpoint_records': stdout_records, 'compaction_check': value['compaction_check']})
-	return _persist_turn_recovery(root, conversation, 'checkpoint-recovery', build_receipt, platform=platform, backend=backend, clear_admission=True)
+		receipt = {'turn_key': key, 'recovered_at': _now(), 'compact_mode': compact_mode, 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_read_files': list(comp.get('pre_checkpoint_read_files') or []), 'post_checkpoint_read_files': list(comp.get('post_checkpoint_read_files') or []), 'evicted_unreread_files': list(comp.get('evicted_unreread_files') or []), 'recovery_dir': rel_dir}
+		replace_bytes(receipt_path, _json(receipt))
+		path, value = _state(root_p, native, turn)
+		value.pop('admission_failure', None)
+		idx_rel = _write_compaction_index_file(root_p, key, turn, value['compaction_check'], step_records=indexed_records)
+		value['compaction_check']['index_file'] = idx_rel
+		_persist(path, value)
+	rel_file = receipt_path.relative_to(root_p).as_posix() if receipt_path.is_relative_to(root_p) else str(receipt_path)
+	out = {
+		'turn_key': key,
+		'recovered_at': receipt['recovered_at'],
+		'compact_mode': compact_mode,
+		'covered_checkpoint_step': receipt['covered_checkpoint_step'],
+		'checkpoint_steps': receipt['checkpoint_steps'],
+		'recovery_dir': rel_dir,
+		'recovery_file': rel_file,
+		'index_file': idx_rel,
+		'pre_checkpoint_record_count': len(raw_records),
+		'compaction_check': _compact_compaction_check(value['compaction_check'], index_file=idx_rel),
+	}
+	if not compact_mode:
+		out['pre_checkpoint_records'] = inline_records
+	else:
+		out['pre_checkpoint_records_preview'] = indexed_records[-5:]
+	return out
 def recover_turn_violation(root, conversation=None, *, reason=None, platform=None, backend=None):
 	def build_receipt(root_p, key, turn):
 		exec5_v = list(turn.get('exec5_violations') or [])
@@ -1335,6 +1488,8 @@ def add_parser_arguments(parser, command):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
 	if 'turn-begin' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Validate native turn ownership and hygiene checks without writing receipts or upgrading journals'}))
+	if 'recover-checkpoint' == command:
+		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Inspect read-only pre-checkpoint file SHA-256/line index and step summary without writing receipts or bypassing COMPACT-1'}))
 	if 'answer-check' == command:
 		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Candidate UTF-8 response file to validate, or - for stdin'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
 	if 'answer-prepare' == command:
@@ -1348,7 +1503,7 @@ def execute(args):
 	if 'turn-begin' == args.command:
 		r = begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal, dry_run=bool(getattr(args, 'dry_run', False)))
 	elif 'recover-checkpoint' == args.command:
-		r = recover_checkpoint(args.project, args.conversation)
+		r = recover_checkpoint(args.project, args.conversation, dry_run=bool(getattr(args, 'dry_run', False)))
 	elif 'recover-turn-violation' == args.command:
 		r = recover_turn_violation(args.project, args.conversation, reason=args.reason)
 	elif 'answer-check' == args.command:
