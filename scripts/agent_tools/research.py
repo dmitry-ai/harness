@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add compact evidence-query command and unify collect-http CLI flags":
+# https://github.com/dmitry-ai/harness/issues/118
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -831,6 +834,11 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 	extra = {} if observation['error'] else extract_observation(root, observation['observation'])
 	return {**observation, **extra, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
 def collect_browser(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None, headless_shell=None):
+	if isinstance(url, (list, tuple)):
+		if 1 == len(url):
+			url = url[0]
+		else:
+			return collect_browser_batch(root, url, profile=profile, scope=scope, session_id=session_id, refresh_reason=refresh_reason, max_age=max_age, cdp_port=cdp_port, timeout=timeout, context=context, config=config, http_get=http_get, cdp_call=cdp_call, cdp_fetcher=cdp_fetcher)
 	from .text_browser import collect_cdp_dom
 	effective_profile = 'document' if 'auto' == profile else profile
 	if effective_profile not in PROFILES:
@@ -915,6 +923,11 @@ def compute_site_summary(root, results):
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
 def collect_http(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None, headless_shell=None):
+	if isinstance(url, (list, tuple)):
+		if 1 == len(url):
+			url = url[0]
+		else:
+			return collect_http_batch(root, url, profile=profile, scope=scope, session_id=session_id, refresh_reason=refresh_reason, max_age=max_age, headers=headers, context=context, fetcher=fetcher, browser=browser, cdp_port=cdp_port, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
 	if browser not in BROWSER_MODES:
 		raise ValueError(f'Unknown browser mode: {browser}; choose {BROWSER_MODES}')
 	effective_profile = 'document' if 'auto' == profile else profile
@@ -972,7 +985,7 @@ def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, ses
 				if not isinstance(entry, dict):
 					raise ValueError('Each request must be an object')
 				profile = entry.get('profile', 'html')
-				if profile not in PROFILES:
+				if profile not in PROFILES and 'auto' != profile:
 					raise ValueError('Unknown extraction profile')
 				entry_sid = entry.get('session_id', session_id)
 				eff_cdp_fetcher = _lazy_headless_fetcher if use_lazy_shell and (not entry_sid) else cdp_fetcher
@@ -983,3 +996,353 @@ def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, ses
 		if None is not shared_shell['instance']:
 			shared_shell['instance'].close()
 	return {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and ('dom' == x.get('kind') or 0 < (x.get('status') or 0)) for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and ('dom' == x.get('kind') or 200 <= (x.get('status') or 0) < 300) and (not x.get('browser_check_required')) for x in results)), 'detail': 'A saved HTTP 403/404 is a completed observation, not a reason to repeat the same request blindly'}
+def collect_http_batch(root, urls, *, profile='auto', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
+	cleaned = [str(u).strip() for u in (urls or ()) if str(u).strip()]
+	if not cleaned:
+		raise ValueError('Provide at least one HTTP(S) URL')
+	plan = {'requests': [{'url': u, 'profile': profile, 'scope': scope, 'session_id': session_id, 'refresh_reason': refresh_reason, 'max_age': max_age, 'headers': headers, 'context': context, 'browser': browser} for u in cleaned]}
+	return collect_plan(root, plan, fetcher=fetcher, browser=browser, cdp_port=cdp_port, session_id=session_id, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+def collect_browser_batch(root, urls, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None):
+	cleaned = [str(u).strip() for u in (urls or ()) if str(u).strip()]
+	if not cleaned:
+		raise ValueError('Provide at least one HTTP(S) URL')
+	results = []
+	shared_shell = {'instance': None}
+	use_lazy_shell = None is cdp_fetcher and None is http_get and (None is cdp_call) and (None is cdp_port) and (not session_id)
+	try:
+		for u in cleaned:
+			try:
+				if use_lazy_shell and None is shared_shell['instance']:
+					from .text_browser import ManagedHeadlessShell
+					shared_shell['instance'] = ManagedHeadlessShell(config).__enter__()
+				results.append(collect_browser(root, u, profile=profile, scope=scope, session_id=session_id, refresh_reason=refresh_reason, max_age=max_age, cdp_port=cdp_port, timeout=timeout, context=context, config=config, http_get=http_get, cdp_call=cdp_call, cdp_fetcher=cdp_fetcher, headless_shell=shared_shell['instance']))
+			except (OSError, ValueError, KeyError, TypeError) as exc:
+				results.append({'url': u, 'error': type(exc).__name__, 'detail': str(exc)})
+	finally:
+		if None is not shared_shell['instance']:
+			shared_shell['instance'].close()
+	return {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and ('dom' == x.get('kind') or 0 < (x.get('status') or 0)) for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and ('dom' == x.get('kind') or 200 <= (x.get('status') or 0) < 300) and (not x.get('browser_check_required')) for x in results))}
+def _norm_query_url(url: str) -> str:
+	return urldefrag(str(url or '').strip())[0].rstrip('/')
+def _extract_github_blob_lines(raw_text: str) -> list[str]:
+	if not raw_text or 'react-app.embeddedData' not in raw_text:
+		return []
+	for m in re.finditer('<script[^>]*data-target=["\\\']react-app\\.embeddedData["\\\'][^>]*>(.*?)</script>', raw_text, re.I | re.S):
+		try:
+			emb = json.loads(m.group(1))
+		except ValueError:
+			continue
+		payload = emb.get('payload') if isinstance(emb, dict) else None
+		if not isinstance(payload, dict):
+			continue
+		for cand in (payload.get('blob'), (payload.get('codeViewBlobLayoutRoute') or {}).get('blob') if isinstance(payload.get('codeViewBlobLayoutRoute'), dict) else None):
+			if isinstance(cand, dict) and isinstance(cand.get('rawLines'), list):
+				return [str(ln) for ln in cand['rawLines']]
+	return []
+def _grep_blob_windows(blob_lines: list[str], rx: re.Pattern, *, has_lc_anchors: bool, context_lines: int = 2, max_matches: int = 20) -> list[dict]:
+	hit_indices = [idx for idx, ln in enumerate(blob_lines) if rx.search(ln)]
+	if not hit_indices:
+		return []
+	windows: list[list[int]] = []
+	for idx in hit_indices:
+		s = max(0, idx - context_lines)
+		e = min(len(blob_lines) - 1, idx + context_lines)
+		if windows and s <= windows[-1][1] + 1:
+			windows[-1][1] = max(windows[-1][1], e)
+		else:
+			windows.append([s, e])
+		if len(windows) >= max_matches:
+			break
+	out: list[dict] = []
+	for s, e in windows[:max_matches]:
+		s1, e1 = (s + 1, e + 1)
+		anchor = (f'#LC{s1}' if s1 == e1 else f'#LC{s1}-#LC{e1}') if has_lc_anchors else (f'#L{s1}' if s1 == e1 else f'#L{s1}-L{e1}')
+		out.append({'line_start': s1, 'line_end': e1, 'anchor': anchor, 'heading': None, 'verbatim_context': '\n'.join(blob_lines[s:e + 1])})
+	return out
+def _grep_section_windows(sections: list[dict], fallback_text: str, rx: re.Pattern, *, context_lines: int = 2, max_matches: int = 20) -> list[dict]:
+	out: list[dict] = []
+	seen_snippets: set[str] = set()
+	raw_units = sections if sections else ([{'level': None, 'text': None, 'section_anchors': [], 'content': fallback_text}] if fallback_text else [])
+	units = sorted(raw_units, key=lambda s: (len(str(s.get('content') or '')), -(int(s.get('level') or 0)), -int(bool(s.get('section_anchors') or s.get('anchor')))))
+	for sec in units:
+		content = str(sec.get('content') or '')
+		if not content or (not rx.search(content)):
+			continue
+		sec_anchors = [str(a) for a in (sec.get('section_anchors') or ()) if a]
+		anchor_ref = f'#{sec_anchors[0]}' if sec_anchors else (f"#{sec['anchor']}" if sec.get('anchor') else None)
+		heading = sec.get('text')
+		lines = content.splitlines()
+		hit_indices = [idx for idx, ln in enumerate(lines) if rx.search(ln)]
+		if not hit_indices:
+			snippet = content[:800].strip()
+			if snippet and snippet not in seen_snippets:
+				seen_snippets.add(snippet)
+				out.append({'heading': heading, 'anchor': anchor_ref, 'line_start': 1, 'line_end': max(1, len(lines)), 'verbatim_context': snippet})
+		else:
+			windows: list[list[int]] = []
+			for idx in hit_indices:
+				s = max(0, idx - max(1, context_lines))
+				e = min(len(lines) - 1, idx + max(1, context_lines))
+				while s > 0 and lines[s - 1].strip() and (idx - s) < max(3, context_lines * 2):
+					s -= 1
+				while e + 1 < len(lines) and lines[e + 1].strip() and (e - idx) < max(3, context_lines * 2):
+					e += 1
+				if windows and s <= windows[-1][1] + 1:
+					windows[-1][1] = max(windows[-1][1], e)
+				else:
+					windows.append([s, e])
+			for s, e in windows:
+				snippet = '\n'.join(lines[s:e + 1]).strip()
+				if len(snippet) > 1200:
+					m_in = rx.search(snippet)
+					pos = m_in.start() if m_in else 0
+					half = 550
+					ws = max(0, pos - half)
+					we = min(len(snippet), ws + 1100)
+					snippet = snippet[ws:we].strip()
+				if snippet and snippet not in seen_snippets:
+					seen_snippets.add(snippet)
+					out.append({'heading': heading, 'anchor': anchor_ref, 'line_start': s + 1, 'line_end': e + 1, 'verbatim_context': snippet})
+					if len(out) >= max_matches:
+						return out
+		if len(out) >= max_matches:
+			break
+	return out
+def _summarize_observation_bundle(obs_file: Path, kb_dir: Path, *, include_anchors: bool = False, rx: re.Pattern | None = None, context_lines: int = 2, max_matches: int = 20) -> dict | None:
+	try:
+		data = json.loads(obs_file.read_text(encoding='utf-8'))
+	except (OSError, ValueError):
+		return None
+	if not isinstance(data, dict):
+		return None
+	url = str(data.get('url') or '').strip()
+	final_url = str(data.get('final_url') or url).strip()
+	status = data.get('status')
+	kind = data.get('kind') or 'get'
+	valid_status = not data.get('error') and ('dom' == kind or (isinstance(status, int) and 200 <= status < 300))
+	is_shell_or_empty = False
+	invalid_reason = None
+	title = None
+	h1_list: list[str] = []
+	word_count = None
+	raw_anchors: set[str] = set()
+	ambiguous_anchors: set[str] = set()
+	sections_list: list[dict] = []
+	headings_list: list[dict] = []
+	plain_text = ''
+	cur_ver = extractor_version()
+	resp_bin = obs_file.parent / 'response.bin'
+	has_resp_bin = resp_bin.is_file()
+	recheck_challenge = False
+	ext_files = sorted(obs_file.parent.glob('extracted-*.json'))
+	for ext_file in ext_files:
+		try:
+			ext = json.loads(ext_file.read_text(encoding='utf-8'))
+		except (OSError, ValueError):
+			continue
+		if not isinstance(ext, dict):
+			continue
+		if ext.get('extractor_version') != cur_ver and has_resp_bin:
+			recheck_challenge = True
+		elif True is ext.get('browser_check_required'):
+			is_shell_or_empty = True
+			invalid_reason = 'browser_check_required=True (JS/anti-bot challenge or empty SPA shell)'
+		elif 'headings' in ext and None is ext.get('sitemap') and (0 == ext.get('word_count', 0)):
+			is_shell_or_empty = True
+			invalid_reason = 'word_count=0 (empty HTML shell)'
+		t_cand = ' '.join(str(ext.get('title') or '').split())
+		if t_cand and not title:
+			title = t_cand
+		if isinstance(ext.get('word_count'), int) and None is word_count:
+			word_count = ext['word_count']
+		if isinstance(ext.get('headings'), list):
+			if not headings_list:
+				headings_list = [h for h in ext['headings'] if isinstance(h, dict)]
+			for h in ext['headings']:
+				if isinstance(h, dict) and 1 == h.get('level') and h.get('text'):
+					ht = ' '.join(str(h['text']).split())
+					if ht and ht not in h1_list:
+						h1_list.append(ht)
+		if isinstance(ext.get('sections'), list) and (not sections_list):
+			sections_list = [s for s in ext['sections'] if isinstance(s, dict)]
+		if isinstance(ext.get('ambiguous_anchors'), list):
+			ambiguous_anchors.update((str(a) for a in ext['ambiguous_anchors'] if a))
+		if isinstance(ext.get('anchors'), list):
+			for a in ext['anchors']:
+				if a:
+					a_str = str(a)
+					raw_anchors.add(a_str)
+					if a_str.startswith('user-content-') and 13 < len(a_str):
+						raw_anchors.add(a_str[13:])
+		if isinstance(ext.get('text'), str) and ext['text'].strip() and (not plain_text):
+			plain_text = ext['text']
+	blob_lines: list[str] = []
+	raw_text = ''
+	if has_resp_bin:
+		try:
+			if resp_bin.stat().st_size <= MAX_BYTES:
+				raw_text = resp_bin.read_bytes().decode(data.get('charset') or 'utf-8', errors='replace')
+				ctype = (data.get('content_type') or '').split(';', 1)[0].strip().lower()
+				is_md = ctype in ('text/markdown', 'text/x-markdown')
+				is_html = (not is_md) and ('html' in ctype or '<title' in raw_text[:4000].lower() or raw_text.lstrip().lower().startswith(('<!doctype html', '<html')))
+				if is_md and (not ext_files):
+					md_info = extract_markdown(raw_text)
+					if 0 == md_info.get('word_count', 0):
+						is_shell_or_empty = True
+						invalid_reason = 'word_count=0 (empty Markdown response)'
+					if md_info.get('title') and (not title):
+						title = ' '.join(str(md_info['title']).split())
+					if None is word_count:
+						word_count = md_info.get('word_count')
+					raw_anchors.update((str(a) for a in md_info.get('anchors') or [] if a))
+					ambiguous_anchors.update((str(a) for a in md_info.get('ambiguous_anchors') or [] if a))
+					sections_list = sections_list or list(md_info.get('sections') or [])
+					headings_list = headings_list or list(md_info.get('headings') or [])
+					plain_text = plain_text or str(md_info.get('text') or '')
+				elif is_html:
+					if (not ext_files or recheck_challenge) and classify_html_challenge(raw_text, status=status):
+						is_shell_or_empty = True
+						invalid_reason = 'unextracted HTML JS challenge or empty shell'
+					for m_id in re.finditer('\\b(?:id|name)=["\\\']([^"\\\']+)["\\\']', raw_text, re.I):
+						aid = m_id.group(1)
+						raw_anchors.add(aid)
+						if aid.startswith('user-content-') and 13 < len(aid):
+							raw_anchors.add(aid[13:])
+					if not title:
+						m_t = re.search('<title[^>]*>(.*?)</title>', raw_text[:16000], re.I | re.S)
+						if m_t:
+							t_raw = html_lib.unescape(' '.join(m_t.group(1).split()))
+							if t_raw:
+								title = t_raw
+					url_host = (urlsplit(final_url or url).hostname or '').lower()
+					if 'github.com' == url_host and '/blob/' in (urlsplit(final_url or url).path or ''):
+						blob_lines = _extract_github_blob_lines(raw_text)
+				elif ('json' in ctype or raw_text.lstrip().startswith('{')) and valid_status and (not title):
+					try:
+						jbody = json.loads(raw_text)
+						if isinstance(jbody, dict) and isinstance(jbody.get('title'), str) and jbody['title'].strip():
+							title = ' '.join(jbody['title'].split())
+						if not plain_text:
+							plain_text = raw_text
+					except ValueError:
+						pass
+				if not plain_text and (not is_html):
+					plain_text = raw_text
+		except OSError:
+			pass
+	if not title and h1_list:
+		title = h1_list[0]
+	lc_nums = sorted({int(m.group(1)) for a in raw_anchors if (m := re.fullmatch('LC(\\d+)', a))})
+	has_lc_anchors = bool(lc_nums)
+	gh_line_range = f'#LC{lc_nums[0]}..#LC{lc_nums[-1]}' if lc_nums else (f'#LC1..#LC{len(blob_lines)}' if blob_lines else None)
+	valid_for_citation = bool(valid_status and (not is_shell_or_empty))
+	if not valid_for_citation and (not invalid_reason):
+		invalid_reason = f"error={data.get('error')} status={status}"
+	rel_obs = obs_file.parent.relative_to(kb_dir).as_posix() if obs_file.parent.is_relative_to(kb_dir) else obs_file.parent.as_posix()
+	entry: dict = {
+		'url': url,
+		'final_url': final_url,
+		'observation': rel_obs,
+		'kind': kind,
+		'status': status,
+		'valid_for_citation': valid_for_citation,
+		'observed_at': data.get('observed_at'),
+		'title': title,
+		'h1': h1_list[0] if h1_list else None,
+		'h1_headings': h1_list,
+		'word_count': word_count,
+	}
+	if not valid_for_citation:
+		entry['invalid_reason'] = invalid_reason
+	if gh_line_range:
+		entry['github_line_range'] = gh_line_range
+		if blob_lines and (not has_lc_anchors):
+			entry['line_anchor_hint'] = f'#L1-L{len(blob_lines)}'
+	if include_anchors:
+		semantic_anchors: list[str] = []
+		for a in sorted(raw_anchors):
+			if a in ambiguous_anchors or re.fullmatch('L(?:C)?\\d+(?:-L?(?:C)?\\d+)?', a):
+				continue
+			if a.startswith('user-content-') and 13 < len(a) and (a[13:] in raw_anchors):
+				continue
+			semantic_anchors.append(a)
+		entry['anchors'] = semantic_anchors
+		sec_idx = []
+		for h in headings_list:
+			sa = [str(x) for x in (h.get('section_anchors') or ()) if x and str(x) not in ambiguous_anchors]
+			sec_idx.append({'level': h.get('level'), 'heading': h.get('text'), 'anchor': f'#{sa[0]}' if sa else (f"#{h['anchor']}" if h.get('anchor') else None)})
+		entry['sections'] = sec_idx
+	if None is not rx:
+		if blob_lines:
+			matches = _grep_blob_windows(blob_lines, rx, has_lc_anchors=has_lc_anchors, context_lines=context_lines, max_matches=max_matches)
+		elif not rx.search(plain_text or raw_text):
+			matches = []
+		else:
+			eff_sections = sections_list
+			if eff_sections and all(('content' not in s for s in eff_sections)) and has_resp_bin and raw_text:
+				try:
+					live_html = extract_bytes(resp_bin.read_bytes(), data.get('content_type') or 'text/html', 'html', data.get('charset') or 'utf-8', status=status)
+					if isinstance(live_html.get('sections'), list):
+						eff_sections = live_html['sections']
+				except Exception:
+					pass
+			matches = _grep_section_windows(eff_sections, plain_text or raw_text, rx, context_lines=context_lines, max_matches=max_matches)
+		entry['match_count'] = len(matches)
+		entry['matches'] = matches
+	return entry
+def evidence_query(root, *, urls=None, include_anchors: bool = False, grep_pattern: str | None = None, context_lines: int = 2, max_matches: int = 20) -> dict:
+	from .path_registry import project_paths
+	pp = project_paths(root, exact_root=True)
+	kb_dir = pp.kb_dir.resolve()
+	ev_dir = pp.evidence_dir.resolve()
+	http_dirs = [d for d in (ev_dir / 'HTTP', pp.root / '_/\ua616/KB/Evidence/HTTP', pp.root / '\ua616/KB/Evidence/HTTP') if d.is_dir()]
+	seen_dirs: set[Path] = set()
+	obs_files: list[Path] = []
+	for hd in http_dirs:
+		hd_res = hd.resolve()
+		if hd_res in seen_dirs:
+			continue
+		seen_dirs.add(hd_res)
+		obs_files.extend(sorted(hd_res.rglob('observation.json')))
+	rx = None
+	if None is not grep_pattern and str(grep_pattern).strip():
+		try:
+			rx = re.compile(str(grep_pattern), re.IGNORECASE)
+		except re.error as exc:
+			raise ValueError(f'Invalid --grep regular expression: {exc}') from exc
+	raw_entries: list[dict] = []
+	for obs_f in obs_files:
+		item = _summarize_observation_bundle(obs_f, kb_dir, include_anchors=include_anchors, rx=rx, context_lines=context_lines, max_matches=max_matches)
+		if None is not item:
+			raw_entries.append(item)
+	best_by_url: dict[str, dict] = {}
+	for item in raw_entries:
+		key = _norm_query_url(item.get('url') or item.get('final_url') or item['observation']).lower()
+		prev = best_by_url.get(key)
+		if None is prev or (bool(item.get('valid_for_citation')), str(item.get('observed_at') or '')) > (bool(prev.get('valid_for_citation')), str(prev.get('observed_at') or '')):
+			best_by_url[key] = item
+	deduped = list(best_by_url.values())
+	query_urls = [str(u).strip() for u in (urls or ()) if str(u).strip()]
+	missing_urls: list[str] = []
+	if query_urls:
+		selected: list[dict] = []
+		seen_obs: set[str] = set()
+		for qu in query_urls:
+			q_norm = _norm_query_url(qu).lower()
+			exact = [it for it in deduped if q_norm in {_norm_query_url(it.get('url') or '').lower(), _norm_query_url(it.get('final_url') or '').lower()}]
+			matched = exact or [it for it in deduped if q_norm in _norm_query_url(it.get('url') or '').lower() or q_norm in _norm_query_url(it.get('final_url') or '').lower()]
+			if not matched:
+				missing_urls.append(qu)
+			else:
+				for it in matched:
+					if it['observation'] not in seen_obs:
+						seen_obs.add(it['observation'])
+						selected.append(it)
+	else:
+		selected = [it for it in deduped if None is rx or 0 < it.get('match_count', 0)]
+	return {
+		'valid': not missing_urls,
+		'observation_count': len(selected),
+		'missing_urls': missing_urls,
+		'observations': selected,
+	}

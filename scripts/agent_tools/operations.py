@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add compact evidence-query command and unify collect-http CLI flags":
+# https://github.com/dmitry-ai/harness/issues/118
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -33,15 +36,16 @@ import json
 from pathlib import Path
 from .cli_common import add_arg_specs, consume_scratch_input, load_operation_input, read_input_bytes, read_input_json, read_input_text
 from .completion import COMMANDS as COMPLETION_COMMANDS
-COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'collect-browser', 'capture-dom', 'extract', 'extract-file', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-handoff', 'question-finish', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'unadopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
-_COMMAND_HELP = {'answer-check': 'Read-only pre-flight validation of candidate response (LINK-4/5, DOC-4, DOC-2, VERIFY-1, EXEC-5)', 'check-project': 'All saved-source and local KB diagnostics; no network calls', 'collect': 'Batch GET/DOM observations and extraction with persistent project cache', 'collect-browser': 'Single-URL CDP browser DOM observation in the configured user browser profile', 'collect-http': 'Single-URL GET/DOM observation and extraction with persistent Evidence cache', 'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits', 'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init', 'status': 'Read-only current stage and agent KB navigation', 'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions'}
+COMMANDS = ('status', 'resume', 'collect', 'collect-http', 'collect-browser', 'capture-dom', 'extract', 'extract-file', 'evidence-query', 'sync-attachments', 'check-project', 'stage', 'question-add', 'question-claim', 'question-handoff', 'question-finish', 'question-search', 'prepare-review', 'review-input', 'native-review-proof', 'record-review', 'review-disposition', 'prepare-experiment', 'record-experiment', 'native-executor-metadata', 'adopt-requests', 'unadopt-requests', 'record-answer', 'metrics', 'source-ref', 'save-analysis', 'render-analysis', 'git-read', *COMPLETION_COMMANDS)
+_COMMAND_HELP = {'answer-check': 'Read-only pre-flight validation of candidate response (LINK-4/5, DOC-4, DOC-2, VERIFY-1, EXEC-5)', 'check-project': 'All saved-source and local KB diagnostics; no network calls', 'collect': 'Batch GET/DOM observations and extraction with persistent project cache', 'collect-browser': 'Single- or multi-URL CDP browser DOM observation in headless shell or verified primary profile', 'collect-http': 'Single- or multi-URL GET/DOM observation and extraction with persistent Evidence cache', 'evidence-query': 'Compact read-only lookup of titles, h1, anchors, GitHub line ranges, and grep windows in Evidence/HTTP', 'render-analysis': 'Publish tracked Markdown; preserve unknown/manual edits', 'resume': 'Continue the selected current-chat project from saved agent KB; no inspect/init', 'status': 'Read-only current stage and agent KB navigation', 'sync-attachments': 'Sync client attachments to source/ and both KBs, including document/video/image transcriptions'}
 _CONSUME_COMMANDS = {'collect', 'prepare-experiment', 'prepare-review', 'question-add', 'record-answer', 'record-experiment', 'record-review', 'save-analysis', 'sync-attachments'}
 _PROJECT_SPECS = {
 	'adopt-requests': (('--conversation', {'required': True}), ('--allow-finalized', {'action': 'store_true', 'help': 'Permit adopting requests even if initial analysis finalize stage is complete'})),
 	'capture-dom': (('--url', {'required': True}), ('--tab-id', {'required': True}), ('--session-id', {'required': True, 'help': 'Explicit authorized runtime text.browser.sessions entry'}), ('--refresh-reason', {})),
 	'collect': (('--plan', {'required': True, 'type': Path}), ('--output', {'help': 'Optional project-owned result JSON'}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'}), ('--session-id', {'help': 'Optional authorized runtime text.browser.sessions entry'})),
-	'collect-browser': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to capture via managed headless shell (public) or verified primary session (--session-id)'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'html'}), ('--scope', {'default': 'public'}), ('--session-id', {'help': 'Explicit authorized runtime text.browser.sessions entry for authenticated capture'}), ('--refresh-reason', {}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
-	'collect-http': (('--url', {'required': True, 'help': 'Single HTTP(S) URL to fetch and persist in \ua616/KB/Evidence/HTTP'}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'auto'}), ('--scope', {'default': 'public'}), ('--session-id', {'help': 'Optional authorized runtime text.browser.sessions entry'}), ('--refresh-reason', {}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'collect-browser': (('urls_pos', {'nargs': '*', 'default': [], 'metavar': 'URL', 'help': 'Optional positional HTTP(S) URL(s)'}), ('--url', {'dest': 'url_list', 'action': 'append', 'default': [], 'help': 'HTTP(S) URL to capture via managed headless shell (public) or verified primary session (--session-id); repeatable'}), (('--profile', '--extract-profile'), {'dest': 'profile', 'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'html'}), ('--scope', {'default': 'public'}), ('--session-id', {'help': 'Explicit authorized runtime text.browser.sessions entry for authenticated capture'}), ('--refresh-reason', {}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'collect-http': (('urls_pos', {'nargs': '*', 'default': [], 'metavar': 'URL', 'help': 'Optional positional HTTP(S) URL(s)'}), ('--url', {'dest': 'url_list', 'action': 'append', 'default': [], 'help': 'HTTP(S) URL to fetch and persist in \ua616/KB/Evidence/HTTP; repeatable'}), (('--profile', '--extract-profile'), {'dest': 'profile', 'choices': ('html', 'shopify', 'tracking', 'document', 'auto'), 'default': 'auto'}), ('--scope', {'default': 'public'}), ('--session-id', {'help': 'Optional authorized runtime text.browser.sessions entry'}), ('--refresh-reason', {}), ('--browser', {'choices': ('auto', 'always', 'never'), 'default': 'auto', 'help': 'Browser CDP fallback mode (default: auto)'}), ('--cdp-port', {'type': int, 'help': 'Optional explicit CDP port override'})),
+	'evidence-query': (('urls_pos', {'nargs': '*', 'default': [], 'metavar': 'URL', 'help': 'Optional positional URL filter(s)'}), ('--url', {'dest': 'url_list', 'action': 'append', 'default': [], 'help': 'Filter to exact or matching URL(s); repeatable'}), ('--anchors', {'action': 'store_true', 'help': 'Include semantic #anchor list and heading-to-anchor index'}), ('--grep', {'help': 'Case-insensitive regex to extract verbatim paragraph/line context windows'}), ('--context-lines', {'type': int, 'default': 2, 'help': 'Surrounding context lines around --grep matches (default: 2)'}), ('--max-matches', {'type': int, 'default': 20, 'help': 'Maximum --grep windows per observation (default: 20)'})),
 	'extract': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'html'})),
 	'extract-file': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'document'})),
 	'native-executor-metadata': (('--conversation', {'required': True}), ('--save', {'action': 'store_true', 'help': 'Persist immutable native metadata; default is read-only'}), ('--role', {'choices': ('primary', 'AA', 'AF'), 'default': 'primary'}), ('--parent', {})),
@@ -67,6 +71,13 @@ _PROJECT_SPECS = {
 _consumed = consume_scratch_input
 _operation_input = load_operation_input
 _read_input = read_input_bytes
+def _collect_cli_urls(args, *, require_nonempty: bool = True) -> list[str]:
+	legacy_single = getattr(args, 'url', None)
+	raw = [*(getattr(args, 'urls_pos', None) or ()), *(getattr(args, 'url_list', None) or ()), *([legacy_single] if isinstance(legacy_single, str) and legacy_single.strip() else ())]
+	urls = [str(u).strip() for u in raw if isinstance(u, str) and str(u).strip()]
+	if require_nonempty and (not urls):
+		raise ValueError('Provide at least one URL via positional <URL> or --url <URL>')
+	return urls
 def _execute_collect(args):
 	from .research import collect_plan, compute_site_summary, inside, json_data
 	payload = _operation_input(args, args.plan)
@@ -161,11 +172,23 @@ def execute(args):
 	elif 'collect' == command:
 		r = _execute_collect(args)
 	elif 'collect-http' == command:
-		from .research import collect_http
-		r = collect_http(args.project, args.url, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
+		from .research import collect_http, collect_http_batch
+		urls = _collect_cli_urls(args, require_nonempty=True)
+		if 1 == len(urls):
+			r = collect_http(args.project, urls[0], profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
+		else:
+			r = collect_http_batch(args.project, urls, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
 	elif 'collect-browser' == command:
-		from .research import collect_browser
-		r = collect_browser(args.project, args.url, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
+		from .research import collect_browser, collect_browser_batch
+		urls = _collect_cli_urls(args, require_nonempty=True)
+		if 1 == len(urls):
+			r = collect_browser(args.project, urls[0], profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
+		else:
+			r = collect_browser_batch(args.project, urls, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
+	elif 'evidence-query' == command:
+		from .research import evidence_query
+		urls = _collect_cli_urls(args, require_nonempty=False)
+		r = evidence_query(args.project, urls=urls, include_anchors=bool(getattr(args, 'anchors', False)), grep_pattern=getattr(args, 'grep', None), context_lines=int(getattr(args, 'context_lines', 2)), max_matches=int(getattr(args, 'max_matches', 20)))
 	elif 'extract' == command:
 		from .research import extract_observation
 		r = extract_observation(args.project, args.source, args.profile)

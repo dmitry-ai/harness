@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add compact evidence-query command and unify collect-http CLI flags":
+# https://github.com/dmitry-ai/harness/issues/118
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Initialize new Upwork projects in the V2 filesystem layout":
 # https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -574,5 +577,107 @@ class MetricsTests(TemporaryCase):
 		self.assertIsNone(result['tokens']['cache_read_tokens']['complete_total'])
 		self.assertEqual(result['duplicate_records_ignored'], 1)
 		self.assertEqual(result['generations'], 1)
+	def test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query(self):
+		import io
+		from contextlib import redirect_stdout
+		from agent_tools.research import collect_http, evidence_query
+		pages = {}
+		for idx in range(1, 14):
+			pages[f'/doc-{idx}'] = (
+				f'<!doctype html><html><head><title>Doc {idx} Reference Guide</title></head>'
+				f'<body><h1>Doc {idx} Main Heading</h1>'
+				f'<h2 id="sec-{idx}">Section {idx} Overview</h2>'
+				f'<p>First line of paragraph {idx} before target phrase.\n'
+				f'Important caveat for doc {idx}: verify primary anchor target_token_{idx} carefully.\n'
+				f'Closing caveat sentence of paragraph {idx}.</p></body></html>'
+			).encode('utf-8')
+		class Handler(BaseHTTPRequestHandler):
+			def do_GET(self):
+				body = pages.get(self.path)
+				if None is body:
+					self.send_response(404)
+					self.end_headers()
+					return
+				self.send_response(200)
+				self.send_header('Content-Type', 'text/html; charset=utf-8')
+				self.end_headers()
+				self.wfile.write(body)
+			def log_message(self, *args):
+				pass
+		proj = Path(up.initialize_upwork_project(source()['job_id'], domain_or_topic='EvidenceQuery', extracted_data=source(), date_str='2026-10-15', daily_root=self.root / 'daily_eq', register_antigravity=False)['project_dir'])
+		server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+		thread = Thread(target=server.serve_forever, daemon=True)
+		thread.start()
+		try:
+			base = f'http://127.0.0.1:{server.server_port}'
+			urls_13 = [f'{base}/doc-{idx}' for idx in range(1, 14)]
+			buf1 = io.StringIO()
+			with redirect_stdout(buf1):
+				rc1 = up.main(['collect-http', str(proj), urls_13[0], '--extract-profile', 'html', '--browser', 'never'])
+			self.assertEqual(rc1, 0)
+			out1 = json.loads(buf1.getvalue())
+			self.assertEqual(out1['status'], 200)
+			self.assertEqual(out1['url'], urls_13[0])
+			buf2 = io.StringIO()
+			with redirect_stdout(buf2):
+				rc2 = up.main(['collect-http', str(proj), '--url', urls_13[1], '--extract-profile', 'html', '--browser', 'never'])
+			self.assertEqual(rc2, 0)
+			self.assertEqual(json.loads(buf2.getvalue())['url'], urls_13[1])
+			batch_args = ['collect-http', str(proj), urls_13[2], urls_13[3]]
+			for u_rem in urls_13[4:]:
+				batch_args.extend(['--url', u_rem])
+			batch_args.extend(['--extract-profile', 'html', '--browser', 'never'])
+			buf_batch = io.StringIO()
+			with redirect_stdout(buf_batch):
+				rc_batch = up.main(batch_args)
+			self.assertEqual(rc_batch, 0)
+			out_batch = json.loads(buf_batch.getvalue())
+			self.assertEqual(len(out_batch['results']), 11)
+			self.assertTrue(out_batch['complete'])
+			gh_url = 'https://github.com/JetBrains/intellij-community/blob/master/platform/platform-impl/src/LocalFileSystemBase.java'
+			raw_java_lines = [f'// Line {ln} header' for ln in range(1, 121)]
+			raw_java_lines[41] = 'public abstract class LocalFileSystemBase extends NewVirtualFileSystem {'
+			raw_java_lines[42] = '  // target_token_gh verified implementation note'
+			raw_java_lines[43] = '}'
+			lc_tds = ''.join((f'<td id="LC{ln}"></td>' for ln in range(1, 121)))
+			emb_json = json.dumps({'payload': {'blob': {'rawLines': raw_java_lines}}})
+			gh_html = f'<!doctype html><html><head><title>intellij-community/LocalFileSystemBase.java at master</title></head><body><h1>LocalFileSystemBase.java</h1><table><tr>{lc_tds}</tr></table><script type="application/json" data-target="react-app.embeddedData">{emb_json}</script></body></html>'.encode('utf-8')
+			collect_http(proj, gh_url, profile='html', browser='never', fetcher=lambda u, h, t: Response(u, 200, 'text/html; charset=utf-8', gh_html))
+			with patch('agent_tools.text_browser.collect_cdp_dom', side_effect=lambda r, target, **kw: {'url': target, 'html': '<!doctype html><html><head><title>DOM Batch</title></head><body><h1>DOM</h1><p>Body words here for valid capture.</p></body></html>'}):
+				buf_cb = io.StringIO()
+				with redirect_stdout(buf_cb):
+					rc_cb = up.main(['collect-browser', str(proj), f'{base}/dom-1', '--url', f'{base}/dom-2', '--extract-profile', 'html'])
+				self.assertEqual(rc_cb, 0)
+				self.assertEqual(len(json.loads(buf_cb.getvalue())['results']), 2)
+			all_14 = [*urls_13, gh_url]
+			eq_args = ['evidence-query', str(proj), '--anchors', '--grep', 'target_token_']
+			for u14 in all_14:
+				eq_args.extend(['--url', u14])
+			buf_eq = io.StringIO()
+			with redirect_stdout(buf_eq):
+				rc_eq = up.main(eq_args)
+			self.assertEqual(rc_eq, 0)
+			eq_out = json.loads(buf_eq.getvalue())
+			self.assertTrue(eq_out['valid'])
+			self.assertEqual(eq_out['observation_count'], 14)
+			by_url = {it['url']: it for it in eq_out['observations']}
+			doc5 = by_url[urls_13[4]]
+			self.assertEqual(doc5['title'], 'Doc 5 Reference Guide')
+			self.assertEqual(doc5['h1'], 'Doc 5 Main Heading')
+			self.assertIn('sec-5', doc5['anchors'])
+			self.assertEqual(doc5['matches'][0]['anchor'], '#sec-5')
+			self.assertIn('First line of paragraph 5', doc5['matches'][0]['verbatim_context'])
+			self.assertIn('Closing caveat sentence of paragraph 5.', doc5['matches'][0]['verbatim_context'])
+			gh_obs = by_url[gh_url]
+			self.assertEqual(gh_obs['github_line_range'], '#LC1..#LC120')
+			self.assertNotIn('LC1', gh_obs['anchors'])
+			self.assertIn('LocalFileSystemBase', gh_obs['matches'][0]['verbatim_context'])
+			self.assertTrue(gh_obs['matches'][0]['anchor'].startswith('#LC'))
+			miss_res = evidence_query(proj, urls=['https://example.invalid/not-collected'])
+			self.assertFalse(miss_res['valid'])
+			self.assertEqual(miss_res['missing_urls'], ['https://example.invalid/not-collected'])
+		finally:
+			server.shutdown()
+			server.server_close()
 if '__main__' == __name__:
 	unittest.main()
