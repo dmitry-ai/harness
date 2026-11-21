@@ -559,7 +559,7 @@ def _compaction_status(root, key, turn):
 			pass
 	verified = bool((not occurred or not pre_steps or recovered_in_trace or recovered_via_receipt) and (not unreread_analysis_sources))
 	idx_path = (_folder(root) / f'{key}-recovery/index.json') if key else None
-	idx_rel = (idx_path.relative_to(root).as_posix() if idx_path.is_relative_to(root) else str(idx_path)) if None is not idx_path and occurred else None
+	idx_rel = (idx_path.relative_to(root).as_posix() if idx_path.is_relative_to(root) else str(idx_path)) if None is not idx_path and occurred and idx_path.is_file() else None
 	r = {'verified': verified, 'occurred': occurred, 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_steps, 'post_checkpoint_recovery_steps': post_rec, 'recovered_in_trace': recovered_in_trace, 'recovered_via_receipt': recovered_via_receipt, 'pre_checkpoint_read_files': pre_reads, 'post_checkpoint_read_files': post_reads, 'post_checkpoint_written_files': post_writes, 'evicted_unreread_files': evicted_unreread, 'unreread_analysis_sources': unreread_analysis_sources, 'index_file': idx_rel}
 	return r
 def _build_compaction_file_index(root: Path, pre_reads: list[str], post_reads: list[str], evicted_unreread: list[str]) -> list[dict]:
@@ -606,7 +606,19 @@ def _write_compaction_index_file(root: Path, key: str, turn: dict, comp_check: d
 	pre_reads = list(comp_check.get('pre_checkpoint_read_files') or [])
 	post_reads = list(comp_check.get('post_checkpoint_read_files') or [])
 	evicted = list(comp_check.get('evicted_unreread_files') or [])
-	raw_recs = step_records if None is not step_records else list(((turn.get('compaction') or {}).get('pre_checkpoint_records')) or [])
+	if None is not step_records:
+		raw_recs = step_records
+	else:
+		raw_recs = []
+		for rec in ((turn.get('compaction') or {}).get('pre_checkpoint_records')) or []:
+			st = rec.get('step')
+			outs = list(rec.get('outputs') or [])
+			step_file = rec_dir / f'step-{st}.txt'
+			if step_file.is_file():
+				rel_step = step_file.relative_to(root).as_posix() if step_file.is_relative_to(root) else str(step_file)
+				raw_recs.append({'step': st, 'tools': list(rec.get('tools') or []), 'output_file': rel_step, 'output_preview': [o[:200] for o in outs[:2]]})
+			else:
+				raw_recs.append(rec)
 	payload = {
 		'schema_version': 1,
 		'turn_key': key,

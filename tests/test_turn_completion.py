@@ -2230,6 +2230,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.assertEqual(brief_entry['lines'], 3)
 			self.assertTrue(brief_entry['evicted_unreread'])
 			self.assertTrue(brief_entry['reread_required_if_cited'])
+			self.assertIsNone(dry_json['compaction_check']['index_file'])
 			self.assertFalse((proj / '\ua616/data/turns').exists())
 			rows.append({'step_index': cp_step + 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c-dry', 'name': 'run_command', 'args': {'CommandLine': f'python harness.py recover-checkpoint "{proj}" --conversation {cid} --dry-run'}}]})
 			t_log.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
@@ -2262,6 +2263,8 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.assertTrue(prep_out['ready'])
 			self.assertLess(len(json.dumps(prep_out)), 10000)
 			self.assertNotIn('pre_checkpoint_read_files', prep_out['compaction_check'])
+			idx_after_prep = json.loads(idx_path.read_text(encoding='utf-8'))
+			self.assertTrue(str(idx_after_prep['pre_checkpoint_records'][0].get('output_file') or '').endswith('step-1.txt'))
 			final_idx = cp_step + 3
 			rows.append({'step_index': final_idx, 'type': 'PLANNER_RESPONSE', 'content': cited_resp})
 			t_log.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
