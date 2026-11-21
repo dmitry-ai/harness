@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -310,14 +313,29 @@ def resource_uri(res):
 	return extract_resource_uri(res)
 def folder_path(uri):
 	return local_uri_to_path(uri)
+def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
+	from ..path_registry import same_project_root
+	resources = (item.get('projectResources') or {}).get('resources') or []
+	paths_in_item = [folder_path(resource_uri(res)) for res in resources if resource_uri(res)]
+	if any((p == root for p in paths_in_item)):
+		return (True, False)
+	if 1 == len(paths_in_item) and None is not paths_in_item[0] and (not paths_in_item[0].exists()) and same_project_root(paths_in_item[0], root):
+		return (True, True)
+	return (False, False)
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
 def register_antigravity_project(project_dir, domain_or_topic, date_str=None, projects_dir=ANTIGRAVITY_PROJECTS_DIR, folders_json_path=None, preferred_id=None):
 	root, projects = (Path(project_dir).resolve(), Path(projects_dir))
-	day = request_day(date_str) if date_str else date(int(root.parents[2].name), int(root.parents[1].name), int(root.parent.name))
+	if date_str:
+		day = request_day(date_str)
+	elif 3 <= len(root.parents) and all((root.parents[i].name.isascii() and root.parents[i].name.isdigit() for i in (2, 1, 0))):
+		day = date(int(root.parents[2].name), int(root.parents[1].name), int(root.parent.name))
+	else:
+		from ..path_registry import project_paths
+		day = request_day(json.loads(project_paths(root, exact_root=True).project_json.read_text(encoding='utf-8'))['request_date'])
 	name = f'{domain_or_topic} - U.P.{day:%Y.%m.%d}'
-	with locked(projects / 'ꘖ' / 'data' / 'registration.lock'):
+	with locked(projects / '\ua616' / 'data' / 'registration.lock'):
 		folders = _resolve_folders_json(folders_json_path)
 		before = folders.read_bytes()
 		listing = json.loads(before.decode('utf-8-sig'))
@@ -332,13 +350,20 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None, pr
 				node = {'id': f'folder-{uuid.uuid4().hex[:16]}', 'name': part, 'parentId': parent, 'color': '#10b981', 'isExpanded': True}
 				nodes.append(node)
 			parent = node['id']
-		ident, payload, destination = (None, None, None)
-		for path in projects.glob('*.json'):
+		ident, payload, destination, relocated_match = (None, None, None, None)
+		for path in sorted(projects.glob('*.json')):
 			item = json.loads(path.read_text(encoding='utf-8-sig'))
-			if any((resource_uri(res) and folder_path(resource_uri(res)) == root for res in (item.get('projectResources') or {}).get('resources') or [])):
+			matched, is_reloc = _project_item_matches_root(item, root)
+			if matched and (not is_reloc):
 				ident, payload, destination = (item.get('id') or path.stem, item, path)
 				break
-		if None is ident:
+			if matched and is_reloc and None is relocated_match:
+				relocated_match = (item.get('id') or path.stem, item, path)
+		if None is ident and None is not relocated_match:
+			ident, payload, destination = relocated_match
+			payload['projectResources'] = {**(payload.get('projectResources') or {}), 'resources': [{'folderUri': root.as_uri()}]}
+			replace_bytes(destination, json_bytes(payload))
+		elif None is ident:
 			ident = preferred_id or str(uuid.uuid4())
 			destination = projects / f'{ident}.json'
 			payload = {'id': ident, 'name': name, 'projectResources': {'resources': [{'folderUri': root.as_uri()}]}, 'settings': {}, 'isWorkspaceOnly': False}
@@ -808,9 +833,9 @@ def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, 
 	for _, inst in ordered:
 		p_dir = Path(inst['system_paths']['projects_dir'])
 		if p_dir.is_dir():
-			for path in p_dir.glob('*.json'):
+			for path in sorted(p_dir.glob('*.json')):
 				item = json.loads(path.read_text(encoding='utf-8-sig'))
-				if any((resource_uri(res) and folder_path(resource_uri(res)) == root for res in (item.get('projectResources') or {}).get('resources') or [])):
+				if _project_item_matches_root(item, root)[0]:
 					preferred_id = item.get('id') or path.stem
 					break
 		if preferred_id:

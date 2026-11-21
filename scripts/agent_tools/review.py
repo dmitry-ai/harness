@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -252,11 +255,12 @@ class ReviewQuorumEvaluator:
 		return r
 class ReviewReportValidator:
 	def __init__(self, package, *, candidate=None, text_checks=(), source_reviewer=None):
+		from .path_registry import canonicalize_root_dir
 		self.candidate = candidate
 		self.expected = {c['claim_id'] for c in package['claims']}
 		self.package = package
 		self.package_claims = {c['claim_id']: c for c in package['claims']}
-		self.pkg_root = Path(package['project_root']).resolve() if is_nonempty_text(package.get('project_root')) else None
+		self.pkg_root = canonicalize_root_dir(package['project_root']) if is_nonempty_text(package.get('project_root')) else None
 		self.source_reviewer = source_reviewer
 		self.targets = {c['claim_id']: c['essence'] for c in package['claims']}
 		self.text_checks = tuple(text_checks)
@@ -495,10 +499,11 @@ def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence
 		'merkle_hashes': merkle_hashes,
 	}
 def read_package_envelope(root, reference, *, expected_kind=None, error_msg='Invalid immutable review package'):
-	root_p = Path(root).resolve()
+	from .path_registry import canonicalize_root_dir, same_project_root
+	root_p = canonicalize_root_dir(root)
 	path = inside(root_p, reference)
 	raw, data = read_addressed_json(path, suffix='-inputs.json', error_msg=error_msg)
-	if REVIEW_SCHEMA != data.get('schema_version') or (None is not expected_kind and data.get('kind') != expected_kind) or data.get('project_root') != str(root_p) or (data.get('subject_sha256') != subject_digest(data)):
+	if REVIEW_SCHEMA != data.get('schema_version') or (None is not expected_kind and data.get('kind') != expected_kind) or (not same_project_root(data.get('project_root'), root_p)) or (data.get('subject_sha256') != subject_digest(data)):
 		raise ValueError(error_msg)
 	resp = data.get('response') if isinstance(data.get('response'), dict) else {}
 	candidate = inside(root_p, resp.get('file', ''))

@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -478,7 +481,8 @@ def _assignment_source(rows, meta, assignment):
 def _json_objects(value):
 	return iter_embedded_json_objects(value, parse_root=False)
 def _review_inputs(root, rows, parent_id, reviewer_id):
-	calls, r, root_p = ({}, [], Path(root).resolve())
+	from ..path_registry import canonicalize_root_dir, same_project_root
+	calls, r, root_p = ({}, [], canonicalize_root_dir(root))
 	for index, item in rows:
 		payload = item.get('payload', {})
 		if 'response_item' == item.get('type'):
@@ -489,7 +493,7 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 					calls[call_id] = arguments
 			elif kind in ('function_call_output', 'custom_tool_call_output') and call_id in calls:
 				for receipt in _json_objects(payload.get('output')):
-					if 1 == receipt.get('upwork_review_input') and True is receipt.get('verified') and (receipt.get('reviewer_id') == reviewer_id) and (receipt.get('parent_id') == parent_id) and (receipt.get('project_root') == str(root_p)):
+					if 1 == receipt.get('upwork_review_input') and True is receipt.get('verified') and (receipt.get('reviewer_id') == reviewer_id) and (receipt.get('parent_id') == parent_id) and same_project_root(receipt.get('project_root'), root_p):
 						package = root_p / receipt.get('package', '')
 						if package.resolve().is_relative_to(root_p) and package.is_file() and (package.name in calls[call_id]) and (hashlib.sha256(package.read_bytes()).hexdigest() == receipt.get('package_sha256')):
 							r.append({'package': receipt['package'], 'package_sha256': receipt['package_sha256'], 'call_id': call_id, 'output_step': index})

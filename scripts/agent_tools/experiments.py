@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -298,7 +301,8 @@ class ExperimentPlanStore:
 			if not re.search('\\bprepare-experiment\\b', args) or not any((cli in args for cli in self.CLI_NAMES)):
 				r = False
 			else:
-				r = any((1 == receipt.get('upwork_experiment_plan') and receipt.get('project_root') == str(self.root) and (receipt.get('plan') == run.get('plan')) and (receipt.get('plan_sha256') == run.get('plan_sha256')) and (receipt.get('requirement_sha256') == run.get('requirement_sha256')) for receipt in iter_embedded_json_objects(event.get('result'))))
+				from .path_registry import same_project_root
+				r = any((1 == receipt.get('upwork_experiment_plan') and same_project_root(receipt.get('project_root'), self.root) and (receipt.get('plan') == run.get('plan')) and (receipt.get('plan_sha256') == run.get('plan_sha256')) and (receipt.get('requirement_sha256') == run.get('requirement_sha256')) for receipt in iter_embedded_json_objects(event.get('result'))))
 		return r
 	def load(self, reference):
 		path = inside(self.pp.kb_dir, reference)

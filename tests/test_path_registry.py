@@ -672,5 +672,172 @@ class PathRegistryTests(TemporaryCase):
 			doc_out = json.loads(proc.stdout)
 			self.assertTrue(doc_out['valid'], doc_out)
 			self.assertNotEqual(doc_out['instances']['A0']['home'], doc_out['instances']['A6']['home'])
+	def test_cross_root_relocation_workflow_completion_review_and_antigravity_registration(self):
+		from agent_tools import completion, review, workflow
+		from agent_tools.platforms import antigravity
+		old_su = self.root / 'old_proposals/2026/10/26/1 - reloc_shop'
+		old_sc = self.root / 'old_clients/reloc_shop/m/2026-10-26/code/_my'
+		new_m = (self.root / 'new_clients/reloc_shop').resolve()
+		other_proj = (self.root / 'other_clients/other_shop').resolve()
+		other_proj.mkdir(parents=True)
+		(new_m / '\U0001f56e').mkdir(parents=True)
+		(new_m / '\u2c0f/\u227b/\u2659/Context/output').mkdir(parents=True)
+		(new_m / '\ua616/KB/Evidence/Reviews').mkdir(parents=True)
+		(new_m / '\ua616/data/turns').mkdir(parents=True)
+		(new_m / '\ua66e/\u227b/1\u201320').mkdir(parents=True)
+		(new_m / '\ua66e/\u227a/1\u201320').mkdir(parents=True)
+		self.put('new_clients/reloc_shop/readme.md', '# Relocated Shop\n')
+		self.put('new_clients/reloc_shop/\U0001f56e/Project.md', '# Manual Project\n')
+		ctx_file = self.put('new_clients/reloc_shop/\u2c0f/\u227b/\u2659/Context/output/Context.md', '# Context Export\n')
+		proj_json = self.put('new_clients/reloc_shop/\ua616/project.json', json.dumps({'job_id': '~029999999999999999999', 'request_date': '2026-10-26'}))
+		req_text = 'Analyze shop.  \n'
+		res_text = 'Verified relocated shop analysis.  \n'
+		req_f = self.put('new_clients/reloc_shop/\ua66e/\u227b/1\u201320/1.md', req_text)
+		res_f = self.put('new_clients/reloc_shop/\ua66e/\u227a/1\u201320/1.md', res_text)
+		reg_raw = deepcopy(pr.load_registry().raw)
+		reg_raw['relocations'][old_su.as_posix()] = new_m.as_posix()
+		reg_raw['relocations'][old_sc.as_posix()] = new_m.as_posix()
+		reg_file = self.put('reloc-cross-paths.json', json.dumps(reg_raw))
+		with patch.dict(os.environ, {'HARNESS_PATHS_FILE': str(reg_file)}):
+			pr.clear_registry_cache()
+			self.assertTrue(pr.same_project_root(str(old_su), new_m))
+			self.assertTrue(pr.same_project_root(old_sc, str(new_m)))
+			self.assertFalse(pr.same_project_root(str(other_proj), new_m))
+			self.assertFalse(pr.same_project_root('relative/path', new_m))
+			self.assertFalse(pr.same_project_root(None, new_m))
+			wf_payload = {
+				'schema_version': 1,
+				'project_root': str(old_su),
+				'job_id': '~029999999999999999999',
+				'legacy': False,
+				'stages': {
+					'capture': {'status': 'complete', 'inputs': {}, 'outputs': {'\ua616/project.json': workflow.file_hash(proj_json)}},
+					'finalize': {'status': 'complete', 'inputs': {}, 'outputs': {'\ua66e/1 - Analysis/res/1.md': workflow.file_hash(res_f), '\ua66e/0/Context.md': workflow.file_hash(ctx_file)}},
+				},
+				'questions': {},
+				'reviews': [],
+				'events': [],
+				'requests': [],
+			}
+			self.put('new_clients/reloc_shop/\ua616/data/workflow.json', json.dumps(wf_payload))
+			wf_st = workflow.status(new_m)
+			self.assertEqual(Path(wf_st['project']).resolve(), new_m)
+			wf_engine = workflow.WorkflowStateEngine(new_m)
+			self.assertTrue(wf_engine.receipt_current(wf_payload['stages']['finalize']))
+			wf_engine.update({'action': 'relocation_touch'}, lambda s: None)
+			saved_wf = json.loads((new_m / '\ua616/data/workflow.json').read_text(encoding='utf-8'))
+			self.assertEqual(Path(saved_wf['project_root']).resolve(), new_m)
+			cand_rel = '\ua616/KB/Evidence/Reviews/cand.md'
+			cand_f = self.put('new_clients/reloc_shop/' + cand_rel, res_text)
+			cand_bytes = cand_f.read_bytes()
+			pkg_body = {
+				'schema_version': review.REVIEW_SCHEMA,
+				'kind': 'analysis',
+				'project_root': str(old_su),
+				'job_id': '~029999999999999999999',
+				'parent_id': 'parent-1',
+				'risk': 'routine',
+				'kb_inputs': {},
+				'evidence_inputs': {},
+				'requests': [{'id': 'req-1', 'text': req_text}],
+				'response': {'file': cand_rel, 'sha256': review.digest(cand_bytes), 'bytes': len(cand_bytes)},
+				'claims': [],
+			}
+			pkg_body['subject_sha256'] = review.subject_digest(pkg_body)
+			pkg_bytes = review.json_data(pkg_body)
+			pkg_sha = review.digest(pkg_bytes)
+			pkg_rel = f'\ua616/KB/Evidence/Reviews/{pkg_sha}-inputs.json'
+			(new_m / pkg_rel).write_bytes(pkg_bytes)
+			env_root, _, env_data, _ = review.read_package_envelope(new_m, pkg_rel, expected_kind='analysis')
+			self.assertEqual(env_root, new_m)
+			self.assertEqual(env_data['subject_sha256'], pkg_body['subject_sha256'])
+			(other_proj / pkg_rel).parent.mkdir(parents=True, exist_ok=True)
+			(other_proj / pkg_rel).write_bytes(pkg_bytes)
+			with self.assertRaises(ValueError):
+				review.read_package_envelope(other_proj, pkg_rel, expected_kind='analysis')
+			cid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+			fake_backend = str((self.root / 'reloc_ag_backend').resolve())
+			fake_source = str((self.root / 'reloc_trace.jsonl').resolve())
+			turn1_raw = {'turn_id': 't-1', 'start_step': 1, 'final_step': 3, 'completion_step': 3, 'owned': True, 'completed': True, 'aborted': False}
+			fake_native_base = {'platform': 'antigravity', 'native_backend': fake_backend, 'conversation_id': cid, 'source_file': fake_source, 'primary': True}
+			t1_key = completion._key(fake_native_base, turn1_raw)
+			token = 'native-' + t1_key
+			req_ids = [f'{cid}-1']
+			jdir = new_m / '\ua66e'
+			id_bind = admission.binding(jdir, [req_text], res_text, token, req_ids)
+			cap = admission.capture([new_m, jdir], [req_text], res_text, id_bind)
+			grp_dir = journal.state_dir(jdir) / 'answer-groups'
+			grp_dir.mkdir(parents=True, exist_ok=True)
+			grp_file = grp_dir / f'{token}.json'
+			grp_payload = {
+				'version': 1,
+				'journal': str(old_su / '\ua66e/1 - Analysis'),
+				'turn': token,
+				'status': 'complete',
+				'steps': [1],
+				'tokens': ['tok-1'],
+				'request_ids': req_ids,
+				'requests': [req_text],
+				'response_sha256': hashlib.sha256(res_text.encode('utf-8')).hexdigest(),
+				'admission': cap.reference,
+			}
+			grp_file.write_bytes(completion._json(grp_payload))
+			old_grp_str = str(old_su / '\ua616/data/.journal/deadbeef0000111122223333/answer-groups' / f'{token}.json')
+			old_res_str = str(old_su / '\ua66e/1 - Analysis/res/1.md')
+			res_sha = hashlib.sha256(res_text.encode('utf-8')).hexdigest()
+			old_req_obj = {'id': req_ids[0], 'text': req_text, 'native_step': 1, 'project_binding': {'kind': 'antigravity-workspace-uris', 'native_step': 0, 'root': str(old_su)}}
+			cur_req_obj = {'id': req_ids[0], 'text': req_text, 'native_step': 1, 'project_binding': {'kind': 'antigravity-workspace-uris', 'native_step': 0, 'root': str(new_m)}}
+			rec_base = {'journal_steps': [1], 'response_sha256': res_sha, 'response_file': old_res_str, 'group_file': old_grp_str, 'group_sha256': hashlib.sha256(grp_file.read_bytes()).hexdigest(), 'recorded_at': '2026-10-26T10:00:00+00:00', 'reused_complete_journal_group': False, 'admission': cap.reference}
+			exec5_ok = {'verified': True, 'violations': []}
+			t1_state = {
+				'schema_version': 1,
+				'key': t1_key,
+				'project_root': str(old_su),
+				'platform': 'antigravity',
+				'native_backend': fake_backend,
+				'conversation_id': cid,
+				'native_turn_id': 't-1',
+				'native_start_step': 1,
+				'requests': [old_req_obj],
+				'role': 'primary',
+				'journal_required': True,
+				'journal': str(old_su / '\ua66e/1 - Analysis'),
+				'applicable_rules': {},
+				'git_optional_locks_env': '0',
+				'exec5_check': exec5_ok,
+				'http_fetch_check': exec5_ok,
+				'compaction_check': {'verified': True, 'occurred': False},
+				'delegation_check': {'verified': True, 'tool_step_count': 2},
+				'budget_check': {'verified': True},
+				'code_lifecycle_check': {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []},
+				'status': 'delivered',
+				'readiness_check': {'verified': True, 'checked_at': '2026-10-26T10:00:00+00:00'},
+				'prepared': dict(rec_base),
+				'journal_record': dict(rec_base),
+				'delivery': {**rec_base, 'verified': True, 'source_file': fake_source, 'final_step': 3, 'completion_step': 3, 'native_response_sha256': res_sha, 'completion_provenance': 'prepared', 'preparation_verified': True, 'exec5_check': exec5_ok, 'verified_at': '2026-10-26T10:00:05+00:00'},
+				'recovered_after_delivery': False,
+			}
+			t1_path = new_m / '\ua616/data/turns' / f'{t1_key}.json'
+			t1_path.write_bytes(completion._json(t1_state))
+			t1_bytes_before = t1_path.read_bytes()
+			turn1_live = {**turn1_raw, 'requests': [cur_req_obj], 'response': res_text}
+			turn2_live = {'turn_id': 't-2', 'start_step': 4, 'final_step': None, 'completion_step': None, 'owned': True, 'completed': False, 'aborted': False, 'requests': [{'id': f'{cid}-4', 'text': 'Next request', 'native_step': 4, 'project_binding': {'kind': 'antigravity-workspace-uris', 'native_step': 0, 'root': str(new_m)}}], 'response': ''}
+			fake_native = {**fake_native_base, 'active_turn_id': 't-2', 'turns': [turn1_live, turn2_live]}
+			with patch('agent_tools.completion._native', return_value=fake_native):
+				sync_res = completion.sync(new_m, cid, platform='antigravity')
+				self.assertTrue(sync_res['valid'], sync_res)
+				self.assertEqual(sync_res['turns'][0]['status'], 'delivered')
+				self.assertEqual(t1_path.read_bytes(), t1_bytes_before)
+				beg_res = completion.begin(new_m, cid, platform='antigravity')
+				self.assertEqual(beg_res['status'], 'open')
+			ag_projects = self.root / 'ag_reloc_projects'
+			old_proj_rec = {'id': 'reloc-uuid-1', 'name': 'reloc_shop - U.P.2026.10.26', 'projectResources': {'resources': [{'folderUri': old_su.resolve().as_uri()}]}, 'settings': {'keepUserSetting': 42}}
+			rec_file = self.put('ag_reloc_projects/reloc-uuid-1.json', json.dumps(old_proj_rec))
+			folders_file = self.put('ag_reloc_folders.json', '{"folders":[],"projectFolderMap":{}}')
+			reg_receipt = antigravity.register_antigravity_project(new_m, 'reloc_shop', projects_dir=ag_projects, folders_json_path=folders_file)
+			self.assertEqual(reg_receipt['project_id'], 'reloc-uuid-1')
+			updated_rec = json.loads(rec_file.read_text(encoding='utf-8'))
+			self.assertEqual(updated_rec['settings'], {'keepUserSetting': 42})
+			self.assertEqual(updated_rec['projectResources']['resources'], [{'folderUri': new_m.as_uri()}])
 if '__main__' == __name__:
 	unittest.main()

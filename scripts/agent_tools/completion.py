@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
 # https://github.com/dmitry-ai/harness/issues/119
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -389,7 +392,8 @@ class TurnJournalReconciler:
 			if None is not matched:
 				effective_response = matched
 		elif value['prepared']['response_sha256'] != sha:
-			prep_file = Path(value['prepared'].get('response_file') or '')
+			raw_prep = value['prepared'].get('response_file') or ''
+			prep_file = journal.resolve_migrated_step_file(raw_prep) if raw_prep else Path()
 			prep_text = prep_file.read_bytes().decode('utf-8') if prep_file.is_file() else ''
 			if prep_text and _norm_journal_text(prep_text) == _norm_journal_text(response):
 				effective_response = prep_text
@@ -805,18 +809,24 @@ def _same_saved_request(old_req, cur_req, root):
 	if {k: v for k, v in old_req.items() if 'project_binding' != k} != {k: v for k, v in cur_req.items() if 'project_binding' != k}:
 		return False
 	old_b, cur_b = (old_req.get('project_binding'), cur_req.get('project_binding'))
-	if not isinstance(old_b, dict) or not isinstance(cur_b, dict) or 'explicit-project-root' != old_b.get('kind'):
+	if not isinstance(old_b, dict) or not isinstance(cur_b, dict):
 		return False
-	from .path_registry import canonicalize_root_dir
-	old_r, cur_r = (old_b.get('root'), cur_b.get('root'))
-	return bool(old_r and cur_r and canonicalize_root_dir(old_r) == canonicalize_root_dir(root) and canonicalize_root_dir(cur_r) == canonicalize_root_dir(root))
+	from .path_registry import same_project_root
+	old_kind, cur_kind = (old_b.get('kind'), cur_b.get('kind'))
+	if 'explicit-project-root' != old_kind:
+		if old_kind != cur_kind and not ({old_kind, cur_kind} <= {'antigravity-workspace-uris', 'antigravity-project-id'}):
+			return False
+		if {k: v for k, v in old_b.items() if k not in ('root', 'kind')} != {k: v for k, v in cur_b.items() if k not in ('root', 'kind')}:
+			return False
+	return same_project_root(old_b.get('root'), root) and same_project_root(cur_b.get('root'), root)
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
-	from .path_registry import canonicalize_root_dir
+	from .path_registry import canonicalize_root_dir, same_project_root
 	root = canonicalize_root_dir(root)
 	key = _key(native, turn)
 	path = _folder(root) / (key + '.json')
 	value = _read(path) if path.exists() else _new(root, native, turn, recovered=recovered, journal_directory=journal_directory)
-	active_validation = not recovered and not (turn.get('completed') and value.get('status') in ('delivered', 'conflict'))
+	historical_done = bool(turn.get('completed') and value.get('status') in ('delivered', 'conflict'))
+	active_validation = not recovered and not historical_done
 	if 'instruction_snapshot' not in value and active_validation:
 		value['instruction_snapshot'] = _instruction_snapshot(root, native, stage='existing-state-upgrade')
 	if 'applicable_rules' not in value:
@@ -838,10 +848,15 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 	saved_directory = _directory(root, value['journal'])
 	if strict_journal and None is not journal_directory and (saved_directory != _directory(root, journal_directory)):
 		raise ValueError('The native turn already has a different journal; preserve its original binding')
-	value['journal'] = str(saved_directory)
-	for name, expected in [('project_root', str(root)), ('platform', native['platform']), ('native_backend', native['native_backend']), ('conversation_id', native['conversation_id']), ('native_turn_id', turn['turn_id'])]:
+	if not same_project_root(value.get('project_root'), root):
+		raise ValueError('Completion state has a different native owner; preserved')
+	for name, expected in [('platform', native['platform']), ('native_backend', native['native_backend']), ('conversation_id', native['conversation_id']), ('native_turn_id', turn['turn_id'])]:
 		if value.get(name) != expected:
 			raise ValueError('Completion state has a different native owner; preserved')
+	if not (historical_done and journal.same_journal_identity(value.get('journal'), saved_directory)):
+		value['journal'] = str(saved_directory)
+	if not historical_done:
+		value['project_root'] = str(root)
 	old, current = (value['requests'], turn['requests'])
 	if len(current) < len(old) or not all((_same_saved_request(old_item, cur_item, root) for old_item, cur_item in zip(old, current))):
 		raise ValueError('Native requests changed before the saved boundary; preserved')
@@ -1061,14 +1076,13 @@ def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str
 	saved_p, cur_p = (Path(saved_str), Path(current_str))
 	if saved_p.exists() or saved_p.name != cur_p.name:
 		return False
-	from .path_registry import canonicalize_root_dir
+	from .path_registry import canonicalize_root_dir, same_project_root
 	canon_root = canonicalize_root_dir(root)
 	if 'response' == kind:
 		s_info, c_info = (journal.parse_step_file_path(saved_p), journal.parse_step_file_path(cur_p))
 		return None is not s_info and None is not c_info and s_info[1] in ('res', '\u227a') and c_info[1] in ('res', '\u227a') and (s_info[2] == c_info[2]) and journal.same_journal_identity(s_info[0], c_info[0])
-	if 'group' == kind and 'answer-groups' == saved_p.parent.name and '.journal' == saved_p.parents[2].name:
-		old_anc = saved_p.parents[5] if 6 <= len(saved_p.parents) and '_' == saved_p.parents[4].name else saved_p.parents[4]
-		return canonicalize_root_dir(old_anc) == canon_root and canonicalize_root_dir(cur_p.parents[4]) == canon_root
+	if 'group' == kind and 'answer-groups' == saved_p.parent.name and 4 <= len(saved_p.parents) and 4 <= len(cur_p.parents) and ('.journal' == saved_p.parents[2].name):
+		return any((same_project_root(anc, canon_root) for anc in saved_p.parents[3:7])) and any((same_project_root(anc, canon_root) for anc in cur_p.parents[3:7]))
 	return False
 def _record(root, native, turn, response, directory, *, existing=None, purpose='publication', allow_reprepare=False):
 	if purpose not in ('publication', 'observation'):

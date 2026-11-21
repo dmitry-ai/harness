@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Initialize new Upwork projects in the V2 filesystem layout":
 # https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -442,8 +445,9 @@ class WorkflowStateEngine:
 		if not path.exists():
 			r = {'schema_version': 1, 'project_root': str(self.root), 'job_id': project['job_id'], 'stages': {}, 'questions': {}, 'reviews': [], 'events': [], 'requests': [], 'legacy': True}
 		else:
+			from .path_registry import same_project_root
 			state = json.loads(path.read_text(encoding='utf-8'))
-			if 1 != state.get('schema_version') or state.get('project_root') != str(self.root) or state.get('job_id') != project['job_id']:
+			if 1 != state.get('schema_version') or (not same_project_root(state.get('project_root'), self.root)) or state.get('job_id') != project['job_id']:
 				raise ValueError('Workflow identity/version mismatch; preserve the file for explicit migration')
 			r = state
 		return r
@@ -476,6 +480,9 @@ class WorkflowStateEngine:
 			cand = resolve_migrated_step_file(target)
 			if cand.is_file() and cand.is_relative_to(self.root):
 				return cand
+			v2_cand = {'\ua66e/0/Context.md': self.pp.context_output, 'KB/Project.md': self.pp.manual_kb_dir / 'Project.md', '.md': self.pp.path('readme_file', self.root / 'readme.md')}.get(Path(path).as_posix())
+			if None is not v2_cand and v2_cand.is_file() and v2_cand.is_relative_to(self.root):
+				return v2_cand
 		return target
 	def receipt_current(self, receipt):
 		return all(((t := self._resolve_receipt_artifact(path)).is_file() and file_hash(t) == digest for group in ('inputs', 'outputs') for path, digest in receipt.get(group, {}).items())) and ('kb_inputs' not in receipt or receipt['kb_inputs'] == self.kb_hashes()) and ('evidence_inputs' not in receipt or receipt['evidence_inputs'] == self.evidence_hashes())
@@ -584,6 +591,7 @@ class WorkflowStateEngine:
 	def update(self, event, change):
 		with locked(self.pp.data_dir / 'workflow.lock'):
 			state = self.load()
+			state['project_root'] = str(self.root)
 			change(state)
 			state['events'].append({'id': uuid.uuid4().hex, 'time': now(), **event})
 			replace_bytes(self.state_path(), json_data(state))
