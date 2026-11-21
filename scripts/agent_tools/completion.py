@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -801,13 +804,18 @@ def _active(native):
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
-def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None):
+def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, dry_run=False):
 	from .path_registry import canonicalize_root_dir
 	root = canonicalize_root_dir(root)
 	native = _native(root, conversation, platform=platform, backend=backend)
 	turn = _active(native)
 	if None is turn:
 		r = {'role': 'child', 'journal_required': False, 'reason': 'The primary conversation owns the user journal'}
+		if dry_run:
+			r['dry_run'] = True
+	elif dry_run:
+		path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
+		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
 	else:
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
 		with locked(_turn_lock(root, _key(native, turn))):
@@ -1079,6 +1087,8 @@ def add_parser_arguments(parser, command):
 		specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
 	if command in ('turn-begin', 'answer-prepare'):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
+	if 'turn-begin' == command:
+		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Validate native turn ownership and hygiene checks without writing receipts or upgrading journals'}))
 	if 'answer-prepare' == command:
 		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
 	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
@@ -1088,7 +1098,7 @@ def add_parser_arguments(parser, command):
 	add_arg_specs(parser, specs)
 def execute(args):
 	if 'turn-begin' == args.command:
-		r = begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal)
+		r = begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal, dry_run=bool(getattr(args, 'dry_run', False)))
 	elif 'recover-checkpoint' == args.command:
 		r = recover_checkpoint(args.project, args.conversation)
 	elif 'recover-turn-violation' == args.command:

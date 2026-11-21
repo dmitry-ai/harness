@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1967,5 +1970,63 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			committed_short = {repo_a: set(), repo_b: set(committed[repo_b])}
 			_check_multi_subtask_decomposition(root, response, repo_touched, committed_short, turn_issues, req, [repo_a, repo_b], violations_missing)
 			self.assertEqual(len(violations_missing), 2)
+	def test_pre_invocation_hook_idempotent_turn_begin_child_skip_terminate_and_dry_run(self):
+		from contextlib import closing
+		import os
+		import subprocess
+		import check_pre_invocation
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			proj_a = t / 'proj_a'
+			proj_b = t / 'proj_b'
+			for p in (proj_a, proj_b):
+				(p / '\ua66e/1 - Analysis/req').mkdir(parents=True)
+				(p / '\ua66e/1 - Analysis/res').mkdir(parents=True)
+			ag_home = t / 'ag_home'
+			backend = ag_home / '.gemini/antigravity'
+			(ag_home / '.gemini/config/projects').mkdir(parents=True)
+			(backend / 'conversations').mkdir(parents=True)
+			primary_cid = str(uuid.uuid4())
+			child_cid = str(uuid.uuid4())
+			t_log = backend / 'brain' / primary_cid / '.system_generated/logs/transcript_full.jsonl'
+			t_log.parent.mkdir(parents=True)
+			t_log.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Inspect tracked project.'}) + '\n', encoding='utf-8')
+			with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as conn:
+				conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
+				conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (primary_cid, '', json.dumps([proj_a.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'primary'))
+				conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (child_cid, primary_cid, json.dumps([proj_a.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'self'))
+				conn.commit()
+			with closing(sqlite3.connect(backend / 'conversations' / f'{primary_cid}.db')) as conn:
+				conn.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+				conn.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, b'Inspect tracked project.')),))
+				conn.commit()
+			before_dry = {p.relative_to(proj_a).as_posix(): p.read_bytes() for p in proj_a.rglob('*') if p.is_file()}
+			before_dirs = sorted((p.relative_to(proj_a).as_posix() for p in proj_a.rglob('*') if p.is_dir()))
+			dry_res = completion.begin(proj_a, primary_cid, platform='antigravity', backend=backend, dry_run=True)
+			self.assertTrue(dry_res['dry_run'])
+			self.assertEqual(dry_res['role'], 'primary')
+			self.assertFalse((proj_a / '\ua616/data/turns').exists())
+			self.assertEqual({p.relative_to(proj_a).as_posix(): p.read_bytes() for p in proj_a.rglob('*') if p.is_file()}, before_dry)
+			self.assertEqual(sorted((p.relative_to(proj_a).as_posix() for p in proj_a.rglob('*') if p.is_dir())), before_dirs)
+			sub_env = {**os.environ, 'USERPROFILE': str(ag_home), 'APPDATA': str(t / 'sandbox_roaming')}
+			cli_dry = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'turn-begin', str(proj_a), '--conversation', primary_cid, '--platform', 'antigravity', '--dry-run'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
+			self.assertEqual(cli_dry.returncode, 0, cli_dry.stderr or cli_dry.stdout)
+			self.assertTrue(json.loads(cli_dry.stdout)['dry_run'])
+			self.assertFalse((proj_a / '\ua616/data/turns').exists())
+			child_out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': child_cid, 'cwd': str(proj_a), 'transcriptPath': str(t_log)}, backend_override=backend)
+			self.assertEqual(child_out, {})
+			self.assertFalse((proj_a / '\ua616/data/turns').exists())
+			bad_out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': primary_cid, 'cwd': str(proj_b), 'transcriptPath': str(t_log)}, backend_override=backend)
+			self.assertEqual(bad_out.get('terminationBehavior'), 'terminate', bad_out)
+			self.assertTrue(any(('errorMessage' in step for step in bad_out.get('injectSteps') or [])))
+			self.assertFalse((proj_b / '\ua616/data/turns').exists())
+			first_out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': primary_cid, 'cwd': str(proj_a), 'transcriptPath': str(t_log), 'invocationNum': 0, 'initialNumSteps': 1}, backend_override=backend)
+			self.assertIn('injectSteps', first_out)
+			injected_msg = first_out['injectSteps'][0]['systemMessage']['systemMessage']
+			self.assertIn(dry_res['turn_key'], injected_msg)
+			self.assertTrue((proj_a / dry_res['state']).is_file())
+			with patch('agent_tools.completion.begin', side_effect=AssertionError('Second PreInvocation of same turn must fast-exit without calling completion.begin')):
+				second_out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': primary_cid, 'cwd': str(proj_a), 'transcriptPath': str(t_log), 'invocationNum': 1, 'initialNumSteps': 4}, backend_override=backend)
+			self.assertEqual(second_out, {})
 if '__main__' == __name__:
 	unittest.main()

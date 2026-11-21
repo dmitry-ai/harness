@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -273,11 +276,24 @@ def legacy_direct_global_hooks(primary=PRIMARY_AGENTS_DIR):
 		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_rules_and_server_gate.py').as_posix()}", 'timeout': 10}]}]},
 		'final-turn-gate': {'Stop': [{'type': 'command', 'command': f"python {(primary / 'scripts/check_stop_gate.py').as_posix()}", 'timeout': 15}]},
 	}
+def legacy_runner_global_hooks(primary=PRIMARY_AGENTS_DIR):
+	return {
+		'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_markdown_slop.py', 'timeout': 10}]}]},
+		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
+		'final-turn-gate': {'Stop': [{'type': 'command', 'command': 'python harness_hook_runner.py check_stop_gate.py', 'timeout': 15}]},
+	}
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
 def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR, *, config_dir: str | Path | None=None):
-	r = {'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_markdown_slop.py', 'timeout': 10}]}]}, 'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]}, 'final-turn-gate': {'Stop': [{'type': 'command', 'command': 'python harness_hook_runner.py check_stop_gate.py', 'timeout': 15}]}}
+	r = {
+		'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_markdown_slop.py', 'timeout': 10}]}]},
+		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
+		'final-turn-gate': {
+			'PreInvocation': [{'type': 'command', 'command': 'python harness_hook_runner.py check_pre_invocation.py', 'timeout': 15}],
+			'Stop': [{'type': 'command', 'command': 'python harness_hook_runner.py check_stop_gate.py', 'timeout': 15}],
+		},
+	}
 	return r
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":

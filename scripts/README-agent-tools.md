@@ -31,7 +31,7 @@ Platform adapters live in `agent_tools/platforms`, while domain logic, KB, journ
 An unchanged static `doctor` result may be reused; the selected browser tab, active model, and actual rule loading are verified separately per session.  
 `install-global` connects all enabled Antigravity and Codex instances declared in `runtime.json` to shared native sources (skipping disabled instances unless selected explicitly via `--target-profile`).  
 Repeat `--target-profile A6 --target-profile C2` for a pilot; `--platform` and `--codex-profile` continue to identify the executing session.  
-Antigravity profile manifests inherit `platforms/antigravity/{rules,skills,agents}.json`, and only exact plain legacy Harness entries are retired.  
+Antigravity profile manifests inherit `platforms/antigravity/{rules,skills,agents}.json`, global `hooks.json` synchronizes `platforms/antigravity/hooks.json` (including `PreToolUse` gates and `final-turn-gate` `PreInvocation` + `Stop` handlers), and only exact plain legacy Harness entries are retired.  
 Codex profile skill directories link to the original skill folders; individual `agents/<name>.toml` file symlinks point at `platforms/codex/agents`, and a compact personal `AGENTS.md` block loads `platforms/codex/AGENTS.md`.  
 The installer removes only its exact receipt-owned former role configuration block, preserving later personal settings and refusing edited same-name roles.  
 Unrelated personal instructions, skill folders, TOML tables, manifest entries and hooks are preserved; unrecognized edits or wrong-target links return a conflict before mutation.  
@@ -171,7 +171,7 @@ A programmatic receipt does not guarantee substantive truth: A.A evaluates meani
 
 # Exact Journal and External Export
 
-`turn-begin <project> --platform codex` establishes the native turn and applicability of FILE-3/EXEC-5/DOC-2 regardless of text format; Antigravity requires `--conversation <native-uuid> --platform antigravity`.  
+`turn-begin <project> [--dry-run] --platform codex` establishes the native turn and applicability of FILE-3/EXEC-5/DOC-2 regardless of text format (`--dry-run` validates native ownership and hygiene checks without writing receipts or upgrading journals); Antigravity requires `--conversation <native-uuid> --platform antigravity` (and runs idempotent `turn-begin` automatically on the first `PreInvocation` of a primary turn in tracked workspaces via `check_pre_invocation.py`).  
 `answer-prepare <project> --response-file <exact-final-answer>` records the exact native requests and response, verifies read-back bytes and prior clearances of linked documents/analysis, and returns the `response_file` to publish verbatim.  
 `journal-sync <project> --conversation <native-uuid>` synchronously reconciles a completed native reply against the journal; a skipped preparation is recovered post-hoc, and any byte discrepancy is saved as a conflict without overwriting history.  
 All journal execution is foreground-only: `turn-begin` reconciles earlier completed turns of its current conversation, and `answer-prepare` records the present response without registering or launching a persistent process.  
@@ -195,6 +195,7 @@ If `--config` is omitted, it defaults to `default_context_config()`; custom mani
 All paths are confined to the project root; an export never overwrites a source file.  
 `Context.md` is built for manual submission to an external agent, primarily Gemini DeepThink; internal agents never use it as their working KB.  
 <!-- https://github.com/dmitry-ai/harness/issues/42 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/116 -->  
 
 # Additional Tools
 

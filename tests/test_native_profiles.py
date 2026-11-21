@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
 # https://github.com/dmitry-ai/harness/issues/106
@@ -843,3 +846,22 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(role_link.read_bytes(), (new_primary / 'platforms/codex/agents/upwork-aa.toml').read_bytes())
 		self.assertEqual(str(native._link_target_path(personal_link)), str(native._absolute(personal_target)))
 		self.assertTrue(native.install_native_profiles(('C2',), primary=new_primary, check=True)['valid'])
+	def test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate(self):
+		from agent_tools.upwork_project import canonical_global_hooks, legacy_runner_global_hooks
+		legacy_hooks = legacy_runner_global_hooks(self.primary)
+		legacy_hooks['my-custom-hook'] = {'PostToolUse': [{'matcher': 'run_command', 'hooks': [{'type': 'command', 'command': 'echo ok'}]}]}
+		self.write(self.gravity['A6'] / 'hooks.json', json.dumps(legacy_hooks))
+		built = native.build_shared_native(self.primary)
+		self.assertTrue(built['valid'], built)
+		shared_hooks_path = self.primary / 'platforms/antigravity/hooks.json'
+		self.assertTrue(shared_hooks_path.is_file())
+		shared_hooks = json.loads(shared_hooks_path.read_text(encoding='utf-8'))
+		self.assertEqual(shared_hooks, canonical_global_hooks(self.primary))
+		self.assertIn('PreInvocation', shared_hooks['final-turn-gate'])
+		self.assertIn('Stop', shared_hooks['final-turn-gate'])
+		res = self.install(('A6',))
+		self.assertTrue(res['valid'], res)
+		installed_hooks = json.loads((self.gravity['A6'] / 'hooks.json').read_text(encoding='utf-8'))
+		self.assertEqual(installed_hooks['final-turn-gate'], canonical_global_hooks(self.primary)['final-turn-gate'])
+		self.assertEqual(installed_hooks['my-custom-hook'], legacy_hooks['my-custom-hook'])
+		self.assertTrue(self.install(('A6',), check=True)['valid'])

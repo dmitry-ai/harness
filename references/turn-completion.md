@@ -9,12 +9,13 @@ Edits to client documents retain their own checks for scope, baseline, evidence,
 After determining the exact root of the primary conversation, run:  
 
 ```text
-python <agents>/scripts/harness.py turn-begin <root> --platform codex
-python <agents>/scripts/harness.py turn-begin <root> --conversation <native-uuid> --platform antigravity
+python <agents>/scripts/harness.py turn-begin <root> [--dry-run] --platform codex
+python <agents>/scripts/harness.py turn-begin <root> [--dry-run] --conversation <native-uuid> --platform antigravity
 ```
 
 Codex obtains the UUID from `CODEX_THREAD_ID` and the profile from `CODEX_HOME` or an explicit `--codex-profile`; a neighboring profile or chat is never selected automatically.  
-Antigravity requires the valid UUID of the current conversation.  
+Antigravity requires the valid UUID of the current conversation; in globally configured Antigravity instances (`platforms/antigravity/hooks.json`), the idempotent `PreInvocation` hook (`check_pre_invocation.py`) automatically runs `turn-begin` on the first model invocation of a primary user turn in tracked workspaces (skipping child subagents via `parent_conversation_id` and fast-exiting on subsequent invocations when the receipt already covers the latest user step), injecting `turn_key` via `injectSteps` or stopping genuine project-binding mismatches immediately via `"terminationBehavior": "terminate"`.  
+Passing `--dry-run` validates native turn ownership and hygiene checks without creating locks, mutating `ꘖ/data/turns`, or upgrading legacy journals on disk (for example, inside Plan Mode or environments without `PreInvocation`).  
 The tool verifies native request ownership for the root and the `primary`/`child` role; an ordinary agent project does not require a synthetic job post or client article.  
 `ꘖ/data/turns` records the root, native turn, exact requests, applicable FILE-3/EXEC-5/DOC-2 rules, their sources, and mandatory stages.  
 In the first phase of a turn, run `policy-instructions` (in Codex), `turn-begin`, and batched reading of rules without output truncation; launch any `git` commands only after receiving the first-phase output and strictly with `--no-optional-locks` (or via `git-read`).  
@@ -109,4 +110,5 @@ If no later working call occurs, native delivery remains unverified; there is no
 Criteria: routine analysis and articles use the same FILE-3 contract; an incomplete reply is not imported; a skipped preparation is recovered; retries do not duplicate pairs; a foreign root/profile/child is rejected; a conflict preserves the original bytes.  
 <!-- https://github.com/dmitry-ai/harness/issues/41 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/48 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/109 -->
+<!-- https://github.com/dmitry-ai/harness/issues/109 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/116 -->  

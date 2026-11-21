@@ -1,0 +1,46 @@
+{
+  "doc4-anti-slop-gate": {
+    "PreToolUse": [
+      {
+        "matcher": "write_file|edit_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python harness_hook_runner.py check_markdown_slop.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "rules-and-server-gate": {
+    "PreToolUse": [
+      {
+        "matcher": "write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python harness_hook_runner.py check_rules_and_server_gate.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "final-turn-gate": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python harness_hook_runner.py check_pre_invocation.py",
+        "timeout": 15
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python harness_hook_runner.py check_stop_gate.py",
+        "timeout": 15
+      }
+    ]
+  }
+}

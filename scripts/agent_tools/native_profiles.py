@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
 # https://github.com/dmitry-ai/harness/issues/106
@@ -108,8 +111,10 @@ def shared_native_outputs(primary=PRIMARY):
 	plats = cfg['platforms']
 	r = {}
 	if 'antigravity' in plats:
+		from .upwork_project import canonical_global_hooks
 		for kind in KINDS:
 			r[primary / f'platforms/antigravity/{kind}.json'] = _json({'entries': [{'path': (primary / kind).as_posix()}]}).decode('utf-8')
+		r[primary / 'platforms/antigravity/hooks.json'] = _json(canonical_global_hooks(primary)).decode('utf-8')
 		ag_roles = (plats.get('antigravity') or {}).get('roles') or {}
 		if 'AF' in ag_roles:
 			flash = ag_roles['AF']
@@ -414,7 +419,7 @@ def _profile_state(state, name, path):
 	previous = state.get('profiles', {}).get(name, {})
 	return previous if previous.get('path') == str(_absolute(path)) else {}
 def _antigravity_plan(plan, name, config, primary, state):
-	from .upwork_project import HOOK_RUNNER_HEADER, canonical_global_hooks, harness_hook_runner_source, legacy_direct_global_hooks
+	from .upwork_project import HOOK_RUNNER_HEADER, canonical_global_hooks, harness_hook_runner_source, legacy_direct_global_hooks, legacy_runner_global_hooks
 	config = _absolute(config)
 	previous = _profile_state(state, name, config)
 	profile = {'platform': 'antigravity', 'path': str(config), 'files': {}, 'hook_hashes': {}}
@@ -453,7 +458,7 @@ def _antigravity_plan(plan, name, config, primary, state):
 		if not isinstance(hooks, dict):
 			raise ValueError('hooks.json must be a JSON object; preserved')
 		relocated = _relocated_primaries(primary)
-		owned_legacy_variants = [legacy_direct_global_hooks(cand) for cand in (primary, *relocated)] + [canonical_global_hooks(primary)]
+		owned_legacy_variants = [legacy_direct_global_hooks(cand) for cand in (primary, *relocated)] + [legacy_runner_global_hooks(primary), canonical_global_hooks(primary)]
 		for hook, desired in canonical_global_hooks(primary, config_dir=config).items():
 			is_owned_legacy = hook in hooks and any((hooks[hook] == variant.get(hook) for variant in owned_legacy_variants))
 			if hook in hooks and hooks[hook] != desired and (not is_owned_legacy) and (previous.get('hook_hashes', {}).get(hook) != _hash(_json(hooks[hook]))):
