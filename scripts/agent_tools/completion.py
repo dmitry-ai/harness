@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -111,7 +114,8 @@ from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
-COMMANDS = ('turn-begin', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'reconcile-unprepared-delivery')
+COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'reconcile-unprepared-delivery')
+_ANSWER_CHECK_CACHE: dict[tuple, dict] = {}
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
@@ -189,34 +193,10 @@ class AnswerPreparationRunner:
 							req['response_prepared'] = {'sha256': self.sha, 'prepared_at': _now()}
 				update(self.root, {'action': 'reprepare_before_delivery', 'request_ids': sorted(self.wf_identifiers)}, update_reprepared)
 	def _check_evicted_citations(self):
-		if self.value['compaction_check'].get('occurred') and self.value['compaction_check'].get('evicted_unreread_files'):
-			turn_key = self.result['turn_key']
-			scratch_ans = self.pp.scratch_dir / f'answer-{turn_key}.md'
-			post_cp_w_low = {str(w).replace('\\', '/').lower() for w in (self.value['compaction_check'].get('post_checkpoint_written_files') or [])}
-			pre_cp_authored = False
-			if scratch_ans.is_file() and scratch_ans.resolve().as_posix().lower() not in post_cp_w_low:
-				try:
-					pre_cp_authored = scratch_ans.read_text(encoding='utf-8') == self.response
-				except OSError:
-					pre_cp_authored = False
-			if not pre_cp_authored:
-				from .source_grounding import extract_block_links, markdown_parser
-				ev_map = {p.replace('\\', '/').lower(): p for p in self.value['compaction_check']['evicted_unreread_files']}
-				unreread_cited = []
-				for blk in markdown_parser().parse(self.response):
-					if 'inline' == blk.type:
-						lpaths, _ = extract_block_links(blk, self.root, None)
-						for rp in lpaths:
-							rlow = rp.as_posix().lower()
-							if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/\u227a/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
-								unreread_cited.append(ev_map[rlow])
-				for ev_low, ev_orig in ev_map.items():
-					m_res = re.search('/(?:res|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?(\\d+\\.md)$', ev_low)
-					if m_res and re.search(f'(?:\\bres|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?{re.escape(m_res.group(1))}\\b', self.response, re.I) and (ev_orig not in unreread_cited):
-						unreread_cited.append(ev_orig)
-				if unreread_cited:
-					detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
-					self._fail_gate('evicted_citations', detail, extra={'cited_files': unreread_cited})
+		unreread_cited = _find_evicted_cited_files(self.root, self.pp, self.result['turn_key'], self.value['compaction_check'], self.response)
+		if unreread_cited:
+			detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
+			self._fail_gate('evicted_citations', detail, extra={'cited_files': unreread_cited})
 	def _check_source_grounding(self):
 		source_issues = response_source_and_kb_issues(self.root, self.response, self.turn['requests'], touched_files=self.turn.get('touched_files'))
 		self.value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
@@ -814,7 +794,9 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		if dry_run:
 			r['dry_run'] = True
 	elif dry_run:
-		path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
+		from .source_grounding import read_only_grounding
+		with read_only_grounding():
+			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
 		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': value['compaction_check'], 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
 	else:
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
@@ -1029,6 +1011,270 @@ def _workflow_gate_resolved(root_p, turn, kind):
 		from .workflow import load
 		r = bool(approval_current(root_p, load(root_p)))
 	return r
+def _find_evicted_cited_files(root: Path, pp, turn_key: str | None, compaction_check: dict, response: str) -> list[str]:
+	unreread_cited: list[str] = []
+	if compaction_check.get('occurred') and compaction_check.get('evicted_unreread_files'):
+		pre_cp_authored = False
+		if turn_key:
+			scratch_ans = pp.scratch_dir / f'answer-{turn_key}.md'
+			post_cp_w_low = {str(w).replace('\\', '/').lower() for w in (compaction_check.get('post_checkpoint_written_files') or [])}
+			if scratch_ans.is_file() and scratch_ans.resolve().as_posix().lower() not in post_cp_w_low:
+				try:
+					pre_cp_authored = scratch_ans.read_text(encoding='utf-8') == response
+				except OSError:
+					pre_cp_authored = False
+		if not pre_cp_authored:
+			from .source_grounding import extract_block_links, markdown_parser
+			ev_map = {p.replace('\\', '/').lower(): p for p in compaction_check['evicted_unreread_files']}
+			for blk in markdown_parser().parse(response):
+				if 'inline' == blk.type:
+					lpaths, _ = extract_block_links(blk, root, None)
+					for rp in lpaths:
+						rlow = rp.as_posix().lower()
+						if rlow in ev_map and (rlow.endswith('/kb/source.md') or '/source/' in rlow or '/res/' in rlow or '/\u227a/' in rlow or '/kb/' in rlow) and (ev_map[rlow] not in unreread_cited):
+							unreread_cited.append(ev_map[rlow])
+			for ev_low, ev_orig in ev_map.items():
+				m_res = re.search('/(?:res|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?(\\d+\\.md)$', ev_low)
+				if m_res and re.search(f'(?:\\bres|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?{re.escape(m_res.group(1))}\\b', response, re.I) and (ev_orig not in unreread_cited):
+					unreread_cited.append(ev_orig)
+	return unreread_cited
+def _authored_nonquote_hrefs(content: str) -> list[str]:
+	from .links import HTMLReferences, _bare_urls
+	from .source_grounding import markdown_parser
+	hrefs: list[str] = []
+	quote_depth = 0
+	html = HTMLReferences(authored_only=True)
+	for block in markdown_parser().parse(content):
+		if 'blockquote_open' == block.type:
+			quote_depth += 1
+		elif 'blockquote_close' == block.type:
+			quote_depth = max(0, quote_depth - 1)
+		elif 0 == quote_depth:
+			if 'html_block' == block.type:
+				html.feed(block.content)
+			depth = 0
+			for token in block.children or []:
+				if 'link_open' == token.type:
+					depth += 1
+					if token.attrGet('href'):
+						hrefs.append(token.attrGet('href'))
+				elif 'link_close' == token.type:
+					depth = max(0, depth - 1)
+				elif 'html_inline' == token.type:
+					html.feed(token.content)
+				elif 'text' == token.type and 0 == depth:
+					hrefs.extend(_bare_urls(token.content))
+	return [*hrefs, *html.links]
+def _response_link_issues(root_p: Path, response: str, *, response_path: Path | None = None) -> list[str]:
+	from urllib.parse import unquote, urldefrag, urlsplit
+	from .links import heading_anchors, readable_link_issues, references
+	errors: list[str] = list(readable_link_issues(response, allow_unencoded_file_uri=True))
+	available_self = set(references(response)[1]) | heading_anchors(response)
+	base_dirs = [root_p]
+	if None is not response_path and '-' != str(response_path):
+		try:
+			rp_parent = Path(response_path).resolve().parent
+			if rp_parent not in base_dirs:
+				base_dirs.append(rp_parent)
+		except OSError:
+			pass
+	for href in dict.fromkeys(_authored_nonquote_hrefs(response)):
+		if not href:
+			continue
+		if href.startswith('#'):
+			if unquote(href[1:]) not in available_self:
+				errors.append(f'LINK-4: Missing local anchor: {href}')
+			continue
+		parsed = urlsplit(href)
+		windows_path = bool(re.match('^[A-Za-z]:[/\\\\]', href))
+		if parsed.scheme and 'file' != parsed.scheme.lower() and (not windows_path):
+			if parsed.scheme.lower() in ('http', 'https') and (not parsed.hostname or any((c.isspace() for c in href))):
+				errors.append(f'LINK-4: Invalid HTTP URL: {href}')
+			continue
+		path_text = unquote(urldefrag(href)[0] if windows_path else parsed.path)
+		if 'file' == parsed.scheme.lower():
+			if parsed.netloc and 'localhost' != parsed.netloc:
+				path_text = parsed.netloc + path_text if re.fullmatch('[A-Za-z]:', parsed.netloc) else f'//{parsed.netloc}{path_text}'
+			if re.match('^/[A-Za-z]:/', path_text):
+				path_text = path_text[1:]
+		if not path_text:
+			continue
+		p_cand = Path(path_text)
+		target = None
+		if p_cand.is_absolute():
+			resolved_c = p_cand.resolve()
+			target = resolved_c if resolved_c.exists() else journal.resolve_migrated_step_file(resolved_c)
+		else:
+			for bdir in base_dirs:
+				resolved_c = (bdir / p_cand).resolve()
+				if resolved_c.exists():
+					target = resolved_c
+					break
+				mig = journal.resolve_migrated_step_file(resolved_c)
+				if mig.exists():
+					target = mig
+					break
+		if None is target or (not target.exists()):
+			errors.append(f'LINK-4: Missing local file: {href}')
+			continue
+		fragment = unquote(parsed.fragment)
+		if target.is_dir():
+			if fragment:
+				errors.append(f'LINK-4: A directory link cannot have a document anchor: {href}')
+			continue
+		if not fragment:
+			continue
+		m_line = re.fullmatch('L(\\d+)(?:-L?(\\d+))?', fragment)
+		if m_line:
+			s_ln = int(m_line.group(1))
+			e_ln = int(m_line.group(2) or s_ln)
+			try:
+				total_ln = max(1, len(target.read_text(encoding='utf-8', errors='replace').splitlines()))
+			except OSError:
+				total_ln = 0
+			if 1 > s_ln or s_ln > e_ln or (0 < total_ln and e_ln > total_ln):
+				errors.append(f'LINK-4: Line anchor #{fragment} is out of bounds (1..{total_ln}) for {href}')
+		elif target.suffix.lower() in ('.md', '.html', '.htm'):
+			try:
+				other = target.read_text(encoding='utf-8')
+				ids = set(references(other)[1]) | heading_anchors(other)
+				if fragment not in ids:
+					errors.append(f'LINK-4: Missing cross-file anchor: {href}')
+			except (OSError, UnicodeDecodeError) as exc:
+				errors.append(f'LINK-4: {target}: {exc}')
+		elif '.json' == target.suffix.lower():
+			try:
+				from .evidence import resolve_pointer
+				resolve_pointer(json.loads(target.read_text(encoding='utf-8')), fragment)
+			except (OSError, KeyError, ValueError, IndexError, TypeError):
+				errors.append(f'LINK-4: Missing JSON pointer: {href}')
+	return errors
+def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None):
+	if not isinstance(response, str) or not response.strip():
+		raise ValueError('An exact nonempty UTF-8 candidate response is required')
+	from check_markdown_slop import markdown_slop_issues
+	from .causal_checks import unsupported_probability_claims
+	from .path_registry import canonicalize_root_dir, project_paths
+	from .source_grounding import read_only_grounding
+	root_p = canonicalize_root_dir(root)
+	pp = project_paths(root_p, exact_root=True)
+	sha = _hash(response.encode('utf-8'))
+	eff_plat = platform_name(platform)
+	eff_conv = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == eff_plat else None)
+	with read_only_grounding():
+		native = None
+		turn_obj = None
+		value_obj = None
+		role = 'standalone'
+		turn_key = None
+		if eff_conv:
+			native = _native(root_p, eff_conv, platform=eff_plat, backend=backend)
+			if native['primary']:
+				role = 'primary'
+				turn_obj = _active(native)
+				_, value_obj = _state(root_p, native, turn_obj, journal_directory=journal_directory, strict_journal=True)
+				turn_key = value_obj['key']
+			else:
+				role = 'child'
+				turn_obj = (native.get('turns') or [])[-1] if native.get('turns') else {'turn_id': f'child-{eff_conv}', 'start_step': 0, 'requests': [], 'touched_files': [], 'issue_actions': [], 'exec5_violations': [], 'http_fetch_violations': [], 'compaction': {}, 'delegation': {}}
+				turn_key = _key(native, turn_obj)
+				value_obj = {'key': turn_key, 'platform': native['platform'], 'conversation_id': native['conversation_id'], 'exec5_check': _exec5_status(turn_obj, root_p, turn_key), 'http_fetch_check': _http_fetch_status(turn_obj, root_p, turn_key), 'compaction_check': _compaction_status(root_p, turn_key, turn_obj), 'delegation_check': _delegation_status(root_p, turn_obj)}
+		else:
+			turn_obj = {'turn_id': 'standalone', 'start_step': 0, 'requests': [], 'touched_files': [], 'issue_actions': [], 'exec5_violations': [], 'http_fetch_violations': [], 'compaction': {}, 'delegation': {}}
+			value_obj = {'key': None, 'exec5_check': {'verified': True, 'violations': []}, 'http_fetch_check': {'verified': True, 'violations': []}, 'compaction_check': {'verified': True, 'occurred': False, 'evicted_unreread_files': [], 'unreread_analysis_sources': []}, 'delegation_check': {'verified': True, 'aa_partial_read_violations': []}}
+		step_cnt = int((turn_obj.get('delegation') or {}).get('tool_step_count') or 0)
+		cache_key = (str(root_p), role, str(eff_conv or ''), sha, step_cnt, str(Path(response_path).resolve()) if None is not response_path and '-' != str(response_path) else '-')
+		doc4_errs = markdown_slop_issues(response)
+		link_errs = _response_link_issues(root_p, response, response_path=response_path)
+		prob_errs = [f'DOC-2: Unsupported causal probability basis: {item}' for item in unsupported_probability_claims(response)]
+		requests_list = list(turn_obj.get('requests') or []) if 'primary' == role else []
+		source_errs = response_source_and_kb_issues(root_p, response, requests_list, touched_files=turn_obj.get('touched_files'))
+		lang_errs = _intermediate_or_language_issues(requests_list, response)
+		exec5_chk = value_obj['exec5_check']
+		http_chk = value_obj['http_fetch_check']
+		comp_chk = value_obj['compaction_check']
+		evicted_cited = _find_evicted_cited_files(root_p, pp, turn_key, comp_chk, response) if 'primary' == role else []
+		del_chk = value_obj['delegation_check']
+		lifecycle_chk = _code_and_issue_lifecycle_status(root_p, turn_obj, value_obj if 'primary' == role else None, response=response)
+		wf_errs: list[str] = []
+		if 'primary' == role and pp.workflow_json.is_file():
+			from .workflow import load
+			wf_state = load(root_p)
+			wf_ids = {req['id'] for req in requests_list}
+			wf_cov = {req['id'] for req in wf_state.get('requests') or []} & wf_ids
+			is_fin = 'complete' == wf_state.get('stages', {}).get('finalize', {}).get('status')
+			kb_scan = _factual_kb_note_issues(root_p, turn_obj)
+			for kb_e in kb_scan['issues']:
+				wf_errs.append(f'KB-2 / DOC-1 violation in factual research note: {kb_e}')
+			has_kb_mut = kb_scan['has_normative'] or bool(turn_obj.get('issue_actions')) or bool(value_obj.get('github_issues'))
+			touches_deliv = any((_is_client_deliverable_path(tf, root_p) for tf in (turn_obj.get('touched_files') or ())))
+			has_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response))
+			substantive_hm = (kb_scan['has_analysis'] or (has_hm and 0 == del_chk.get('aa_subagent_step_count', 0))) if is_fin else (has_hm or has_kb_mut or touches_deliv)
+			if wf_cov and wf_cov != wf_ids:
+				wf_errs.append('Adopt all exact current requests before preparing a tracked analysis response')
+			elif not wf_cov and pp.project_json.is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', req.get('text', '')) for req in requests_list))) and (not is_fin or substantive_hm):
+				wf_errs.append('REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project')
+			elif wf_cov and (not is_fin or substantive_hm):
+				from .review import authorize
+				try:
+					authorize(root_p, wf_state, response=response, request_ids=wf_ids)
+				except (OSError, ValueError) as exc:
+					wf_errs.append(str(exc))
+		all_issues: list[dict] = []
+		seen_msgs: set[str] = set()
+		def _push(gate_id: str, code: str, msgs: list[str]) -> None:
+			for m in msgs:
+				if m and m not in seen_msgs:
+					seen_msgs.add(m)
+					all_issues.append({'code': code, 'gate_id': gate_id, 'message': m})
+		_push('doc4', 'response.doc4', doc4_errs)
+		_push('links', 'response.links', link_errs)
+		_push('causal_probability', 'response.doc2', prob_errs)
+		_push('source_grounding', 'response.grounding', source_errs)
+		_push('language_and_stub', 'response.language', lang_errs)
+		if not exec5_chk.get('verified', True):
+			cmds = [cmd for item in exec5_chk.get('violations') or [] for cmd in item.get('commands', [])]
+			_push('exec5', 'turn.exec5', ['EXEC-5 violation in active turn (git read command without --no-optional-locks; run recover-turn-violation): ' + '; '.join(cmds)])
+		if not http_chk.get('verified', True):
+			cmds = [cmd for item in http_chk.get('violations') or [] for cmd in item.get('commands', [])]
+			_push('http_fetch', 'turn.http_fetch', ['KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection): ' + '; '.join(cmds)])
+		if 'primary' == role and (not comp_chk.get('verified', True)):
+			unreread_src = comp_chk.get('unreread_analysis_sources') or []
+			msg_c = ('COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md: ' + ', '.join(unreread_src)) if unreread_src else 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
+			_push('compaction', 'turn.compaction', [msg_c])
+		if evicted_cited:
+			_push('evicted_citations', 'turn.evicted_citations', ['COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(evicted_cited)])
+		if 'primary' == role and (not del_chk.get('verified', True)):
+			_push('delegation', 'turn.delegation', [f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={del_chk.get('tool_step_count', 0)}, max_streak={del_chk.get('max_unpersisted_step_streak', 0)} > {del_chk.get('max_unpersisted_steps', 40)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"])
+		if del_chk.get('aa_partial_read_violations'):
+			_push('aa_partial_read', 'turn.aa_partial_read', ['REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(del_chk['aa_partial_read_violations'])])
+		if not lifecycle_chk.get('verified', True):
+			_push('code_lifecycle', 'turn.code_lifecycle', [f'EXEC-5 violation in active turn (code/issue lifecycle incomplete): {v}' for v in lifecycle_chk.get('violations') or []])
+		_push('workflow', 'turn.workflow', wf_errs)
+		out = {
+			'valid': not all_issues,
+			'read_only': True,
+			'role': role,
+			'turn_key': turn_key,
+			'response_sha256': sha,
+			'issue_count': len(all_issues),
+			'issues': all_issues,
+			'checks': {
+				'doc4': not doc4_errs,
+				'links': not link_errs,
+				'causal_probability': not prob_errs,
+				'source_grounding': not source_errs,
+				'language_and_stub': not lang_errs,
+				'exec5': bool(exec5_chk.get('verified', True)),
+				'http_fetch': bool(http_chk.get('verified', True)),
+				'compaction': bool(comp_chk.get('verified', True) and (not evicted_cited)),
+				'delegation': bool(del_chk.get('verified', True) and (not del_chk.get('aa_partial_read_violations'))),
+				'code_lifecycle': bool(lifecycle_chk.get('verified', True)),
+				'workflow': not wf_errs,
+			},
+		}
+		_ANSWER_CHECK_CACHE[cache_key] = out
+		return out
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
@@ -1089,6 +1335,8 @@ def add_parser_arguments(parser, command):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
 	if 'turn-begin' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Validate native turn ownership and hygiene checks without writing receipts or upgrading journals'}))
+	if 'answer-check' == command:
+		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Candidate UTF-8 response file to validate, or - for stdin'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
 	if 'answer-prepare' == command:
 		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
 	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
@@ -1103,6 +1351,10 @@ def execute(args):
 		r = recover_checkpoint(args.project, args.conversation)
 	elif 'recover-turn-violation' == args.command:
 		r = recover_turn_violation(args.project, args.conversation, reason=args.reason)
+	elif 'answer-check' == args.command:
+		from .cli_common import load_operation_input
+		payload = load_operation_input(args, args.response_file)
+		r = check_answer(args.project, payload.decode('utf-8'), args.conversation, response_path=args.response_file, journal_directory=args.journal)
 	elif 'answer-prepare' == args.command:
 		from .cli_common import consume_scratch_input, load_operation_input
 		payload = load_operation_input(args, args.response_file)

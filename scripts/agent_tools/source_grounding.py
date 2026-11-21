@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Initialize new Upwork projects in the V2 filesystem layout":
 # https://github.com/dmitry-ai/harness/issues/110
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -34,6 +37,8 @@
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
+from contextlib import contextmanager
+from contextvars import ContextVar
 import hashlib
 import json
 import os
@@ -88,6 +93,14 @@ RELATIONAL_MOD_RE = re.compile(
 	')'
 )
 _SOURCE_INFO_CACHE: dict[tuple[str, int, int], dict] = {}
+_READ_ONLY_GROUNDING: ContextVar[bool] = ContextVar('harness_read_only_grounding', default=False)
+@contextmanager
+def read_only_grounding():
+	tok = _READ_ONLY_GROUNDING.set(True)
+	try:
+		yield
+	finally:
+		_READ_ONLY_GROUNDING.reset(tok)
 _TIER0_INDEX_CACHE: dict[str, dict[str, dict]] = {}
 _TIER0_MAX_FILE_BYTES = 512 * 1024
 _TIER0_TEXT_SUFFIXES = {'.md', '.txt', '.json', '.yaml', '.yml', '.xml', '.csv', '.ini', '.conf', '.env', '.log', ''}
@@ -367,6 +380,8 @@ class Tier0SourceIndex:
 						self.entries = {}
 				_TIER0_INDEX_CACHE[self.root_key] = self.entries
 	def _persist_if_dirty(self, dirty: bool) -> None:
+		if _READ_ONLY_GROUNDING.get():
+			return
 		if (dirty or (self.entries and (not self.cache_file.is_file()))) and (self.cache_file.parent.is_dir() or self.pp.agent_dir.is_dir()):
 			try:
 				self.cache_file.parent.mkdir(parents=True, exist_ok=True)

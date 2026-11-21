@@ -1,4 +1,7 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -2028,5 +2031,93 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			with patch('agent_tools.completion.begin', side_effect=AssertionError('Second PreInvocation of same turn must fast-exit without calling completion.begin')):
 				second_out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': primary_cid, 'cwd': str(proj_a), 'transcriptPath': str(t_log), 'invocationNum': 1, 'initialNumSteps': 4}, backend_override=backend)
 			self.assertEqual(second_out, {})
+	def test_answer_check_detects_link5_doc4_verify1_and_exec5_without_disk_side_effects(self):
+		from contextlib import closing
+		import os
+		import subprocess
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			proj = t / 'proj_check'
+			code_repo = proj / '\u2c0f/\u227b/\u2655/\u26ef'
+			(proj / '\U0001f56e').mkdir(parents=True)
+			(proj / '\ua66e/\u227b').mkdir(parents=True)
+			(proj / '\ua66e/\u227a').mkdir(parents=True)
+			(proj / '\ua616/KB/Evidence').mkdir(parents=True)
+			subprocess.run(['git', 'init', str(code_repo)], capture_output=True, check=True)
+			subprocess.run(['git', '-C', str(code_repo), 'config', 'user.email', 'test@example.com'], capture_output=True, check=True)
+			subprocess.run(['git', '-C', str(code_repo), 'config', 'user.name', 'Test'], capture_output=True, check=True)
+			subprocess.run(['git', '-C', str(code_repo), 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/harness.git'], capture_output=True, check=True)
+			mod_py = code_repo / 'mod.py'
+			mod_py.write_text('# https://github.com/dmitry-ai/harness/issues/1\nx = 1\n', encoding='utf-8')
+			subprocess.run(['git', '-C', str(code_repo), 'add', 'mod.py'], capture_output=True, check=True)
+			subprocess.run(['git', '-C', str(code_repo), 'commit', '-m', 'https://github.com/dmitry-ai/harness/issues/1'], capture_output=True, check=True)
+			doc_file = proj / '\ua616/KB/Note.md'
+			doc_file.write_text('# Section One\nVerified note with count `7`.  \n', encoding='utf-8')
+			mod_py.write_text('x = 2\n', encoding='utf-8')
+			ag_home = t / 'ag_home'
+			backend = ag_home / '.gemini/antigravity'
+			(ag_home / '.gemini/config/projects').mkdir(parents=True)
+			(backend / 'conversations').mkdir(parents=True)
+			primary_cid = str(uuid.uuid4())
+			child_cid = str(uuid.uuid4())
+			t_log = backend / 'brain' / primary_cid / '.system_generated/logs/transcript_full.jsonl'
+			t_log.parent.mkdir(parents=True)
+			t_rows = [
+				{'step_index': 0, 'type': 'USER_INPUT', 'content': 'Audit the workspace.'},
+				{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'write_file', 'args': {'Path': str(mod_py)}}]},
+			]
+			t_log.write_text(''.join((json.dumps(r) + '\n' for r in t_rows)), encoding='utf-8')
+			child_log = backend / 'brain' / child_cid / '.system_generated/logs/transcript_full.jsonl'
+			child_log.parent.mkdir(parents=True)
+			child_log.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'Child worker task.'}) + '\n', encoding='utf-8')
+			with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as conn:
+				conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
+				conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (primary_cid, '', json.dumps([proj.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'primary'))
+				conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (child_cid, primary_cid, '[]', 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'self'))
+				conn.commit()
+			for cid_item, msg_b in ((primary_cid, b'Audit the workspace.'), (child_cid, b'Child worker task.')):
+				with closing(sqlite3.connect(backend / 'conversations' / f'{cid_item}.db')) as conn:
+					conn.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+					conn.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, msg_b)),))
+					conn.commit()
+			bad_cand = t / 'bad_candidate.md'
+			bad_cand.write_text(
+				'First sentence here. Second sentence on same physical line.  \n'
+				'Encoded link [Note](%EA%98%96/KB/Note.md#missing-anchor) and [Code](<Ⰿ/≻/♕/⛯/mod.py#L99>) and [External](https://docs.example.com/guide).  \n',
+				encoding='utf-8',
+			)
+			before_files = {p.relative_to(proj).as_posix(): p.read_bytes() for p in proj.rglob('*') if p.is_file() and '.git/' not in p.as_posix()}
+			before_dirs = sorted((p.relative_to(proj).as_posix() for p in proj.rglob('*') if p.is_dir() and '.git' not in p.parts))
+			sub_env = {**os.environ, 'USERPROFILE': str(ag_home), 'APPDATA': str(t / 'sandbox_roaming')}
+			bad_proc = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'answer-check', str(proj), '--response-file', str(bad_cand), '--conversation', primary_cid, '--platform', 'antigravity'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
+			self.assertEqual(bad_proc.returncode, 2, bad_proc.stderr or bad_proc.stdout)
+			bad_json = json.loads(bad_proc.stdout)
+			self.assertFalse(bad_json['valid'])
+			self.assertTrue(bad_json['read_only'])
+			self.assertFalse(bad_json['checks']['doc4'])
+			self.assertFalse(bad_json['checks']['links'])
+			self.assertFalse(bad_json['checks']['source_grounding'])
+			self.assertFalse(bad_json['checks']['code_lifecycle'])
+			joined_msgs = '\n'.join((it['message'] for it in bad_json['issues']))
+			self.assertIn('DOC-4', joined_msgs)
+			self.assertIn('LINK-5', joined_msgs)
+			self.assertIn('LINK-4', joined_msgs)
+			self.assertIn('VERIFY-1', joined_msgs)
+			self.assertIn('EXEC-5', joined_msgs)
+			self.assertFalse((proj / '\ua616/data/turns').exists())
+			self.assertFalse((proj / '\ua616/data/grounding-cache.json').exists())
+			self.assertEqual({p.relative_to(proj).as_posix(): p.read_bytes() for p in proj.rglob('*') if p.is_file() and '.git/' not in p.as_posix()}, before_files)
+			self.assertEqual(sorted((p.relative_to(proj).as_posix() for p in proj.rglob('*') if p.is_dir() and '.git' not in p.parts)), before_dirs)
+			subprocess.run(['git', '-C', str(code_repo), 'checkout', '--', 'mod.py'], capture_output=True, check=True)
+			good_cand = t / 'good_candidate.md'
+			good_cand.write_text('Verified count is `7` in [Note.md](\ua616/KB/Note.md#section-one) and [mod.py](<\u2c0f/\u227b/\u2655/\u26ef/mod.py#L1-L2>).  \n', encoding='utf-8')
+			child_res = completion.check_answer(proj, good_cand.read_text(encoding='utf-8'), child_cid, response_path=good_cand, platform='antigravity', backend=backend)
+			self.assertTrue(child_res['valid'], child_res)
+			self.assertEqual(child_res['role'], 'child')
+			good_proc = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'answer-check', str(proj), '--response-file', str(good_cand), '--conversation', child_cid, '--platform', 'antigravity'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
+			self.assertEqual(good_proc.returncode, 0, good_proc.stderr or good_proc.stdout)
+			self.assertTrue(json.loads(good_proc.stdout)['valid'])
+			self.assertFalse((proj / '\ua616/data/turns').exists())
+			self.assertFalse((proj / '\ua616/data/grounding-cache.json').exists())
 if '__main__' == __name__:
 	unittest.main()

@@ -34,9 +34,12 @@ When the user explicitly opts out of journaling under SCOPE-1, honor the opt-out
 ## Answer Preparation
 
 ```text
+python <agents>/scripts/harness.py answer-check <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md [--conversation <native-uuid>] [--platform codex|antigravity]
 python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input --platform codex
 python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input --conversation <native-uuid> --platform antigravity
 ```
+
+`answer-check` performs a single read-only pre-flight pass over a candidate response (`DOC-4` line structure, `LINK-4` / `LINK-5` readable links and local file/anchor/`#L10-L20`/JSON-pointer targets, `DOC-2` equiprobability checks, `ResponseEvidenceAuditor` / `local_source_grounding_issues`, `compaction_check` / evicted citations, and `EXEC-5` / `code_lifecycle_check`) across primary turns, Plan Mode, and child `A.A` / `A.F` subagents without writing to `ꙮ` or `ꘖ/data/turns` and without acquiring sequence locks, returning compact JSON diagnostics with exit code `0` (`valid: true`) or `2` (`valid: false`).  
 
 **Mandatory UTF-8 encoding rule in Windows PowerShell:**  
 1. In Windows PowerShell 5.1, piping text (`@' ... '@ | python ...` or `"..." | python ... --response-file -`) defaults to the single-byte `[Console]::OutputEncoding` (OEM/ASCII), irreversibly replacing Cyrillic and the characters `ꘖ` (`\ua616`) / `ꙮ` (`\ua66e`) with question marks `?` (`0x3F`).  
@@ -112,3 +115,4 @@ Criteria: routine analysis and articles use the same FILE-3 contract; an incompl
 <!-- https://github.com/dmitry-ai/harness/issues/48 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/109 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/116 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/117 -->  

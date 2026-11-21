@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -36,7 +39,7 @@ _ACCUMULATOR_INTERNAL_KEYS = ('checkpoint_steps', 'tool_steps', 'subagent_steps'
 _KB_PATH_TOKENS = ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB')
 _KB_PERSIST_CMD_RE = re.compile('\\b(?:save-analysis|collect|collect-http|collect-browser|extract|extract-file|capture-dom)\\b')
 _SCRATCH_PATH_TOKENS = ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md')
-_SERVICE_CMD_RE = re.compile('\\b(?:turn-begin|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b')
+_SERVICE_CMD_RE = re.compile('\\b(?:turn-begin|answer-check|answer-prepare|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b')
 _SHELL_KB_WRITE_RE = re.compile('(?i)\\b(?:Set-Content|Out-File|Add-Content|WriteAllText|WriteAllBytes|write_text|write_bytes|tee)\\b')
 _TOKEN_FIELDS = ('input_tokens', 'cache_read_tokens', 'output_tokens')
 def _format_token_counts(known, unavailable):

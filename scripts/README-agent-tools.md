@@ -172,6 +172,7 @@ A programmatic receipt does not guarantee substantive truth: A.A evaluates meani
 # Exact Journal and External Export
 
 `turn-begin <project> [--dry-run] --platform codex` establishes the native turn and applicability of FILE-3/EXEC-5/DOC-2 regardless of text format (`--dry-run` validates native ownership and hygiene checks without writing receipts or upgrading journals); Antigravity requires `--conversation <native-uuid> --platform antigravity` (and runs idempotent `turn-begin` automatically on the first `PreInvocation` of a primary turn in tracked workspaces via `check_pre_invocation.py`).  
+`answer-check <project> --response-file <candidate-answer> [--conversation <native-uuid>]` runs all candidate-response gates (`LINK-4` / `LINK-5`, `DOC-4`, `DOC-2`, `VERIFY-1` / `ResponseEvidenceAuditor` / `local_source_grounding_issues`, `compaction_check`, and `EXEC-5` / `code_lifecycle_check`) in one read-only pass for primary turns, Plan Mode, and child `A.A` / `A.F` subagents without writing to `ꙮ` or `ꘖ/data/turns` (exit code `0` when valid, `2` when validation issues are found).  
 `answer-prepare <project> --response-file <exact-final-answer>` records the exact native requests and response, verifies read-back bytes and prior clearances of linked documents/analysis, and returns the `response_file` to publish verbatim.  
 `journal-sync <project> --conversation <native-uuid>` synchronously reconciles a completed native reply against the journal; a skipped preparation is recovered post-hoc, and any byte discrepancy is saved as a conflict without overwriting history.  
 All journal execution is foreground-only: `turn-begin` reconciles earlier completed turns of its current conversation, and `answer-prepare` records the present response without registering or launching a persistent process.  
@@ -196,6 +197,7 @@ All paths are confined to the project root; an export never overwrites a source 
 `Context.md` is built for manual submission to an external agent, primarily Gemini DeepThink; internal agents never use it as their working KB.  
 <!-- https://github.com/dmitry-ai/harness/issues/42 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/116 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/117 -->  
 
 # Additional Tools
 

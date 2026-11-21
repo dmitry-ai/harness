@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
@@ -68,8 +71,8 @@ def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
 			if bcheck.get('graceful_checkpoint_required') and (not bcheck.get('continuation_saved')):
 				return 'Turn Budget & Graceful Checkpoint Gate (M-4): active turn exceeded safe compaction/step budget (checkpoint_count >= 2, tool_step_count >= 120, or 5h window >= 400); persist verified findings to ꘖ/KB/Evidence/ and ꘖ/data/continuation.md and complete the turn via answer-prepare before generating new client deliverables'
 	return None
-def check_markdown_content(content, path=None):
-	r = None
+def markdown_slop_issues(content: str) -> list[str]:
+	issues: list[str] = []
 	if content and isinstance(content, str):
 		lines = content.split('\n')
 		in_code_block = False
@@ -93,13 +96,18 @@ def check_markdown_content(content, path=None):
 			cleaned = re.sub('\\u00ab[^\\u00bb]*\\u00bb', '\u00abquote\u00bb', cleaned)
 			cleaned = re.sub(ABBREVIATIONS, 'abbr', cleaned, flags=re.IGNORECASE)
 			if MULTI_SENT_RE.search(cleaned):
-				r = f'Line {i + 1}: multiple sentences detected on a single line (rule DOC-4). Every sentence must start on a new physical line.\nFragment: {stripped[:80]}'
-				break
+				issues.append(f'DOC-4 Line {i + 1}: multiple sentences detected on a single line (rule DOC-4). Every sentence must start on a new physical line.\nFragment: {stripped[:80]}')
 			if i + 1 < len(lines):
 				next_stripped = lines[i + 1].strip()
 				if next_stripped and (not next_stripped.startswith(('#', '```', '~~~', '---', '===', '>', '|'))) and (not re.match('^(?:[-*+]|\\d+\\.)\\s+', next_stripped)) and (not (line.endswith('  ') or line.endswith('\\'))):
-					r = f"Line {i + 1}: run-on text without a CommonMark hard line break detected. The line continues to the next without a blank line or two trailing spaces ('  \\n').\nLine: {stripped[:70]}"
-					break
+					issues.append(f"DOC-4 Line {i + 1}: run-on text without a CommonMark hard line break detected. The line continues to the next without a blank line or two trailing spaces ('  \\n').\nLine: {stripped[:70]}")
+	return issues
+def check_markdown_content(content, path=None):
+	r = None
+	if content and isinstance(content, str):
+		slop = markdown_slop_issues(content)
+		if slop:
+			r = re.sub('^DOC-4\\s+', '', slop[0])
 		if None is r and path:
 			p_obj = Path(path)
 			norm_p = path.replace('\\', '/').lower()
