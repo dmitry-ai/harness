@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
@@ -27,31 +30,82 @@
 # https://github.com/dmitry-ai/harness/issues/41
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import uuid
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
 V1_PAIR = ('req', 'res')
 V2_PAIR = ('\u227b', '\u227a')
+JOURNAL_BUCKET_SIZE = 20
+JOURNAL_RANGE_SEP = '\u2013'
+_BUCKET_DIR_RE = re.compile('^(\\d+)[-\\u2013](\\d+)$')
+_LEGACY_ANALYSIS_NAMES = ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437')
 def digest(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()
+def is_bucket_dir_name(name: str) -> bool:
+	return bool(_BUCKET_DIR_RE.fullmatch(str(name or '')))
+def journal_bucket_bounds(step: int, bucket_size: int=JOURNAL_BUCKET_SIZE) -> tuple[int, int]:
+	if int is not type(step) or 1 > step:
+		raise ValueError('Step must be a positive integer')
+	start = ((step - 1) // bucket_size) * bucket_size + 1
+	return (start, start + bucket_size - 1)
+def journal_bucket_name(step: int, bucket_size: int=JOURNAL_BUCKET_SIZE) -> str:
+	start, end = journal_bucket_bounds(step, bucket_size)
+	return f'{start}{JOURNAL_RANGE_SEP}{end}'
+def _is_step_md(path: Path) -> bool:
+	return path.is_file() and '.md' == path.suffix.lower() and path.stem.isascii() and path.stem.isdigit() and 1 <= int(path.stem)
+def iter_side_step_files(side_dir: Path) -> list[tuple[int, Path]]:
+	side_p = Path(side_dir)
+	if not side_p.is_dir():
+		return []
+	found: dict[int, Path] = {}
+	for child in sorted(side_p.iterdir(), key=lambda p: p.name):
+		if _is_step_md(child):
+			st = int(child.stem)
+			found[st] = child
+		elif child.is_dir() and is_bucket_dir_name(child.name):
+			for sub_f in sorted(child.iterdir(), key=lambda p: p.name):
+				if _is_step_md(sub_f):
+					st = int(sub_f.stem)
+					if st in found and found[st].read_bytes() != sub_f.read_bytes():
+						raise ValueError(f'Conflicting duplicate journal step {st} in {side_p}: {found[st]} vs {sub_f}')
+					if st not in found or child.name == journal_bucket_name(st):
+						found[st] = sub_f
+	return sorted(found.items(), key=lambda item: item[0])
+def find_step_file(side_dir: Path, step: int) -> Path | None:
+	if int is not type(step) or 1 > step:
+		return None
+	side_p = Path(side_dir)
+	if not side_p.is_dir():
+		return None
+	canon = side_p / journal_bucket_name(step) / f'{step}.md'
+	if canon.is_file():
+		return canon
+	flat = side_p / f'{step}.md'
+	if flat.is_file():
+		return flat
+	target_name = f'{step}.md'
+	for child in sorted(side_p.iterdir(), key=lambda p: p.name):
+		if child.is_dir() and is_bucket_dir_name(child.name):
+			cand = child / target_name
+			if cand.is_file():
+				return cand
+	return None
 def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 	p = Path(journal_path).resolve()
 	if p.is_dir():
 		return p
-	from .path_registry import project_paths
-	cands = (
-		p.parent.parent if '_' == p.parent.name and '\ua66e' == p.name else None,
-		p.parent.parent if '\ua66e' == p.parent.name and p.name in ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437') else None,
-	)
-	for cand_root in cands:
-		if None is not cand_root and cand_root.is_dir():
-			try:
-				pp = project_paths(cand_root, exact_root=True)
-				if 2 <= pp.fs_version:
-					return pp.journal_dir.resolve()
-			except (OSError, ValueError):
-				pass
+	if '\ua66e' == p.parent.name and p.name in _LEGACY_ANALYSIS_NAMES and ((p.parent / V2_PAIR[0]).is_dir() or (p.parent / V2_PAIR[1]).is_dir()):
+		return p.parent.resolve()
+	if '_' == p.parent.name and '\ua66e' == p.name and p.parent.parent.is_dir():
+		from .path_registry import project_paths
+		try:
+			pp = project_paths(p.parent.parent, exact_root=True)
+			if 2 <= pp.fs_version:
+				return pp.journal_dir.resolve()
+		except (OSError, ValueError):
+			pass
 	return p
 def same_journal_identity(first: str | Path | None, second: str | Path | None) -> bool:
 	if not isinstance(first, (str, Path)) or not isinstance(second, (str, Path)) or not str(first).strip() or not str(second).strip():
@@ -62,54 +116,118 @@ def journal_pair_names(directory: Path) -> tuple[str, str]:
 	has_v2 = (directory / V2_PAIR[0]).is_dir() or (directory / V2_PAIR[1]).is_dir()
 	has_v1 = (directory / V1_PAIR[0]).is_dir() or (directory / V1_PAIR[1]).is_dir()
 	if has_v2 and has_v1:
-		v2_files = any((p.is_file() for sub in V2_PAIR if (directory / sub).is_dir() for p in (directory / sub).glob('*.md')))
-		v1_files = any((p.is_file() for sub in V1_PAIR if (directory / sub).is_dir() for p in (directory / sub).glob('*.md')))
+		v2_files = any((bool(iter_side_step_files(directory / sub)) for sub in V2_PAIR if (directory / sub).is_dir()))
+		v1_files = any((bool(iter_side_step_files(directory / sub)) for sub in V1_PAIR if (directory / sub).is_dir()))
 		if v2_files and v1_files:
 			raise ValueError(f'Conflicting V1 (req/res) and V2 (\u227b/\u227a) journal entries in {directory}')
 		return V2_PAIR if v2_files or (not v1_files) else V1_PAIR
 	if has_v2:
 		return V2_PAIR
-	if has_v1:
+	if has_v1 or directory.name in _LEGACY_ANALYSIS_NAMES:
 		return V1_PAIR
+	if '\ua66e' == directory.name:
+		return V2_PAIR
 	from .path_registry import project_paths
 	try:
-		if 2 <= project_paths(directory).fs_version:
+		pp = project_paths(directory)
+		if 2 <= pp.fs_version or (directory.resolve() == pp.journal_dir.resolve() and 2 <= pp.journal_version):
 			return V2_PAIR
 	except (OSError, ValueError):
 		pass
 	return V1_PAIR
+def detect_journal_version(directory: Path) -> int:
+	d = Path(directory)
+	pair = journal_pair_names(d)
+	if V1_PAIR == pair:
+		return 1
+	for side_name in V2_PAIR:
+		side_p = d / side_name
+		if not side_p.is_dir():
+			continue
+		for child in side_p.iterdir():
+			if _is_step_md(child):
+				return 2
+			if child.is_dir() and is_bucket_dir_name(child.name):
+				b_steps = [int(bf.stem) for bf in child.iterdir() if _is_step_md(bf)]
+				if not b_steps or any((child.name != journal_bucket_name(st) for st in b_steps)):
+					return 2
+	return 3
 def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 	d = Path(directory)
 	req_name, res_name = journal_pair_names(d)
 	return (d / req_name, d / res_name)
+def step_file(side_dir: Path, step: int, *, directory: Path | None=None) -> Path:
+	side_p = Path(side_dir)
+	found = find_step_file(side_p, step)
+	if None is not found:
+		return found
+	eff_dir = Path(directory) if None is not directory else side_p.parent
+	if 3 <= detect_journal_version(eff_dir):
+		return side_p / journal_bucket_name(step) / f'{step}.md'
+	return side_p / f'{step}.md'
+def parse_step_file_path(path: str | Path) -> tuple[Path, str, int] | None:
+	p = Path(path)
+	if '.md' != p.suffix.lower() or (not p.stem.isascii()) or (not p.stem.isdigit()):
+		return None
+	step = int(p.stem)
+	if 1 > step:
+		return None
+	parent = p.parent
+	if parent.name in (*V1_PAIR, *V2_PAIR):
+		return (parent.parent, parent.name, step)
+	if is_bucket_dir_name(parent.name) and parent.parent.name in (*V1_PAIR, *V2_PAIR):
+		return (parent.parent.parent, parent.parent.name, step)
+	return None
+def resolve_migrated_step_file(path: str | Path) -> Path:
+	p = Path(path)
+	if p.is_file():
+		return p.resolve()
+	parsed = parse_step_file_path(p)
+	if None is parsed:
+		return p
+	old_jdir, old_side, step = parsed
+	eff_jdir = canonicalize_journal_dir_identity(old_jdir)
+	if not eff_jdir.is_dir():
+		return p
+	try:
+		req_dir, res_dir = journal_pair_dirs(eff_jdir)
+	except ValueError:
+		return p
+	target_side = req_dir if old_side in ('req', '\u227b') else res_dir
+	found = find_step_file(target_side, step)
+	return found.resolve() if None is not found else p
+def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
+	identity = str(eff.resolve()).casefold()
+	base = Path(data_root) if None is not data_root else data_dir_for(eff)
+	return base / '.journal' / digest(identity.encode('utf-8'))[:24]
 def state_dir(directory: Path) -> Path:
 	eff = canonicalize_journal_dir_identity(directory)
-	identity = str(eff).casefold()
-	r = data_dir_for(eff) / '.journal' / digest(identity.encode('utf-8'))[:24]
-	return r
+	return _raw_state_dir(eff)
 def get_existing_step_ids(directory: Path) -> set[int]:
 	directory = Path(directory)
 	req_dir, res_dir = journal_pair_dirs(directory)
-	sources = [(req_dir, '.md'), (res_dir, '.md'), (state_dir(directory), '.json')]
-	ids = {int(p.stem) for folder, suffix in sources if folder.exists() for p in folder.glob(f'*{suffix}') if p.stem.isascii() and p.stem.isdigit()}
+	ids = {st for side in (req_dir, res_dir) for st, _ in iter_side_step_files(side)}
+	s_dir = state_dir(directory)
+	if s_dir.exists():
+		ids.update((int(p.stem) for p in s_dir.glob('*.json') if p.stem.isascii() and p.stem.isdigit()))
 	for _, group in iter_answer_group_records(directory):
 		if not same_journal_identity(group.get('journal'), directory.resolve()) or not isinstance(group.get('steps'), list) or any((int is not type(x) or 1 > x for x in group['steps'])):
 			raise ValueError('Damaged answer-group reservation')
 		ids.update(group['steps'])
-	r = ids
-	return r
+	return ids
 def _payload(request: str, response: str):
 	for label, text in [('request', request), ('response', response)]:
 		if not isinstance(text, str) or not text.strip():
 			raise ValueError(f'Empty {label}')
 		text.encode('utf-8')
-		if '�' in text or '/?/KB/' in text or '/?/data/' in text or ('\\?\\KB\\' in text) or ('\\?\\data\\' in text) or re.search('(?:^|[\\s*#(])(?:\\?{2,}\\s+){2,}\\?{2,}', text):
-			raise ValueError(f'Corrupted UTF-8 {label} detected (PowerShell pipe OEM/ASCII "?" substitution or U+FFFD); write UTF-8 directly to ꘖ/data/scratch/answer.md via write_file or UTF8Encoding($false) and pass --response-file <path> --consume-input')
+		if '\ufffd' in text or '/?/KB/' in text or '/?/data/' in text or ('\\?\\KB\\' in text) or ('\\?\\data\\' in text) or re.search('(?:^|[\\s*#(])(?:\\?{2,}\\s+){2,}\\?{2,}', text):
+			raise ValueError(f'Corrupted UTF-8 {label} detected (PowerShell pipe OEM/ASCII "?" substitution or U+FFFD); write UTF-8 directly to \ua616/data/scratch/answer.md via write_file or UTF8Encoding($false) and pass --response-file <path> --consume-input')
 def _publish(directory: Path, step: int, state: dict, *, recovering=False):
 	req_dir, res_dir = journal_pair_dirs(directory)
 	for folder_dir, key in [(req_dir, 'request'), (res_dir, 'response')]:
-		path = folder_dir / f'{step}.md'
+		path = step_file(folder_dir, step, directory=directory)
 		data = state[key].encode('utf-8')
+		path.parent.mkdir(parents=True, exist_ok=True)
 		if not path.exists():
 			create_bytes(path, data)
 		elif not recovering or path.read_bytes() != data:
@@ -117,9 +235,6 @@ def _publish(directory: Path, step: int, state: dict, *, recovering=False):
 		if path.read_bytes() != data:
 			raise OSError(f'Read-back mismatch: {path}')
 	(state_dir(directory) / f'{step}.json').unlink(missing_ok=True)
-# 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
 def record_step(journal_dir: Path, req_content: str, res_content: str, target_step: int | None=None, allow_overwrite: bool=False) -> int:
 	_payload(req_content, res_content)
 	if allow_overwrite:
@@ -169,23 +284,8 @@ def resolve_journal_dir(root: Path, selected=None) -> Path:
 	if selected:
 		sel_str = pp.expand(str(selected)) if '${' in str(selected) else str(selected)
 		r = canonicalize_journal_dir_identity((pp.root / sel_str).resolve())
-	elif pp.has_explicit_path('journal_dir') or pp.journal_glob or 2 <= pp.fs_version:
-		r = pp.journal_dir.resolve()
-	elif 'dual_repo' == pp.profile and pp.journal_dir.is_dir():
-		r = pp.journal_dir.resolve()
 	else:
-		r = None
-		if not pp.journal_dir.is_dir():
-			for fb in pp.journal_legacy_fallbacks:
-				if fb == pp.journal_root_dir:
-					if (fb / 'README.md').is_file():
-						r = fb.resolve()
-						break
-				elif fb.is_dir():
-					r = fb.resolve()
-					break
-		if None is r:
-			r = pp.journal_dir.resolve()
+		r = pp.journal_dir.resolve()
 	return r
 def step_errors(directory: Path, step: int) -> list[str]:
 	directory = Path(directory)
@@ -195,7 +295,7 @@ def step_errors(directory: Path, step: int) -> list[str]:
 		errors = []
 		req_dir, res_dir = journal_pair_dirs(directory)
 		for folder_dir in (req_dir, res_dir):
-			path = folder_dir / f'{step}.md'
+			path = step_file(folder_dir, step, directory=directory)
 			try:
 				data = path.read_bytes()
 				if not data.decode('utf-8').strip():
@@ -231,7 +331,7 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 		if (state_dir(directory) / f'{step}.json').exists():
 			raise ValueError('Completed historical answer has an incomplete reservation')
 		for folder_dir, expected in ((req_dir, request), (res_dir, response)):
-			if (folder_dir / f'{step}.md').read_bytes() != expected.encode('utf-8'):
+			if step_file(folder_dir, step, directory=directory).read_bytes() != expected.encode('utf-8'):
 				raise ValueError('Historical journal bytes changed; preserve them')
 	return steps
 def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, admission_roots=None, allow_reprepare=False):
@@ -265,7 +365,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 				group['admission'] = proof
 				group['status'] = 'pending'
 				for st in group.get('steps') or []:
-					res_file = res_dir / f'{st}.md'
+					res_file = step_file(res_dir, st, directory=directory)
 					if res_file.exists():
 						replace_bytes(res_file, response.encode('utf-8'))
 		else:
@@ -283,7 +383,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 			state = {'version': 2, 'journal': str(directory), 'step': step, 'token': token, 'status': 'pending', 'request': request, 'response': response, 'request_sha256': digest(request.encode()), 'response_sha256': digest(response.encode())}
 			if 'complete' == group['status']:
 				for folder_dir, text in [(req_dir, request), (res_dir, response)]:
-					if (folder_dir / f'{step}.md').read_bytes() != text.encode():
+					if step_file(folder_dir, step, directory=directory).read_bytes() != text.encode():
 						raise ValueError('Completed answer group changed; journal is preserved')
 				continue
 			if receipt.exists():
@@ -291,7 +391,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 				if saved != state:
 					raise ValueError('Reserved answer step belongs to another payload; preserved')
 			else:
-				req, res = (req_dir / f'{step}.md', res_dir / f'{step}.md')
+				req, res = (step_file(req_dir, step, directory=directory), step_file(res_dir, step, directory=directory))
 				if req.exists() and res.exists():
 					if req.read_bytes() == request.encode() and res.read_bytes() == response.encode():
 						continue
@@ -314,8 +414,8 @@ def answer_groups(directory, *, request_ids=None):
 		if not same_journal_identity(group.get('journal'), directory) or 'complete' != group.get('status'):
 			raise ValueError('Incomplete or mismatched answer group; recover it before context export')
 		for step, request in zip(group['steps'], group['requests']):
-			req_path = req_dir / f'{step}.md'
-			res_path = res_dir / f'{step}.md'
+			req_path = step_file(req_dir, step, directory=directory)
+			res_path = step_file(res_dir, step, directory=directory)
 			if not req_path.is_file() or not res_path.is_file() or req_path.read_bytes() != request.encode() or (digest(res_path.read_bytes()) != group['response_sha256']):
 				if None is not filter_ids:
 					break
@@ -340,7 +440,9 @@ def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], respo
 		norm_reqs = [norm_journal_text(req) for req in requests]
 		norm_resp = norm_journal_text(response)
 		claimed_by_step = {st: g_val for _, g_val in iter_answer_group_records(directory, ignore_errors=True) for st in (g_val.get('steps') or ()) if int is type(st)}
-		pair_ids = sorted({int(p.stem) for p in req_dir.glob('*.md') if p.stem.isascii() and p.stem.isdigit() and (res_dir / p.name).is_file()})
+		req_map = dict(iter_side_step_files(req_dir))
+		res_map = dict(iter_side_step_files(res_dir))
+		pair_ids = sorted(set(req_map) & set(res_map))
 		pair_set = set(pair_ids)
 		overwritten_conflict = None
 		j_state = state_dir(directory)
@@ -349,8 +451,8 @@ def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], respo
 			if not all((st in pair_set for st in cand_steps)):
 				continue
 			try:
-				disk_reqs = [(req_dir / f'{st}.md').read_bytes().decode('utf-8') for st in cand_steps]
-				disk_resps = [(res_dir / f'{st}.md').read_bytes().decode('utf-8') for st in cand_steps]
+				disk_reqs = [req_map[st].read_bytes().decode('utf-8') for st in cand_steps]
+				disk_resps = [res_map[st].read_bytes().decode('utf-8') for st in cand_steps]
 			except (OSError, UnicodeDecodeError):
 				continue
 			if 1 != len(set(disk_resps)) or [norm_journal_text(x) for x in disk_reqs] != norm_reqs or norm_journal_text(disk_resps[0]) != norm_resp:
@@ -394,7 +496,7 @@ def matching_group_response(directory: Path, req_ids: list[str], response: str) 
 	r = None
 	for _, group in iter_answer_group_records(directory):
 		if group.get('request_ids') == req_ids and group.get('steps'):
-			res_path = res_dir / f"{group['steps'][0]}.md"
+			res_path = step_file(res_dir, group['steps'][0], directory=directory)
 			res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
 			if res_text and norm_journal_text(res_text) == norm_journal_text(response):
 				r = res_text
@@ -404,3 +506,233 @@ def norm_journal_text(text: str) -> str:
 	return strip_local_file_scheme((text or '').replace('\r\n', '\n'))
 def strip_local_file_scheme(text: str) -> str:
 	return re.sub('file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')
+def _assert_not_linked_tree(path: Path) -> None:
+	for cur in (path, *path.parents):
+		try:
+			if os.path.lexists(cur) and (cur.is_symlink() or cur.is_junction()):
+				raise ValueError(f'Linked journal path refused: {cur}')
+		except OSError:
+			pass
+		if cur.parent == cur:
+			break
+def _discover_upgrade_units(j_root: Path) -> list[tuple[Path, Path]]:
+	has_direct = any(((j_root / n).is_dir() for n in (*V1_PAIR, *V2_PAIR)))
+	subjournals: list[Path] = []
+	for child in sorted(j_root.iterdir(), key=lambda p: p.name):
+		if child.is_dir() and child.name not in (*V1_PAIR, *V2_PAIR, 'source', '0', '0 - Context', '1 - Context') and (not is_bucket_dir_name(child.name)):
+			if any(((child / n).is_dir() for n in (*V1_PAIR, *V2_PAIR))):
+				subjournals.append(child)
+	if 1 == len(subjournals) and (not has_direct) and subjournals[0].name in _LEGACY_ANALYSIS_NAMES:
+		return [(subjournals[0], j_root)]
+	if subjournals and (not has_direct):
+		return [(sub, sub) for sub in subjournals]
+	return [(j_root, j_root)]
+def _collect_side_sources(src_jdir: Path, side_names: tuple[str, ...]) -> list[tuple[int, Path]]:
+	entries: list[tuple[int, Path]] = []
+	by_step: dict[int, Path] = {}
+	for s_name in side_names:
+		s_dir = src_jdir / s_name
+		if not s_dir.is_dir():
+			continue
+		for child in sorted(s_dir.iterdir(), key=lambda p: p.name):
+			if _is_step_md(child):
+				st = int(child.stem)
+				if st in by_step and by_step[st].read_bytes() != child.read_bytes():
+					raise FileExistsError(f'Conflicting duplicate step {st} during journal upgrade: {by_step[st]} vs {child}')
+				by_step.setdefault(st, child)
+				entries.append((st, child))
+			elif child.is_dir() and is_bucket_dir_name(child.name):
+				for bf in sorted(child.iterdir(), key=lambda p: p.name):
+					if _is_step_md(bf):
+						st = int(bf.stem)
+						if st in by_step and by_step[st].read_bytes() != bf.read_bytes():
+							raise FileExistsError(f'Conflicting duplicate step {st} during journal upgrade: {by_step[st]} vs {bf}')
+						by_step.setdefault(st, bf)
+						entries.append((st, bf))
+	return entries
+def _rewrite_journal_readme(readme_path: Path) -> bool:
+	if not readme_path.is_file():
+		return False
+	orig = readme_path.read_text(encoding='utf-8')
+	updated = orig.replace('{req,res}', '{\u227b,\u227a}')
+	def _rep_req(m: re.Match) -> str:
+		st = int(m.group(1))
+		return f'(\u227b/{journal_bucket_name(st)}/{st}.md)'
+	def _rep_res(m: re.Match) -> str:
+		st = int(m.group(1))
+		return f'(\u227a/{journal_bucket_name(st)}/{st}.md)'
+	updated = re.sub('\\((?:req|\\u227b)/(\\d+)\\.md\\)', _rep_req, updated)
+	updated = re.sub('\\((?:res|\\u227a)/(\\d+)\\.md\\)', _rep_res, updated)
+	if updated != orig:
+		replace_bytes(readme_path, updated.encode('utf-8'))
+		return True
+	return False
+def _migrate_journal_state_dir(src_jdir: Path, dst_jdir: Path, data_root: Path) -> bool:
+	if src_jdir.resolve() == dst_jdir.resolve():
+		return False
+	old_sdir = _raw_state_dir(src_jdir, data_root=data_root)
+	new_sdir = _raw_state_dir(dst_jdir, data_root=data_root)
+	if not old_sdir.is_dir() or old_sdir.resolve() == new_sdir.resolve():
+		return False
+	(old_sdir / 'writer.lock').unlink(missing_ok=True)
+	if not new_sdir.exists():
+		new_sdir.parent.mkdir(parents=True, exist_ok=True)
+		os.replace(old_sdir, new_sdir)
+		return True
+	moved = False
+	for rel_sub in ('answer-groups', ''):
+		src_sub = old_sdir / rel_sub if rel_sub else old_sdir
+		dst_sub = new_sdir / rel_sub if rel_sub else new_sdir
+		if not src_sub.is_dir():
+			continue
+		dst_sub.mkdir(parents=True, exist_ok=True)
+		for f in sorted(src_sub.glob('*.json')):
+			dst_f = dst_sub / f.name
+			raw = f.read_bytes()
+			if dst_f.exists():
+				if dst_f.read_bytes() != raw:
+					raise FileExistsError(f'Conflicting journal state file during upgrade: {dst_f}')
+				f.unlink()
+			else:
+				os.replace(f, dst_f)
+			moved = True
+		if rel_sub and not any(src_sub.iterdir()):
+			src_sub.rmdir()
+	if not any(old_sdir.iterdir()):
+		old_sdir.rmdir()
+	return moved
+def _sync_overlay_journal_slot(project_root: Path, dst_jdir: Path) -> bool:
+	from .path_registry import clear_registry_cache, discover_overlay_file, project_paths
+	ov_file = discover_overlay_file(project_root)
+	if None is ov_file or not ov_file.is_file():
+		return False
+	raw_text = ov_file.read_text(encoding='utf-8-sig')
+	raw_obj = json.loads(raw_text)
+	if not isinstance(raw_obj, dict) or not isinstance(raw_obj.get('paths'), dict):
+		return False
+	cur_val = raw_obj['paths'].get('journal_dir')
+	legacy_vals = ('${JOURNAL_ROOT_DIR}/1 - Analysis', '${JOURNAL_ROOT_DIR}/1 - \u0410\u043d\u0430\u043b\u0438\u0437', '\ua66e/1 - Analysis', '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437')
+	if cur_val not in legacy_vals:
+		return False
+	pp = project_paths(project_root, exact_root=True)
+	if dst_jdir.resolve() != pp.journal_root_dir.resolve():
+		return False
+	indent = '\t' if '\n\t"' in raw_text else 2
+	raw_obj['paths']['journal_dir'] = '${JOURNAL_ROOT_DIR}'
+	trailing = '\n' if raw_text.endswith('\n') else ''
+	replace_bytes(ov_file, (json.dumps(raw_obj, ensure_ascii=False, indent=indent) + trailing).encode('utf-8'))
+	clear_registry_cache()
+	return True
+def _unit_needs_upgrade(src_jdir: Path, dst_jdir: Path) -> bool:
+	if src_jdir.resolve() != dst_jdir.resolve():
+		return True
+	if (dst_jdir / 'req').is_dir() or (dst_jdir / 'res').is_dir():
+		return True
+	if 3 > detect_journal_version(dst_jdir):
+		return True
+	readme = dst_jdir / 'README.md'
+	if readme.is_file():
+		txt = readme.read_text(encoding='utf-8', errors='replace')
+		if '{req,res}' in txt or re.search('\\((?:req|res|\\u227b|\\u227a)/\\d+\\.md\\)', txt):
+			return True
+	return False
+def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None=None, dry_run: bool=False) -> dict:
+	from .path_registry import clear_registry_cache, discover_overlay_file, project_paths
+	j_root = Path(journal_root).resolve()
+	proj_root = Path(project_root).resolve() if None is not project_root else None
+	if not j_root.exists():
+		return {'valid': True, 'upgraded': False, 'exists': False, 'journal_dir': str(j_root), 'from_version': 3, 'to_version': 3, 'moved_files': 0, 'buckets': [], 'verified_steps': 0}
+	_assert_not_linked_tree(j_root)
+	units_preview = _discover_upgrade_units(j_root)
+	ov_needs_sync = False
+	if None is not proj_root:
+		ov_f = discover_overlay_file(proj_root)
+		if None is not ov_f and ov_f.is_file():
+			try:
+				ov_obj = json.loads(ov_f.read_text(encoding='utf-8-sig'))
+				if isinstance(ov_obj, dict) and isinstance(ov_obj.get('paths'), dict) and ov_obj['paths'].get('journal_dir') in ('${JOURNAL_ROOT_DIR}/1 - Analysis', '${JOURNAL_ROOT_DIR}/1 - \u0410\u043d\u0430\u043b\u0438\u0437', '\ua66e/1 - Analysis', '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437'):
+					ov_needs_sync = True
+			except (OSError, ValueError):
+				pass
+	if not ov_needs_sync and not any((_unit_needs_upgrade(src_u, dst_u) for src_u, dst_u in units_preview)):
+		primary_dst = units_preview[0][1]
+		b_names = sorted({child.name for s_name in V2_PAIR if (primary_dst / s_name).is_dir() for child in (primary_dst / s_name).iterdir() if child.is_dir() and is_bucket_dir_name(child.name)}, key=lambda s: int(_BUCKET_DIR_RE.match(s).group(1)))
+		step_cnt = len({st for s_name in V2_PAIR for st, _ in iter_side_step_files(primary_dst / s_name)})
+		return {'valid': True, 'upgraded': False, 'exists': True, 'journal_dir': str(primary_dst), 'from_version': 3, 'to_version': 3, 'moved_files': 0, 'buckets': b_names, 'verified_steps': step_cnt}
+	data_root = project_paths(proj_root, exact_root=True).data_dir if None is not proj_root else data_dir_for(j_root)
+	def _execute() -> dict:
+		units = _discover_upgrade_units(j_root)
+		from_versions = [detect_journal_version(src_u) for src_u, _ in units]
+		from_ver = min(from_versions) if from_versions else 1
+		plans: list[tuple[Path, Path, str, int, Path, Path, bytes]] = []
+		for src_u, dst_u in units:
+			for side_label, src_names, dst_name in (('req', ('req', '\u227b'), '\u227b'), ('res', ('res', '\u227a'), '\u227a')):
+				for st, src_f in _collect_side_sources(src_u, src_names):
+					dst_f = dst_u / dst_name / journal_bucket_name(st) / f'{st}.md'
+					raw = src_f.read_bytes()
+					if dst_f.exists() and dst_f.resolve() != src_f.resolve() and dst_f.read_bytes() != raw:
+						raise FileExistsError(f'Conflicting destination file during journal upgrade; preserved: {dst_f}')
+					plans.append((src_u, dst_u, side_label, st, src_f, dst_f, raw))
+		moved_count = sum((1 for _, _, _, _, sf, df, _ in plans if sf.resolve() != df.resolve()))
+		if dry_run:
+			primary_dst = units[0][1]
+			b_set = sorted({journal_bucket_name(st) for _, _, _, st, _, _, _ in plans}, key=lambda s: int(_BUCKET_DIR_RE.match(s).group(1)))
+			step_cnt = len({(dst_u, st) for _, dst_u, _, st, _, _, _ in plans})
+			return {'valid': True, 'upgraded': False, 'dry_run': True, 'exists': True, 'journal_dir': str(primary_dst), 'from_version': from_ver, 'to_version': 3, 'moved_files': moved_count, 'buckets': b_set, 'verified_steps': step_cnt}
+		for _, dst_u, _, _, src_f, dst_f, raw in plans:
+			if src_f.resolve() == dst_f.resolve():
+				continue
+			dst_f.parent.mkdir(parents=True, exist_ok=True)
+			if dst_f.exists():
+				if dst_f.read_bytes() != raw:
+					raise FileExistsError(f'Conflicting destination file during journal upgrade: {dst_f}')
+				src_f.unlink()
+			else:
+				os.replace(src_f, dst_f)
+			if dst_f.read_bytes() != raw:
+				raise OSError(f'Journal upgrade SHA-256 read-back mismatch: {dst_f}')
+		readme_updated = False
+		state_migrated = False
+		for src_u, dst_u in units:
+			(dst_u / '\u227b').mkdir(parents=True, exist_ok=True)
+			(dst_u / '\u227a').mkdir(parents=True, exist_ok=True)
+			for dir_cand in (src_u, dst_u):
+				for s_name in (*V1_PAIR, *V2_PAIR):
+					s_dir = dir_cand / s_name
+					if not s_dir.is_dir():
+						continue
+					for child in list(s_dir.iterdir()):
+						if child.is_dir() and is_bucket_dir_name(child.name) and (not any(child.iterdir())):
+							child.rmdir()
+					if s_name in V1_PAIR and (not any(s_dir.iterdir())):
+						s_dir.rmdir()
+			if src_u.resolve() != dst_u.resolve() and src_u.is_dir() and (not any(src_u.iterdir())):
+				src_u.rmdir()
+			if _migrate_journal_state_dir(src_u, dst_u, data_root):
+				state_migrated = True
+			if _rewrite_journal_readme(dst_u / 'README.md'):
+				readme_updated = True
+		overlay_updated = _sync_overlay_journal_slot(proj_root, units[0][1]) if None is not proj_root else False
+		clear_registry_cache()
+		primary_dst = units[0][1]
+		b_names = sorted({child.name for s_name in V2_PAIR if (primary_dst / s_name).is_dir() for child in (primary_dst / s_name).iterdir() if child.is_dir() and is_bucket_dir_name(child.name)}, key=lambda s: int(_BUCKET_DIR_RE.match(s).group(1)))
+		step_cnt = len({st for s_name in V2_PAIR for st, _ in iter_side_step_files(primary_dst / s_name)})
+		did_upgrade = 0 < moved_count or readme_updated or state_migrated or overlay_updated or 3 > from_ver
+		return {'valid': True, 'upgraded': did_upgrade, 'exists': True, 'journal_dir': str(primary_dst), 'from_version': from_ver, 'to_version': detect_journal_version(primary_dst), 'moved_files': moved_count, 'buckets': b_names, 'verified_steps': step_cnt, 'state_migrated': state_migrated, 'readme_updated': readme_updated, 'overlay_updated': overlay_updated}
+	if dry_run:
+		return _execute()
+	with locked(data_root / 'journal-upgrade.lock'):
+		return _execute()
+def ensure_project_journal_upgraded(root: str | Path, *, selected: str | Path | None=None) -> dict:
+	from .path_registry import project_paths
+	pp = project_paths(Path(root).resolve(), exact_root=True)
+	if None is not selected:
+		sel_str = pp.expand(str(selected)) if '${' in str(selected) else str(selected)
+		sel_p = (pp.root / sel_str).resolve()
+		if '\ua66e' == sel_p.name and sel_p.exists():
+			return upgrade_journal(sel_p, project_root=pp.root)
+		if sel_p.parent.name == '\ua66e' and sel_p.name in _LEGACY_ANALYSIS_NAMES and sel_p.parent.exists():
+			return upgrade_journal(sel_p.parent, project_root=pp.root)
+		return {'valid': True, 'upgraded': False, 'exists': sel_p.exists(), 'journal_dir': str(sel_p), 'from_version': detect_journal_version(sel_p), 'to_version': detect_journal_version(sel_p), 'moved_files': 0}
+	target = pp.journal_dir if pp.journal_glob else pp.journal_root_dir
+	return upgrade_journal(target, project_root=pp.root)

@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
@@ -56,6 +59,49 @@ class JournalTests(TemporaryCase):
 		self.assertFalse((journal.state_dir(journal_dir) / '1.json').exists())
 		self.assertTrue((journal.state_dir(journal_dir) / 'writer.lock').exists())
 		self.assertEqual(journal.step_errors(journal_dir, step), [])
+	def test_o_journal_20_entry_bucketing_and_partial_range_normalization(self):
+		self.assertEqual(journal.journal_bucket_name(1), '1\u201320')
+		self.assertEqual(journal.journal_bucket_name(20), '1\u201320')
+		self.assertEqual(journal.journal_bucket_name(21), '21\u201340')
+		self.assertEqual(journal.journal_bucket_name(120), '101\u2013120')
+		self.assertEqual(journal.journal_bucket_name(121), '121\u2013140')
+		self.assertEqual(journal.journal_bucket_name(140), '121\u2013140')
+		self.assertEqual(journal.journal_bucket_name(201), '201\u2013220')
+		oj = self.root / '\ua66e'
+		self.assertEqual(journal.detect_journal_version(oj), 3)
+		s1 = journal.record_step(oj, 'First prompt', 'First answer  \n')
+		self.assertEqual(s1, 1)
+		self.assertTrue((oj / '\u227b/1\u201320/1.md').is_file())
+		self.assertTrue((oj / '\u227a/1\u201320/1.md').is_file())
+		s21 = journal.record_step(oj, 'Prompt 21', 'Answer 21  \n', target_step=21)
+		self.assertEqual(s21, 21)
+		self.assertTrue((oj / '\u227b/21\u201340/21.md').is_file())
+		self.assertTrue((oj / '\u227a/21\u201340/21.md').is_file())
+		self.assertEqual(journal.get_existing_step_ids(oj), {1, 21})
+		self.assertEqual(journal.step_errors(oj, 21), [])
+		part = self.root / 'partial_smokeday' / '\ua66e'
+		self.put('partial_smokeday/\ua66e/\u227a/101\u2013120/120.md', 'Res 120  \n')
+		self.put('partial_smokeday/\ua66e/\u227a/120\u2013140/121.md', 'Res 121  \n')
+		self.put('partial_smokeday/\ua66e/\u227a/141.md', 'Res 141  \n')
+		self.put('partial_smokeday/\ua66e/\u227b/120.md', 'Req 120')
+		self.put('partial_smokeday/\ua66e/\u227b/121.md', 'Req 121')
+		self.put('partial_smokeday/\ua66e/\u227b/141.md', 'Req 141')
+		self.assertEqual(journal.detect_journal_version(part), 2)
+		self.assertEqual(journal.find_step_file(part / '\u227a', 121), part / '\u227a/120\u2013140/121.md')
+		upg = journal.upgrade_journal(part, project_root=self.root / 'partial_smokeday')
+		self.assertTrue(upg['upgraded'])
+		self.assertEqual(upg['from_version'], 2)
+		self.assertEqual(upg['to_version'], 3)
+		self.assertFalse((part / '\u227a/120\u2013140').exists())
+		self.assertFalse((part / '\u227a/141.md').exists())
+		self.assertTrue((part / '\u227a/121\u2013140/121.md').is_file())
+		self.assertTrue((part / '\u227a/141\u2013160/141.md').is_file())
+		self.assertTrue((part / '\u227b/101\u2013120/120.md').is_file())
+		self.assertTrue((part / '\u227b/121\u2013140/121.md').is_file())
+		self.assertTrue((part / '\u227b/141\u2013160/141.md').is_file())
+		noop = journal.upgrade_journal(part, project_root=self.root / 'partial_smokeday')
+		self.assertFalse(noop['upgraded'])
+		self.assertEqual(noop['moved_files'], 0)
 	def test_existing_same_request_is_not_ownership(self):
 		self.put('req/7.md', 'same')
 		self.put('res/9.md', 'orphan')

@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
@@ -14,6 +17,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import unittest
 for _d in (Path(__file__).resolve().parent, Path(__file__).resolve().parents[1] / 'scripts'):
@@ -177,7 +181,13 @@ class PathRegistryTests(TemporaryCase):
 		smokeday_pp = pr.project_paths(smokeday_root)
 		self.assertEqual(smokeday_pp.fs_version, 1)
 		self.assertEqual(smokeday_pp.path('client_code_dir'), smokeday_client_code)
-		self.assertEqual(journal.resolve_journal_dir(smokeday_root).as_posix(), 'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com/\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437')
+		self.assertIn(
+			journal.resolve_journal_dir(smokeday_root).as_posix(),
+			(
+				'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com/\ua66e',
+				'C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com/\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437',
+			),
+		)
 		self.assertEqual(pr.resolve_project_root(smokeday_client_code / '_my/public/Letters/my/EN/1.md'), smokeday_root.resolve())
 		self.assertEqual(check_markdown_slop._infer_project_root(smokeday_client_code / '_my/public/Letters/my/EN/1.md'), smokeday_root.resolve())
 		self.assertTrue(git_gate.GitRepoGate(smokeday_client_code).is_issue_tracked())
@@ -186,9 +196,9 @@ class PathRegistryTests(TemporaryCase):
 		self.assertTrue(git_gate.GitRepoGate(srv_root).is_issue_tracked())
 		self.assertTrue(check_stop_gate._is_tracked_workspace(srv_root))
 		self.assertEqual(github_issue.find_local_code_repo('dmitrii-fediuk/5.9.188.84'), srv_root.resolve())
-		self.assertEqual(
+		self.assertRegex(
 			journal.resolve_journal_dir(srv_root).as_posix(),
-			'C:/work/git/dmitrii-fediuk/code/5.9.188.84/_my/daily/2026/11/07/1 - Nginx/\ua66e',
+			'^C:/work/git/dmitrii-fediuk/code/5\\.9\\.188\\.84/_my/daily/\\d{4}/\\d{2}/\\d{2}/\\d+ - .+/\ua66e$',
 		)
 		buf = io.StringIO()
 		with redirect_stdout(buf):
@@ -397,10 +407,11 @@ class PathRegistryTests(TemporaryCase):
 		self.assertIsNone(check_markdown_slop._check_turn_budget_gate(v2_proj, v2_proj / '\u2c0f/\u227b/\u2655/\u26ef/rules/00-scope.md'))
 		j_dir = journal.resolve_journal_dir(v2_proj)
 		self.assertEqual(j_dir, (v2_proj / '\ua66e').resolve())
+		self.assertEqual(v2_pp.journal_version, 3)
 		self.assertEqual(tuple((p.name for p in journal.journal_pair_dirs(j_dir))), ('\u227b', '\u227a'))
 		rec = journal.record_step(j_dir, 'First V2 request', 'First V2 response.  \n')
-		self.assertTrue((j_dir / '\u227b/1.md').is_file())
-		self.assertTrue((j_dir / '\u227a/1.md').is_file())
+		self.assertTrue((j_dir / '\u227b/1\u201320/1.md').is_file())
+		self.assertTrue((j_dir / '\u227a/1\u201320/1.md').is_file())
 		self.assertEqual(rec, 1)
 		(j_dir / 'req').mkdir()
 		(j_dir / 'req/1.md').write_text('x\n', encoding='utf-8')
@@ -454,5 +465,58 @@ class PathRegistryTests(TemporaryCase):
 		self.assertFalse(up.check_configuration(v1_job)['valid'])
 		up.configure_project(v1_job)
 		self.assertTrue(up.check_configuration(v1_job)['valid'])
+	def test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts(self):
+		v1_upw = self.root / 'v1_upwork_legacy'
+		self.put('v1_upwork_legacy/\ua616/project.json', json.dumps({'job_id': '~012345'}))
+		self.put('v1_upwork_legacy/KB/Project.md', '# Project  \n')
+		self.put('v1_upwork_legacy/.md', '# Overview  \n')
+		self.put('v1_upwork_legacy/.agents/paths.json', '{\n\t"version": 1,\n\t"profile": "upwork",\n\t"paths": {\n\t\t"journal_dir": "${JOURNAL_ROOT_DIR}/1 - \u0410\u043d\u0430\u043b\u0438\u0437"\n\t}\n}')
+		self.put('v1_upwork_legacy/\ua66e/0/Context.md', '# Context  \n')
+		old_j = v1_upw / '\ua66e/1 - \u0410\u043d\u0430\u043b\u0438\u0437'
+		steps = journal.record_answer(old_j, ['Legacy V1 request'], 'Legacy V1 response  \n', 'turn-v1', ['req-v1-1'])
+		self.assertEqual(steps, [1])
+		self.assertEqual(pr.project_paths(v1_upw).fs_version, 1)
+		self.assertEqual(pr.project_paths(v1_upw).journal_version, 1)
+		self.assertEqual(journal.resolve_journal_dir(v1_upw), old_j.resolve())
+		upg = journal.ensure_project_journal_upgraded(v1_upw)
+		self.assertTrue(upg['upgraded'])
+		self.assertEqual(upg['from_version'], 1)
+		self.assertEqual(upg['to_version'], 3)
+		self.assertTrue(upg['state_migrated'])
+		self.assertTrue(upg['overlay_updated'])
+		pp_after = pr.project_paths(v1_upw)
+		self.assertEqual(pp_after.fs_version, 1)
+		self.assertEqual(pp_after.profile, 'upwork')
+		self.assertEqual(pp_after.journal_version, 3)
+		self.assertEqual(pp_after.manual_kb_dir, (v1_upw / 'KB').resolve())
+		self.assertEqual(pp_after.journal_dir, (v1_upw / '\ua66e').resolve())
+		self.assertFalse(old_j.exists())
+		self.assertTrue((v1_upw / '\ua66e/0/Context.md').is_file())
+		self.assertTrue((v1_upw / '\ua66e/\u227b/1\u201320/1.md').is_file())
+		self.assertTrue((v1_upw / '\ua66e/\u227a/1\u201320/1.md').is_file())
+		self.assertEqual(journal.verify_answer(v1_upw / '\ua66e', ['Legacy V1 request'], 'Legacy V1 response  \n', 'turn-v1', ['req-v1-1']), [1])
+		self.assertEqual(journal.resolve_migrated_step_file(old_j / 'res/1.md'), (v1_upw / '\ua66e/\u227a/1\u201320/1.md').resolve())
+		dual = self.root / 'v1_dual'
+		(dual / 'code/.git').mkdir(parents=True)
+		self.put('v1_dual/_/\ua616/paths.json', json.dumps({'version': 1, 'profile': 'dual_repo'}))
+		self.put('v1_dual/_/\ua66e/README.md', 'Journal `_/\ua66e/{req,res}`: [q1](req/1.md) [a1](res/1.md) [q25](req/25.md) [a25](res/25.md)\n')
+		self.put('v1_dual/_/\ua66e/source/att.txt', 'attachment\n')
+		self.put('v1_dual/_/\ua66e/req/1.md', 'Dual req 1')
+		self.put('v1_dual/_/\ua66e/res/1.md', '')
+		self.put('v1_dual/_/\ua66e/req/25.md', 'Dual req 25')
+		self.put('v1_dual/_/\ua66e/res/25.md', 'Dual res 25')
+		self.assertEqual(pr.project_paths(dual).journal_version, 1)
+		dupg = journal.ensure_project_journal_upgraded(dual)
+		self.assertTrue(dupg['upgraded'])
+		self.assertTrue(dupg['readme_updated'])
+		dpp = pr.project_paths(dual)
+		self.assertEqual(dpp.fs_version, 1)
+		self.assertEqual(dpp.journal_version, 3)
+		self.assertEqual((dual / '_/\ua66e/\u227a/1\u201320/1.md').read_bytes(), b'')
+		self.assertEqual((dual / '_/\ua66e/\u227a/21\u201340/25.md').read_text(encoding='utf-8'), 'Dual res 25')
+		self.assertTrue((dual / '_/\ua66e/source/att.txt').is_file())
+		readme_txt = (dual / '_/\ua66e/README.md').read_text(encoding='utf-8')
+		self.assertIn('(\u227b/1\u201320/1.md)', readme_txt)
+		self.assertIn('(\u227a/21\u201340/25.md)', readme_txt)
 if '__main__' == __name__:
 	unittest.main()

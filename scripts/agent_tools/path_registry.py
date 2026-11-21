@@ -1,3 +1,6 @@
+# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
@@ -294,10 +297,13 @@ class PathRegistry:
 				raise ValueError(f'project_profiles.{name}.extends must be a profile name')
 			base = self._resolve_profile_chain(parent_name, (*seen, name))
 		else:
-			base = {'fs_version': 1, 'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'journal_legacy_fallbacks': []}
+			base = {'fs_version': 1, 'journal_version': 1, 'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'journal_legacy_fallbacks': []}
 		raw_fs_ver = cfg.get('fs_version', base['fs_version'])
 		if int is not type(raw_fs_ver) or raw_fs_ver not in (1, 2):
 			raise ValueError(f'project_profiles.{name}.fs_version must be 1 or 2')
+		raw_j_ver = cfg.get('journal_version', base['journal_version'])
+		if int is not type(raw_j_ver) or raw_j_ver not in (1, 2, 3):
+			raise ValueError(f'project_profiles.{name}.journal_version must be 1, 2, or 3')
 		prof_vars = _validate_variables_map(cfg.get('variables'), f'project_profiles.{name}.variables')
 		prof_paths = _validate_string_map(cfg.get('paths'), f'project_profiles.{name}.paths')
 		prof_tools = deepcopy(cfg.get('tools') or {})
@@ -309,6 +315,7 @@ class PathRegistry:
 		prof_jfb = _validate_string_list(cfg.get('journal_legacy_fallbacks'), f'project_profiles.{name}.journal_legacy_fallbacks')
 		return {
 			'fs_version': raw_fs_ver,
+			'journal_version': raw_j_ver,
 			'variables': {**base['variables'], **prof_vars},
 			'paths': {**base['paths'], **prof_paths},
 			'tools': {**base['tools'], **prof_tools},
@@ -546,13 +553,16 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	version = raw.get('version', 1)
 	if 1 != version:
 		raise ValueError(f'Project overlay {overlay_path} requires version 1')
-	allowed_keys = {'version', 'fs_version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'deliverable_segments', 'source_dirs', 'notes'}
+	allowed_keys = {'version', 'fs_version', 'journal_version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'deliverable_segments', 'source_dirs', 'notes'}
 	unknown = set(raw) - allowed_keys
 	if unknown:
 		raise ValueError(f"Unknown keys in project overlay {overlay_path}: {', '.join(sorted(unknown))}")
 	fs_ver = raw.get('fs_version')
 	if None is not fs_ver and (int is not type(fs_ver) or fs_ver not in (1, 2)):
 		raise ValueError(f'Project overlay {overlay_path} fs_version must be 1 or 2')
+	j_ver = raw.get('journal_version')
+	if None is not j_ver and (int is not type(j_ver) or j_ver not in (1, 2, 3)):
+		raise ValueError(f'Project overlay {overlay_path} journal_version must be 1, 2, or 3')
 	profile = raw.get('profile') or raw.get('extends')
 	if None is not profile:
 		if not isinstance(profile, str) or profile not in reg.project_profiles:
@@ -560,6 +570,7 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	return {
 		'version': 1,
 		'fs_version': fs_ver,
+		'journal_version': j_ver,
 		'profile': profile,
 		'variables': _validate_variables_map(raw.get('variables'), f'{overlay_path} variables'),
 		'paths': _validate_string_map(raw.get('paths'), f'{overlay_path} paths'),
@@ -570,15 +581,61 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 		'deliverable_segments': _validate_string_list(raw.get('deliverable_segments'), f'{overlay_path} deliverable_segments'),
 		'source_dirs': _validate_string_list(raw.get('source_dirs'), f'{overlay_path} source_dirs'),
 	}
+_JOURNAL_BUCKET_DIR_RE = re.compile('^(\\d+)[-\\u2013](\\d+)$')
+def _canonical_journal_bucket(step: int, bucket_size: int=20) -> str:
+	start = ((step - 1) // bucket_size) * bucket_size + 1
+	return f'{start}\u2013{start + bucket_size - 1}'
+def _inspect_journal_dir_on_disk(j_dir: Path, reg: PathRegistry) -> tuple[int | None, tuple[str, str] | None]:
+	j_out = reg.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b')
+	j_in = reg.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')
+	b_raw = reg.resolved_variables.get('JOURNAL_BUCKET_SIZE', '20')
+	b_size = int(b_raw) if str(b_raw).isdigit() and 0 < int(b_raw) else 20
+	has_v2 = (j_dir / j_out).is_dir() or (j_dir / j_in).is_dir()
+	has_v1 = (j_dir / 'req').is_dir() or (j_dir / 'res').is_dir()
+	if has_v2 and (not has_v1):
+		for side_name in (j_out, j_in):
+			side_p = j_dir / side_name
+			if not side_p.is_dir():
+				continue
+			try:
+				children = list(side_p.iterdir())
+			except OSError:
+				continue
+			for child in children:
+				if child.is_file() and '.md' == child.suffix.lower() and child.stem.isascii() and child.stem.isdigit() and 1 <= int(child.stem):
+					return (2, (j_out, j_in))
+				if child.is_dir() and _JOURNAL_BUCKET_DIR_RE.fullmatch(child.name):
+					try:
+						b_files = [bf for bf in child.iterdir() if bf.is_file() and '.md' == bf.suffix.lower() and bf.stem.isascii() and bf.stem.isdigit() and 1 <= int(bf.stem)]
+					except OSError:
+						b_files = []
+					if not b_files or any((child.name != _canonical_journal_bucket(int(bf.stem), b_size) for bf in b_files)):
+						return (2, (j_out, j_in))
+		return (3, (j_out, j_in))
+	if has_v1 or j_dir.name in ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437'):
+		return (1, ('req', 'res'))
+	return (None, None)
+def _journal_cache_sig(root: Path, reg: PathRegistry) -> tuple:
+	j_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
+	j_out = reg.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b')
+	j_in = reg.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')
+	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
+	sig: list[tuple] = []
+	for base in (root / j_name, root / meta_name / j_name):
+		for rel in ('', j_out, j_in, 'req', 'res', '1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437'):
+			cand = base / rel if rel else base
+			try:
+				st = os.stat(cand)
+				sig.append((rel, True, st.st_mtime_ns))
+			except OSError:
+				sig.append((rel, False, 0))
+	return tuple(sig)
 def _has_v2_markers(root: Path, reg: PathRegistry) -> bool:
 	book_name = reg.resolved_variables.get('BOOK_DIR_NAME', '\U0001f56e')
 	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
 	art_in = reg.resolved_variables.get('ARTIFACTS_IN_DIR_NAME', '\u227a')
-	j_name = reg.resolved_variables.get('JOURNAL_DIR_NAME', '\ua66e')
-	j_out = reg.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b')
-	j_in = reg.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')
-	return (root / book_name).is_dir() or (root / art_name / art_out).is_dir() or (root / art_name / art_in).is_dir() or (root / 'Artifacts' / art_out).is_dir() or (root / 'Artifacts' / art_in).is_dir() or (root / j_name / j_out).is_dir() or (root / j_name / j_in).is_dir()
+	return (root / book_name).is_dir() or (root / art_name / art_out).is_dir() or (root / art_name / art_in).is_dir() or (root / 'Artifacts' / art_out).is_dir() or (root / 'Artifacts' / art_in).is_dir()
 def _v2_software_deliverable_dir(root: Path, reg: PathRegistry) -> Path:
 	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
@@ -889,6 +946,32 @@ class ProjectPaths:
 		raw_links = self.overlay['linked_roots'] if self.overlay and self.overlay['linked_roots'] else prof_spec['linked_roots']
 		self.linked_roots = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_links))
 		self.journal_legacy_fallbacks = tuple((Path(self._resolve_rel_to_root(item)) for item in prof_spec['journal_legacy_fallbacks']))
+		ov_j_ver = self.overlay.get('journal_version') if self.overlay else None
+		cfg_j_ver = ov_j_ver if None is not ov_j_ver else prof_spec['journal_version']
+		j_root = Path(self.paths_str['journal_root_dir'])
+		j_cur = self.journal_dir
+		if self.has_explicit_path('journal_dir') or self.journal_glob:
+			if not j_cur.is_dir() and j_cur.parent == j_root and j_cur.name in ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437') and (None is not _inspect_journal_dir_on_disk(j_root, self.registry)[0]):
+				j_eff = j_root
+				self.paths_str['journal_dir'] = j_eff.as_posix()
+			else:
+				j_eff = j_cur
+		elif None is not _inspect_journal_dir_on_disk(j_root, self.registry)[0]:
+			j_eff = j_root
+		else:
+			fb_hit = next((fb for fb in self.journal_legacy_fallbacks if fb != j_root and fb.is_dir()), None)
+			if None is not fb_hit:
+				j_eff = fb_hit
+				self.paths_str['journal_dir'] = normalize_path_str(j_eff.as_posix())
+			else:
+				j_eff = j_cur
+		disk_j_ver, disk_j_pair = _inspect_journal_dir_on_disk(j_eff, self.registry)
+		self.journal_version = disk_j_ver if None is not disk_j_ver else cfg_j_ver
+		eff_j_pair = disk_j_pair if None is not disk_j_pair else ((self.registry.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b'), self.registry.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')) if 2 <= self.journal_version else ('req', 'res'))
+		if 'journal_req_dir' not in self._explicit_overlay_paths:
+			self.paths_str['journal_req_dir'] = normalize_path_str(f'{j_eff.as_posix()}/{eff_j_pair[0]}')
+		if 'journal_res_dir' not in self._explicit_overlay_paths:
+			self.paths_str['journal_res_dir'] = normalize_path_str(f'{j_eff.as_posix()}/{eff_j_pair[1]}')
 		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/', '/\u2c3f/\u227b/\u2655/', '/artifacts/\u227b/deliverables/')))
 		self.source_dirs = tuple((Path(self._resolve_rel_to_root(item)) for item in (self.overlay['source_dirs'] if self.overlay else ())))
 		if _register_links and self.has_overlay:
@@ -1017,6 +1100,7 @@ class ProjectPaths:
 		out: dict[str, Any] = {
 			'project_root': self.root.as_posix(),
 			'fs_version': self.fs_version,
+			'journal_version': self.journal_version,
 			'profile': self.profile,
 			'has_overlay': self.has_overlay,
 			'overlay_file': self.overlay_file.as_posix() if self.overlay_file else None,
@@ -1040,7 +1124,7 @@ def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=Non
 		st = ov_file.stat()
 		ov_sig = (ov_file.as_posix(), st.st_mtime_ns, st.st_size, hash(ov_file.read_bytes()))
 	inferred = _infer_default_profile(root, ov_file, reg)
-	cache_key = (id(reg), root.as_posix(), ov_sig, inferred)
+	cache_key = (id(reg), root.as_posix(), ov_sig, inferred, _journal_cache_sig(root, reg))
 	cached = _PROJECT_PATHS_CACHE.get(cache_key)
 	if None is not cached:
 		if cached.has_overlay:
@@ -1085,7 +1169,7 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 				ov = discover_overlay_file(rp, registry=reg)
 				if None is not ov:
 					pp_i = ProjectPaths(rp, registry=reg)
-					discovered_overlays.append({'project_root': pp_i.root.as_posix(), 'overlay_file': ov.as_posix(), 'profile': pp_i.profile, 'fs_version': pp_i.fs_version})
+					discovered_overlays.append({'project_root': pp_i.root.as_posix(), 'overlay_file': ov.as_posix(), 'profile': pp_i.profile, 'fs_version': pp_i.fs_version, 'journal_version': pp_i.journal_version})
 			except (OSError, ValueError) as exc:
 				issues.append({'file': rp.as_posix(), 'message': str(exc)})
 	if None is not project:
