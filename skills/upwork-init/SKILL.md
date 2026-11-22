@@ -12,12 +12,12 @@ All agents format intermediate and final documents, including proposals, article
 
 Shared rules are connected natively; read them directly if their full current text is not yet loaded in context.  
 Determine the active platform and read only its adapter: [Codex](../../platforms/codex.md) or [Antigravity](../../platforms/antigravity.md).  
-Pass `--platform` of the active environment to internal commands; inspect default models, effort, and profile settings in `runtime.json` via `doctor`.  
+Pass `--platform` of the active environment to internal commands; inspect roles, subagent selection policy, and profile settings in `runtime.json` via `doctor`.  
 In Codex, verify native projections via `build-native --check`; if rule paths, roles, or `runtime.json` changed, run `build-native`.  
 Canonical texts are read from their single source without creating `CODEX.md`.  
 Tool: `C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
-`doctor` reports version digests, existing paths, default models, and selection policy; it does not prove the active session model.  
-Roles A.A/A.F, default models, and selection policy are defined solely by `runtime.json`; never substitute memorized model names.  
+`doctor` reports version digests, existing paths, role configuration, and subagent selection policy; it does not prove the active session model.  
+Roles A.A/A.F and the parent-driven subagent selection policy are defined in `runtime.json`; the parent selects subagent models from those currently available in the active environment and never substitutes memorized or hardcoded model names.  
 Verify available actual metadata and mark anything unknown explicitly.  
 Models are invoked via native UI conversation tools; Python scripts never launch models.  
 All commands below are executed internally by the agent; the user only enters chat requests.  

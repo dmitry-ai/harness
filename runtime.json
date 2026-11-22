@@ -52,16 +52,19 @@
           "user_data_dir": "${APPDATA}/Antigravity-A6"
         }
       },
+      "subagents": {
+        "selection": "parent",
+        "fallback": "inherit",
+        "record_decision": true
+      },
       "roles": {
         "AA": {
-          "selection": "inherit",
+          "selection": "parent",
           "agent": "self"
         },
         "AF": {
-          "model": "gemini-3.8-flash-high",
-          "effort": "high",
-          "agent": "af-worker",
-          "tier": "flash"
+          "selection": "parent",
+          "agent": "af-worker"
         }
       },
       "delegation": {

@@ -5,7 +5,7 @@ The unified configuration for environments, roles, and models is `AI/harness/Ⰿ
 The shared skill and workflow are in `AI/harness/Ⰿ/≻/♕/⛯/skills/upwork-init/SKILL.md`.  
 The shared tool is `AI/harness/Ⰿ/≻/♕/⛯/scripts/harness.py` (`upwork_project.py` remains a compatibility alias).  
 Pass `--platform codex` to every internal command; declared Codex instances and their `enabled` flags and `system_paths` live under `platforms.codex.instances` in `runtime.json`, and the active profile is determined from `CODEX_HOME` or passed explicitly via `--codex-profile` / `--instance` when ambiguous.  
-`doctor --platform codex` reports default models, selection policy, configured environments/instances, and verification limits; do not substitute its output for actual session metadata.  
+`doctor --platform codex` reports role configuration, subagent selection policy, configured environments/instances, and verification limits; do not substitute its output for actual session metadata.  
 The global profile `AGENTS.md` preserves personal instructions and points to the common `platforms/codex/AGENTS.md` bootstrap, which lists mandatory canonical sources.  
 The bootstrap and role definitions are generated once by `build-native`; `install-global` connects enabled Codex instances with skill-directory links and individual file symlinks from `agents/<name>.toml` to the shared role definitions (disabled instances are skipped unless targeted explicitly with `--target-profile`).  
 The installer retires its former owned `agents.<name>.config_file` block while preserving other profile configuration; role discovery through that block alone failed in the installed C1 session.  
@@ -20,7 +20,7 @@ A new analysis starts with the `/upwork-init <URL>` or `$upwork-init <URL>` skil
 Cleanup of empty auto-created projects starts with `/upwork-cleanup` or `$upwork-cleanup`; the shared skill `skills/upwork-cleanup/SKILL.md` cleans enabled environments/instances while preserving all of `proposals/daily`.  
 Articles use `/df-article` or `$df-article`, and Upwork proposals use `/df-proposal` or `$df-proposal`; the shared procedure is `references/client-text/workflow.md`.  
 The workflow and five stages are shared across configured environments; the agent runs the commands while the user enters only requests.  
-For A.A/A.F, use the native subagent tools of the current chat; check roles and required models via `runtime`/`doctor`.  
+For A.A/A.F, use the native subagent tools of the current chat; check roles and subagent selection policy via `runtime`/`doctor`.  
 If the tool supports selecting a named agent type, use the native role from `runtime`; if the API lacks that parameter, pass the role and shared `agents/worker.md` in the prompt without inventing unsupported arguments.  
 The parent selects the subagent's model and effort based on task complexity, available models, and `runtime` policy.  
 The model of the primary `/upwork-init` chat is determined by the current UI session; A.A is a responsibility role rather than a mandatory model name.  
@@ -65,3 +65,4 @@ In a new chat without a URL, request ownership is confirmed by the exact native 
 When continuing from the other platform, preserve its journal and evidence; the prior receipt platform remains part of provenance.  
 Do not reconstruct requests from summaries and do not declare an unverified receipt confirmed.  
 <!-- https://github.com/dmitry-ai/harness/issues/112 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/133 -->  

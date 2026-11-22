@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+# https://github.com/dmitry-ai/harness/issues/133
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add compact evidence-query command and unify collect-http CLI flags":
 # https://github.com/dmitry-ai/harness/issues/118
@@ -398,14 +401,20 @@ class NativeReviewTests(ProjectCase):
 			home, backend, parent, child = self.native_fixture(package, agent=agent, final_type=final)
 			with self.assertRaises(ValueError):
 				native_review_proof(self.project, parent, child, backend=backend)
-	def test_flash_request_or_observed_model_mismatch_is_rejected(self):
+	def test_parent_model_selection_allowed_and_observed_mismatch_rejected(self):
 		package = self.review_package(str(uuid.uuid4()))
 		home, backend, parent, child = self.native_fixture(package)
 		parent_log = backend / 'brain' / parent / '.system_generated/logs/transcript_full.jsonl'
 		original = parent_log.read_text(encoding='utf-8')
+		parent_log.write_text(original.replace('"Model": "inherit"', '"Model": "pro"'), encoding='utf-8')
+		proof_pro = native_review_proof(self.project, parent, child, backend=backend, write=False)
+		self.assertEqual(proof_pro['model_selection'], {'selection': 'explicit-parent-invocation', 'requested_model': 'pro', 'tier': 'pro'})
 		parent_log.write_text(original.replace('"Model": "inherit"', '"Model": "flash"'), encoding='utf-8')
-		with self.assertRaises(ValueError):
-			native_review_proof(self.project, parent, child, backend=backend)
+		proof_flash = native_review_proof(self.project, parent, child, backend=backend, write=False)
+		self.assertEqual(proof_flash['model_selection'], {'selection': 'explicit-parent-invocation', 'requested_model': 'flash', 'tier': 'flash'})
+		parent_log.write_text(original.replace(', "Model": "inherit"', ''), encoding='utf-8')
+		proof_default = native_review_proof(self.project, parent, child, backend=backend, write=False)
+		self.assertEqual(proof_default['model_selection'], {'selection': 'inherit', 'requested_model': 'inherit'})
 		parent_log.write_text(original, encoding='utf-8')
 		for cid, ident in [(parent, 100), (child, 101)]:
 			conn = sqlite3.connect(backend / 'conversations' / (cid + '.db'))

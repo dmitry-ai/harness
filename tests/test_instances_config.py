@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+# https://github.com/dmitry-ai/harness/issues/133
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 # https://github.com/dmitry-ai/harness/issues/105
@@ -276,7 +279,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		self.write_file(self.cx_homes['C2'] / 'config.toml', 'developer_instructions = "Global C2 rules"\n')
 		cid_c1 = str(uuid.uuid4())
 		c1_trace = self.cx_homes['C1'] / 'sessions/2026/11/02' / f'rollout-{cid_c1}.jsonl'
-		self.write_file(c1_trace, json.dumps({'type': 'session_meta', 'payload': {'id': cid_c1, 'cwd': str(project), 'model': 'gpt-5'}}) + '\n' + json.dumps({'type': 'turn_context', 'payload': {'turn_id': 't1', 'cwd': str(project), 'model': 'gpt-5', 'effort': 'high'}}) + '\n' + json.dumps({'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': 't1'}}) + '\n' + json.dumps({'type': 'response_item', 'payload': {'type': 'message', 'role': 'user', 'content': [{'type': 'input_text', 'text': f'Work in {project}'}], 'internal_chat_message_metadata_passthrough': {'content_item_kinds': ['user.text'], 'turn_id': 't1'}}}) + '\n' + json.dumps({'type': 'response_item', 'payload': {'type': 'message', 'role': 'assistant', 'phase': 'final_answer', 'content': [{'type': 'output_text', 'text': 'Done.'}]}}) + '\n' + json.dumps({'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': 't1', 'last_agent_message': 'Done.'}}) + '\n')
+		self.write_file(c1_trace, json.dumps({'type': 'session_meta', 'payload': {'id': cid_c1, 'cwd': str(project), 'model': 'native-codex'}}) + '\n' + json.dumps({'type': 'turn_context', 'payload': {'turn_id': 't1', 'cwd': str(project), 'model': 'native-codex', 'effort': 'high'}}) + '\n' + json.dumps({'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': 't1'}}) + '\n' + json.dumps({'type': 'response_item', 'payload': {'type': 'message', 'role': 'user', 'content': [{'type': 'input_text', 'text': f'Work in {project}'}], 'internal_chat_message_metadata_passthrough': {'content_item_kinds': ['user.text'], 'turn_id': 't1'}}}) + '\n' + json.dumps({'type': 'response_item', 'payload': {'type': 'message', 'role': 'assistant', 'phase': 'final_answer', 'content': [{'type': 'output_text', 'text': 'Done.'}]}}) + '\n' + json.dumps({'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': 't1', 'last_agent_message': 'Done.'}}) + '\n')
 		self.sql(self.cx_homes['C1'] / 'state_5.sqlite', 'CREATE TABLE threads(id TEXT PRIMARY KEY, rollout_path TEXT, agent_path TEXT)')
 		self.sql(self.cx_homes['C1'] / 'state_5.sqlite', 'INSERT INTO threads VALUES (?, ?, ?)', (cid_c1, str(c1_trace), None))
 		with patch.dict(os.environ, {}, clear=True), patch.object(runtime, 'settings', return_value=self.config), patch.object(configuration, 'settings', return_value=self.config), patch.object(up, 'settings', return_value=self.config):
@@ -292,7 +295,7 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.assertTrue(answers['turns'][0]['completed'])
 			meta = metrics.native_executor_metadata(project, cid_c1)
 			self.assertEqual(meta['surface'], 'codex-ui')
-			self.assertEqual(meta['observed']['model'], 'gpt-5')
+			self.assertEqual(meta['observed']['model'], 'native-codex')
 			reqs = metrics.native_requests(project, cid_c1)
 			self.assertEqual(reqs[0]['surface'], 'codex-ui')
 		with patch.dict(os.environ, {'CODEX_HOME': str(self.root / 'unknown')}, clear=True), patch.object(runtime, 'settings', return_value=self.config):
@@ -466,9 +469,9 @@ class RuntimeInstancesTests(TemporaryCase):
 		rollout = custom_sessions / '2026/11/18' / f'rollout-{cid_c9}.jsonl'
 		prompt_text = f'/upwork-init https://upwork.com/jobs/{source()["job_id"]}'
 		c9_rows = [
-			{'type': 'session_meta', 'payload': {'id': cid_c9, 'cwd': str(project), 'model': 'gpt-5', 'reasoning_effort': 'high'}},
+			{'type': 'session_meta', 'payload': {'id': cid_c9, 'cwd': str(project), 'model': 'native-codex', 'reasoning_effort': 'high'}},
 			{'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': 't1'}},
-			{'type': 'turn_context', 'payload': {'turn_id': 't1', 'cwd': str(project), 'model': 'gpt-5', 'effort': 'high'}},
+			{'type': 'turn_context', 'payload': {'turn_id': 't1', 'cwd': str(project), 'model': 'native-codex', 'effort': 'high'}},
 			{'type': 'response_item', 'payload': {'type': 'message', 'role': 'user', 'content': [{'type': 'input_text', 'text': prompt_text}], 'internal_chat_message_metadata_passthrough': {'turn_id': 't1', 'content_item_kinds': ['user.text']}}},
 			{'type': 'response_item', 'payload': {'type': 'function_call', 'call_id': 'call_1', 'name': 'shell', 'arguments': '{"cmd": "echo hi"}'}},
 			{'type': 'response_item', 'payload': {'type': 'function_call_output', 'call_id': 'call_1', 'output': '{"output": "hi", "metadata": {"exit_code": 0}}'}},
@@ -486,7 +489,7 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.assertEqual(len(ans['turns']), 1)
 			self.assertEqual(ans['turns'][0]['response'], 'C9 complete')
 			meta = codex.native_executor_metadata(project, cid_c9, instance='C9')
-			self.assertEqual(meta['observed'], {'model': 'gpt-5', 'effort': 'high'})
+			self.assertEqual(meta['observed'], {'model': 'native-codex', 'effort': 'high'})
 			tr = codex.native_tool_trace(project, {'surface': 'codex-ui', 'conversation_id': cid_c9, 'instance': 'C9', 'call_ids': ['call_1']})
 			self.assertEqual(Path(tr['native_log']).resolve(), rollout.resolve())
 			self.assertEqual(len(tr['events']), 1)

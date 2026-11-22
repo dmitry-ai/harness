@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+# https://github.com/dmitry-ai/harness/issues/133
 # 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
@@ -206,16 +209,38 @@ class ExecutorMetadataTests(unittest.TestCase):
 		with self.assertRaisesRegex(ValueError, 'model/effort'):
 			codex._model(codex._trace(self.home, self.aa)[3])
 	def test_variant_suffixed_generation_model_matches_executor_configuration_and_inherit(self):
-		self.ag_database(self.parent, 'gemini-4-argon-b', 'gemini-4-argon-high')
-		self.ag_database(self.aa, 'gemini-4-argon-b', 'gemini-4-argon-high')
+		self.ag_database(self.parent, 'native-model-b', 'native-model-high')
+		self.ag_database(self.aa, 'native-model-b', 'native-model-high')
 		self.ag_child(self.aa, 'self', 'inherit')
 		primary = self.ag_read(self.parent)
 		aa = self.ag_read(self.aa, role='AA', parent_id=self.parent)
-		self.assertEqual(primary['observed']['generation_model'], 'gemini-4-argon-b')
-		self.assertEqual(primary['observed']['executor_model'], 'gemini-4-argon')
+		self.assertEqual(primary['observed']['generation_model'], 'native-model-b')
+		self.assertEqual(primary['observed']['executor_model'], 'native-model')
 		self.assertEqual(primary['verification']['status'], 'verified')
-		self.assertEqual(aa['requested']['generation_model'], 'gemini-4-argon-b')
-		self.assertEqual(aa['requested']['executor_model'], 'gemini-4-argon')
+		self.assertEqual(aa['requested']['generation_model'], 'native-model-b')
+		self.assertEqual(aa['requested']['executor_model'], 'native-model')
 		self.assertEqual(aa['verification']['status'], 'verified')
+	def test_antigravity_omitted_model_inherits_and_abstract_tier_avoids_false_mismatch(self):
+		self.ag_database(self.parent, 'native-parent', 'native-parent-high')
+		self.ag_database(self.aa, 'native-parent', 'native-parent-high')
+		self.ag_database(self.af, 'native-concrete-model', 'native-concrete-model-high')
+		self.ag_child(self.aa, 'self', None)
+		self.ag_child(self.af, 'af-worker', 'pro')
+		aa = self.ag_read(self.aa, role='AA', parent_id=self.parent)
+		af = self.ag_read(self.af, role='AF', parent_id=self.parent)
+		self.assertEqual(aa['requested']['selection'], 'inherit')
+		self.assertEqual(aa['requested']['model'], 'native-parent')
+		self.assertEqual(aa['verification']['status'], 'verified')
+		self.assertEqual(af['requested']['selection'], 'explicit-parent-invocation')
+		self.assertEqual(af['requested']['tier'], 'pro')
+		self.assertIsNone(af['requested']['model'])
+		self.assertEqual(af['observed']['model'], 'native-concrete-model')
+		self.assertEqual(af['verification']['status'], 'unverified')
+		bad_af = str(uuid.uuid4())
+		self.ag_database(bad_af, 'actually-reported', 'selected-different-high')
+		self.ag_child(bad_af, 'af-worker', 'flash')
+		bad_meta = self.ag_read(bad_af, role='AF', parent_id=self.parent)
+		self.assertEqual(bad_meta['requested']['tier'], 'flash')
+		self.assertEqual(bad_meta['verification']['status'], 'mismatch')
 if '__main__' == __name__:
 	unittest.main()

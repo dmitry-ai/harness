@@ -6,7 +6,7 @@ description: "AA/AF roles, substantive audit, and accountability"
 ## REVIEW-1
 A.A is responsible for architecture, substantive conclusions, and the final deliverable.  
 Delegate using the native subagent tool of the current UI conversation per the platform adapter: complex tasks, disputed conclusions, and substantive audits go to A.A; extraction and verification go to A.F.  
-Model versions, effort, and inheritance are requirements of the unified `runtime.json`, not consequences of a role name.  
+Subagent model and effort selection is delegated to the parent agent per the unified policy in `runtime.json` (defaulting to inheriting the parent model when no switch is needed), rather than hardcoding model versions or tying them to a role name.  
 Verify available actual metadata; mark unknown fields as `"unverified"` and never hide discrepancies.  
 If no suitable A.F is available, A.A performs simple work.  
 Do not launch hidden model sessions via CLI: the user invokes `/upwork-init` and observes subagents in the UI.  
@@ -41,4 +41,5 @@ In `test_alignment`, compare the exact `target_claim` against the actual `tested
 The auditor verifies compatibility of recommendations with primary facts: a condition refuted by primary evidence (`dead-end condition`) requires a `needs_changes` verdict and cannot be approved by assuming subjective external moderation discretion.  
 Preserve the original verdict immutable with verified native provenance; record parent dispositions of findings separately and never overwrite the auditor's result with them.  
 `needs_changes` and open findings persist as working state and block completion; a new review attempt does not overwrite a prior report.  
-<!-- https://github.com/dmitry-ai/harness/issues/47 -->
+<!-- https://github.com/dmitry-ai/harness/issues/47 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/133 -->

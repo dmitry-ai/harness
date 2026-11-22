@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+# https://github.com/dmitry-ai/harness/issues/133
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -137,6 +140,7 @@ def _resolve_folders_json(folders_json_path=None, sp=None):
 			return Path(ANTIGRAVITY_FOLDERS_JSON)
 		raise
 COMPLETED_STEP_STATUSES = (3, 5)
+_ANTIGRAVITY_MODEL_TIERS = ('flash_lite', 'flash', 'pro')
 _SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment'}
 def _antigravity_paths(backend=None, *, instance=None, conversation_id=None):
 	try:
@@ -531,7 +535,9 @@ def _find_subagent_invocations(parent_rows, child_id, agent_name, initial_prompt
 					extra_messages.append(args['Message'])
 			for sub in iter_antigravity_subagents(call):
 				if sub.get('TypeName') == agent_name and sub.get('Prompt') and (sub['Prompt'] in initial_prompt):
-					if None is not require_inherit_error and 'inherit' != sub.get('Model'):
+					raw_model = sub.get('Model')
+					effective_model = raw_model.strip().lower() if isinstance(raw_model, str) and raw_model.strip() else 'inherit'
+					if None is not require_inherit_error and 'inherit' != effective_model:
 						raise ValueError(require_inherit_error)
 					matches.append((event.get('step_index'), sub, i + 1 < len(parent_rows) and child_id in parent_rows[i + 1].get('content', '')))
 	return (matches, extra_messages)
@@ -613,16 +619,19 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 		if not parent_id or parent_id == conversation_id:
 			raise ValueError('Exact parent required for AA/AF metadata')
 		invocation, source = _native_invocation(backend, parent_id, conversation_id, role, paths=paths)
-		selection = invocation.get('Model')
-		if 'inherit' != selection:
-			_apply_requested_config(requested, observed, selection, 'explicit-parent-invocation', source)
-		else:
+		raw_model = invocation.get('Model')
+		selection = raw_model.strip() if isinstance(raw_model, str) and raw_model.strip() else 'inherit'
+		if 'inherit' == selection.lower():
 			parent_observed, parent_history, _ = _model_metadata(backend, parent_id, paths=paths)
 			if 1 == len({item['value'] for item in parent_history['generations']}):
 				requested['model'], requested['generation_model'] = (parent_observed['model'], parent_observed['generation_model'])
 			if 1 == len({item['value'] for item in parent_history['configurations']}):
 				requested['effort'], requested['executor_model'] = (parent_observed['effort'], parent_observed['executor_model'])
 			requested.update(selection='inherit', source=source)
+		elif selection.lower() in _ANTIGRAVITY_MODEL_TIERS:
+			requested.update(tier=selection.lower(), selection='explicit-parent-invocation', source=source)
+		else:
+			_apply_requested_config(requested, observed, selection, 'explicit-parent-invocation', source)
 	force_mismatch = ('inherit' == requested.get('selection') and bool(requested.get('executor_model') and observed.get('executor_model') and (requested['executor_model'] != observed['executor_model']))) or bool(observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])))
 	return finalize_executor_checks('antigravity-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native generation model and executor configuration fields; exact API execution internals and missing modes are not inferred from runtime', force_model_mismatch=force_mismatch)
 def native_tool_trace(root, request):
@@ -698,21 +707,28 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 	parent_log = _transcript_path(paths['brain_dir'], parent_id)
 	parent_inputs = read_jsonl_objects(parent_log)
 	initial_prompt = rows[0].get('content', '')
-	matches, extra_msgs = _find_subagent_invocations(parent_inputs, reviewer_id, 'self', initial_prompt, require_inherit_error='Native A.A reviewer was not requested with the inherited parent model')
+	matches, extra_msgs = _find_subagent_invocations(parent_inputs, reviewer_id, 'self', initial_prompt)
 	if not matches:
-		raise ValueError('Matching native self/inherit invocation is not established')
+		raise ValueError('Matching native self/A.A invocation is not established')
 	exact_matches = [m for m in matches if m[2]]
-	invocation = exact_matches[-1][0] if exact_matches else matches[0][0]
+	selected_match = exact_matches[-1] if exact_matches else matches[-1]
+	invocation, invocation_sub = (selected_match[0], selected_match[1])
+	raw_model = invocation_sub.get('Model')
+	requested_model = raw_model.strip() if isinstance(raw_model, str) and raw_model.strip() else 'inherit'
+	is_inherit = 'inherit' == requested_model.lower()
 	resolved_inst = paths['instance'] or instance
 	def _extra():
 		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=[(item.get('step_index', index), item['content']) for index, item in enumerate(parent_inputs) if 'USER_INPUT' == item.get('type') and isinstance(item.get('content'), str)], until=invocation)
 		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation, paths=paths), _query_step_model_ids(backend, reviewer_id, paths=paths))
-		if parent_models and child_models and (not child_models.issubset(parent_models)):
+		if is_inherit and parent_models and child_models and (not child_models.issubset(parent_models)):
 			raise ValueError('Observed reviewer model differs from the inherited A.A model')
 		executor_metadata = native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=backend, instance=resolved_inst)
 		if 'mismatch' == executor_metadata['verification']['status']:
-			raise ValueError('Native reviewer generation/configuration differs from requested inherited model/effort')
-		return {'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation}
+			raise ValueError('Native reviewer generation/configuration differs from requested parent model/effort selection')
+		model_selection = {'selection': executor_metadata['requested']['selection'], 'requested_model': requested_model}
+		if executor_metadata['requested'].get('tier'):
+			model_selection['tier'] = executor_metadata['requested']['tier']
+		return {'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'model_selection': model_selection, 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation}
 	return build_native_review_proof(root, 'antigravity-ui', parent_id, reviewer_id, 'self', log, parent_log, raw, last['step_index'], last['content'], [initial_prompt, *extra_msgs, *(m[1]['Prompt'] for m in matches)], rows, extra_fields_fn=_extra, write=write)
 def wire_fields(data):
 	def number(offset):

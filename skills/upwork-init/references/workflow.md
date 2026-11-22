@@ -208,7 +208,7 @@ A purely procedural status note is recorded via `record_step` and never receives
 Valid `task_flags`: `new_causal_analysis`, `architecture_change`, `pricing_change`, `admin_configuration`, `business_impact`, `material_analysis`; an empty list is permissible only for a justified routine task.  
 The minimum risk category is recomputed from new typed claims; `routine` cannot bypass material causal conclusions, hidden settings, or architectural/pricing changes.  
 A `restatement` requires a previously approved, unchanged version of the claim and its evidence; `significant` requires two independent A.A auditors.  
-Delegate using the platform's native subagent tool: in Antigravity call `invoke_subagent` with `TypeName: self` and `Model: inherit`; in Codex call `spawn_agent` with role A.A and the parent-selected model/effort.  
+Delegate using the platform's native subagent tool: in Antigravity call `invoke_subagent` with `TypeName: self` and the parent-selected `Model` (defaulting to `inherit`); in Codex call `spawn_agent` with role A.A and the parent-selected model/effort.  
 Pass the exact project root and full `package` path returned by `prepare-review`; the v2 package binds the current requests, exact response bytes, claim map, KB, primary Evidence, and manual inputs.  
 Across configured environments, the auditor first runs `review-input <project> --package <path> --platform <platform>` to obtain the neutral `report_contract` listing all valid field values (`approved`/`needs_changes`, `supported`/`qualified`/`unsupported`, `direct`/`proxy`/`irrelevant`, and `findings` schema); in Codex, this receipt also binds an encrypted spawn assignment to the package.  
 State a neutral goal: audit the five stages, primary evidence, alternatives, KB consistency, and the exact response candidate, including completeness of its claim map.  
@@ -236,7 +236,7 @@ The native proof receipt is generated after the child auditor finishes and is pa
 `record-review` verifies that the report file matches the child A.A's final native message; verdict and disposition records are immutable and never reuse an overwritable `self-review.json`.  
 The proof is extracted from the active platform's native store: verified parent-to-child A.A link, absence of prompt bias (`prompt_bias_issues`), read-only reviewer isolation (`reviewer_isolation_issues`), model selection, and clean completion.  
 An unfinished subagent or a run lacking a review package assignment never counts as an A.A audit.  
-Codex verifies actual `model`/`effort` against the parent's native `spawn_agent` call; Antigravity reads available generation/executor metadata and configuration.  
+Codex verifies actual `model`/`effort` against the parent's native `spawn_agent` call; Antigravity checks the parent's native `invoke_subagent` model selection against available generation/executor metadata and configuration.  
 Unknown model versions or effort levels remain `unverified`.  
 `native-executor-metadata <project> --conversation <UUID> --role primary|AA|AF [--parent <UUID>] [--save]` inspects `requested`/`observed` metadata, sources, and verification status; `--save` writes an immutable snapshot.  
 A.A evaluates the substantive meaning of reviews and sources; a programmatic receipt alone does not prove truth.  

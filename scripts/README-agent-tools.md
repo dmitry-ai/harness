@@ -17,7 +17,7 @@ The user starts with `/upwork-init <URL>` and continues with ordinary messages i
 Work on the same directory may be resumed in a new chat of the other platform, including semi-manual proposal preparation under a separate instruction.  
 All commands below are executed by the agent; Python 3.12+ is required, with dependencies listed in `requirements-agent-tools.txt`.  
 General entry point: `python <scripts>/harness.py <command> --help` (`upwork_project.py` remains a backward-compatible alias).  
-A single shared library services declared agent environments and instances; workspace root, daily directory, environments, per-instance `enabled` toggles, `system_paths`, models, and time zone are defined in [runtime.json](../runtime.json) (schema v2), while filesystem roots, tool binaries, central stores, relocations, platform layouts, and project topology profiles live in [paths.json](../paths.json) (`R`, schema v1) using `${VAR}` and `%ENV%` template variables.  
+A single shared library services declared agent environments and instances; workspace root, daily directory, environments, per-instance `enabled` toggles, `system_paths`, subagent selection policy, and time zone are defined in [runtime.json](../runtime.json) (schema v2), while filesystem roots, tool binaries, central stores, relocations, platform layouts, and project topology profiles live in [paths.json](../paths.json) (`R`, schema v1) using `${VAR}` and `%ENV%` template variables.  
 Individual projects may override or extend variables, paths, tools, `code_repos`, `similar_projects`, and external `linked_roots` via a local overlay (`R+`) at `.agents/paths.json`, `_/ꘖ/paths.json`, or `ꘖ/paths.json` (in addition to named `similar_projects` groups and `affiliated_paths` declared centrally in `paths.json`), with versioned filesystem profiles (`fs_version: 1` for legacy `V1` layouts and `fs_version: 2` for `O` / `V2` layouts using `🕮/`, `ꙮ/{≻,≺}`, and `Ⰿ/{≻,≺}`) and independent journal versioning (`journal_version`: `1` legacy `req`/`res`, `2` flat `≻`/`≺`, `3` `O-ꙮ` 20-entry subfolders `1–20`, `21–40`, …); `paths [<project>] [--expand <template>] [--check]` inspects and validates `R` and all discovered `R+` overlays, and `journal-upgrade <project> [--journal <dir>] [--dry-run]` upgrades `ꙮ` to `O-ꙮ` (`journal_version: 3`, also executed automatically on the next project operation without altering `V1` paths outside `ꙮ`).  
 <!-- https://github.com/dmitry-ai/harness/issues/96 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/109 -->  
@@ -166,8 +166,8 @@ Any change to material conclusions, KB modules, evidence, or the response requir
 Detailed fields and commands are in [workflow.md](../skills/upwork-init/references/workflow.md#independent-review).  
 
 `native-executor-metadata <project> --conversation <UUID> --role primary|AA|AF [--parent <UUID>] [--save]` reads actual metadata from the active platform, tracking `requested`/`observed` and verification status separately; `--save` writes an immutable snapshot.  
-Codex compares model and effort against the parent's native spawn call; Antigravity reads available generation/executor/model configuration metadata.  
-Selection policy and defaults remain in `runtime.json`; metadata inspection never launches models and never backfills unknowns from `runtime.json`.  
+Codex compares model and effort against the parent's native spawn call; Antigravity checks the parent's native `invoke_subagent` selection against available generation/executor/model configuration metadata.  
+Role mappings and the parent-driven subagent selection policy live in `runtime.json`; metadata inspection never launches models and never backfills unknowns from `runtime.json`.  
 A programmatic receipt does not guarantee substantive truth: A.A evaluates meaning.  
 
 # Exact Journal and External Export

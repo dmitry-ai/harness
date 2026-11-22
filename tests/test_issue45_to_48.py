@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+# https://github.com/dmitry-ai/harness/issues/133
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
@@ -921,7 +924,7 @@ class Issue45To48Tests(unittest.TestCase):
             # Parent thread: Turn 1 spawns turn1_sub_cid and completes; Turn 2 spawns child_cid and reads a file mentioning hist_cid
             p_rows = [
                 {'type': 'session_meta', 'payload': {'id': cid, 'cwd': str(project), 'source': 'cli'}},
-                {'type': 'turn_context', 'payload': {'turn_id': turn1_id, 'cwd': str(project), 'model': 'gpt-5.4', 'effort': 'xhigh'}},
+                {'type': 'turn_context', 'payload': {'turn_id': turn1_id, 'cwd': str(project), 'model': 'native-codex', 'effort': 'xhigh'}},
                 {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn1_id}},
                 {
                     'type': 'response_item',
@@ -960,7 +963,7 @@ class Issue45To48Tests(unittest.TestCase):
                     },
                 },
                 {'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': turn1_id, 'last_agent_message': 'Turn 1 done.'}},
-                {'type': 'turn_context', 'payload': {'turn_id': turn2_id, 'cwd': str(project), 'model': 'gpt-5.4', 'effort': 'xhigh'}},
+                {'type': 'turn_context', 'payload': {'turn_id': turn2_id, 'cwd': str(project), 'model': 'native-codex', 'effort': 'xhigh'}},
                 {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn2_id}},
                 {
                     'type': 'response_item',

@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+# https://github.com/dmitry-ai/harness/issues/133
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Initialize new Upwork projects in the V2 filesystem layout":
 # https://github.com/dmitry-ai/harness/issues/110
@@ -187,9 +190,17 @@ class ProjectionTests(TemporaryCase):
 			value = tomllib.loads((self.primary / f'platforms/codex/agents/{name}.toml').read_text(encoding='utf-8'))
 			self.assertNotIn('model', value)
 			self.assertNotIn('model_reasoning_effort', value)
+		af_worker_md = (self.primary / 'agents/af-worker.md').read_text(encoding='utf-8')
+		self.assertNotIn('\nmodel:', af_worker_md)
 		with patch.object(runtime, 'settings', return_value=config):
 			self.assertEqual(runtime.role_settings('codex', 'AF')['selection'], 'parent')
 			self.assertNotIn('model', runtime.role_settings('codex', 'AF'))
+			self.assertEqual(runtime.platform_settings('antigravity')['subagents']['selection'], 'parent')
+			for ag_role in ('AA', 'AF'):
+				self.assertEqual(runtime.role_settings('antigravity', ag_role)['selection'], 'parent')
+				self.assertNotIn('model', runtime.role_settings('antigravity', ag_role))
+				self.assertNotIn('effort', runtime.role_settings('antigravity', ag_role))
+				self.assertNotIn('tier', runtime.role_settings('antigravity', ag_role))
 		original = 'model = "user-selected"\n[projects."C:/elsewhere"]\ntrust_level = "trusted"\n'
 		result = tomllib.loads(configuration._root_options(original, 'Load source policy.'))
 		self.assertEqual(result['model'], 'user-selected')

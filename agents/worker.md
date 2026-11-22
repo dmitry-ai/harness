@@ -20,4 +20,5 @@ An independent A.A returns the original JSON verdict in its final native message
 For A.A, audit all five stages and KB consistency; for A.F, execute the assigned question.  
 Save the result to the assigned output file.  
 Self-review by the primary agent is not an independent audit.  
-Model and effort selection is governed by the environment policy in `runtime.json`; report available actual metadata.  
+Subagent model and effort selection is chosen by the parent agent per `runtime.json`; report available actual metadata.  
+<!-- https://github.com/dmitry-ai/harness/issues/133 -->
