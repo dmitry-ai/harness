@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
 # https://github.com/dmitry-ai/harness/issues/119
@@ -2278,5 +2281,190 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.assertTrue(synced['valid'], synced)
 			self.assertFalse(idx_path.exists())
 			self.assertFalse(idx_path.parent.exists())
+	def test_antigravity_journal_conversation_auto_titling_and_comma_append(self):
+		from contextlib import closing
+		from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+		import os
+		import subprocess
+		import threading
+		import check_pre_invocation
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			proj = t / 'proj_titles'
+			j_req = proj / '\ua66e/\u227b/181\u2013200'
+			j_res = proj / '\ua66e/\u227a/181\u2013200'
+			j_req.mkdir(parents=True)
+			j_res.mkdir(parents=True)
+			(j_req / '190.md').write_text('Prior request 190\n', encoding='utf-8')
+			(j_res / '190.md').write_text('Prior answer 190\n', encoding='utf-8')
+			ag_home = t / 'ag_home'
+			backend = ag_home / '.gemini/antigravity'
+			(ag_home / '.gemini/config/projects').mkdir(parents=True)
+			(backend / 'conversations').mkdir(parents=True)
+			(backend / 'annotations').mkdir(parents=True)
+			(backend / 'daemon').mkdir(parents=True)
+			summaries_db = backend / 'conversation_summaries.db'
+			with closing(sqlite3.connect(summaries_db)) as conn:
+				conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, title TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
+				conn.commit()
+			rpc_calls: list[dict] = []
+			csrf_secret = 'csrf-token-issue-120'
+			class _MockLSHandler(BaseHTTPRequestHandler):
+				def log_message(self, fmt, *args):
+					return
+				def do_POST(self):
+					length = int(self.headers.get('Content-Length') or 0)
+					raw = self.rfile.read(length).decode('utf-8')
+					body = json.loads(raw) if raw.strip() else {}
+					token = self.headers.get('x-codeium-csrf-token')
+					rpc_calls.append({'path': self.path, 'csrf_ok': token == csrf_secret, 'proto': self.headers.get('connect-protocol-version'), 'body': body})
+					if token != csrf_secret or '/exa.language_server_pb.LanguageServerService/UpdateConversationAnnotations' != self.path:
+						self.send_response(403)
+						self.end_headers()
+						return
+					new_title = str((body.get('annotations') or {}).get('title') or '')
+					for target_cid in body.get('cascadeIds') or []:
+						with closing(sqlite3.connect(summaries_db)) as c:
+							c.execute('UPDATE conversation_summaries SET title=? WHERE conversation_id=?', (new_title, target_cid))
+							c.commit()
+						(backend / 'annotations' / f'{target_cid}.pbtxt').write_text(f'title:"{new_title}" last_user_view_time:{{seconds:1795349000 nanos:0}}\n', encoding='utf-8')
+					resp = b'{}'
+					self.send_response(200)
+					self.send_header('Content-Type', 'application/json')
+					self.send_header('Content-Length', str(len(resp)))
+					self.end_headers()
+					self.wfile.write(resp)
+			server = ThreadingHTTPServer(('127.0.0.1', 0), _MockLSHandler)
+			port = server.server_address[1]
+			srv_thread = threading.Thread(target=server.serve_forever, daemon=True)
+			srv_thread.start()
+			self.addCleanup(server.shutdown)
+			self.addCleanup(server.server_close)
+			(backend / 'daemon' / 'hub_99999.json').write_text(json.dumps({'pid': 99999999, 'httpPort': 99999, 'csrfToken': 'dead'}), encoding='utf-8')
+			(backend / 'daemon' / f'hub_{port}.json').write_text(json.dumps({'pid': os.getpid(), 'httpPort': port, 'httpsPort': 0, 'lsVersion': '2.34.0', 'csrfToken': csrf_secret}), encoding='utf-8')
+			def _add_conv(cid: str, text: str, *, parent: str='', title: str='Auto Slop Title', write_log: bool=False):
+				with closing(sqlite3.connect(summaries_db)) as c:
+					c.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?,?)', (cid, title, parent, json.dumps([proj.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'self' if parent else ''))
+					c.commit()
+				with closing(sqlite3.connect(backend / 'conversations' / f'{cid}.db')) as c:
+					c.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+					c.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, text.encode('utf-8'))),))
+					c.commit()
+				log_p = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
+				if write_log:
+					log_p.parent.mkdir(parents=True, exist_ok=True)
+					log_p.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': text}) + '\n', encoding='utf-8')
+				return log_p
+			cid_a = str(uuid.uuid4())
+			cid_b = str(uuid.uuid4())
+			cid_c = str(uuid.uuid4())
+			cid_d = str(uuid.uuid4())
+			child_cid = str(uuid.uuid4())
+			log_a = _add_conv(cid_a, 'First request in conversation A.', write_log=False)
+			log_b = _add_conv(cid_b, 'Parallel request in conversation B.', write_log=True)
+			_add_conv(child_cid, 'Child subagent task.', parent=cid_a, title='', write_log=True)
+			with patch.object(antigravity, '_is_live_language_server_pid', side_effect=lambda p: p == os.getpid()):
+				# Child subagent is skipped and never renamed
+				self.assertEqual(check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': child_cid, 'cwd': str(proj)}, backend_override=backend), {})
+				self.assertEqual(len(rpc_calls), 0)
+				with self.assertRaisesRegex(ValueError, 'child executor'):
+					completion.sync_conversation_title(proj, child_cid, platform='antigravity', backend=backend)
+				# Dry-run turn-begin does not reserve steps or call RPC
+				dry_b = completion.begin(proj, cid_b, platform='antigravity', backend=backend, dry_run=True)
+				self.assertTrue(dry_b['dry_run'])
+				self.assertNotIn('reserved_journal_steps', dry_b)
+				self.assertEqual(len(rpc_calls), 0)
+				# New conversation A via PreInvocation -> reserves 191 and renames immediately to "191"
+				out_a = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_a, 'cwd': str(proj), 'transcriptPath': str(log_a), 'invocationNum': 0}, backend_override=backend)
+				self.assertIn('journal_title=191', out_a['injectSteps'][0]['systemMessage']['systemMessage'])
+				self.assertEqual(len(rpc_calls), 1)
+				self.assertTrue(rpc_calls[-1]['csrf_ok'])
+				self.assertEqual(rpc_calls[-1]['body'], {'cascadeIds': [cid_a], 'annotations': {'title': '191'}, 'mergeAnnotations': True})
+				# Open reservation must not pollute get_existing_step_ids or break validate_step
+				self.assertEqual(journal.get_existing_step_ids(proj / '\ua66e'), {190})
+				# Parallel open conversation B -> reserves 192 (collision-free) and renames to "192"
+				out_b = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_b, 'cwd': str(proj), 'transcriptPath': str(log_b), 'invocationNum': 0}, backend_override=backend)
+				self.assertIn('journal_title=192', out_b['injectSteps'][0]['systemMessage']['systemMessage'])
+				self.assertEqual(len(rpc_calls), 2)
+				self.assertEqual(rpc_calls[-1]['body']['annotations']['title'], '192')
+				# Flush transcript for A and prepare both A (191) and B (192); title already matches -> 0 redundant RPC calls
+				log_a.parent.mkdir(parents=True, exist_ok=True)
+				log_a.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'First request in conversation A.'}) + '\n', encoding='utf-8')
+				prep_a = completion.prepare(proj, 'Prepared response for 191.  \n', cid_a, platform='antigravity', backend=backend)
+				self.assertEqual(prep_a['journal_steps'], [191])
+				self.assertEqual(prep_a['conversation_title_sync']['reason'], 'already_up_to_date')
+				self.assertEqual(len(rpc_calls), 2)
+				prep_b = completion.prepare(proj, 'Prepared response for 192.  \n', cid_b, platform='antigravity', backend=backend)
+				self.assertEqual(prep_b['journal_steps'], [192])
+				self.assertEqual(len(rpc_calls), 2)
+				self.assertFalse((journal.state_dir(proj / '\ua66e') / journal.TURN_RESERVATIONS_FILE).exists())
+				# Complete A Turn 1, add intervening step 203, then send follow-up request in existing conversation A -> "191, 204"
+				(proj / '\ua66e/\u227b/201\u2013220').mkdir(parents=True, exist_ok=True)
+				(proj / '\ua66e/\u227a/201\u2013220').mkdir(parents=True, exist_ok=True)
+				(proj / '\ua66e/\u227b/201\u2013220/203.md').write_text('Intervening request 203\n', encoding='utf-8')
+				(proj / '\ua66e/\u227a/201\u2013220/203.md').write_text('Intervening answer 203\n', encoding='utf-8')
+				log_a.write_text(
+					json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': 'First request in conversation A.'}) + '\n'
+					+ json.dumps({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': 'Prepared response for 191.  \n'}) + '\n'
+					+ json.dumps({'step_index': 2, 'type': 'USER_INPUT', 'content': 'Follow-up request in existing conversation A.'}) + '\n',
+					encoding='utf-8',
+				)
+				with closing(sqlite3.connect(backend / 'conversations' / f'{cid_a}.db')) as c:
+					c.execute('INSERT INTO steps VALUES(1, 15, 3, 0, ?)', (b'',))
+					c.execute('INSERT INTO steps VALUES(2, 14, 3, 0, ?)', (wire(19, wire(2, b'Follow-up request in existing conversation A.')),))
+					c.commit()
+				with closing(sqlite3.connect(summaries_db)) as c:
+					c.execute('UPDATE conversation_summaries SET last_user_input_step_index=2 WHERE conversation_id=?', (cid_a,))
+					c.commit()
+				out_a2 = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_a, 'cwd': str(proj), 'transcriptPath': str(log_a), 'invocationNum': 0}, backend_override=backend)
+				self.assertIn('journal_title=191, 204', out_a2['injectSteps'][0]['systemMessage']['systemMessage'])
+				self.assertEqual(len(rpc_calls), 3)
+				self.assertEqual(rpc_calls[-1]['body'], {'cascadeIds': [cid_a], 'annotations': {'title': '191, 204'}, 'mergeAnnotations': True})
+				prep_a2 = completion.prepare(proj, 'Prepared response for 204.  \n', cid_a, platform='antigravity', backend=backend)
+				self.assertEqual(prep_a2['journal_steps'], [204])
+				self.assertEqual(len(rpc_calls), 3)
+				# Mid-turn steering message appends second reserved step -> "205, 206"
+				log_c = _add_conv(cid_c, 'Initial prompt C.', write_log=True)
+				check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_c, 'cwd': str(proj), 'transcriptPath': str(log_c), 'invocationNum': 0}, backend_override=backend)
+				self.assertEqual(rpc_calls[-1]['body']['annotations']['title'], '205')
+				with closing(sqlite3.connect(backend / 'conversations' / f'{cid_c}.db')) as c:
+					c.execute('INSERT INTO steps VALUES(2, 14, 3, 0, ?)', (wire(19, wire(2, b'Mid-turn steering C.')),))
+					c.commit()
+				log_c.write_text(log_c.read_text(encoding='utf-8') + json.dumps({'step_index': 2, 'type': 'USER_INPUT', 'content': 'Mid-turn steering C.'}) + '\n', encoding='utf-8')
+				check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_c, 'cwd': str(proj), 'transcriptPath': str(log_c), 'invocationNum': 1}, backend_override=backend)
+				self.assertEqual(rpc_calls[-1]['body']['annotations']['title'], '205, 206')
+				prep_c = completion.prepare(proj, 'Prepared response for 205 and 206.  \n', cid_c, platform='antigravity', backend=backend)
+				self.assertEqual(prep_c['journal_steps'], [205, 206])
+				# External step collision between turn-begin (207) and answer-prepare -> cleanly commits 208 and updates title to "208" (no phantom 207)
+				log_d = _add_conv(cid_d, 'Collision test D.', write_log=True)
+				check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_d, 'cwd': str(proj), 'transcriptPath': str(log_d), 'invocationNum': 0}, backend_override=backend)
+				self.assertEqual(rpc_calls[-1]['body']['annotations']['title'], '207')
+				(proj / '\ua66e/\u227b/201\u2013220/207.md').write_text('External request 207\n', encoding='utf-8')
+				(proj / '\ua66e/\u227a/201\u2013220/207.md').write_text('External answer 207\n', encoding='utf-8')
+				prep_d = completion.prepare(proj, 'Prepared response for 208.  \n', cid_d, platform='antigravity', backend=backend)
+				self.assertEqual(prep_d['journal_steps'], [208])
+				self.assertEqual(rpc_calls[-1]['body']['annotations']['title'], '208')
+				# Explicit sync-conversation-title dry-run and repair after title drift
+				with closing(sqlite3.connect(summaries_db)) as c:
+					c.execute('UPDATE conversation_summaries SET title=? WHERE conversation_id=?', ('Drifted Title', cid_a))
+					c.commit()
+				(backend / 'annotations' / f'{cid_a}.pbtxt').write_text('title:"Drifted Title"\n', encoding='utf-8')
+				calls_before_sync = len(rpc_calls)
+				dry_sync = completion.sync_conversation_title(proj, cid_a, platform='antigravity', backend=backend, dry_run=True)
+				self.assertTrue(dry_sync['dry_run'])
+				self.assertEqual(dry_sync['title'], '191, 204')
+				self.assertEqual(len(rpc_calls), calls_before_sync)
+				live_sync = completion.sync_conversation_title(proj, cid_a, platform='antigravity', backend=backend)
+				self.assertTrue(live_sync['synced'])
+				self.assertTrue(live_sync['changed'])
+				self.assertEqual(live_sync['title'], '191, 204')
+				self.assertEqual(len(rpc_calls), calls_before_sync + 1)
+			# CLI dry-run smoke test
+			sub_env = {**os.environ, 'USERPROFILE': str(ag_home), 'APPDATA': str(t / 'sandbox_roaming')}
+			cli_res = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'sync-conversation-title', str(proj), '--conversation', cid_a, '--platform', 'antigravity', '--dry-run'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
+			self.assertEqual(cli_res.returncode, 0, cli_res.stderr or cli_res.stdout)
+			cli_json = json.loads(cli_res.stdout)
+			self.assertEqual(cli_json['title'], '191, 204')
+			self.assertEqual(cli_json['steps'], [191, 204])
 if '__main__' == __name__:
 	unittest.main()

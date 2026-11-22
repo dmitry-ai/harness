@@ -176,6 +176,7 @@ A programmatic receipt does not guarantee substantive truth: A.A evaluates meani
 `answer-check <project> --response-file <candidate-answer> [--conversation <native-uuid>]` runs all candidate-response gates (`LINK-4` / `LINK-5`, `DOC-4`, `DOC-2`, `VERIFY-1` / `ResponseEvidenceAuditor` / `local_source_grounding_issues`, `compaction_check`, and `EXEC-5` / `code_lifecycle_check`) in one read-only pass for primary turns, Plan Mode, and child `A.A` / `A.F` subagents without writing to `ꙮ` or `ꘖ/data/turns` (exit code `0` when valid, `2` when validation issues are found).  
 `answer-prepare <project> --response-file <exact-final-answer>` records the exact native requests and response, verifies read-back bytes and prior clearances of linked documents/analysis, and returns the `response_file` to publish verbatim.  
 `journal-sync <project> --conversation <native-uuid>` synchronously reconciles a completed native reply against the journal; a skipped preparation is recovered post-hoc, and any byte discrepancy is saved as a conflict without overwriting history.  
+`sync-conversation-title <project> --conversation <native-uuid> [--journal <dir>] [--dry-run]` computes the sorted comma-separated project Journal `ꙮ` step numbers belonging to that conversation (e.g., `211` or `191, 204`) and updates the Antigravity conversation title via the active instance's local `LanguageServerService/UpdateConversationAnnotations` RPC (also executed automatically during Antigravity `turn-begin`, `answer-prepare`, and `journal-sync`).  
 All journal execution is foreground-only: `turn-begin` reconciles earlier completed turns of its current conversation, and `answer-prepare` records the present response without registering or launching a persistent process.  
 Native delivery is confirmed on the next foreground working call after publication; if no later call occurs, it remains unverified.  
 `--no-watch` and the Python `watch` parameter are compatibility inputs and never enable autonomous work; on compacted turns, `turn-begin`, `recover-checkpoint`, and `answer-prepare` offload full `pre_checkpoint_records` and read/evicted file lists to `ꘖ/data/turns/<turn_key>-recovery/index.json` (keeping `stdout` concise), `recover-checkpoint <project> [--conversation <native-uuid>] [--dry-run]` supports a read-only `--dry-run` `file_index` (`SHA-256`, byte/line counts, and citation re-read flags) for Plan Mode without bypassing `COMPACT-1`, and confirmed `delivered` turns prune temporary `<turn_key>-recovery/` checkpoint directories.  
@@ -201,6 +202,7 @@ All paths are confined to the project root; an export never overwrites a source 
 <!-- https://github.com/dmitry-ai/harness/issues/117 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/118 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/119 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/120 -->  
 
 # Additional Tools
 

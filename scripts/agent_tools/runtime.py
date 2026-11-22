@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
 # https://github.com/dmitry-ai/harness/issues/115
@@ -453,6 +456,8 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 		'instance': matched_entry.get('id') if matched_entry else None,
 		'backend_dir': backend_p,
 		'brain_dir': Path(sp['brain_dir']) if sp.get('brain_dir') else backend_p / 'brain',
+		'annotations_dir': Path(sp['annotations_dir']) if sp.get('annotations_dir') else backend_p / 'annotations',
+		'daemon_dir': Path(sp['daemon_dir']) if sp.get('daemon_dir') else backend_p / 'daemon',
 		'conversations_dir': Path(sp['conversations_dir']) if sp.get('conversations_dir') else backend_p / 'conversations',
 		'conversations_db': Path(sp['conversations_db']) if sp.get('conversations_db') else backend_p / 'conversation_summaries.db',
 		'projects_dir': Path(sp['projects_dir']) if sp.get('projects_dir') else backend_res.parent / 'config/projects',

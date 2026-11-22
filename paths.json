@@ -197,6 +197,7 @@
         "conversations_dir": "${INSTANCE_BACKEND_DIR}/conversations",
         "brain_dir": "${INSTANCE_BACKEND_DIR}/brain",
         "annotations_dir": "${INSTANCE_BACKEND_DIR}/annotations",
+        "daemon_dir": "${INSTANCE_BACKEND_DIR}/daemon",
         "knowledge_dir": "${INSTANCE_BACKEND_DIR}/knowledge"
       }
     },

@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -42,6 +45,7 @@ V1_PAIR = ('req', 'res')
 V2_PAIR = ('\u227b', '\u227a')
 JOURNAL_BUCKET_SIZE = 20
 JOURNAL_RANGE_SEP = '\u2013'
+TURN_RESERVATIONS_FILE = 'turn-reservations.json'
 _BUCKET_DIR_RE = re.compile('^(\\d+)[-\\u2013](\\d+)$')
 _LEGACY_ANALYSIS_NAMES = ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437')
 def digest(data: bytes) -> str:
@@ -228,6 +232,111 @@ def get_existing_step_ids(directory: Path) -> set[int]:
 			raise ValueError('Damaged answer-group reservation')
 		ids.update(group['steps'])
 	return ids
+def _read_turn_reservations(directory: Path) -> dict[str, dict]:
+	res_file = state_dir(Path(directory).resolve()) / TURN_RESERVATIONS_FILE
+	if not res_file.is_file():
+		return {}
+	try:
+		raw = json.loads(res_file.read_bytes().decode('utf-8'))
+	except (OSError, UnicodeDecodeError, ValueError):
+		return {}
+	if not isinstance(raw, dict) or not isinstance(raw.get('reservations'), dict):
+		return {}
+	out: dict[str, dict] = {}
+	for key, entry in raw['reservations'].items():
+		if not isinstance(key, str) or not key.strip() or not isinstance(entry, dict):
+			continue
+		steps = [st for st in (entry.get('steps') or ()) if int is type(st) and 1 <= st]
+		if not steps:
+			continue
+		rids = [str(rid) for rid in (entry.get('request_ids') or ()) if isinstance(rid, str) and rid]
+		out[key] = {'conversation_id': str(entry.get('conversation_id') or ''), 'request_ids': rids, 'steps': steps}
+	return out
+def _write_turn_reservations(directory: Path, reservations: dict[str, dict]) -> None:
+	eff = Path(directory).resolve()
+	res_file = state_dir(eff) / TURN_RESERVATIONS_FILE
+	if not reservations:
+		res_file.unlink(missing_ok=True)
+		return
+	payload = (json.dumps({'version': 1, 'journal': str(eff), 'reservations': reservations}, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+	if res_file.is_file():
+		try:
+			if res_file.read_bytes() == payload:
+				return
+		except OSError:
+			pass
+	res_file.parent.mkdir(parents=True, exist_ok=True)
+	replace_bytes(res_file, payload)
+def iter_turn_reservations(directory: Path) -> dict[str, dict]:
+	return _read_turn_reservations(directory)
+def reserved_step_ids(directory: Path, *, exclude_turn: str | None=None) -> set[int]:
+	r: set[int] = set()
+	for key, entry in _read_turn_reservations(directory).items():
+		if None is not exclude_turn and key == exclude_turn:
+			continue
+		r.update((st for st in (entry.get('steps') or ()) if int is type(st) and 1 <= st))
+	return r
+def reserve_turn_steps(directory: Path, turn_key: str, conversation_id: str, request_ids: list[str]) -> list[int]:
+	if not isinstance(turn_key, str) or not turn_key.strip() or not isinstance(request_ids, list) or (not request_ids) or any((not isinstance(x, str) or not x for x in request_ids)):
+		raise ValueError('Stable turn key and nonempty exact request ID list required for step reservation')
+	eff = Path(directory).resolve()
+	journal_state = state_dir(eff)
+	journal_state.mkdir(parents=True, exist_ok=True)
+	with locked(journal_state / 'writer.lock'):
+		committed_index = completed_request_group_index(eff)
+		existing_ids = get_existing_step_ids(eff)
+		reservations = _read_turn_reservations(eff)
+		old_entry = reservations.get(turn_key) if isinstance(reservations.get(turn_key), dict) else {}
+		old_map = {rid: st for rid, st in zip(old_entry.get('request_ids') or (), old_entry.get('steps') or ()) if isinstance(rid, str) and int is type(st) and 1 <= st}
+		other_reserved = {st for k, e in reservations.items() if k != turn_key for st in (e.get('steps') or ()) if int is type(st) and 1 <= st}
+		assigned: list[int] = []
+		assigned_set: set[int] = set()
+		all_committed = True
+		for rid in request_ids:
+			if rid in committed_index:
+				st = int(committed_index[rid][1])
+				assigned.append(st)
+				assigned_set.add(st)
+			else:
+				all_committed = False
+				prev = old_map.get(rid)
+				if None is not prev and prev not in existing_ids and prev not in other_reserved and prev not in assigned_set:
+					st = prev
+				else:
+					st = max(existing_ids | other_reserved | assigned_set, default=0) + 1
+				assigned.append(st)
+				assigned_set.add(st)
+		if all_committed:
+			if turn_key in reservations:
+				del reservations[turn_key]
+				_write_turn_reservations(eff, reservations)
+		else:
+			new_entry = {'conversation_id': str(conversation_id or ''), 'request_ids': list(request_ids), 'steps': list(assigned)}
+			if old_entry != new_entry:
+				reservations[turn_key] = new_entry
+				_write_turn_reservations(eff, reservations)
+		return assigned
+def release_turn_steps(directory: Path, turn_key: str, *, request_ids: list[str] | None=None) -> bool:
+	eff = Path(directory).resolve()
+	journal_state = state_dir(eff)
+	if not (journal_state / TURN_RESERVATIONS_FILE).is_file():
+		return False
+	with locked(journal_state / 'writer.lock'):
+		reservations = _read_turn_reservations(eff)
+		removed = False
+		if turn_key and turn_key in reservations:
+			del reservations[turn_key]
+			removed = True
+		if request_ids:
+			req_set = set(request_ids)
+			for key in list(reservations):
+				e_reqs = set(reservations[key].get('request_ids') or ())
+				if e_reqs and e_reqs <= req_set:
+					del reservations[key]
+					removed = True
+		if removed:
+			_write_turn_reservations(eff, reservations)
+		return removed
 def _payload(request: str, response: str):
 	for label, text in [('request', request), ('response', response)]:
 		if not isinstance(text, str) or not text.strip():
@@ -262,7 +371,7 @@ def record_step(journal_dir: Path, req_content: str, res_content: str, target_st
 	for folder in (req_dir, res_dir, journal_state):
 		folder.mkdir(parents=True, exist_ok=True)
 	with locked(journal_state / 'writer.lock'):
-		used = get_existing_step_ids(directory)
+		used = get_existing_step_ids(directory) | reserved_step_ids(directory)
 		step = target_step if None is not target_step else max(used, default=0) + 1
 		if step in used:
 			raise FileExistsError(f'Step {step} is occupied or reserved')
@@ -347,7 +456,7 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 			if step_file(folder_dir, step, directory=directory).read_bytes() != expected.encode('utf-8'):
 				raise ValueError('Historical journal bytes changed; preserve them')
 	return steps
-def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, admission_roots=None, allow_reprepare=False):
+def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, admission_roots=None, allow_reprepare=False, reserved_turn_key=None):
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn) or not isinstance(requests, list) or (not requests):
 		raise ValueError('Stable turn ID and nonempty exact request list required')
 	for request in requests:
@@ -366,6 +475,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 	for path in (req_dir, res_dir, groups):
 		path.mkdir(parents=True, exist_ok=True)
 	file = groups / (turn + '.json')
+	eff_res_key = reserved_turn_key if None is not reserved_turn_key else (turn[7:] if turn.startswith('native-') else turn)
 	with locked(journal_state / 'writer.lock'):
 		if file.exists():
 			group = json.loads(file.read_text(encoding='utf-8'))
@@ -387,8 +497,19 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 					raise ValueError('Adopted journal steps must match the exact request list')
 				steps_to_use = list(adopt_steps)
 			else:
-				start = max(get_existing_step_ids(directory), default=0) + 1
-				steps_to_use = list(range(start, start + len(requests)))
+				existing_ids = get_existing_step_ids(directory)
+				reservations = _read_turn_reservations(directory)
+				cand_entry = reservations.get(eff_res_key)
+				if None is cand_entry and None is not request_ids:
+					cand_entry = next((e for e in reservations.values() if e.get('request_ids') == request_ids), None)
+				cand_steps = list(cand_entry.get('steps') or ()) if isinstance(cand_entry, dict) else []
+				cand_rids = cand_entry.get('request_ids') if isinstance(cand_entry, dict) else None
+				if cand_steps and len(cand_steps) == len(requests) and len(set(cand_steps)) == len(cand_steps) and all((int is type(x) and 1 <= x and x not in existing_ids for x in cand_steps)) and (None is request_ids or cand_rids == request_ids):
+					steps_to_use = cand_steps
+				else:
+					used = existing_ids | reserved_step_ids(directory, exclude_turn=eff_res_key)
+					start = max(used, default=0) + 1
+					steps_to_use = list(range(start, start + len(requests)))
 			group = {'version': 1, 'journal': str(directory), 'turn': turn, 'status': 'pending', 'steps': steps_to_use, 'requests': requests, 'response_sha256': digest(response.encode()), 'tokens': [uuid.uuid4().hex for _ in requests], 'request_ids': request_ids, 'admission': proof}
 			create_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
 		for step, request, token in zip(group['steps'], requests, group['tokens']):
@@ -414,6 +535,23 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 		if 'complete' != group['status']:
 			group['status'] = 'complete'
 			replace_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
+		if (journal_state / TURN_RESERVATIONS_FILE).is_file():
+			reservations = _read_turn_reservations(directory)
+			changed = False
+			if eff_res_key and eff_res_key in reservations:
+				del reservations[eff_res_key]
+				changed = True
+			committed_steps = set(group.get('steps') or ())
+			req_set = set(request_ids or ())
+			for r_key in list(reservations):
+				entry = reservations[r_key]
+				e_reqs = set(entry.get('request_ids') or ())
+				e_steps = set(entry.get('steps') or ())
+				if (req_set and e_reqs and e_reqs <= req_set) or (committed_steps and e_steps and e_steps <= committed_steps):
+					del reservations[r_key]
+					changed = True
+			if changed:
+				_write_turn_reservations(directory, reservations)
 	r = group['steps']
 	return r
 def answer_groups(directory, *, request_ids=None):

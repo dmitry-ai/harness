@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
@@ -234,7 +237,9 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	if 'primary' == res.get('role') and res.get('turn_key'):
 		turn_key = str(res['turn_key'])
 		scratch_ans = _scratch_answer_path(canon_root, turn_key)
-		return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}, scratch_answer={scratch_ans}).'}}]}
+		title_info = res.get('conversation_title_sync') if isinstance(res.get('conversation_title_sync'), dict) else {}
+		title_part = f", journal_title={title_info['title']}" if title_info.get('title') else ''
+		return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}, scratch_answer={scratch_ans}).'}}]}
 	return {}
 def main() -> None:
 	out: dict = {}

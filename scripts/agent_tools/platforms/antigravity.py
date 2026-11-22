@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -81,10 +84,16 @@
 # https://github.com/dmitry-ai/harness/issues/48
 from pathlib import Path
 from datetime import date
+import ctypes
 import hashlib
 import json
+import os
 import re
 import sqlite3
+import ssl
+import sys
+import urllib.error
+import urllib.request
 import uuid
 from ..runtime import platform_instances, platform_key_for_adapter, platform_settings, request_day, resolve_antigravity_backend, resolve_antigravity_paths, settings
 from ..knowledge import json_bytes
@@ -851,3 +860,149 @@ def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, 
 		if None is primary_receipt:
 			primary_receipt = receipt
 	return {**primary_receipt, 'instances': per_instance}
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
+_PBTXT_TITLE_RE = re.compile('(?:^|\\s)title\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"')
+def _is_live_language_server_pid(pid: int) -> bool:
+	if int is not type(pid) or 1 > pid:
+		return False
+	if 'win32' == sys.platform:
+		try:
+			kernel32 = ctypes.windll.kernel32
+			handle = kernel32.OpenProcess(0x1000, False, int(pid))
+			if not handle:
+				return False
+			try:
+				code = ctypes.c_ulong(0)
+				if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)) or 259 != code.value:
+					return False
+				buf = ctypes.create_unicode_buffer(1024)
+				size = ctypes.c_ulong(len(buf))
+				if kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+					return 'language_server.exe' == Path(buf.value).name.lower()
+				return True
+			finally:
+				kernel32.CloseHandle(handle)
+		except (AttributeError, OSError):
+			return False
+	try:
+		os.kill(pid, 0)
+		return True
+	except OSError:
+		return False
+def discover_live_daemon(backend=None, *, instance=None, conversation_id=None, paths=None) -> dict | None:
+	resolved = paths or _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
+	daemon_dir = Path(resolved['daemon_dir']) if resolved.get('daemon_dir') else (Path(resolved['backend_dir']) / 'daemon')
+	if not daemon_dir.is_dir():
+		return None
+	candidates: list[tuple[int, Path]] = []
+	for path in daemon_dir.glob('hub_*.json'):
+		try:
+			candidates.append((path.stat().st_mtime_ns, path))
+		except OSError:
+			continue
+	candidates.sort(key=lambda item: (item[0], item[1].name), reverse=True)
+	for _, path in candidates:
+		try:
+			data = json.loads(path.read_text(encoding='utf-8'))
+		except (OSError, UnicodeDecodeError, ValueError):
+			continue
+		if not isinstance(data, dict):
+			continue
+		pid = data.get('pid')
+		csrf_token = data.get('csrfToken')
+		http_port = data.get('httpPort')
+		https_port = data.get('httpsPort')
+		eff_http = http_port if int is type(http_port) and 0 < http_port < 65536 else None
+		eff_https = https_port if int is type(https_port) and 0 < https_port < 65536 else None
+		if int is not type(pid) or 1 > pid or not isinstance(csrf_token, str) or not csrf_token.strip() or (None is eff_http and None is eff_https):
+			continue
+		if not _is_live_language_server_pid(pid):
+			continue
+		return {'pid': pid, 'http_port': eff_http, 'https_port': eff_https, 'csrf_token': csrf_token, 'ls_version': data.get('lsVersion'), 'discovery_file': str(path)}
+	return None
+def _parse_pbtxt_title(text: str) -> str | None:
+	m = _PBTXT_TITLE_RE.search(text or '')
+	if not m:
+		return None
+	raw = m.group(1)
+	try:
+		return json.loads('"' + raw + '"')
+	except ValueError:
+		return raw
+def _read_current_conversation_title(paths: dict, conversation_id: str) -> tuple[str | None, str | None]:
+	db_title: str | None = None
+	ann_title: str | None = None
+	db_path = Path(paths['conversations_db'])
+	if db_path.is_file():
+		try:
+			with open_readonly_sqlite(db_path) as conn:
+				cols = {row[1] for row in conn.execute('PRAGMA table_info(conversation_summaries)')}
+				if 'title' in cols:
+					row = conn.execute('SELECT title FROM conversation_summaries WHERE conversation_id=?', (conversation_id,)).fetchone()
+					if None is not row and isinstance(row[0], str):
+						db_title = row[0]
+		except (OSError, sqlite3.Error):
+			pass
+	ann_dir = Path(paths['annotations_dir']) if paths.get('annotations_dir') else (Path(paths['backend_dir']) / 'annotations')
+	ann_file = ann_dir / f'{conversation_id}.pbtxt'
+	if ann_file.is_file():
+		try:
+			ann_title = _parse_pbtxt_title(ann_file.read_text(encoding='utf-8', errors='replace'))
+		except OSError:
+			pass
+	return (db_title, ann_title)
+def update_conversation_title(conversation_id: str, title: str, *, backend=None, instance=None, paths=None, timeout: float=2.0) -> dict:
+	cid = str(conversation_id or '').strip().lower()
+	clean_title = str(title or '').strip()
+	if not re.fullmatch('[a-f0-9-]{36}', cid):
+		raise ValueError('Exact native Antigravity conversation UUID required')
+	if not clean_title:
+		raise ValueError('Nonempty conversation title required')
+	resolved = paths or _antigravity_paths(backend=backend, instance=instance, conversation_id=cid)
+	db_title, ann_title = _read_current_conversation_title(resolved, cid)
+	if db_title == clean_title and ann_title == clean_title:
+		return {'synced': True, 'changed': False, 'title': clean_title, 'conversation_id': cid, 'reason': 'already_up_to_date'}
+	daemon = discover_live_daemon(paths=resolved)
+	if None is daemon:
+		return {'synced': False, 'changed': False, 'title': clean_title, 'conversation_id': cid, 'reason': 'daemon_unavailable'}
+	payload = json.dumps({'cascadeIds': [cid], 'annotations': {'title': clean_title}, 'mergeAnnotations': True}, ensure_ascii=False).encode('utf-8')
+	headers = {'content-type': 'application/json', 'x-codeium-csrf-token': daemon['csrf_token'], 'connect-protocol-version': '1'}
+	endpoints = []
+	if None is not daemon.get('http_port'):
+		endpoints.append(('http', daemon['http_port']))
+	if None is not daemon.get('https_port'):
+		endpoints.append(('https', daemon['https_port']))
+	last_error = ''
+	for scheme, port in endpoints:
+		url = f'{scheme}://127.0.0.1:{port}/exa.language_server_pb.LanguageServerService/UpdateConversationAnnotations'
+		req = urllib.request.Request(url, data=payload, method='POST', headers=headers)
+		handlers = [urllib.request.ProxyHandler({})]
+		if 'https' == scheme:
+			handlers.append(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()))
+		opener = urllib.request.build_opener(*handlers)
+		try:
+			with opener.open(req, timeout=timeout) as resp:
+				raw = resp.read().decode('utf-8', errors='replace')
+				status = getattr(resp, 'status', 200)
+			if 200 != status:
+				last_error = f'HTTP {status}'
+				continue
+			parsed = json.loads(raw) if raw.strip() else {}
+			if not isinstance(parsed, dict):
+				last_error = 'Invalid UpdateConversationAnnotations response schema'
+				continue
+			return {
+				'synced': True,
+				'changed': True,
+				'title': clean_title,
+				'previous_title': ann_title if None is not ann_title else (db_title or ''),
+				'conversation_id': cid,
+				'endpoint_scheme': scheme,
+				'endpoint_port': port,
+				'daemon_pid': daemon['pid'],
+			}
+		except (OSError, ValueError, urllib.error.URLError) as exc:
+			last_error = str(exc)
+	return {'synced': False, 'changed': False, 'title': clean_title, 'conversation_id': cid, 'reason': 'rpc_error', 'error': last_error}

@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -120,7 +123,7 @@ from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
-COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'reconcile-unprepared-delivery')
+COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
@@ -288,13 +291,17 @@ class AnswerPreparationRunner:
 			except (OSError, ValueError, sqlite3.Error) as exc:
 				self._fail_gate('turn_unchanged', str(exc), status='preparation_unverified', cause=exc)
 			self.value['status'] = 'prepared'
+			self.value.pop('reserved_journal_steps', None)
 			if not self.value.get('readiness_check', {}).get('verified'):
 				self.value['readiness_check'] = {'verified': True, 'checked_at': _now()}
 			if self.value.get('compaction_check', {}).get('occurred') and (not self.turn.get('completed')):
 				idx_rel = _write_compaction_index_file(self.root, self.value['key'], self.turn, self.value['compaction_check'])
 				self.value['compaction_check']['index_file'] = idx_rel
 			_persist(self.path, self.value)
+			title_sync = _sync_antigravity_conversation_title(self.root, self.native, self.value['journal'])
 			r = {**self.result, 'compaction_check': _compact_compaction_check(self.value['compaction_check']), **self.value['prepared'], 'ready': True, 'status': 'prepared', 'delivery_verified': False, 'admission_verification': self.admission_check}
+			if None is not title_sync:
+				r['conversation_title_sync'] = title_sync
 		return r
 class TurnJournalReconciler:
 	def __init__(self, root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, preloaded_native=None):
@@ -362,11 +369,13 @@ class TurnJournalReconciler:
 				value['journal_record'] = recorded
 				delivery = self._build_delivery(value, turn, recorded, sha, provenance, preparation_verified)
 				value.pop('prior_verified_delivery', None)
+				value.pop('reserved_journal_steps', None)
 				value['delivery'] = delivery
 				value['status'] = 'delivered'
 				if self.adopt_conflict:
 					value['readiness_check'] = {'verified': True, 'checked_at': _now(), 'detail': 'Adopted into journal via --adopt-conflict'}
 				_persist(path, value)
+				journal.release_turn_steps(_directory(self.root, value['journal']), value['key'], request_ids=[req['id'] for req in turn['requests']])
 				self._prune_delivered_checkpoint_recovery(value['key'])
 				r = {'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True, 'journal_steps': recorded['journal_steps'], 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check}
 		return r
@@ -414,6 +423,19 @@ class TurnJournalReconciler:
 				for turn in eligible:
 					with locked(_turn_lock(self.root, _key(self.native, turn))):
 						results.append(self._reconcile_turn(turn))
+			if any(('delivered' == item.get('status') for item in results)):
+				j_hint = self.journal_directory
+				if None is j_hint:
+					for item in reversed(results):
+						st_p = _folder(self.root) / (item['turn_key'] + '.json')
+						if st_p.is_file():
+							try:
+								j_hint = _read(st_p).get('journal')
+								if j_hint:
+									break
+							except (OSError, ValueError):
+								pass
+				_sync_antigravity_conversation_title(self.root, self.native, j_hint)
 			r = {'valid': not any(('conflict' == item['status'] for item in results)), 'conversation_id': self.native['conversation_id'], 'source_file': self.native['source_file'], 'turns': results, 'retryable': any((item.get('retryable') for item in results)), 'pending_native_turn': self.native['active_turn_id'], 'private_reasoning_retained': False}
 		return r
 def _now():
@@ -899,6 +921,98 @@ def _active(native):
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+def format_conversation_journal_title(steps) -> str:
+	ordered = sorted({st for st in (steps or ()) if int is type(st) and 1 <= st})
+	return ', '.join((str(st) for st in ordered))
+def conversation_journal_steps(root, journal_directory, conversation_id: str) -> list[int]:
+	from .path_registry import canonicalize_root_dir
+	root_p = canonicalize_root_dir(root)
+	jdir = _directory(root_p, journal_directory)
+	cid = str(conversation_id or '').strip().lower()
+	if not cid:
+		return []
+	steps: set[int] = set()
+	req_prefix = cid + '-'
+	turn_prefix = f'ag-{cid}-'
+	for _, group in journal.iter_answer_group_records(jdir, ignore_errors=True):
+		rids = group.get('request_ids') or ()
+		t_name = str(group.get('turn') or '').lower()
+		if any((isinstance(rid, str) and rid.lower().startswith(req_prefix) for rid in rids)) or t_name.startswith(turn_prefix):
+			steps.update((st for st in (group.get('steps') or ()) if int is type(st) and 1 <= st))
+	t_dir = _folder(root_p)
+	if t_dir.is_dir():
+		for sf in t_dir.glob('*.json'):
+			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json')):
+				continue
+			try:
+				st_obj = _read(sf)
+			except (OSError, ValueError):
+				continue
+			if str(st_obj.get('conversation_id') or '').strip().lower() != cid:
+				continue
+			if st_obj.get('journal') and (not journal.same_journal_identity(st_obj.get('journal'), jdir)):
+				continue
+			committed = False
+			for slot in ('prepared', 'journal_record', 'delivery'):
+				rec = st_obj.get(slot)
+				if isinstance(rec, dict) and isinstance(rec.get('journal_steps'), list):
+					valid_st = [s for s in rec['journal_steps'] if int is type(s) and 1 <= s]
+					if valid_st:
+						steps.update(valid_st)
+						committed = True
+			if (not committed) and 'open' == st_obj.get('status') and isinstance(st_obj.get('reserved_journal_steps'), list):
+				steps.update((s for s in st_obj['reserved_journal_steps'] if int is type(s) and 1 <= s))
+	for entry in journal.iter_turn_reservations(jdir).values():
+		if str(entry.get('conversation_id') or '').strip().lower() == cid:
+			steps.update((s for s in (entry.get('steps') or ()) if int is type(s) and 1 <= s))
+	return sorted(steps)
+def _sync_antigravity_conversation_title(root, native: dict, journal_directory=None, *, dry_run: bool=False) -> dict | None:
+	if not isinstance(native, dict) or (not native.get('primary')):
+		return None
+	if 'antigravity' != platform_adapter_name(native.get('platform')):
+		return None
+	cid = str(native.get('conversation_id') or '').strip().lower()
+	if not cid:
+		return None
+	steps = conversation_journal_steps(root, journal_directory, cid)
+	title = format_conversation_journal_title(steps)
+	if not title:
+		return {'synced': False, 'changed': False, 'title': '', 'steps': [], 'conversation_id': cid, 'reason': 'no_journal_steps'}
+	if dry_run:
+		return {'synced': False, 'changed': False, 'dry_run': True, 'title': title, 'steps': steps, 'conversation_id': cid}
+	try:
+		from .platforms import antigravity as ag_mod
+		res = ag_mod.update_conversation_title(cid, title, backend=native.get('native_backend'))
+		return {**res, 'steps': steps}
+	except Exception as exc:
+		return {'synced': False, 'changed': False, 'title': title, 'steps': steps, 'conversation_id': cid, 'reason': 'sync_error', 'error': str(exc)}
+def sync_conversation_title(root, conversation=None, *, platform=None, backend=None, journal_directory=None, dry_run: bool=False) -> dict:
+	from .path_registry import canonicalize_root_dir
+	root_p = canonicalize_root_dir(root)
+	native = _native(root_p, conversation, platform=platform, backend=backend)
+	if not native.get('primary'):
+		raise ValueError('A child executor has no primary conversation title to synchronize')
+	eff_j = journal_directory
+	if None is eff_j:
+		t_dir = _folder(root_p)
+		cid_low = str(native.get('conversation_id') or '').strip().lower()
+		if t_dir.is_dir():
+			for sf in sorted(t_dir.glob('*.json'), key=lambda p: p.stat().st_mtime_ns, reverse=True):
+				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json')):
+					continue
+				try:
+					st_obj = _read(sf)
+				except (OSError, ValueError):
+					continue
+				if str(st_obj.get('conversation_id') or '').strip().lower() == cid_low and st_obj.get('journal'):
+					eff_j = st_obj['journal']
+					break
+	jdir = _directory(root_p, eff_j)
+	res = _sync_antigravity_conversation_title(root_p, native, jdir, dry_run=dry_run)
+	if None is res:
+		steps = conversation_journal_steps(root_p, jdir, native.get('conversation_id') or '')
+		res = {'synced': False, 'changed': False, 'title': format_conversation_journal_title(steps), 'steps': steps, 'conversation_id': native.get('conversation_id'), 'reason': 'unsupported_platform'}
+	return {**res, 'platform': native['platform'], 'journal': str(jdir)}
 def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, dry_run=False):
 	from .path_registry import canonicalize_root_dir
 	root = canonicalize_root_dir(root)
@@ -915,21 +1029,49 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
 	else:
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
-		with locked(_turn_lock(root, _key(native, turn))):
+		key = _key(native, turn)
+		earlier_completed = any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) and _key(native, t) != key for t in native.get('turns', [])))
+		native_reconciliation = None
+		if earlier_completed:
+			existing_path = _folder(root) / (key + '.json')
+			sync_journal = journal_directory
+			if existing_path.is_file():
+				try:
+					saved_j = _read(existing_path).get('journal')
+					if saved_j:
+						if None is not journal_directory and _directory(root, saved_j) != _directory(root, journal_directory):
+							raise ValueError('The native turn already has a different journal; preserve its original binding')
+						sync_journal = saved_j
+				except (OSError, ValueError) as exc:
+					if 'already has a different journal' in str(exc):
+						raise
+			try:
+				native_reconciliation = sync(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'], journal_directory=sync_journal, _preloaded_native=native)
+			except (OSError, ValueError, sqlite3.Error) as exc:
+				native_reconciliation = {'valid': False, 'error': str(exc)}
+		with locked(_turn_lock(root, key)):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
+			if 'open' == value.get('status') and (not _recorded(value)) and (not turn.get('completed')):
+				req_ids = [req['id'] for req in (turn.get('requests') or ()) if isinstance(req, dict) and req.get('id')]
+				if req_ids:
+					value['reserved_journal_steps'] = journal.reserve_turn_steps(_directory(root, value['journal']), value['key'], native['conversation_id'], req_ids)
+			elif 'reserved_journal_steps' in value and _recorded(value):
+				value.pop('reserved_journal_steps', None)
 			if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
 				value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
 			_persist(path, value)
 		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		if value.get('reserved_journal_steps'):
+			result['reserved_journal_steps'] = list(value['reserved_journal_steps'])
 		result['execution_mode'] = 'foreground-only'
-		if any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) for t in native.get('turns', []))):
-			try:
-				result['native_reconciliation'] = sync(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'], journal_directory=value['journal'], _preloaded_native=native)
-				current = next((item for item in result['native_reconciliation']['turns'] if item['turn_key'] == value['key']), None)
-				if current:
-					result['status'] = current['status']
-			except (OSError, ValueError, sqlite3.Error) as exc:
-				result['native_reconciliation'] = {'valid': False, 'error': str(exc)}
+		if None is not native_reconciliation:
+			result['native_reconciliation'] = native_reconciliation
+			current = next((item for item in (native_reconciliation.get('turns') or ()) if item.get('turn_key') == value['key']), None)
+			if current:
+				result['status'] = current['status']
+		title_sync = _sync_antigravity_conversation_title(root, native, value['journal'])
+		if None is not title_sync:
+			result['conversation_title_sync'] = title_sync
 		r = result
 	return r
 # 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1146,13 +1288,14 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			from .text_workflow import gate_requests
 			gate_requests([root, directory], effective_requests, effective_response)
 		steps = journal.verify_answer(directory, effective_requests, effective_response, token, request_ids)
+		journal.release_turn_steps(directory, _key(native, turn), request_ids=request_ids)
 		proof = _read(group_file).get('admission')
 		if existing and existing.get('admission') != proof:
 			raise ValueError('Recorded admission differs from the original answer group; preserve history')
 		verification = admission.verify(proof, identity) if proof else {'status': 'legacy_proof_gap', 'scope': 'journal_and_native_identity_only'}
 	else:
 		capability = admission.capture([root, directory], effective_requests, effective_response, identity)
-		steps = journal.record_answer(directory, effective_requests, effective_response, token, request_ids, adopt_steps=adopt_steps, admission=capability, allow_reprepare=reprepared_before_delivery)
+		steps = journal.record_answer(directory, effective_requests, effective_response, token, request_ids, adopt_steps=adopt_steps, admission=capability, allow_reprepare=reprepared_before_delivery, reserved_turn_key=_key(native, turn))
 		proof = capability.reference
 		verification = {'status': 'verified', 'scope': 'original_publication_admission' if purpose == 'observation' else 'current_publication_readiness'}
 	for step, request in zip(steps, effective_requests):
@@ -1569,6 +1712,8 @@ def add_parser_arguments(parser, command):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
 	if 'turn-begin' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Validate native turn ownership and hygiene checks without writing receipts or upgrading journals'}))
+	if 'sync-conversation-title' == command:
+		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Compute target journal-numbered conversation title without calling Antigravity UpdateConversationAnnotations'}))
 	if 'recover-checkpoint' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Inspect read-only pre-checkpoint file SHA-256/line index and step summary without writing receipts or bypassing COMPACT-1'}))
 	if 'answer-check' == command:
@@ -1600,6 +1745,8 @@ def execute(args):
 		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)
 	elif 'journal-sync' == args.command:
 		r = sync(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal, adopt_conflict=getattr(args, 'adopt_conflict', False))
+	elif 'sync-conversation-title' == args.command:
+		r = sync_conversation_title(args.project, args.conversation, journal_directory=args.journal, dry_run=bool(getattr(args, 'dry_run', False)))
 	else:
 		raise ValueError('Unknown completion operation')
 	return r
