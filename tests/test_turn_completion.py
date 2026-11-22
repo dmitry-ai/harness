@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
 # https://github.com/dmitry-ai/harness/issues/123
@@ -2606,5 +2609,141 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			prep3_ok = completion.prepare(peer_a, 'Updated both peer_a and peer_b.', cid3, platform='antigravity', backend=backend)
 			self.assertTrue(prep3_ok['ready'])
 			self.assertEqual(prep3_ok['code_lifecycle_check']['similar_projects']['peers'][0]['resolution'], 'peer_code_updated')
+	def test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project(self):
+		from contextlib import closing
+		from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+		import os
+		import threading
+		import check_pre_invocation
+		import check_stop_gate
+		from agent_tools import upwork_project as up_mod
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			launcher_fail = t / 'launcher_fail'
+			launcher_ok = t / 'launcher_ok'
+			daily_root = t / 'daily'
+			launcher_fail.mkdir(parents=True)
+			launcher_ok.mkdir(parents=True)
+			daily_root.mkdir(parents=True)
+			ag_home = t / 'ag_home'
+			backend = ag_home / '.gemini/antigravity'
+			projects_dir = ag_home / '.gemini/config/projects'
+			projects_dir.mkdir(parents=True)
+			(backend / 'conversations').mkdir(parents=True)
+			(backend / 'annotations').mkdir(parents=True)
+			(backend / 'daemon').mkdir(parents=True)
+			(projects_dir / 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.json').write_text(json.dumps({'id': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'name': 'U / Init Fail', 'projectResources': {'resources': [{'folderUri': launcher_fail.as_uri()}]}}), encoding='utf-8')
+			(projects_dir / 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.json').write_text(json.dumps({'id': 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'name': 'U / Init Ok', 'projectResources': {'resources': [{'folderUri': launcher_ok.as_uri()}]}}), encoding='utf-8')
+			summaries_db = backend / 'conversation_summaries.db'
+			with closing(sqlite3.connect(summaries_db)) as conn:
+				conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, title TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
+				conn.commit()
+			rpc_titles: list[tuple[str, str]] = []
+			csrf_secret = 'csrf-issue-132'
+			class _MockTitleHandler(BaseHTTPRequestHandler):
+				def log_message(self, fmt, *args):
+					return
+				def do_POST(self):
+					raw = self.rfile.read(int(self.headers.get('Content-Length') or 0)).decode('utf-8')
+					body = json.loads(raw) if raw.strip() else {}
+					new_title = str((body.get('annotations') or {}).get('title') or '')
+					for target_cid in body.get('cascadeIds') or []:
+						rpc_titles.append((target_cid, new_title))
+						with closing(sqlite3.connect(summaries_db)) as c:
+							c.execute('UPDATE conversation_summaries SET title=? WHERE conversation_id=?', (new_title, target_cid))
+							c.commit()
+						(backend / 'annotations' / f'{target_cid}.pbtxt').write_text(f'title:"{new_title}"\n', encoding='utf-8')
+					self.send_response(200)
+					self.send_header('Content-Type', 'application/json')
+					self.send_header('Content-Length', '2')
+					self.end_headers()
+					self.wfile.write(b'{}')
+			server = ThreadingHTTPServer(('127.0.0.1', 0), _MockTitleHandler)
+			port = server.server_address[1]
+			threading.Thread(target=server.serve_forever, daemon=True).start()
+			self.addCleanup(server.server_close)
+			self.addCleanup(server.shutdown)
+			(backend / 'daemon' / f'hub_{port}.json').write_text(json.dumps({'pid': os.getpid(), 'httpPort': port, 'httpsPort': 0, 'lsVersion': '2.34.0', 'csrfToken': csrf_secret}), encoding='utf-8')
+			def _make_conv(ws: Path, prompt_text: str):
+				cid = str(uuid.uuid4())
+				with closing(sqlite3.connect(summaries_db)) as c:
+					c.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?,?)', (cid, 'Auto Title', '', json.dumps([ws.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, ''))
+					c.commit()
+				with closing(sqlite3.connect(backend / 'conversations' / f'{cid}.db')) as c:
+					c.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+					c.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, prompt_text.encode('utf-8'))),))
+					c.commit()
+				log_p = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
+				log_p.parent.mkdir(parents=True, exist_ok=True)
+				rows = [{'step_index': 0, 'type': 'USER_INPUT', 'content': prompt_text}]
+				log_p.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
+				return (cid, log_p, rows)
+			with patch.object(antigravity, '_is_live_language_server_pid', side_effect=lambda p: p == os.getpid()):
+				# Path A: failure before init -> tracked via registered project, renamed to "1", Stop Gate + M-5 Russian enforcement in launcher_fail
+				job_fail = '~022124567641351805598'
+				cid_fail, log_fail, rows_fail = _make_conv(launcher_fail, f'/upwork-init  https://www.upwork.com/jobs/{job_fail}')
+				pre_fail = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_fail, 'cwd': str(launcher_fail), 'transcriptPath': str(log_fail), 'invocationNum': 0}, backend_override=backend)
+				sys_msg_fail = pre_fail['injectSteps'][0]['systemMessage']['systemMessage']
+				self.assertIn('journal_title=1', sys_msg_fail)
+				self.assertIn('user_default_locale=ru', sys_msg_fail)
+				self.assertEqual(rpc_titles[-1], (cid_fail, '1'))
+				self.assertFalse((launcher_fail / '\ua66e').exists())
+				stop_unprep = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid_fail, 'cwd': str(launcher_fail), 'transcriptPath': str(log_fail)}, backend_override=backend)
+				self.assertEqual(stop_unprep['decision'], 'continue')
+				with self.assertRaisesRegex(ValueError, 'TEXT-1'):
+					completion.prepare(launcher_fail, 'CDP extraction failed before project initialization.', cid_fail, platform='antigravity', backend=backend)
+				ru_fail_reply = '\u0418\u0437\u0432\u043b\u0435\u0447\u0435\u043d\u0438\u0435 \u043f\u0440\u0435\u0440\u0432\u0430\u043d\u043e \u0434\u043e \u0438\u043d\u0438\u0446\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0438 \u043f\u0440\u043e\u0435\u043a\u0442\u0430.  \n'
+				prep_fail = completion.prepare(launcher_fail, ru_fail_reply, cid_fail, platform='antigravity', backend=backend)
+				self.assertTrue(prep_fail['ready'])
+				self.assertEqual(prep_fail['journal_steps'], [1])
+				self.assertTrue((launcher_fail / '\ua66e/\u227a/1\u201320/1.md').is_file())
+				rows_fail.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': ru_fail_reply})
+				log_fail.write_text(''.join((json.dumps(r) + '\n' for r in rows_fail)), encoding='utf-8')
+				stop_fail_ok = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid_fail, 'cwd': str(launcher_fail), 'transcriptPath': str(log_fail)}, backend_override=backend)
+				self.assertEqual(stop_fail_ok['decision'], 'allow')
+				# Path B: success path -> init hands off launcher_ok turn to daily project without creating launcher_ok/ꙮ
+				job_ok = '~022124567641351805599'
+				cid_ok, log_ok, rows_ok = _make_conv(launcher_ok, f'/upwork-init  https://www.upwork.com/jobs/{job_ok}')
+				pre_ok = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_ok, 'cwd': str(launcher_ok), 'transcriptPath': str(log_ok), 'invocationNum': 0}, backend_override=backend)
+				self.assertIn('journal_title=1', pre_ok['injectSteps'][0]['systemMessage']['systemMessage'])
+				self.assertFalse((launcher_ok / '\ua66e').exists())
+				extracted = {'job_id': job_ok, 'url': f'https://www.upwork.com/jobs/{job_ok}', 'title': 'Shopify GA4 Audit', 'description': 'Fix GA4 purchase events on Shopify storefront.', 'captured_at': '2026-11-23T00:00:00+00:00', 'coverage': {'job_details': 'complete'}}
+				init_res = up_mod.initialize_upwork_project(job_ok, domain_or_topic='shopify-ga4', date_str='2026-11-23', daily_root=daily_root, extracted_data=extracted, register_native=False, launcher_root=launcher_ok)
+				daily_proj = Path(init_res['project_dir']).resolve()
+				self.assertEqual(len(init_res.get('launcher_handoff') or ()), 1)
+				self.assertEqual(init_res['launcher_handoff'][0]['status'], 'handed_off')
+				self.assertEqual(Path(init_res['launcher_handoff'][0]['target_root']).resolve(), daily_proj)
+				self.assertFalse((launcher_ok / '\ua66e').exists())
+				self.assertFalse((journal.state_dir(launcher_ok / '\ua66e') / journal.TURN_RESERVATIONS_FILE).exists())
+				# Subsequent PreInvocation in launcher_ok fast-exits cleanly
+				self.assertEqual(check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid_ok, 'cwd': str(launcher_ok), 'transcriptPath': str(log_ok), 'invocationNum': 1}, backend_override=backend), {})
+				# Stop Gate in launcher_ok follows handoff to daily_proj and blocks until daily_proj is prepared
+				stop_handoff_missing = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid_ok, 'cwd': str(launcher_ok), 'transcriptPath': str(log_ok)}, backend_override=backend)
+				self.assertEqual(stop_handoff_missing['decision'], 'continue')
+				self.assertIn(str(daily_proj), stop_handoff_missing['reason'])
+				beg_daily = completion.begin(daily_proj, cid_ok, platform='antigravity', backend=backend)
+				self.assertEqual(beg_daily['status'], 'open')
+				stop_handoff_unprep = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid_ok, 'cwd': str(launcher_ok), 'transcriptPath': str(log_ok)}, backend_override=backend)
+				self.assertEqual(stop_handoff_unprep['decision'], 'continue')
+				ru_ok_reply = '\u041f\u0435\u0440\u0432\u0438\u0447\u043d\u044b\u0439 \u0430\u043d\u0430\u043b\u0438\u0437 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d.  \n'
+				prep_daily = completion.prepare(daily_proj, ru_ok_reply, cid_ok, platform='antigravity', backend=backend)
+				self.assertTrue(prep_daily['ready'])
+				self.assertEqual(prep_daily['journal_steps'], [1])
+				rows_ok.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': ru_ok_reply})
+				log_ok.write_text(''.join((json.dumps(r) + '\n' for r in rows_ok)), encoding='utf-8')
+				stop_handoff_ok = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid_ok, 'cwd': str(launcher_ok), 'transcriptPath': str(log_ok)}, backend_override=backend)
+				self.assertEqual(stop_handoff_ok['decision'], 'allow')
+				# Mark conversation completed and sync launcher_ok -> skips handed_off turn with zero duplicate journal entries
+				with closing(sqlite3.connect(backend / 'conversations' / f'{cid_ok}.db')) as c:
+					c.execute('INSERT INTO steps VALUES(1, 15, 3, 0, ?)', (b'',))
+					c.commit()
+				with closing(sqlite3.connect(summaries_db)) as c:
+					c.execute("UPDATE conversation_summaries SET status='CASCADE_RUN_STATUS_IDLE', not_fully_idle=0 WHERE conversation_id=?", (cid_ok,))
+					c.commit()
+				sync_launcher = completion.sync(launcher_ok, cid_ok, platform='antigravity', backend=backend)
+				self.assertTrue(sync_launcher['valid'], sync_launcher)
+				self.assertEqual(sync_launcher['turns'][0]['status'], 'handed_off')
+				self.assertEqual(sync_launcher['turns'][0]['journal_steps'], [])
+				self.assertFalse((launcher_ok / '\ua66e').exists())
 if '__main__' == __name__:
 	unittest.main()

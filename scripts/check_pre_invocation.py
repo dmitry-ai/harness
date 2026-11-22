@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
 # https://github.com/dmitry-ai/harness/issues/131
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -37,16 +40,11 @@ def _resolve_root(payload: dict) -> Path | None:
 		cand = local_uri_to_path(raw) if raw.lower().startswith('file://') else Path(raw)
 		return Path(cand).resolve()
 	return None
-def _is_tracked_and_non_umbrella(root: Path) -> tuple[bool, Path]:
+def _is_tracked_and_non_umbrella(root: Path, *, projects_dirs=None) -> tuple[bool, Path]:
 	_ensure_scripts_on_path()
 	try:
-		from agent_tools.path_registry import canonicalize_root_dir, load_registry, project_paths
-		canon = canonicalize_root_dir(root)
-		if None is not load_registry().workspace_override(canon):
-			return (False, canon)
-		pp = project_paths(canon, exact_root=True)
-		if pp.has_overlay or pp.project_json.is_file() or pp.journal_dir.is_dir() or pp.turns_dir.is_dir():
-			return (True, canon)
+		from agent_tools.path_registry import is_tracked_workspace
+		return is_tracked_workspace(root, projects_dirs=projects_dirs)
 	except Exception:
 		canon = root
 	tracked = (canon / '\ua616/project.json').is_file() or (canon / '_/\ua66e').is_dir() or (canon / '\ua66e').is_dir()
@@ -67,7 +65,7 @@ def _scratch_answer_path(canon_root: Path, turn_key: str) -> str:
 		return (project_paths(canon_root, exact_root=True).scratch_dir / f'answer-{turn_key}.md').as_posix()
 	except Exception:
 		return (canon_root / '\ua616/data/scratch' / f'answer-{turn_key}.md').as_posix()
-def _resolve_ag_paths(conversation_id: str, t_path: Path | None = None, backend_override: Path | None = None) -> tuple[Path, Path, Path, Path]:
+def _resolve_ag_paths(conversation_id: str, t_path: Path | None = None, backend_override: Path | None = None) -> tuple[Path, Path, Path, Path, Path]:
 	_ensure_scripts_on_path()
 	resolved = None
 	from agent_tools.runtime import platform_instances, resolve_antigravity_paths, settings
@@ -89,7 +87,7 @@ def _resolve_ag_paths(conversation_id: str, t_path: Path | None = None, backend_
 	if None is resolved and None is t_path:
 		resolved = resolve_antigravity_paths(conversation_id=conversation_id)
 	if None is not resolved:
-		return (Path(resolved['backend_dir']).resolve(), Path(resolved['brain_dir']).resolve(), Path(resolved['conversations_db']).resolve(), Path(resolved['conversations_dir']).resolve())
+		return (Path(resolved['backend_dir']).resolve(), Path(resolved['brain_dir']).resolve(), Path(resolved['conversations_db']).resolve(), Path(resolved['conversations_dir']).resolve(), Path(resolved['projects_dir']).resolve())
 	if None is not backend_override:
 		backend = Path(backend_override).resolve()
 	elif None is not t_path:
@@ -102,7 +100,7 @@ def _resolve_ag_paths(conversation_id: str, t_path: Path | None = None, backend_
 	else:
 		from agent_tools.path_registry import default_platform_paths
 		backend = Path(default_platform_paths('antigravity')['backend_dir']).resolve()
-	return (backend, backend / 'brain', backend / 'conversation_summaries.db', backend / 'conversations')
+	return (backend, backend / 'brain', backend / 'conversation_summaries.db', backend / 'conversations', backend.parent / 'config/projects')
 def _summary_primary_status(conversations_db: Path, conversation_id: str) -> str:
 	if not conversations_db.is_file():
 		return 'unavailable'
@@ -183,7 +181,7 @@ def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str,
 			continue
 		req_steps = {req.get('native_step') for req in st.get('requests') or [] if isinstance(req, dict)}
 		if st.get('native_turn_id') == f'ag-{conversation_id}-{max_user_step}' or max_user_step in req_steps or st.get('native_start_step') == max_user_step:
-			if st.get('status') in ('open', 'prepared', 'delivered', 'conflict'):
+			if st.get('status') in ('open', 'prepared', 'delivered', 'conflict', 'handed_off'):
 				return True
 	return False
 def _terminate_error(message: str) -> dict:
@@ -221,19 +219,21 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	root = _resolve_root(payload)
 	if None is root:
 		return {}
-	tracked, canon_root = _is_tracked_and_non_umbrella(root)
-	if not tracked:
-		return {}
+	fast_tracked, canon_root = _is_tracked_and_non_umbrella(root, projects_dirs=())
 	t_path_raw = str(payload.get('transcriptPath') or '').strip()
 	t_path = Path(t_path_raw).resolve() if t_path_raw else None
 	try:
-		backend, brain_dir, conversations_db, conversations_dir = _resolve_ag_paths(conversation_id, t_path=t_path, backend_override=backend_override)
+		backend, brain_dir, conversations_db, conversations_dir, projects_dir = _resolve_ag_paths(conversation_id, t_path=t_path, backend_override=backend_override)
 	except ValueError as exc:
-		if 'exists in multiple Antigravity instances' in str(exc):
+		if fast_tracked and 'exists in multiple Antigravity instances' in str(exc):
 			return _terminate_error(str(exc))
 		return {}
 	except Exception:
 		return {}
+	if not fast_tracked:
+		tracked, canon_root = _is_tracked_and_non_umbrella(root, projects_dirs=(projects_dir,))
+		if not tracked:
+			return {}
 	role = _summary_primary_status(conversations_db, conversation_id)
 	if 'primary' != role:
 		return {}
@@ -254,7 +254,7 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 			return {}
 		except Exception:
 			return {}
-	if 'primary' == res.get('role') and res.get('turn_key'):
+	if 'primary' == res.get('role') and res.get('turn_key') and 'handed_off' != res.get('status'):
 		turn_key = str(res['turn_key'])
 		scratch_ans = _scratch_answer_path(canon_root, turn_key)
 		title_info = res.get('conversation_title_sync') if isinstance(res.get('conversation_title_sync'), dict) else {}

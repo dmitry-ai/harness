@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
 # https://github.com/dmitry-ai/harness/issues/123
@@ -29,16 +32,17 @@ def _ensure_scripts_on_path() -> None:
 	scripts_dir = str(Path(__file__).resolve().parent)
 	if scripts_dir not in sys.path:
 		sys.path.insert(0, scripts_dir)
-def _is_tracked_workspace(root: Path) -> bool:
+def _tracked_workspace(root: Path, *, projects_dirs=None) -> tuple[bool, Path]:
 	_ensure_scripts_on_path()
 	try:
-		from agent_tools.path_registry import project_paths
-		pp = project_paths(root)
-		if pp.has_overlay or pp.project_json.is_file() or pp.journal_dir.is_dir() or pp.turns_dir.is_dir():
-			return True
+		from agent_tools.path_registry import is_tracked_workspace
+		return is_tracked_workspace(root, projects_dirs=projects_dirs)
 	except Exception:
 		pass
-	return (root / '\ua616/project.json').is_file() or (root / '_/\ua66e').is_dir() or (root / '\ua66e').is_dir()
+	tracked = (root / '\ua616/project.json').is_file() or (root / '_/\ua66e').is_dir() or (root / '\ua66e').is_dir()
+	return (tracked, root)
+def _is_tracked_workspace(root: Path, *, projects_dirs=None) -> bool:
+	return _tracked_workspace(root, projects_dirs=projects_dirs)[0]
 def _turns_dir(root: Path) -> Path:
 	_ensure_scripts_on_path()
 	try:
@@ -58,7 +62,7 @@ def _is_child_conversation(backend: Path, conversation_id: str, *, conversations
 		return False
 	finally:
 		conn.close()
-def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_override: Path | None = None) -> tuple[Path, Path, Path]:
+def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_override: Path | None = None) -> tuple[Path, Path, Path, Path]:
 	scripts_dir = str(Path(__file__).resolve().parent)
 	if scripts_dir not in sys.path:
 		sys.path.insert(0, scripts_dir)
@@ -85,10 +89,10 @@ def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_ove
 	except Exception:
 		resolved = None
 	if None is not resolved:
-		return (Path(resolved['backend_dir']).resolve(), Path(resolved['brain_dir']).resolve(), Path(resolved['conversations_db']).resolve())
+		return (Path(resolved['backend_dir']).resolve(), Path(resolved['brain_dir']).resolve(), Path(resolved['conversations_db']).resolve(), Path(resolved['projects_dir']).resolve())
 	if None is not backend_override:
 		backend = Path(backend_override).resolve()
-		return (backend, backend / 'brain', backend / 'conversation_summaries.db')
+		return (backend, backend / 'brain', backend / 'conversation_summaries.db', backend.parent / 'config/projects')
 	if None is not t_path:
 		if len(t_path.parents) >= 5 and 'brain' == t_path.parents[3].name:
 			backend = t_path.parents[4]
@@ -99,13 +103,39 @@ def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_ove
 		else:
 			backend = t_path.parent
 			brain_dir = backend / 'brain'
-		return (backend, brain_dir, backend / 'conversation_summaries.db')
+		return (backend, brain_dir, backend / 'conversation_summaries.db', backend.parent / 'config/projects')
 	try:
 		from agent_tools.path_registry import default_platform_paths
-		backend = Path(default_platform_paths('antigravity')['backend_dir']).resolve()
+		defaults = default_platform_paths('antigravity')
+		backend = Path(defaults['backend_dir']).resolve()
+		projects_dir = Path(defaults['projects_dir']).resolve() if defaults.get('projects_dir') else (backend.parent / 'config/projects')
 	except Exception:
 		backend = (Path.home() / '.gemini/antigravity').resolve()
-	return (backend, backend / 'brain', backend / 'conversation_summaries.db')
+		projects_dir = backend.parent / 'config/projects'
+	return (backend, backend / 'brain', backend / 'conversation_summaries.db', projects_dir)
+def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows: list | None = None) -> dict | None:
+	if not t_dir.is_dir():
+		return None
+	handed_off_fallback: tuple[int, dict] | None = None
+	for sf in t_dir.glob('*.json'):
+		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
+			continue
+		try:
+			st = json.loads(sf.read_text(encoding='utf-8'))
+		except Exception:
+			continue
+		if not isinstance(st, dict) or st.get('conversation_id') != session_id:
+			continue
+		req_steps = {req.get('native_step') for req in st.get('requests') or [] if isinstance(req, dict)}
+		if st.get('native_turn_id') == f'ag-{session_id}-{last_user_step}' or last_user_step in req_steps or st.get('native_start_step') == last_user_step:
+			return st
+		if None is not rows and 'handed_off' == st.get('status'):
+			start_step = st.get('native_start_step')
+			if isinstance(start_step, int) and start_step <= last_user_step:
+				has_prior_final = any((isinstance(r, dict) and 'PLANNER_RESPONSE' == r.get('type') and (not (r.get('tool_calls') or ())) and str(r.get('content') or '').strip() and isinstance(r.get('step_index'), int) and start_step < r['step_index'] < last_user_step for r in rows))
+				if not has_prior_final and (None is handed_off_fallback or start_step > handed_off_fallback[0]):
+					handed_off_fallback = (start_step, st)
+	return handed_off_fallback[1] if None is not handed_off_fallback else None
 def _resolve_backend_fallback(session_id: str) -> Path:
 	return _resolve_stop_paths(session_id)[0]
 def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None) -> dict:
@@ -119,10 +149,13 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	if not cwd_raw or not session_id or (not re.fullmatch('[a-f0-9-]{36}', session_id)):
 		return {'decision': 'allow'}
 	root = Path(cwd_raw).resolve()
-	if not _is_tracked_workspace(root):
-		return {'decision': 'allow'}
 	t_path = Path(t_path_raw).resolve() if t_path_raw else None
-	backend, brain_dir, conversations_db = _resolve_stop_paths(session_id, t_path=t_path, backend_override=backend_override)
+	fast_tracked, canon_root = _tracked_workspace(root, projects_dirs=())
+	backend, brain_dir, conversations_db, projects_dir = _resolve_stop_paths(session_id, t_path=t_path, backend_override=backend_override)
+	if not fast_tracked:
+		tracked, canon_root = _tracked_workspace(root, projects_dirs=(projects_dir,))
+		if not tracked:
+			return {'decision': 'allow'}
 	if _is_child_conversation(backend, session_id, conversations_db=conversations_db):
 		return {'decision': 'allow'}
 	logs_dir = t_path.parent if None is not t_path else (brain_dir / session_id / '.system_generated/logs')
@@ -154,22 +187,17 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 			last_planner_text = str(r.get('content'))
 	if completed < spawned:
 		return {'decision': 'allow'}
-	t_dir = _turns_dir(root)
-	matched_state = None
-	if t_dir.is_dir():
-		for sf in t_dir.glob('*.json'):
-			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
-				continue
-			try:
-				st = json.loads(sf.read_text(encoding='utf-8'))
-			except Exception:
-				continue
-			if not isinstance(st, dict) or st.get('conversation_id') != session_id:
-				continue
-			req_steps = {req.get('native_step') for req in st.get('requests') or [] if isinstance(req, dict)}
-			if st.get('native_turn_id') == f'ag-{session_id}-{last_user_step}' or last_user_step in req_steps or st.get('native_start_step') == last_user_step:
-				matched_state = st
-				break
+	t_dir = _turns_dir(canon_root)
+	matched_state = _find_turn_state(t_dir, session_id, last_user_step, rows=rows)
+	if None is not matched_state and 'handed_off' == matched_state.get('status'):
+		handoff_info = matched_state.get('handed_off_to') if isinstance(matched_state.get('handed_off_to'), dict) else {}
+		handoff_raw = str(handoff_info.get('project_root') or '').strip()
+		if handoff_raw:
+			handoff_root = Path(handoff_raw).resolve()
+			target_state = _find_turn_state(_turns_dir(handoff_root), session_id, last_user_step)
+			if None is target_state:
+				return {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare in {handoff_root} before finishing the response.'}
+			matched_state = target_state
 	if None is matched_state:
 		return {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare before finishing the response.'}
 	prep = matched_state.get('prepared')

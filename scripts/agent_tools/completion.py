@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
 # https://github.com/dmitry-ai/harness/issues/131
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -346,6 +349,8 @@ class TurnJournalReconciler:
 					pass
 	def _reconcile_turn(self, turn):
 		path, value = _state(self.root, self.native, turn, recovered=True, allow_extended=True, journal_directory=self.journal_directory)
+		if 'handed_off' == value.get('status'):
+			return {'turn_key': value['key'], 'status': 'handed_off', 'handed_off_to': value.get('handed_off_to'), 'delivery_verified': False, 'journal_steps': [], 'recovered_after_delivery': False}
 		response = turn['response']
 		sha = _hash(response.encode('utf-8'))
 		if value.get('uncovered_requests') and (not self.adopt_conflict):
@@ -919,7 +924,7 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 	key = _key(native, turn)
 	path = _folder(root) / (key + '.json')
 	value = _read(path) if path.exists() else _new(root, native, turn, recovered=recovered, journal_directory=journal_directory)
-	historical_done = bool(turn.get('completed') and value.get('status') in ('delivered', 'conflict'))
+	historical_done = bool('handed_off' == value.get('status') or (turn.get('completed') and value.get('status') in ('delivered', 'conflict')))
 	active_validation = not recovered and not historical_done
 	if 'instruction_snapshot' not in value and active_validation:
 		value['instruction_snapshot'] = _instruction_snapshot(root, native, stage='existing-state-upgrade')
@@ -1096,6 +1101,61 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 		steps = conversation_journal_steps(root_p, jdir, native.get('conversation_id') or '')
 		res = {'synced': False, 'changed': False, 'title': format_conversation_journal_title(steps), 'steps': steps, 'conversation_id': native.get('conversation_id'), 'reason': 'unsupported_platform'}
 	return {**res, 'platform': native['platform'], 'journal': str(jdir)}
+def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id=None) -> list[dict]:
+	from .path_registry import canonicalize_root_dir, same_project_root
+	from .platforms.request_binding import _explicit
+	if not launcher_root or not target_root:
+		return []
+	launcher_p = canonicalize_root_dir(launcher_root)
+	target_p = canonicalize_root_dir(target_root)
+	if same_project_root(launcher_p, target_p):
+		return []
+	t_dir = _folder(launcher_p)
+	if not t_dir.is_dir():
+		return []
+	cid_filter = str(conversation_id or '').strip().lower() or None
+	job_str = str(job_id or '').strip() or None
+	if not cid_filter and not job_str:
+		return []
+	handed_off: list[dict] = []
+	for sf in sorted(t_dir.glob('*.json')):
+		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
+			continue
+		try:
+			st = _read(sf)
+		except (OSError, ValueError):
+			continue
+		if 'open' != st.get('status') or _recorded(st):
+			continue
+		st_cid = str(st.get('conversation_id') or '').strip().lower()
+		if None is not cid_filter and st_cid != cid_filter:
+			continue
+		reqs = [r for r in (st.get('requests') or ()) if isinstance(r, dict)]
+		if None is not job_str and not any((_explicit(str(r.get('text') or ''), job_str)[0] for r in reqs)):
+			continue
+		key = str(st.get('key') or sf.stem)
+		with locked(_turn_lock(launcher_p, key)):
+			if not sf.is_file():
+				continue
+			try:
+				cur = _read(sf)
+			except (OSError, ValueError):
+				continue
+			if 'open' != cur.get('status') or _recorded(cur):
+				continue
+			cur_reqs = [r for r in (cur.get('requests') or ()) if isinstance(r, dict)]
+			req_ids = [r['id'] for r in cur_reqs if r.get('id')]
+			if cur.get('journal'):
+				try:
+					journal.release_turn_steps(_directory(launcher_p, cur['journal']), key, request_ids=req_ids)
+				except (OSError, ValueError):
+					pass
+			cur.pop('reserved_journal_steps', None)
+			cur['status'] = 'handed_off'
+			cur['handed_off_to'] = {'project_root': str(target_p), 'job_id': job_str, 'handed_off_at': _now()}
+			_persist(sf, cur)
+			handed_off.append({'turn_key': key, 'conversation_id': cur.get('conversation_id'), 'launcher_root': str(launcher_p), 'target_root': str(target_p), 'job_id': job_str, 'status': 'handed_off'})
+	return handed_off
 def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, dry_run=False):
 	from .path_registry import canonicalize_root_dir
 	root = canonicalize_root_dir(root)
@@ -1115,6 +1175,17 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		if value.get('similar_project_repos'):
 			r['similar_project_repos'] = list(value['similar_project_repos'])
 	else:
+		launcher_handoff: list[dict] = []
+		ws_origin = native.get('workspace_root')
+		if ws_origin:
+			from .path_registry import project_paths, same_project_root
+			if not same_project_root(ws_origin, root) and project_paths(root, exact_root=True).project_json.is_file():
+				try:
+					from .platforms.request_binding import native_project_id
+					job_id = native_project_id(root)
+					launcher_handoff = handoff_launcher_turn(ws_origin, root, job_id, conversation_id=native['conversation_id'])
+				except (OSError, ValueError):
+					launcher_handoff = []
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
 		key = _key(native, turn)
 		earlier_completed = any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) and _key(native, t) != key for t in native.get('turns', [])))
@@ -1138,18 +1209,23 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 				native_reconciliation = {'valid': False, 'error': str(exc)}
 		with locked(_turn_lock(root, key)):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
-			if 'open' == value.get('status') and (not _recorded(value)) and (not turn.get('completed')):
-				req_ids = [req['id'] for req in (turn.get('requests') or ()) if isinstance(req, dict) and req.get('id')]
-				if req_ids:
-					value['reserved_journal_steps'] = journal.reserve_turn_steps(_directory(root, value['journal']), value['key'], native['conversation_id'], req_ids)
-			elif 'reserved_journal_steps' in value and _recorded(value):
-				value.pop('reserved_journal_steps', None)
-			if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
-				value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
-			_persist(path, value)
+			if 'handed_off' != value.get('status'):
+				if 'open' == value.get('status') and (not _recorded(value)) and (not turn.get('completed')):
+					req_ids = [req['id'] for req in (turn.get('requests') or ()) if isinstance(req, dict) and req.get('id')]
+					if req_ids:
+						value['reserved_journal_steps'] = journal.reserve_turn_steps(_directory(root, value['journal']), value['key'], native['conversation_id'], req_ids)
+				elif 'reserved_journal_steps' in value and _recorded(value):
+					value.pop('reserved_journal_steps', None)
+				if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
+					value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
+				_persist(path, value)
 		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		if value.get('reserved_journal_steps'):
 			result['reserved_journal_steps'] = list(value['reserved_journal_steps'])
+		if value.get('handed_off_to'):
+			result['handed_off_to'] = value['handed_off_to']
+		if launcher_handoff:
+			result['launcher_handoff'] = launcher_handoff
 		if value.get('similar_projects'):
 			result['similar_projects'] = list(value['similar_projects'])
 		if value.get('similar_project_repos'):
@@ -1160,7 +1236,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 			current = next((item for item in (native_reconciliation.get('turns') or ()) if item.get('turn_key') == value['key']), None)
 			if current:
 				result['status'] = current['status']
-		title_sync = _sync_antigravity_conversation_title(root, native, value['journal'])
+		title_sync = None if 'handed_off' == value.get('status') else _sync_antigravity_conversation_title(root, native, value['journal'])
 		if None is not title_sync:
 			result['conversation_title_sync'] = title_sync
 		r = result

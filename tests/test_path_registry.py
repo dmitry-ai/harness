@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Register df-servers V2 root and relocation in paths.json":
 # https://github.com/dmitry-ai/harness/issues/125
@@ -982,5 +985,52 @@ class PathRegistryTests(TemporaryCase):
 		(sim_meta / '\ua616').mkdir(parents=True)
 		(sim_srv / '.git').mkdir(parents=True)
 		self.assertEqual(pr.canonicalize_root_dir(sim_srv), sim_meta)
+	def test_is_tracked_workspace_supports_registered_single_projects_and_declarative_opt_outs(self):
+		proj_dir = (self.root / 'ag_projects').resolve()
+		proj_dir.mkdir(parents=True)
+		empty_reg = (self.root / 'empty_registered').resolve()
+		empty_unreg = (self.root / 'empty_unregistered').resolve()
+		empty_outside = (self.root / 'outside_dir').resolve()
+		empty_cli = (self.root / 'cli_dir').resolve()
+		empty_multi_a = (self.root / 'multi_a').resolve()
+		empty_multi_b = (self.root / 'multi_b').resolve()
+		umbrella_reg = (self.root / 'umbrella_reg').resolve()
+		untracked_reg = (self.root / 'untracked_reg').resolve()
+		overlay_opt_out = (self.root / 'overlay_opt_out').resolve()
+		overlay_bad = (self.root / 'overlay_bad').resolve()
+		for d in (empty_reg, empty_unreg, empty_outside, empty_cli, empty_multi_a, empty_multi_b, umbrella_reg, untracked_reg, overlay_opt_out, overlay_bad):
+			d.mkdir(parents=True)
+		self.put('ag_projects/11111111-1111-1111-1111-111111111111.json', json.dumps({'id': '11111111-1111-1111-1111-111111111111', 'name': 'U / Init', 'projectResources': {'resources': [{'folderUri': empty_reg.as_uri()}]}}))
+		self.put('ag_projects/outside-of-project.json', json.dumps({'id': 'outside-of-project', 'projectResources': {'resources': [{'folderUri': empty_outside.as_uri()}]}}))
+		self.put('ag_projects/default-cli-project.json', json.dumps({'id': 'default-cli-project', 'projectResources': {'resources': [{'folderUri': empty_cli.as_uri()}]}}))
+		self.put('ag_projects/22222222-2222-2222-2222-222222222222.json', json.dumps({'id': '22222222-2222-2222-2222-222222222222', 'projectResources': {'resources': []}}))
+		self.put('ag_projects/33333333-3333-3333-3333-333333333333.json', json.dumps({'id': '33333333-3333-3333-3333-333333333333', 'projectResources': {'resources': [{'folderUri': empty_multi_a.as_uri()}, {'folderUri': empty_multi_b.as_uri()}]}}))
+		self.put('ag_projects/44444444-4444-4444-4444-444444444444.json', json.dumps({'id': '44444444-4444-4444-4444-444444444444', 'projectResources': {'resources': [{'folderUri': umbrella_reg.as_uri()}]}}))
+		self.put('ag_projects/55555555-5555-5555-5555-555555555555.json', json.dumps({'id': '55555555-5555-5555-5555-555555555555', 'projectResources': {'resources': [{'folderUri': untracked_reg.as_uri()}]}}))
+		self.put('ag_projects/66666666-6666-6666-6666-666666666666.json', json.dumps({'id': '66666666-6666-6666-6666-666666666666', 'projectResources': {'resources': [{'folderUri': overlay_opt_out.as_uri()}]}}))
+		(untracked_reg / '\ua66e').mkdir()
+		self.put('overlay_opt_out/.agents/paths.json', json.dumps({'version': 1, 'tracked': False}))
+		self.put('overlay_bad/.agents/paths.json', json.dumps({'version': 1, 'tracked': 'false'}))
+		raw_reg = deepcopy(pr.load_registry().raw)
+		raw_reg['workspace_overrides'][umbrella_reg.as_posix()] = {'data_dir': (self.root / 'umb_data').as_posix()}
+		raw_reg['untracked_workspaces'] = [untracked_reg.as_posix()]
+		reg = pr.load_registry(self.put('tracked-paths.json', json.dumps(raw_reg)))
+		self.assertEqual(pr.is_tracked_workspace(empty_reg, registry=reg, projects_dirs=(proj_dir,)), (True, empty_reg))
+		self.assertEqual(pr.is_tracked_workspace(empty_reg, registry=reg, projects_dirs=()), (False, empty_reg))
+		self.assertEqual(pr.is_tracked_workspace(empty_unreg, registry=reg, projects_dirs=(proj_dir,)), (False, empty_unreg))
+		self.assertEqual(pr.is_tracked_workspace(empty_outside, registry=reg, projects_dirs=(proj_dir,)), (False, empty_outside))
+		self.assertEqual(pr.is_tracked_workspace(empty_cli, registry=reg, projects_dirs=(proj_dir,)), (False, empty_cli))
+		self.assertEqual(pr.is_tracked_workspace(empty_multi_a, registry=reg, projects_dirs=(proj_dir,)), (False, empty_multi_a))
+		self.assertEqual(pr.is_tracked_workspace(umbrella_reg, registry=reg, projects_dirs=(proj_dir,)), (False, umbrella_reg))
+		self.assertEqual(pr.is_tracked_workspace(untracked_reg, registry=reg, projects_dirs=(proj_dir,)), (False, untracked_reg))
+		self.assertEqual(pr.is_tracked_workspace(overlay_opt_out, registry=reg, projects_dirs=(proj_dir,)), (False, overlay_opt_out))
+		with self.assertRaisesRegex(ValueError, 'tracked must be a boolean'):
+			pr.project_paths(overlay_bad, registry=reg, exact_root=True)
+		upwork_umbrella = Path('C:/work/upwork/code')
+		if upwork_umbrella.is_dir():
+			self.assertFalse(pr.is_tracked_workspace(upwork_umbrella)[0])
+		upwork_init = Path('C:/work/upwork/code/proposals/init')
+		if upwork_init.is_dir():
+			self.assertEqual(pr.is_tracked_workspace(upwork_init), (True, upwork_init.resolve()))
 if '__main__' == __name__:
 	unittest.main()

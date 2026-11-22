@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
 # https://github.com/dmitry-ai/harness/issues/123
@@ -369,6 +372,8 @@ class PathRegistry:
 				raise ValueError('paths.json workspace_overrides values must be objects')
 			ws_resolved = expand_template(ws_tpl, variables, env=self.env, normalize=True)
 			self.workspace_overrides[_path_key(ws_resolved)] = {'root': ws_resolved, **expand_structure(ws_cfg, variables, env=self.env)}
+		raw_untracked = _validate_string_list(raw.get('untracked_workspaces'), 'paths.json untracked_workspaces')
+		self.untracked_workspaces: frozenset[str] = frozenset((_path_key(Path(os.path.abspath(expand_template(item, variables, env=self.env, normalize=True)))) for item in raw_untracked))
 		raw_reloc = _validate_string_map(raw.get('relocations') or {}, 'paths.json relocations')
 		self.relocations = {_path_key(expand_template(src, variables, env=self.env, normalize=True)): expand_template(dst, variables, env=self.env, normalize=True) for src, dst in raw_reloc.items()}
 		raw_plats = raw.get('platform_layouts') or {}
@@ -665,7 +670,7 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	version = raw.get('version', 1)
 	if 1 != version:
 		raise ValueError(f'Project overlay {overlay_path} requires version 1')
-	allowed_keys = {'version', 'fs_version', 'journal_version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'similar_projects', 'deliverable_segments', 'source_dirs', 'notes'}
+	allowed_keys = {'version', 'fs_version', 'journal_version', 'profile', 'extends', 'tracked', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'similar_projects', 'deliverable_segments', 'source_dirs', 'notes'}
 	unknown = set(raw) - allowed_keys
 	if unknown:
 		raise ValueError(f"Unknown keys in project overlay {overlay_path}: {', '.join(sorted(unknown))}")
@@ -675,6 +680,9 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	j_ver = raw.get('journal_version')
 	if None is not j_ver and (int is not type(j_ver) or j_ver not in (1, 2, 3)):
 		raise ValueError(f'Project overlay {overlay_path} journal_version must be 1, 2, or 3')
+	tracked = raw.get('tracked')
+	if None is not tracked and (bool is not type(tracked)):
+		raise ValueError(f'Project overlay {overlay_path} tracked must be a boolean')
 	profile = raw.get('profile') or raw.get('extends')
 	if None is not profile:
 		if not isinstance(profile, str) or profile not in reg.project_profiles:
@@ -684,6 +692,7 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 		'fs_version': fs_ver,
 		'journal_version': j_ver,
 		'profile': profile,
+		'tracked': tracked,
 		'variables': _validate_variables_map(raw.get('variables'), f'{overlay_path} variables'),
 		'paths': _validate_string_map(raw.get('paths'), f'{overlay_path} paths'),
 		'tools': deepcopy(raw.get('tools') or {}) if isinstance(raw.get('tools') or {}, dict) else (_ for _ in ()).throw(ValueError(f'{overlay_path} tools must be an object')),
@@ -1018,6 +1027,7 @@ class ProjectPaths:
 		self.overlay_file = discover_overlay_file(self.root, registry=self.registry)
 		self.overlay = _validate_overlay(json.loads(self.overlay_file.read_text(encoding='utf-8-sig')), self.overlay_file, self.registry) if None is not self.overlay_file else None
 		self.has_overlay = None is not self.overlay
+		self.tracked: bool | None = self.overlay.get('tracked') if self.overlay else None
 		ov_fs_ver = self.overlay.get('fs_version') if self.overlay else None
 		self.profile = (self.overlay.get('profile') if self.overlay else None) or _infer_default_profile(self.root, self.overlay_file, self.registry, explicit_fs_version=ov_fs_ver)
 		prof_spec = self.registry._resolve_profile_chain(self.profile)
@@ -1331,6 +1341,94 @@ def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=Non
 		_PROJECT_PATHS_CACHE.clear()
 	_PROJECT_PATHS_CACHE[cache_key] = pp
 	return pp
+_EXCLUDED_PROJECT_IDS = frozenset(('outside-of-project', 'default-cli-project'))
+def _is_registered_single_project(canon: Path, *, registry: PathRegistry, projects_dirs=None) -> bool:
+	dirs: list[Path] = []
+	if None is not projects_dirs:
+		for d in projects_dirs:
+			if d:
+				dirs.append(Path(d))
+	else:
+		seen_dirs: set[str] = set()
+		def _add_dir(raw_d: str | Path | None) -> None:
+			if not raw_d:
+				return
+			p = Path(raw_d)
+			dk = _path_key(p)
+			if dk not in seen_dirs:
+				seen_dirs.add(dk)
+				dirs.append(p)
+		try:
+			from . import runtime as rt_mod
+			cfg = rt_mod.settings()
+			if 'antigravity' in (cfg.get('platforms') or {}):
+				for inst in rt_mod.platform_instances('antigravity', config=cfg, include_disabled=False).values():
+					_add_dir((inst.get('system_paths') or {}).get('projects_dir'))
+		except Exception:
+			pass
+		if not dirs:
+			try:
+				_add_dir(default_platform_paths('antigravity', registry=registry).get('projects_dir'))
+			except Exception:
+				pass
+	target_key = _path_key(canon)
+	from .platforms.trace_common import extract_resource_uri, local_uri_to_path
+	for pdir in dirs:
+		if not pdir.is_dir():
+			continue
+		try:
+			files = sorted(pdir.glob('*.json'))
+		except OSError:
+			continue
+		for pf in files:
+			if pf.stem.casefold() in _EXCLUDED_PROJECT_IDS:
+				continue
+			try:
+				data = json.loads(pf.read_text(encoding='utf-8-sig'))
+			except (OSError, ValueError):
+				continue
+			if not isinstance(data, dict):
+				continue
+			pid = str(data.get('id') or '').strip().casefold()
+			if pid in _EXCLUDED_PROJECT_IDS:
+				continue
+			resources = (data.get('projectResources') or {}).get('resources') if isinstance(data.get('projectResources'), dict) else None
+			if not isinstance(resources, list) or 1 != len(resources):
+				continue
+			uri = extract_resource_uri(resources[0])
+			if not uri:
+				continue
+			try:
+				res_path = canonicalize_root_dir(local_uri_to_path(uri), registry=registry)
+			except (OSError, ValueError):
+				continue
+			if _path_key(res_path) == target_key:
+				return True
+	return False
+def is_tracked_workspace(root: str | Path, *, registry: PathRegistry | None=None, projects_dirs=None) -> tuple[bool, Path]:
+	reg = registry or load_registry()
+	raw_canon = canonicalize_root_dir(root, registry=reg)
+	raw_key = _path_key(raw_canon)
+	if raw_key in reg.untracked_workspaces or None is not workspace_override(raw_canon, registry=reg):
+		return (False, raw_canon)
+	pp_exact = project_paths(raw_canon, registry=reg, exact_root=True)
+	if False is pp_exact.tracked:
+		return (False, raw_canon)
+	if pp_exact.has_overlay or pp_exact.project_json.is_file() or pp_exact.journal_dir.is_dir() or pp_exact.turns_dir.is_dir():
+		return (True, raw_canon)
+	resolved = resolve_project_root(raw_canon, registry=reg)
+	if _path_key(resolved) != raw_key:
+		res_key = _path_key(resolved)
+		if res_key in reg.untracked_workspaces or None is not workspace_override(resolved, registry=reg):
+			return (False, resolved)
+		pp_res = project_paths(resolved, registry=reg, exact_root=True)
+		if False is pp_res.tracked:
+			return (False, resolved)
+		if pp_res.has_overlay or pp_res.project_json.is_file() or pp_res.journal_dir.is_dir() or pp_res.turns_dir.is_dir():
+			return (True, resolved)
+	if _is_registered_single_project(raw_canon, registry=reg, projects_dirs=projects_dirs):
+		return (True, raw_canon)
+	return (False, raw_canon)
 def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path, ...] | set[Path], *, registry: PathRegistry | None=None) -> list[dict[str, Any]]:
 	reg = registry or load_registry()
 	resolved_files: list[Path] = []

@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
@@ -405,7 +408,7 @@ def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
-def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None):
+def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None):
 	platform = platform_name(platform)
 	job_id, day = (normalize_job_id(url_or_id), request_day(date_str))
 	if None is extracted_data:
@@ -469,7 +472,16 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		both = all_platforms if None is not all_platforms else Path(daily_root).resolve() == DAILY_PROPOSALS_ROOT.resolve()
 		registrars = {'antigravity': lambda project, label, day: register_antigravity_default(project, label, day, projects_dir=antigravity_projects_dir, folders_json_path=antigravity_folders_json)}
 		info = register_projects(root, root.name.split(' - ', 1)[1], initial_day, platform=platform, targets=None if both else [platform], registrars=registrars)
+	handoffs: list[dict] = []
+	if None is not launcher_root:
+		try:
+			from .completion import handoff_launcher_turn
+			handoffs = handoff_launcher_turn(launcher_root, root, job_id, conversation_id=conversation_id)
+		except (OSError, ValueError):
+			handoffs = []
 	r = {'project_dir': str(root), 'job_id': job_id, 'domain_or_topic': label, 'context_path': None, 'snapshot': str(snapshot), 'registration': info, 'platform': platform, 'registrations': info['registrations'] if info else {}, 'antigravity': info['registrations'].get('antigravity') if info else None, 'analysis_status': 'pending; initialization is not a completed analysis'}
+	if handoffs:
+		r['launcher_handoff'] = handoffs
 	return r
 def register_project(project, label=None, day=None, *, platform=None):
 	from .registration import register_project as register_one
@@ -564,7 +576,7 @@ def main(argv=None):
 	subcommands = {
 		'inspect': ('Capture the selected tab once, including attachments', (('url', {}), ('--output', {'required': True, 'type': Path}), ('--tab-id', {}), ('--session-id', {'help': 'Authorized runtime text.browser.sessions entry (default: primary session)'}), ('--cdp-port', {'type': int}))),
 		'browser-anchor': ('Verify primary Chrome profile M-2A/M-2B isolation or initialize M-2B sentinel on an explicit Default tab', (('--session-id', {}), ('--init-sentinel-tab', {'help': 'Explicit Default profile tab_id on which to set the isolated https://harness-profile.invalid sentinel cookie'}))),
-		'init': ('Initialize from an existing capture without browser requests', (('url', {}), ('--from-json', {'required': True, 'type': Path}), ('--domain', {}), ('--date', {}), ('--site-hypothesis', {'type': Path, 'help': 'Four-part identity hypothesis with evidence and expert probability'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--no-register', {'action': 'store_true'}))),
+		'init': ('Initialize from an existing capture without browser requests', (('url', {}), ('--from-json', {'required': True, 'type': Path}), ('--domain', {}), ('--date', {}), ('--site-hypothesis', {'type': Path, 'help': 'Four-part identity hypothesis with evidence and expert probability'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--no-register', {'action': 'store_true'}), ('--launcher-root', {'type': Path, 'help': 'Optional launcher workspace root whose open /upwork-init turn should be handed off to the created daily project (default: current working directory)'}), ('--conversation', {'help': 'Optional native conversation UUID to narrow launcher turn handoff'}))),
 		'intake-drain': ('Verify and commit managed staging evidence; dry-run unless --apply', (('capture', {'nargs': '?', 'type': Path, 'help': 'One immediate capture directory; default: all managed incoming'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--apply', {'action': 'store_true', 'help': 'Drain only after durable evidence and receipt verification'}))),
 		'cleanup': ('Remove empty native Upwork projects older than 72 hours; keep the entire daily archive', (('--apply', {'action': 'store_true', 'help': 'Apply cleanup; default is a read-only preview'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}))),
 		'cleanup-report': ('Save the exact cleanup answer with an Istanbul timestamp in AI/log/cleanup', (('--answer', {'default': '-', 'help': 'Answer body as a UTF-8 file, or - for stdin'}),)),
@@ -679,7 +691,7 @@ def run(args):
 				for asset in data.get('saved_attachments') or []:
 					if not Path(asset['path']).resolve().is_relative_to(args.from_json.parent.resolve()):
 						raise ValueError('Attachment must belong to the capture directory')
-				result = initialize_upwork_project(args.url, args.domain, date_str=args.date, daily_root=args.daily_root, extracted_data=data, site_hypothesis=read_input_json(args.site_hypothesis, encoding='utf-8') if args.site_hypothesis else None, register_native=False if args.no_register else None)
+				result = initialize_upwork_project(args.url, args.domain, date_str=args.date, daily_root=args.daily_root, extracted_data=data, site_hypothesis=read_input_json(args.site_hypothesis, encoding='utf-8') if args.site_hypothesis else None, register_native=False if args.no_register else None, launcher_root=args.launcher_root if getattr(args, 'launcher_root', None) else Path.cwd(), conversation_id=getattr(args, 'conversation', None))
 				from .intake import INCOMING, commit_capture
 				capture = Path(os.path.abspath(args.from_json)).parent
 				if 'source.json' == args.from_json.name and capture.parent == Path(os.path.abspath(INCOMING)):
