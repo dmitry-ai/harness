@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+# https://github.com/dmitry-ai/harness/issues/131
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
@@ -51,6 +54,8 @@ def _expand_path(value):
 def _validate_runtime(value):
 	if 2 != value.get('version') or not value.get('workspace_root') or (not isinstance(value.get('platforms'), dict)) or (not value['platforms']):
 		raise ValueError('runtime.json needs version 2, workspace_root and platforms')
+	if 'user_default_locale' in value and (None is not value['user_default_locale']) and (not isinstance(value['user_default_locale'], str) or not value['user_default_locale'].strip()):
+		raise ValueError('runtime.json user_default_locale must be a non-empty locale string')
 	for plat_id, plat_cfg in value['platforms'].items():
 		if not isinstance(plat_id, str) or not plat_id.strip() or (not isinstance(plat_cfg, dict)):
 			raise ValueError('Each runtime.json platform must map a non-empty name to an object')
@@ -664,6 +669,15 @@ def request_day(value=None):
 	from zoneinfo import ZoneInfo
 	r = date.fromisoformat(value) if value else datetime.now(ZoneInfo(settings()['timezone'])).date()
 	return r
+def default_user_locale(config=None) -> str | None:
+	cfg_all = config
+	if None is cfg_all:
+		try:
+			cfg_all = settings()
+		except (OSError, ValueError):
+			return None
+	val = (cfg_all or {}).get('user_default_locale')
+	return val.strip() if isinstance(val, str) and val.strip() else None
 def sanctioned_addon_code_roots(config=None):
 	cfg_all = config
 	if None is cfg_all:

@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+# https://github.com/dmitry-ai/harness/issues/131
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -258,7 +261,10 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 		title_part = f", journal_title={title_info['title']}" if title_info.get('title') else ''
 		sim_peers = [str(p) for p in (res.get('similar_project_repos') or res.get('similar_projects') or ()) if str(p).strip()]
 		peer_part = f", similar_peers={','.join(sim_peers)}" if sim_peers else ''
-		return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}{peer_part}, scratch_answer={scratch_ans}).'}}]}
+		from agent_tools.runtime import default_user_locale
+		def_loc = default_user_locale()
+		loc_part = f', user_default_locale={def_loc}' if def_loc else ''
+		return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}{peer_part}{loc_part}, scratch_answer={scratch_ans}).'}}]}
 	return {}
 def main() -> None:
 	out: dict = {}

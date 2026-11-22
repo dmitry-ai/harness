@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+# https://github.com/dmitry-ai/harness/issues/131
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1370,12 +1373,13 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 def _recorded(value):
 	return next((receipt for receipt in (value.get('prepared'), value.get('journal_record'), value.get('delivery')) if isinstance(receipt, dict) and 'journal_steps' in receipt), None)
 def _intermediate_or_language_issues(requests, response: str) -> list[str]:
+	from .runtime import default_user_locale
 	from .source_grounding import verify_target_locale
 	r = []
 	if re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', response or ''):
 		r.append('FILE-3 / REVIEW-1: Response is an intermediate subagent/task waiting status stub rather than a complete final response')
 	req_raw = '\n'.join((req.get('text', '') if isinstance(req, dict) else str(req) for req in requests or []))
-	for err in verify_target_locale(response or '', target_locale='und', container_text=req_raw, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20):
+	for err in verify_target_locale(response or '', target_locale='und', container_text=req_raw, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20, default_locale=default_user_locale()):
 		r.append(err['message'])
 	return r
 def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str, *, kind: str) -> bool:

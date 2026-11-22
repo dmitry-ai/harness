@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+# https://github.com/dmitry-ai/harness/issues/131
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
@@ -708,20 +711,24 @@ def extract_authored_prose(text: str, *, is_title: bool=False) -> str:
 			elif 'blockquote_close' == token.type:
 				quote_depth = max(0, quote_depth - 1)
 			elif 0 == quote_depth and token.type not in ('fence', 'code_block', 'html_block') and ('inline' == token.type) and token.children:
-				in_link = 0
+				link_skip: list[bool] = []
 				for child in token.children:
 					if 'link_open' == child.type:
-						in_link += 1
+						href = str(child.attrGet('href') or '').strip()
+						link_skip.append(href.lower().startswith('slashcommand;'))
 					elif 'link_close' == child.type:
-						in_link = max(0, in_link - 1)
+						if link_skip:
+							link_skip.pop()
 					elif 'text' == child.type:
 						val = child.content or ''
-						if not (0 < in_link and re.match('^(?:https?://|file://|[A-Za-z]:/|/)', val.strip())):
+						if not (any(link_skip) or (link_skip and re.match('^(?:https?://|file://|[A-Za-z]:[/\\\\]|/)', val.strip()))):
 							chunks.append(val)
 		joined = ' '.join(chunks)
 		joined = re.sub('\\u00ab[^\\u00bb]*\\u00bb|\\u201c[^\\u201d]*\\u201d|"[^"\\n]{8,}"', ' ', joined)
 		joined = re.sub('https?://\\S+|file://\\S+', ' ', joined)
-		joined = re.sub('(?<![A-Za-z0-9])[A-Za-z]:/[^\\s)\\]>]+', ' ', joined)
+		joined = re.sub('(?<![A-Za-z0-9])[A-Za-z]:[/\\\\][^\\s)\\]>]+', ' ', joined)
+		joined = re.sub('(?:^|(?<=\\s))/(?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._-]*', ' ', joined)
+		joined = re.sub('(?:^|(?<=\\s))(?:/|\\$)[A-Za-z][A-Za-z0-9_:-]*(?=$|\\s)', ' ', joined)
 		r = ' '.join(joined.split())
 	return r
 def extract_block_links(block, root: Path, doc_path: Path | None):
@@ -829,7 +836,22 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 	return r
 def sync_fact_ledger(root: Path) -> dict:
 	return Tier0SourceIndex.for_root(root).sync_ledger()
-def verify_target_locale(text: str, *, target_locale: str='en-US', container_text: str | None=None, is_title: bool=False, allow_explicit_english_request: bool=False, min_target_ratio: float=0.35, min_alpha: int=15) -> list[dict]:
+_LOCALE_SCRIPT_MAP = {'ru': 'cyrillic', 'uk': 'cyrillic', 'be': 'cyrillic', 'bg': 'cyrillic', 'sr': 'cyrillic', 'mk': 'cyrillic', 'kk': 'cyrillic', 'ky': 'cyrillic', 'mn': 'cyrillic', 'cyrillic': 'cyrillic', 'el': 'greek', 'greek': 'greek', 'he': 'hebrew', 'iw': 'hebrew', 'hebrew': 'hebrew', 'ar': 'arabic', 'fa': 'arabic', 'ur': 'arabic', 'arabic': 'arabic', 'hi': 'devanagari', 'mr': 'devanagari', 'ne': 'devanagari', 'devanagari': 'devanagari', 'ko': 'hangul', 'hangul': 'hangul', 'ja': 'cjk', 'zh': 'cjk', 'cjk': 'cjk'}
+def _locale_to_target(locale_code: str | None) -> str | None:
+	if not isinstance(locale_code, str) or not locale_code.strip():
+		return None
+	norm = locale_code.strip().replace('_', '-').lower()
+	if 'und' == norm:
+		return None
+	base = norm.split('-', 1)[0]
+	if norm in _LOCALE_SCRIPT_MAP:
+		return _LOCALE_SCRIPT_MAP[norm]
+	if base in _LOCALE_SCRIPT_MAP:
+		return _LOCALE_SCRIPT_MAP[base]
+	if 'en' == base:
+		return 'en-US'
+	return norm
+def verify_target_locale(text: str, *, target_locale: str='en-US', container_text: str | None=None, is_title: bool=False, allow_explicit_english_request: bool=False, min_target_ratio: float=0.35, min_alpha: int=15, default_locale: str | None=None) -> list[dict]:
 	r: list[dict] = []
 	eff_target = (target_locale or 'en-US').strip()
 	if container_text and isinstance(container_text, str) and container_text.strip():
@@ -841,6 +863,10 @@ def verify_target_locale(text: str, *, target_locale: str='en-US', container_tex
 				c_dom = c_info['dominant_script']
 				if c_dom not in ('NONE', 'LATIN') and 6 <= c_info['script_counts'].get(c_dom, 0):
 					eff_target = c_dom.lower()
+				elif 0 == c_info['total_alpha'] or 0 == c_info.get('word_count', 0):
+					fb = _locale_to_target(default_locale)
+					if fb:
+						eff_target = fb
 			elif 12 <= c_info['total_alpha'] and 'NONE' != c_info['dominant_script']:
 				if 'LATIN' != c_info['dominant_script']:
 					eff_target = c_info['dominant_script'].lower()

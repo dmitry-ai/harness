@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+# https://github.com/dmitry-ai/harness/issues/131
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
 # https://github.com/dmitry-ai/harness/issues/54
@@ -59,5 +62,38 @@ class SourceGroundingRefactorTests(unittest.TestCase):
 			saved_cache = json.loads(stale_cache.read_text(encoding='utf-8'))
 			self.assertEqual(2, saved_cache['version'])
 			self.assertNotIn('stale.json', saved_cache['files'])
+	def test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests(self) -> None:
+		from agent_tools import completion, runtime
+		self.assertEqual('ru', runtime.default_user_locale())
+		en_reply = 'The inspection command failed because the browser rejected the side-effect evaluation.'
+		ru_reply = 'Команда проверки завершилась с ошибкой при чтении состояния вкладки в браузере.'
+		for neutral_req in (
+			'/upwork-init  https://upwork.com/jobs/~022124567641351805598',
+			'$upwork-init https://upwork.com/jobs/~022124567641351805598',
+			'/upwork-cleanup',
+			'[upwork-init](slashCommand;upwork-init)  https://upwork.com/jobs/~022124567641351805598',
+			'<command-name>/upwork-init</command-name>\n<command-args>https://upwork.com/jobs/~022124567641351805598</command-args>',
+			'C:\\work\\research\\provision\\code\\AI\\harness\\readme.md',
+		):
+			self.assertEqual('', source_grounding.extract_authored_prose(neutral_req), neutral_req)
+			errs = source_grounding.verify_target_locale(en_reply, target_locale='und', container_text=neutral_req, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20, default_locale='ru')
+			self.assertEqual(['LOCALE_MISMATCH'], [e['code'] for e in errs], neutral_req)
+			ok_ru = source_grounding.verify_target_locale(ru_reply, target_locale='und', container_text=neutral_req, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20, default_locale='ru')
+			self.assertEqual([], ok_ru, neutral_req)
+			comp_errs = completion._intermediate_or_language_issues([{'text': neutral_req}], en_reply)
+			self.assertTrue(any(('TEXT-1:' in m for m in comp_errs)), (neutral_req, comp_errs))
+			self.assertEqual([], completion._intermediate_or_language_issues([{'text': neutral_req}], ru_reply), neutral_req)
+		for english_req in (
+			'Explain this error in detail',
+			'Fix it',
+			'Hi',
+			'/upwork-init https://upwork.com/jobs/~022124567641351805598 Answer in English',
+			'/upwork-init https://upwork.com/jobs/~022124567641351805598\nAnalyze this job in detail',
+		):
+			ok_en = source_grounding.verify_target_locale(en_reply, target_locale='und', container_text=english_req, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20, default_locale='ru')
+			self.assertEqual([], ok_en, english_req)
+			self.assertEqual([], completion._intermediate_or_language_issues([{'text': english_req}], en_reply), english_req)
+		self.assertEqual([], source_grounding.verify_target_locale(en_reply, target_locale='und', container_text='/upwork-init https://upwork.com/jobs/~02', allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20, default_locale=None))
+		self.assertEqual([], source_grounding.verify_target_locale(en_reply, target_locale='und', container_text='', allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20, default_locale='ru'))
 if '__main__' == __name__:
 	unittest.main()

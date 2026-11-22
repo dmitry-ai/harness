@@ -3,6 +3,7 @@
   "paths_registry": "paths.json",
   "workspace_root": "${UPWORK_ROOT}",
   "timezone": "Europe/Istanbul",
+  "user_default_locale": "ru",
   "daily_root": "${UPWORK_DAILY_REL}",
   "registration": {
     "targets": [
