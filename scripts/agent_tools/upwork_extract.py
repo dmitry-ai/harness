@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+# https://github.com/dmitry-ai/harness/issues/130
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -18,9 +21,10 @@ from urllib.parse import urljoin, urlsplit
 import urllib.request
 from .runtime import HARNESS_META, settings
 from .storage import create_bytes
+from .text_browser import UPWORK_PAGE_STATE_EXPR, USER_AGENT_EXPR
 from .upwork_data import canonical_job_url, extract_candidate_domains, extract_client_names, normalize_job_id, resolve_nuxt_devalue
 MAX_ATTACHMENT = 25 * 1024 * 1024
-_PAGE_STATE_EXPR = '({nuxt:document.getElementById("__NUXT_DATA__")?.textContent||"",title:document.title||"",heading:document.querySelector("h1")?.textContent||"",body:(document.body?.innerText||"").slice(0,1000),readyState:document.readyState||""})'
+_PAGE_STATE_EXPR = UPWORK_PAGE_STATE_EXPR
 def upwork_host(url):
 	parsed = urlsplit(url)
 	r = 'https' == parsed.scheme and (not parsed.username) and (not parsed.password) and (parsed.port in (None, 443)) and ('upwork.com' == parsed.hostname or (parsed.hostname or '').endswith('.upwork.com'))
@@ -206,7 +210,7 @@ def extract_upwork_job(url_or_id, cdp_port=9222, fetch_related=True, attachments
 						for ident in sorted(ids - {None, job_id}):
 							ident = normalize_job_id(ident)
 							rel_url = canonical_job_url(ident).replace('https://upwork.com', 'https://www.upwork.com')
-							expression = f'(async()=>{{const r=await fetch({json.dumps(rel_url)},{{credentials:"include",signal:AbortSignal.timeout(20000)}});if(!r.ok)throw new Error("HTTP "+r.status);const d=new DOMParser().parseFromString(await r.text(),"text/html");return d.getElementById("__NUXT_DATA__")?.textContent||"";}})()'
+							expression = f'(async()=>{{const r=await fetch({json.dumps(rel_url)},{{credentials:"include",signal:AbortSignal.timeout(20000)}});if(!r.ok)throw new Error("HTTP "+r.status);const d=new DOMParser().parseFromString(await r.text(),"text/html");return d.querySelector("#__NUXT_DATA__")?.textContent||"";}})()'
 							try:
 								text = _eval_session(mux, page_sid, expression, await_promise=True, timeout_ms=25000)
 								found = resolve_nuxt_devalue(json.loads(text))['vuex']['jobDetails']['job']
@@ -219,7 +223,7 @@ def extract_upwork_job(url_or_id, cdp_port=9222, fetch_related=True, attachments
 					if None is not attachments_dir and job.get('attachments'):
 						cookies_res = mux.send('Network.getCookies', {'urls': ['https://www.upwork.com']}, session_id=page_sid)
 						cookies = cookies_res.get('cookies', []) if isinstance(cookies_res, dict) else []
-						ua = _eval_session(mux, page_sid, 'navigator.userAgent', read_only=True) or 'UpworkOnboarding/2'
+						ua = _eval_session(mux, page_sid, USER_AGENT_EXPR, read_only=True) or 'UpworkOnboarding/2'
 						for attachment in job['attachments']:
 							try:
 								assets.append(download_attachment(attachment, Path(attachments_dir), cookies, ua))

@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+# https://github.com/dmitry-ai/harness/issues/130
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -52,7 +55,17 @@ _NAVIGATE = frozenset({'Page.navigate', 'Page.reload', 'Page.navigateToHistoryEn
 _CLOSE = frozenset({'Target.closeTarget', 'Page.close'})
 _NEVER = frozenset({'Browser.close', 'Target.createTarget', 'Target.disposeBrowserContext', 'Target.createBrowserContext', 'Target.attachToTarget', 'Target.sendMessageToTarget', 'Browser.crash', 'Page.crash'})
 _LOCAL_HOSTS = {'127.0.0.1', 'localhost', '::1'}
-_DOM_CAPTURE_EXPR = '({url:location.href,html:document.documentElement?document.documentElement.outerHTML:"",title:document.title||"",readyState:document.readyState||"",textLen:document.body?(document.body.innerText||"").trim().length:0})'
+DOM_CAPTURE_EXPR = '({url:location.href,html:document.documentElement?document.documentElement.outerHTML:"",title:document.title||"",readyState:document.readyState||"",textLen:document.body?(document.body.innerText||"").trim().length:0})'
+MINIMAL_DOM_CAPTURE_EXPR = '({url:location.href,html:document.documentElement.outerHTML})'
+UPWORK_PAGE_STATE_EXPR = '({nuxt:document.querySelector("#__NUXT_DATA__")?.textContent||"",title:document.title||"",heading:document.querySelector("h1")?.textContent||"",body:(document.body?.innerText||"").slice(0,1000),readyState:document.readyState||""})'
+USER_AGENT_EXPR = 'navigator.userAgent'
+READ_ONLY_CDP_EXPRESSIONS = {
+	'dom_capture': DOM_CAPTURE_EXPR,
+	'minimal_dom_capture': MINIMAL_DOM_CAPTURE_EXPR,
+	'upwork_page_state': UPWORK_PAGE_STATE_EXPR,
+	'user_agent': USER_AGENT_EXPR,
+}
+_DOM_CAPTURE_EXPR = DOM_CAPTURE_EXPR
 _NODE_CLIENT = "\nlet input='';for await(const chunk of process.stdin) input+=chunk;\nconst {url,method,params,sessionId}=JSON.parse(input);\nconst result=await new Promise((resolve,reject)=>{\n const socket=new WebSocket(url);const timer=setTimeout(()=>{socket.close();reject(new Error('CDP timeout'));},12000);\n socket.onopen=()=>socket.send(JSON.stringify({id:1,method,params:params||{},...(sessionId?{sessionId}:{})}));\n socket.onerror=()=>{clearTimeout(timer);reject(new Error('CDP connection failed'));};\n socket.onmessage=event=>{const message=JSON.parse(event.data);if(message.id!==1)return;\n  clearTimeout(timer);socket.close();if(message.error)reject(new Error(JSON.stringify(message.error)));else resolve(message.result);};\n socket.onclose=()=>{clearTimeout(timer);reject(new Error('CDP socket closed before its response'));};\n});process.stdout.write(JSON.stringify(result));\n"
 _NODE_MUX_SESSION = "\nimport readline from 'node:readline';\nconst browserUrl=process.env.HARNESS_CDP_WS;\nconst pending=new Map();\nconst socket=new WebSocket(browserUrl);\nawait new Promise((resolve,reject)=>{\n const timer=setTimeout(()=>{try{socket.close();}catch{}reject(new Error('CDP browser connect timeout'));},10000);\n socket.onopen=()=>{clearTimeout(timer);resolve();};\n socket.onerror=()=>{clearTimeout(timer);reject(new Error('CDP browser connection failed'));};\n});\nprocess.stdout.write(JSON.stringify({ready:true})+'\\n');\nsocket.onmessage=event=>{\n let msg;try{msg=JSON.parse(event.data);}catch{return;}\n if(typeof msg.id!=='number'||!pending.has(msg.id))return;\n const entry=pending.get(msg.id);pending.delete(msg.id);clearTimeout(entry.timer);\n const out=msg.error?{req_id:msg.id,error:msg.error}:{req_id:msg.id,result:msg.result||{}};\n process.stdout.write(JSON.stringify(out)+'\\n');\n};\nsocket.onclose=()=>{\n for(const [id,entry] of pending.entries()){clearTimeout(entry.timer);process.stdout.write(JSON.stringify({req_id:id,error:{message:'CDP socket closed'}})+'\\n');}\n pending.clear();process.exit(0);\n};\nconst rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});\nrl.on('line',line=>{\n if(!line.trim())return;\n let req;try{req=JSON.parse(line);}catch{return;}\n if(req.close){try{socket.close();}catch{}rl.close();return;}\n const id=req.req_id;const timeoutMs=Math.max(1000,Number(req.timeout_ms||12000));\n const timer=setTimeout(()=>{if(pending.has(id)){pending.delete(id);process.stdout.write(JSON.stringify({req_id:id,error:{message:'CDP request timeout'}})+'\\n');}},timeoutMs);\n pending.set(id,{timer});\n const payload={id,method:req.method,params:req.params||{}};\n if(req.sessionId)payload.sessionId=req.sessionId;\n socket.send(JSON.stringify(payload));\n});\nrl.on('close',()=>{try{socket.close();}catch{}});\n"
 def _http_json(url):

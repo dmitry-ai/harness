@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+# https://github.com/dmitry-ai/harness/issues/130
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -820,7 +823,7 @@ def select_dom_tab(tabs, url, tab_id):
 	r = matches[0]
 	return r
 def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, context=None, config=None, guard=None):
-	from .text_browser import GuardedCDP, save_cdp_identity
+	from .text_browser import GuardedCDP, MINIMAL_DOM_CAPTURE_EXPR, save_cdp_identity
 	if not isinstance(session_id, str) or not session_id or (not isinstance(tab_id, str)) or (not tab_id):
 		raise ValueError('Explicit authorized CDP session_id and exact tab ID required')
 	if None is guard:
@@ -836,7 +839,7 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 	observed_context = dict(context or {})
 	observed_context.setdefault('session_id', session_id)
 	def read_dom(target, headers, timeout):
-		native, actual_identity = guard.call('Runtime.evaluate', {'expression': '({url:location.href,html:document.documentElement.outerHTML})', 'throwOnSideEffect': True, 'returnByValue': True}, include_identity=True)
+		native, actual_identity = guard.call('Runtime.evaluate', {'expression': MINIMAL_DOM_CAPTURE_EXPR, 'throwOnSideEffect': True, 'returnByValue': True}, include_identity=True)
 		if actual_identity['browser']['websocket_url'] != identity['browser']['websocket_url'] or actual_identity['profile'] != identity['profile'] or actual_identity['account'] != identity['account'] or (actual_identity['target']['id'] != tab_id):
 			raise ValueError('CDP identity changed during DOM capture; no content proof is issued')
 		if not isinstance(native, dict) or native.get('exceptionDetails'):

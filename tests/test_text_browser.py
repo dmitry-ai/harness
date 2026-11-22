@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+# https://github.com/dmitry-ai/harness/issues/130
 # 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
@@ -561,5 +564,82 @@ class TextBrowserTests(unittest.TestCase):
 		transcript.write_text(json.dumps({'type': 'USER_INPUT', 'content': 'go'}) + '\n' + json.dumps({'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'mcp_chrome-devtools_new_page', 'args': {'url': 'about:blank', 'background': True}}]}) + '\n', encoding='utf-8')
 		self.assertIsNone(check_browser_mcp_gate('mcp_chrome-devtools_navigate_page', {'url': 'https://example.com'}, {'transcriptPath': str(transcript)}))
 		self.assertIsNotNone(check_browser_mcp_gate('write_file', {'Path': str(self.root / 'mcp_config.json'), 'Content': '{"mcpServers":{"chrome-devtools":{"args":["--autoConnect"]}}}'}, {}))
+	def test_read_only_cdp_expressions_live_headless_shell_contract(self):
+		import ast
+		from http.server import BaseHTTPRequestHandler, HTTPServer
+		import time
+		from agent_tools.text_browser import CDPSession, ManagedHeadlessShell, READ_ONLY_CDP_EXPRESSIONS, resolve_headless_shell
+		from agent_tools import upwork_extract
+		self.assertEqual(set(READ_ONLY_CDP_EXPRESSIONS), {'dom_capture', 'minimal_dom_capture', 'upwork_page_state', 'user_agent'})
+		self.assertEqual(upwork_extract._PAGE_STATE_EXPR, READ_ONLY_CDP_EXPRESSIONS['upwork_page_state'])
+		for name, expr in READ_ONLY_CDP_EXPRESSIONS.items():
+			self.assertIsInstance(expr, str, name)
+			self.assertNotIn('getElementById', expr, name)
+		tools_dir = Path(__file__).resolve().parents[1] / 'scripts/agent_tools'
+		for mod_name in ('text_browser.py', 'upwork_extract.py', 'research.py'):
+			tree = ast.parse((tools_dir / mod_name).read_text(encoding='utf-8'))
+			for node in ast.walk(tree):
+				if isinstance(node, ast.Dict):
+					keys = [k.value for k in node.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)]
+					if 'throwOnSideEffect' in keys and 'expression' in keys:
+						expr_val = node.values[keys.index('expression')]
+						self.assertFalse(isinstance(expr_val, ast.Constant) and isinstance(expr_val.value, str), f'Inline literal throwOnSideEffect expression in {mod_name}; register it in READ_ONLY_CDP_EXPRESSIONS')
+		try:
+			resolve_headless_shell()
+		except FileNotFoundError:
+			self.skipTest('chrome-headless-shell not installed on host')
+		nuxt_payload = json.dumps([{'vuex': 1}, {'jobDetails': 2}, {'job': 3, 'buyer': 6, 'workHistory': 7, 'openJobs': 8}, {'ciphertext': 4, 'title': 5, 'description': 5}, '~021234567890', 'Live Chromium Contract Job', {}, [], []])
+		class NuxtHandler(BaseHTTPRequestHandler):
+			def log_message(self, *args):
+				pass
+			def do_GET(self):
+				self.send_response(200)
+				self.send_header('Content-Type', 'text/html; charset=utf-8')
+				self.end_headers()
+				html = f'<!DOCTYPE html><html><head><title>Contract Page</title></head><body><h1>Contract Heading</h1><p>Body text for live throwOnSideEffect verification.</p><script id="__NUXT_DATA__" type="application/json">{nuxt_payload}</script></body></html>'
+				self.wfile.write(html.encode('utf-8'))
+		server = HTTPServer(('127.0.0.1', 0), NuxtHandler)
+		thread = threading.Thread(target=server.serve_forever, daemon=True)
+		thread.start()
+		try:
+			page_url = f'http://127.0.0.1:{server.server_port}/job'
+			with ManagedHeadlessShell() as shell, CDPSession(shell.browser_ws) as mux:
+				ctx_id = mux.send('Target.createBrowserContext', {})['browserContextId']
+				target_id = mux.send('Target.createTarget', {'url': page_url, 'browserContextId': ctx_id})['targetId']
+				page_sid = mux.attach_target(target_id)
+				try:
+					deadline = time.time() + 10.0
+					page_state = None
+					while time.time() < deadline:
+						res = mux.send('Runtime.evaluate', {'expression': READ_ONLY_CDP_EXPRESSIONS['upwork_page_state'], 'throwOnSideEffect': True, 'returnByValue': True}, session_id=page_sid)
+						self.assertIsNone(res.get('exceptionDetails'), res)
+						val = res.get('result', {}).get('value')
+						if isinstance(val, dict) and val.get('nuxt') and 'complete' == val.get('readyState'):
+							page_state = val
+							break
+						time.sleep(0.1)
+					self.assertIsNotNone(page_state)
+					decoded = upwork_extract.decode_page(page_state, '~021234567890')
+					self.assertEqual(decoded['job']['title'], 'Live Chromium Contract Job')
+					self.assertEqual(page_state['title'], 'Contract Page')
+					self.assertEqual(page_state['heading'], 'Contract Heading')
+					self.assertIn('live throwOnSideEffect verification', page_state['body'])
+					for name, expr in READ_ONLY_CDP_EXPRESSIONS.items():
+						res = mux.send('Runtime.evaluate', {'expression': expr, 'throwOnSideEffect': True, 'returnByValue': True}, session_id=page_sid)
+						self.assertIsNone(res.get('exceptionDetails'), f'{name} failed under throwOnSideEffect=True: {res}')
+						val = res.get('result', {}).get('value')
+						if 'user_agent' == name:
+							self.assertIsInstance(val, str)
+							self.assertTrue(val.strip())
+						else:
+							self.assertIsInstance(val, dict, name)
+							if 'html' in val:
+								self.assertIn('Contract Heading', val['html'])
+				finally:
+					mux.detach_target(page_sid)
+					mux.send('Target.disposeBrowserContext', {'browserContextId': ctx_id})
+		finally:
+			server.shutdown()
+			server.server_close()
 if '__main__' == __name__:
 	unittest.main()
