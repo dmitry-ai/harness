@@ -1,4 +1,7 @@
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Register df-servers V2 root and relocation in paths.json":
+# https://github.com/dmitry-ai/harness/issues/125
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add declarative similar_projects registry groups and project overlay resolution":
 # https://github.com/dmitry-ai/harness/issues/122
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -56,7 +59,7 @@ class PathRegistryTests(TemporaryCase):
 			'C:/work/clients/smokeday.com': 'v2',
 			addons_root: 'dual_repo' if (Path(addons_root) / '_').is_dir() else 'v2_software',
 			'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons': 'dual_repo',
-			'C:/work/git/dmitrii-fediuk/code/5.9.188.84': 'server',
+			'C:/work/p/df-servers': 'v2',
 		}
 		for root_str, expected_profile in expected_projects.items():
 			self.assertIn(root_str, by_root)
@@ -220,14 +223,18 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/s'), smokeday_server_code.resolve())
 		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/core'), smokeday_core_mod.resolve())
 		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/meta'), smokeday_root.resolve())
-		srv_root = Path('C:/work/git/dmitrii-fediuk/code/5.9.188.84')
-		self.assertTrue(git_gate.GitRepoGate(srv_root).is_issue_tracked())
-		self.assertTrue(check_stop_gate._is_tracked_workspace(srv_root))
-		self.assertEqual(github_issue.find_local_code_repo('dmitrii-fediuk/5.9.188.84'), srv_root.resolve())
-		self.assertRegex(
-			journal.resolve_journal_dir(srv_root).as_posix(),
-			'^C:/work/git/dmitrii-fediuk/code/5\\.9\\.188\\.84/_my/daily/\\d{4}/\\d{2}/\\d{2}/\\d+ - .+/\ua66e$',
-		)
+		df_servers_root = Path('C:/work/p/df-servers')
+		df_srv_code = df_servers_root / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d412/5.9.188.84'
+		self.assertEqual(pr.canonicalize_root_dir(Path('C:/work/git/dmitrii-fediuk/code/5.9.188.84')), df_servers_root.resolve())
+		self.assertEqual(pr.canonicalize_root_dir(df_srv_code), df_servers_root.resolve())
+		self.assertTrue(git_gate.GitRepoGate(df_srv_code).is_issue_tracked())
+		self.assertFalse(git_gate.GitRepoGate(df_servers_root).is_issue_tracked())
+		self.assertTrue(check_stop_gate._is_tracked_workspace(df_servers_root))
+		self.assertTrue(check_stop_gate._is_tracked_workspace(df_srv_code))
+		self.assertEqual(github_issue.find_local_code_repo('df-servers/5.9.188.84'), df_srv_code.resolve())
+		self.assertEqual(github_issue.find_local_code_repo('df-servers/meta'), df_servers_root.resolve())
+		self.assertEqual(journal.resolve_journal_dir(df_servers_root), (df_servers_root / '\ua66e').resolve())
+		self.assertIn(36, journal.get_existing_step_ids(df_servers_root / '\ua66e'))
 		buf = io.StringIO()
 		with redirect_stdout(buf):
 			rc = up.main(['paths', str(smokeday_root), '--expand', '${MAGENTO_CODE_DIR}', '--check'])
@@ -965,5 +972,15 @@ class PathRegistryTests(TemporaryCase):
 		miss_rep = pr.paths_report(check=True, registry=reg_miss)
 		self.assertFalse(miss_rep['valid'])
 		self.assertTrue(any(('Missing similar_projects member directory' in item['message'] for item in miss_rep['issues'])), miss_rep['issues'])
+	def test_df_servers_relocation_and_nested_server_artifact_root(self):
+		old_root = Path(pr.var_value('DF_GIT_CODE_ROOT')) / '5.9.188.84'
+		new_root = Path(pr.var_value('DF_SERVERS_ROOT')).resolve()
+		self.assertEqual(pr.canonicalize_root_dir(old_root), new_root)
+		self.assertTrue(pr.same_project_root(old_root, new_root))
+		sim_meta = (self.root / 'df-servers-sim').resolve()
+		sim_srv = sim_meta / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d412/5.9.188.84'
+		(sim_meta / '\ua616').mkdir(parents=True)
+		(sim_srv / '.git').mkdir(parents=True)
+		self.assertEqual(pr.canonicalize_root_dir(sim_srv), sim_meta)
 if '__main__' == __name__:
 	unittest.main()

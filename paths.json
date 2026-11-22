@@ -18,6 +18,8 @@
     "GIT_WORK_ROOT": "${WORK_ROOT}/git",
     "DF_GIT_ROOT": "${GIT_WORK_ROOT}/dmitrii-fediuk",
     "DF_GIT_CODE_ROOT": "${DF_GIT_ROOT}/code",
+    "P_ROOT": "${WORK_ROOT}/p",
+    "DF_SERVERS_ROOT": "${P_ROOT}/df-servers",
     "M2_VERSIONS_ROOT": "${WORK_ROOT}/m2/v",
     "PROVISION_ROOT": "${WORK_ROOT}/research/provision",
     "PROVISION_CODE": "${PROVISION_ROOT}/code",
@@ -137,7 +139,8 @@
     "primary_github_repo": "dmitry-ai/harness",
     "code_repo_search_roots": [
       "${AI_ROOT}",
-      "${DF_GIT_CODE_ROOT}"
+      "${DF_GIT_CODE_ROOT}",
+      "${P_ROOT}"
     ]
   },
   "workspace_overrides": {
@@ -165,7 +168,8 @@
     "${UPWORK_DAILY_ROOT}/2026/10/26/1 - smokeday.com": "${DF_CLIENTS}smokeday.com",
     "${DF_CLIENTS}smokeday.com/m/2026-10-26": "${DF_CLIENTS}smokeday.com",
     "${DF_CLIENTS}smokeday.com/m/2026-10-26/code": "${DF_CLIENTS}smokeday.com",
-    "${DF_CLIENTS}smokeday.com/m/2026-10-26/code/_my": "${DF_CLIENTS}smokeday.com"
+    "${DF_CLIENTS}smokeday.com/m/2026-10-26/code/_my": "${DF_CLIENTS}smokeday.com",
+    "${DF_GIT_CODE_ROOT}/5.9.188.84": "${DF_SERVERS_ROOT}"
   },
   "platform_layouts": {
     "antigravity": {
@@ -230,7 +234,8 @@
       "${HARNESS_ROOT}",
       "${ANTIGRAVITY_ADDONS_ROOT}",
       "${CHATGPT_ADDONS_ROOT}",
-      "${DF_CLIENTS}smokeday.com"
+      "${DF_CLIENTS}smokeday.com",
+      "${DF_SERVERS_ROOT}"
     ],
     "discovery_globs": [
       "${DF_GIT_CODE_ROOT}/*"
