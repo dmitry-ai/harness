@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
@@ -164,6 +167,10 @@ class AntigravityTurnScanner:
 		self.journal_groups = {}
 		self.boundaries = []
 		self.completed_turn_cids: set[str] = set()
+		self.scope_active = False
+		self.scope_binding = None
+		self.expected_job_id = None
+		self.workspace_root = None
 	def _collect_outputs(self, rows_slice, start_pos, *, step_idx=None, file_reads=None):
 		r = []
 		for cand in rows_slice[start_pos + 1:]:
@@ -228,8 +235,13 @@ class AntigravityTurnScanner:
 			raise ValueError('Native Antigravity primary/child identity is unavailable')
 		self.path = _transcript_path(self.paths['brain_dir'], self.conversation_id)
 		self.rows = read_jsonl_objects(self.path, partial_error='Native Antigravity trace has a partial record; retry after flush')
-		self.inputs = _native_inputs(self.backend, self.conversation_id, paths=self.paths)
-		selected, _, _ = _request_scope(self.root, self.conversation_id, self.backend, inputs=self.inputs, identifier=completion_project_id(self.root), paths=self.paths)
+		raw_inputs = _native_inputs(self.backend, self.conversation_id, paths=self.paths, include_meta=True)
+		self.inputs = [(index, text) for index, text, _ in raw_inputs]
+		self.expected_job_id = completion_project_id(self.root)
+		ws_contexts = _workspace_context(self.backend, self.conversation_id, paths=self.paths)
+		if ws_contexts and ws_contexts[-1][1]:
+			self.workspace_root = ws_contexts[-1][1]
+		selected, self.scope_active, self.scope_binding = _request_scope(self.root, self.conversation_id, self.backend, inputs=raw_inputs, identifier=self.expected_job_id, paths=self.paths, contexts=ws_contexts)
 		self.requests = {index: {'id': f'{self.conversation_id}-{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
 		with open_readonly_sqlite(_conversation_db_path(self.backend, self.conversation_id, paths=self.paths)) as conn:
 			self.statuses = {index: (kind, status) for index, kind, status in conn.execute('SELECT idx,step_type,status FROM steps')}
@@ -314,7 +326,10 @@ class AntigravityTurnScanner:
 		if pending:
 			grouped.append(self._merge_pending(pending))
 		active = grouped[-1] if grouped and (not grouped[-1]['completed']) else None
-		return {'platform': 'antigravity', 'conversation_id': self.conversation_id, 'native_backend': str(self.backend), 'source_file': str(self.path), 'primary': not bool(self.summary['parent_conversation_id']), 'turns': grouped, 'active_turn_id': active['turn_id'] if active else None}
+		out = {'platform': 'antigravity', 'conversation_id': self.conversation_id, 'native_backend': str(self.backend), 'source_file': str(self.path), 'primary': not bool(self.summary['parent_conversation_id']), 'turns': grouped, 'active_turn_id': active['turn_id'] if active else None, 'binding_diagnostic': {'active': self.scope_active, 'binding': self.scope_binding, 'expected_root': str(self.root_p), 'expected_job_id': self.expected_job_id}}
+		if self.workspace_root:
+			out['workspace_root'] = self.workspace_root
+		return out
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
@@ -423,12 +438,49 @@ def _configuration(value):
 		match = re.fullmatch('(.+)-(minimal|low|medium|high|xhigh|max|ultra)', value)
 		r = {'model': match[1], 'effort': match[2]} if match else {'model': value, 'effort': None}
 	return r
-def _decode_user_step(payload, status, index, load_transcript):
+def _extract_user_step_meta(msg_fields):
+	has_items = False
+	seen_non_ws = False
+	slash_commands = []
+	for field, kind, val in msg_fields:
+		if 3 != field or 2 != kind:
+			continue
+		has_items = True
+		try:
+			sub_fields = list(wire_fields(val))
+		except (ValueError, IndexError, TypeError):
+			continue
+		for sf, sk, sv in sub_fields:
+			if 1 == sf and 2 == sk:
+				if sv.decode('utf-8', 'replace').strip():
+					seen_non_ws = True
+			elif 2 == sf and 2 == sk:
+				matched_cmd = False
+				try:
+					for ssf, ssk, ssv in wire_fields(sv):
+						if 27 == ssf and 2 == ssk:
+							for a, b, c in wire_fields(ssv):
+								if 1 == a and 2 == b:
+									for x, y, z in wire_fields(c):
+										if 1 == x and 2 == y:
+											name = z.decode('utf-8', 'replace').strip()
+											if name:
+												slash_commands.append({'name': name, 'leading': not seen_non_ws})
+												matched_cmd = True
+				except (ValueError, IndexError, TypeError):
+					pass
+				seen_non_ws = True
+				if matched_cmd:
+					break
+	return {'has_structured_items': True, 'slash_commands': slash_commands} if has_items else {}
+def _decode_user_step_entry(payload, status, index, load_transcript):
 	r = None
+	meta = {}
 	try:
 		messages = [val for field, kind, val in wire_fields(payload or b'') if 19 == field and 2 == kind]
 		if messages:
 			msg_fields = list(wire_fields(messages[0]))
+			meta = _extract_user_step_meta(msg_fields)
 			texts = [val.decode('utf-8') for field, kind, val in msg_fields if 2 == field and 2 == kind and val.decode('utf-8').strip()]
 			if not texts and 5 == status:
 				texts = _wire_path(messages[0], (3, 1))
@@ -451,7 +503,9 @@ def _decode_user_step(payload, status, index, load_transcript):
 		r = _extract_transcript_user_input(load_transcript().get(index))
 	if None is r:
 		raise ValueError('Exact native user text is unavailable; do not reconstruct it from summaries')
-	return r
+	return (r, meta)
+def _decode_user_step(payload, status, index, load_transcript):
+	return _decode_user_step_entry(payload, status, index, load_transcript)[0]
 def _extract_transcript_user_input(t_row):
 	r = None
 	if isinstance(t_row, dict):
@@ -694,7 +748,7 @@ def wire_fields(data):
 			offset += size
 		r.append((field, kind, value))
 	return r
-def _native_inputs(backend, conversation_id, *, paths=None):
+def _native_inputs(backend, conversation_id, *, paths=None, include_meta=False):
 	db_path = _conversation_db_path(backend, conversation_id, error_msg='Exact current native conversation UUID required', paths=paths)
 	with open_readonly_sqlite(db_path) as conn:
 		rows = conn.execute('SELECT idx,status,step_format,step_payload FROM steps WHERE step_type=14 AND status IN (3,5) ORDER BY idx').fetchall()
@@ -703,7 +757,8 @@ def _native_inputs(backend, conversation_id, *, paths=None):
 	for index, status, format_id, payload in rows:
 		if 0 != format_id:
 			raise ValueError('Native request format is unsupported; save exact requests from the current chat, without reconstruction')
-		r.append((index, _decode_user_step(payload, status, index, lambda: cache.setdefault('rows', _load_transcript_inputs(backend, conversation_id, paths=paths)))))
+		text, meta = _decode_user_step_entry(payload, status, index, lambda: cache.setdefault('rows', _load_transcript_inputs(backend, conversation_id, paths=paths)))
+		r.append((index, text, meta) if include_meta else (index, text))
 	return r
 def _project_roots(backend, project_id, *, paths=None):
 	r = []
@@ -743,21 +798,26 @@ def _workspace_context(backend, conversation_id, *, paths=None):
 				target = p_roots[0] if not w_path.exists() and 1 == len(p_roots) and p_roots[0].exists() else w_path
 				r = [(-1, str(target), 'antigravity-project-id' if target != w_path else 'antigravity-workspace-uris')]
 	return r
-def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None, paths=None):
+def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None, paths=None, contexts=None):
 	from .request_binding import native_project_id, scoped_inputs
 	job_id = identifier if None is not identifier else native_project_id(root)
 	resolved = paths or _antigravity_paths(backend=backend, conversation_id=conversation_id)
-	return scoped_inputs(root, job_id, _native_inputs(backend, conversation_id, paths=resolved) if None is inputs else inputs, _workspace_context(backend, conversation_id, paths=resolved), until=until)
+	eff_inputs = _native_inputs(backend, conversation_id, paths=resolved, include_meta=True) if None is inputs else inputs
+	eff_contexts = _workspace_context(backend, conversation_id, paths=resolved) if None is contexts else contexts
+	return scoped_inputs(root, job_id, eff_inputs, eff_contexts, until=until)
 def native_requests(root, conversation_id, *, backend=None, instance=None):
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
 	selected, _, _ = _request_scope(root, conversation_id, backend, paths=paths)
 	return current_turn_requests(selected, conversation_id, 'antigravity-ui', 'Native Antigravity requests do not identify this project; open the chat in the exact project workspace or pass its /upwork-init URL')
 def require_current_binding(root, conversation_id, *, backend=None, instance=None, inputs=None, until=None):
+	from .request_binding import format_binding_diagnostic, native_project_id
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
-	selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until, paths=paths)
-	return require_turn_binding(selected, active, binding, 'Native Antigravity conversation is currently bound to another project or no exact project root')
+	job_id = native_project_id(root)
+	selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until, identifier=job_id, paths=paths)
+	diag = format_binding_diagnostic(str(Path(root).resolve()), binding, expected_job_id=job_id)
+	return require_turn_binding(selected, active, binding, f'Native Antigravity conversation is currently bound to another project or no exact project root ({diag})')
 def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 	r: list[str] = []
 	rows_list = rows_slice if isinstance(rows_slice, list) else []

@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
@@ -322,3 +325,125 @@ class AntigravityContinuationTests(ProjectCase):
 			state_path.write_bytes((json.dumps(tampered, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 			with self.assertRaisesRegex(ValueError, 'Native requests changed before the saved boundary'):
 				completion._state(self.project, native, turn_done, recovered=True, allow_extended=True)
+	def test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands(self):
+		from agent_tools import completion
+		from agent_tools.platforms.request_binding import completion_project_id, scoped_inputs
+		import check_pre_invocation
+		job_id = flow.load(self.project)['job_id']
+		other_url = 'https://www.upwork.com/jobs/~0299999999999999999'
+		own_url = f'https://www.upwork.com/jobs/{job_id}'
+		def _ag_chip_payload(prefix_text, cmd_name, suffix_text, flat_text):
+			parts = [wire(2, flat_text.encode('utf-8'))]
+			if prefix_text:
+				parts.append(wire(3, wire(1, prefix_text.encode('utf-8'))))
+			parts.append(wire(3, wire(2, wire(27, wire(1, wire(1, cmd_name.encode('utf-8')))))))
+			if suffix_text:
+				parts.append(wire(3, wire(1, suffix_text.encode('utf-8'))))
+			return wire(19, b''.join(parts))
+		# 1. Quoted / inline / blockquote / indented / mid-prose mentions never poison an Upwork project
+		self.workspace([self.project])
+		safe_quotes = [
+			f'# 1\nReport:\n```\n/upwork-init  {other_url}\n```\nFix it.',
+			f'```\n/upwork-init {other_url}\n```',
+			f'```\n[upwork-init](slashCommand;upwork-init) {other_url}\n```',
+			f'> /upwork-init {other_url}',
+			f'    /upwork-init {other_url}',
+			f'`/upwork-init {other_url}`',
+			f'Mentioning /upwork-init {other_url} in prose.',
+			f'```\n<command-name>/upwork-init</command-name>\n<command-args>{other_url}</command-args>\n```',
+		]
+		self.inputs([*safe_quotes, 'Follow-up turn stays owned.'])
+		reqs = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		self.assertEqual(len(reqs), len(safe_quotes) + 1)
+		self.assertEqual(reqs[-1]['project_binding']['kind'], 'antigravity-workspace-uris')
+		# 2. Antigravity protobuf slashCommand chip inside a fenced code block (973e033d case) does not poison Upwork or text-* project
+		fenced_chip_text = f'# Report\n```\n/upwork-init  {other_url}\n```\nCheck this.'
+		db_file = self.backend / 'conversations' / (self.parent + '.db')
+		conn = sqlite3.connect(db_file)
+		try:
+			conn.execute('DELETE FROM steps')
+			conn.execute('INSERT INTO steps VALUES(0,14,3,0,?,NULL)', (_ag_chip_payload('# Report\n```\n', 'upwork-init', f'  {other_url}\n```\nCheck this.', fenced_chip_text),))
+			conn.execute('INSERT INTO steps VALUES(2,14,3,0,?,NULL)', (wire(19, wire(2, b'Second turn unaffected.')),))
+			conn.commit()
+		finally:
+			conn.close()
+		log = self.backend / 'brain' / self.parent / '.system_generated/logs/transcript_full.jsonl'
+		log.write_text('\n'.join((json.dumps(r, ensure_ascii=False) for r in [{'step_index': 0, 'type': 'USER_INPUT', 'content': fenced_chip_text}, {'step_index': 2, 'type': 'USER_INPUT', 'content': 'Second turn unaffected.'}])) + '\n', encoding='utf-8')
+		reqs_chip_fence = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		self.assertEqual([r['text'] for r in reqs_chip_fence], [fenced_chip_text, 'Second turn unaffected.'])
+		# 3. Non-Upwork text-* project (e.g. Harness / U / Init) keeps exact native workspace ownership even on real leading /upwork-init
+		launcher = self.root / 'launcher_init'
+		(launcher / '\ua66e/\u227b').mkdir(parents=True)
+		(launcher / '\ua66e/\u227a').mkdir(parents=True)
+		self.workspace([launcher])
+		real_cmd = f'/upwork-init  {own_url}'
+		conn = sqlite3.connect(db_file)
+		try:
+			conn.execute('DELETE FROM steps')
+			conn.execute('INSERT INTO steps VALUES(0,14,3,0,?,NULL)', (_ag_chip_payload('', 'upwork-init', f'  {own_url}', real_cmd),))
+			conn.commit()
+		finally:
+			conn.close()
+		log.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': real_cmd}, ensure_ascii=False) + '\n', encoding='utf-8')
+		launcher_native = antigravity.native_answers(launcher, self.parent, backend=self.backend)
+		self.assertTrue(launcher_native['turns'][0]['owned'])
+		self.assertEqual(launcher_native['turns'][0]['requests'][0]['project_binding']['kind'], 'antigravity-workspace-uris')
+		# 4. Same leading Antigravity chip also binds the target Upwork project from the launcher workspace
+		target_reqs = antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		self.assertEqual(len(target_reqs), 1)
+		self.assertEqual(target_reqs[0]['text'], real_cmd)
+		self.assertEqual(target_reqs[0]['project_binding']['kind'], 'explicit-upwork-init')
+		# 5. Another leading native chip (/plan) does not bind as upwork-init
+		plan_text = f'/plan\nCheck {own_url}'
+		conn = sqlite3.connect(db_file)
+		try:
+			conn.execute('DELETE FROM steps')
+			conn.execute('INSERT INTO steps VALUES(0,14,3,0,?,NULL)', (_ag_chip_payload('', 'plan', f'\nCheck {own_url}', plan_text),))
+			conn.commit()
+		finally:
+			conn.close()
+		with self.assertRaises(ValueError):
+			antigravity.native_requests(self.project, self.parent, backend=self.backend)
+		# 6. Cross-platform leading command formats: plain /upwork-init, Codex $upwork-init, Antigravity markdown link, Claude Code XML
+		generic_ctx = [(-1, str(launcher), 'antigravity-workspace-uris')]
+		for cmd_variant in (
+			f'/upwork-init {own_url}',
+			f'$upwork-init {own_url}',
+			f'[upwork-init](slashCommand;upwork-init)  {own_url}',
+			f'<command-message>upwork-init</command-message>\n<command-name>/upwork-init</command-name>\n<command-args>{own_url}</command-args>',
+		):
+			sel, act, bnd = scoped_inputs(self.project, job_id, [(0, cmd_variant)], generic_ctx)
+			self.assertTrue(act, cmd_variant)
+			self.assertEqual(len(sel), 1, cmd_variant)
+			self.assertEqual(bnd['kind'], 'explicit-upwork-init', cmd_variant)
+			sel_txt, act_txt, bnd_txt = scoped_inputs(launcher, completion_project_id(launcher), [(0, cmd_variant)], generic_ctx)
+			self.assertTrue(act_txt, cmd_variant)
+			self.assertEqual(bnd_txt['kind'], 'antigravity-workspace-uris', cmd_variant)
+		# 7. Actionable diagnostic on real binding mismatch in completion._active and check_pre_invocation
+		foreign = self.root / 'foreign_proj'
+		(foreign / '\ua66e/\u227b').mkdir(parents=True)
+		(foreign / '\ua66e/\u227a').mkdir(parents=True)
+		self.workspace([launcher])
+		self.inputs(['Normal request in launcher.'])
+		with self.assertRaises(ValueError) as ctx_err:
+			completion.begin(foreign, self.parent, platform='antigravity', backend=self.backend, dry_run=True)
+		err_str = str(ctx_err.exception)
+		self.assertIn('binding=antigravity-workspace-uris', err_str)
+		self.assertIn('native_step=-1', err_str)
+		self.assertIn(f'expected_root={foreign.resolve()}', err_str)
+		self.assertIn(f'observed_root={launcher.resolve()}', err_str)
+		conn_sum = sqlite3.connect(self.backend / 'conversation_summaries.db')
+		try:
+			conn_sum.execute('ALTER TABLE conversation_summaries ADD COLUMN status TEXT')
+			conn_sum.execute('ALTER TABLE conversation_summaries ADD COLUMN not_fully_idle INTEGER')
+			conn_sum.execute('ALTER TABLE conversation_summaries ADD COLUMN killed INTEGER')
+			conn_sum.execute('ALTER TABLE conversation_summaries ADD COLUMN last_user_input_step_index INTEGER')
+			conn_sum.execute("UPDATE conversation_summaries SET status='CASCADE_RUN_STATUS_RUNNING', not_fully_idle=1, killed=0, last_user_input_step_index=0")
+			conn_sum.commit()
+		finally:
+			conn_sum.close()
+		hook_out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': self.parent, 'cwd': str(foreign), 'transcriptPath': str(log)}, backend_override=self.backend)
+		self.assertEqual(hook_out.get('terminationBehavior'), 'terminate')
+		hook_msg = hook_out['injectSteps'][0]['errorMessage']['userMessage']
+		self.assertIn('binding=antigravity-workspace-uris', hook_msg)
+		self.assertIn(f'observed_root={launcher.resolve()}', hook_msg)

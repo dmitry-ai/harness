@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
 # https://github.com/dmitry-ai/harness/issues/123
@@ -182,20 +185,30 @@ def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str,
 	return False
 def _terminate_error(message: str) -> dict:
 	return {'injectSteps': [{'errorMessage': {'userMessage': f'Harness PreInvocation turn-begin blocked: {message}'}}], 'terminationBehavior': 'terminate'}
-def _is_binding_violation(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> bool:
+def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> str | None:
 	msg = str(exc)
 	if any((tok in msg for tok in ('partial record', 'primary/child identity is unavailable', 'Exact current native conversation UUID required', 'Exact native Antigravity conversation UUID required'))):
-		return False
+		return None
 	if any((tok in msg for tok in ('do not identify', 'bound to another project', 'already has a different journal', 'different native owner', 'exists in multiple Antigravity instances', 'A prepared answer does not cover'))):
-		return True
+		return msg
 	if 'No active native user turn belonging entirely to this project' in msg:
 		try:
 			from agent_tools.platforms import antigravity
+			from agent_tools.platforms.request_binding import format_binding_diagnostic
 			native = antigravity.native_answers(canon_root, conversation_id, backend=backend)
-			return any((not t.get('completed') and (not t.get('aborted')) for t in native.get('turns') or []))
+			if not any((not t.get('completed') and (not t.get('aborted')) for t in native.get('turns') or [])):
+				return None
+			if '(binding=' not in msg:
+				diag = native.get('binding_diagnostic') if isinstance(native.get('binding_diagnostic'), dict) else {}
+				detail = format_binding_diagnostic(diag.get('expected_root') or str(canon_root), diag.get('binding'), expected_job_id=diag.get('expected_job_id'))
+				if detail:
+					return f'{msg} ({detail})'
+			return msg
 		except Exception:
-			return False
-	return False
+			return None
+	return None
+def _is_binding_violation(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> bool:
+	return None is not _binding_violation_message(exc, canon_root, conversation_id, backend)
 def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | None = None) -> dict:
 	if not isinstance(payload, dict):
 		return {}
@@ -232,8 +245,9 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 			from agent_tools import completion
 			res = completion.begin(canon_root, conversation_id, platform='antigravity', backend=backend)
 		except ValueError as exc:
-			if _is_binding_violation(exc, canon_root, conversation_id, backend):
-				return _terminate_error(str(exc))
+			violation_msg = _binding_violation_message(exc, canon_root, conversation_id, backend)
+			if None is not violation_msg:
+				return _terminate_error(violation_msg)
 			return {}
 		except Exception:
 			return {}

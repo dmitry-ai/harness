@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
@@ -63,9 +66,13 @@ class TextNativeBindingTests(unittest.TestCase):
 		selected, active, _ = scoped_inputs(self.root, identifier, [(1, foreign_quote)], [(0, str(self.root), 'native-cwd')])
 		self.assertEqual([item[1] for item in selected], [foreign_quote])
 		self.assertTrue(active)
-		selected, active, _ = scoped_inputs(self.root, identifier, [(1, 'Write'), (2, '/upwork-init https://upwork.com/jobs/~0299999'), (3, 'Continue')], [(0, str(self.root), 'native-cwd'), (4, str(self.root), 'native-cwd')])
-		self.assertEqual([item[1] for item in selected], ['Write'])
-		self.assertFalse(active)
+		selected, active, binding = scoped_inputs(self.root, identifier, [(1, 'Write'), (2, '/upwork-init https://upwork.com/jobs/~0299999'), (3, 'Continue')], [(0, str(self.root), 'native-cwd'), (4, str(self.root), 'native-cwd')])
+		self.assertEqual([item[1] for item in selected], ['Write', '/upwork-init https://upwork.com/jobs/~0299999', 'Continue'])
+		self.assertTrue(active)
+		self.assertEqual(binding['kind'], 'native-cwd')
+		selected_foreign, active_foreign, _ = scoped_inputs(self.root, identifier, [(1, '/upwork-init https://upwork.com/jobs/~0299999')], [(0, str(self.base), 'native-cwd')])
+		self.assertEqual(selected_foreign, [])
+		self.assertFalse(active_foreign)
 	def codex_fixture(self, cwd=None, request='  Exact article request.  '):
 		home = self.base / 'codex-home'
 		(home / 'sessions').mkdir(parents=True, exist_ok=True)

@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -85,6 +88,9 @@ class CodexTurnScanner:
 		self.thread_parent_map: dict[str, str] = {}
 		self.indexed_subagents = False
 		self.completed_turn_sub_ids: set[str] = set()
+		self.scope_active = False
+		self.scope_binding = None
+		self.expected_job_id = None
 	def _collect_subagent_bfs(self, t_idx, turn, acc):
 		visited_sub_ids = {self.conversation_id}
 		is_last_turn = t_idx == len(self.turn_entries) - 1
@@ -151,7 +157,8 @@ class CodexTurnScanner:
 		_, self.path, _, self.rows = _trace(self.home, self.conversation_id, paths=self.paths)
 		meta = self.rows[0][1]['payload']
 		self.child = isinstance(meta.get('source'), dict) and bool(meta['source'].get('subagent'))
-		selected, _, _ = _request_scope(self.root, self.rows, identifier=completion_project_id(self.root))
+		self.expected_job_id = completion_project_id(self.root)
+		selected, self.scope_active, self.scope_binding = _request_scope(self.root, self.rows, identifier=self.expected_job_id)
 		self.requests = {index: {'id': f'codex:{self.conversation_id}:{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
 	def _resolve_subagent_child(self, sub_id, expected_parent, anchor, turn, acc):
 		r = None
@@ -243,7 +250,7 @@ class CodexTurnScanner:
 		self._scan_primary_turns()
 		for t_idx, (turn, acc) in enumerate(self.turn_entries):
 			self._finalize_turn(t_idx, turn, acc)
-		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home or (self.paths.get('sessions_dir') or '')), 'source_file': str(self.path), 'primary': not self.child, 'turns': [turn for turn, _ in self.turn_entries], 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None}
+		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home or (self.paths.get('sessions_dir') or '')), 'source_file': str(self.path), 'primary': not self.child, 'turns': [turn for turn, _ in self.turn_entries], 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None, 'binding_diagnostic': {'active': self.scope_active, 'binding': self.scope_binding, 'expected_root': str(self.root_p), 'expected_job_id': self.expected_job_id}}
 _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 def _local_path(value):
 	return local_uri_to_path(value)
@@ -332,13 +339,16 @@ def native_requests(root, conversation_id, *, backend=None, instance=None):
 	selected, _, _ = _request_scope(root, _trace(home, conversation_id, paths=paths)[3])
 	return current_turn_requests(selected, conversation_id, 'codex-ui', 'Native Codex requests do not identify this project; open the session in the exact project directory or pass its /upwork-init URL', id_fmt='codex:{cid}:{idx}', extra={'native_profile_home': str(home)})
 def require_current_binding(root, conversation_id, *, backend=None, instance=None, rows=None, until=None):
+	from .request_binding import format_binding_diagnostic, native_project_id
 	if None is rows:
 		paths = _paths(backend, profile=instance, conversation_id=conversation_id)
 		rows_val = _trace(paths['home'], conversation_id, paths=paths)[3]
 	else:
 		rows_val = rows
-	selected, active, binding = _request_scope(root, rows_val, until=until)
-	return require_turn_binding(selected, active, binding, 'Native Codex conversation is currently bound to another project or no exact project root')
+	job_id = native_project_id(root)
+	selected, active, binding = _request_scope(root, rows_val, until=until, identifier=job_id)
+	diag = format_binding_diagnostic(str(Path(root).resolve()), binding, expected_job_id=job_id)
+	return require_turn_binding(selected, active, binding, f'Native Codex conversation is currently bound to another project or no exact project root ({diag})')
 def _extract_codex_target_subagents(raw_args) -> list[str]:
 	parsed_args = parse_tool_args(raw_args)
 	candidates = [val.strip().lower() for key in ('id', 'Recipient', 'agent_id', 'subagent_id') for val in [parsed_args.get(key)] if isinstance(val, str)]

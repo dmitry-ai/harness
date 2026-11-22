@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
 # https://github.com/dmitry-ai/harness/issues/123
@@ -982,7 +985,11 @@ def _active(native):
 	else:
 		turn = next((turn for turn in native['turns'] if turn['turn_id'] == native['active_turn_id']), None)
 		if None is turn or not turn['owned'] or turn['aborted']:
-			raise ValueError('No active native user turn belonging entirely to this project')
+			from .platforms.request_binding import format_binding_diagnostic
+			diag = native.get('binding_diagnostic') if isinstance(native.get('binding_diagnostic'), dict) else {}
+			detail = format_binding_diagnostic(diag.get('expected_root'), diag.get('binding'), expected_job_id=diag.get('expected_job_id'))
+			suffix = f' ({detail})' if detail else ''
+			raise ValueError(f'No active native user turn belonging entirely to this project{suffix}')
 		r = turn
 	return r
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
