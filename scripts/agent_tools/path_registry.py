@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add declarative similar_projects registry groups and project overlay resolution":
+# https://github.com/dmitry-ai/harness/issues/122
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
 # https://github.com/dmitry-ai/harness/issues/115
@@ -35,15 +38,18 @@ _INITIAL_HOME = Path.home().as_posix().rstrip('/')
 _REGISTRY_CACHE: dict[tuple, 'PathRegistry'] = {}
 _PROJECT_PATHS_CACHE: dict[tuple, 'ProjectPaths'] = {}
 _OVERLAY_REVERSE_MAP: dict[str, Path] = {}
-_DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}}
+_SIMILAR_REVERSE_MAP: dict[tuple[str, str], list[Path]] = {}
+_DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}}
 def clear_registry_cache() -> None:
 	_REGISTRY_CACHE.clear()
 	_PROJECT_PATHS_CACHE.clear()
 	_OVERLAY_REVERSE_MAP.clear()
+	_SIMILAR_REVERSE_MAP.clear()
 	_DISCOVERY_STATE['roots_key'] = None
 	_DISCOVERY_STATE['candidate_roots'] = ()
 	_DISCOVERY_STATE['fingerprint'] = None
 	_DISCOVERY_STATE['links'] = {}
+	_DISCOVERY_STATE['similar_links'] = {}
 def escape_template_literal(value: str) -> str:
 	return str(value).replace('%', '%%').replace('${', '$${')
 def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
@@ -251,6 +257,71 @@ def _validate_string_list(raw: Any, label: str) -> list[str]:
 	if not isinstance(raw, list) or any((not isinstance(x, str) or not x.strip() for x in raw)):
 		raise ValueError(f'{label} must be a list of non-empty path strings')
 	return list(raw)
+_SIMILAR_GROUP_ID_RE = re.compile('^[A-Za-z0-9_.-]+$')
+def _validate_similar_project_groups(raw: Any, variables: dict[str, str], *, env: dict[str, str] | None=None) -> tuple[dict[str, Any], ...]:
+	if None is raw:
+		return ()
+	if not isinstance(raw, list):
+		raise ValueError('paths.json similar_projects must be a list of group objects')
+	seen_ids: set[str] = set()
+	groups: list[dict[str, Any]] = []
+	for idx, grp in enumerate(raw):
+		if not isinstance(grp, dict):
+			raise ValueError(f'paths.json similar_projects[{idx}] must be an object')
+		unknown_g = set(grp) - {'id', 'members', 'projects', 'notes'}
+		if unknown_g:
+			raise ValueError(f"Unknown keys in similar_projects[{idx}]: {', '.join(sorted(unknown_g))}")
+		gid = grp.get('id')
+		if not isinstance(gid, str) or not _SIMILAR_GROUP_ID_RE.fullmatch(gid.strip()):
+			raise ValueError(f'similar_projects[{idx}].id must be a valid identifier string')
+		gid = gid.strip()
+		if gid in seen_ids:
+			raise ValueError(f'Duplicate similar_projects group id: {gid}')
+		seen_ids.add(gid)
+		if 'members' in grp and 'projects' in grp:
+			raise ValueError(f'similar_projects.{gid} cannot specify both members and projects')
+		raw_members = grp.get('members') if 'members' in grp else grp.get('projects')
+		if not isinstance(raw_members, list) or 2 > len(raw_members):
+			raise ValueError(f'similar_projects.{gid} requires at least 2 members')
+		member_keys: set[str] = set()
+		aff_owners: list[tuple[Path, str]] = []
+		members_out: list[dict[str, Any]] = []
+		for m_idx, item in enumerate(raw_members):
+			if isinstance(item, str):
+				proj_tpl = item
+				raw_aff: list[str] = []
+			elif isinstance(item, dict):
+				unknown_m = set(item) - {'project', 'affiliated_paths', 'notes'}
+				if unknown_m:
+					raise ValueError(f"Unknown keys in similar_projects.{gid}.members[{m_idx}]: {', '.join(sorted(unknown_m))}")
+				proj_tpl = item.get('project')
+				raw_aff = _validate_string_list(item.get('affiliated_paths'), f'similar_projects.{gid}.members[{m_idx}].affiliated_paths')
+			else:
+				raise ValueError(f'similar_projects.{gid}.members[{m_idx}] must be a path string or member object')
+			if not isinstance(proj_tpl, str) or not proj_tpl.strip():
+				raise ValueError(f'similar_projects.{gid}.members[{m_idx}].project must be a non-empty path string')
+			proj_resolved = expand_template(proj_tpl, variables, env=env, normalize=True)
+			proj_abs = Path(os.path.abspath(proj_resolved)).as_posix()
+			m_key = _path_key(proj_abs)
+			if m_key in member_keys:
+				raise ValueError(f'Duplicate member project {proj_resolved} in similar_projects.{gid}')
+			member_keys.add(m_key)
+			aff_resolved_list: list[str] = []
+			seen_local_aff: set[str] = set()
+			for aff_tpl in raw_aff:
+				aff_res = expand_template(aff_tpl, variables, env=env, normalize=True)
+				aff_p = Path(os.path.abspath(aff_res))
+				a_key = _path_key(aff_p)
+				for prev_p, prev_owner in aff_owners:
+					if prev_owner != m_key and (a_key == _path_key(prev_p) or aff_p.is_relative_to(prev_p) or prev_p.is_relative_to(aff_p)):
+						raise ValueError(f'Overlapping affiliated_paths in similar_projects.{gid}: {aff_res}')
+				if a_key not in seen_local_aff:
+					seen_local_aff.add(a_key)
+					aff_owners.append((aff_p, m_key))
+					aff_resolved_list.append(aff_p.as_posix())
+			members_out.append({'project': proj_abs, 'affiliated_paths': tuple(aff_resolved_list)})
+		groups.append({'id': gid, 'members': tuple(members_out)})
+	return tuple(groups)
 def _infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
 	if '\u26ef' == anchor_code.name and 4 <= len(anchor_code.parents) and (anchor_code.parent.name, anchor_code.parents[1].name, anchor_code.parents[2].name) in (('\u2655', '\u227b', '\u2c0f'), ('Deliverables', '\u227b', 'Artifacts')):
 		root = anchor_code.parents[3].resolve()
@@ -305,6 +376,7 @@ class PathRegistry:
 		self.overlay_candidates = [expand_template(c, variables, env=self.env, normalize=True) for c in _validate_string_list(raw_overlays.get('candidates') or ['.agents/paths.json'], 'project_overlays.candidates')]
 		self.overlay_discovery_roots = [expand_template(r, variables, env=self.env, normalize=True) for r in _validate_string_list(raw_overlays.get('discovery_roots') or [], 'project_overlays.discovery_roots')]
 		self.overlay_discovery_globs = [expand_template(g, variables, env=self.env, normalize=True) for g in _validate_string_list(raw_overlays.get('discovery_globs') or [], 'project_overlays.discovery_globs')]
+		self.similar_project_groups = _validate_similar_project_groups(raw.get('similar_projects'), variables, env=self.env)
 		raw_profiles = raw.get('project_profiles') or {}
 		if not isinstance(raw_profiles, dict) or 'default' not in raw_profiles:
 			raise ValueError('paths.json project_profiles must define at least "default"')
@@ -325,7 +397,7 @@ class PathRegistry:
 				raise ValueError(f'project_profiles.{name}.extends must be a profile name')
 			base = self._resolve_profile_chain(parent_name, (*seen, name))
 		else:
-			base = {'fs_version': 1, 'journal_version': 1, 'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'journal_legacy_fallbacks': []}
+			base = {'fs_version': 1, 'journal_version': 1, 'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'similar_projects': [], 'journal_legacy_fallbacks': []}
 		raw_fs_ver = cfg.get('fs_version', base['fs_version'])
 		if int is not type(raw_fs_ver) or raw_fs_ver not in (1, 2):
 			raise ValueError(f'project_profiles.{name}.fs_version must be 1 or 2')
@@ -340,6 +412,7 @@ class PathRegistry:
 		prof_code = _validate_string_list(cfg.get('code_repos'), f'project_profiles.{name}.code_repos')
 		prof_aux = _validate_string_map(cfg.get('auxiliary_repos'), f'project_profiles.{name}.auxiliary_repos')
 		prof_links = _validate_string_list(cfg.get('linked_roots'), f'project_profiles.{name}.linked_roots')
+		prof_sim = _validate_string_list(cfg.get('similar_projects'), f'project_profiles.{name}.similar_projects')
 		prof_jfb = _validate_string_list(cfg.get('journal_legacy_fallbacks'), f'project_profiles.{name}.journal_legacy_fallbacks')
 		return {
 			'fs_version': raw_fs_ver,
@@ -350,6 +423,7 @@ class PathRegistry:
 			'code_repos': prof_code if 'code_repos' in cfg else list(base['code_repos']),
 			'auxiliary_repos': {**base['auxiliary_repos'], **prof_aux},
 			'linked_roots': prof_links if 'linked_roots' in cfg else list(base['linked_roots']),
+			'similar_projects': prof_sim if 'similar_projects' in cfg else list(base['similar_projects']),
 			'journal_legacy_fallbacks': prof_jfb if 'journal_legacy_fallbacks' in cfg else list(base['journal_legacy_fallbacks']),
 		}
 	def expand(self, template: str, extra_variables: dict[str, str] | None=None) -> str:
@@ -586,7 +660,7 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	version = raw.get('version', 1)
 	if 1 != version:
 		raise ValueError(f'Project overlay {overlay_path} requires version 1')
-	allowed_keys = {'version', 'fs_version', 'journal_version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'deliverable_segments', 'source_dirs', 'notes'}
+	allowed_keys = {'version', 'fs_version', 'journal_version', 'profile', 'extends', 'variables', 'paths', 'tools', 'code_repos', 'auxiliary_repos', 'linked_roots', 'similar_projects', 'deliverable_segments', 'source_dirs', 'notes'}
 	unknown = set(raw) - allowed_keys
 	if unknown:
 		raise ValueError(f"Unknown keys in project overlay {overlay_path}: {', '.join(sorted(unknown))}")
@@ -611,6 +685,7 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 		'code_repos': _validate_string_list(raw.get('code_repos'), f'{overlay_path} code_repos'),
 		'auxiliary_repos': _validate_string_map(raw.get('auxiliary_repos'), f'{overlay_path} auxiliary_repos'),
 		'linked_roots': _validate_string_list(raw.get('linked_roots'), f'{overlay_path} linked_roots'),
+		'similar_projects': _validate_string_list(raw.get('similar_projects'), f'{overlay_path} similar_projects'),
 		'deliverable_segments': _validate_string_list(raw.get('deliverable_segments'), f'{overlay_path} deliverable_segments'),
 		'source_dirs': _validate_string_list(raw.get('source_dirs'), f'{overlay_path} source_dirs'),
 	}
@@ -804,10 +879,12 @@ def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 				ov_sig.append((p_str, st.st_mtime_ns, st.st_size, content_hash))
 			except OSError:
 				pass
-	fp = (roots_key, tuple(ov_sig))
+	sim_fp = tuple(((g['id'], tuple((m['project'] for m in g['members']))) for g in reg.similar_project_groups))
+	fp = (roots_key, tuple(ov_sig), sim_fp)
 	if _DISCOVERY_STATE['fingerprint'] == fp:
 		return dict(_DISCOVERY_STATE['links'])
 	links: dict[str, Path] = {}
+	similar_links: dict[str, list[Path]] = {}
 	for root_p in candidate_roots:
 		rk = _path_key(root_p)
 		try:
@@ -818,10 +895,15 @@ def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 					ek = _path_key(ext)
 					if ek != rk:
 						links[ek] = root_p
+				for sp in pp._direct_similar_projects:
+					sk = _path_key(sp)
+					if sk != rk and all((_path_key(prev) != rk for prev in similar_links.get(sk, ()))):
+						similar_links.setdefault(sk, []).append(root_p)
 		except (OSError, ValueError):
 			continue
 	_DISCOVERY_STATE['fingerprint'] = fp
 	_DISCOVERY_STATE['links'] = links
+	_DISCOVERY_STATE['similar_links'] = similar_links
 	return dict(links)
 def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None, Path | None]:
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
@@ -1011,6 +1093,24 @@ class ProjectPaths:
 		self.auxiliary_repos = {k: Path(self._resolve_rel_to_root(v)).resolve() for k, v in raw_aux.items()}
 		raw_links = self.overlay['linked_roots'] if self.overlay and self.overlay['linked_roots'] else prof_spec['linked_roots']
 		self.linked_roots = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_links))
+		raw_sim = self.overlay['similar_projects'] if self.overlay and self.overlay['similar_projects'] else prof_spec['similar_projects']
+		direct_sim: list[Path] = []
+		seen_sim: set[str] = {_path_key(self.root)}
+		def _push_sim(cand: Path) -> None:
+			ck = _path_key(cand)
+			if ck not in seen_sim:
+				seen_sim.add(ck)
+				direct_sim.append(cand)
+		for item in raw_sim:
+			_push_sim(canonicalize_root_dir(self._resolve_rel_to_root(item), registry=self.registry))
+		self_key = _path_key(self.root)
+		for grp in self.registry.similar_project_groups:
+			mem_roots = [canonicalize_root_dir(mem['project'], registry=self.registry) for mem in grp['members']]
+			if any((_path_key(mr) == self_key for mr in mem_roots)):
+				for mr in mem_roots:
+					_push_sim(mr)
+		self._direct_similar_projects = tuple(direct_sim)
+		self._include_reverse_similar = _register_links
 		self.journal_legacy_fallbacks = tuple((Path(self._resolve_rel_to_root(item)) for item in prof_spec['journal_legacy_fallbacks']))
 		ov_j_ver = self.overlay.get('journal_version') if self.overlay else None
 		cfg_j_ver = ov_j_ver if None is not ov_j_ver else prof_spec['journal_version']
@@ -1040,14 +1140,21 @@ class ProjectPaths:
 			self.paths_str['journal_res_dir'] = normalize_path_str(f'{j_eff.as_posix()}/{eff_j_pair[1]}')
 		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/', '/\u2c3f/\u227b/\u2655/', '/artifacts/\u227b/deliverables/')))
 		self.source_dirs = tuple((Path(self._resolve_rel_to_root(item)) for item in (self.overlay['source_dirs'] if self.overlay else ())))
-		if _register_links and self.has_overlay:
+		if _register_links and (self.has_overlay or self._direct_similar_projects):
 			self._register_reverse_links()
 	def _register_reverse_links(self) -> None:
 		rk = _path_key(self.root)
-		for ext in (*self.linked_roots, *self.code_repos, *self.auxiliary_repos.values()):
-			ek = _path_key(ext)
-			if ek != rk:
-				_OVERLAY_REVERSE_MAP[ek] = self.root
+		if self.has_overlay:
+			for ext in (*self.linked_roots, *self.code_repos, *self.auxiliary_repos.values()):
+				ek = _path_key(ext)
+				if ek != rk:
+					_OVERLAY_REVERSE_MAP[ek] = self.root
+		reg_key = _path_key(self.registry.source_path)
+		for sp in self._direct_similar_projects:
+			sk = (reg_key, _path_key(sp))
+			peers = _SIMILAR_REVERSE_MAP.setdefault(sk, [])
+			if all((_path_key(p) != rk for p in peers)):
+				peers.append(self.root)
 	def rel_to_root(self, target: str | Path) -> str:
 		p = Path(target).resolve()
 		return p.relative_to(self.root).as_posix() if p.is_relative_to(self.root) else p.as_posix()
@@ -1156,6 +1263,21 @@ class ProjectPaths:
 	@property
 	def http_index_json(self) -> Path:
 		return Path(self.paths_str['http_index_json'])
+	@property
+	def similar_projects(self) -> tuple[Path, ...]:
+		out: list[Path] = list(self._direct_similar_projects)
+		seen: set[str] = {_path_key(self.root), *(_path_key(p) for p in out)}
+		if self._include_reverse_similar:
+			_refresh_known_overlay_links(self.registry)
+			rk = _path_key(self.root)
+			reg_key = _path_key(self.registry.source_path)
+			rev_peers = [*_DISCOVERY_STATE['similar_links'].get(rk, ()), *_SIMILAR_REVERSE_MAP.get((reg_key, rk), ())]
+			for peer in rev_peers:
+				pk = _path_key(peer)
+				if pk not in seen:
+					seen.add(pk)
+					out.append(peer)
+		return tuple(out)
 	def to_dict(self, *, check_exists: bool=True) -> dict[str, Any]:
 		def _exists(p_str: str) -> bool:
 			if '*' in p_str or '?' in p_str:
@@ -1163,6 +1285,7 @@ class ProjectPaths:
 			return Path(p_str).exists()
 		paths_view = dict(self.paths_str)
 		paths_view['journal_dir'] = self.journal_dir.as_posix()
+		sim_projects = self.similar_projects
 		out: dict[str, Any] = {
 			'project_root': self.root.as_posix(),
 			'fs_version': self.fs_version,
@@ -1174,12 +1297,14 @@ class ProjectPaths:
 			'code_repos': [p.as_posix() for p in self.code_repos],
 			'auxiliary_repos': {k: p.as_posix() for k, p in self.auxiliary_repos.items()},
 			'linked_roots': [p.as_posix() for p in self.linked_roots],
+			'similar_projects': [p.as_posix() for p in sim_projects],
 			'tools': deepcopy(self.tools),
 		}
 		if check_exists:
 			out['paths_exist'] = {k: _exists(v) for k, v in paths_view.items()}
 			out['code_repos_exist'] = {p.as_posix(): p.is_dir() for p in self.code_repos}
 			out['linked_roots_exist'] = {p.as_posix(): p.exists() for p in self.linked_roots}
+			out['similar_projects_exist'] = {p.as_posix(): p.is_dir() for p in sim_projects}
 		return out
 def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, exact_root: bool=False) -> ProjectPaths:
 	reg = registry or load_registry(env=env)
@@ -1193,7 +1318,7 @@ def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=Non
 	cache_key = (id(reg), root.as_posix(), ov_sig, inferred, _journal_cache_sig(root, reg))
 	cached = _PROJECT_PATHS_CACHE.get(cache_key)
 	if None is not cached:
-		if cached.has_overlay:
+		if cached.has_overlay or cached._direct_similar_projects:
 			cached._register_reverse_links()
 		return cached
 	pp = ProjectPaths(root, registry=reg, env=env)
@@ -1201,10 +1326,103 @@ def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=Non
 		_PROJECT_PATHS_CACHE.clear()
 	_PROJECT_PATHS_CACHE[cache_key] = pp
 	return pp
+def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path, ...] | set[Path], *, registry: PathRegistry | None=None) -> list[dict[str, Any]]:
+	reg = registry or load_registry()
+	resolved_files: list[Path] = []
+	seen_files: set[str] = set()
+	for raw_f in touched_repo_files or ():
+		if not raw_f:
+			continue
+		try:
+			fp = Path(raw_f).resolve()
+		except OSError:
+			continue
+		fk = _path_key(fp)
+		if fk not in seen_files:
+			seen_files.add(fk)
+			resolved_files.append(fp)
+	if not resolved_files:
+		return []
+	def _project_match_roots(proj_root: Path) -> list[Path]:
+		roots = [proj_root]
+		try:
+			pp_m = project_paths(proj_root, registry=reg, exact_root=True)
+			for cr in (*pp_m.code_repos, *pp_m.auxiliary_repos.values()):
+				if all((_path_key(cr) != _path_key(x) for x in roots)):
+					roots.append(cr)
+		except (OSError, ValueError):
+			pass
+		return roots
+	emitted: dict[str, dict[str, Any]] = {}
+	def _record_peer(peer_root: Path, *, group_id: str | None, source_projects: list[Path], source_label: str, peer_touched: bool) -> None:
+		pk = _path_key(peer_root)
+		prev = emitted.get(pk)
+		if None is prev:
+			emitted[pk] = {'group_id': group_id, 'source_projects': list(source_projects), 'source_label': source_label, 'peer_root': peer_root, 'peer_touched': bool(peer_touched)}
+		else:
+			if None is prev['group_id'] and None is not group_id:
+				prev['group_id'] = group_id
+			prev['peer_touched'] = prev['peer_touched'] or bool(peer_touched)
+			for sp in source_projects:
+				if all((_path_key(sp) != _path_key(x) for x in prev['source_projects'])):
+					prev['source_projects'].append(sp)
+	file_project_roots: dict[str, Path] = {}
+	for fp in resolved_files:
+		try:
+			file_project_roots[_path_key(fp)] = project_paths(fp, registry=reg).root
+		except (OSError, ValueError):
+			file_project_roots[_path_key(fp)] = canonicalize_root_dir(fp.parent, registry=reg)
+	for grp in reg.similar_project_groups:
+		members_state: list[dict[str, Any]] = []
+		for mem in grp['members']:
+			m_root = canonicalize_root_dir(mem['project'], registry=reg)
+			m_roots = _project_match_roots(m_root)
+			m_affs = [Path(a).resolve() for a in mem['affiliated_paths']]
+			hits: list[Path] = []
+			for fp in resolved_files:
+				if any((fp == r or fp.is_relative_to(r) for r in m_roots)) or any((fp == a or fp.is_relative_to(a) for a in m_affs)):
+					hits.append(fp)
+			members_state.append({'root': m_root, 'hits': hits})
+		touched_members = [ms for ms in members_state if ms['hits']]
+		if touched_members:
+			for ms in members_state:
+				src_mems = [tm for tm in touched_members if _path_key(tm['root']) != _path_key(ms['root'])]
+				if not src_mems:
+					continue
+				src_parts = []
+				for tm in src_mems:
+					names = sorted({h.name for h in tm['hits']})[:3]
+					src_parts.append(f"{tm['root'].as_posix()} ({', '.join(names)})")
+				_record_peer(ms['root'], group_id=grp['id'], source_projects=[tm['root'] for tm in src_mems], source_label='; '.join(src_parts), peer_touched=bool(ms['hits']))
+	touched_root_keys = {_path_key(r) for r in file_project_roots.values()}
+	for fp in resolved_files:
+		src_root = file_project_roots[_path_key(fp)]
+		try:
+			pp_f = project_paths(src_root, registry=reg, exact_root=True)
+		except (OSError, ValueError):
+			continue
+		for peer_root in pp_f.similar_projects:
+			pk = _path_key(peer_root)
+			if pk == _path_key(src_root):
+				continue
+			peer_roots = _project_match_roots(peer_root)
+			peer_hit = pk in touched_root_keys or any((f2 == pr or f2.is_relative_to(pr) for f2 in resolved_files for pr in peer_roots))
+			_record_peer(peer_root, group_id=None, source_projects=[src_root], source_label=f'{src_root.as_posix()} ({fp.name})', peer_touched=peer_hit)
+	return [emitted[k] for k in sorted(emitted, key=lambda key: str(emitted[key]['peer_root']))]
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:
 	reg = registry or load_registry()
 	issues: list[dict[str, str]] = []
 	discovered_overlays: list[dict[str, Any]] = []
+	if check:
+		for grp in reg.similar_project_groups:
+			for mem in grp['members']:
+				m_proj = Path(mem['project'])
+				if not m_proj.is_dir():
+					issues.append({'file': reg.source_path.as_posix(), 'message': f"Missing similar_projects member directory in group '{grp['id']}': {m_proj.as_posix()}"})
+				for aff in mem['affiliated_paths']:
+					aff_p = Path(aff)
+					if not aff_p.exists():
+						issues.append({'file': reg.source_path.as_posix(), 'message': f"Missing similar_projects affiliated path in group '{grp['id']}': {aff_p.as_posix()}"})
 	if check or None is project:
 		roots_to_check: list[Path] = []
 		for r_str in reg.overlay_discovery_roots:
@@ -1235,12 +1453,23 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 				ov = discover_overlay_file(rp, registry=reg)
 				if None is not ov:
 					pp_i = ProjectPaths(rp, registry=reg)
-					discovered_overlays.append({'project_root': pp_i.root.as_posix(), 'overlay_file': ov.as_posix(), 'profile': pp_i.profile, 'fs_version': pp_i.fs_version, 'journal_version': pp_i.journal_version})
+					sim_list = [p.as_posix() for p in pp_i.similar_projects]
+					if check:
+						for sp in pp_i.similar_projects:
+							if not sp.is_dir():
+								issues.append({'file': ov.as_posix(), 'message': f'Missing similar_projects target directory: {sp.as_posix()}'})
+					discovered_overlays.append({'project_root': pp_i.root.as_posix(), 'overlay_file': ov.as_posix(), 'profile': pp_i.profile, 'fs_version': pp_i.fs_version, 'journal_version': pp_i.journal_version, 'similar_projects': sim_list})
 			except (OSError, ValueError) as exc:
 				issues.append({'file': rp.as_posix(), 'message': str(exc)})
 	if None is not project:
 		try:
 			pp = project_paths(project, registry=reg)
+			if check:
+				for sp in pp.similar_projects:
+					if not sp.is_dir():
+						msg = f'Missing similar_projects target directory: {sp.as_posix()}'
+						if all((it.get('message') != msg for it in issues)):
+							issues.append({'file': (pp.overlay_file or reg.source_path).as_posix(), 'message': msg})
 			payload = pp.to_dict(check_exists=True)
 			if None is not expand:
 				payload['expanded'] = pp.expand(expand)
@@ -1261,6 +1490,7 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 		'harness_stores': deepcopy(reg.harness_stores),
 		'workspace_overrides': deepcopy(reg.workspace_overrides),
 		'relocations': dict(reg.relocations),
+		'similar_projects': [deepcopy(g) for g in reg.similar_project_groups],
 		'profiles': list(reg.project_profiles),
 		'discovered_overlays': discovered_overlays,
 		'issues': issues,

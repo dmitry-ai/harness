@@ -236,6 +236,28 @@
       "${DF_GIT_CODE_ROOT}/*"
     ]
   },
+  "similar_projects": [
+    {
+      "id": "desktop-agent-addons",
+      "members": [
+        {
+          "project": "${ANTIGRAVITY_ADDONS_ROOT}",
+          "affiliated_paths": [
+            "${HARNESS_CODE}/platforms/antigravity/hooks.json",
+            "${HARNESS_CODE}/scripts/agent_tools/platforms/antigravity.py",
+            "${HARNESS_CODE}/scripts/check_pre_invocation.py",
+            "${HARNESS_CODE}/scripts/check_stop_gate.py"
+          ]
+        },
+        {
+          "project": "${CHATGPT_ADDONS_ROOT}",
+          "affiliated_paths": [
+            "${HARNESS_CODE}/scripts/agent_tools/platforms/codex.py"
+          ]
+        }
+      ]
+    }
+  ],
   "project_profiles": {
     "default": {
       "fs_version": 1,

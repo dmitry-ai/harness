@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add declarative similar_projects registry groups and project overlay resolution":
+# https://github.com/dmitry-ai/harness/issues/122
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
 # https://github.com/dmitry-ai/harness/issues/115
@@ -891,5 +894,76 @@ class PathRegistryTests(TemporaryCase):
 			updated_rec = json.loads(rec_file.read_text(encoding='utf-8'))
 			self.assertEqual(updated_rec['settings'], {'keepUserSetting': 42})
 			self.assertEqual(updated_rec['projectResources']['resources'], [{'folderUri': new_m.as_uri()}])
+	def test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation(self):
+		rep = pr.paths_report(check=True)
+		self.assertTrue(rep['valid'], rep['issues'])
+		groups = {g['id']: g for g in rep.get('similar_projects') or ()}
+		self.assertIn('desktop-agent-addons', groups)
+		ag_root = Path(pr.var_value('ANTIGRAVITY_ADDONS_ROOT')).resolve()
+		cg_root = Path(pr.var_value('CHATGPT_ADDONS_ROOT')).resolve()
+		h_code = Path(pr.var_value('HARNESS_CODE')).resolve()
+		pp_ag = pr.project_paths(ag_root)
+		pp_cg = pr.project_paths(cg_root)
+		self.assertEqual(pp_ag.similar_projects, (cg_root,))
+		self.assertEqual(pp_cg.similar_projects, (ag_root,))
+		self.assertTrue(pp_ag.to_dict()['similar_projects_exist'][cg_root.as_posix()])
+		self.assertTrue(pp_cg.to_dict()['similar_projects_exist'][ag_root.as_posix()])
+		# Antigravity/Addons file triggers ChatGPT/Desktop/Addons peer parity
+		t1 = pr.evaluate_similar_project_touches([ag_root / '\u2c0f/\u227b/\u2655/\u26ef/Folders/folders-client.js'])
+		self.assertEqual(len(t1), 1)
+		self.assertEqual(t1[0]['peer_root'], cg_root)
+		self.assertFalse(t1[0]['peer_touched'])
+		self.assertEqual(t1[0]['group_id'], 'desktop-agent-addons')
+		# Affiliated Antigravity file inside AI/harness triggers ChatGPT/Desktop/Addons parity
+		t2 = pr.evaluate_similar_project_touches([h_code / 'scripts/agent_tools/platforms/antigravity.py'])
+		self.assertEqual(len(t2), 1)
+		self.assertEqual(t2[0]['peer_root'], cg_root)
+		self.assertFalse(t2[0]['peer_touched'])
+		# Symmetric touch: both antigravity.py and codex.py (or ChatGPT/Desktop/Addons file) -> peer_touched=True
+		t3 = pr.evaluate_similar_project_touches([h_code / 'scripts/agent_tools/platforms/antigravity.py', h_code / 'scripts/agent_tools/platforms/codex.py'])
+		self.assertTrue(all((item['peer_touched'] for item in t3)), t3)
+		t4 = pr.evaluate_similar_project_touches([ag_root / '\u2c0f/\u227b/\u2655/\u26ef/Folders/folders-client.js', cg_root / 'code/Folders/renderer.js'])
+		self.assertTrue(all((item['peer_touched'] for item in t4)), t4)
+		# Shared Harness files outside affiliated_paths do not trigger desktop-agent-addons parity
+		t_shared = pr.evaluate_similar_project_touches([h_code / 'scripts/agent_tools/research.py'])
+		self.assertEqual(t_shared, [])
+		# Schema validation rejects <2 members, duplicate members, overlapping affiliated_paths, and missing peer targets
+		base_raw = deepcopy(pr.load_registry().raw)
+		bad_one = deepcopy(base_raw)
+		bad_one['similar_projects'] = [{'id': 'solo', 'members': ['${ANTIGRAVITY_ADDONS_ROOT}']}]
+		f_one = self.put('sim-one.json', json.dumps(bad_one))
+		with self.assertRaisesRegex(ValueError, 'at least 2 members'):
+			pr.load_registry(f_one)
+		bad_dup = deepcopy(base_raw)
+		bad_dup['similar_projects'] = [{'id': 'dup', 'members': ['${ANTIGRAVITY_ADDONS_ROOT}', '${ANTIGRAVITY_ADDONS_ROOT}']}]
+		f_dup = self.put('sim-dup.json', json.dumps(bad_dup))
+		with self.assertRaisesRegex(ValueError, 'Duplicate member'):
+			pr.load_registry(f_dup)
+		bad_overlap = deepcopy(base_raw)
+		bad_overlap['similar_projects'] = [{'id': 'ovl', 'members': [{'project': '${ANTIGRAVITY_ADDONS_ROOT}', 'affiliated_paths': ['${HARNESS_CODE}/scripts/agent_tools/platforms/antigravity.py']}, {'project': '${CHATGPT_ADDONS_ROOT}', 'affiliated_paths': ['${HARNESS_CODE}/scripts/agent_tools/platforms/antigravity.py']}]}]
+		f_overlap = self.put('sim-overlap.json', json.dumps(bad_overlap))
+		with self.assertRaisesRegex(ValueError, 'Overlapping affiliated_paths'):
+			pr.load_registry(f_overlap)
+		# Symmetric overlay resolution for non-group overlays & check failure when peer dir is missing
+		ov_a = (self.root / 'sym_ov_a').resolve()
+		ov_b = (self.root / 'sym_ov_b').resolve()
+		ov_missing = (self.root / 'sym_ov_missing').resolve()
+		(ov_a / '.git').mkdir(parents=True)
+		(ov_b / '.git').mkdir(parents=True)
+		self.put('sym_ov_a/\ua616/paths.json', json.dumps({'version': 1, 'similar_projects': [ov_b.as_posix()]}))
+		self.put('sym_ov_b/\ua616/paths.json', json.dumps({'version': 1}))
+		clean_raw = deepcopy(base_raw)
+		clean_raw['similar_projects'] = []
+		clean_raw['project_overlays']['discovery_roots'] = [ov_a.as_posix(), ov_b.as_posix()]
+		reg_clean = pr.load_registry(self.put('clean-sim.json', json.dumps(clean_raw)))
+		self.assertEqual(pr.project_paths(ov_b, registry=reg_clean).similar_projects, (ov_a,))
+		self.assertEqual(pr.project_paths(ov_a, registry=reg_clean).similar_projects, (ov_b,))
+		miss_raw = deepcopy(base_raw)
+		miss_raw['similar_projects'] = [{'id': 'missing-grp', 'members': [ov_a.as_posix(), ov_missing.as_posix()]}]
+		miss_raw['project_overlays']['discovery_roots'] = [ov_a.as_posix()]
+		reg_miss = pr.load_registry(self.put('miss-sim.json', json.dumps(miss_raw)))
+		miss_rep = pr.paths_report(check=True, registry=reg_miss)
+		self.assertFalse(miss_rep['valid'])
+		self.assertTrue(any(('Missing similar_projects member directory' in item['message'] for item in miss_rep['issues'])), miss_rep['issues'])
 if '__main__' == __name__:
 	unittest.main()
