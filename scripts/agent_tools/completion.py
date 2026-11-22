@@ -1,4 +1,7 @@
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -123,7 +126,7 @@ from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
-COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
+COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
@@ -795,12 +798,64 @@ def _is_client_deliverable_path(path_text, root=None) -> bool:
 			if None is not sp and norm.startswith(sp.as_posix().lower().rstrip('/') + '/'):
 				return True
 	return any((seg in norm for seg in segs))
+def _similar_projects_metadata(root: Path) -> tuple[list[str], list[str]]:
+	from .issue_lifecycle import similar_project_repo_slugs
+	from .path_registry import canonicalize_root_dir, load_registry, project_paths
+	reg = load_registry()
+	canon_root = canonicalize_root_dir(root, registry=reg)
+	pp = project_paths(canon_root, registry=reg, exact_root=True)
+	peers: list[Path] = []
+	seen_peers: set[str] = set()
+	def _push_peer(p: Path) -> None:
+		cp = canonicalize_root_dir(p, registry=reg)
+		if cp == canon_root:
+			return
+		ck = cp.as_posix().lower()
+		if ck not in seen_peers:
+			seen_peers.add(ck)
+			peers.append(cp)
+	for p in pp.similar_projects:
+		_push_peer(p)
+	for grp in reg.similar_project_groups:
+		members = list(grp.get('members') or ())
+		mem_roots = [canonicalize_root_dir(m['project'], registry=reg) for m in members]
+		is_member = any((mr == canon_root for mr in mem_roots))
+		has_affiliated = False
+		if not is_member:
+			for m in members:
+				for aff in m.get('affiliated_paths') or ():
+					try:
+						aff_p = Path(aff).resolve()
+						if aff_p == canon_root or aff_p.is_relative_to(canon_root):
+							has_affiliated = True
+							break
+					except OSError:
+						continue
+				if has_affiliated:
+					break
+		if is_member or has_affiliated:
+			for mr in mem_roots:
+				_push_peer(mr)
+	peer_paths = [p.as_posix() for p in peers]
+	peer_repos: list[str] = []
+	seen_repos: set[str] = set()
+	for p in peers:
+		for slug in similar_project_repo_slugs(p, registry=reg):
+			if slug.lower() not in seen_repos:
+				seen_repos.add(slug.lower())
+				peer_repos.append(slug)
+	return (peer_paths, peer_repos)
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	from .path_registry import canonicalize_root_dir
 	canon_root = canonicalize_root_dir(root)
 	key = _key(native, turn)
-	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []} if recovered else _code_and_issue_lifecycle_status(canon_root, turn)
+	sim_paths, sim_repos = _similar_projects_metadata(canon_root)
+	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []} if recovered else _code_and_issue_lifecycle_status(canon_root, turn)
 	r = {'schema_version': 1, 'key': key, 'project_root': str(canon_root), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(canon_root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, canon_root, key), 'http_fetch_check': _http_fetch_status(turn, canon_root, key), 'compaction_check': _compaction_status(canon_root, key, turn), 'delegation_check': _delegation_status(canon_root, turn), 'budget_check': _budget_status(canon_root, turn), 'code_lifecycle_check': lifecycle, 'instruction_snapshot': _instruction_snapshot(canon_root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	if sim_paths:
+		r['similar_projects'] = sim_paths
+	if sim_repos:
+		r['similar_project_repos'] = sim_repos
 	return r
 def _persist(path, value):
 	if path.exists() and _read(path) == value:
@@ -869,10 +924,28 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 	for name, check in (('exec5_check', lambda: _exec5_status(turn, root, key)), ('http_fetch_check', lambda: _http_fetch_status(turn, root, key)), ('compaction_check', lambda: _compaction_status(root, key, turn)), ('delegation_check', lambda: _delegation_status(root, turn)), ('budget_check', lambda: _budget_status(root, turn))):
 		if active_validation or name not in value:
 			value[name] = check()
+	ex_file = _folder(root) / f'{key}-similar-exemptions.json'
+	if ex_file.is_file():
+		try:
+			ex_loaded = _read(ex_file)
+			ex_list = ex_loaded.get('exemptions') if isinstance(ex_loaded, dict) else ex_loaded
+			if isinstance(ex_list, list):
+				value['similar_project_exemptions'] = [it for it in ex_list if isinstance(it, dict)]
+		except (OSError, ValueError):
+			pass
 	if active_validation:
+		sim_paths, sim_repos = _similar_projects_metadata(root)
+		if sim_paths:
+			value['similar_projects'] = sim_paths
+		else:
+			value.pop('similar_projects', None)
+		if sim_repos:
+			value['similar_project_repos'] = sim_repos
+		else:
+			value.pop('similar_project_repos', None)
 		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
 	elif 'code_lifecycle_check' not in value:
-		value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'violations': []}
+		value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []}
 	if False is value.get('readiness_check', {}).get('verified') and (not value.get('admission_failure')):
 		if _gate_resolved(root, turn, value):
 			value.pop('readiness_check', None)
@@ -942,7 +1015,7 @@ def conversation_journal_steps(root, journal_directory, conversation_id: str) ->
 	t_dir = _folder(root_p)
 	if t_dir.is_dir():
 		for sf in t_dir.glob('*.json'):
-			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json')):
+			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
 				continue
 			try:
 				st_obj = _read(sf)
@@ -998,7 +1071,7 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 		cid_low = str(native.get('conversation_id') or '').strip().lower()
 		if t_dir.is_dir():
 			for sf in sorted(t_dir.glob('*.json'), key=lambda p: p.stat().st_mtime_ns, reverse=True):
-				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json')):
+				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
 					continue
 				try:
 					st_obj = _read(sf)
@@ -1027,6 +1100,10 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		with read_only_grounding():
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
 		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
+		if value.get('similar_projects'):
+			r['similar_projects'] = list(value['similar_projects'])
+		if value.get('similar_project_repos'):
+			r['similar_project_repos'] = list(value['similar_project_repos'])
 	else:
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
 		key = _key(native, turn)
@@ -1063,6 +1140,10 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		if value.get('reserved_journal_steps'):
 			result['reserved_journal_steps'] = list(value['reserved_journal_steps'])
+		if value.get('similar_projects'):
+			result['similar_projects'] = list(value['similar_projects'])
+		if value.get('similar_project_repos'):
+			result['similar_project_repos'] = list(value['similar_project_repos'])
 		result['execution_mode'] = 'foreground-only'
 		if None is not native_reconciliation:
 			result['native_reconciliation'] = native_reconciliation
@@ -1169,6 +1250,75 @@ def recover_turn_violation(root, conversation=None, *, reason=None, platform=Non
 		receipt = {'turn_key': key, 'recovered_at': _now(), 'reason': (reason or 'Retrospective turn violation acknowledged for journal completion').strip(), 'covered_exec5_steps': [item.get('step') for item in exec5_v if None is not item.get('step')], 'covered_http_fetch_steps': [item.get('step') for item in http_v if None is not item.get('step')], 'exec5_violations': exec5_v, 'http_fetch_violations': http_v}
 		return (receipt, lambda value: {'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check']})
 	return _persist_turn_recovery(root, conversation, 'violation-recovery', build_receipt, platform=platform, backend=backend)
+def similar_project_exempt(root, peer, reason, conversation=None, *, platform=None, backend=None):
+	from .issue_lifecycle import similar_project_repo_slugs
+	from .path_registry import canonicalize_root_dir, load_registry, project_paths
+	reason_clean = (reason or '').strip()
+	if 30 > len(reason_clean):
+		raise ValueError('Exemption reason must be an explicit technical justification of at least 30 characters')
+	root_p = canonicalize_root_dir(root)
+	reg = load_registry()
+	pp = project_paths(root_p, registry=reg, exact_root=True)
+	allowed_peers: list[Path] = []
+	seen_keys: set[str] = set()
+	def _add_allowed(p: Path) -> None:
+		cp = canonicalize_root_dir(p, registry=reg)
+		if cp == root_p:
+			return
+		ck = cp.as_posix().lower()
+		if ck not in seen_keys:
+			seen_keys.add(ck)
+			allowed_peers.append(cp)
+	for sp in pp.similar_projects:
+		_add_allowed(sp)
+	for grp in reg.similar_project_groups:
+		for mem in grp.get('members') or ():
+			_add_allowed(Path(mem['project']))
+	peer_raw = (peer or '').strip()
+	if not peer_raw:
+		raise ValueError('Select a declared --peer project root or GitHub owner/repo slug')
+	peer_norm_path = None
+	if '\\' in peer_raw or ':' in peer_raw or Path(peer_raw).is_absolute() or Path(peer_raw).is_dir():
+		try:
+			peer_norm_path = canonicalize_root_dir(peer_raw, registry=reg).as_posix().lower()
+		except (OSError, ValueError):
+			peer_norm_path = None
+	matched_peer: Path | None = None
+	matched_slugs: list[str] = []
+	for cand in allowed_peers:
+		cand_slugs = similar_project_repo_slugs(cand, registry=reg)
+		slug_set = {s.lower() for s in cand_slugs}
+		if peer_raw.lower() in slug_set or cand.as_posix().lower() == (peer_norm_path or peer_raw.replace('\\', '/').rstrip('/').lower()):
+			matched_peer = cand
+			matched_slugs = cand_slugs
+			break
+	if None is matched_peer:
+		raise ValueError(f'Unknown or undeclared similar peer project: {peer_raw}')
+	native = _native(root_p, conversation, platform=platform, backend=backend)
+	turn = _active(native)
+	if None is turn:
+		raise ValueError('No active primary native turn to record similar-project exemption')
+	key = _key(native, turn)
+	ex_path = _folder(root_p) / f'{key}-similar-exemptions.json'
+	entry = {'peer': peer_raw, 'peer_root': matched_peer.as_posix(), 'peer_repos': matched_slugs, 'reason': reason_clean, 'recorded_at': _now()}
+	with locked(_turn_lock(root_p, key)):
+		existing_items: list[dict] = []
+		if ex_path.is_file():
+			try:
+				raw_loaded = _read(ex_path)
+				raw_list = raw_loaded.get('exemptions') if isinstance(raw_loaded, dict) else raw_loaded
+				if isinstance(raw_list, list):
+					existing_items = [it for it in raw_list if isinstance(it, dict) and str(it.get('peer_root') or '').lower() != matched_peer.as_posix().lower()]
+			except (OSError, ValueError):
+				existing_items = []
+		existing_items.append(entry)
+		replace_bytes(ex_path, _json({'turn_key': key, 'exemptions': existing_items}))
+		path, value = _state(root_p, native, turn)
+		if value.get('code_lifecycle_check', {}).get('verified'):
+			value.pop('admission_failure', None)
+		_persist(path, value)
+	rel_file = ex_path.relative_to(root_p).as_posix() if ex_path.is_relative_to(root_p) else str(ex_path)
+	return {'turn_key': key, 'peer_root': matched_peer.as_posix(), 'peer_repos': matched_slugs, 'reason': reason_clean, 'exemption_file': rel_file, 'code_lifecycle_check': value['code_lifecycle_check']}
 _norm_journal_text = journal.norm_journal_text
 _find_orphan_or_overwritten_steps = journal.find_orphan_or_overwritten_steps
 def _group(root, native, turn, response, directory, *, allow_reprepare=False):
@@ -1706,7 +1856,9 @@ def add_parser_arguments(parser, command):
 	specs = [('project', {'type': Path}), ('--conversation', {'help': 'Actual current native conversation UUID; Codex can use CODEX_THREAD_ID'})]
 	if 'recover-turn-violation' == command:
 		specs.append(('--reason', {'help': 'Audit note for retrospective turn violation recovery'}))
-	if command not in ('recover-checkpoint', 'recover-turn-violation'):
+	if 'similar-project-exempt' == command:
+		specs.extend((('--peer', {'required': True, 'help': 'Declared similar project root or GitHub owner/repo slug'}), ('--reason', {'required': True, 'help': 'Technical justification (>= 30 chars) why peer changes do not apply'})))
+	if command not in ('recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt'):
 		specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
 	if command in ('turn-begin', 'answer-prepare'):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
@@ -1732,6 +1884,8 @@ def execute(args):
 		r = recover_checkpoint(args.project, args.conversation, dry_run=bool(getattr(args, 'dry_run', False)))
 	elif 'recover-turn-violation' == args.command:
 		r = recover_turn_violation(args.project, args.conversation, reason=args.reason)
+	elif 'similar-project-exempt' == args.command:
+		r = similar_project_exempt(args.project, args.peer, args.reason, args.conversation)
 	elif 'answer-check' == args.command:
 		from .cli_common import load_operation_input
 		payload = load_operation_input(args, args.response_file)

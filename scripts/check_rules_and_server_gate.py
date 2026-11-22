@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
@@ -205,7 +208,7 @@ def check_external_write_gate(name: str, args: dict) -> str | None:
 			turns_dir = project_paths(proj_root).turns_dir
 			if turns_dir.is_dir():
 				for tfile in turns_dir.glob('*.json'):
-					if tfile.name.endswith(('-recovery.json', '-violation-recovery.json')):
+					if tfile.name.endswith(('-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
 						continue
 					try:
 						tdata = json.loads(tfile.read_text(encoding='utf-8'))

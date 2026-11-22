@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -486,7 +489,7 @@ def _record_issue_in_open_turns(turns_dir: Path, repo: str, record: dict[str, An
 		has_non_codex_open = False
 		loaded_turns: list[tuple[Path, dict[str, Any]]] = []
 		for tfile in turns_dir.glob('*.json'):
-			if tfile.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json')):
+			if tfile.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
 				continue
 			try:
 				tdata = json.loads(tfile.read_text(encoding='utf-8'))
@@ -857,9 +860,64 @@ def cmd_close(args: argparse.Namespace) -> int:
 			else:
 				_persist_issue_evidence(consumable, repo, fetched, kind='issue', action='close', project_root=project_root)
 				removed = _consume_files(consumable) if args.consume_input else []
-				dump_json({'ok': True, 'action': 'close', 'repo': repo, 'number': number, 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'verified': True, 'consumed_files': removed})
+				close_repo = code_repo if 'completed' == getattr(args, 'reason', 'completed') else _find_local_code_repo(repo, project_root=project_root, source_files=consumable)
+				pending_peers = _pending_similar_peer_slugs(close_repo, repo=repo, project_root=project_root, source_files=consumable)
+				res_payload: dict[str, Any] = {'ok': True, 'action': 'close', 'repo': repo, 'number': number, 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'comment_id': comment_id, 'html_url': fetched.get('html_url'), 'verified': True, 'consumed_files': removed}
+				if pending_peers:
+					res_payload['similar_projects_pending'] = pending_peers
+				dump_json(res_payload)
 				r = 0
 	return r
+def _pending_similar_peer_slugs(code_repo: Path | None, *, repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]]=()) -> list[str]:
+	if None is code_repo:
+		return []
+	try:
+		from .issue_lifecycle import similar_project_repo_slugs
+		from .path_registry import project_paths
+		pp_repo = project_paths(code_repo)
+	except (OSError, ValueError):
+		return []
+	peer_slugs: list[str] = []
+	seen_slugs: set[str] = set()
+	for peer in pp_repo.similar_projects:
+		for slug in similar_project_repo_slugs(peer):
+			if slug.lower() not in seen_slugs:
+				seen_slugs.add(slug.lower())
+				peer_slugs.append(slug)
+	if not peer_slugs:
+		return []
+	turn_dirs: list[Path] = []
+	for _, tdir in _resolve_issue_targets(source_files, repo, project_root=project_root):
+		if tdir not in turn_dirs:
+			turn_dirs.append(tdir)
+	if pp_repo.turns_dir not in turn_dirs:
+		turn_dirs.append(pp_repo.turns_dir)
+	recorded_repos: set[str] = set()
+	for tdir in turn_dirs:
+		if not tdir.is_dir():
+			continue
+		for tfile in tdir.glob('*.json'):
+			if tfile.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
+				continue
+			try:
+				tdata = json.loads(tfile.read_text(encoding='utf-8'))
+			except (OSError, ValueError):
+				continue
+			if not isinstance(tdata, dict) or 'open' != tdata.get('status'):
+				continue
+			gh_raw = tdata.get('github_issues') or {}
+			items = gh_raw.values() if isinstance(gh_raw, dict) else gh_raw if isinstance(gh_raw, list) else ()
+			for item in items:
+				if not isinstance(item, dict):
+					continue
+				acts = {str(a) for a in (item.get('actions') or ()) if a}
+				if item.get('last_action'):
+					acts.add(str(item['last_action']))
+				if acts & {'create', 'edit', 'comment'}:
+					r_slug = str(item.get('repo') or '').strip().lower()
+					if r_slug:
+						recorded_repos.add(r_slug)
+	return [s for s in peer_slugs if s.lower() not in recorded_repos]
 def cmd_audit_repo(args: argparse.Namespace) -> int:
 	repo = _validate_repo(args.repo)
 	target_locale = getattr(args, 'target_locale', 'en-US') or 'en-US'

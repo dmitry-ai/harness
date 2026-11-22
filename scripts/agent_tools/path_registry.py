@@ -1,4 +1,7 @@
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add declarative similar_projects registry groups and project overlay resolution":
 # https://github.com/dmitry-ai/harness/issues/122
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -339,6 +342,8 @@ class PathRegistry:
 		if not variables:
 			raise ValueError('paths.json requires non-empty variables')
 		anchor_code = Path(primary).resolve() if None is not primary else self.source_path.parent.resolve()
+		self.anchor_code = anchor_code
+		self.has_synthetic_primary = None is not primary and _path_key(anchor_code) != _path_key(self.source_path.parent.resolve())
 		configured_code = expand_template(variables['HARNESS_CODE'], variables, env=self.env, normalize=True) if 'HARNESS_CODE' in variables else ''
 		if _path_key(anchor_code) != _path_key(configured_code) or _path_key(anchor_code) != _path_key(_CODE_ANCHOR):
 			anchor_root, anchor_meta, anchor_ver = _infer_harness_anchor(anchor_code)
@@ -1420,8 +1425,9 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 				if not m_proj.is_dir():
 					issues.append({'file': reg.source_path.as_posix(), 'message': f"Missing similar_projects member directory in group '{grp['id']}': {m_proj.as_posix()}"})
 				for aff in mem['affiliated_paths']:
-					aff_p = Path(aff)
-					if not aff_p.exists():
+					aff_p = Path(os.path.abspath(aff))
+					aff_ok = aff_p.exists() or (reg.has_synthetic_primary and aff_p.is_relative_to(Path(os.path.abspath(reg.anchor_code))) and (reg.source_path.parent / aff_p.relative_to(Path(os.path.abspath(reg.anchor_code)))).exists())
+					if not aff_ok:
 						issues.append({'file': reg.source_path.as_posix(), 'message': f"Missing similar_projects affiliated path in group '{grp['id']}': {aff_p.as_posix()}"})
 	if check or None is project:
 		roots_to_check: list[Path] = []

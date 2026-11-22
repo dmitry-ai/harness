@@ -1,4 +1,7 @@
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -163,7 +166,7 @@ def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str,
 	direct = t_dir / f'{_expected_turn_key(backend, conversation_id, max_user_step)}.json'
 	candidates = [direct] if direct.is_file() else []
 	for sf in t_dir.glob('*.json'):
-		if sf != direct and (not sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json'))):
+		if sf != direct and (not sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json'))):
 			candidates.append(sf)
 	for sf in candidates:
 		try:
@@ -239,7 +242,9 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 		scratch_ans = _scratch_answer_path(canon_root, turn_key)
 		title_info = res.get('conversation_title_sync') if isinstance(res.get('conversation_title_sync'), dict) else {}
 		title_part = f", journal_title={title_info['title']}" if title_info.get('title') else ''
-		return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}, scratch_answer={scratch_ans}).'}}]}
+		sim_peers = [str(p) for p in (res.get('similar_project_repos') or res.get('similar_projects') or ()) if str(p).strip()]
+		peer_part = f", similar_peers={','.join(sim_peers)}" if sim_peers else ''
+		return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}{peer_part}, scratch_answer={scratch_ans}).'}}]}
 	return {}
 def main() -> None:
 	out: dict = {}

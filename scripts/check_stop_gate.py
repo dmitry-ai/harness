@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
@@ -155,7 +158,7 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	matched_state = None
 	if t_dir.is_dir():
 		for sf in t_dir.glob('*.json'):
-			if sf.name.endswith('-checkpoint-recovery.json'):
+			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
 				continue
 			try:
 				st = json.loads(sf.read_text(encoding='utf-8'))
@@ -173,6 +176,10 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	if matched_state.get('status') not in ('prepared', 'delivered') or (not isinstance(prep, dict)) or (not matched_state.get('readiness_check', {}).get('verified')):
 		detail = (matched_state.get('readiness_check') or {}).get('detail') or 'answer-prepare has not succeeded for the current turn'
 		return {'decision': 'continue', 'reason': f'FILE-3 / EXEC-5 Stop Gate: Turn is not prepared ({detail}). Run harness.py answer-prepare and output the exact prepared response.'}
+	clc = matched_state.get('code_lifecycle_check') if isinstance(matched_state.get('code_lifecycle_check'), dict) else {}
+	if False is clc.get('verified'):
+		clc_detail = '; '.join((str(v) for v in (clc.get('violations') or ()))) or 'code/issue or similar_projects parity lifecycle incomplete'
+		return {'decision': 'continue', 'reason': f'EXEC-5 Stop Gate: {clc_detail}. Resolve pending code/issue or similar_projects parity checks and re-run harness.py answer-prepare.'}
 	if last_planner_text:
 		sha = hashlib.sha256(last_planner_text.encode('utf-8')).hexdigest()
 		if sha != prep.get('response_sha256'):

@@ -1,4 +1,7 @@
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -2466,5 +2469,142 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			cli_json = json.loads(cli_res.stdout)
 			self.assertEqual(cli_json['title'], '191, 204')
 			self.assertEqual(cli_json['steps'], [191, 204])
+	def test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption(self):
+		from contextlib import closing
+		import os
+		import subprocess
+		import check_pre_invocation
+		import check_stop_gate
+		with tempfile.TemporaryDirectory() as tmp:
+			t = Path(tmp).resolve()
+			peer_a = t / 'peer_a'
+			peer_b = t / 'peer_b'
+			bare_a = t / 'bare_a.git'
+			bare_b = t / 'bare_b.git'
+			subprocess.run(['git', 'init', '--bare', str(bare_a)], check=True, capture_output=True)
+			subprocess.run(['git', 'init', '--bare', str(bare_b)], check=True, capture_output=True)
+			for p, bare, peer_other, slug in ((peer_a, bare_a, peer_b, 'test-org/peer-a'), (peer_b, bare_b, peer_a, 'test-org/peer-b')):
+				(p / '\ua66e/\u227b/1\u201320').mkdir(parents=True)
+				(p / '\ua66e/\u227a/1\u201320').mkdir(parents=True)
+				(p / '_/\ua616').mkdir(parents=True)
+				(p / '_/\ua616/paths.json').write_text(json.dumps({'profile': 'dual_repo', 'similar_projects': [peer_other.as_posix()]}), encoding='utf-8')
+				c_dir = p / 'code'
+				c_dir.mkdir(parents=True)
+				subprocess.run(['git', 'init'], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'remote', 'add', 'origin', f'https://github.com/{slug}.git'], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'remote', 'set-url', '--push', 'origin', str(bare)], cwd=c_dir, check=True, capture_output=True)
+				(c_dir / 'app.py').write_text('x = 0\n', encoding='utf-8')
+				subprocess.run(['git', 'add', 'app.py'], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'commit', '-m', f'https://github.com/{slug}/issues/1'], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'branch', '-M', 'main'], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=c_dir, check=True, capture_output=True)
+			ag_home = t / 'ag_home'
+			backend = ag_home / '.gemini/antigravity'
+			(ag_home / '.gemini/config/projects').mkdir(parents=True)
+			(backend / 'conversations').mkdir(parents=True)
+			summaries_db = backend / 'conversation_summaries.db'
+			with closing(sqlite3.connect(summaries_db)) as conn:
+				conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
+				conn.commit()
+			def _setup_conv(prompt_text: str):
+				cid = str(uuid.uuid4())
+				t_log = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
+				t_log.parent.mkdir(parents=True, exist_ok=True)
+				rows = [{'step_index': 0, 'type': 'USER_INPUT', 'content': prompt_text}]
+				t_log.write_text(''.join((json.dumps(r) + '\n' for r in rows)), encoding='utf-8')
+				with closing(sqlite3.connect(summaries_db)) as c:
+					c.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (cid, '', json.dumps([peer_a.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'primary'))
+					c.commit()
+				with closing(sqlite3.connect(backend / 'conversations' / f'{cid}.db')) as c:
+					c.execute('CREATE TABLE steps(idx INTEGER, step_type INTEGER, status INTEGER, step_format INTEGER, step_payload BLOB)')
+					c.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, prompt_text.encode('utf-8'))),))
+					c.commit()
+				return (cid, t_log, rows)
+			def _commit_and_close_a(mod_path: Path, issue_num: int, val: int) -> None:
+				mod_path.write_text(f'# https://github.com/test-org/peer-a/issues/{issue_num}\nx = {val}\n', encoding='utf-8')
+				subprocess.run(['git', 'add', 'app.py'], cwd=peer_a / 'code', check=True, capture_output=True)
+				subprocess.run(['git', 'commit', '-m', f'https://github.com/test-org/peer-a/issues/{issue_num}'], cwd=peer_a / 'code', check=True, capture_output=True)
+				subprocess.run(['git', 'push'], cwd=peer_a / 'code', check=True, capture_output=True)
+				ev_a = peer_a / f'_/\ua616/KB/Evidence/GitHub/test-org__peer-a/issue-{issue_num}.json'
+				ev_a.parent.mkdir(parents=True, exist_ok=True)
+				ev_a.write_text(json.dumps({'url': f'https://github.com/test-org/peer-a/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}), encoding='utf-8')
+			# Scenario 1: PreInvocation injects similar_peers and parity blocks answer-check, prepare, and Stop gate until a peer porting issue or exemption is recorded
+			cid1, log1, rows1 = _setup_conv('Implement feature in peer_a.')
+			pre1 = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid1, 'cwd': str(peer_a), 'transcriptPath': str(log1), 'invocationNum': 0}, backend_override=backend)
+			self.assertIn('similar_peers=test-org/peer-b', pre1['injectSteps'][0]['systemMessage']['systemMessage'])
+			_commit_and_close_a(peer_a / 'code/app.py', 10, 1)
+			rows1.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w-a1', 'name': 'write_file', 'args': {'Path': str(peer_a / 'code/app.py')}}]})
+			log1.write_text(''.join((json.dumps(r) + '\n' for r in rows1)), encoding='utf-8')
+			chk1_bad = completion.check_answer(peer_a, 'Updated peer_a.', cid1, platform='antigravity', backend=backend)
+			self.assertFalse(chk1_bad['valid'])
+			self.assertFalse(chk1_bad['checks']['code_lifecycle'])
+			self.assertTrue(any(('parity violation' in it['message'] and 'test-org/peer-b' in it['message'] for it in chk1_bad['issues'])))
+			with self.assertRaisesRegex(ValueError, 'parity violation'):
+				completion.prepare(peer_a, 'Updated peer_a.', cid1, platform='antigravity', backend=backend)
+			stop1_bad = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid1, 'cwd': str(peer_a), 'transcriptPath': str(log1)}, backend_override=backend)
+			self.assertEqual(stop1_bad['decision'], 'continue')
+			self.assertIn('parity violation', stop1_bad['reason'])
+			with self.assertRaisesRegex(ValueError, 'at least 30 characters'):
+				completion.similar_project_exempt(peer_a, 'test-org/peer-b', 'too short', cid1, platform='antigravity', backend=backend)
+			with self.assertRaisesRegex(ValueError, 'Unknown or undeclared'):
+				completion.similar_project_exempt(peer_a, 'test-org/unrelated-repo', 'Valid technical reason exceeding thirty characters cleanly.', cid1, platform='antigravity', backend=backend)
+			# Resolve Scenario 1 via open porting GitHub issue in test-org/peer-b with saved Evidence JSON
+			ev_b = peer_a / '_/\ua616/KB/Evidence/GitHub/test-org__peer-b/issue-7.json'
+			ev_b.parent.mkdir(parents=True, exist_ok=True)
+			ev_b.write_text(json.dumps({'url': 'https://github.com/test-org/peer-b/issues/7', 'issue': {'number': 7, 'title': 'Port feature to peer-b', 'body': 'Port change from peer-a.', 'state': 'OPEN'}}), encoding='utf-8')
+			rows1.append({'step_index': 2, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'gh-b7', 'name': 'run_command', 'args': {'CommandLine': 'python df_github_issue.py create'}}]})
+			rows1.append({'step_index': 3, 'type': 'GENERIC', 'content': json.dumps({'ok': True, 'action': 'create', 'repo': 'test-org/peer-b', 'number': 7, 'state': 'open', 'html_url': 'https://github.com/test-org/peer-b/issues/7'})})
+			log1.write_text(''.join((json.dumps(r) + '\n' for r in rows1)), encoding='utf-8')
+			chk1_ok = completion.check_answer(peer_a, 'Updated peer_a and filed porting issue.', cid1, platform='antigravity', backend=backend)
+			self.assertTrue(chk1_ok['valid'], chk1_ok)
+			prep1_ok = completion.prepare(peer_a, 'Updated peer_a and filed porting issue.', cid1, platform='antigravity', backend=backend)
+			self.assertTrue(prep1_ok['ready'])
+			self.assertEqual(prep1_ok['code_lifecycle_check']['similar_projects']['peers'][0]['resolution'], 'peer_issue_recorded')
+			rows1.append({'step_index': 4, 'type': 'PLANNER_RESPONSE', 'content': 'Updated peer_a and filed porting issue.'})
+			log1.write_text(''.join((json.dumps(r) + '\n' for r in rows1)), encoding='utf-8')
+			stop1_ok = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid1, 'cwd': str(peer_a), 'transcriptPath': str(log1)}, backend_override=backend)
+			self.assertEqual(stop1_ok['decision'], 'allow')
+			# Mark turn 1 delivered before opening turn 2
+			with closing(sqlite3.connect(backend / 'conversations' / f'{cid1}.db')) as conn:
+				conn.execute('INSERT INTO steps VALUES(4, 15, 3, 0, ?)', (b'',))
+				conn.commit()
+			with closing(sqlite3.connect(summaries_db)) as conn:
+				conn.execute("UPDATE conversation_summaries SET status='CASCADE_RUN_STATUS_IDLE', not_fully_idle=0 WHERE conversation_id=?", (cid1,))
+				conn.commit()
+			# Scenario 2: Audited similar-project-exempt via CLI subprocess unblocks without peer issue
+			cid2, log2, rows2 = _setup_conv('Platform-specific tweak in peer_a.')
+			pre2 = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid2, 'cwd': str(peer_a), 'transcriptPath': str(log2), 'invocationNum': 0}, backend_override=backend)
+			self.assertIn('turn_key=', pre2['injectSteps'][0]['systemMessage']['systemMessage'])
+			_commit_and_close_a(peer_a / 'code/app.py', 11, 2)
+			rows2.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w-a2', 'name': 'write_file', 'args': {'Path': str(peer_a / 'code/app.py')}}]})
+			log2.write_text(''.join((json.dumps(r) + '\n' for r in rows2)), encoding='utf-8')
+			sub_env = {**os.environ, 'USERPROFILE': str(ag_home), 'APPDATA': str(t / 'sandbox_roaming')}
+			ex_cli = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'similar-project-exempt', str(peer_a), '--peer', 'test-org/peer-b', '--reason', 'peer_a UI workaround uses an Antigravity-only DOM hook not present in peer_b.', '--conversation', cid2, '--platform', 'antigravity'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
+			self.assertEqual(ex_cli.returncode, 0, ex_cli.stderr or ex_cli.stdout)
+			ex_data = json.loads(ex_cli.stdout)
+			self.assertTrue(ex_data['code_lifecycle_check']['verified'])
+			self.assertEqual(ex_data['code_lifecycle_check']['similar_projects']['peers'][0]['resolution'], 'exempted')
+			# Ensure -similar-exemptions.json does not break subsequent PreInvocation or check_answer
+			self.assertEqual(check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid2, 'cwd': str(peer_a), 'transcriptPath': str(log2), 'invocationNum': 1}, backend_override=backend), {})
+			prep2_ok = completion.prepare(peer_a, 'Updated peer_a with documented exemption.', cid2, platform='antigravity', backend=backend)
+			self.assertTrue(prep2_ok['ready'])
+			# Scenario 3: Symmetric peer_b code update satisfies parity cleanly without exemption or open porting issue
+			cid3, log3, rows3 = _setup_conv('Implement symmetric update in peer_a and peer_b.')
+			completion.begin(peer_a, cid3, platform='antigravity', backend=backend)
+			_commit_and_close_a(peer_a / 'code/app.py', 12, 3)
+			(peer_b / 'code/app.py').write_text('# https://github.com/test-org/peer-b/issues/8\nx = 3\n', encoding='utf-8')
+			subprocess.run(['git', 'add', 'app.py'], cwd=peer_b / 'code', check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', 'https://github.com/test-org/peer-b/issues/8'], cwd=peer_b / 'code', check=True, capture_output=True)
+			subprocess.run(['git', 'push'], cwd=peer_b / 'code', check=True, capture_output=True)
+			ev_b8 = peer_b / '_/\ua616/KB/Evidence/GitHub/test-org__peer-b/issue-8.json'
+			ev_b8.parent.mkdir(parents=True, exist_ok=True)
+			ev_b8.write_text(json.dumps({'url': 'https://github.com/test-org/peer-b/issues/8', 'issue': {'number': 8, 'state': 'CLOSED'}}), encoding='utf-8')
+			rows3.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w-ab1', 'name': 'write_file', 'args': {'Path': str(peer_a / 'code/app.py')}}, {'id': 'w-ab2', 'name': 'write_file', 'args': {'Path': str(peer_b / 'code/app.py')}}]})
+			log3.write_text(''.join((json.dumps(r) + '\n' for r in rows3)), encoding='utf-8')
+			prep3_ok = completion.prepare(peer_a, 'Updated both peer_a and peer_b.', cid3, platform='antigravity', backend=backend)
+			self.assertTrue(prep3_ok['ready'])
+			self.assertEqual(prep3_ok['code_lifecycle_check']['similar_projects']['peers'][0]['resolution'], 'peer_code_updated')
 if '__main__' == __name__:
 	unittest.main()

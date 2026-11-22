@@ -1,3 +1,6 @@
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
+# https://github.com/dmitry-ai/harness/issues/123
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
@@ -358,9 +361,126 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 				checked_urls.add(issue_url)
 				if 'closed' != eff_state:
 					violations.append(f'GitHub issue {issue_url} remains {eff_state}; close it via df_github_issue.py close after git push before answer-prepare')
+	sim_status = _check_similar_project_parity(root, repo_touched, turn_issues, turn_state, candidate_repos, violations)
 	_check_turn_issue_evidence(root, turn_issues, repo_by_issue_url, candidate_repos, checked_urls, checked_issues, violations)
 	_check_multi_subtask_decomposition(root, response, repo_touched, committed_by_repo, turn_issues, required_issues_by_repo, candidate_repos, violations)
-	return {'verified': not violations, 'touched_repos': {str(k): sorted(v) for k, v in repo_touched.items()}, 'issues': checked_issues, 'violations': violations}
+	return {'verified': not violations, 'touched_repos': {str(k): sorted(v) for k, v in repo_touched.items()}, 'issues': checked_issues, 'similar_projects': sim_status, 'violations': violations}
+def _peer_code_repo_candidates(peer_root: Path, *, registry=None) -> list[Path]:
+	from .path_registry import project_paths
+	pp_peer = project_paths(peer_root, registry=registry)
+	out: list[Path] = []
+	seen: set[str] = set()
+	for cand in (*pp_peer.code_repos, pp_peer.root, pp_peer.root / 'code', pp_peer.root / '\u2c0f/\u227b/\u2655/\u26ef', pp_peer.root / 'Artifacts/\u227b/Deliverables/\u26ef'):
+		try:
+			resolved = cand.resolve()
+		except OSError:
+			continue
+		key = resolved.as_posix().lower()
+		if key not in seen and is_issue_tracked_code_repo(resolved):
+			seen.add(key)
+			out.append(resolved)
+	return out
+def similar_project_repo_slugs(peer_root: Path, *, registry=None) -> list[str]:
+	slugs: list[str] = []
+	seen: set[str] = set()
+	for cand in _peer_code_repo_candidates(peer_root, registry=registry):
+		slug = origin_repo_slug(cand)
+		if slug and slug.lower() not in seen:
+			seen.add(slug.lower())
+			slugs.append(slug)
+	return slugs
+def _load_similar_project_exemptions(root: Path, turn_state: dict | None) -> list[dict]:
+	from .path_registry import project_paths
+	items: list[dict] = []
+	for raw in (turn_state or {}).get('similar_project_exemptions') or []:
+		if isinstance(raw, dict):
+			items.append(raw)
+	turn_key = str((turn_state or {}).get('key') or '').strip()
+	if turn_key:
+		ex_file = project_paths(root, exact_root=True).turns_dir / f'{turn_key}-similar-exemptions.json'
+		if ex_file.is_file():
+			try:
+				loaded = json.loads(ex_file.read_text(encoding='utf-8'))
+				raw_list = loaded.get('exemptions') if isinstance(loaded, dict) else loaded
+				if isinstance(raw_list, list):
+					for raw in raw_list:
+						if isinstance(raw, dict):
+							items.append(raw)
+			except (OSError, ValueError):
+				pass
+	return items
+def _match_similar_exemption(exemptions: list[dict], peer_root: Path, peer_slugs: list[str]) -> dict | None:
+	peer_key = peer_root.as_posix().lower()
+	slug_keys = {s.lower() for s in peer_slugs}
+	for ex in exemptions:
+		reason = str(ex.get('reason') or '').strip()
+		if 30 > len(reason):
+			continue
+		ex_root_raw = str(ex.get('peer_root') or '').strip()
+		if ex_root_raw:
+			try:
+				if Path(ex_root_raw).resolve().as_posix().lower() == peer_key:
+					return ex
+			except OSError:
+				if ex_root_raw.replace('\\', '/').rstrip('/').lower() == peer_key:
+					return ex
+		ex_repos = {str(s).strip().lower() for s in (ex.get('peer_repos') or ()) if str(s).strip()}
+		if ex_repos & slug_keys:
+			return ex
+		ex_peer = str(ex.get('peer') or '').strip().lower()
+		if ex_peer and (ex_peer in slug_keys or ex_peer.replace('\\', '/').rstrip('/') == peer_key):
+			return ex
+	return None
+def _check_similar_project_parity(root: Path, repo_touched: dict[Path, set[str]], turn_issues: dict[str, dict], turn_state: dict | None, candidate_repos: list[Path], violations: list[str]) -> dict:
+	from .path_registry import canonicalize_root_dir, evaluate_similar_project_touches
+	touched_files = [code_repo / rel for code_repo, rels in sorted(repo_touched.items(), key=lambda x: str(x[0])) for rel in sorted(rels)]
+	if not touched_files:
+		return {'verified': True, 'peers': []}
+	touches = evaluate_similar_project_touches(touched_files)
+	if not touches:
+		return {'verified': True, 'peers': []}
+	exemptions = _load_similar_project_exemptions(root, turn_state)
+	cand_keys = {c.resolve().as_posix().lower() for c in candidate_repos}
+	peer_records: list[dict] = []
+	all_ok = True
+	for item in touches:
+		peer_root = canonicalize_root_dir(Path(item['peer_root']))
+		peer_code_repos = _peer_code_repo_candidates(peer_root)
+		for pcr in peer_code_repos:
+			pk = pcr.as_posix().lower()
+			if pk not in cand_keys:
+				cand_keys.add(pk)
+				candidate_repos.append(pcr)
+		peer_slugs = similar_project_repo_slugs(peer_root)
+		slug_keys = {s.lower() for s in peer_slugs}
+		resolution = None
+		matched_ev = None
+		if item.get('peer_touched'):
+			resolution = 'peer_code_updated'
+			matched_ev = peer_root.as_posix()
+		else:
+			for info in sorted(turn_issues.values(), key=lambda x: str(x.get('url') or '')):
+				acts = {str(a) for a in (info.get('actions') or ()) if a}
+				if info.get('last_action'):
+					acts.add(str(info['last_action']))
+				repo_s = str(info.get('repo') or '').strip()
+				if repo_s.lower() in slug_keys and (acts & {'create', 'edit', 'comment'}) and evidence_issue_files(root, repo_s, f"issue-{int(info['number'])}.json", candidate_repos):
+					resolution = 'peer_issue_recorded'
+					matched_ev = info.get('url')
+					break
+		if None is resolution:
+			ex = _match_similar_exemption(exemptions, peer_root, peer_slugs)
+			if None is not ex:
+				resolution = 'exempted'
+				matched_ev = str(ex.get('reason') or '').strip()
+		satisfied = None is not resolution
+		if not satisfied:
+			all_ok = False
+			target_repo = peer_slugs[0] if peer_slugs else peer_root.as_posix()
+			peer_repos_hint = f" (repos: {', '.join(peer_slugs)})" if peer_slugs else ''
+			violations.append(f"EXEC-5 / SCOPE-4 parity violation: changes in similar source [{item['source_label']}] require parity with peer {peer_root.as_posix()}{peer_repos_hint}; update peer code, file a porting GitHub issue via df_github_issue.py create --repo {target_repo}, or record an audited exemption via harness.py similar-project-exempt \"{root.as_posix()}\" --peer \"{target_repo}\" --reason \"<technical justification >= 30 chars>\"")
+		peer_records.append({'group_id': item.get('group_id'), 'source_projects': [Path(sp).as_posix() for sp in item.get('source_projects') or ()], 'peer_root': peer_root.as_posix(), 'peer_repos': peer_slugs, 'satisfied': satisfied, 'resolution': resolution, 'evidence': matched_ev})
+	return {'verified': all_ok, 'peers': peer_records}
 def evidence_issue_files(root: Path, repo_slug: str, fname: str, candidate_repos=()) -> list[Path]:
 	from .path_registry import project_paths, store_path
 	safe_repo = repo_slug.replace('/', '__')

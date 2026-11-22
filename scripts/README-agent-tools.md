@@ -18,7 +18,7 @@ Work on the same directory may be resumed in a new chat of the other platform, i
 All commands below are executed by the agent; Python 3.12+ is required, with dependencies listed in `requirements-agent-tools.txt`.  
 General entry point: `python <scripts>/harness.py <command> --help` (`upwork_project.py` remains a backward-compatible alias).  
 A single shared library services declared agent environments and instances; workspace root, daily directory, environments, per-instance `enabled` toggles, `system_paths`, models, and time zone are defined in [runtime.json](../runtime.json) (schema v2), while filesystem roots, tool binaries, central stores, relocations, platform layouts, and project topology profiles live in [paths.json](../paths.json) (`R`, schema v1) using `${VAR}` and `%ENV%` template variables.  
-Individual projects may override or extend variables, paths, tools, `code_repos`, and external `linked_roots` via a local overlay (`R+`) at `.agents/paths.json`, `_/ꘖ/paths.json`, or `ꘖ/paths.json`, with versioned filesystem profiles (`fs_version: 1` for legacy `V1` layouts and `fs_version: 2` for `O` / `V2` layouts using `🕮/`, `ꙮ/{≻,≺}`, and `Ⰿ/{≻,≺}`) and independent journal versioning (`journal_version`: `1` legacy `req`/`res`, `2` flat `≻`/`≺`, `3` `O-ꙮ` 20-entry subfolders `1–20`, `21–40`, …); `paths [<project>] [--expand <template>] [--check]` inspects and validates `R` and all discovered `R+` overlays, and `journal-upgrade <project> [--journal <dir>] [--dry-run]` upgrades `ꙮ` to `O-ꙮ` (`journal_version: 3`, also executed automatically on the next project operation without altering `V1` paths outside `ꙮ`).  
+Individual projects may override or extend variables, paths, tools, `code_repos`, `similar_projects`, and external `linked_roots` via a local overlay (`R+`) at `.agents/paths.json`, `_/ꘖ/paths.json`, or `ꘖ/paths.json` (in addition to named `similar_projects` groups and `affiliated_paths` declared centrally in `paths.json`), with versioned filesystem profiles (`fs_version: 1` for legacy `V1` layouts and `fs_version: 2` for `O` / `V2` layouts using `🕮/`, `ꙮ/{≻,≺}`, and `Ⰿ/{≻,≺}`) and independent journal versioning (`journal_version`: `1` legacy `req`/`res`, `2` flat `≻`/`≺`, `3` `O-ꙮ` 20-entry subfolders `1–20`, `21–40`, …); `paths [<project>] [--expand <template>] [--check]` inspects and validates `R` and all discovered `R+` overlays, and `journal-upgrade <project> [--journal <dir>] [--dry-run]` upgrades `ꙮ` to `O-ꙮ` (`journal_version: 3`, also executed automatically on the next project operation without altering `V1` paths outside `ꙮ`).  
 <!-- https://github.com/dmitry-ai/harness/issues/96 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/109 -->  
 Pass `--platform <env>` to every operation; omitting the flag preserves Antigravity compatibility.  
@@ -188,6 +188,7 @@ Exact guarantees and limits are in the [turn completion contract](../references/
 
 `validate_step.py --dir <journal> --all` validates pairs and checks for stale reservations.  
 `recover-turn-violation <project> --conversation <native-uuid> [--reason <note>]` records a retrospective violation receipt in `ꘖ/data/turns/<turn_key>-violation-recovery.json` so `answer-prepare` can complete the journal with `answer-groups` receipts after an earlier `EXEC-5` or `http_fetch` tool-call violation in the same turn; direct writes to `ꙮ/**/req|res/*.md` and standalone `record_step.py` invocations are blocked by the PreToolUse gate.  
+`similar-project-exempt <project> --peer <repo-or-root> --reason "<reason >= 30 chars>" [--conversation <native-uuid>]` records an audited technical exemption in `ꘖ/data/turns/<turn_key>-similar-exemptions.json` when changes in a declared `similar_projects` peer or `affiliated_paths` source do not apply to that sibling project.  
 Service records in `ꘖ/data/.journal` are bound to the journal path, token, and SHA-256 digests; file publication is atomic.  
 Legacy `record-answer <project> --response-file <exact-final-answer>` and `agent_tools.journal` (`record_step` / `recover_step`) remain as internal compatibility and recovery primitives; standard primary turn completion uses `answer-prepare`.  
 Reserving the entire request group upfront prevents sequence gaps after crashes.  
@@ -203,6 +204,8 @@ All paths are confined to the project root; an export never overwrites a source 
 <!-- https://github.com/dmitry-ai/harness/issues/118 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/119 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/120 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/122 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/123 -->  
 
 # Additional Tools
 
