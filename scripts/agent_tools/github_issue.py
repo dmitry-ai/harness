@@ -1,4 +1,7 @@
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add audited transfer-repo subcommand to df_github_issue.py":
+# https://github.com/dmitry-ai/harness/issues/126
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
 # https://github.com/dmitry-ai/harness/issues/123
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -60,12 +63,14 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 from typing import Any
 from .cli_common import add_arg_specs, consume_unchanged_files, dump_json
 from .git_gate import is_issue_tracked_code_repo, verify_repo_issue_ready_for_close
 from .runtime import HARNESS_META
 from .source_grounding import verify_target_locale
 REPO_RE = re.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
+_SLUG_PART_RE = re.compile('^[A-Za-z0-9_.-]+$')
 _COMMON_TAIL_SPECS = (('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete input file(s) after verified publication.'}))
 _REPO_SPEC = (('--repo', '-R'), {'required': True, 'help': 'Target repository in owner/repo format.'})
 _TITLE_INTRO_SUBORD_RE = re.compile('^(?:when|if|unless|while|after|before|once|where|whenever|although|though|since|because|\\u0435\\u0441\\u043b\\u0438|\\u043a\\u043e\\u0433\\u0434\\u0430|\\u043f\\u043e\\u0441\\u043b\\u0435|\\u043f\\u043e\\u043a\\u0430)\\b[^,]*,\\s+', re.I)
@@ -945,6 +950,59 @@ def cmd_audit_repo(args: argparse.Namespace) -> int:
 	valid = not corrupted_issues and (not corrupted_comments)
 	dump_json({'valid': valid, 'repo': repo, 'issue_count': len(issues), 'comment_count': comments_count, 'corrupted_issue_count': len(corrupted_issues), 'corrupted_comment_count': len(corrupted_comments), 'corrupted_issues': corrupted_issues, 'corrupted_comments': corrupted_comments})
 	return 0 if valid else 2
+def _validate_slug_part(value: str, label: str) -> str:
+	val = (value or '').strip()
+	if not _SLUG_PART_RE.match(val):
+		raise ValueError(f'Invalid {label} "{value}"')
+	return val
+def _persist_repo_transfer_evidence(source_repo: str, target_repo: str, transfer_response: dict[str, Any] | None, verified_repo: dict[str, Any] | None, *, project_root: str | Path | None=None) -> Path:
+	safe_target = target_repo.replace('/', '__')
+	safe_source = source_repo.replace('/', '__')
+	ev_dirs = [ev for ev, _ in _resolve_issue_targets([], target_repo, project_root=project_root)]
+	payload = {'kind': 'repo_transfer', 'source_repo': source_repo, 'target_repo': target_repo, 'transfer_response': transfer_response, 'verified_repo': verified_repo}
+	encoded = json.dumps(payload, ensure_ascii=False, indent=2) + '\n'
+	primary_out = None
+	for ev_root in ev_dirs:
+		out_dir = ev_root / safe_target
+		out_dir.mkdir(parents=True, exist_ok=True)
+		out_file = out_dir / f'transfer-{safe_source}-to-{safe_target}.json'
+		out_file.write_text(encoded, encoding='utf-8')
+		if None is primary_out:
+			primary_out = out_file
+	return primary_out
+def cmd_transfer_repo(args: argparse.Namespace) -> int:
+	repo = _validate_repo(args.repo)
+	old_owner, old_name = repo.split('/', 1)
+	new_owner = _validate_slug_part(args.new_owner, 'new_owner')
+	new_name = _validate_slug_part(args.new_name, 'new_name') if getattr(args, 'new_name', None) else old_name
+	target_repo = f'{new_owner}/{new_name}'
+	if repo.lower() == target_repo.lower():
+		raise ValueError(f'Source and target repositories are identical: {repo}')
+	payload: dict[str, Any] = {'new_owner': new_owner}
+	if getattr(args, 'new_name', None):
+		payload['new_name'] = new_name
+	transfer_resp = _gh_api(f'repos/{repo}/transfer', method='POST', payload=payload)
+	fetched = None
+	max_attempts = max(1, int(getattr(args, 'poll_attempts', 8) or 8))
+	delay_s = float(getattr(args, 'poll_interval', 1.5))
+	for attempt in range(max_attempts):
+		try:
+			cand = _gh_api(f'repos/{target_repo}', method='GET')
+			if isinstance(cand, dict) and target_repo.lower() == str(cand.get('full_name') or '').lower():
+				fetched = cand
+				break
+		except RuntimeError:
+			pass
+		if attempt + 1 < max_attempts and 0 < delay_s:
+			time.sleep(delay_s)
+	ev_path = _persist_repo_transfer_evidence(repo, target_repo, transfer_resp if isinstance(transfer_resp, dict) else None, fetched, project_root=getattr(args, 'project_root', None))
+	if None is fetched:
+		dump_json({'ok': False, 'action': 'transfer-repo', 'stage': 'post_flight_readback', 'source_repo': repo, 'target_repo': target_repo, 'verified': False, 'evidence': str(ev_path)})
+		r = 2
+	else:
+		dump_json({'ok': True, 'action': 'transfer-repo', 'source_repo': repo, 'target_repo': fetched.get('full_name'), 'html_url': fetched.get('html_url'), 'private': bool(fetched.get('private')), 'default_branch': fetched.get('default_branch'), 'verified': True, 'evidence': str(ev_path)})
+		r = 0
+	return r
 def build_parser() -> argparse.ArgumentParser:
 	r = argparse.ArgumentParser(prog='df_github_issue.py', description='Create, edit, close, comment, and audit GitHub issues with UTF-8 file input and read-back verification.')
 	sub = r.add_subparsers(dest='subcommand', required=True)
@@ -955,6 +1013,7 @@ def build_parser() -> argparse.ArgumentParser:
 		('comment', 'Add or edit an issue comment from a UTF-8 file and verify via API read-back.', cmd_comment, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'help': 'Issue number (for creating a new comment).'}), (('--comment-id', '-c'), {'type': int, 'help': 'Comment ID (for editing an existing comment).'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing comment Markdown body.'}), ('--allow-additional-comment', {'action': 'store_true', 'help': 'Explicitly allow creating an additional comment on an issue that already has a tracked comment.'}), *_COMMON_TAIL_SPECS)),
 		('close', 'Close a GitHub issue with optional verified comment from a UTF-8 file.', cmd_close, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), (('--reason', '-r'), {'choices': ['completed', 'not_planned'], 'default': 'completed', 'help': 'Closure reason.'}), (('--comment-file', '-F'), {'help': 'Optional UTF-8 file containing closing comment Markdown.'}), *_COMMON_TAIL_SPECS)),
 		('audit-repo', 'Audit all issues and comments in a repository for syntax/encoding corruption.', cmd_audit_repo, (_REPO_SPEC, ('--state', {'choices': ['all', 'open', 'closed'], 'default': 'all', 'help': 'Issue state filter.'}), ('--include-comments', {'action': 'store_true', 'default': True, 'help': 'Audit issue comments as well.'}), ('--strict-structure', {'action': 'store_true', 'help': 'Also flag historical issues with enumerated titles or bundled subtask bodies.'}), ('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}))),
+		('transfer-repo', 'Transfer a GitHub repository to a new owner/organization with read-back verification and Evidence persistence.', cmd_transfer_repo, (_REPO_SPEC, ('--new-owner', {'required': True, 'help': 'Destination GitHub user or organization login.'}), ('--new-name', {'help': 'Optional new repository name after transfer.'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--poll-attempts', {'type': int, 'default': 8, 'help': 'Number of read-back verification attempts.'}), ('--poll-interval', {'type': float, 'default': 1.5, 'help': 'Seconds between read-back verification attempts.'}))),
 	)
 	for name, help_text, fn, specs in sub_defs:
 		p = sub.add_parser(name, help=help_text)
