@@ -1,4 +1,7 @@
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate transfer-repo unit test from live df-servers repository evidence":
+# https://github.com/dmitry-ai/harness/issues/127
+# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add audited transfer-repo subcommand to df_github_issue.py":
 # https://github.com/dmitry-ai/harness/issues/126
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -318,21 +321,21 @@ class TestGitHubIssueTool(unittest.TestCase):
 			calls = []
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				calls.append((method, endpoint, payload))
-				if 'POST' == method and 'repos/dmitrii-fediuk/5.9.188.84/transfer' == endpoint:
-					self.assertEqual(payload, {'new_owner': 'df-servers'})
-					return {'full_name': 'dmitrii-fediuk/5.9.188.84', 'html_url': 'https://github.com/dmitrii-fediuk/5.9.188.84'}
-				if 'GET' == method and 'repos/df-servers/5.9.188.84' == endpoint:
+				if 'POST' == method and 'repos/example-owner/demo-srv/transfer' == endpoint:
+					self.assertEqual(payload, {'new_owner': 'example-org'})
+					return {'full_name': 'example-owner/demo-srv', 'html_url': 'https://github.com/example-owner/demo-srv'}
+				if 'GET' == method and 'repos/example-org/demo-srv' == endpoint:
 					if 2 == len(calls):
 						raise RuntimeError('404 Not Found')
-					return {'full_name': 'df-servers/5.9.188.84', 'html_url': 'https://github.com/df-servers/5.9.188.84', 'private': False, 'default_branch': 'main'}
+					return {'full_name': 'example-org/demo-srv', 'html_url': 'https://github.com/example-org/demo-srv', 'private': False, 'default_branch': 'main'}
 				raise AssertionError(f'Unexpected {method} {endpoint}')
 			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
-				rc = main(['transfer-repo', '--repo', 'dmitrii-fediuk/5.9.188.84', '--new-owner', 'df-servers', '--project-root', str(proj), '--poll-attempts', '3', '--poll-interval', '0'])
+				rc = main(['transfer-repo', '--repo', 'example-owner/demo-srv', '--new-owner', 'example-org', '--project-root', str(proj), '--poll-attempts', '3', '--poll-interval', '0'])
 				self.assertEqual(rc, 0)
-			ev_file = proj / '\ua616/KB/Evidence/GitHub/df-servers__5.9.188.84/transfer-dmitrii-fediuk__5.9.188.84-to-df-servers__5.9.188.84.json'
+			ev_file = proj / '\ua616/KB/Evidence/GitHub/example-org__demo-srv/transfer-example-owner__demo-srv-to-example-org__demo-srv.json'
 			self.assertTrue(ev_file.is_file())
 			ev_data = json.loads(ev_file.read_text(encoding='utf-8'))
-			self.assertEqual(ev_data['verified_repo']['full_name'], 'df-servers/5.9.188.84')
-			self.assertEqual(main(['transfer-repo', '--repo', 'df-servers/5.9.188.84', '--new-owner', 'df-servers', '--project-root', str(proj)]), 1)
+			self.assertEqual(ev_data['verified_repo']['full_name'], 'example-org/demo-srv')
+			self.assertEqual(main(['transfer-repo', '--repo', 'example-org/demo-srv', '--new-owner', 'example-org', '--project-root', str(proj)]), 1)
 if '__main__' == __name__:
 	unittest.main()
