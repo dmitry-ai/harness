@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
+# https://github.com/dmitry-ai/harness/issues/161
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
 # https://github.com/dmitry-ai/harness/issues/162
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -54,6 +57,7 @@ from pathlib import Path
 import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from agent_tools.code_size_gate import evaluate_pre_tool_use_code_size
 from agent_tools.failfast_gate import evaluate_pre_tool_use_schedule, evaluate_pre_tool_use_test_failfast
 from agent_tools.git_gate import prohibited_git_write_commands
 from agent_tools.issue_first_gate import evaluate_pre_tool_use_issue_first
@@ -166,16 +170,7 @@ def check_bulk_source_read_streak(name: str, args: dict, payload: dict) -> str |
 	if target not in streak_sources and len(streak_sources) >= MAX_UNPERSISTED_SOURCE_READS:
 		return f'REVIEW-1 / KB-3: Already read {len(streak_sources)} source.md files in a row without persisting analysis.md or delegating to af-worker (limit: {MAX_UNPERSISTED_SOURCE_READS}). Persist analysis.md for already-read cases or delegate via invoke_subagent before reading more source.md files.'
 	return None
-EXTERNAL_WRITE_INTENT_RE = re.compile(
-	'(?i)\\b(?:'
-	'github|gh\\s+issue|df_github_issue|df-github-issue|issue\\s*#?\\d+|'
-	'create\\s+(?:an?\\s+)?issue|open\\s+(?:an?\\s+)?issue|close\\s+(?:the\\s+)?issue|edit\\s+(?:the\\s+)?issue|comment\\s+on\\s+issue|'
-	'git\\s+push|commit|pull\\s+request|'
-	'\\u0438\\u0441\\u043f\\u0440\\u0430\\u0432\\w+|\\u0441\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\u0443\\u0439\\w*|\\u043f\\u0435\\u0440\\u0435\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|'
-	'\\u0437\\u0430\\u043a\\u043e\\u043c\\u043c\\u0438\\u0442\\w+|\\u043e\\u043f\\u0443\\u0431\\u043b\\u0438\\u043a\\u0443\\u0439\\w*|'
-	'\\u0441\\u043e\\u0437\\u0434\\u0430\\u0439\\w*\\s+issue|\\u0437\\u0430\\u043a\\u0440\\u043e\\u0439\\w*\\s+issue|\\u043e\\u0431\\u043d\\u043e\\u0432\\u0438\\w*\\s+issue'
-	')\\b'
-)
+EXTERNAL_WRITE_INTENT_RE = re.compile('(?i)\\b(?:github|gh\\s+issue|df_github_issue|df-github-issue|issue\\s*#?\\d+|create\\s+(?:an?\\s+)?issue|open\\s+(?:an?\\s+)?issue|close\\s+(?:the\\s+)?issue|edit\\s+(?:the\\s+)?issue|comment\\s+on\\s+issue|git\\s+push|commit|pull\\s+request|\\u0438\\u0441\\u043f\\u0440\\u0430\\u0432\\w+|\\u0441\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\u0443\\u0439\\w*|\\u043f\\u0435\\u0440\\u0435\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|\\u0437\\u0430\\u043a\\u043e\\u043c\\u043c\\u0438\\u0442\\w+|\\u043e\\u043f\\u0443\\u0431\\u043b\\u0438\\u043a\\u0443\\u0439\\w*|\\u0441\\u043e\\u0437\\u0434\\u0430\\u0439\\w*\\s+issue|\\u0437\\u0430\\u043a\\u0440\\u043e\\u0439\\w*\\s+issue|\\u043e\\u0431\\u043d\\u043e\\u0432\\u0438\\w*\\s+issue)\\b')
 def _upwork_project_root_for_command(cmd: str) -> Path | None:
 	candidates = []
 	for m in re.finditer('(?:--project-root|--body-file|-F|--title-file|--comment-file)\\s+(?:"([^"]+)"|\'([^\']+)\'|(\\S+))', cmd):
@@ -324,12 +319,39 @@ def check_browser_mcp_gate(name: str, args: dict, payload: dict) -> str | None:
 		if norm_p.endswith('/mcp_config.json') and isinstance(content, str) and re.search('chrome-devtools', content, re.I) and re.search('(?:--autoConnect|--browser-url|--browserUrl)', content, re.I):
 			return 'EXEC-3 / M-5: Configuring chrome-devtools-mcp with --autoConnect or --browser-url against the user Chrome session is prohibited; bind it to chrome-headless-shell with --headless and --isolated.'
 	return None
-def check_issue_first_gate(name: str, args: dict, payload: dict) -> str | None:
-	return evaluate_pre_tool_use_issue_first(name, args, payload)
-def check_schedule_gate(name: str, args: dict, payload: dict) -> str | None:
-	return evaluate_pre_tool_use_schedule(name, args, payload)
-def check_tdd_gate(name: str, args: dict, payload: dict) -> str | None:
-	return evaluate_pre_tool_use_tdd(name, args, payload)
+check_code_size_gate = evaluate_pre_tool_use_code_size
+check_issue_first_gate = evaluate_pre_tool_use_issue_first
+check_schedule_gate = evaluate_pre_tool_use_schedule
+check_tdd_gate = evaluate_pre_tool_use_tdd
+_GATE_CHECKS = (
+	('RULES-BUDGET-GATE', check_rules_budget, False),
+	('SERVER-HYGIENE-GATE', check_server_hygiene, False),
+	('EXEC-5-GIT-GATE', check_git_write_gate, False),
+	('SCOPE-2-EXTERNAL-WRITE-GATE', check_external_write_gate, False),
+	('FILE-3-JOURNAL-GATE', check_journal_write_gate, False),
+	('VERIFY-1-BATCH-SYNTHESIS-GATE', check_batch_analysis_generator, False),
+	('REVIEW-1-BULK-SOURCE-GATE', check_bulk_source_read_streak, True),
+	('CDP-BYPASS-GATE', check_cdp_bypass_gate, False),
+	('M-5-BROWSER-MCP-GATE', check_browser_mcp_gate, True),
+	('EXEC-4-SCHEDULE-GATE', check_schedule_gate, True),
+	('EXEC-5-ISSUE-FIRST-GATE', check_issue_first_gate, True),
+	('EXEC-2-TDD-GATE', check_tdd_gate, True),
+	('CODE-SIZE-RATCHET-GATE', check_code_size_gate, True),
+)
+def _run_gates(name: str, args: dict, payload: dict) -> dict:
+	r = {'decision': 'allow'}
+	for gate_label, check_fn, needs_payload in _GATE_CHECKS:
+		err = check_fn(name, args, payload) if needs_payload else check_fn(name, args)
+		if err:
+			r = {'decision': 'deny', 'reason': f'REJECTED ({gate_label}): {err}'}
+			break
+	if 'allow' == r['decision']:
+		ff_err, ff_overwrite = evaluate_pre_tool_use_test_failfast(name, args)
+		if ff_err:
+			r = {'decision': 'deny', 'reason': f'REJECTED (EXEC-2-TEST-FAILFAST-GATE): {ff_err}'}
+		elif ff_overwrite:
+			r = {'decision': 'allow', 'overwrite': ff_overwrite, 'reason': 'EXEC-2-TEST-FAILFAST-GATE: Normalized test command fail-fast and WaitMsBeforeAsync.'}
+	return r
 def main():
 	decision = {'decision': 'allow'}
 	try:
@@ -337,32 +359,7 @@ def main():
 		if raw.strip():
 			payload = json.loads(raw)
 			tool_call = payload.get('toolCall', {})
-			name = tool_call.get('name', '')
-			args = tool_call.get('args', {})
-			for gate_label, check_fn in (
-				('RULES-BUDGET-GATE', lambda: check_rules_budget(name, args)),
-				('SERVER-HYGIENE-GATE', lambda: check_server_hygiene(name, args)),
-				('EXEC-5-GIT-GATE', lambda: check_git_write_gate(name, args)),
-				('SCOPE-2-EXTERNAL-WRITE-GATE', lambda: check_external_write_gate(name, args)),
-				('FILE-3-JOURNAL-GATE', lambda: check_journal_write_gate(name, args)),
-				('VERIFY-1-BATCH-SYNTHESIS-GATE', lambda: check_batch_analysis_generator(name, args)),
-				('REVIEW-1-BULK-SOURCE-GATE', lambda: check_bulk_source_read_streak(name, args, payload)),
-				('CDP-BYPASS-GATE', lambda: check_cdp_bypass_gate(name, args)),
-				('M-5-BROWSER-MCP-GATE', lambda: check_browser_mcp_gate(name, args, payload)),
-				('EXEC-4-SCHEDULE-GATE', lambda: check_schedule_gate(name, args, payload)),
-				('EXEC-5-ISSUE-FIRST-GATE', lambda: check_issue_first_gate(name, args, payload)),
-				('EXEC-2-TDD-GATE', lambda: check_tdd_gate(name, args, payload)),
-			):
-				err = check_fn()
-				if err:
-					decision = {'decision': 'deny', 'reason': f'REJECTED ({gate_label}): {err}'}
-					break
-			if 'allow' == decision.get('decision'):
-				ff_err, ff_overwrite = evaluate_pre_tool_use_test_failfast(name, args)
-				if ff_err:
-					decision = {'decision': 'deny', 'reason': f'REJECTED (EXEC-2-TEST-FAILFAST-GATE): {ff_err}'}
-				elif ff_overwrite:
-					decision = {'decision': 'allow', 'overwrite': ff_overwrite, 'reason': 'EXEC-2-TEST-FAILFAST-GATE: Normalized test command fail-fast and WaitMsBeforeAsync.'}
+			decision = _run_gates(tool_call.get('name', ''), tool_call.get('args', {}), payload)
 	except Exception:
 		decision = {'decision': 'allow'}
 	sys.stdout.write(json.dumps(decision, ensure_ascii=False))

@@ -35,6 +35,10 @@ Before creating or editing a file in a supported language, markup language, or s
 General rules in [CODE-1](#code-1) apply across all code and structured files unless a format-specific guide or the target format's syntax requires an exception (for example, double quotes in strict JSON or spaces in YAML).  
 Prose Markdown documents (`.md`) follow [DOC-4](04-statement-structure.md#doc-4) rather than source-code zero-blank-line rules.  
 Required GitHub Issue URL references in issue-tracked `code` repositories follow [EXEC-5](08-execution-and-tools.md#exec-5) and are exempt from the no-agent-comments restriction in [CODE-1](#code-1).  
+## CODE-4
+Decompose new and compact production Python code into small single-purpose functions and modules: keep functions at most `20` executable SLOC and McCabe cyclomatic complexity at most `8`, keep files at most `300` executable SLOC, and never join multiple statements on one line with `;` (excluding comments, blank lines, docstrings, and multi-line pure declarative constant tables; test files use relaxed limits of `40` SLOC, McCabe `12`, and `600` file SLOC).  
+For pre-existing legacy Python files exceeding `300` SLOC or functions exceeding `20` SLOC or McCabe `8`, enforce a one-way size ratchet in `PreToolUse` (`CODE-SIZE-RATCHET-GATE`) and Git `pre-commit`: never increase executable SLOC or McCabe complexity in an oversized legacy file or function, and extract new logic into a separate compact module or helper.  
 <!-- https://github.com/dmitry-ai/harness/issues/154 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/161 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/155 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/156 -->  

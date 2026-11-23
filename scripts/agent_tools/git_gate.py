@@ -1,5 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
+# https://github.com/dmitry-ai/harness/issues/161
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce TDD test coverage and ratchet in Git pre-commit gate":
@@ -128,8 +130,7 @@ class GitRepoGate:
 		self.verify_staged_blob_sizes(r)
 		if None is not message and (not message.strip()):
 			raise ValueError('Empty commit message')
-		self.verify_issue_workflow(r, message=message)
-		self.verify_tdd_commit(r, message=message, agent_context=True, use_index=True)
+		self._verify_agent_staged(r, message=message, use_index=True)
 		return r
 	def commit(self, paths: list[str], message: str, execute: bool=False, *, worktree: bool=False) -> list[str]:
 		if worktree and execute:
@@ -220,8 +221,7 @@ class GitRepoGate:
 				if staged:
 					self.verify_staged_blob_sizes(staged)
 					if is_agent:
-						self.verify_issue_workflow(staged, agent_context=True)
-						self.verify_tdd_commit(staged, agent_context=True, use_index=True)
+						self._verify_agent_staged(staged, use_index=True)
 			elif 'commit-msg' == hook_name:
 				if is_agent:
 					if not argv:
@@ -315,19 +315,22 @@ class GitRepoGate:
 			if (anc / '\ua616').is_dir():
 				return anc
 		return main_r
+	def _verify_agent_staged(self, relative: list[str], *, message: str | None=None, use_index: bool=True) -> None:
+		self.verify_issue_workflow(relative, message=message, agent_context=True)
+		self.verify_tdd_commit(relative, message=message, agent_context=True, use_index=use_index)
+		self.verify_code_size_ratchet(relative, agent_context=True, use_index=use_index)
+	def verify_code_size_ratchet(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
+		if agent_context and relative:
+			from .code_size_gate import verify_staged_code_size_ratchet
+			violations = verify_staged_code_size_ratchet(self.root, relative, use_index=use_index)
+			if violations:
+				raise ValueError('; '.join(violations))
 	def verify_tdd_commit(self, relative: list[str], message: str | None=None, *, agent_context: bool=True, use_index: bool=True) -> None:
-		if not agent_context or (not relative):
-			return
-		from .tdd_gate import verify_staged_tdd_diff
-		violations = verify_staged_tdd_diff(
-			self.root,
-			relative,
-			message=message,
-			project_root=self._tdd_project_root(),
-			use_index=use_index,
-		)
-		if violations:
-			raise ValueError('; '.join(violations))
+		if agent_context and relative:
+			from .tdd_gate import verify_staged_tdd_diff
+			violations = verify_staged_tdd_diff(self.root, relative, message=message, project_root=self._tdd_project_root(), use_index=use_index)
+			if violations:
+				raise ValueError('; '.join(violations))
 	def verify_issue_workflow(self, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 		if agent_context:
 			stripped_msg = None
@@ -471,8 +474,7 @@ class GitRepoGate:
 					if clean_specs:
 						self.verify_staged_blob_sizes(clean_specs)
 						if is_agent:
-							self.verify_issue_workflow(clean_specs, message=msg, agent_context=True)
-							self.verify_tdd_commit(clean_specs, message=msg, agent_context=True, use_index=not bool(pathspecs))
+							self._verify_agent_staged(clean_specs, message=msg, use_index=not bool(pathspecs))
 class WorktreeCommitTransaction:
 	def __init__(self, gate: GitRepoGate, *, label: str='commit'):
 		self.gate = gate
