@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
@@ -127,18 +130,26 @@ def extract_implemented_m_roots(response: str) -> list[str]:
 				if root_id not in r:
 					r.append(root_id)
 	return r
-def filter_turn_state_items(gh_items: list, ts_cid: str, ts_plat: str, native_urls: set[str]) -> list[dict]:
-	out: list[dict] = []
-	for item in gh_items:
-		if not isinstance(item, dict):
-			continue
-		rec_cid = str(item.get('recorded_conversation_id') or '').strip()
-		rec_plat = str(item.get('recorded_platform') or '').strip().lower()
-		u_item = (item.get('url') or '').strip()
-		plat_skip = ('codex' == rec_plat and ts_plat and 'codex' != ts_plat) or ('non_codex' == rec_plat and 'codex' == ts_plat)
-		if (not (rec_cid and ts_cid and rec_cid != ts_cid)) and (not plat_skip) and ((not native_urls) or u_item in native_urls):
-			out.append(item)
-	return out
+def _item_belongs_to_turn(item: dict, ts_cid_low: str, ts_plat: str, native_urls: set[str], has_competing_open_turns: bool) -> bool:
+	rec_cid = str(item.get('recorded_conversation_id') or '').strip().lower()
+	rec_plat = str(item.get('recorded_platform') or '').strip().lower()
+	u_item = (item.get('url') or '').strip()
+	plat_skip = ('codex' == rec_plat and ts_plat and 'codex' != ts_plat) or ('non_codex' == rec_plat and 'codex' == ts_plat)
+	if plat_skip:
+		r = False
+	elif rec_cid:
+		r = (not ts_cid_low) or (rec_cid == ts_cid_low)
+	elif u_item in native_urls:
+		r = True
+	elif ts_plat in ('antigravity', 'codex') and ('non_codex' == rec_plat or bool(native_urls) or has_competing_open_turns):
+		r = False
+	else:
+		r = (not native_urls) or (u_item in native_urls)
+	return r
+def filter_turn_state_items(gh_items: list, ts_cid: str, ts_plat: str, native_urls: set[str], *, has_competing_open_turns: bool=False) -> list[dict]:
+	ts_cid_low = str(ts_cid or '').strip().lower()
+	ts_plat_low = str(ts_plat or '').strip().lower()
+	return [item for item in gh_items if isinstance(item, dict) and _item_belongs_to_turn(item, ts_cid_low, ts_plat_low, native_urls, has_competing_open_turns)]
 def merge_turn_issue_item(turn_issues: dict[str, dict], item: dict) -> None:
 	url = (item.get('url') or '').strip()
 	parsed = parse_issue_url(url)

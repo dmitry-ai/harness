@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
@@ -58,7 +61,7 @@ def run_fetch(service, args: argparse.Namespace) -> int:
 	eff_parent = service.linter.extract_parent_number(str(fetched.get('body') or ''), repo)
 	if None is not eff_parent and eff_parent != number:
 		service.verify_and_persist_parent_issue([], repo, eff_parent, self_number=number, project_root=project_root)
-	service.workspace.persist_issue_evidence([], repo, fetched, kind='issue', action='fetch', project_root=project_root, parent_number=eff_parent)
+	service.workspace.persist_issue_evidence([], repo, fetched, kind='issue', action='fetch', project_root=project_root, parent_number=eff_parent, conversation_id=getattr(args, 'conversation', None))
 	out: dict[str, Any] = {'ok': True, 'action': 'fetch', 'repo': repo, 'number': number, 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'title': fetched.get('title'), 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(fetched.get('body') or '')}
 	if None is not eff_parent and eff_parent != number:
 		out.update(parent_number=int(eff_parent), parent_url=f'https://github.com/{repo}/issues/{int(eff_parent)}')

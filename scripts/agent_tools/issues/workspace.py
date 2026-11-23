@@ -1,17 +1,20 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 import json
-import os
 from pathlib import Path
 import re
 from typing import Any
 from ..storage import locked, replace_bytes
 from .linter import IssueMarkdownLinter
 from .repo_locator import _V2_CODE_RELS, find_local_code_repo, origin_repo_slug, repo_matches_slug
+from .turn_scope import detect_active_session, select_target_open_turns
 _SKIP_TURN_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')
 def _extract_issue_num(record: dict[str, Any]) -> int | None:
 	r = record.get('number') or record.get('issue_number')
@@ -37,7 +40,7 @@ def _parse_parent_from_issue_dict(iss_obj: dict[str, Any], repo: str, issue_num:
 		cand = IssueMarkdownLinter.extract_parent_number(str(iss_obj.get('body') or ''), repo)
 		r = cand if None is not cand and cand != int(issue_num) else None
 	return r
-def _update_turn_issue_entry(tdata: dict[str, Any], repo: str, issue_num: int, record: dict[str, Any], action: str | None, codex_tid: str, has_non_codex_open: bool) -> None:
+def _update_turn_issue_entry(tdata: dict[str, Any], repo: str, issue_num: int, record: dict[str, Any], action: str | None, recorded_cid: str, recorded_plat: str) -> None:
 	issue_url = f'https://github.com/{repo}/issues/{issue_num}'
 	gh_issues = tdata.setdefault('github_issues', {})
 	prev = gh_issues.get(issue_url) if isinstance(gh_issues.get(issue_url), dict) else {}
@@ -45,10 +48,10 @@ def _update_turn_issue_entry(tdata: dict[str, Any], repo: str, issue_num: int, r
 	state = record.get('state') or prev.get('state') or ('closed' if 'close' == action else 'open')
 	parent_num = record.get('parent_number') if isinstance(record.get('parent_number'), int) else prev.get('parent_number')
 	entry: dict[str, Any] = {'repo': repo, 'number': issue_num, 'url': issue_url, 'state': state, 'state_reason': record.get('state_reason') or prev.get('state_reason'), 'last_action': act_name, 'actions': actions, 'comment_ids': comment_ids}
-	if codex_tid:
-		entry.update(recorded_conversation_id=codex_tid, recorded_platform='codex')
-	elif has_non_codex_open:
-		entry['recorded_platform'] = 'non_codex'
+	if recorded_cid:
+		entry['recorded_conversation_id'] = recorded_cid
+	if recorded_plat:
+		entry['recorded_platform'] = recorded_plat
 	if isinstance(parent_num, int) and parent_num != issue_num:
 		entry.update(parent_number=parent_num, parent_url=f'https://github.com/{repo}/issues/{parent_num}')
 	gh_issues[issue_url] = entry
@@ -78,8 +81,8 @@ class IssueEvidenceWorkspace:
 				url = str(iss_obj.get('html_url') or iss_obj.get('url') or f'https://github.com/{repo}/issues/{num}')
 				by_num[num] = {'number': num, 'url': url, 'state': str(iss_obj.get('state') or 'open').strip().lower(), 'state_reason': iss_obj.get('state_reason'), 'parent_number': pnum}
 	@staticmethod
-	def _scan_open_turn_files(turns_dir: Path) -> tuple[list[tuple[Path, str, str]], bool]:
-		open_files, has_non_codex = ([], False)
+	def _scan_open_turn_files(turns_dir: Path) -> list[tuple[Path, str, str]]:
+		open_files: list[tuple[Path, str, str]] = []
 		for tfile in turns_dir.glob('*.json'):
 			if tfile.name.endswith(_SKIP_TURN_SUFFIXES):
 				continue
@@ -90,16 +93,14 @@ class IssueEvidenceWorkspace:
 			if isinstance(tdata, dict) and 'open' == tdata.get('status'):
 				plat = str(tdata.get('platform') or '').strip().lower()
 				open_files.append((tfile, plat, str(tdata.get('conversation_id') or '').strip()))
-				if 'codex' != plat:
-					has_non_codex = True
-		return (open_files, has_non_codex)
+		return open_files
 	@staticmethod
-	def _update_single_turn_locked(turns_dir: Path, tfile: Path, repo: str, issue_num: int, record: dict[str, Any], action: str | None, codex_tid: str, has_non_codex: bool) -> None:
+	def _update_single_turn_locked(turns_dir: Path, tfile: Path, repo: str, issue_num: int, record: dict[str, Any], action: str | None, recorded_cid: str, recorded_plat: str) -> None:
 		try:
 			with locked(turns_dir / f'turn-{tfile.stem}.lock'):
 				tdata = json.loads(tfile.read_text(encoding='utf-8'))
 				if isinstance(tdata, dict) and 'open' == tdata.get('status'):
-					_update_turn_issue_entry(tdata, repo, issue_num, record, action, codex_tid, has_non_codex)
+					_update_turn_issue_entry(tdata, repo, issue_num, record, action, recorded_cid, recorded_plat)
 					replace_bytes(tfile, (json.dumps(tdata, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 		except (OSError, ValueError):
 			pass
@@ -213,7 +214,7 @@ class IssueEvidenceWorkspace:
 	@staticmethod
 	def origin_repo_slug(code_repo: Path) -> str | None:
 		return origin_repo_slug(code_repo)
-	def persist_issue_evidence(self, source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], *, kind: str='issue', action: str | None=None, project_root: str | Path | None=None, parent_number: int | None=None) -> str | None:
+	def persist_issue_evidence(self, source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], *, kind: str='issue', action: str | None=None, project_root: str | Path | None=None, parent_number: int | None=None, conversation_id: str | None=None) -> str | None:
 		ident = fetched.get('number') if isinstance(fetched, dict) and 'issue' == kind else fetched.get('id') if isinstance(fetched, dict) else None
 		r: str | None = None
 		if isinstance(fetched, dict) and fetched.get('html_url') and (None is not ident):
@@ -225,7 +226,7 @@ class IssueEvidenceWorkspace:
 				replace_bytes(target, payload_bytes)
 				if None is r:
 					r = str(target)
-				self.record_issue_in_open_turns(turns_dir, repo, record, action)
+				self.record_issue_in_open_turns(turns_dir, repo, record, action, conversation_id=conversation_id)
 		return r
 	def persist_repo_transfer_evidence(self, source_repo: str, target_repo: str, transfer_response: dict[str, Any] | None, verified_repo: dict[str, Any] | None, *, project_root: str | Path | None=None) -> Path:
 		safe_target, safe_source = (target_repo.replace('/', '__'), source_repo.replace('/', '__'))
@@ -238,15 +239,14 @@ class IssueEvidenceWorkspace:
 			if None is primary_out:
 				primary_out = out_file
 		return primary_out
-	def record_issue_in_open_turns(self, turns_dir: Path, repo: str, record: dict[str, Any], action: str | None) -> None:
+	def record_issue_in_open_turns(self, turns_dir: Path, repo: str, record: dict[str, Any], action: str | None, *, conversation_id: str | None=None) -> None:
 		issue_num = _extract_issue_num(record)
 		if turns_dir.is_dir() and None is not issue_num:
-			codex_tid = (os.environ.get('CODEX_THREAD_ID') or '').strip()
-			open_files, has_non_codex = self._scan_open_turn_files(turns_dir)
-			for tfile, t_plat, t_cid in open_files:
-				if (codex_tid and t_cid != codex_tid) or ((not codex_tid) and has_non_codex and 'codex' == t_plat):
-					continue
-				self._update_single_turn_locked(turns_dir, tfile, repo, int(issue_num), record, action, codex_tid, has_non_codex)
+			active_plat, active_cid = detect_active_session(conversation_id=conversation_id)
+			open_files = self._scan_open_turn_files(turns_dir)
+			targets, rec_cid, rec_plat = select_target_open_turns(open_files, active_plat, active_cid)
+			for tfile in targets:
+				self._update_single_turn_locked(turns_dir, tfile, repo, int(issue_num), record, action, rec_cid, rec_plat)
 	@staticmethod
 	def repo_matches_slug(code_repo: Path, repo: str) -> bool:
 		return repo_matches_slug(code_repo, repo)

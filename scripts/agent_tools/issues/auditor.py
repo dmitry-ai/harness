@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -13,6 +16,7 @@ from ..worktree_flow import resolve_touched_repo_file
 from .git_read_cache import RepoReadCache
 from .linter import IssueMarkdownLinter
 from .parity import check_similar_project_parity, extract_implemented_m_roots, filter_turn_state_items, merge_turn_issue_item, verify_multi_subtask_counts
+from .turn_scope import has_competing_open_turns
 from .workspace import IssueEvidenceWorkspace, _V2_CODE_RELS
 class TurnIssueLifecycleAuditor:
 	def __init__(self, root: Path, turn: dict, turn_state: dict | None=None, response=None, *, workspace: IssueEvidenceWorkspace | None=None, linter: IssueMarkdownLinter | None=None) -> None:
@@ -124,7 +128,8 @@ class TurnIssueLifecycleAuditor:
 		from ..path_registry import project_paths
 		self._collect_touched_repos()
 		pp_root = project_paths(self.root)
-		self.turn_issues = self.collect_turn_issues(self.turn, self.turn_state)
+		ts_cid = str((self.turn_state or {}).get('conversation_id') or '').strip()
+		self.turn_issues = self.collect_turn_issues(self.turn, self.turn_state, has_competing_open_turns=has_competing_open_turns(self.root, ts_cid))
 		self.candidate_repos = list(self.repo_touched.keys())
 		ws_cands = (*pp_root.code_repos, self.root, self.root / 'code', *(self.root / rel for rel in _V2_CODE_RELS), self.root.parent / 'code', *(self.root.parent / rel for rel in _V2_CODE_RELS))
 		self.workspace_code_repos = {c.resolve() for c in ws_cands if is_issue_tracked_code_repo(c.resolve())}
@@ -256,14 +261,14 @@ class TurnIssueLifecycleAuditor:
 		self._check_multi_subtask_decomposition(committed_by_repo, required_by_repo)
 		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations}
 	@staticmethod
-	def collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]:
+	def collect_turn_issues(turn: dict, turn_state: dict | None, *, has_competing_open_turns: bool=False) -> dict[str, dict]:
 		turn_issues: dict[str, dict] = {}
 		ts_cid, ts_plat = (str((turn_state or {}).get('conversation_id') or '').strip(), str((turn_state or {}).get('platform') or '').strip().lower())
 		gh_raw = (turn_state or {}).get('github_issues') or []
 		gh_items = list(gh_raw.values()) if isinstance(gh_raw, dict) else list(gh_raw)
 		native_items = [it for it in (turn.get('issue_actions') or []) if isinstance(it, dict)]
 		native_urls = {(it.get('url') or '').strip() for it in native_items if (it.get('url') or '').strip()}
-		for item in filter_turn_state_items(gh_items, ts_cid, ts_plat, native_urls) + native_items:
+		for item in filter_turn_state_items(gh_items, ts_cid, ts_plat, native_urls, has_competing_open_turns=has_competing_open_turns) + native_items:
 			if isinstance(item, dict):
 				merge_turn_issue_item(turn_issues, item)
 		return turn_issues

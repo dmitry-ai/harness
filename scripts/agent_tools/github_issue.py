@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -15,15 +18,15 @@ from .issues import GitHubIssueService, IssueEvidenceWorkspace, IssueMarkdownLin
 from .issues.linter import REPO_RE
 from .issues.service_helpers import dirty_issue_first_files, gh_api_call, pending_similar_peer_slugs
 from .runtime import HARNESS_META
-_COMMON_TAIL_SPECS = (('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--repo-root', {'help': 'Optional explicit local Git repository or linked worktree root.'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete input file(s) after verified publication.'}))
+_COMMON_TAIL_SPECS = (('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--repo-root', {'help': 'Optional explicit local Git repository or linked worktree root.'}), ('--conversation', {'help': 'Optional explicit active conversation UUID for turn-state attribution.'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete input file(s) after verified publication.'}))
 _REPO_SPEC = (('--repo', '-R'), {'required': True, 'help': 'Target repository in owner/repo format.'})
 _consume_files = consume_unchanged_files
 _LINTER = IssueMarkdownLinter()
 _WORKSPACE = IssueEvidenceWorkspace()
 def _gh_api(endpoint: str, *, method: str='GET', payload: dict[str, Any] | None=None, paginate: bool=False) -> Any:
 	return gh_api_call(endpoint, method=method, payload=payload, paginate=paginate, runner=subprocess.run)
-def _service() -> GitHubIssueService:
-	return GitHubIssueService(api_fn=lambda *a, **kw: _gh_api(*a, **kw), linter=_LINTER, workspace=_WORKSPACE)
+def _service(args: argparse.Namespace | None=None) -> GitHubIssueService:
+	return GitHubIssueService(api_fn=lambda *a, **kw: _gh_api(*a, **kw), linter=_LINTER, workspace=_WORKSPACE, conversation_id=getattr(args, 'conversation', None))
 def _dirty_issue_first_files(repo: str, *, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, repo_root: str | Path | None=None) -> list[str]:
 	return dirty_issue_first_files(_WORKSPACE, repo, project_root=project_root, source_files=source_files, repo_root=repo_root)
 def _find_existing_issue_comments(source_files: list[tuple[Path, bytes]], repo: str, issue_num: int, project_root: str | Path | None=None) -> list[int]:
@@ -38,10 +41,10 @@ def _meta_dir_for_project_root(proj_root: Path) -> Path | None:
 	return _WORKSPACE.meta_dir_for_project_root(proj_root)
 def _pending_similar_peer_slugs(code_repo: Path | None, *, repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]]=()) -> list[str]:
 	return pending_similar_peer_slugs(_WORKSPACE, code_repo, repo=repo, project_root=project_root, source_files=source_files)
-def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], *, kind: str='issue', action: str | None=None, project_root: str | Path | None=None, parent_number: int | None=None) -> str | None:
-	return _WORKSPACE.persist_issue_evidence(source_files, repo, fetched, kind=kind, action=action, project_root=project_root, parent_number=parent_number)
-def _record_issue_in_open_turns(turns_dir: Path, repo: str, record: dict[str, Any], action: str | None) -> None:
-	_WORKSPACE.record_issue_in_open_turns(turns_dir, repo, record, action)
+def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], *, kind: str='issue', action: str | None=None, project_root: str | Path | None=None, parent_number: int | None=None, conversation_id: str | None=None) -> str | None:
+	return _WORKSPACE.persist_issue_evidence(source_files, repo, fetched, kind=kind, action=action, project_root=project_root, parent_number=parent_number, conversation_id=conversation_id)
+def _record_issue_in_open_turns(turns_dir: Path, repo: str, record: dict[str, Any], action: str | None, *, conversation_id: str | None=None) -> None:
+	_WORKSPACE.record_issue_in_open_turns(turns_dir, repo, record, action, conversation_id=conversation_id)
 def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
 	return _WORKSPACE.repo_matches_slug(code_repo, repo)
 def _resolve_issue_targets(source_files: list[tuple[Path, bytes]], repo: str, project_root: str | Path | None=None) -> list[tuple[Path, Path]]:
@@ -57,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
 	sub = r.add_subparsers(dest='subcommand', required=True)
 	sub_defs = (
 		('lint', 'Validate issue title/body Markdown offline.', cmd_lint, ((('--repo', '-R'), {'help': 'Optional owner/repo slug for validating parent issue URLs.'}), (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), ('--title', {'help': 'Issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing issue title.'}), ('--body-file', {'required': True, 'help': 'UTF-8 file containing issue/comment Markdown body.'}), ('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}))),
-		('fetch', 'Fetch an existing GitHub issue read-only and persist verified Evidence JSON.', cmd_fetch, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), ('--project-root', {'help': 'Optional explicit project root directory.'}))),
+		('fetch', 'Fetch an existing GitHub issue read-only and persist verified Evidence JSON.', cmd_fetch, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--conversation', {'help': 'Optional explicit active conversation UUID for turn-state attribution.'}))),
 		('create', 'Create a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_create, (_REPO_SPEC, (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), (('--title', '-t'), {'help': 'Issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing issue title.'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing issue Markdown body.'}), (('--label', '-l'), {'action': 'append', 'help': 'Issue label(s), repeatable or comma-separated.'}), (('--assignee', '-a'), {'action': 'append', 'help': 'Assignee login(s), repeatable or comma-separated.'}), (('--milestone', '-m'), {'type': int, 'help': 'Milestone number.'}), ('--no-metadata', {'action': 'store_true', 'help': 'Skip automatic prepending of the Harness JSON metadata header.'}), *_COMMON_TAIL_SPECS)),
 		('edit', 'Update a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_edit, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), (('--title', '-t'), {'help': 'Updated issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing updated issue title.'}), (('--body-file', '-F'), {'help': 'UTF-8 file containing updated issue Markdown body.'}), ('--state', {'choices': ['open', 'closed'], 'help': 'Optional state change.'}), *_COMMON_TAIL_SPECS)),
 		('comment', 'Add or edit an issue comment from a UTF-8 file and verify via API read-back.', cmd_comment, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'help': 'Issue number (for creating a new comment).'}), (('--comment-id', '-c'), {'type': int, 'help': 'Comment ID (for editing an existing comment).'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing comment Markdown body.'}), ('--allow-additional-comment', {'action': 'store_true', 'help': 'Explicitly allow creating an additional comment on an issue that already has a tracked comment.'}), *_COMMON_TAIL_SPECS)),
@@ -71,21 +74,21 @@ def build_parser() -> argparse.ArgumentParser:
 		p.set_defaults(func=fn)
 	return r
 def cmd_audit_repo(args: argparse.Namespace) -> int:
-	return _service().cmd_audit_repo(args)
+	return _service(args).cmd_audit_repo(args)
 def cmd_close(args: argparse.Namespace) -> int:
-	return _service().cmd_close(args)
+	return _service(args).cmd_close(args)
 def cmd_comment(args: argparse.Namespace) -> int:
-	return _service().cmd_comment(args)
+	return _service(args).cmd_comment(args)
 def cmd_create(args: argparse.Namespace) -> int:
-	return _service().cmd_create(args)
+	return _service(args).cmd_create(args)
 def cmd_edit(args: argparse.Namespace) -> int:
-	return _service().cmd_edit(args)
+	return _service(args).cmd_edit(args)
 def cmd_fetch(args: argparse.Namespace) -> int:
-	return _service().cmd_fetch(args)
+	return _service(args).cmd_fetch(args)
 def cmd_lint(args: argparse.Namespace) -> int:
-	return _service().cmd_lint(args)
+	return _service(args).cmd_lint(args)
 def cmd_transfer_repo(args: argparse.Namespace) -> int:
-	return _service().cmd_transfer_repo(args)
+	return _service(args).cmd_transfer_repo(args)
 def extract_parent_issue_number(body: str, repo: str | None=None) -> int | None:
 	return _LINTER.extract_parent_number(body, repo)
 def extract_unlinked_m_subtask_roots(body: str, *, self_number: int | None=None, parent_number: int | None=None) -> list[str]:
