@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+# https://github.com/dmitry-ai/harness/issues/158
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
@@ -17,6 +20,7 @@
 # "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
 # https://github.com/dmitry-ai/harness/issues/42
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
@@ -320,7 +324,8 @@ class ContextTests(TemporaryCase):
 		self.put('ꘖ/KB/Evidence/capture.md', '# Raw Capture\nShould be excluded\n')
 		self.put('ꘖ/KB/Evidence/nested/audit.md', '# Deep Capture\nShould be excluded\n')
 		self.put('KB/Manual.md', '# Manual\nShould be excluded\n')
-		content, sources = assemble(self.root)
+		fixed_now = datetime(2026, 11, 23, 12, 0, 0, tzinfo=timezone.utc)
+		content, sources = assemble(self.root, now=fixed_now)
 		self.assertIn('Generated: ', content)
 		self.assertIn('# Overview', content)
 		self.assertIn('# Evidence Document', content)
@@ -328,7 +333,7 @@ class ContextTests(TemporaryCase):
 		self.assertNotIn('# Deep Capture', content)
 		self.assertNotIn('# Manual', content)
 		self.assertEqual(set(sources), {kb_main.resolve(), kb_evidence_doc.resolve()})
-		target, out_content, out_sources = generate(self.root)
+		target, out_content, out_sources = generate(self.root, now=fixed_now)
 		self.assertEqual(target, self.root / 'ꙮ/0/Context.md')
 		self.assertTrue(target.is_file())
 		self.assertEqual(out_content, content)

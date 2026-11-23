@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+# https://github.com/dmitry-ai/harness/issues/158
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
@@ -244,7 +247,10 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
 # https://github.com/dmitry-ai/harness/issues/42
-def generate(root: Path, config: Path | dict | None=None, output: Path | None=None, dry_run=False):
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+# https://github.com/dmitry-ai/harness/issues/158
+def generate(root: Path, config: Path | dict | None=None, output: Path | None=None, dry_run=False, now: datetime | None=None):
 	from .path_registry import canonicalize_root_dir, project_paths
 	root = canonicalize_root_dir(root)
 	pp = project_paths(root, exact_root=True)
@@ -259,7 +265,7 @@ def generate(root: Path, config: Path | dict | None=None, output: Path | None=No
 		manifest = json.loads(config_path.read_text(encoding='utf-8-sig'))
 	default_out = pp.context_output.relative_to(root).as_posix() if pp.context_output.is_relative_to(root) else 'ꙮ/0/Context.md'
 	def build():
-		content, sources = assemble(root, manifest)
+		content, sources = assemble(root, manifest, now=now)
 		raw_out = output if None is not output else _expand_entry(pp, manifest.get('output', default_out))
 		target = inside(root, raw_out)
 		if target in sources or (isinstance(config, (str, Path)) and target == (Path(config).resolve() if Path(config).is_absolute() else (root / config).resolve())):

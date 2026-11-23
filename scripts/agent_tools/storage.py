@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+# https://github.com/dmitry-ai/harness/issues/158
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -83,10 +86,6 @@ def locked(path: Path, timeout: float=15, *, create=True):
 	if create:
 		path.parent.mkdir(parents=True, exist_ok=True)
 	with path.open('a+b' if create else 'r+b') as stream:
-		stream.seek(0, os.SEEK_END)
-		if create and not stream.tell():
-			stream.write(b'\x00')
-			stream.flush()
 		deadline = time.monotonic() + timeout
 		while True:
 			try:
