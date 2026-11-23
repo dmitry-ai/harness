@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
+# https://github.com/dmitry-ai/harness/issues/137
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -123,6 +126,7 @@ class GitRepoGate:
 		if None is not message and (not message.strip()):
 			raise ValueError('Empty commit message')
 		self.verify_issue_workflow(r, message=message)
+		self.verify_tdd_commit(r, message=message, agent_context=True, use_index=True)
 		return r
 	def commit(self, paths: list[str], message: str, execute: bool=False, *, worktree: bool=False) -> list[str]:
 		if worktree and execute:
@@ -214,6 +218,7 @@ class GitRepoGate:
 					self.verify_staged_blob_sizes(staged)
 					if is_agent:
 						self.verify_issue_workflow(staged, agent_context=True)
+						self.verify_tdd_commit(staged, agent_context=True, use_index=True)
 			elif 'commit-msg' == hook_name:
 				if is_agent:
 					if not argv:
@@ -295,6 +300,31 @@ class GitRepoGate:
 				pushed = False
 				raise ValueError(f'EXEC-5 violation: commit {commit_sha[:12]} referencing {issue_url} in {self.root} has not been pushed to upstream (run git push before df_github_issue.py close)')
 		return {'verified': True, 'repo': str(self.root), 'issue_url': issue_url, 'commit_sha': commit_sha, 'pushed': pushed}
+	def _tdd_project_root(self) -> Path:
+		main_r = self.main_repo()
+		try:
+			pp = project_paths(main_r)
+			if pp.root != main_r and (pp.root / '\ua616').is_dir():
+				return pp.root
+		except (OSError, ValueError):
+			pass
+		for anc in (main_r, *main_r.parents[:4]):
+			if (anc / '\ua616').is_dir():
+				return anc
+		return main_r
+	def verify_tdd_commit(self, relative: list[str], message: str | None=None, *, agent_context: bool=True, use_index: bool=True) -> None:
+		if not agent_context or (not relative):
+			return
+		from .tdd_gate import verify_staged_tdd_diff
+		violations = verify_staged_tdd_diff(
+			self.root,
+			relative,
+			message=message,
+			project_root=self._tdd_project_root(),
+			use_index=use_index,
+		)
+		if violations:
+			raise ValueError('; '.join(violations))
 	def verify_issue_workflow(self, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 		if agent_context:
 			stripped_msg = None
@@ -402,6 +432,7 @@ class GitRepoGate:
 						self.verify_staged_blob_sizes(clean_specs)
 						if is_agent:
 							self.verify_issue_workflow(clean_specs, message=msg, agent_context=True)
+							self.verify_tdd_commit(clean_specs, message=msg, agent_context=True, use_index=not bool(pathspecs))
 class WorktreeCommitTransaction:
 	def __init__(self, gate: GitRepoGate, *, label: str='commit'):
 		self.gate = gate

@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
+# https://github.com/dmitry-ai/harness/issues/137
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
 # https://github.com/dmitry-ai/harness/issues/88
@@ -145,26 +148,33 @@ class AgentsLoaderTests(TemporaryCase):
 			git_gate.check_commit(code_repo, ['mod.py'])
 		script.write_text('# https://github.com/dmitry-ai/harness/issues/26\nx = 1\n', encoding='utf-8')
 		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
-		self.assertEqual(git_gate.check_commit(code_repo, ['mod.py']), ['mod.py'])
+		with self.assertRaisesRegex(ValueError, 'TDD-COMMIT-GATE'):
+			git_gate.check_commit(code_repo, ['mod.py'])
+		test_mod = code_repo / 'tests/test_mod.py'
+		test_mod.parent.mkdir(parents=True, exist_ok=True)
+		test_mod.write_text('# https://github.com/dmitry-ai/harness/issues/26\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_x(self):\n\t\tself.assertEqual(1, 1)\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'tests/test_mod.py'], cwd=code_repo, check=True, capture_output=True)
+		self.assertEqual(git_gate.check_commit(code_repo, ['mod.py', 'tests/test_mod.py']), ['mod.py', 'tests/test_mod.py'])
 		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
-			git_gate.commit(code_repo, ['mod.py'], 'Missing issue URL', execute=False)
+			git_gate.commit(code_repo, ['mod.py', 'tests/test_mod.py'], 'Missing issue URL', execute=False)
 		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
-			git_gate.commit(code_repo, ['mod.py'], 'Fix\n\nhttps://github.com/dmitry-ai/harness/issues/26', execute=False)
+			git_gate.commit(code_repo, ['mod.py', 'tests/test_mod.py'], 'Fix\n\nhttps://github.com/dmitry-ai/harness/issues/26', execute=False)
 		with self.assertRaisesRegex(ValueError, 'Issue-tracked code file mod.py does not reference the commit GitHub Issue URL'):
-			git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/31', execute=False)
-		self.assertEqual(git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=True), ['mod.py'])
+			git_gate.commit(code_repo, ['mod.py', 'tests/test_mod.py'], 'https://github.com/dmitry-ai/harness/issues/31', execute=False)
+		self.assertEqual(git_gate.commit(code_repo, ['mod.py', 'tests/test_mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=True), ['mod.py', 'tests/test_mod.py'])
 		with self.assertRaisesRegex(ValueError, 'git commit --no-verify/-n is prohibited'):
 			git_shim.prepare_git_invocation(['commit', '--no-verify', '-m', 'https://github.com/dmitry-ai/harness/issues/26'], cwd=code_repo)
 		self.assertEqual(len(git_gate.prohibited_git_write_commands('git commit --no-verify -m "x" && git filter-branch -f')), 3)
 		script.write_text('# https://github.com/dmitry-ai/harness/issues/26\nx = 2\n', encoding='utf-8')
-		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		test_mod.write_text('# https://github.com/dmitry-ai/harness/issues/26\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_x(self):\n\t\tself.assertEqual(1, 1)\n\tdef test_x2(self):\n\t\tself.assertEqual(2, 2)\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'mod.py', 'tests/test_mod.py'], cwd=code_repo, check=True, capture_output=True)
 		dirty_other = code_repo / 'dirty.py'
 		dirty_other.write_text('# https://github.com/dmitry-ai/harness/issues/99\ny = 2\n', encoding='utf-8')
 		subprocess.run(['git', 'add', 'dirty.py'], cwd=code_repo, check=True, capture_output=True)
 		with self.assertRaisesRegex(ValueError, 'Staged paths differ from explicit paths'):
-			git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=False, worktree=False)
-		committed = git_gate.commit(code_repo, ['mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=True, worktree=True)
-		self.assertEqual(committed, ['mod.py'])
+			git_gate.commit(code_repo, ['mod.py', 'tests/test_mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=False, worktree=False)
+		committed = git_gate.commit(code_repo, ['mod.py', 'tests/test_mod.py'], 'https://github.com/dmitry-ai/harness/issues/26', execute=True, worktree=True)
+		self.assertEqual(committed, ['mod.py', 'tests/test_mod.py'])
 		log_msg = subprocess.run(['git', '--no-optional-locks', 'log', '-1', '--format=%B'], cwd=code_repo, check=True, capture_output=True, text=True).stdout.strip()
 		self.assertEqual(log_msg, 'https://github.com/dmitry-ai/harness/issues/26')
 		self.assertTrue(dirty_other.exists())
@@ -197,17 +207,20 @@ class AgentsLoaderTests(TemporaryCase):
 		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
 		mod = code_repo / 'mod.py'
 		mod.write_text('# https://github.com/dmitry-ai/harness/issues/67\nx = 1\n', encoding='utf-8')
-		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		sp_test = code_repo / 'tests/test_mod.py'
+		sp_test.parent.mkdir(parents=True, exist_ok=True)
+		sp_test.write_text('# https://github.com/dmitry-ai/harness/issues/67\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_ok(self):\n\t\tself.assertEqual(1, 1)\n', encoding='utf-8')
+		subprocess.run(['git', 'add', 'mod.py', 'tests/test_mod.py'], cwd=code_repo, check=True, capture_output=True)
 		gate = git_gate.GitRepoGate(code_repo, strict=True)
-		gate.verify_issue_workflow(['mod.py'], message='https://github.com/dmitry-ai/harness/issues/67\n# git comment')
+		gate.verify_issue_workflow(['mod.py', 'tests/test_mod.py'], message='https://github.com/dmitry-ai/harness/issues/67\n# git comment')
 		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
-			gate.verify_issue_workflow(['mod.py'], message='# https://github.com/dmitry-ai/harness/issues/67')
+			gate.verify_issue_workflow(['mod.py', 'tests/test_mod.py'], message='# https://github.com/dmitry-ai/harness/issues/67')
 		calls = []
 		orig_check = git_gate.GitRepoGate.check_commit
 		def spy_check(inst, paths, *, message=None):
 			calls.append((inst.root, list(paths), message))
 			return orig_check(inst, paths, message=message)
 		with patch.object(git_gate.GitRepoGate, 'check_commit', spy_check):
-			gate.commit(['mod.py'], 'https://github.com/dmitry-ai/harness/issues/67', execute=True)
+			gate.commit(['mod.py', 'tests/test_mod.py'], 'https://github.com/dmitry-ai/harness/issues/67', execute=True)
 		self.assertEqual(1, len(calls))
 		self.assertEqual('https://github.com/dmitry-ai/harness/issues/67', calls[0][2])
