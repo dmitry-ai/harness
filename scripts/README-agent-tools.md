@@ -242,6 +242,7 @@ Substantive readiness requires primary evidence and independent clearance; a pas
 # Regression Suite
 
 Canonical parallel fail-fast runners: `python -m pytest <.agents>/tests -n auto --dist worksteal -x` (executes existing `unittest.TestCase` modules across CPU cores with worksteal load balancing, automatic `tests/conftest.py` path and `HARNESS_TEST_NO_FSYNC=1` setup, and fail-fast exit) and `python <.agents>/scripts/harness.py run-tests <.agents>/tests [--workers N] [--module-timeout 300] [--no-failfast] [--module <name>] [--format text|json]` (runs modules in longest-processing-time-first order with `-f` and `-b` enabled by default and cancels sibling processes immediately on first failure or module timeout); both satisfy `EXEC-2 TDD-FULL-GATE`.  
+Inner TDD loop discipline (`EXEC-2`): on intermediate Red/Green debugging iterations, run a narrow single-case filter (`python -m pytest <file> -k <test_name> -x`, where a `-k` typo exits immediately with code `5` `no tests ran` instead of `unittest`'s silent `Ran 0 tests` / `OK`) rather than re-running unrelated slow files, and run the parallel full test suite once after the final edit.  
 Direct `unittest` fallback must also enable fail-fast and a synchronous startup window (`WaitMsBeforeAsync: 10000`, enforced by `EXEC-2-TEST-FAILFAST-GATE` in `PreToolUse`): `python -m unittest discover -f -s <.agents>/tests -p test_*.py -v`.  
 Subsystem references: [Worktrees, FIFO Landing Lease, and Parallel Testing](docs/worktrees-and-testing.md) and [Open-Closed Plugin Registries and Code Size Ratchet](docs/plugin-registries.md) (or run `harness.py cli-docs` for the generated command index).  
 `UPWORK_CAPTURE_DIR` points tests to saved `*/source.json` fixtures; the test suite creates temporary directories and never modifies real projects or browser state.  
@@ -249,6 +250,7 @@ During cleanup, delete only temporary files created by your own run; preserve ma
 <!-- https://github.com/dmitry-ai/harness/issues/164 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/168 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/178 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/183 -->  
 
 # Material Lifecycle
 

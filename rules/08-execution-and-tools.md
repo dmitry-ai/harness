@@ -18,6 +18,7 @@ Only after observing a genuine test-runner failure (`Red`) may an agent implemen
 Every test must verify observable runtime behavior rather than reading or matching production source-code text (`read_text`, `open`, `inspect.getsource`, `readFileSync`, `File.ReadAllText`, `file_get_contents`, `Get-Content`), and assertionless test stubs are prohibited.  
 Existing tests and assertions operate as a one-way Test Ratchet: deleting, skipping, or weakening existing test files, test definitions, or assertions (and weakening assertions in newly created test files after production code has been modified in the same cycle) is prohibited unless an audited `RATCHET-OK` approval (`>= 30` characters citing the requirement or user decision, never a test-fitting excuse) is recorded via `harness.py ratchet-ok` or inside the linked GitHub issue body.  
 Before completing a turn or closing a code task, run the full test suite (not a single-file subset when the repository has multiple test files) after the final edit and verify all tests pass (`Green`); inspect active-turn compliance via `harness.py tdd-check`.  
+During intermediate Red/Green iterations in multi-step tasks, target only the changing case with a narrow filter (`python -m pytest <file> -k <test_name> -x`, where a `-k` typo fails immediately with exit code `5` rather than `unittest`'s silent `Ran 0 tests` / `OK`) instead of re-running unrelated slow test files, and execute the full parallel test suite (`python -m pytest <tests> -n auto --dist worksteal -x` or `harness.py run-tests`) once after the final edit.  
 Run test commands with fail-fast enabled by default (`harness.py run-tests` for parallel Python `unittest` suites, `-f` for `unittest`, `-x` for `pytest`, `--bail` for JS runners, `-failfast` for `go test`, `--stop-on-failure` for `phpunit`) and a synchronous startup window (`WaitMsBeforeAsync: 10000`, enforced via `EXEC-2-TEST-FAILFAST-GATE` in `PreToolUse`).  
 A test must verify material behavior and reproduce the defect; distinguish mocks, integration tests, and live execution.  
 For code managing persistent connections, daemons, or child-process lifecycles, verify handle release and clean exit on a real process rather than mocks alone.  
@@ -71,3 +72,4 @@ Before working with an authenticated portal, read the [authenticated access proc
 <!-- https://github.com/dmitry-ai/harness/issues/163 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/164 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/165 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/183 -->  
