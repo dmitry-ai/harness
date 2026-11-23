@@ -122,5 +122,34 @@ class ParallelTestRunnerTests(unittest.TestCase):
 			data = json.loads(proc.stdout)
 			self.assertFalse(data['ok'])
 			self.assertEqual(data['failed_modules'], 2)
+	def test_linked_worktree_scope_accepts_full_suite_green_on_main_repo(self) -> None:
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			main_repo = base / 'main_repo'
+			wt_repo = base / 'wt_repo'
+			main_repo.mkdir()
+			subprocess.run(['git', 'init', str(main_repo)], check=True, capture_output=True)
+			subprocess.run(['git', '-C', str(main_repo), 'config', 'user.email', 'test@example.com'], check=True, capture_output=True)
+			subprocess.run(['git', '-C', str(main_repo), 'config', 'user.name', 'Test'], check=True, capture_output=True)
+			(main_repo / 'tests').mkdir()
+			(main_repo / 'tests/test_a.py').write_text('import unittest\n', encoding='utf-8')
+			(main_repo / 'tests/test_b.py').write_text('import unittest\n', encoding='utf-8')
+			(main_repo / 'app.py').write_text('x = 1\n', encoding='utf-8')
+			subprocess.run(['git', '-C', str(main_repo), 'add', '.'], check=True, capture_output=True)
+			subprocess.run(['git', '-C', str(main_repo), 'commit', '-m', 'init'], check=True, capture_output=True)
+			subprocess.run(['git', '-C', str(main_repo), 'worktree', 'add', '-b', 'feat', str(wt_repo)], check=True, capture_output=True)
+			try:
+				events = [
+					tdd_gate.build_file_write_tdd_event(1, wt_repo / 'tests/test_a.py'),
+					tdd_gate.build_command_tdd_event(2, f'python "{HARNESS_SCRIPT}" run-tests "{wt_repo / "tests"}" --module test_a.py', 'Command exited with code 1.\n\nCommand output:\nFAILED (failures=1)\n', cwd=wt_repo),
+					tdd_gate.build_file_write_tdd_event(3, wt_repo / 'app.py'),
+					tdd_gate.build_command_tdd_event(4, f'git -C "{wt_repo}" commit -m https://github.com/dmitry-ai/harness/issues/160', 'Command exited with code 0.\n\nCommand output:\n[feat 1111111] ok\n', cwd=wt_repo),
+					tdd_gate.build_command_tdd_event(5, f'python "{HARNESS_SCRIPT}" run-tests "{main_repo / "tests"}"', 'Command exited with code 0.\n\nCommand output:\nRan 2 tests in 0.2s\n\nOK\n', cwd=main_repo),
+				]
+				res = tdd_gate.evaluate_tdd_events(events, require_final_full_green=True)
+				self.assertTrue(res['verified'], res)
+				self.assertEqual(res['scopes'][str(wt_repo.resolve())]['last_full_green_step'], 5)
+			finally:
+				subprocess.run(['git', '-C', str(main_repo), 'worktree', 'remove', '--force', str(wt_repo)], check=False, capture_output=True)
 if '__main__' == __name__:
 	unittest.main()

@@ -900,12 +900,33 @@ def _is_git_commit_command(cmd: str, *, cwd: Path | None = None) -> tuple[bool, 
 	return (False, None)
 
 
+def _git_main_repo_root(repo: Path) -> Path:
+	r = repo.resolve()
+	dot_git = r / '.git'
+	if dot_git.is_file():
+		try:
+			txt = dot_git.read_text(encoding='utf-8', errors='replace').strip()
+			if txt.lower().startswith('gitdir:'):
+				gitdir = normalize_host_path(txt.split(':', 1)[1].strip())
+				if not gitdir.is_absolute():
+					gitdir = (r / gitdir).resolve()
+				if 'worktrees' == gitdir.parent.name and '.git' == gitdir.parent.parent.name:
+					r = gitdir.parent.parent.parent.resolve()
+		except OSError:
+			pass
+	return r
+
+
 def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[str]) -> bool:
 	scope_p = Path(scope_str).resolve()
 	scope_key = scope_p.as_posix().lower()
+	scope_main = _git_main_repo_root(scope_p)
+	scope_main_key = scope_main.as_posix().lower()
 	cmd = str(event.get('cmd') or '')
 	cmd_norm = _norm_posix(cmd).lower()
-	targets = event.get('test_info', {}).get('target_paths') or []
+	t_info = event.get('test_info') or {}
+	is_full_cmd = bool(t_info.get('is_full_suite'))
+	targets = t_info.get('target_paths') or []
 	cwd_raw = event.get('cwd')
 	cwd_p = Path(cwd_raw).resolve() if cwd_raw else None
 	resolved_scopes: list[Path] = []
@@ -919,6 +940,8 @@ def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[
 	if resolved_scopes:
 		if any(rs.as_posix().lower() == scope_key or rs.is_relative_to(scope_p) or scope_p.is_relative_to(rs) for rs in resolved_scopes):
 			return True
+		if is_full_cmd and any(_git_main_repo_root(rs).as_posix().lower() == scope_main_key for rs in resolved_scopes):
+			return True
 	for tf in written_test_files:
 		tf_name = Path(tf).name.lower()
 		tf_stem = Path(tf).stem.lower()
@@ -931,6 +954,8 @@ def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[
 		if cwd_scope.as_posix().lower() == scope_key or cwd_p.is_relative_to(scope_p) or scope_p.is_relative_to(cwd_p):
 			if not resolved_scopes:
 				return True
+		if is_full_cmd and (not resolved_scopes) and _git_main_repo_root(cwd_scope).as_posix().lower() == scope_main_key:
+			return True
 	return False
 
 
