@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Preserve historical delivered turn bytes when tdd_check is absent":
+# https://github.com/dmitry-ai/harness/issues/140
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
 from __future__ import annotations
@@ -322,6 +325,32 @@ class TddTurnCompletionAndCliTests(unittest.TestCase):
 				backend_override=backend,
 			)
 			self.assertIsInstance(pre_out, dict)
+
+	def test_sync_preserves_legacy_delivered_turn_bytes_without_tdd_check(self) -> None:
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			proj, _, _ = _init_project_with_git_code(base)
+			_, backend, cid, t_log, rows = _setup_antigravity_conv(base, proj, 'Legacy delivered turn.')
+			reply = 'Delivered before tdd_check existed.  \n'
+			rows.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': reply})
+			t_log.write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
+			with closing(sqlite3.connect(backend / 'conversations' / f'{cid}.db')) as c:
+				c.execute('INSERT INTO steps VALUES(1, 15, 3, 0, ?)', (b'',))
+				c.commit()
+			with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as c:
+				c.execute("UPDATE conversation_summaries SET status='CASCADE_RUN_STATUS_IDLE', not_fully_idle=0 WHERE conversation_id=?", (cid,))
+				c.commit()
+			sync1 = completion.sync(proj, cid, platform='antigravity', backend=backend)
+			self.assertTrue(sync1['valid'], sync1)
+			t_key = sync1['turns'][0]['turn_key']
+			state_file = proj / '_/ꘖ/data/turns' / f'{t_key}.json'
+			state_obj = json.loads(state_file.read_text(encoding='utf-8'))
+			state_obj.pop('tdd_check', None)
+			legacy_bytes = completion._json(state_obj)
+			state_file.write_bytes(legacy_bytes)
+			sync2 = completion.sync(proj, cid, platform='antigravity', backend=backend)
+			self.assertTrue(sync2['valid'], sync2)
+			self.assertEqual(state_file.read_bytes(), legacy_bytes)
 
 
 if '__main__' == __name__:
