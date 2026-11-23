@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -179,9 +182,24 @@ class CodexTurnScanner:
 		return r
 	def _scan_primary_turns(self):
 		current, acc = (None, None)
+		last_ctx_model, last_ctx_effort = (None, None)
 		for index, item in self.rows:
 			payload = item.get('payload', {})
 			kind, ptype = (item.get('type'), payload.get('type'))
+			ts = item.get('timestamp') if isinstance(item.get('timestamp'), str) and item['timestamp'].strip() else None
+			if 'turn_context' == kind and isinstance(payload, dict):
+				m_val = payload.get('model') if isinstance(payload.get('model'), str) and payload['model'].strip() else None
+				e_val = payload.get('effort') if isinstance(payload.get('effort'), str) and payload['effort'].strip() else None
+				if m_val:
+					last_ctx_model = m_val
+				if e_val:
+					last_ctx_effort = e_val
+				if None is not current and payload.get('turn_id') in (None, current['turn_id']):
+					if m_val:
+						current['model'] = m_val
+					if e_val:
+						current['effort'] = e_val
+				continue
 			if None is not current and (kind in ('compacted', 'context_compacted', 'checkpoint') or (kind in ('event_msg', 'response_item') and ptype in ('context_compacted', 'compacted', 'checkpoint'))):
 				acc['checkpoint_steps'].append(index)
 			elif None is not current and 'response_item' == kind and ptype in ('function_call_output', 'custom_tool_call_output'):
@@ -203,7 +221,7 @@ class CodexTurnScanner:
 				ident = payload.get('turn_id')
 				if not isinstance(ident, str) or not ident:
 					raise ValueError('Native Codex task_started has no turn ID')
-				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': [], 'issue_first_events': [], 'tdd_events': []}
+				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'request_timestamp': ts, 'response_timestamp': None, 'model': last_ctx_model, 'effort': last_ctx_effort, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': [], 'issue_first_events': [], 'tdd_events': []}
 				acc = init_turn_accumulator(extra={'all_request_steps': [], 'pending_calls': {}, 'pending_tdd_cmds': {}, 'pending_issue_cmds': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files'], 'issue_first_events': current['issue_first_events'], 'tdd_events': current['tdd_events']})
 				self.turn_entries.append((current, acc))
 			elif None is not current and 'event_msg' == kind and ptype in ('task_complete', 'turn_aborted') and payload.get('turn_id') == current['turn_id']:
@@ -213,15 +231,21 @@ class CodexTurnScanner:
 					if None is not current['response'] and isinstance(native_final, str) and (native_final != current['response']):
 						raise ValueError('Native Codex final message and completion event disagree')
 					current['completed'] = bool(current['response'] and None is not current['final_step'])
+					if current['completed'] and None is current['response_timestamp'] and ts:
+						current['response_timestamp'] = ts
 			elif None is not current and 'response_item' == kind and 'message' == ptype:
 				if 'assistant' == payload.get('role') and ('final_answer' == payload.get('phase') or 'final' == payload.get('channel')) and payload.get('status') in (None, 'completed'):
 					text = ''.join((p.get('text', '') for p in payload.get('content', []) if 'output_text' == p.get('type')))
 					if text.strip():
 						current['response'], current['final_step'] = (text, index)
+						if ts:
+							current['response_timestamp'] = ts
 				elif 'user' == payload.get('role'):
 					text = ''.join((p.get('text', '') for p in payload.get('content', []) if p.get('type') in ('input_text', 'output_text')))
 					if _actual_user_input(text, payload):
 						acc['all_request_steps'].append(index)
+						if None is current['request_timestamp'] and ts:
+							current['request_timestamp'] = ts
 						if index in self.requests:
 							current['requests'].append(self.requests[index])
 			elif None is not current and 'response_item' == kind and ptype in ('function_call', 'custom_tool_call'):
@@ -292,8 +316,12 @@ class CodexTurnScanner:
 		self._load_context()
 		self._scan_primary_turns()
 		for t_idx, (turn, acc) in enumerate(self.turn_entries):
+			turn['turn_index'] = t_idx + 1
 			self._finalize_turn(t_idx, turn, acc)
-		return {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home or (self.paths.get('sessions_dir') or '')), 'source_file': str(self.path), 'primary': not self.child, 'turns': [turn for turn, _ in self.turn_entries], 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None, 'binding_diagnostic': {'active': self.scope_active, 'binding': self.scope_binding, 'expected_root': str(self.root_p), 'expected_job_id': self.expected_job_id}}
+		out = {'platform': 'codex', 'conversation_id': self.conversation_id, 'native_backend': str(self.home or (self.paths.get('sessions_dir') or '')), 'source_file': str(self.path), 'primary': not self.child, 'turns': [turn for turn, _ in self.turn_entries], 'active_turn_id': self.current_turn['turn_id'] if self.current_turn and (not self.current_turn['completion_step']) else None, 'binding_diagnostic': {'active': self.scope_active, 'binding': self.scope_binding, 'expected_root': str(self.root_p), 'expected_job_id': self.expected_job_id}}
+		if self.paths.get('instance'):
+			out['instance'] = self.paths['instance']
+		return out
 _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 def _local_path(value):
 	return local_uri_to_path(value)

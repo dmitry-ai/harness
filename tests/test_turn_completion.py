@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -122,9 +125,17 @@ from unittest.mock import patch
 import uuid
 SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
-from agent_tools import completion, journal, storage, workflow, text_workflow
+from agent_tools import completion, journal, metadata, storage, workflow, text_workflow
 from agent_tools.causal_checks import unsupported_probability_claims
 from agent_tools.platforms import codex, antigravity
+def assert_journal_response_body(case, raw, expected):
+	text = raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw
+	expected_text = expected.decode('utf-8') if isinstance(expected, (bytes, bytearray)) else expected
+	case.assertTrue(text.startswith('```json\n{\n\t"Time":'), text[:120])
+	parsed_meta, body = metadata.extract_leading_metadata_header(text)
+	case.assertIsNotNone(parsed_meta)
+	case.assertEqual(body, expected_text)
+	return parsed_meta
 def wire(field, payload):
 	def varint(value):
 		out = bytearray()
@@ -401,7 +412,7 @@ class CompletionCase(unittest.TestCase):
 		result = self.sync()
 		self.assertFalse(result['valid'])
 		self.assertIn('verified journal identity', result['turns'][0]['detail'])
-		self.assertEqual(self.saved('res'), b'Immutable receipt source')
+		assert_journal_response_body(self, self.saved('res'), b'Immutable receipt source')
 	def test_complete_group_metadata_tamper_does_not_pass_historical_identity(self):
 		self.prepare('Bound group identity')
 		self.finish('Bound group identity')
@@ -540,7 +551,7 @@ class CompletionCase(unittest.TestCase):
 		result = self.prepare(text)
 		self.assertTrue(result['ready'])
 		self.assertFalse(result['delivery_verified'])
-		self.assertEqual(self.saved('res'), text.encode())
+		assert_journal_response_body(self, self.saved('res'), text.encode())
 		self.assertEqual(self.sync()['turns'], [])
 		self.finish(text)
 		delivered = self.sync()['turns'][0]
@@ -571,7 +582,7 @@ class CompletionCase(unittest.TestCase):
 		self.begin(journal_directory=selected)
 		self.finish('Actual final without preparation')
 		self.assertTrue(self.sync()['valid'])
-		self.assertEqual((selected / 'res/1.md').read_bytes(), b'Actual final without preparation')
+		assert_journal_response_body(self, (selected / 'res/1.md').read_bytes(), b'Actual final without preparation')
 		self.assertFalse((self.project / 'ꙮ').exists())
 	def test_native_sync_recovers_a_completely_skipped_prepare_once(self):
 		self.finish('Already delivered answer.\n')
@@ -639,14 +650,14 @@ class CompletionCase(unittest.TestCase):
 		with patch.object(completion, '_record', side_effect=steer):
 			with self.assertRaisesRegex(ValueError, 'changed during preparation'):
 				self.prepare('Already recorded original response')
-		self.assertEqual(self.saved('res'), b'Already recorded original response')
+		assert_journal_response_body(self, self.saved('res'), b'Already recorded original response')
 		state = json.loads(next((self.project / 'ꘖ/data/turns').glob('*.json')).read_text(encoding='utf-8'))
 		self.assertEqual(state['status'], 'preparation_unverified')
 		self.assertFalse(state['readiness_check']['verified'])
 		self.finish('Response accounting for the late condition')
 		result = self.sync()
 		self.assertFalse(result['valid'])
-		self.assertEqual(self.saved('res'), b'Already recorded original response')
+		assert_journal_response_body(self, self.saved('res'), b'Already recorded original response')
 		self.assertEqual((self.project / result['turns'][0]['evidence']).read_bytes(), b'Response accounting for the late condition')
 	def tracked(self):
 		native = codex.native_answers(self.project, self.cid, backend=self.home)
@@ -680,7 +691,8 @@ class CompletionCase(unittest.TestCase):
 			result = self.prepare('Approved')
 			self.assertEqual(self.prepare('Approved')['journal_steps'], [1])
 		saved = workflow.load(self.project)['requests'][0]['response_prepared']
-		self.assertEqual(saved['sha256'], result['response_sha256'])
+		self.assertEqual(saved['sha256'], result['body_sha256'])
+		self.assertEqual(result['response_sha256'], completion._hash(self.saved('res')))
 		self.assertEqual(saved['review_approval'], approval)
 		self.finish('Approved')
 		self.assertEqual(self.sync()['turns'][0]['journal_steps'], [1])
@@ -693,7 +705,7 @@ class CompletionCase(unittest.TestCase):
 		self.finish('Different actually delivered answer.')
 		result = self.sync()
 		self.assertFalse(result['valid'])
-		self.assertEqual(self.saved('res'), 'Prepared answer.'.encode())
+		assert_journal_response_body(self, self.saved('res'), 'Prepared answer.'.encode())
 		conflict = self.project / result['turns'][0]['evidence']
 		self.assertEqual(conflict.read_bytes(), 'Different actually delivered answer.'.encode())
 		self.assertEqual(self.sync()['turns'][0]['status'], 'conflict')
@@ -701,12 +713,12 @@ class CompletionCase(unittest.TestCase):
 		self.prepare('Original')
 		reprep = self.prepare('Changed')
 		self.assertTrue(reprep.get('reprepared_before_delivery'))
-		self.assertEqual(self.saved('res'), b'Changed')
+		assert_journal_response_body(self, self.saved('res'), b'Changed')
 		self.rows.append(self.turn_rows(self.turn, 'One more condition.')[2])
 		self.write()
 		with self.assertRaisesRegex(ValueError, 'new native request'):
 			self.prepare('Changed')
-		self.assertEqual(self.saved('res'), b'Changed')
+		assert_journal_response_body(self, self.saved('res'), b'Changed')
 		self.finish('Response including the new condition')
 		result = self.sync()
 		self.assertFalse(result['valid'])
@@ -785,6 +797,8 @@ class CompletionCase(unittest.TestCase):
 		self.registered_delivery()
 		native_before = self.path.read_bytes()
 		response = self.project / 'ꙮ/≺/1–20/1.md'
+		original_saved = response.read_bytes()
+		assert_journal_response_body(self, original_saved, b'Original native final')
 		response.write_bytes(b'Externally changed response')
 		result = self.sync()
 		self.assertFalse(result['valid'])
@@ -792,7 +806,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(self.path.read_bytes(), native_before)
 		evidence = self.project / result['turns'][0]['evidence']
 		self.assertEqual(evidence.read_bytes(), b'Original native final')
-		response.write_bytes(b'Original native final')
+		response.write_bytes(original_saved)
 		restored = self.sync()
 		self.assertTrue(restored['valid'])
 		self.assertTrue(restored['turns'][0]['recovered_after_delivery'])
@@ -804,7 +818,7 @@ class CompletionCase(unittest.TestCase):
 		result = self.sync()
 		self.assertFalse(result['valid'])
 		self.assertFalse(request.exists())
-		self.assertEqual(self.saved('res'), b'Original native final')
+		assert_journal_response_body(self, self.saved('res'), b'Original native final')
 		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
 	def test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange(self):
 		self.registered_delivery()
@@ -812,7 +826,7 @@ class CompletionCase(unittest.TestCase):
 		next(groups.glob('*.json')).unlink()
 		result = self.sync()
 		self.assertFalse(result['valid'])
-		self.assertEqual(self.saved('res'), b'Original native final')
+		assert_journal_response_body(self, self.saved('res'), b'Original native final')
 		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
 	def test_temporary_permission_failure_reading_actual_journal_retries_next_pass(self):
 		self.registered_delivery()
@@ -830,7 +844,7 @@ class CompletionCase(unittest.TestCase):
 		retried = self.sync()
 		self.assertTrue(retried['valid'])
 		self.assertTrue(retried['turns'][0]['recovered_after_delivery'])
-		self.assertEqual(response.read_bytes(), b'Original native final')
+		assert_journal_response_body(self, response.read_bytes(), b'Original native final')
 	def test_begin_reconciles_previous_delivery_in_the_same_foreground_call(self):
 		self.finish('Foreground reconciliation at next turn')
 		second = str(uuid.uuid4())
@@ -839,7 +853,7 @@ class CompletionCase(unittest.TestCase):
 		result = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True)
 		self.assertEqual(result['execution_mode'], 'foreground-only')
 		self.assertTrue(result['native_reconciliation']['turns'][0]['delivery_verified'])
-		self.assertEqual(self.saved('res'), b'Foreground reconciliation at next turn')
+		assert_journal_response_body(self, self.saved('res'), b'Foreground reconciliation at next turn')
 class AntigravityCompletionTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -930,7 +944,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c.close()
 		result = self.sync()['turns'][0]
 		self.assertTrue(result['delivery_verified'])
-		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_text(encoding='utf-8'), 'Final ꘖ')
+		assert_journal_response_body(self, (self.project / 'ꙮ/≺/1–20/1.md').read_text(encoding='utf-8'), 'Final ꘖ')
 	def test_partial_step_and_child_are_not_completed_public_answers(self):
 		self.finish(partial=True)
 		self.assertEqual(self.sync()['turns'], [])
@@ -1837,7 +1851,7 @@ class TurnJournalReconcilerTests(unittest.TestCase):
 			j_dir = journal.resolve_journal_dir(proj)
 			idx = journal.completed_request_group_index(j_dir)
 			self.assertIn(f'{cid}-0', idx)
-			self.assertEqual('Final answer for compacted request.', journal.matching_group_response(j_dir, [f'{cid}-0'], 'Final answer for compacted request.'))
+			assert_journal_response_body(self, journal.matching_group_response(j_dir, [f'{cid}-0'], 'Final answer for compacted request.'), 'Final answer for compacted request.')
 class WatcherLifecycleTests(unittest.TestCase):
 	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
 		with tempfile.TemporaryDirectory() as temp:

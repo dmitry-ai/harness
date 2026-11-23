@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
@@ -589,7 +592,7 @@ def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], respo
 	r = (None, None, None)
 	if 0 < n and req_dir.is_dir() and res_dir.is_dir():
 		norm_reqs = [norm_journal_text(req) for req in requests]
-		norm_resp = norm_journal_text(response)
+		norm_resp = norm_journal_response_text(response)
 		claimed_by_step = {st: g_val for _, g_val in iter_answer_group_records(directory, ignore_errors=True) for st in (g_val.get('steps') or ()) if int is type(st)}
 		req_map = dict(iter_side_step_files(req_dir))
 		res_map = dict(iter_side_step_files(res_dir))
@@ -606,7 +609,7 @@ def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], respo
 				disk_resps = [res_map[st].read_bytes().decode('utf-8') for st in cand_steps]
 			except (OSError, UnicodeDecodeError):
 				continue
-			if 1 != len(set(disk_resps)) or [norm_journal_text(x) for x in disk_reqs] != norm_reqs or norm_journal_text(disk_resps[0]) != norm_resp:
+			if 1 != len(set(disk_resps)) or [norm_journal_text(x) for x in disk_reqs] != norm_reqs or norm_journal_response_text(disk_resps[0]) != norm_resp:
 				continue
 			if all((st not in claimed_by_step and (not (j_state / f'{st}.json').exists()) for st in cand_steps)):
 				r = (cand_steps, disk_reqs, disk_resps[0])
@@ -649,12 +652,15 @@ def matching_group_response(directory: Path, req_ids: list[str], response: str) 
 		if group.get('request_ids') == req_ids and group.get('steps'):
 			res_path = step_file(res_dir, group['steps'][0], directory=directory)
 			res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
-			if res_text and norm_journal_text(res_text) == norm_journal_text(response):
+			if res_text and norm_journal_response_text(res_text) == norm_journal_response_text(response):
 				r = res_text
 			break
 	return r
 def norm_journal_text(text: str) -> str:
 	return strip_local_file_scheme((text or '').replace('\r\n', '\n'))
+def norm_journal_response_text(text: str) -> str:
+	from .metadata import strip_leading_metadata_header
+	return norm_journal_text(strip_leading_metadata_header(text or ''))
 def strip_local_file_scheme(text: str) -> str:
 	return re.sub('file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')
 def _assert_not_linked_tree(path: Path) -> None:

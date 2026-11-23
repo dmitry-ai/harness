@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -384,19 +387,22 @@ class WorkflowStateEngine:
 		req_dir, res_dir = journal_pair_dirs(journal)
 		latest = max(ids)
 		reply = step_file(res_dir, latest, directory=journal)
-		link_issues = readable_link_issues(reply.read_text(encoding='utf-8'))
+		from .metadata import strip_leading_metadata_header
+		reply_body = strip_leading_metadata_header(reply.read_bytes().decode('utf-8'))
+		link_issues = readable_link_issues(reply_body)
 		if link_issues:
 			raise ValueError('\n'.join(link_issues))
 		if reply.relative_to(self.root).as_posix() not in out_hashes:
 			raise ValueError('Declare the actual final reply file as a finalize output')
 		if state['requests'] and step_file(req_dir, latest, directory=journal).read_bytes().decode('utf-8') != state['requests'][-1]['text']:
 			raise ValueError('Latest journal request differs from the recorded current continuation request')
-		r = authorize(self.root, state, response=reply.read_bytes().decode('utf-8'))
+		r = authorize(self.root, state, response=reply_body)
 		if any((not request.get('response_prepared') for request in state['requests'])) or not state['requests'] or state['requests'][-1]['response_prepared'].get('sha256') != r['response_sha256']:
 			raise ValueError('Record the exact approved answer for current requests before finalizing')
 		return r
 	def adopt_requests(self, conversation_id, *, allow_finalized=False, backend=None, platform=None):
-		from .journal import answer_groups, ensure_project_journal_upgraded, resolve_journal_dir
+		from .journal import answer_groups, ensure_project_journal_upgraded, journal_pair_dirs, resolve_journal_dir, step_file
+		from .metadata import strip_leading_metadata_header
 		from .metrics import native_requests
 		from .path_registry import project_paths
 		state = self.load()
@@ -405,10 +411,20 @@ class WorkflowStateEngine:
 		ensure_project_journal_upgraded(self.root)
 		self.pp = project_paths(self.root, exact_root=True)
 		requests = native_requests(self.root, conversation_id, backend=backend, platform=platform)
+		jdir = resolve_journal_dir(self.root)
+		_, res_dir_a = journal_pair_dirs(jdir)
 		saved_answers = {}
-		for group in answer_groups(resolve_journal_dir(self.root), request_ids={x['id'] for x in requests}):
+		for group in answer_groups(jdir, request_ids={x['id'] for x in requests}):
+			body_sha = group['response_sha256']
+			if group.get('steps'):
+				rp = step_file(res_dir_a, group['steps'][0], directory=jdir)
+				if rp.is_file():
+					try:
+						body_sha = hashlib.sha256(strip_leading_metadata_header(rp.read_bytes().decode('utf-8')).encode('utf-8')).hexdigest()
+					except (OSError, UnicodeDecodeError):
+						pass
 			for ident in group.get('request_ids') or []:
-				saved_answers[ident] = {'turn': group['turn'], 'steps': group['steps'], 'sha256': group['response_sha256']}
+				saved_answers[ident] = {'turn': group['turn'], 'steps': group['steps'], 'sha256': body_sha}
 		return update(self.root, {'action': 'adopt_requests', 'conversation_id': conversation_id}, lambda current: self._apply_adopt(current, requests, saved_answers))
 	def complete_stage(self, stage, inputs, outputs, *, note=None):
 		if stage not in STAGES or not inputs or (not outputs):

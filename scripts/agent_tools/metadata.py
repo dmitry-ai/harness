@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement shared execution metadata collector and tab-indented JSON header formatter":
 # https://github.com/dmitry-ai/harness/issues/149
 from __future__ import annotations
@@ -9,7 +12,10 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import tempfile
 from typing import Any
+
+_PROJECTS_DIR_CACHE: dict[tuple[str, int], list[dict[str, Any]]] = {}
 
 _HARNESS_TOP_KEYS = frozenset(('Time', 'Issue', 'Project', 'Journal', 'Agent', 'Trace'))
 _LEADING_JSON_FENCE_RE = re.compile(r'^```json[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*(?:\r?\n\r?\n|\r?\n|$)')
@@ -145,7 +151,38 @@ def _split_model_and_effort(raw_model: str | None, raw_effort: str | None = None
 	return (model, effort)
 
 
-def _antigravity_project_dirs(ag_paths: dict[str, Any] | None = None) -> list[Path]:
+def _is_temp_path(path: Path) -> bool:
+	try:
+		tmp_root = Path(tempfile.gettempdir()).resolve()
+		return path.resolve().is_relative_to(tmp_root)
+	except OSError:
+		return False
+
+
+def _load_projects_dir_items(pdir: Path) -> list[dict[str, Any]]:
+	try:
+		mtime_ns = pdir.stat().st_mtime_ns
+	except OSError:
+		return []
+	cache_key = (pdir.as_posix().lower(), mtime_ns)
+	cached = _PROJECTS_DIR_CACHE.get(cache_key)
+	if None is not cached:
+		return cached
+	if 64 < len(_PROJECTS_DIR_CACHE):
+		_PROJECTS_DIR_CACHE.clear()
+	items: list[dict[str, Any]] = []
+	for pf in sorted(pdir.glob('*.json')):
+		try:
+			item = json.loads(pf.read_text(encoding='utf-8-sig'))
+		except (OSError, ValueError):
+			continue
+		if isinstance(item, dict):
+			items.append(item)
+	_PROJECTS_DIR_CACHE[cache_key] = items
+	return items
+
+
+def _antigravity_project_dirs(ag_paths: dict[str, Any] | None = None, *, canon_root: Path | None = None) -> list[Path]:
 	dirs: list[Path] = []
 	seen: set[str] = set()
 	def _push(p_val: str | Path | None) -> None:
@@ -160,12 +197,13 @@ def _antigravity_project_dirs(ag_paths: dict[str, Any] | None = None) -> list[Pa
 			dirs.append(p.resolve())
 	if isinstance(ag_paths, dict):
 		_push(ag_paths.get('projects_dir'))
-	try:
-		from .runtime import platform_instances
-		for inst in platform_instances('antigravity', include_disabled=True).values():
-			_push((inst.get('system_paths') or {}).get('projects_dir'))
-	except Exception:
-		pass
+	if None is canon_root or (not _is_temp_path(canon_root)):
+		try:
+			from .runtime import platform_instances
+			for inst in platform_instances('antigravity', include_disabled=True).values():
+				_push((inst.get('system_paths') or {}).get('projects_dir'))
+		except Exception:
+			pass
 	return dirs
 
 
@@ -179,7 +217,7 @@ def resolve_project_identity(
 	from .platforms.antigravity import _project_item_matches_root
 	canon = canonicalize_root_dir(root)
 	name: str | None = None
-	pdirs = _antigravity_project_dirs(ag_paths)
+	pdirs = _antigravity_project_dirs(ag_paths, canon_root=canon)
 	if isinstance(project_id, str) and project_id.strip():
 		pid = project_id.strip()
 		for pdir in pdirs:
@@ -197,13 +235,7 @@ def resolve_project_identity(
 	if None is name:
 		relocated_name: str | None = None
 		for pdir in pdirs:
-			for pf in sorted(pdir.glob('*.json')):
-				try:
-					item = json.loads(pf.read_text(encoding='utf-8-sig'))
-				except (OSError, ValueError):
-					continue
-				if not isinstance(item, dict):
-					continue
+			for item in _load_projects_dir_items(pdir):
 				matched, is_reloc = _project_item_matches_root(item, canon)
 				if matched and isinstance(item.get('name'), str) and item['name'].strip():
 					if not is_reloc:

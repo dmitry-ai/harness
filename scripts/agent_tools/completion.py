@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -263,7 +266,7 @@ class AnswerPreparationRunner:
 		self.value['language_and_stub_check'] = {'verified': not lang_issues, 'issues': lang_issues}
 		if lang_issues:
 			self._fail_gate('language_and_stub', '; '.join(lang_issues))
-		if self.value['prepared'] and self.value['prepared']['response_sha256'] != self.sha:
+		if self.value['prepared'] and (not _matches_recorded_response(self.value['prepared'], self.response, self.sha)):
 			if None is not self.value.get('delivery') or 'delivered' == self.value.get('status') or self.turn.get('completed'):
 				raise ValueError('Prepared response bytes are immutable after delivery; preserve the earlier version and reconcile before a corrective turn')
 			self.allow_reprepare = True
@@ -297,7 +300,7 @@ class AnswerPreparationRunner:
 			r = None
 		else:
 			recorded = _recorded(self.value)
-			if not recorded or recorded['response_sha256'] != self.sha:
+			if not recorded or (not _matches_recorded_response(recorded, self.response, self.sha)):
 				raise ValueError('Delivered response bytes are immutable; preserve the completed turn')
 			if not self.turn.get('completed') or self.value['delivery'].get('native_response_sha256') != _hash(self.turn['response'].encode('utf-8')):
 				raise ValueError('The saved native delivery requires foreground reconciliation before preparation')
@@ -432,7 +435,7 @@ class TurnJournalReconciler:
 			raw_prep = value['prepared'].get('response_file') or ''
 			prep_file = journal.resolve_migrated_step_file(raw_prep) if raw_prep else Path()
 			prep_text = prep_file.read_bytes().decode('utf-8') if prep_file.is_file() else ''
-			if prep_text and _norm_journal_text(prep_text) == _norm_journal_text(response):
+			if prep_text and _norm_journal_response_text(prep_text) == _norm_journal_response_text(response):
 				effective_response = prep_text
 			elif not self.adopt_conflict:
 				conflict_detail = 'Prepared and delivered response bytes differ'
@@ -1504,14 +1507,33 @@ def issue_first_check_turn(root, conversation=None, *, platform=None, backend=No
 		if_chk = _issue_first_status(root_p, turn_obj)
 	return {'valid': bool(if_chk.get('verified', True)), 'read_only': True, 'role': role, 'turn_key': turn_key, 'issue_first_check': if_chk, 'event_count': len(turn_obj.get('issue_first_events') or [])}
 _norm_journal_text = journal.norm_journal_text
+_norm_journal_response_text = journal.norm_journal_response_text
 _find_orphan_or_overwritten_steps = journal.find_orphan_or_overwritten_steps
+def _matches_recorded_response(recorded, raw_response: str, raw_sha: str) -> bool:
+	if not isinstance(recorded, dict):
+		return False
+	if recorded.get('response_sha256') == raw_sha or recorded.get('body_sha256') == raw_sha:
+		return True
+	raw_prep = recorded.get('response_file') or ''
+	if raw_prep:
+		prep_file = journal.resolve_migrated_step_file(raw_prep)
+		if prep_file.is_file():
+			try:
+				prep_text = prep_file.read_bytes().decode('utf-8')
+				if _hash(prep_text.encode('utf-8')) == recorded.get('response_sha256'):
+					from .metadata import strip_leading_metadata_header
+					if _hash(strip_leading_metadata_header(prep_text).encode('utf-8')) == raw_sha:
+						return True
+			except (OSError, UnicodeDecodeError):
+				pass
+	return False
 def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 	key = 'native-' + _key(native, turn)
 	legacy = turn['turn_id']
 	groups = journal.state_dir(directory) / 'answer-groups'
 	native_ids = [req['id'] for req in turn['requests']]
 	norm_turn_reqs = [_norm_journal_text(req['text']) for req in turn['requests']]
-	norm_turn_resp = _norm_journal_text(response)
+	norm_turn_resp = _norm_journal_response_text(response)
 	_, res_dir = journal.journal_pair_dirs(directory)
 	matches = []
 	for _, old in journal.iter_answer_group_records(directory):
@@ -1524,7 +1546,7 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 				if res_p.is_file():
 					try:
 						disk_r = res_p.read_bytes().decode('utf-8')
-						resp_ok = _hash(disk_r.encode('utf-8')) == old.get('response_sha256') and _norm_journal_text(disk_r) == norm_turn_resp
+						resp_ok = _hash(disk_r.encode('utf-8')) == old.get('response_sha256') and _norm_journal_response_text(disk_r) == norm_turn_resp
 					except (OSError, UnicodeDecodeError):
 						pass
 			if not reqs_ok or (not resp_ok and (not allow_reprepare)):
@@ -1538,7 +1560,16 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 		old = _read(groups / (legacy + '.json'))
 		old_reqs = old.get('requests') or []
 		reqs_ok = old_reqs == [req['text'] for req in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
-		if not reqs_ok or (old.get('response_sha256') != _hash(response.encode('utf-8')) and (not allow_reprepare)):
+		resp_ok = old.get('response_sha256') == _hash(response.encode('utf-8'))
+		if not resp_ok and old.get('steps'):
+			res_p = journal.step_file(res_dir, old['steps'][0], directory=directory)
+			if res_p.is_file():
+				try:
+					disk_r = res_p.read_bytes().decode('utf-8')
+					resp_ok = _hash(disk_r.encode('utf-8')) == old.get('response_sha256') and _norm_journal_response_text(disk_r) == norm_turn_resp
+				except (OSError, UnicodeDecodeError):
+					pass
+		if not reqs_ok or (not resp_ok and (not allow_reprepare)):
 			raise ValueError('Existing native-turn journal has different bytes; preserve the conflict')
 		r = (legacy, old.get('request_ids'))
 	else:
@@ -1578,6 +1609,8 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 	directory = _directory(root, directory)
 	req_dir, res_dir = journal.journal_pair_dirs(directory)
 	from . import admission
+	from .metadata import build_journal_metadata, extract_leading_metadata_header, prepend_metadata_header, strip_leading_metadata_header
+	clean_body_sha = _hash(strip_leading_metadata_header(response).encode('utf-8'))
 	token, request_ids = _group(root, native, turn, response, directory, allow_reprepare=allow_reprepare)
 	group_file = journal.state_dir(directory) / 'answer-groups' / (token + '.json')
 	already_complete = group_file.exists() and 'complete' == _read(group_file).get('status')
@@ -1595,6 +1628,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 	adopt_steps = None
 	adopted_existing = False
 	reprepared_before_delivery = False
+	g_data = None
 	if already_complete:
 		g_data = _read(group_file)
 		g_reqs = g_data.get('requests') or []
@@ -1605,7 +1639,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			if res_p.is_file():
 				try:
 					disk_r = res_p.read_bytes().decode('utf-8')
-					if _hash(disk_r.encode('utf-8')) == g_data.get('response_sha256') and _norm_journal_text(disk_r) == _norm_journal_text(effective_response):
+					if _hash(disk_r.encode('utf-8')) == g_data.get('response_sha256') and _norm_journal_response_text(disk_r) == _norm_journal_response_text(effective_response):
 						effective_response = disk_r
 				except (OSError, UnicodeDecodeError):
 					pass
@@ -1617,6 +1651,22 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			effective_requests = disk_reqs
 			effective_response = disk_resp
 			adopted_existing = True
+	if ((not already_complete and (not adopted_existing)) or reprepared_before_delivery) and None is extract_leading_metadata_header(effective_response)[0]:
+		turn_key = _key(native, turn)
+		target_steps = list(g_data['steps']) if reprepared_before_delivery and isinstance(g_data, dict) and g_data.get('steps') else journal.reserve_turn_steps(directory, turn_key, native['conversation_id'], request_ids)
+		conv_steps = conversation_journal_steps(root, directory, native['conversation_id'])
+		meta = build_journal_metadata(
+			root,
+			native,
+			turn,
+			journal_dir=directory,
+			steps=target_steps,
+			turn_key=turn_key,
+			turn_state_path=_folder(root) / (turn_key + '.json'),
+			group_file=group_file,
+			conversation_steps=conv_steps,
+		)
+		effective_response = prepend_metadata_header(effective_response, meta)
 	identity = admission.binding(directory, effective_requests, effective_response, token, request_ids)
 	if already_complete and not reprepared_before_delivery:
 		if purpose == 'publication':
@@ -1638,7 +1688,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			raise ValueError('Recorded request read-back differs from native text')
 		if journal.step_file(res_dir, step, directory=directory).read_bytes() != effective_response.encode('utf-8'):
 			raise ValueError('Recorded response read-back differs from prepared text')
-	recorded = {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'response_file': str(journal.step_file(res_dir, steps[0], directory=directory)), 'group_file': str(group_file)}
+	recorded = {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'body_sha256': clean_body_sha, 'response_file': str(journal.step_file(res_dir, steps[0], directory=directory)), 'group_file': str(group_file)}
 	if existing:
 		if existing.get('journal_steps') != recorded['journal_steps'] or existing.get('response_sha256') != recorded['response_sha256'] or (not _same_turn_artifact_path(root, existing.get('response_file'), recorded['response_file'], kind='response')) or (not _same_turn_artifact_path(root, existing.get('group_file'), recorded['group_file'], kind='group')):
 			raise ValueError('Recorded answer receipt differs from its verified journal identity; preserve history')

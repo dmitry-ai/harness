@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
@@ -289,7 +292,8 @@ def find_bans(path: Path | None):
 def normalized(text: str) -> str:
 	return re.sub('\\s+', ' ', text).strip()
 def check_response(path: Path, text: str | None=None, against=(), lexicon=None, journal: Path | None=None) -> list[Finding]:
-	text = path.read_bytes().decode('utf-8') if None is text else text
+	from .metadata import strip_leading_metadata_header
+	text = strip_leading_metadata_header(path.read_bytes().decode('utf-8') if None is text else text)
 	findings = []
 	check_prose(scan(text), 'response', detect_language(text), findings, load_lexicon() if None is lexicon else lexicon, [])
 	from .journal import is_bucket_dir_name, iter_side_step_files, journal_pair_dirs
@@ -301,7 +305,7 @@ def check_response(path: Path, text: str | None=None, against=(), lexicon=None, 
 				continue
 			if path.stem.isdigit() and other.stem.isdigit() and (int(other.stem) > int(path.stem)):
 				continue
-			theirs = normalized(other.read_bytes().decode('utf-8', errors='replace'))
+			theirs = normalized(strip_leading_metadata_header(other.read_bytes().decode('utf-8', errors='replace')))
 			if not theirs or not mine or min(len(mine), len(theirs)) < 0.8 * max(len(mine), len(theirs)):
 				continue
 			if theirs == mine:

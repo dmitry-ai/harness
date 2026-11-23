@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -181,6 +184,7 @@ class AntigravityTurnScanner:
 		self.scope_binding = None
 		self.expected_job_id = None
 		self.workspace_root = None
+		self.row_by_step = {}
 	def _collect_outputs(self, rows_slice, start_pos, *, step_idx=None, file_reads=None):
 		r = []
 		for cand in rows_slice[start_pos + 1:]:
@@ -208,7 +212,7 @@ class AntigravityTurnScanner:
 			anchor = seg['subagent_steps'][-1]
 			r = collect_subagent_bfs(self.conversation_id, self.root_p, seeds, lambda cid, depth, hint, parent: self._resolve_subagent_child(cid, hint, parent, anchor, seg), seg['aa_partial_read_violations'])
 		return r
-	def _finalize_segment(self, start, end, segment, seg, visited_cids):
+	def _finalize_segment(self, start, end, segment, seg, visited_cids, seg_models=()):
 		last = segment[-1] if segment else {}
 		final_step = last.get('step_index')
 		final = 'PLANNER_RESPONSE' == last.get('type') and (not last.get('tool_calls')) and bool(last.get('content', '').strip()) and (self.statuses.get(final_step) in ((15, 3), (15, 5)))
@@ -231,8 +235,17 @@ class AntigravityTurnScanner:
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
+		start_row = self.row_by_step.get(start)
+		req_ts = start_row.get('created_at') if isinstance(start_row, dict) and isinstance(start_row.get('created_at'), str) and start_row['created_at'].strip() else None
+		resp_ts = last.get('created_at') if completed and isinstance(last.get('created_at'), str) and last['created_at'].strip() else None
+		raw_model = seg_models[-1] if seg_models else None
+		model_name, effort_val = (None, None)
+		if raw_model:
+			cfg = _configuration(raw_model)
+			model_name = cfg.get('model') or raw_model
+			effort_val = cfg.get('effort')
 		self.completed_turn_cids.update(visited_cids - {self.conversation_id})
-		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, **{k: v for k, v in seg.items() if k not in _SEGMENT_TRANSIENT_KEYS}}
+		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'request_timestamp': req_ts, 'response_timestamp': resp_ts, 'model': model_name, 'effort': effort_val, **{k: v for k, v in seg.items() if k not in _SEGMENT_TRANSIENT_KEYS}}
 	def _load_context(self):
 		from .request_binding import completion_project_id
 		from ..journal import completed_request_group_index, resolve_journal_dir
@@ -245,6 +258,7 @@ class AntigravityTurnScanner:
 			raise ValueError('Native Antigravity primary/child identity is unavailable')
 		self.path = _transcript_path(self.paths['brain_dir'], self.conversation_id)
 		self.rows = read_jsonl_objects(self.path, partial_error='Native Antigravity trace has a partial record; retry after flush')
+		self.row_by_step = {row.get('step_index'): row for row in self.rows if isinstance(row, dict) and isinstance(row.get('step_index'), int)}
 		raw_inputs = _native_inputs(self.backend, self.conversation_id, paths=self.paths, include_meta=True)
 		self.inputs = [(index, text) for index, text, _ in raw_inputs]
 		self.expected_job_id = completion_project_id(self.root)
@@ -259,7 +273,15 @@ class AntigravityTurnScanner:
 		self.journal_groups = completed_request_group_index(self.jdir)
 		self.boundaries = sorted((index for index, _ in self.inputs))
 	def _merge_pending(self, items):
-		return merge_turn_accumulators(items, allow_step_output_recovery=True)
+		merged = merge_turn_accumulators(items, allow_step_output_recovery=True)
+		req_ts = next((it.get('request_timestamp') for it in items if it.get('request_timestamp')), None)
+		if None is not req_ts:
+			merged['request_timestamp'] = req_ts
+		for key in ('model', 'effort'):
+			val = next((it.get(key) for it in reversed(items) if it.get(key)), None)
+			if None is not val:
+				merged[key] = val
+		return merged
 	def _query_child_summary(self, child_cid, expected_parent):
 		child_agent_name, db_grandchildren, parent_mismatch = (None, [], False)
 		try:
@@ -326,9 +348,12 @@ class AntigravityTurnScanner:
 		end = self.boundaries[position + 1] if position + 1 < len(self.boundaries) else None
 		segment = [row for row in self.rows if row.get('step_index', -1) > start and (None is end or row.get('step_index', -1) < end)]
 		seg = init_turn_accumulator(extra={'issue_actions': [], 'spawned_subagents': 0, 'completed_subagents': 0, 'answer_prepared_in_segment': False, 'bg_tdd_index': {}})
+		seg_models = []
 		for pos, row in enumerate(segment):
 			if isinstance(row, dict):
 				step_idx = row.get('step_index')
+				if 'PLANNER_RESPONSE' == row.get('type') and isinstance(row.get('model'), str) and row['model'].strip():
+					seg_models.append(row['model'].strip())
 				if 'CHECKPOINT' == row.get('type') and isinstance(step_idx, int):
 					seg['checkpoint_steps'].append(step_idx)
 				if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and row.get('content'):
@@ -341,7 +366,7 @@ class AntigravityTurnScanner:
 				calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 				if calls and isinstance(step_idx, int):
 					self._record_tool_calls(step_idx, calls, self._collect_outputs(segment, pos, step_idx=step_idx, file_reads=seg['file_reads']), seg)
-		return self._finalize_segment(start, end, segment, seg, self._collect_subagent_bfs(position, segment, seg))
+		return self._finalize_segment(start, end, segment, seg, self._collect_subagent_bfs(position, segment, seg), seg_models)
 	def scan(self):
 		self._load_context()
 		grouped, pending = ([], [])
@@ -354,8 +379,12 @@ class AntigravityTurnScanner:
 				pending = []
 		if pending:
 			grouped.append(self._merge_pending(pending))
+		for idx, item in enumerate(grouped, 1):
+			item['turn_index'] = idx
 		active = grouped[-1] if grouped and (not grouped[-1]['completed']) else None
 		out = {'platform': 'antigravity', 'conversation_id': self.conversation_id, 'native_backend': str(self.backend), 'source_file': str(self.path), 'primary': not bool(self.summary['parent_conversation_id']), 'turns': grouped, 'active_turn_id': active['turn_id'] if active else None, 'binding_diagnostic': {'active': self.scope_active, 'binding': self.scope_binding, 'expected_root': str(self.root_p), 'expected_job_id': self.expected_job_id}}
+		if self.paths.get('instance'):
+			out['instance'] = self.paths['instance']
 		if self.workspace_root:
 			out['workspace_root'] = self.workspace_root
 		return out

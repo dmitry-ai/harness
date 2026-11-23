@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -841,10 +844,13 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 		if relevant_qs and (not questions_current(root, {**state, 'questions': relevant_qs})):
 			raise ValueError('Complete current research questions/gaps before publication')
 	evaluator = ReviewQuorumEvaluator(root, state)
-	response_sha = digest(response.encode('utf-8')) if None is not response else None
+	response_shas = None
+	if None is not response:
+		from .metadata import strip_leading_metadata_header
+		response_shas = {digest(response.encode('utf-8')), digest(strip_leading_metadata_header(response).encode('utf-8'))}
 	groups, diagnostics = ({}, [])
 	for entry in state['reviews']:
-		if REVIEW_SCHEMA != entry.get('schema_version') or (package_path and entry.get('package') != package_path) or (response_sha and entry.get('response_sha256') != response_sha):
+		if REVIEW_SCHEMA != entry.get('schema_version') or (package_path and entry.get('package') != package_path) or (response_shas and entry.get('response_sha256') not in response_shas):
 			continue
 		try:
 			package = read_package(root, entry['package'], state=state)

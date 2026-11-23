@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -224,10 +227,19 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 		return {'decision': 'continue', 'reason': f'EXEC-2 Stop Gate: {tdd_detail}. Resolve TDD violations, run the full test suite to GREEN, and re-run harness.py answer-prepare.'}
 	if last_planner_text:
 		sha = hashlib.sha256(last_planner_text.encode('utf-8')).hexdigest()
-		if sha != prep.get('response_sha256'):
+		if sha != prep.get('response_sha256') and sha != prep.get('body_sha256'):
 			res_file = Path(prep.get('response_file') or '')
 			prep_text = res_file.read_text(encoding='utf-8', errors='replace') if res_file.is_file() else ''
-			if not prep_text or _strip_local_file_scheme(prep_text) != _strip_local_file_scheme(last_planner_text):
+			_ensure_scripts_on_path()
+			try:
+				from agent_tools.metadata import strip_leading_metadata_header
+				prep_body = strip_leading_metadata_header(prep_text)
+			except Exception:
+				prep_body = prep_text
+			if not prep_text or (
+				_strip_local_file_scheme(prep_text) != _strip_local_file_scheme(last_planner_text)
+				and _strip_local_file_scheme(prep_body) != _strip_local_file_scheme(last_planner_text)
+			):
 				return {'decision': 'continue', 'reason': 'FILE-3 Stop Gate: Final response text does not match the prepared response in \u227a/<range>/<N>.md (or legacy res/<N>.md). Read back the prepared response file and output its exact bytes without post-prepare edits.'}
 	return {'decision': 'allow'}
 def main():
