@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
@@ -151,7 +154,7 @@ class IssueEvidenceWorkspace:
 		return find_local_code_repo(repo, project_root=project_root, source_files=source_files, repo_root=repo_root)
 	def find_tracked_child_issues(self, repo: str, parent_number: int, *, project_root: str | Path | None=None, code_repo: Path | None=None) -> list[dict[str, Any]]:
 		pnum = int(parent_number)
-		targets = self.resolve_issue_targets([], repo, project_root=project_root)
+		targets = self.resolve_issue_targets([], repo, project_root=project_root, code_repo=code_repo)
 		if None is not code_repo:
 			extra = self.issue_target_for_path(Path(code_repo).resolve().parent)
 			if None is not extra and (extra[0].resolve(), extra[1].resolve()) not in targets:
@@ -247,22 +250,26 @@ class IssueEvidenceWorkspace:
 	@staticmethod
 	def repo_matches_slug(code_repo: Path, repo: str) -> bool:
 		return repo_matches_slug(code_repo, repo)
-	def resolve_issue_targets(self, source_files: list[tuple[Path, bytes]], repo: str, project_root: str | Path | None=None) -> list[tuple[Path, Path]]:
-		from ..path_registry import project_paths, store_path, store_value, workspace_override
+	def _target_for_project_root(self, project_root: str | Path | None) -> tuple[Path, Path] | None:
+		from ..path_registry import project_paths, store_path, workspace_override
+		r = None
+		if None is not project_root and str(project_root).strip():
+			pr = Path(project_root).resolve()
+			r = self.issue_target_for_path(pr)
+			if None is r:
+				pp = project_paths(pr)
+				r = (store_path('github_evidence_dir'), pp.turns_dir) if None is not workspace_override(pp.root) else (pp.evidence_dir / 'GitHub', pp.turns_dir)
+		return r
+	def resolve_issue_targets(self, source_files: list[tuple[Path, bytes]], repo: str, project_root: str | Path | None=None, *, code_repo: Path | None=None) -> list[tuple[Path, Path]]:
+		from ..path_registry import store_path, store_value
 		r: list[tuple[Path, Path]] = []
 		def _add(pair: tuple[Path, Path] | None) -> None:
 			if None is not pair and (pair[0].resolve(), pair[1].resolve()) not in r:
 				r.append((pair[0].resolve(), pair[1].resolve()))
-		if None is not project_root and str(project_root).strip():
-			pr = Path(project_root).resolve()
-			hit = self.issue_target_for_path(pr)
-			if None is hit:
-				pp = project_paths(pr)
-				hit = (store_path('github_evidence_dir'), pp.turns_dir) if None is not workspace_override(pp.root) else (pp.evidence_dir / 'GitHub', pp.turns_dir)
-			_add(hit)
-		code_repo = self.find_local_code_repo(repo, project_root=project_root, source_files=source_files)
-		if None is not code_repo:
-			_add(self.issue_target_for_path(code_repo))
+		_add(self._target_for_project_root(project_root))
+		resolved_repo = Path(code_repo).resolve() if None is not code_repo else self.find_local_code_repo(repo, project_root=project_root, source_files=source_files)
+		if None is not resolved_repo:
+			_add(self.issue_target_for_path(resolved_repo))
 		for fpath, _ in source_files:
 			_add(self.issue_target_for_path(fpath))
 		primary_repo = str(store_value('primary_github_repo') or '').lower()

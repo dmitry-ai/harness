@@ -1,20 +1,50 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 from pathlib import Path
-import re
+from typing import Any
 from ..git_gate import run_git_read
 from ..worktree_flow import git_config_file, prioritized_worktree_candidates
+import os
+import re
+import tempfile
+import time
+_GITHUB_SLUG_RE = re.compile(r'github\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?(?:\s|$)', re.IGNORECASE)
+_GLOBAL_INDEX_CACHE: dict[str, Any] = {'expires_at': 0.0, 'key': None, 'slug_map': {}}
+_GLOBAL_INDEX_TTL_S = 30.0
+_MAX_WALK_DEPTH = 8
+_PRUNE_DIRS = frozenset({'.git', '.venv', '__pycache__', 'node_modules', 'venv', '\ua616', '\ua66e'})
 _V2_CODE_RELS = ('\u2c0f/\u227b/\u2655/\u26ef', 'Artifacts/\u227b/Deliverables/\u26ef')
+def _append_peer_repos(target: list[Path], peer: Path) -> None:
+	from ..path_registry import project_paths
+	try:
+		pp_peer = project_paths(peer, exact_root=True)
+		target.extend([*pp_peer.code_repos, *pp_peer.auxiliary_repos.values()])
+	except (OSError, ValueError):
+		pass
+	_append_repo_roots(target, peer)
 def _append_project_paths(target: list[Path], path: Path) -> None:
 	from ..path_registry import project_paths
 	try:
 		pp = project_paths(path)
 		target.extend([*pp.code_repos, *pp.auxiliary_repos.values()])
+		for peer in pp._direct_similar_projects:
+			_append_peer_repos(target, peer)
 	except (OSError, ValueError):
 		pass
 def _append_repo_roots(target: list[Path], base: Path) -> None:
 	target.extend([base, base / 'code', *(base / rel for rel in _V2_CODE_RELS)])
+def _build_global_slug_index(reg: Any, raw_roots: list[str]) -> dict[str, Path]:
+	slug_map: dict[str, Path] = {}
+	_index_discovery_roots(reg, slug_map)
+	for raw_root in raw_roots:
+		search_root = Path(raw_root)
+		if search_root.is_dir():
+			_index_dir_tree(search_root, slug_map)
+	return slug_map
 def _collect_local_repo_candidates(project_root: str | Path | None, source_files: list[tuple[Path, bytes]] | None, repo_root: str | Path | None) -> list[Path]:
 	cands: list[Path] = prioritized_worktree_candidates(repo_root)
 	if None is not project_root and str(project_root).strip():
@@ -31,6 +61,15 @@ def _collect_local_repo_candidates(project_root: str | Path | None, source_files
 	for anc in (cwd, *cwd.parents):
 		_append_repo_roots(cands, anc)
 	return cands
+def _extract_config_slugs(code_repo: Path) -> list[str]:
+	cfg_file = git_config_file(code_repo)
+	r: list[str] = []
+	if cfg_file.is_file():
+		try:
+			r = [m.group(1) for m in _GITHUB_SLUG_RE.finditer(cfg_file.read_text(encoding='utf-8', errors='replace'))]
+		except OSError:
+			r = []
+	return r
 def _first_matching_repo(cands: list[Path], repo: str, seen: set[Path]) -> Path | None:
 	r = None
 	for cand in cands:
@@ -40,67 +79,85 @@ def _first_matching_repo(cands: list[Path], repo: str, seen: set[Path]) -> Path 
 				r = cand
 				break
 	return r
-def _search_code_roots(raw_roots: list[str], repo: str, seen: set[Path]) -> Path | None:
-	r = None
-	for raw_root in raw_roots:
-		search_root = Path(raw_root)
-		if not search_root.is_dir():
-			continue
-		try:
-			for pat in ('*/.git/config', '**/code/.git/config', '**/\u26ef/.git/config', '**/\U0001d412/.git/config'):
-				r = _first_matching_repo([cfg.parent.parent.resolve() for cfg in search_root.glob(pat)], repo, seen)
-				if None is not r:
-					break
-		except OSError:
-			pass
-		if None is not r:
-			break
-	return r
-def _search_registry_and_roots(repo: str, seen: set[Path]) -> Path | None:
-	from ..path_registry import _candidate_discovery_roots, load_registry, project_paths, store_value
-	r = None
+def _index_dir_tree(search_root: Path, slug_map: dict[str, Path]) -> None:
+	base_depth = len(search_root.parts)
 	try:
-		reg = load_registry()
+		for dirpath, dirnames, filenames in os.walk(search_root, topdown=True):
+			cur = Path(dirpath)
+			if '.git' in dirnames or '.git' in filenames:
+				_register_repo_slugs(cur, slug_map)
+			if _MAX_WALK_DEPTH <= len(cur.parts) - base_depth:
+				dirnames[:] = []
+			else:
+				dirnames[:] = [d for d in dirnames if d not in _PRUNE_DIRS]
+	except OSError:
+		pass
+def _index_discovery_roots(reg: Any, slug_map: dict[str, Path]) -> None:
+	from ..path_registry import _candidate_discovery_roots, project_paths
+	try:
 		for d_root in _candidate_discovery_roots(reg)[1]:
 			try:
 				pp_d = project_paths(d_root, registry=reg)
-				r = _first_matching_repo([*pp_d.code_repos, *pp_d.auxiliary_repos.values()], repo, seen)
-				if None is not r:
-					break
+				for cand in (*pp_d.code_repos, *pp_d.auxiliary_repos.values()):
+					if cand.is_dir():
+						_register_repo_slugs(cand, slug_map)
 			except (OSError, ValueError):
 				continue
 	except (OSError, ValueError):
 		pass
-	if None is r:
-		r = _search_code_roots(store_value('code_repo_search_roots'), repo, seen)
+def _is_isolated_temp_context(project_root: str | Path | None, source_files: list[tuple[Path, bytes]] | None, repo_root: str | Path | None) -> bool:
+	ctx: list[Path] = []
+	if None is not project_root and str(project_root).strip():
+		ctx.append(Path(project_root))
+	if None is not repo_root and str(repo_root).strip():
+		ctx.append(Path(repo_root))
+	ctx.extend((fpath for fpath, _ in source_files or ()))
+	return any((_is_under_tempdir(p) for p in ctx))
+def _is_under_tempdir(path: Path) -> bool:
+	try:
+		r = path.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
+	except (OSError, ValueError):
+		r = False
 	return r
+def _register_repo_slugs(code_repo: Path, slug_map: dict[str, Path]) -> None:
+	try:
+		resolved = code_repo.resolve()
+	except OSError:
+		resolved = None
+	if None is not resolved:
+		for slug in _extract_config_slugs(resolved):
+			slug_map.setdefault(slug.lower(), resolved)
+def _search_registry_and_roots(repo: str, seen: set[Path]) -> Path | None:
+	from ..path_registry import load_registry, store_value
+	reg = load_registry()
+	raw_roots = list(store_value('code_repo_search_roots'))
+	cache_key = (reg.source_path.as_posix(), tuple(raw_roots))
+	now = time.monotonic()
+	if cache_key != _GLOBAL_INDEX_CACHE['key'] or now >= _GLOBAL_INDEX_CACHE['expires_at']:
+		_GLOBAL_INDEX_CACHE['slug_map'] = _build_global_slug_index(reg, raw_roots)
+		_GLOBAL_INDEX_CACHE['key'] = cache_key
+		_GLOBAL_INDEX_CACHE['expires_at'] = now + _GLOBAL_INDEX_TTL_S
+	hit = _GLOBAL_INDEX_CACHE['slug_map'].get(repo.lower())
+	return hit if None is not hit and hit.is_dir() and hit not in seen else None
+def clear_repo_locator_cache() -> None:
+	_GLOBAL_INDEX_CACHE['expires_at'] = 0.0
+	_GLOBAL_INDEX_CACHE['key'] = None
+	_GLOBAL_INDEX_CACHE['slug_map'] = {}
 def find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, *, repo_root: str | Path | None=None) -> Path | None:
 	seen: set[Path] = set()
 	r = _first_matching_repo(_collect_local_repo_candidates(project_root, source_files, repo_root), repo, seen)
-	if None is r:
+	if None is r and (not _is_isolated_temp_context(project_root, source_files, repo_root)):
 		r = _search_registry_and_roots(repo, seen)
 	return r
 def origin_repo_slug(code_repo: Path) -> str | None:
-	r = None
-	cfg_file = git_config_file(Path(code_repo))
-	if cfg_file.is_file():
-		try:
-			cm = re.search('github\\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\\.git)?/?(?:\\s|$)', cfg_file.read_text(encoding='utf-8', errors='replace'))
-			r = cm.group(1) if cm else None
-		except OSError:
-			pass
+	slugs = _extract_config_slugs(Path(code_repo))
+	r = slugs[0] if slugs else None
 	if None is r:
 		proc = run_git_read(code_repo, ['remote', 'get-url', 'origin'], check=False)
 		if 0 == proc.returncode:
-			m = re.search('github\\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\\.git)?$', proc.stdout.decode('utf-8', errors='replace').strip())
+			m = _GITHUB_SLUG_RE.search(proc.stdout.decode('utf-8', errors='replace').strip())
 			r = m.group(1) if m else None
 	return r
 def repo_matches_slug(code_repo: Path, repo: str) -> bool:
-	cfg_file = git_config_file(code_repo)
-	r = False
-	if cfg_file.is_file():
-		try:
-			r = bool(re.search(f'github\\.com[:/]{re.escape(repo)}(?:\\.git)?/?(?:\\s|$)', cfg_file.read_text(encoding='utf-8', errors='replace'), re.I))
-		except OSError:
-			r = False
-	return r
+	target = repo.lower()
+	return any((target == slug.lower() for slug in _extract_config_slugs(code_repo)))

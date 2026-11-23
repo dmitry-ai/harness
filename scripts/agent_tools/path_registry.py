@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 # https://github.com/dmitry-ai/harness/issues/132
@@ -47,15 +50,13 @@ _OVERLAY_REVERSE_MAP: dict[str, Path] = {}
 _SIMILAR_REVERSE_MAP: dict[tuple[str, str], list[Path]] = {}
 _DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}}
 def clear_registry_cache() -> None:
+	from .issues.repo_locator import clear_repo_locator_cache
 	_REGISTRY_CACHE.clear()
 	_PROJECT_PATHS_CACHE.clear()
 	_OVERLAY_REVERSE_MAP.clear()
 	_SIMILAR_REVERSE_MAP.clear()
-	_DISCOVERY_STATE['roots_key'] = None
-	_DISCOVERY_STATE['candidate_roots'] = ()
-	_DISCOVERY_STATE['fingerprint'] = None
-	_DISCOVERY_STATE['links'] = {}
-	_DISCOVERY_STATE['similar_links'] = {}
+	_DISCOVERY_STATE.update({'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}})
+	clear_repo_locator_cache()
 def escape_template_literal(value: str) -> str:
 	return str(value).replace('%', '%%').replace('${', '$${')
 def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
