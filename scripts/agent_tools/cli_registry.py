@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
+# https://github.com/dmitry-ai/harness/issues/192
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add harness perf-timesheet CLI for deterministic turn chronometry":
 # https://github.com/dmitry-ai/harness/issues/191
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -42,6 +45,9 @@ def _exec_land_release(args) -> dict:
 def _exec_land_status(args) -> dict:
 	from .landing_lease import lease_status
 	return lease_status(args.repo)
+def _exec_perf_profile_tests(args) -> dict:
+	from .perf.suite_profiler import run_perf_profile_cli
+	return run_perf_profile_cli(args)
 def _exec_perf_timesheet(args) -> dict:
 	from .perf.timesheet import run_perf_timesheet_cli
 	return run_perf_timesheet_cli(args)
@@ -64,6 +70,13 @@ def _exec_worktree_land(args) -> dict:
 def _exec_worktree_status(args) -> dict:
 	from .worktree_flow import worktree_status
 	return worktree_status(args.repo)
+def _format_perf_profile_tests(res: dict, args) -> str | None:
+	if 'json' == args.format:
+		r = None
+	else:
+		from .perf.suite_profiler import format_profile_text
+		r = format_profile_text(res)
+	return r
 def _format_perf_timesheet(res: dict, args) -> str | None:
 	if 'json' == args.format:
 		r = None
@@ -86,6 +99,7 @@ def _register_builtins() -> None:
 	register_command('land-acquire', 'Acquire FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--wait', {'action': 'store_true', 'help': 'Wait reactively in FIFO queue until acquired'}), ('--timeout', {'type': float, 'default': 600.0}), ('--ttl', {'type': float, 'default': 600.0}), ('--poll-interval', {'type': float, 'default': 2.0})), _exec_land_acquire)
 	register_command('land-release', 'Release FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--force', {'action': 'store_true'})), _exec_land_release)
 	register_command('land-status', 'Inspect FIFO landing lease and queue for a Git repository', (('repo', {'type': Path}),), _exec_land_status)
+	register_command('perf-profile-tests', 'Profile unittest modules in parallel with Popen, sleep, and optional cProfile telemetry', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..6)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--cprofile', {'action': 'store_true', 'help': 'Collect and aggregate cProfile hotspot functions across workers'}), ('--top', {'type': int, 'default': 15, 'help': 'Number of slowest files and tests to rank (default: 15)'}), ('--cprofile-top', {'type': int, 'default': 25, 'help': 'Number of cProfile hotspots to retain (default: 25)'}), ('--output', {'type': Path, 'help': 'Optional output path to persist tab-indented JSON profile'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_perf_profile_tests, exit_code_fn=lambda res: 0 if res.get('valid') else 1, text_fn=_format_perf_profile_tests)
 	register_command('perf-timesheet', 'Build deterministic turn chronometry, cache, compaction, and wait telemetry from a trace', (('--trace', {'type': Path, 'help': 'Direct path to Antigravity transcript_full.jsonl or Codex rollout .jsonl'}), ('--conversation', {'help': 'Native conversation UUID (auto-resolved via runtime.json)'}), ('--project', {'type': Path, 'help': 'Project root for --journal-step lookup'}), ('--journal-step', {'type': int, 'help': 'Journal response step number whose Trace metadata identifies the trace'}), ('--summary-db', {'type': Path, 'help': 'Optional path to Antigravity conversation_summaries.db'}), ('--turn-start-step', {'type': int, 'help': 'Optional inclusive starting step index'}), ('--turn-end-step', {'type': int, 'help': 'Optional inclusive ending step index'}), ('--top-gaps', {'type': int, 'default': 10, 'help': 'Number of largest inter-step wall gaps to report (default: 10)'}), ('--output', {'type': Path, 'help': 'Optional output path to persist tab-indented JSON telemetry'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_perf_timesheet, text_fn=_format_perf_timesheet)
 	register_command('problem-metadata', 'Build structured # 0 problem metadata with mandatory GitHub Issue key', (('project', {'type': Path}), ('--issue', {'help': 'Verified GitHub issue URL (mandatory unless --no-issue)'}), ('--no-issue', {'action': 'store_true', 'help': 'Allow null Issue key for non-GitHub workspaces'}), ('--source-project', {'type': Path, 'help': 'Optional distinct owning project root'}), ('--format', {'choices': ('json', 'markdown'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_problem_metadata, text_fn=_format_problem_metadata)
 	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
