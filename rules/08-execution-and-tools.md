@@ -12,6 +12,11 @@ Use `harness.py collect-http` or `collect-browser` for a single observation and 
 Changed conditions, required refreshes, and longitudinal measurements are separate observations with an explicit reason.  
 After three fruitless searches on the same question, return the specific gap or justify a method change; hitting the search limit does not confirm a hypothesis.  
 ## EXEC-2
+Strict Test-Driven Development (TDD) is mandatory for all software code in every language and repository: agents are strictly prohibited from creating or editing any production code before writing a behavioral test for it and observing that test fail (`Red`).  
+Only after observing a genuine test-runner failure (`Red`) may an agent implement or modify production code (`Green`), and writing production code first and fitting tests to it afterward is strictly prohibited (`PreToolUse`, Git `pre-commit`, `answer-check`, `answer-prepare`, and `Stop` enforce this contract).  
+Every test must verify observable runtime behavior rather than reading or matching production source-code text (`read_text`, `open`, `inspect.getsource`, `readFileSync`, `File.ReadAllText`, `file_get_contents`, `Get-Content`), and assertionless test stubs are prohibited.  
+Existing tests and assertions operate as a one-way Test Ratchet: deleting, skipping, or weakening existing test files, test definitions, or assertions (and weakening assertions in newly created test files after production code has been modified in the same cycle) is prohibited unless an audited `RATCHET-OK` approval (`>= 30` characters citing the requirement or user decision, never a test-fitting excuse) is recorded via `harness.py ratchet-ok` or inside the linked GitHub issue body.  
+Before completing a turn or closing a code task, run the full test suite (not a single-file subset when the repository has multiple test files) after the final edit and verify all tests pass (`Green`); inspect active-turn compliance via `harness.py tdd-check`.  
 A test must verify material behavior and reproduce the defect; distinguish mocks, integration tests, and live execution.  
 For code managing persistent connections, daemons, or child-process lifecycles, verify handle release and clean exit on a real process rather than mocks alone.  
 Verify your own changes and the requested environments; a third-party defect does not authorize modifying unrelated files, weakening a check, or substituting a source.  
@@ -35,6 +40,7 @@ GitHub issue titles using three-or-more-item enumerations (`"X, Y, and Z"`, `"X,
 When auditing or diagnosing defects and remediation methods in an issue-tracked `code` repository, record a parent GitHub issue documenting the original problem and verified root causes rather than bundling multiple `M-...` remediations into one issue.  
 When implementing multiple autonomous subtasks (such as multiple `M-...` recommendations or independent specification items), document the original problem in a parent GitHub issue, create a separate child issue per autonomous subtask via `df_github_issue.py create --parent <N>` with a link to the parent issue in its body, commit each child issue in its own separate Git commit (`https://github.com/<owner>/<repo>/issues/<child>`), close each child issue via `df_github_issue.py close` after `git push`, and close the parent issue once all its child subtasks are completed.  
 Perform any code changes in `code` repositories strictly by first creating or linking the corresponding GitHub Issue via `/df-github-issue`, referencing the full issue URL in relevant code comments, setting the commit message to contain only the full GitHub Issue URL (`https://github.com/<owner>/<repo>/issues/<N>`), and closing the issue via `df_github_issue.py close` after `git push` (without bypassing Harness Git hooks via `--no-verify`), while maintaining the Unified Journal `ꙮ`.  
+Agent commits modifying production code must stage substantive behavioral tests and satisfy the Test Ratchet (`EXEC-2`) enforced by Git `pre-commit`, `check_commit`, and turn completion (`tdd_check`).  
 When modifying code or declared `affiliated_paths` of a member of a `similar_projects` group or overlay in [paths.json](../paths.json), maintain sibling parity within the same turn: update peer code, file or update a porting GitHub issue in the peer repository with saved API read-back Evidence JSON via `df_github_issue.py`, or record an explicit `>= 30`-character technical justification via `harness.py similar-project-exempt`.  
 External actions are governed by [SCOPE-2](00-scope.md#scope-2).  
 Before responding, verify task completeness, evidence, checks, the journal, and your own temporary files; report the substantive result and anything left unverified.  
@@ -49,4 +55,5 @@ Before working with an authenticated portal, read the [authenticated access proc
 <!-- https://github.com/dmitry-ai/harness/issues/48 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/85 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/98 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/123 -->
+<!-- https://github.com/dmitry-ai/harness/issues/123 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/139 -->  
