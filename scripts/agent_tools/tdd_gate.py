@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
+# https://github.com/dmitry-ai/harness/issues/160
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
 # https://github.com/dmitry-ai/harness/issues/143
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -296,8 +299,16 @@ def classify_test_command(cmd: str, *, scope_root: Path | None = None) -> dict:
 			continue
 		seg_is_test = False
 		seg_is_full = False
+		# Harness parallel test runner (harness.py run-tests)
+		if re.search(r'(?i)(?:^|\s)["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+run-tests(?:\s|$)', s):
+			seg_is_test = True
+			has_mod = bool(re.search(r'(?:\s--module(?:=|\s+))', s))
+			m_pat = re.search(r'(?:-p|--pattern)(?:\s+|=)(?:"([^"]+)"|\'([^\']+)\'|(\S+))', s)
+			pat_val = (m_pat.group(1) or m_pat.group(2) or m_pat.group(3)) if m_pat else None
+			narrow_pat = (None is not pat_val) and ('*' not in pat_val) and ('?' not in pat_val)
+			seg_is_full = (not has_mod) and (not narrow_pat)
 		# Python unittest
-		if re.search(r'(?i)\bpython(?:3(?:\.\d+)?)?(?:\.exe)?\b[^\r\n]*\s-m\s+unittest\b', s):
+		elif re.search(r'(?i)\bpython(?:3(?:\.\d+)?)?(?:\.exe)?\b[^\r\n]*\s-m\s+unittest\b', s):
 			seg_is_test = True
 			has_discover = bool(re.search(r'\bdiscover\b', s))
 			m_pat = re.search(r'(?:-p|--pattern)(?:\s+|=)(?:"([^"]+)"|\'([^\']+)\'|(\S+))', s)

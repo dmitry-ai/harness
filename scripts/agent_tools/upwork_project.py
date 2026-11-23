@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
+# https://github.com/dmitry-ai/harness/issues/160
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 # https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -590,6 +593,7 @@ def main(argv=None):
 		'install-global': ('Connect selected Antigravity/Codex profiles to shared native Harness sources', (('--target-profile', {'action': 'append', 'choices': all_profiles, 'help': 'Profile to configure; repeat for a pilot, default: enabled profiles'}), ('--check', {'action': 'store_true', 'help': 'Verify shared sources, inherited manifests, directory links and role paths without writing'}))),
 		'build-native': ('Generate/check native projections from canonical policy and runtime', (('--root', {'type': Path}), ('--check', {'action': 'store_true'}))),
 		'policy-instructions': ('Read only the current profile global developer_instructions key', ()),
+		'run-tests': ('Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'}))),
 	}
 	for cmd_name, (help_text, specs) in subcommands.items():
 		add_arg_specs(sub.add_parser(cmd_name, help=help_text), specs)
@@ -611,6 +615,14 @@ def run(args):
 			result = execute(args)
 			dump_json(result)
 			r = result_exit_code(result, extra_failures=(False is result.get('content_available_for_all'), bool(result.get('error')), bool(result.get('extraction_error')), True is result.get('browser_check_required'), 'conflict' == (result.get('publication') or {}).get('status')))
+		elif 'run-tests' == args.command:
+			from .suite_runner import format_text_report, run_test_suite
+			report = run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
+			if 'json' == args.format:
+				dump_json(report)
+			else:
+				sys.stdout.write(format_text_report(report))
+			r = int(report['exit_code'])
 		elif 'validate-analysis' == args.command:
 			value = read_input_json(args.input)
 			from .analysis import analysis_issues, publish_analysis
