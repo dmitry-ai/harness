@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
+# https://github.com/dmitry-ai/harness/issues/150
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate transfer-repo unit test from live df-servers repository evidence":
 # https://github.com/dmitry-ai/harness/issues/127
@@ -77,7 +80,8 @@ class TestGitHubIssueTool(unittest.TestCase):
 		with tempfile.TemporaryDirectory() as tmp:
 			body_path = Path(tmp) / 'body.md'
 			body_text = '## Summary\nFix `Magento\\Framework\\Data\\Form\\FormKey` in lines 10–20.\n'
-			body_path.write_text(body_text, encoding='utf-8')
+			body_path.write_text(body_text, encoding='utf-8', newline='\n')
+			stored = {'number': 46, 'title': 'Test issue title', 'body': body_text, 'html_url': 'https://github.com/smokeday-com/m/issues/46'}
 			def fake_run(cmd, *, input=None, capture_output=True, check=False, creationflags=None):
 				self.assertEqual(creationflags, getattr(subprocess, 'CREATE_NO_WINDOW', 0))
 				class DummyProc:
@@ -85,17 +89,25 @@ class TestGitHubIssueTool(unittest.TestCase):
 					stderr = b''
 					stdout = b''
 				proc = DummyProc()
-				if not ('-X' in cmd and 'POST' in cmd):
-					proc.stdout = json.dumps({'number': 46, 'title': 'Test issue title', 'body': body_text, 'html_url': 'https://github.com/smokeday-com/m/issues/46'}).encode('utf-8')
-				else:
+				if '-X' in cmd and 'POST' in cmd:
 					payload = json.loads(input.decode('utf-8'))
-					proc.stdout = json.dumps({'number': 46, 'title': payload['title'], 'body': payload['body']}).encode('utf-8')
+					stored['title'] = payload['title']
+					stored['body'] = payload['body']
+					proc.stdout = json.dumps(stored).encode('utf-8')
+				elif '-X' in cmd and 'PATCH' in cmd:
+					payload = json.loads(input.decode('utf-8'))
+					stored.update(payload)
+					proc.stdout = json.dumps(stored).encode('utf-8')
+				else:
+					proc.stdout = json.dumps(stored).encode('utf-8')
 				r = proc
 				return r
 			with patch('agent_tools.github_issue.subprocess.run', side_effect=fake_run):
 				rc = main(['create', '--repo', 'smokeday-com/m', '--title', 'Test issue title', '--body-file', str(body_path), '--project-root', str(tmp), '--consume-input'])
 				self.assertEqual(rc, 0)
 				self.assertFalse(body_path.exists())
+				self.assertTrue(stored['body'].startswith('```json\n{\n\t"Time": '))
+				self.assertTrue(stored['body'].endswith(body_text))
 	def test_close_requires_committed_issue_url_in_local_code_repo(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'proj'
@@ -337,5 +349,77 @@ class TestGitHubIssueTool(unittest.TestCase):
 			ev_data = json.loads(ev_file.read_text(encoding='utf-8'))
 			self.assertEqual(ev_data['verified_repo']['full_name'], 'example-org/demo-srv')
 			self.assertEqual(main(['transfer-repo', '--repo', 'example-org/demo-srv', '--new-owner', 'example-org', '--project-root', str(proj)]), 1)
+	def test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out(self):
+		import io
+		from agent_tools import metadata
+		with tempfile.TemporaryDirectory() as tmp:
+			proj = Path(tmp).resolve() / 'demo-proj'
+			(proj / '\ua616/data/scratch').mkdir(parents=True)
+			body_file = proj / '\ua616/data/scratch/issue.md'
+			raw_body = '## Problem\nMissing metadata header in new issues.\n'
+			body_file.write_text(raw_body, encoding='utf-8', newline='\n')
+			issues_db = {}
+			next_num = [10]
+			calls = []
+			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
+				calls.append((method, endpoint))
+				if 'POST' == method and endpoint.endswith('/issues'):
+					num = next_num[0]
+					next_num[0] += 1
+					issues_db[num] = {
+						'number': num,
+						'id': 9000 + num,
+						'title': payload['title'],
+						'body': payload['body'],
+						'state': 'open',
+						'html_url': f'https://github.com/acme/demo/issues/{num}',
+					}
+					return dict(issues_db[num])
+				if 'PATCH' == method and '/issues/' in endpoint:
+					num = int(endpoint.rsplit('/', 1)[-1])
+					issues_db[num].update(payload)
+					return dict(issues_db[num])
+				if 'GET' == method and '/issues/' in endpoint:
+					num = int(endpoint.rsplit('/', 1)[-1])
+					return dict(issues_db[num])
+				raise AssertionError(f'Unexpected {method} {endpoint}')
+			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
+				buf = io.StringIO()
+				with patch('sys.stdout', buf):
+					rc = main(['create', '--repo', 'acme/demo', '--title', 'Add metadata header', '--body-file', str(body_file), '--project-root', str(proj)])
+				self.assertEqual(rc, 0, buf.getvalue())
+				out = json.loads(buf.getvalue())
+				self.assertTrue(out['verified'])
+				self.assertTrue(out.get('metadata_prepended'))
+				stored_body = issues_db[10]['body']
+				self.assertTrue(stored_body.startswith('```json\n{\n\t"Time": '))
+				parsed_meta, extracted_body = metadata.extract_leading_metadata_header(stored_body)
+				self.assertIsNotNone(parsed_meta)
+				self.assertEqual(parsed_meta['Issue'], 'https://github.com/acme/demo/issues/10')
+				self.assertEqual(parsed_meta['Project']['Path'], proj.as_posix())
+				self.assertRegex(parsed_meta['Time'], r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC[+-]\d+(?::\d{2})?$')
+				self.assertEqual(extracted_body, raw_body)
+				ev_file = proj / '\ua616/KB/Evidence/GitHub/acme__demo/issue-10.json'
+				self.assertEqual(json.loads(ev_file.read_text(encoding='utf-8'))['body'], stored_body)
+
+				# Opt-out via --no-metadata skips PATCH and leaves body verbatim
+				calls.clear()
+				buf2 = io.StringIO()
+				with patch('sys.stdout', buf2):
+					rc2 = main(['create', '--repo', 'acme/demo', '--title', 'Plain issue body', '--body-file', str(body_file), '--project-root', str(proj), '--no-metadata'])
+				self.assertEqual(rc2, 0, buf2.getvalue())
+				self.assertEqual(issues_db[11]['body'], raw_body)
+				self.assertFalse(any(('PATCH' == m for m, _ in calls)))
+
+				# Existing Harness metadata header in body is not duplicated
+				prefixed_file = proj / '\ua616/data/scratch/prefixed.md'
+				prefixed_file.write_text(stored_body, encoding='utf-8', newline='\n')
+				calls.clear()
+				buf3 = io.StringIO()
+				with patch('sys.stdout', buf3):
+					rc3 = main(['create', '--repo', 'acme/demo', '--title', 'Already prefixed issue', '--body-file', str(prefixed_file), '--project-root', str(proj)])
+				self.assertEqual(rc3, 0, buf3.getvalue())
+				self.assertEqual(issues_db[12]['body'].count('```json'), 1)
+				self.assertFalse(any(('PATCH' == m for m, _ in calls)))
 if '__main__' == __name__:
 	unittest.main()

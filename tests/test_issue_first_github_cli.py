@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
+# https://github.com/dmitry-ai/harness/issues/150
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add fetch subcommand and Issue-First pre-flight guards to df_github_issue.py":
 # https://github.com/dmitry-ai/harness/issues/144
 from __future__ import annotations
@@ -161,6 +164,10 @@ class IssueFirstGitHubCliTests(unittest.TestCase):
 					return issues_db[num]
 				if 'POST' == method and endpoint.endswith('/sub_issues'):
 					return {'linked': True}
+				if 'PATCH' == method and '/issues/' in endpoint:
+					num = int(endpoint.rsplit('/', 1)[-1])
+					issues_db[num].update(payload)
+					return issues_db[num]
 				if 'GET' == method and '/issues/' in endpoint:
 					return issues_db[int(endpoint.rsplit('/', 1)[-1])]
 				raise AssertionError(f'Unexpected {method} {endpoint}')

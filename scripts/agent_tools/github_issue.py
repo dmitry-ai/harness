@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
+# https://github.com/dmitry-ai/harness/issues/150
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add fetch subcommand and Issue-First pre-flight guards to df_github_issue.py":
 # https://github.com/dmitry-ai/harness/issues/144
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -188,7 +191,7 @@ def has_enumerated_slop_title(title: str) -> bool:
 			return True
 		s = s[:m.start()] + 'GROUP' + s[m.end():]
 	return any((_clause_has_triple_enumeration(part) for part in re.split('\\s*(?::|\\u2014|--)\\s*', s)))
-def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, expected_body: str | None, write_fn, read_fn, kind: str, id_key: str, consume_input: bool, project_root: str | Path | None, parent_number: int | None=None, self_number: int | None=None, check_structure_policy: bool=True, post_write_fn=None) -> int:
+def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, expected_body: str | None, write_fn, read_fn, kind: str, id_key: str, consume_input: bool, project_root: str | Path | None, parent_number: int | None=None, self_number: int | None=None, check_structure_policy: bool=True, post_write_fn=None, expected_body_fn=None) -> int:
 	eff_structure = check_structure_policy and ('comment' != kind)
 	title_errors = lint_issue_markdown(expected_title, is_title=True, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure) if None is not expected_title else []
 	body_errors = lint_issue_markdown(expected_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure, parent_number=parent_number, repo=repo, self_number=self_number) if None is not expected_body else []
@@ -203,11 +206,12 @@ def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Pat
 		fetched = read_fn(ident)
 		remote_title = fetched.get('title') or ''
 		remote_body = fetched.get('body') or ''
+		eff_expected_body = expected_body_fn(ident) if None is not expected_body_fn else expected_body
 		eff_self = self_number if None is not self_number else ident if 'issue' == kind and isinstance(ident, int) else None
 		post_title_errors = lint_issue_markdown(remote_title, is_title=True, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure) if None is not expected_title else []
-		post_body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure, parent_number=parent_number, repo=repo, self_number=eff_self) if None is not expected_body else []
+		post_body_errors = lint_issue_markdown(remote_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_structure, parent_number=parent_number, repo=repo, self_number=eff_self) if None is not eff_expected_body else []
 		title_match = True if None is expected_title else normalize_newlines(remote_title) == normalize_newlines(expected_title)
-		body_match = True if None is expected_body else normalize_newlines(remote_body) == normalize_newlines(expected_body)
+		body_match = True if None is eff_expected_body else normalize_newlines(remote_body) == normalize_newlines(eff_expected_body)
 		exact_match = title_match and body_match
 		if exact_match and (not post_title_errors) and (not post_body_errors):
 			extra_out = post_write_fn(ident, fetched) if None is not post_write_fn else None
@@ -818,15 +822,47 @@ def cmd_create(args: argparse.Namespace) -> int:
 			payload['assignees'] = assignees
 	if None is not args.milestone:
 		payload['milestone'] = args.milestone
+	def _resolve_metadata_project_root() -> Path | None:
+		if None is not project_root and str(project_root).strip():
+			return Path(project_root).resolve()
+		code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=consumable)
+		if None is not code_repo:
+			try:
+				from .path_registry import project_paths
+				return project_paths(code_repo).root
+			except (OSError, ValueError):
+				return code_repo
+		try:
+			from .path_registry import resolve_project_root
+			return resolve_project_root(Path.cwd().resolve())
+		except (OSError, ValueError):
+			return Path.cwd().resolve()
+	final_body_state: dict[str, Any] = {'body': body, 'prepended': False}
+	no_metadata = bool(getattr(args, 'no_metadata', False))
 	def _write_issue() -> int:
 		if None is not eff_parent:
 			_verify_and_persist_parent_issue(consumable, repo, eff_parent, project_root=project_root, require_open=True)
-		return _gh_api(f'repos/{repo}/issues', method='POST', payload=payload)['number']
+		created = _gh_api(f'repos/{repo}/issues', method='POST', payload=payload)
+		num = created['number']
+		if not no_metadata:
+			from .metadata import build_github_issue_metadata, extract_leading_metadata_header, prepend_metadata_header
+			existing_meta, _ = extract_leading_metadata_header(body)
+			if None is existing_meta:
+				issue_url = str(created.get('html_url') or f'https://github.com/{repo}/issues/{num}')
+				meta_obj = build_github_issue_metadata(issue_url=issue_url, project_root=_resolve_metadata_project_root())
+				prefixed = prepend_metadata_header(body, meta_obj)
+				_gh_api(f'repos/{repo}/issues/{num}', method='PATCH', payload={'body': prefixed})
+				final_body_state['body'] = prefixed
+				final_body_state['prepended'] = True
+		return num
 	def _after_create(_ident: int, fetched: dict[str, Any]) -> dict[str, Any] | None:
+		extra: dict[str, Any] = {}
+		if final_body_state['prepended']:
+			extra['metadata_prepended'] = True
 		if None is not eff_parent:
-			return {'sub_issue_linked': _try_link_github_sub_issue(repo, eff_parent, fetched.get('id'))}
-		return None
-	return _run_verified_mutation(action='create', repo=repo, consumable=consumable, target_locale=target_locale, container_text=None, expected_title=title, expected_body=body, write_fn=_write_issue, read_fn=lambda num: _gh_api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=eff_parent, post_write_fn=_after_create)
+			extra['sub_issue_linked'] = _try_link_github_sub_issue(repo, eff_parent, fetched.get('id'))
+		return extra or None
+	return _run_verified_mutation(action='create', repo=repo, consumable=consumable, target_locale=target_locale, container_text=None, expected_title=title, expected_body=body, expected_body_fn=lambda _ident: final_body_state['body'], write_fn=_write_issue, read_fn=lambda num: _gh_api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=eff_parent, post_write_fn=_after_create)
 def cmd_edit(args: argparse.Namespace) -> int:
 	repo = _validate_repo(args.repo)
 	number = args.issue
@@ -1097,7 +1133,7 @@ def build_parser() -> argparse.ArgumentParser:
 	sub_defs = (
 		('lint', 'Validate issue title/body Markdown offline.', cmd_lint, ((('--repo', '-R'), {'help': 'Optional owner/repo slug for validating parent issue URLs.'}), (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), ('--title', {'help': 'Issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing issue title.'}), ('--body-file', {'required': True, 'help': 'UTF-8 file containing issue/comment Markdown body.'}), ('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}))),
 		('fetch', 'Fetch an existing GitHub issue read-only and persist verified Evidence JSON.', cmd_fetch, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), ('--project-root', {'help': 'Optional explicit project root directory.'}))),
-		('create', 'Create a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_create, (_REPO_SPEC, (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), (('--title', '-t'), {'help': 'Issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing issue title.'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing issue Markdown body.'}), (('--label', '-l'), {'action': 'append', 'help': 'Issue label(s), repeatable or comma-separated.'}), (('--assignee', '-a'), {'action': 'append', 'help': 'Assignee login(s), repeatable or comma-separated.'}), (('--milestone', '-m'), {'type': int, 'help': 'Milestone number.'}), *_COMMON_TAIL_SPECS)),
+		('create', 'Create a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_create, (_REPO_SPEC, (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), (('--title', '-t'), {'help': 'Issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing issue title.'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing issue Markdown body.'}), (('--label', '-l'), {'action': 'append', 'help': 'Issue label(s), repeatable or comma-separated.'}), (('--assignee', '-a'), {'action': 'append', 'help': 'Assignee login(s), repeatable or comma-separated.'}), (('--milestone', '-m'), {'type': int, 'help': 'Milestone number.'}), ('--no-metadata', {'action': 'store_true', 'help': 'Skip automatic prepending of the Harness JSON metadata header.'}), *_COMMON_TAIL_SPECS)),
 		('edit', 'Update a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_edit, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), (('--title', '-t'), {'help': 'Updated issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing updated issue title.'}), (('--body-file', '-F'), {'help': 'UTF-8 file containing updated issue Markdown body.'}), ('--state', {'choices': ['open', 'closed'], 'help': 'Optional state change.'}), *_COMMON_TAIL_SPECS)),
 		('comment', 'Add or edit an issue comment from a UTF-8 file and verify via API read-back.', cmd_comment, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'help': 'Issue number (for creating a new comment).'}), (('--comment-id', '-c'), {'type': int, 'help': 'Comment ID (for editing an existing comment).'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing comment Markdown body.'}), ('--allow-additional-comment', {'action': 'store_true', 'help': 'Explicitly allow creating an additional comment on an issue that already has a tracked comment.'}), *_COMMON_TAIL_SPECS)),
 		('close', 'Close a GitHub issue with optional verified comment from a UTF-8 file.', cmd_close, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), (('--reason', '-r'), {'choices': ['completed', 'not_planned'], 'default': 'completed', 'help': 'Closure reason.'}), (('--comment-file', '-F'), {'help': 'Optional UTF-8 file containing closing comment Markdown.'}), *_COMMON_TAIL_SPECS)),
