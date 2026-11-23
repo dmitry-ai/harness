@@ -484,9 +484,12 @@ class WorktreeCommitTransaction:
 		finally:
 			self.remove(wt_dir)
 		return r
+	# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
+	# https://github.com/dmitry-ai/harness/issues/201
 	def create(self) -> Path:
-		base = project_paths(self.gate.root).worktrees_dir
-		base.mkdir(parents=True, exist_ok=True)
+		from .git_ignore import prepare_worktrees_base_dir
+		base, _ = prepare_worktrees_base_dir(self.gate.root)
 		r = base / f'{self.label}-{uuid.uuid4().hex[:10]}'
 		self.gate.git('worktree', 'add', '--detach', str(r), 'HEAD')
 		return r

@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
+# https://github.com/dmitry-ai/harness/issues/201
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Manage Harness ephemeral Git exclusions in install-global and doctor":
 # https://github.com/dmitry-ai/harness/issues/198
 from __future__ import annotations
@@ -13,14 +16,43 @@ GIT_IGNORE_START = '# >>> harness:ephemeral-ignore:start >>>'
 HARNESS_GLOBAL_IGNORE_PATTERNS = ('\ua616/data/worktrees/', '\ua616/data/scratch/', '\ua616/data/browser-locks/', '\ua616/data/repo-leases/', '**/*.lock')
 _MODULE_PRIMARY = Path(__file__).resolve().parents[2]
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+def _append_exclude_pattern(exclude_file: Path, pattern: str) -> bool:
+	existing = exclude_file.read_text(encoding='utf-8') if exclude_file.is_file() else ''
+	if pattern in existing.splitlines():
+		r = False
+	else:
+		nl = '\r\n' if '\r\n' in existing else '\n'
+		sep = '' if not existing or existing.endswith(('\n', '\r')) else nl
+		replace_bytes(exclude_file, f'{existing}{sep}{pattern}{nl}'.encode('utf-8'))
+		r = True
+	return r
 def _configured_excludes_file(env: dict[str, str] | None) -> Path | None:
 	proc = subprocess.run(['git', 'config', '--global', '--path', '--get', 'core.excludesFile'], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, check=False, creationflags=_NO_WINDOW)
 	raw = (proc.stdout or '').strip() if 0 == proc.returncode else ''
 	return normalize_host_path(raw).resolve() if raw else None
+def _detect_enclosing_repo(base_dir: Path) -> tuple[Path, Path, str] | None:
+	proc = _git_read(base_dir, 'rev-parse', '--show-toplevel', '--git-common-dir')
+	lines = [ln.strip() for ln in (proc.stdout or '').splitlines() if ln.strip()] if 0 == proc.returncode else []
+	if 2 > len(lines):
+		r = None
+	else:
+		toplevel = normalize_host_path(lines[0]).resolve()
+		raw_common = normalize_host_path(lines[1])
+		common = raw_common.resolve() if raw_common.is_absolute() else (base_dir / raw_common).resolve()
+		try:
+			rel = base_dir.relative_to(toplevel).as_posix()
+		except ValueError:
+			rel = ''
+		r = (toplevel, common, rel) if rel and '.' != rel else None
+	return r
 def _git_ignore_issue(target: Path, message: str) -> dict:
 	return {'file': str(target), 'message': message}
+def _git_read(cwd: Path, *args: str) -> subprocess.CompletedProcess:
+	return subprocess.run(['git', '--no-optional-locks', '-C', str(cwd), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}, check=False, creationflags=_NO_WINDOW)
 def _is_canonical_primary(primary: Path) -> bool:
 	return resolve_code_anchor(primary) == resolve_code_anchor(_MODULE_PRIMARY)
+def _is_path_ignored(toplevel: Path, rel_probe: str) -> bool:
+	return 0 == _git_read(toplevel, 'check-ignore', '-q', '--no-index', '--', rel_probe).returncode
 def _merge_managed_block(existing: str, block: str, *, newline: str) -> str:
 	has_start, has_end = (GIT_IGNORE_START in existing, GIT_IGNORE_END in existing)
 	if not has_start and (not has_end):
@@ -46,6 +78,20 @@ def _plan_global_git_ignore(target: Path) -> tuple[str | None, str | None, str |
 	return r
 def _skipped_git_ignore_report() -> dict:
 	return {'valid': True, 'skipped': True, 'reason': 'isolated_primary', 'path': None, 'changed': False, 'patterns': list(HARNESS_GLOBAL_IGNORE_PATTERNS), 'issues': []}
+def _tracked_worktree_entries(toplevel: Path, rel: str) -> tuple[list[dict], list[str], list[str]]:
+	proc = _git_read(toplevel, '-c', 'core.quotePath=false', 'ls-files', '--stage', '--', rel)
+	entries, gitlinks, warnings = ([], [], [])
+	if 0 == proc.returncode:
+		for line in (proc.stdout or '').splitlines():
+			meta, sep, path = line.partition('\t')
+			parts = meta.split()
+			if sep and 2 <= len(parts) and path:
+				mode, sha = (parts[0], parts[1])
+				entries.append({'mode': mode, 'sha': sha, 'path': path})
+				if '160000' == mode:
+					gitlinks.append(path)
+				warnings.append(f'Enclosing repo {toplevel.as_posix()} already tracks {path} (mode {mode}); untrack via: git -C "{toplevel.as_posix()}" rm --cached "{path}"')
+	return (entries, gitlinks, warnings)
 def _write_verified_ignore(target: Path, desired: str) -> str | None:
 	payload = desired.encode('utf-8')
 	try:
@@ -54,6 +100,21 @@ def _write_verified_ignore(target: Path, desired: str) -> str | None:
 	except OSError as exc:
 		err = str(exc)
 	return err
+def ensure_worktree_dir_ignored(base_dir: Path | str) -> dict:
+	target = normalize_host_path(str(base_dir)).resolve()
+	target.mkdir(parents=True, exist_ok=True)
+	enclosing = _detect_enclosing_repo(target)
+	if None is enclosing:
+		r = {'enclosing_repo': None, 'already_ignored': False, 'excluded': False, 'exclude_file': None, 'pattern': None, 'tracked_entries': [], 'tracked_gitlinks': [], 'warnings': []}
+	else:
+		toplevel, common_dir, rel = enclosing
+		pattern = f'/{rel}/'
+		exclude_file = common_dir / 'info/exclude'
+		already = _is_path_ignored(toplevel, f'{rel}/probe')
+		excluded = False if already else _append_exclude_pattern(exclude_file, pattern)
+		entries, gitlinks, warnings = _tracked_worktree_entries(toplevel, rel)
+		r = {'enclosing_repo': toplevel.as_posix(), 'already_ignored': already, 'excluded': excluded, 'exclude_file': exclude_file.as_posix(), 'pattern': pattern, 'tracked_entries': entries, 'tracked_gitlinks': gitlinks, 'warnings': warnings}
+	return r
 def finalize_install_result(result: dict, all_declared: list, names: list, primary: Path, *, check: bool=False, git_ignore_path: Path | str | None=None) -> dict:
 	result['skipped_disabled'] = [name for name in all_declared if name not in names]
 	target = resolve_managed_git_ignore_target(primary, git_ignore_path=git_ignore_path)
@@ -69,6 +130,10 @@ def merge_managed_git_ignore(existing_text: str, *, patterns: tuple[str, ...]=HA
 	nl = '\r\n' if '\r\n' in existing_text else '\n'
 	block = render_managed_git_ignore_block(patterns, newline=nl)
 	return _merge_managed_block(existing_text, block, newline=nl)
+def prepare_worktrees_base_dir(repo: Path | str, *, worktrees_dir: Path | str | None=None) -> tuple[Path, dict]:
+	from .path_registry import project_paths
+	base = normalize_host_path(str(worktrees_dir)).resolve() if None is not worktrees_dir else project_paths(Path(repo).resolve()).worktrees_dir.resolve()
+	return (base, ensure_worktree_dir_ignored(base))
 def render_managed_git_ignore_block(patterns: tuple[str, ...]=HARNESS_GLOBAL_IGNORE_PATTERNS, *, newline: str='\n') -> str:
 	return newline.join((GIT_IGNORE_START, *patterns, GIT_IGNORE_END))
 def resolve_global_git_ignore_path(*, env: dict[str, str] | None=None, explicit_path: Path | str | None=None) -> Path:

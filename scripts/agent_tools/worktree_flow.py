@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
+# https://github.com/dmitry-ai/harness/issues/201
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
 # https://github.com/dmitry-ai/harness/issues/165
@@ -7,6 +10,7 @@ import re
 import shutil
 import subprocess
 from .git_gate import GitRepoGate, _NO_WINDOW
+from .git_ignore import prepare_worktrees_base_dir
 from .landing_lease import acquire_lease, release_lease
 from .path_registry import project_paths
 _SAFE_TASK_RE = re.compile(r'[^A-Za-z0-9_.-]+')
@@ -126,15 +130,14 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	safe_id = _safe_task_id(task_id)
 	branch = f'task/{safe_id}'
-	base_dir = Path(worktrees_dir).resolve() if None is not worktrees_dir else project_paths(main_repo).worktrees_dir
-	base_dir.mkdir(parents=True, exist_ok=True)
+	base_dir, ignore_info = prepare_worktrees_base_dir(main_repo, worktrees_dir=worktrees_dir)
 	wt_path = (base_dir / safe_id).resolve()
 	if not (wt_path / '.git').exists():
 		proc = _git_exec(main_repo, 'worktree', 'add', '-b', branch, str(wt_path), base_ref)
 		if 0 != proc.returncode:
 			raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f'git worktree add failed for {wt_path}')
 	head = GitRepoGate(wt_path).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
-	return {'valid': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': _current_branch(wt_path) or branch, 'base_ref': base_ref, 'head': head}
+	return {'valid': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': _current_branch(wt_path) or branch, 'base_ref': base_ref, 'head': head, 'enclosing_ignore': ignore_info}
 def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False) -> dict:
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	wt_path = Path(target).resolve()
