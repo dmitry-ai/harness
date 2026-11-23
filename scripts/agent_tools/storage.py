@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate historical admission fixtures and guard optional temp fsync":
+# https://github.com/dmitry-ai/harness/issues/177
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Accelerate project_paths and overlay link resolution with fast-path caching":
 # https://github.com/dmitry-ai/harness/issues/174
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -38,6 +41,14 @@ def _replace_with_retry(temp: Path, path: Path):
 			if 9 == attempt:
 				raise
 			time.sleep(0.025)
+def _should_skip_fsync(path: Path) -> bool:
+	r = False
+	if '1' == os.environ.get('HARNESS_TEST_NO_FSYNC'):
+		try:
+			r = path.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
+		except (OSError, ValueError):
+			r = False
+	return r
 def _stage_atomic_write(path: Path, data: bytes, commit):
 	fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
 	temp = Path(name)
@@ -45,7 +56,8 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 		with os.fdopen(fd, 'wb') as stream:
 			stream.write(data)
 			stream.flush()
-			os.fsync(stream.fileno())
+			if not _should_skip_fsync(path):
+				os.fsync(stream.fileno())
 		commit(temp, path)
 	finally:
 		temp.unlink(missing_ok=True)

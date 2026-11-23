@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate historical admission fixtures and guard optional temp fsync":
+# https://github.com/dmitry-ai/harness/issues/177
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add parallel fail-fast test runner and worktree-aware TDD support":
 # https://github.com/dmitry-ai/harness/issues/159
@@ -74,7 +77,7 @@ def _run_single_module(module: Path, tests_dir: Path, *, failfast: bool, buffer_
 		r = {'module': module.stem, 'ok': False, 'returncode': -1, 'timed_out': False, 'aborted': True, 'tests': 0, 'duration': 0.0, 'output': ''}
 	else:
 		cmd = _build_worker_cmd(module, failfast=failfast, buffer_output=buffer_output)
-		env = {**os.environ, 'PYTHONUTF8': '1', 'GIT_OPTIONAL_LOCKS': '0'}
+		env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'PYTHONUTF8': '1', 'GIT_OPTIONAL_LOCKS': '0'}
 		proc = subprocess.Popen(cmd, cwd=str(tests_dir), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, creationflags=_NO_WINDOW)
 		with active_lock:
 			active_procs.add(proc)

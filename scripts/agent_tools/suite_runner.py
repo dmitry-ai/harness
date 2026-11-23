@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate historical admission fixtures and guard optional temp fsync":
+# https://github.com/dmitry-ai/harness/issues/177
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
 # https://github.com/dmitry-ai/harness/issues/160
@@ -57,7 +60,7 @@ def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_
 		started = time.monotonic()
 		timed_out, cancelled = (False, False)
 		with tempfile.TemporaryFile() as out_file:
-			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdout=out_file, stderr=subprocess.STDOUT, creationflags=_NO_WINDOW)
+			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdout=out_file, stderr=subprocess.STDOUT, env={'HARNESS_TEST_NO_FSYNC': '1', **os.environ}, creationflags=_NO_WINDOW)
 			with active_lock:
 				active_procs.add(proc)
 			try:

@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deduplicate historical admission fixtures and guard optional temp fsync":
+# https://github.com/dmitry-ai/harness/issues/177
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
@@ -8,20 +11,36 @@ from copy import deepcopy
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
+import shutil
 import sqlite3
+import time
 import unittest
 from unittest.mock import patch
 import uuid
 import test_turn_completion as native_fixtures
 import test_text_integration as text_fixtures
-from agent_tools import completion, text_claims, text_review, text_sources, text_workflow
+from agent_tools import completion, path_registry, text_claims, text_review, text_sources, text_workflow
+def _restore_tree_in_place(snapshot_dir: Path, work_dir: Path) -> None:
+	for attempt in range(10):
+		try:
+			if work_dir.exists():
+				shutil.rmtree(work_dir)
+			break
+		except PermissionError:
+			if 9 == attempt:
+				raise
+			time.sleep(0.025)
+	shutil.copytree(snapshot_dir, work_dir)
+	path_registry.clear_registry_cache()
 class Later(datetime):
 	@classmethod
 	def now(cls, tz=None):
 		return datetime.now(timezone.utc) + timedelta(days=2)
 class HistoricalAdmissionTests(unittest.TestCase):
 	def setUp(self):
+		self.enterContext(patch.dict(os.environ, {'HARNESS_TEST_NO_FSYNC': '1'}))
 		self.enterContext(patch('agent_tools.metrics.verify_native_proof', side_effect=lambda root, native, package=None: native))
 	def fixture(self, platform='codex', *, applied=True):
 		text = text_fixtures.TextReviewTests()
@@ -123,15 +142,18 @@ class HistoricalAdmissionTests(unittest.TestCase):
 				self.assertFalse((case.project / 'ꙮ/≺/1–20/1.md').exists())
 	def test_proof_evidence_review_document_and_journal_changes_remain_conflicts(self):
 		for platform in ('codex', 'antigravity'):
+			case = self.fixture(platform)
+			self.deliver(case)
+			snap_dir = case.project.parent / f'_delivered_snapshot_{platform}'
+			shutil.copytree(case.project, snap_dir)
+			_, base_state = self.state(case)
+			recorded = base_state.get('journal_record') or base_state['prepared']
+			entry = text_workflow._index(case.project)['targets'][case.text.op['target']]
+			paths = {'proof': Path(recorded['admission']['file']), 'source': case.project / case.text.source['source_check'], 'evidence': case.project / 'ꘖ/KB' / case.text.source['spec']['evidence']['observation'], 'check': case.project / case.text.checked['check'], 'applied': case.project / entry['receipt'], 'review': case.project / case.text.review['report'], 'target': case.text.target, 'journal': Path(recorded['response_file']), 'group': Path(recorded['group_file'])}
 			for kind in ('proof', 'source', 'evidence', 'check', 'applied', 'review', 'target', 'journal', 'group'):
 				for mutation in ('change', 'delete'):
 					with self.subTest(platform=platform, kind=kind, mutation=mutation):
-						case = self.fixture(platform)
-						self.deliver(case)
-						_, state = self.state(case)
-						recorded = state.get('journal_record') or state['prepared']
-						entry = text_workflow._index(case.project)['targets'][case.text.op['target']]
-						paths = {'proof': Path(recorded['admission']['file']), 'source': case.project / case.text.source['source_check'], 'evidence': case.project / 'ꘖ/KB' / case.text.source['spec']['evidence']['observation'], 'check': case.project / case.text.checked['check'], 'applied': case.project / entry['receipt'], 'review': case.project / case.text.review['report'], 'target': case.text.target, 'journal': Path(recorded['response_file']), 'group': Path(recorded['group_file'])}
+						_restore_tree_in_place(snap_dir, case.project)
 						path = paths[kind]
 						if kind == 'evidence':
 							path = path.with_name('response.bin')
