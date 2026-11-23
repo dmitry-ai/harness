@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Align check_stop_gate with Antigravity 2.0 conversationId contract and continuation loop guard":
+# https://github.com/dmitry-ai/harness/issues/197
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/79
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
@@ -132,7 +135,7 @@ def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows:
 	from agent_tools.hook_runtime import iter_turn_state_files
 	handed_off_fallback: tuple[int, dict] | None = None
 	for _, st in iter_turn_state_files(t_dir):
-		if st.get('conversation_id') != session_id:
+		if str(st.get('conversation_id') or '').strip().lower() != session_id:
 			continue
 		req_steps = {req.get('native_step') for req in st.get('requests') or [] if isinstance(req, dict)}
 		if st.get('native_turn_id') == f'ag-{session_id}-{last_user_step}' or last_user_step in req_steps or st.get('native_start_step') == last_user_step:
@@ -146,15 +149,32 @@ def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows:
 	return handed_off_fallback[1] if None is not handed_off_fallback else None
 def _resolve_backend_fallback(session_id: str) -> Path:
 	return _resolve_stop_paths(session_id)[0]
+def _evaluate_prepared_match(matched_state: dict, last_planner_text: str) -> dict:
+	r = {'decision': 'allow'}
+	prep = matched_state.get('prepared')
+	if last_planner_text and isinstance(prep, dict):
+		sha = hashlib.sha256(last_planner_text.encode('utf-8')).hexdigest()
+		if sha != prep.get('response_sha256') and sha != prep.get('body_sha256'):
+			res_file = Path(prep.get('response_file') or '')
+			prep_text = res_file.read_text(encoding='utf-8', errors='replace') if res_file.is_file() else ''
+			_ensure_scripts_on_path()
+			try:
+				from agent_tools.metadata import strip_leading_metadata_header
+				prep_body = strip_leading_metadata_header(prep_text)
+			except Exception:
+				prep_body = prep_text
+			if not prep_text or (_strip_local_file_scheme(prep_text) != _strip_local_file_scheme(last_planner_text) and _strip_local_file_scheme(prep_body) != _strip_local_file_scheme(last_planner_text)):
+				r = {'decision': 'continue', 'reason': 'FILE-3 Stop Gate: Final response text does not match the prepared response in \u227a/<range>/<N>.md (or legacy res/<N>.md). Read back the prepared response file and output its exact bytes without post-prepare edits.'}
+	return r
 def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None) -> dict:
 	if not isinstance(payload, dict):
 		return {'decision': 'allow'}
 	if 'NO_TOOL_CALL' != payload.get('terminationReason') or bool(payload.get('error')) or (False is payload.get('fullyIdle')):
 		return {'decision': 'allow'}
-	cwd_raw = (payload.get('cwd') or '').strip()
-	session_id = (payload.get('sessionId') or '').strip()
-	t_path_raw = (payload.get('transcriptPath') or '').strip()
-	if not cwd_raw or not session_id or (not re.fullmatch('[a-f0-9-]{36}', session_id)):
+	_ensure_scripts_on_path()
+	from agent_tools.stop_hook_guard import apply_continuation_guard, extract_stop_context, is_journal_opt_out
+	cwd_raw, session_id, t_path_raw = extract_stop_context(payload)
+	if not cwd_raw or not session_id:
 		return {'decision': 'allow'}
 	root = Path(cwd_raw).resolve()
 	t_path = Path(t_path_raw).resolve() if t_path_raw else None
@@ -172,7 +192,6 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	log_file = full_t if full_t.is_file() else (t_path if None is not t_path and t_path.is_file() else compact_t)
 	if None is log_file or (not log_file.is_file()):
 		return {'decision': 'allow'}
-	_ensure_scripts_on_path()
 	from agent_tools.hook_runtime import read_last_user_segment
 	rows, last_user_step, segment = read_last_user_segment(log_file, by_step_index=True)
 	if None is last_user_step:
@@ -193,6 +212,8 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 		return {'decision': 'allow'}
 	t_dir = _turns_dir(canon_root)
 	matched_state = _find_turn_state(t_dir, session_id, last_user_step, rows=rows)
+	if is_journal_opt_out(payload, rows, last_user_step, matched_state):
+		return {'decision': 'allow'}
 	if None is not matched_state and 'handed_off' == matched_state.get('status'):
 		handoff_info = matched_state.get('handed_off_to') if isinstance(matched_state.get('handed_off_to'), dict) else {}
 		handoff_raw = str(handoff_info.get('project_root') or '').strip()
@@ -200,33 +221,14 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 			handoff_root = Path(handoff_raw).resolve()
 			target_state = _find_turn_state(_turns_dir(handoff_root), session_id, last_user_step)
 			if None is target_state:
-				return {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare in {handoff_root} before finishing the response.'}
+				return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare in {handoff_root} before finishing the response.'}, payload)
 			matched_state = target_state
 	if None is matched_state:
-		return {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare before finishing the response.'}
-	_ensure_scripts_on_path()
+		return apply_continuation_guard(t_dir, session_id, last_user_step, None, {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare before finishing the response.'}, payload)
 	from agent_tools.gates import run_stop_gates
 	gate_hit = run_stop_gates(matched_state)
-	if None is not gate_hit:
-		return gate_hit
-	prep = matched_state.get('prepared')
-	if last_planner_text:
-		sha = hashlib.sha256(last_planner_text.encode('utf-8')).hexdigest()
-		if sha != prep.get('response_sha256') and sha != prep.get('body_sha256'):
-			res_file = Path(prep.get('response_file') or '')
-			prep_text = res_file.read_text(encoding='utf-8', errors='replace') if res_file.is_file() else ''
-			_ensure_scripts_on_path()
-			try:
-				from agent_tools.metadata import strip_leading_metadata_header
-				prep_body = strip_leading_metadata_header(prep_text)
-			except Exception:
-				prep_body = prep_text
-			if not prep_text or (
-				_strip_local_file_scheme(prep_text) != _strip_local_file_scheme(last_planner_text)
-				and _strip_local_file_scheme(prep_body) != _strip_local_file_scheme(last_planner_text)
-			):
-				return {'decision': 'continue', 'reason': 'FILE-3 Stop Gate: Final response text does not match the prepared response in \u227a/<range>/<N>.md (or legacy res/<N>.md). Read back the prepared response file and output its exact bytes without post-prepare edits.'}
-	return {'decision': 'allow'}
+	decision = gate_hit if None is not gate_hit else _evaluate_prepared_match(matched_state, last_planner_text)
+	return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, decision, payload)
 def main():
 	_ensure_scripts_on_path()
 	from agent_tools.hook_runtime import run_json_hook
