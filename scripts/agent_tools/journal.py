@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
@@ -43,7 +46,7 @@ import os
 from pathlib import Path
 import re
 import uuid
-from .storage import create_bytes, data_dir_for, locked, replace_bytes
+from .storage import create_bytes, data_dir_for, journal_data_dir_for, locked, replace_bytes
 V1_PAIR = ('req', 'res')
 V2_PAIR = ('\u227b', '\u227a')
 JOURNAL_BUCKET_SIZE = 20
@@ -218,7 +221,7 @@ def resolve_migrated_step_file(path: str | Path) -> Path:
 	return found.resolve() if None is not found else p
 def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 	identity = str(eff.resolve()).casefold()
-	base = Path(data_root) if None is not data_root else data_dir_for(eff)
+	base = Path(data_root) if None is not data_root else journal_data_dir_for(eff)
 	return base / '.journal' / digest(identity.encode('utf-8'))[:24]
 def state_dir(directory: Path) -> Path:
 	eff = canonicalize_journal_dir_identity(directory)

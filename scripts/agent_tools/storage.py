@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
 # https://github.com/dmitry-ai/harness/issues/158
@@ -48,9 +51,12 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 		temp.unlink(missing_ok=True)
 def create_bytes(path: Path, data: bytes):
 	_stage_atomic_write(Path(path), data, os.rename if 'nt' == os.name else os.link)
-def data_dir_for(path: Path) -> Path:
+def data_dir_for(path: Path, *, exact_root: bool=False) -> Path:
 	from .path_registry import project_paths
-	return project_paths(Path(path)).data_dir
+	return project_paths(Path(path), exact_root=exact_root).data_dir
+def journal_data_dir_for(eff: Path) -> Path:
+	from .path_cache import resolve_journal_data_dir
+	return resolve_journal_data_dir(Path(eff))
 def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=True):
 	if isinstance(value, dict):
 		yield value

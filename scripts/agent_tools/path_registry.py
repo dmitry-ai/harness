@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -28,6 +31,7 @@
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
+from collections import OrderedDict
 from copy import deepcopy
 import glob
 import json
@@ -36,6 +40,7 @@ from pathlib import Path
 import re
 import stat
 from typing import Any
+from .path_cache import clear_path_cache, get_ttl_overlay_links, lookup_fast_project_paths, lru_get, lru_put, mark_overlay_links_refreshed, overlay_signature_for_roots, resolve_reverse_map, store_fast_project_paths
 _CODE_ANCHOR = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY_FILE = _CODE_ANCHOR / 'paths.json'
 _VAR_NAME_RE = re.compile('^[A-Za-z_][A-Za-z0-9_]*$')
@@ -45,7 +50,7 @@ _ESC_DOLLAR = '\x00HARNESS_DOLLAR_LBRACE\x00'
 _ESC_PERCENT = '\x00HARNESS_PERCENT\x00'
 _INITIAL_HOME = Path.home().as_posix().rstrip('/')
 _REGISTRY_CACHE: dict[tuple, 'PathRegistry'] = {}
-_PROJECT_PATHS_CACHE: dict[tuple, 'ProjectPaths'] = {}
+_PROJECT_PATHS_CACHE: OrderedDict[tuple, 'ProjectPaths'] = OrderedDict()
 _OVERLAY_REVERSE_MAP: dict[str, Path] = {}
 _SIMILAR_REVERSE_MAP: dict[tuple[str, str], list[Path]] = {}
 _DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}}
@@ -56,6 +61,7 @@ def clear_registry_cache() -> None:
 	_OVERLAY_REVERSE_MAP.clear()
 	_SIMILAR_REVERSE_MAP.clear()
 	_DISCOVERY_STATE.update({'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}})
+	clear_path_cache()
 	clear_repo_locator_cache()
 def escape_template_literal(value: str) -> str:
 	return str(value).replace('%', '%%').replace('${', '$${')
@@ -882,21 +888,15 @@ def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ..
 	_DISCOVERY_STATE['candidate_roots'] = frozen
 	return (roots_key, frozen)
 def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
+	ttl_links = get_ttl_overlay_links(reg, DEFAULT_REGISTRY_FILE, _DISCOVERY_STATE)
+	if None is not ttl_links:
+		return ttl_links
 	roots_key, candidate_roots = _candidate_discovery_roots(reg)
-	ov_sig: list[tuple] = []
-	for root_p in candidate_roots:
-		root_posix = root_p.as_posix()
-		for rel in reg.overlay_candidates:
-			p_str = f'{root_posix}/{rel}'
-			try:
-				st = os.lstat(p_str)
-				content_hash = hash(Path(p_str).read_bytes()) if stat.S_ISREG(st.st_mode) else 0
-				ov_sig.append((p_str, st.st_mtime_ns, st.st_size, content_hash))
-			except OSError:
-				pass
+	ov_sig = overlay_signature_for_roots(candidate_roots, reg.overlay_candidates)
 	sim_fp = tuple(((g['id'], tuple((m['project'] for m in g['members']))) for g in reg.similar_project_groups))
-	fp = (roots_key, tuple(ov_sig), sim_fp)
+	fp = (roots_key, ov_sig, sim_fp)
 	if _DISCOVERY_STATE['fingerprint'] == fp:
+		mark_overlay_links_refreshed(reg, DEFAULT_REGISTRY_FILE)
 		return dict(_DISCOVERY_STATE['links'])
 	links: dict[str, Path] = {}
 	similar_links: dict[str, list[Path]] = {}
@@ -916,9 +916,8 @@ def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 						similar_links.setdefault(sk, []).append(root_p)
 		except (OSError, ValueError):
 			continue
-	_DISCOVERY_STATE['fingerprint'] = fp
-	_DISCOVERY_STATE['links'] = links
-	_DISCOVERY_STATE['similar_links'] = similar_links
+	_DISCOVERY_STATE.update({'fingerprint': fp, 'links': links, 'similar_links': similar_links})
+	mark_overlay_links_refreshed(reg, DEFAULT_REGISTRY_FILE)
 	return dict(links)
 def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None, Path | None]:
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
@@ -979,12 +978,7 @@ def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=No
 		if discover_overlay_file(anc, registry=reg, _resolved_root=True):
 			return canonicalize_root_dir(anc, registry=reg)
 	local_idx, local_root = _find_local_marker_root(start, reg)
-	if 0 == local_idx and None is not _DISCOVERY_STATE['fingerprint']:
-		reverse_map = {**_DISCOVERY_STATE['links'], **_OVERLAY_REVERSE_MAP}
-		if start_key in reverse_map and reverse_map[start_key].is_dir():
-			return reverse_map[start_key]
-		return local_root
-	reverse_map = {**_refresh_known_overlay_links(reg), **_OVERLAY_REVERSE_MAP}
+	reverse_map = resolve_reverse_map(start, local_idx, local_root, reg, DEFAULT_REGISTRY_FILE, _DISCOVERY_STATE, _OVERLAY_REVERSE_MAP, _refresh_known_overlay_links)
 	if reverse_map:
 		ancestors = (start, *start.parents)
 		bound = len(ancestors) if None is local_idx else local_idx + 1
@@ -1324,23 +1318,23 @@ class ProjectPaths:
 		return out
 def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, exact_root: bool=False) -> ProjectPaths:
 	reg = registry or load_registry(env=env)
+	fast_key = (id(reg), str(path_or_root), bool(exact_root))
+	fast_hit = lookup_fast_project_paths(fast_key, reg, len(_OVERLAY_REVERSE_MAP))
+	if None is not fast_hit:
+		if fast_hit.has_overlay or fast_hit._direct_similar_projects:
+			fast_hit._register_reverse_links()
+		return fast_hit
 	root = canonicalize_root_dir(path_or_root, registry=reg) if exact_root else resolve_project_root(path_or_root, registry=reg, env=env)
 	ov_file = discover_overlay_file(root, registry=reg, _resolved_root=True)
-	ov_sig = None
-	if None is not ov_file:
-		st = ov_file.stat()
-		ov_sig = (ov_file.as_posix(), st.st_mtime_ns, st.st_size, hash(ov_file.read_bytes()))
-	inferred = _infer_default_profile(root, ov_file, reg)
-	cache_key = (id(reg), root.as_posix(), ov_sig, inferred, _journal_cache_sig(root, reg))
-	cached = _PROJECT_PATHS_CACHE.get(cache_key)
-	if None is not cached:
-		if cached.has_overlay or cached._direct_similar_projects:
-			cached._register_reverse_links()
-		return cached
-	pp = ProjectPaths(root, registry=reg, env=env)
-	if 256 < len(_PROJECT_PATHS_CACHE):
-		_PROJECT_PATHS_CACHE.clear()
-	_PROJECT_PATHS_CACHE[cache_key] = pp
+	ov_sig = (ov_file.as_posix(), (st := ov_file.stat()).st_mtime_ns, st.st_size, hash(ov_file.read_bytes())) if None is not ov_file else None
+	cache_key = (id(reg), root.as_posix(), ov_sig, _infer_default_profile(root, ov_file, reg), _journal_cache_sig(root, reg))
+	pp = lru_get(_PROJECT_PATHS_CACHE, cache_key)
+	if None is pp:
+		pp = ProjectPaths(root, registry=reg, env=env)
+		lru_put(_PROJECT_PATHS_CACHE, cache_key, pp)
+	elif pp.has_overlay or pp._direct_similar_projects:
+		pp._register_reverse_links()
+	store_fast_project_paths(fast_key, pp, reg, len(_OVERLAY_REVERSE_MAP))
 	return pp
 _EXCLUDED_PROJECT_IDS = frozenset(('outside-of-project', 'default-cli-project'))
 def _is_registered_single_project(canon: Path, *, registry: PathRegistry, projects_dirs=None) -> bool:
