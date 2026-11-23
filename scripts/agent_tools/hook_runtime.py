@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/79
 from __future__ import annotations
 import json
@@ -102,6 +105,7 @@ def run_json_hook(handler, *, stdin=None, stdout=None) -> dict:
 	out_stream.write(json.dumps(decision, ensure_ascii=False))
 	return decision
 def scan_doc4_sentence_issues(text: str, *, mode: str='hook') -> list[str]:
+	from .statements import markdown_table_issues
 	issues: list[str] = []
 	if text and isinstance(text, str):
 		lines = text.split('\n') if 'hook' == mode else text.splitlines()
@@ -114,4 +118,5 @@ def scan_doc4_sentence_issues(text: str, *, mode: str='hook') -> list[str]:
 			in_fence, marker, toggled = _update_fence(stripped, in_fence, marker)
 			if not (toggled or in_fence or (not stripped)):
 				_dispatch_doc4_line(mode, idx, line, stripped, lines, issues)
+		issues.extend(markdown_table_issues(text))
 	return issues

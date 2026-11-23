@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/76
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -27,6 +30,7 @@ from .links import _bare_urls, readable_link_issues
 from .markdown_links import iter_inline_segments
 from .research import MAX_BYTES
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
+from .statements import analysis_gate_issues, external_anchor_issues
 from .upwork_data import extract_upwork_job_url_id
 class ResponseEvidenceAuditor:
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None):
@@ -66,11 +70,7 @@ class ResponseEvidenceAuditor:
 						else:
 							self.errors.append(f'VERIFY-1 / KB-3: External article link [{label}]({href}) has no saved observation in \ua616/KB/Evidence/HTTP or \ua616/KB/Evidence')
 					else:
-						frag = urlsplit(href).fragment
-						if frag and (not re.fullmatch('L\\d+(?:-L?\\d+)?', frag)) and (nu in self.observed_anchors):
-							unquoted_frag = unquote(frag)
-							if frag not in self.observed_anchors[nu] and unquoted_frag not in self.observed_anchors[nu] and ('anchor_exception' not in self.response):
-								self.errors.append(f'VERIFY-1 / LINK-2: External link [{label}]({href}) references anchor "#{frag}" which is absent from the saved observation in \ua616/KB/Evidence')
+						self.errors.extend(external_anchor_issues(label, href, nu, self.observed_anchors, self.response))
 		for href, q_raw in self.attributed_quotes:
 			nu = _norm_url(href)
 			if nu not in self.client_urls and nu in self.observed_texts and self.observed_texts[nu]:
@@ -305,6 +305,7 @@ class ResponseEvidenceAuditor:
 			self._check_kb_membership()
 			self._check_external_refs()
 		self._check_local_grounding()
+		self.errors.extend(analysis_gate_issues(self.response, requests=self.requests))
 		return self.errors
 def _discourse_topic_key(url: str):
 	m = re.match('^https?://([^/:?#]+)/t/(?:[^/?#]+/)?(\\d+)(?:$|[/?#])', url.strip(), re.I)

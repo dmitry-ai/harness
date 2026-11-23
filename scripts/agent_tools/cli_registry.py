@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add structured problem metadata builder and CLI command":
 # https://github.com/dmitry-ai/harness/issues/180
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -19,6 +22,12 @@ _REGISTRY: dict[str, dict] = {}
 def _ensure_builtin_plugins() -> None:
 	if not _REGISTRY:
 		_register_builtins()
+def _exec_analysis_check(args) -> dict:
+	from .cli_common import load_operation_input
+	from .statements import markdown_table_issues, validate_df_analysis
+	text = load_operation_input(args, args.response_file).decode('utf-8')
+	issues = [*markdown_table_issues(text), *validate_df_analysis(text, mode=args.mode)]
+	return {'valid': not issues, 'mode': args.mode, 'issue_count': len(issues), 'issues': issues}
 def _exec_cli_docs(_args) -> dict:
 	return {'valid': True, 'commands': list(registered_commands()), 'markdown': render_cli_index()}
 def _exec_land_acquire(args) -> dict:
@@ -59,6 +68,7 @@ def _format_run_tests(res: dict, args) -> str | None:
 		r = format_text_report(res)
 	return r
 def _register_builtins() -> None:
+	register_command('analysis-check', 'Validate multi-hypothesis /df-analysis structure and Markdown table ban', (('project', {'type': Path}), ('--response-file', {'type': Path, 'required': True, 'help': 'UTF-8 candidate Markdown file, or - for stdin'}), ('--mode', {'choices': ('auto', 'general', 'problem'), 'default': 'auto', 'help': 'Validation mode (default: auto)'})), _exec_analysis_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2)
 	register_command('cli-docs', 'Render Markdown command index directly from registered CLI commands', (), _exec_cli_docs)
 	register_command('land-acquire', 'Acquire FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--wait', {'action': 'store_true', 'help': 'Wait reactively in FIFO queue until acquired'}), ('--timeout', {'type': float, 'default': 600.0}), ('--ttl', {'type': float, 'default': 600.0}), ('--poll-interval', {'type': float, 'default': 2.0})), _exec_land_acquire)
 	register_command('land-release', 'Release FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--force', {'action': 'store_true'})), _exec_land_release)

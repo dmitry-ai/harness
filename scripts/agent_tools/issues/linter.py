@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
@@ -48,6 +51,9 @@ class IssueMarkdownLinter:
 				out.append({'code': 'UNBALANCED_INLINE_BACKTICKS', 'line': lno, 'message': f"Line {lno} has an odd number of inline backticks ({line.count('`')})"})
 		if in_fence:
 			out.append({'code': 'UNCLOSED_CODE_FENCE', 'message': 'Markdown has an unclosed ``` fenced code block'})
+		from ..statements import find_markdown_table_lines
+		for tbl_ln in find_markdown_table_lines(text):
+			out.append({'code': 'MARKDOWN_TABLE_FORBIDDEN', 'line': tbl_ln, 'message': f'Line {tbl_ln} contains a Markdown table, which is forbidden by DOC-4; rewrite as structured prose or a list'})
 		IssueMarkdownLinter._check_body_policy(text, out, check_structure_policy=check_structure_policy, parent_number=parent_number, repo=repo, self_number=self_number)
 	@staticmethod
 	def _check_body_policy(text: str, out: list[dict[str, Any]], *, check_structure_policy: bool, parent_number: int | None, repo: str | None, self_number: int | None) -> None:
