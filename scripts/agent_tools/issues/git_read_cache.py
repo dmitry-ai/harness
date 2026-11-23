@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+# https://github.com/dmitry-ai/harness/issues/196
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
 from __future__ import annotations
@@ -7,9 +10,41 @@ import os
 import subprocess
 _LOG_MAX_COUNT = 100
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+def _extract_diff_header_path(line: str) -> str:
+	raw = line[4:].split('\t', 1)[0].strip().replace('\\', '/')
+	return '' if '/dev/null' == raw else raw
+def _file_urls(fpath: Path, extract_urls_fn) -> set[str]:
+	try:
+		r = set(extract_urls_fn(fpath.read_text(encoding='utf-8', errors='replace')))
+	except OSError:
+		r = set()
+	return r
 def _git_read(repo: Path, args: list[str]) -> subprocess.CompletedProcess:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
+def _iter_untracked_files(resolved: Path, rel_path: str, suffixes: frozenset[str]) -> list[tuple[str, Path]]:
+	fpath = resolved / rel_path
+	if fpath.is_file():
+		r = [(rel_path, fpath)] if fpath.suffix.lower() in suffixes else []
+	elif fpath.is_dir():
+		r = sorted(((p.relative_to(resolved).as_posix(), p) for p in fpath.rglob('*') if p.is_file() and p.suffix.lower() in suffixes))
+	else:
+		r = []
+	return r
+def _parse_diff_changed_urls(diff_text: str, extract_urls_fn) -> dict[str, set[str]]:
+	changed: dict[str, set[str]] = {}
+	cur_path, prev_minus = ('', '')
+	for line in (diff_text or '').splitlines():
+		if line.startswith('--- '):
+			prev_minus = _extract_diff_header_path(line)
+		elif line.startswith('+++ '):
+			plus_path = _extract_diff_header_path(line)
+			cur_path = plus_path if plus_path else prev_minus
+		elif cur_path and line.startswith(('+', '-')):
+			urls = extract_urls_fn(line[1:])
+			if urls:
+				changed.setdefault(cur_path, set()).update(urls)
+	return changed
 def _parse_log_index(raw_out: str, extract_urls_fn) -> tuple[dict[str, str], dict[str, list[str]], int]:
 	issue_to_sha: dict[str, str] = {}
 	file_to_urls: dict[str, list[str]] = {}
@@ -27,9 +62,9 @@ def _parse_log_index(raw_out: str, extract_urls_fn) -> tuple[dict[str, str], dic
 				if rel:
 					file_to_urls.setdefault(rel, urls)
 	return (issue_to_sha, file_to_urls, rec_count)
-def _parse_porcelain_z(status_out: str) -> list[str]:
+def _parse_porcelain_z_entries(status_out: str) -> list[tuple[str, str]]:
 	entries = [e for e in (status_out or '').split('\x00') if e]
-	paths: list[str] = []
+	parsed: list[tuple[str, str]] = []
 	idx = 0
 	while idx < len(entries):
 		entry = entries[idx]
@@ -38,9 +73,11 @@ def _parse_porcelain_z(status_out: str) -> list[str]:
 		if status_code.startswith(('R', 'C')) and idx + 1 < len(entries):
 			idx += 1
 		if rel_path:
-			paths.append(rel_path)
+			parsed.append((status_code, rel_path))
 		idx += 1
-	return paths
+	return parsed
+def _parse_porcelain_z(status_out: str) -> list[str]:
+	return [rel_path for _, rel_path in _parse_porcelain_z_entries(status_out)]
 def _read_head_oid(repo: Path) -> str:
 	gdir = _resolve_git_dir(repo)
 	r = ''
@@ -100,9 +137,19 @@ def _resolve_git_dir(repo: Path) -> Path | None:
 	return r
 class RepoReadCache:
 	def __init__(self) -> None:
+		self._diff_cache: dict[tuple[Path, str, tuple[str, ...]], dict[str, set[str]]] = {}
 		self._log_cache: dict[tuple[Path, str], tuple[dict[str, str], dict[str, list[str]], bool]] = {}
-		self._status_cache: dict[tuple[Path, str], list[str]] = {}
+		self._status_cache: dict[tuple[Path, str], list[tuple[str, str]]] = {}
 		self._upstream_cache: dict[tuple[Path, str], tuple[bool, int]] = {}
+	def _dirty_entries(self, repo: Path) -> list[tuple[str, str]]:
+		key = self._key(repo)
+		cached = self._status_cache.get(key)
+		if None is cached:
+			proc = _git_read(key[0], ['status', '--porcelain', '-z'])
+			raw = proc.stdout.decode('utf-8', errors='replace') if 0 == proc.returncode else ''
+			cached = _parse_porcelain_z_entries(raw)
+			self._status_cache[key] = cached
+		return cached
 	def _key(self, repo: Path) -> tuple[Path, str]:
 		resolved = Path(repo).resolve()
 		return (resolved, _read_head_oid(resolved))
@@ -116,26 +163,35 @@ class RepoReadCache:
 			cached = (issue_to_sha, file_to_urls, _LOG_MAX_COUNT > count)
 			self._log_cache[key] = cached
 		return cached
+	def _tracked_diff_urls(self, resolved: Path, tracked_rels: list[str], extract_urls_fn) -> dict[str, set[str]]:
+		if not tracked_rels:
+			r: dict[str, set[str]] = {}
+		else:
+			repo_key, head_oid = self._key(resolved)
+			dkey = (repo_key, head_oid, tuple(tracked_rels))
+			cached = self._diff_cache.get(dkey)
+			if None is cached:
+				proc = _git_read(repo_key, ['-c', 'core.quotepath=false', 'diff', '--unified=0', '--no-prefix', 'HEAD', '--', *tracked_rels])
+				if 0 == proc.returncode:
+					cached = _parse_diff_changed_urls(proc.stdout.decode('utf-8', errors='replace'), extract_urls_fn)
+				else:
+					cached = {rel: _file_urls(repo_key / rel, extract_urls_fn) for rel in tracked_rels if (repo_key / rel).is_file()}
+				self._diff_cache[dkey] = cached
+			r = cached
+		return r
 	def dirty_paths(self, repo: Path) -> list[str]:
-		key = self._key(repo)
-		cached = self._status_cache.get(key)
-		if None is cached:
-			proc = _git_read(key[0], ['status', '--porcelain', '-z'])
-			raw = proc.stdout.decode('utf-8', errors='replace') if 0 == proc.returncode else ''
-			cached = _parse_porcelain_z(raw)
-			self._status_cache[key] = cached
-		return cached
+		return [rel_path for _, rel_path in self._dirty_entries(repo)]
 	def dirty_referencing_issue(self, repo: Path, issue_url: str, suffixes: frozenset[str], extract_urls_fn) -> list[str]:
 		resolved = Path(repo).resolve()
-		hits: list[str] = []
-		for rel_path in self.dirty_paths(resolved):
-			fpath = resolved / rel_path
-			if fpath.is_file() and fpath.suffix.lower() in suffixes:
-				try:
-					if issue_url in extract_urls_fn(fpath.read_text(encoding='utf-8', errors='replace')):
-						hits.append(rel_path)
-				except OSError:
-					pass
+		entries = self._dirty_entries(resolved)
+		tracked_rels = [rel for code, rel in entries if '??' != code and Path(rel).suffix.lower() in suffixes]
+		untracked_rels = [rel for code, rel in entries if '??' == code]
+		diff_map = self._tracked_diff_urls(resolved, tracked_rels, extract_urls_fn)
+		hits = [rel for rel in tracked_rels if issue_url in diff_map.get(rel, ())]
+		for rel in untracked_rels:
+			for u_rel, u_path in _iter_untracked_files(resolved, rel, suffixes):
+				if issue_url in _file_urls(u_path, extract_urls_fn):
+					hits.append(u_rel)
 		return hits
 	def find_commit_for_issue(self, repo: Path, issue_url: str, extract_urls_fn) -> str:
 		issue_to_sha, _, complete = self._load_log(repo, extract_urls_fn)
