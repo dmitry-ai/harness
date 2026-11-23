@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 # https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -118,7 +121,7 @@ def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows:
 		return None
 	handed_off_fallback: tuple[int, dict] | None = None
 	for sf in t_dir.glob('*.json'):
-		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
+		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
 			continue
 		try:
 			st = json.loads(sf.read_text(encoding='utf-8'))
@@ -208,6 +211,10 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	if False is clc.get('verified'):
 		clc_detail = '; '.join((str(v) for v in (clc.get('violations') or ()))) or 'code/issue or similar_projects parity lifecycle incomplete'
 		return {'decision': 'continue', 'reason': f'EXEC-5 Stop Gate: {clc_detail}. Resolve pending code/issue or similar_projects parity checks and re-run harness.py answer-prepare.'}
+	tddc = matched_state.get('tdd_check') if isinstance(matched_state.get('tdd_check'), dict) else {}
+	if False is tddc.get('verified'):
+		tdd_detail = '; '.join((str(v) for v in (tddc.get('violations') or ()))) or 'TDD Red-First / Full-Suite-Green verification failed'
+		return {'decision': 'continue', 'reason': f'EXEC-2 Stop Gate: {tdd_detail}. Resolve TDD violations, run the full test suite to GREEN, and re-run harness.py answer-prepare.'}
 	if last_planner_text:
 		sha = hashlib.sha256(last_planner_text.encode('utf-8')).hexdigest()
 		if sha != prep.get('response_sha256'):

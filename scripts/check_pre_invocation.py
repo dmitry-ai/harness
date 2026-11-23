@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 # https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -170,7 +173,7 @@ def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str,
 	direct = t_dir / f'{_expected_turn_key(backend, conversation_id, max_user_step)}.json'
 	candidates = [direct] if direct.is_file() else []
 	for sf in t_dir.glob('*.json'):
-		if sf != direct and (not sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json'))):
+		if sf != direct and (not sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json'))):
 			candidates.append(sf)
 	for sf in candidates:
 		try:

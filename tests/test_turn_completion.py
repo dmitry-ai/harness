@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 # https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1123,12 +1126,24 @@ class AntigravityCompletionTests(unittest.TestCase):
 		subprocess.run(['git', 'remote', 'add', 'origin', str(bare)], cwd=code_repo, check=True, capture_output=True)
 		mod = code_repo / 'mod.py'
 		mod.write_text('x = 1\n', encoding='utf-8')
-		self.rows.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w1', 'name': 'write_file', 'args': {'Path': str(mod)}}]})
+		test_mod = code_repo / 'tests/test_mod.py'
+		test_mod.parent.mkdir(parents=True, exist_ok=True)
+		test_mod.write_text('# https://github.com/dmitry-ai/antigravity-addons/issues/999\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_x(self):\n\t\tself.assertEqual(1, 1)\n', encoding='utf-8')
+		self.rows.extend([
+			{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'wt1', 'name': 'write_file', 'args': {'Path': str(test_mod)}}]},
+			{'step_index': 2, 'type': 'GENERIC', 'content': 'Created file.'},
+			{'step_index': 3, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'rt1', 'name': 'run_command', 'args': {'CommandLine': f'python -m unittest "{test_mod}"'}}]},
+			{'step_index': 4, 'type': 'GENERIC', 'content': 'Command exited with code 1.\n\nCommand output:\nAssertionError\nFAILED (failures=1)\n'},
+			{'step_index': 5, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w1', 'name': 'write_file', 'args': {'Path': str(mod)}}]},
+			{'step_index': 6, 'type': 'GENERIC', 'content': 'Created file.'},
+			{'step_index': 7, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'rt2', 'name': 'run_command', 'args': {'CommandLine': f'python -m unittest "{test_mod}"'}}]},
+			{'step_index': 8, 'type': 'GENERIC', 'content': 'Command exited with code 0.\n\nCommand output:\nRan 1 test in 0.01s\nOK\n'},
+		])
 		self.write()
 		with self.assertRaisesRegex(ValueError, 'EXEC-5 violation in active turn \\(code/issue lifecycle incomplete\\)'):
 			completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		mod.write_text('# https://github.com/dmitry-ai/antigravity-addons/issues/999\nx = 1\n', encoding='utf-8')
-		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'add', 'mod.py', 'tests/test_mod.py'], cwd=code_repo, check=True, capture_output=True)
 		subprocess.run(['git', 'commit', '-m', 'https://github.com/dmitry-ai/antigravity-addons/issues/999'], cwd=code_repo, check=True, capture_output=True)
 		subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
 		subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
@@ -2526,19 +2541,39 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 					c.commit()
 				return (cid, t_log, rows)
 			def _commit_and_close_a(mod_path: Path, issue_num: int, val: int) -> None:
+				test_p = peer_a / 'code/tests/test_app.py'
+				test_p.parent.mkdir(parents=True, exist_ok=True)
+				test_p.write_text(f'# https://github.com/test-org/peer-a/issues/{issue_num}\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_v(self):\n\t\tself.assertEqual({val}, {val})\n', encoding='utf-8')
 				mod_path.write_text(f'# https://github.com/test-org/peer-a/issues/{issue_num}\nx = {val}\n', encoding='utf-8')
-				subprocess.run(['git', 'add', 'app.py'], cwd=peer_a / 'code', check=True, capture_output=True)
+				subprocess.run(['git', 'add', 'app.py', 'tests/test_app.py'], cwd=peer_a / 'code', check=True, capture_output=True)
 				subprocess.run(['git', 'commit', '-m', f'https://github.com/test-org/peer-a/issues/{issue_num}'], cwd=peer_a / 'code', check=True, capture_output=True)
 				subprocess.run(['git', 'push'], cwd=peer_a / 'code', check=True, capture_output=True)
 				ev_a = peer_a / f'_/\ua616/KB/Evidence/GitHub/test-org__peer-a/issue-{issue_num}.json'
 				ev_a.parent.mkdir(parents=True, exist_ok=True)
 				ev_a.write_text(json.dumps({'url': f'https://github.com/test-org/peer-a/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}), encoding='utf-8')
+			def _append_tdd_rows(rows_list: list[dict], test_paths: list[Path], prod_paths: list[Path]) -> int:
+				st = max((r.get('step_index', 0) for r in rows_list), default=0) + 1
+				rows_list.append({'step_index': st, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'wt-{i}', 'name': 'write_file', 'args': {'Path': str(tp)}} for i, tp in enumerate(test_paths)]})
+				rows_list.append({'step_index': st + 1, 'type': 'GENERIC', 'content': 'Created file.'})
+				st += 2
+				for tp in test_paths:
+					rows_list.append({'step_index': st, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'red-{st}', 'name': 'run_command', 'args': {'CommandLine': f'python -m unittest "{tp}"'}}]})
+					rows_list.append({'step_index': st + 1, 'type': 'GENERIC', 'content': 'Command exited with code 1.\n\nCommand output:\nAssertionError\nFAILED (failures=1)\n'})
+					st += 2
+				rows_list.append({'step_index': st, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'wp-{i}', 'name': 'write_file', 'args': {'Path': str(pp)}} for i, pp in enumerate(prod_paths)]})
+				rows_list.append({'step_index': st + 1, 'type': 'GENERIC', 'content': 'Created file.'})
+				st += 2
+				for tp in test_paths:
+					rows_list.append({'step_index': st, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'grn-{st}', 'name': 'run_command', 'args': {'CommandLine': f'python -m unittest "{tp}"'}}]})
+					rows_list.append({'step_index': st + 1, 'type': 'GENERIC', 'content': 'Command exited with code 0.\n\nCommand output:\nRan 1 test in 0.01s\nOK\n'})
+					st += 2
+				return st
 			# Scenario 1: PreInvocation injects similar_peers and parity blocks answer-check, prepare, and Stop gate until a peer porting issue or exemption is recorded
 			cid1, log1, rows1 = _setup_conv('Implement feature in peer_a.')
 			pre1 = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid1, 'cwd': str(peer_a), 'transcriptPath': str(log1), 'invocationNum': 0}, backend_override=backend)
 			self.assertIn('similar_peers=test-org/peer-b', pre1['injectSteps'][0]['systemMessage']['systemMessage'])
 			_commit_and_close_a(peer_a / 'code/app.py', 10, 1)
-			rows1.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w-a1', 'name': 'write_file', 'args': {'Path': str(peer_a / 'code/app.py')}}]})
+			next_st1 = _append_tdd_rows(rows1, [peer_a / 'code/tests/test_app.py'], [peer_a / 'code/app.py'])
 			log1.write_text(''.join((json.dumps(r) + '\n' for r in rows1)), encoding='utf-8')
 			chk1_bad = completion.check_answer(peer_a, 'Updated peer_a.', cid1, platform='antigravity', backend=backend)
 			self.assertFalse(chk1_bad['valid'])
@@ -2557,21 +2592,22 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			ev_b = peer_a / '_/\ua616/KB/Evidence/GitHub/test-org__peer-b/issue-7.json'
 			ev_b.parent.mkdir(parents=True, exist_ok=True)
 			ev_b.write_text(json.dumps({'url': 'https://github.com/test-org/peer-b/issues/7', 'issue': {'number': 7, 'title': 'Port feature to peer-b', 'body': 'Port change from peer-a.', 'state': 'OPEN'}}), encoding='utf-8')
-			rows1.append({'step_index': 2, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'gh-b7', 'name': 'run_command', 'args': {'CommandLine': 'python df_github_issue.py create'}}]})
-			rows1.append({'step_index': 3, 'type': 'GENERIC', 'content': json.dumps({'ok': True, 'action': 'create', 'repo': 'test-org/peer-b', 'number': 7, 'state': 'open', 'html_url': 'https://github.com/test-org/peer-b/issues/7'})})
+			rows1.append({'step_index': next_st1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'gh-b7', 'name': 'run_command', 'args': {'CommandLine': 'python df_github_issue.py create'}}]})
+			rows1.append({'step_index': next_st1 + 1, 'type': 'GENERIC', 'content': json.dumps({'ok': True, 'action': 'create', 'repo': 'test-org/peer-b', 'number': 7, 'state': 'open', 'html_url': 'https://github.com/test-org/peer-b/issues/7'})})
 			log1.write_text(''.join((json.dumps(r) + '\n' for r in rows1)), encoding='utf-8')
 			chk1_ok = completion.check_answer(peer_a, 'Updated peer_a and filed porting issue.', cid1, platform='antigravity', backend=backend)
 			self.assertTrue(chk1_ok['valid'], chk1_ok)
 			prep1_ok = completion.prepare(peer_a, 'Updated peer_a and filed porting issue.', cid1, platform='antigravity', backend=backend)
 			self.assertTrue(prep1_ok['ready'])
 			self.assertEqual(prep1_ok['code_lifecycle_check']['similar_projects']['peers'][0]['resolution'], 'peer_issue_recorded')
-			rows1.append({'step_index': 4, 'type': 'PLANNER_RESPONSE', 'content': 'Updated peer_a and filed porting issue.'})
+			final_st1 = next_st1 + 2
+			rows1.append({'step_index': final_st1, 'type': 'PLANNER_RESPONSE', 'content': 'Updated peer_a and filed porting issue.'})
 			log1.write_text(''.join((json.dumps(r) + '\n' for r in rows1)), encoding='utf-8')
 			stop1_ok = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'sessionId': cid1, 'cwd': str(peer_a), 'transcriptPath': str(log1)}, backend_override=backend)
 			self.assertEqual(stop1_ok['decision'], 'allow')
 			# Mark turn 1 delivered before opening turn 2
 			with closing(sqlite3.connect(backend / 'conversations' / f'{cid1}.db')) as conn:
-				conn.execute('INSERT INTO steps VALUES(4, 15, 3, 0, ?)', (b'',))
+				conn.execute('INSERT INTO steps VALUES(?, 15, 3, 0, ?)', (final_st1, b''))
 				conn.commit()
 			with closing(sqlite3.connect(summaries_db)) as conn:
 				conn.execute("UPDATE conversation_summaries SET status='CASCADE_RUN_STATUS_IDLE', not_fully_idle=0 WHERE conversation_id=?", (cid1,))
@@ -2581,7 +2617,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			pre2 = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid2, 'cwd': str(peer_a), 'transcriptPath': str(log2), 'invocationNum': 0}, backend_override=backend)
 			self.assertIn('turn_key=', pre2['injectSteps'][0]['systemMessage']['systemMessage'])
 			_commit_and_close_a(peer_a / 'code/app.py', 11, 2)
-			rows2.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w-a2', 'name': 'write_file', 'args': {'Path': str(peer_a / 'code/app.py')}}]})
+			_append_tdd_rows(rows2, [peer_a / 'code/tests/test_app.py'], [peer_a / 'code/app.py'])
 			log2.write_text(''.join((json.dumps(r) + '\n' for r in rows2)), encoding='utf-8')
 			sub_env = {**os.environ, 'USERPROFILE': str(ag_home), 'APPDATA': str(t / 'sandbox_roaming')}
 			ex_cli = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'similar-project-exempt', str(peer_a), '--peer', 'test-org/peer-b', '--reason', 'peer_a UI workaround uses an Antigravity-only DOM hook not present in peer_b.', '--conversation', cid2, '--platform', 'antigravity'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
@@ -2597,14 +2633,17 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			cid3, log3, rows3 = _setup_conv('Implement symmetric update in peer_a and peer_b.')
 			completion.begin(peer_a, cid3, platform='antigravity', backend=backend)
 			_commit_and_close_a(peer_a / 'code/app.py', 12, 3)
+			test_b = peer_b / 'code/tests/test_app.py'
+			test_b.parent.mkdir(parents=True, exist_ok=True)
+			test_b.write_text('# https://github.com/test-org/peer-b/issues/8\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_v(self):\n\t\tself.assertEqual(3, 3)\n', encoding='utf-8')
 			(peer_b / 'code/app.py').write_text('# https://github.com/test-org/peer-b/issues/8\nx = 3\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'app.py'], cwd=peer_b / 'code', check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'app.py', 'tests/test_app.py'], cwd=peer_b / 'code', check=True, capture_output=True)
 			subprocess.run(['git', 'commit', '-m', 'https://github.com/test-org/peer-b/issues/8'], cwd=peer_b / 'code', check=True, capture_output=True)
 			subprocess.run(['git', 'push'], cwd=peer_b / 'code', check=True, capture_output=True)
 			ev_b8 = peer_b / '_/\ua616/KB/Evidence/GitHub/test-org__peer-b/issue-8.json'
 			ev_b8.parent.mkdir(parents=True, exist_ok=True)
 			ev_b8.write_text(json.dumps({'url': 'https://github.com/test-org/peer-b/issues/8', 'issue': {'number': 8, 'state': 'CLOSED'}}), encoding='utf-8')
-			rows3.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'w-ab1', 'name': 'write_file', 'args': {'Path': str(peer_a / 'code/app.py')}}, {'id': 'w-ab2', 'name': 'write_file', 'args': {'Path': str(peer_b / 'code/app.py')}}]})
+			_append_tdd_rows(rows3, [peer_a / 'code/tests/test_app.py', test_b], [peer_a / 'code/app.py', peer_b / 'code/app.py'])
 			log3.write_text(''.join((json.dumps(r) + '\n' for r in rows3)), encoding='utf-8')
 			prep3_ok = completion.prepare(peer_a, 'Updated both peer_a and peer_b.', cid3, platform='antigravity', backend=backend)
 			self.assertTrue(prep3_ok['ready'])

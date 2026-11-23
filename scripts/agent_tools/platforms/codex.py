@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -179,16 +182,22 @@ class CodexTurnScanner:
 			if None is not current and (kind in ('compacted', 'context_compacted', 'checkpoint') or (kind in ('event_msg', 'response_item') and ptype in ('context_compacted', 'compacted', 'checkpoint'))):
 				acc['checkpoint_steps'].append(index)
 			elif None is not current and 'response_item' == kind and ptype in ('function_call_output', 'custom_tool_call_output'):
-				rec = acc['pending_calls'].get(payload.get('call_id'))
-				if None is not rec and None is not payload.get('output'):
+				call_id = payload.get('call_id')
+				rec = acc['pending_calls'].get(call_id)
+				if None is not payload.get('output'):
 					out = payload.get('output')
-					rec['outputs'].append((out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000])
+					out_full = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
+					if None is not rec:
+						rec['outputs'].append(out_full[:4000])
+					if call_id in acc['pending_tdd_cmds']:
+						from ..tdd_gate import parse_command_outcome
+						acc['pending_tdd_cmds'][call_id]['outcome'] = parse_command_outcome(out_full)
 			elif 'event_msg' == kind and 'task_started' == ptype:
 				ident = payload.get('turn_id')
 				if not isinstance(ident, str) or not ident:
 					raise ValueError('Native Codex task_started has no turn ID')
-				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': []}
-				acc = init_turn_accumulator(extra={'all_request_steps': [], 'pending_calls': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files']})
+				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': [], 'tdd_events': []}
+				acc = init_turn_accumulator(extra={'all_request_steps': [], 'pending_calls': {}, 'pending_tdd_cmds': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files'], 'tdd_events': current['tdd_events']})
 				self.turn_entries.append((current, acc))
 			elif None is not current and 'event_msg' == kind and ptype in ('task_complete', 'turn_aborted') and payload.get('turn_id') == current['turn_id']:
 				current['completion_step'], current['aborted'] = (index, 'turn_aborted' == ptype)
@@ -218,18 +227,26 @@ class CodexTurnScanner:
 				acc['tool_records'].append(rec)
 				if payload.get('call_id'):
 					acc['pending_calls'][payload['call_id']] = rec
-				record_normalized_tool_effects(self.root_p, index, name, raw_args, raw_cmd, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True, transcript_tokens=(str(self.path.name),))
+				cev = record_normalized_tool_effects(self.root_p, index, name, raw_args, raw_cmd, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True, transcript_tokens=(str(self.path.name),))
+				if cev and payload.get('call_id'):
+					acc['pending_tdd_cmds'][payload['call_id']] = cev
 		self.current_turn = current
 	def _visit_subagent_rows(self, sub_id, sub_rows, anchor, turn, acc):
 		r, sub_outputs, sub_spawn_call_ids = ([], [], set())
+		sub_pending_tdd: dict[str, dict] = {}
 		for _, s_item in sub_rows:
 			s_kind, s_pay = (s_item.get('type'), s_item.get('payload', {}))
 			if 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
 				out = s_pay.get('output')
-				out_s = (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))[:4000]
+				out_full = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
+				out_s = out_full[:4000]
 				sub_outputs.append(out_s)
-				if s_pay.get('call_id') in sub_spawn_call_ids:
+				s_cid = s_pay.get('call_id')
+				if s_cid in sub_spawn_call_ids:
 					r.extend(_extract_codex_spawn_output_uuids(out_s))
+				if s_cid in sub_pending_tdd:
+					from ..tdd_gate import parse_command_outcome
+					sub_pending_tdd[s_cid]['outcome'] = parse_command_outcome(out_full)
 			elif 'response_item' == s_kind and s_pay.get('type') in ('function_call', 'custom_tool_call'):
 				s_name = s_pay.get('name', '')
 				s_args_in = s_pay.get('arguments', s_pay.get('input', {}))
@@ -239,7 +256,9 @@ class CodexTurnScanner:
 					sub_spawn_call_ids.add(s_pay['call_id'])
 				elif s_name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')):
 					r.extend(_extract_codex_target_subagents(s_args_in))
-				record_normalized_tool_effects(self.root_p, anchor, s_name, s_args_in, s_raw, acc, extra_violation={'subagent_id': sub_id})
+				cev = record_normalized_tool_effects(self.root_p, anchor, s_name, s_args_in, s_raw, acc, extra_violation={'subagent_id': sub_id})
+				if cev and s_pay.get('call_id'):
+					sub_pending_tdd[s_pay['call_id']] = cev
 		for act in extract_issue_actions_from_outputs(sub_outputs):
 			act_with_sub = {**act, 'subagent_id': sub_id}
 			if act_with_sub not in turn['issue_actions']:

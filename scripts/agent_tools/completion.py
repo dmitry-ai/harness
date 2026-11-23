@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 # https://github.com/dmitry-ai/harness/issues/132
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -135,7 +138,7 @@ from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
-COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
+COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
@@ -244,6 +247,9 @@ class AnswerPreparationRunner:
 		self.value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(self.root, self.turn, self.value, response=self.response)
 		if not self.value['code_lifecycle_check']['verified']:
 			self._fail_gate('code_lifecycle', 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(self.value['code_lifecycle_check']['violations']))
+		self.value['tdd_check'] = _tdd_status(self.root, self.turn)
+		if not self.value['tdd_check']['verified']:
+			self._fail_gate('tdd', '; '.join(self.value['tdd_check']['violations']))
 		lang_issues = _intermediate_or_language_issues(self.turn['requests'], self.response)
 		self.value['language_and_stub_check'] = {'verified': not lang_issues, 'issues': lang_issues}
 		if lang_issues:
@@ -526,7 +532,10 @@ def _factual_kb_note_issues(root, turn):
 				except OSError:
 					pass
 	return r
-VERIFIED_CHECK_KEYS = ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'code_lifecycle_check', 'language_and_stub_check', 'source_kb_check')
+def _tdd_status(root, turn):
+	from .tdd_gate import evaluate_tdd_events
+	return evaluate_tdd_events(list(turn.get('tdd_events') or []), require_final_full_green=True)
+VERIFIED_CHECK_KEYS = ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
 GATE_SPECS = (
 	('exec5', ('EXEC-5 violation in active turn (git read',), lambda root_p, turn, value, rc: bool(value.get('exec5_check', {}).get('verified'))),
 	('http_fetch', ('KB-3 / EXEC-1 violation',), lambda root_p, turn, value, rc: bool(value.get('http_fetch_check', {}).get('verified'))),
@@ -534,6 +543,7 @@ GATE_SPECS = (
 	('evicted_citations', (), lambda root_p, turn, value, rc: bool(value.get('compaction_check', {}).get('verified')) and (not ((set(rc.get('cited_files') or ()) & set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())) if rc.get('cited_files') else set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())))),
 	('delegation', ('REVIEW-1 / KB-3 violation',), lambda root_p, turn, value, rc: bool(value.get('delegation_check', {}).get('verified'))),
 	('code_lifecycle', ('EXEC-5 violation in active turn (code/issue',), lambda root_p, turn, value, rc: bool(value.get('code_lifecycle_check', {}).get('verified'))),
+	('tdd', ('EXEC-2 TDD-',), lambda root_p, turn, value, rc: bool(value.get('tdd_check', {}).get('verified'))),
 	('language_and_stub', ('TEXT-1:', 'FILE-3 / REVIEW-1:'), lambda root_p, turn, value, rc: bool(value.get('language_and_stub_check', {}).get('verified'))),
 	('aa_partial_read', ('REVIEW-3 / REVIEW-4: Independent A.A reviewer',), lambda root_p, turn, value, rc: not bool(value.get('delegation_check', {}).get('aa_partial_read_violations'))),
 	('factual_kb_note', ('KB-2 / DOC-1 violation',), lambda root_p, turn, value, rc: not bool(_factual_kb_note_issues(root_p, turn)['issues'])),
@@ -862,7 +872,8 @@ def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	key = _key(native, turn)
 	sim_paths, sim_repos = _similar_projects_metadata(canon_root)
 	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []} if recovered else _code_and_issue_lifecycle_status(canon_root, turn)
-	r = {'schema_version': 1, 'key': key, 'project_root': str(canon_root), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(canon_root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, canon_root, key), 'http_fetch_check': _http_fetch_status(turn, canon_root, key), 'compaction_check': _compaction_status(canon_root, key, turn), 'delegation_check': _delegation_status(canon_root, turn), 'budget_check': _budget_status(canon_root, turn), 'code_lifecycle_check': lifecycle, 'instruction_snapshot': _instruction_snapshot(canon_root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	tdd_chk = {'verified': True, 'scopes': {}, 'violations': []} if recovered else _tdd_status(canon_root, turn)
+	r = {'schema_version': 1, 'key': key, 'project_root': str(canon_root), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(canon_root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, canon_root, key), 'http_fetch_check': _http_fetch_status(turn, canon_root, key), 'compaction_check': _compaction_status(canon_root, key, turn), 'delegation_check': _delegation_status(canon_root, turn), 'budget_check': _budget_status(canon_root, turn), 'code_lifecycle_check': lifecycle, 'tdd_check': tdd_chk, 'instruction_snapshot': _instruction_snapshot(canon_root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
 	if sim_paths:
 		r['similar_projects'] = sim_paths
 	if sim_repos:
@@ -955,8 +966,12 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 		else:
 			value.pop('similar_project_repos', None)
 		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
-	elif 'code_lifecycle_check' not in value:
-		value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []}
+		value['tdd_check'] = _tdd_status(root, turn)
+	else:
+		if 'code_lifecycle_check' not in value:
+			value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []}
+		if 'tdd_check' not in value:
+			value['tdd_check'] = {'verified': True, 'scopes': {}, 'violations': []}
 	if False is value.get('readiness_check', {}).get('verified') and (not value.get('admission_failure')):
 		if _gate_resolved(root, turn, value):
 			value.pop('readiness_check', None)
@@ -1030,7 +1045,7 @@ def conversation_journal_steps(root, journal_directory, conversation_id: str) ->
 	t_dir = _folder(root_p)
 	if t_dir.is_dir():
 		for sf in t_dir.glob('*.json'):
-			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
+			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
 				continue
 			try:
 				st_obj = _read(sf)
@@ -1086,7 +1101,7 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 		cid_low = str(native.get('conversation_id') or '').strip().lower()
 		if t_dir.is_dir():
 			for sf in sorted(t_dir.glob('*.json'), key=lambda p: p.stat().st_mtime_ns, reverse=True):
-				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
+				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
 					continue
 				try:
 					st_obj = _read(sf)
@@ -1119,7 +1134,7 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 		return []
 	handed_off: list[dict] = []
 	for sf in sorted(t_dir.glob('*.json')):
-		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json')):
+		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
 			continue
 		try:
 			st = _read(sf)
@@ -1169,7 +1184,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		from .source_grounding import read_only_grounding
 		with read_only_grounding():
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
-		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
+		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value['tdd_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
 		if value.get('similar_projects'):
 			r['similar_projects'] = list(value['similar_projects'])
 		if value.get('similar_project_repos'):
@@ -1219,7 +1234,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 				if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
 					value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
 				_persist(path, value)
-		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value['tdd_check'], 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		if value.get('reserved_journal_steps'):
 			result['reserved_journal_steps'] = list(value['reserved_journal_steps'])
 		if value.get('handed_off_to'):
@@ -1405,6 +1420,55 @@ def similar_project_exempt(root, peer, reason, conversation=None, *, platform=No
 		_persist(path, value)
 	rel_file = ex_path.relative_to(root_p).as_posix() if ex_path.is_relative_to(root_p) else str(ex_path)
 	return {'turn_key': key, 'peer_root': matched_peer.as_posix(), 'peer_repos': matched_slugs, 'reason': reason_clean, 'exemption_file': rel_file, 'code_lifecycle_check': value['code_lifecycle_check']}
+def ratchet_ok(root, file_path, reason, conversation=None, *, platform=None, backend=None):
+	from .path_registry import canonicalize_root_dir
+	from .tdd_gate import validate_ratchet_reason
+	file_clean = (file_path or '').strip()
+	if not file_clean:
+		raise ValueError('Provide --file identifying the test file whose expectation is intentionally changing')
+	ok_r, err_r = validate_ratchet_reason(reason)
+	if not ok_r:
+		raise ValueError(err_r)
+	reason_clean = ' '.join((reason or '').strip().split())
+	root_p = canonicalize_root_dir(root)
+	native = _native(root_p, conversation, platform=platform, backend=backend)
+	turn = _active(native)
+	if None is turn:
+		raise ValueError('No active primary native turn to record RATCHET-OK approval')
+	key = _key(native, turn)
+	rc_path = _folder(root_p) / f'{key}-ratchet-ok.json'
+	entry = {'file': file_clean, 'reason': reason_clean, 'recorded_at': _now()}
+	with locked(_turn_lock(root_p, key)):
+		existing_items: list[dict] = []
+		if rc_path.is_file():
+			try:
+				raw_loaded = _read(rc_path)
+				raw_list = raw_loaded.get('approvals') if isinstance(raw_loaded, dict) else raw_loaded
+				if isinstance(raw_list, list):
+					existing_items = [it for it in raw_list if isinstance(it, dict) and str(it.get('file') or '').replace('\\', '/').lower() != file_clean.replace('\\', '/').lower()]
+			except (OSError, ValueError):
+				existing_items = []
+		existing_items.append(entry)
+		replace_bytes(rc_path, _json({'turn_key': key, 'approvals': existing_items}))
+	rel_file = rc_path.relative_to(root_p).as_posix() if rc_path.is_relative_to(root_p) else str(rc_path)
+	return {'turn_key': key, 'file': file_clean, 'reason': reason_clean, 'receipt_file': rel_file, 'approvals': existing_items}
+def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
+	from .path_registry import canonicalize_root_dir
+	from .source_grounding import read_only_grounding
+	root_p = canonicalize_root_dir(root)
+	eff_plat = platform_name(platform)
+	eff_conv = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == eff_plat else None)
+	with read_only_grounding():
+		native = _native(root_p, eff_conv, platform=eff_plat, backend=backend)
+		if native['primary']:
+			role = 'primary'
+			turn_obj = _active(native)
+		else:
+			role = 'child'
+			turn_obj = _scan_child_trace_turn(root_p, eff_conv, native)
+		turn_key = _key(native, turn_obj)
+		tdd_chk = _tdd_status(root_p, turn_obj)
+	return {'valid': bool(tdd_chk.get('verified', True)), 'read_only': True, 'role': role, 'turn_key': turn_key, 'tdd_check': tdd_chk, 'event_count': len(turn_obj.get('tdd_events') or [])}
 _norm_journal_text = journal.norm_journal_text
 _find_orphan_or_overwritten_steps = journal.find_orphan_or_overwritten_steps
 def _group(root, native, turn, response, directory, *, allow_reprepare=False):
@@ -1724,12 +1788,19 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 			rows = read_jsonl_objects(src_file)
 		except (OSError, ValueError):
 			rows = []
+		from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
+		child_bg: dict[str, dict] = {}
+		child_pending_tdd: dict[str, dict] = {}
 		for pos, row in enumerate(rows):
 			if not isinstance(row, dict):
 				continue
 			step_idx = row.get('step_index') if isinstance(row.get('step_index'), int) else pos
 			if 'CHECKPOINT' == row.get('type') or ('event_msg' == row.get('type') and 'context_compacted' == (row.get('payload') or {}).get('type')):
 				seg['checkpoint_steps'].append(step_idx)
+			if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and row.get('content'):
+				m_fin = _BG_TASK_FINISHED_RE.search(str(row.get('content')))
+				if m_fin and m_fin.group(1).strip() in child_bg:
+					child_bg[m_fin.group(1).strip()]['outcome'] = parse_command_outcome(m_fin.group(2))
 			calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 			if calls:
 				outs = []
@@ -1747,19 +1818,29 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 				seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outs})
 				for act_item in extract_issue_actions_from_outputs(outs):
 					seg['issue_actions'].append({**act_item, 'step': step_idx})
-				for call in calls:
+				for c_idx, call in enumerate(calls):
 					raw_args = call.get('args', {})
 					args = parse_tool_args(raw_args)
 					args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
-					record_normalized_tool_effects(root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True)
+					matched = [outs[c_idx]] if c_idx < len(outs) else outs
+					cev = record_normalized_tool_effects(root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True, cmd_outputs=matched)
+					if cev and cev.get('outcome', {}).get('background_task_id'):
+						child_bg[cev['outcome']['background_task_id']] = cev
 			elif 'response_item' == row.get('type'):
 				pay = row.get('payload') if isinstance(row.get('payload'), dict) else {}
-				if pay.get('type') in ('function_call', 'custom_tool_call'):
+				if pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not pay.get('output'):
+					c_id = pay.get('call_id')
+					if c_id in child_pending_tdd:
+						out_val = pay.get('output')
+						child_pending_tdd[c_id]['outcome'] = parse_command_outcome(out_val if isinstance(out_val, str) else json.dumps(out_val, ensure_ascii=False))
+				elif pay.get('type') in ('function_call', 'custom_tool_call'):
 					seg['tool_steps'].append(step_idx)
 					raw_in = pay.get('arguments', pay.get('input', {}))
 					raw_cmd = raw_in if isinstance(raw_in, str) else json.dumps(raw_in, ensure_ascii=False)
 					seg['tool_records'].append({'step': step_idx, 'tools': [str(pay.get('name') or '')], 'outputs': []})
-					record_normalized_tool_effects(root_p, step_idx, str(pay.get('name') or ''), raw_in, raw_cmd, seg, track_turn_steps=True)
+					cev = record_normalized_tool_effects(root_p, step_idx, str(pay.get('name') or ''), raw_in, raw_cmd, seg, track_turn_steps=True)
+					if cev and pay.get('call_id'):
+						child_pending_tdd[pay['call_id']] = cev
 	return merge_turn_accumulators([seg], allow_step_output_recovery=True)
 def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None):
 	if not isinstance(response, str) or not response.strip():
@@ -1806,6 +1887,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		evicted_cited = _find_evicted_cited_files(root_p, pp, turn_key, comp_chk, response) if role in ('primary', 'child') else []
 		del_chk = value_obj['delegation_check']
 		lifecycle_chk = _code_and_issue_lifecycle_status(root_p, turn_obj, value_obj if 'primary' == role else None, response=response)
+		tdd_chk = _tdd_status(root_p, turn_obj) if role in ('primary', 'child') else {'verified': True, 'scopes': {}, 'violations': []}
 		wf_errs: list[str] = []
 		if 'primary' == role and pp.workflow_json.is_file():
 			from .workflow import load
@@ -1866,6 +1948,8 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 			_push('aa_partial_read', 'turn.aa_partial_read', ['REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(del_chk['aa_partial_read_violations'])])
 		if not lifecycle_chk.get('verified', True):
 			_push('code_lifecycle', 'turn.code_lifecycle', [f'EXEC-5 violation in active turn (code/issue lifecycle incomplete): {v}' for v in lifecycle_chk.get('violations') or []])
+		if not tdd_chk.get('verified', True):
+			_push('tdd', 'turn.tdd', list(tdd_chk.get('violations') or []))
 		_push('workflow', 'turn.workflow', wf_errs)
 		return {
 			'valid': not all_issues,
@@ -1886,6 +1970,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 				'compaction': bool(comp_chk.get('verified', True) and (not evicted_cited)),
 				'delegation': bool(del_chk.get('verified', True) and (not del_chk.get('aa_partial_read_violations'))),
 				'code_lifecycle': bool(lifecycle_chk.get('verified', True)),
+				'tdd': bool(tdd_chk.get('verified', True)),
 				'workflow': not wf_errs,
 			},
 		}
@@ -1945,7 +2030,9 @@ def add_parser_arguments(parser, command):
 		specs.append(('--reason', {'help': 'Audit note for retrospective turn violation recovery'}))
 	if 'similar-project-exempt' == command:
 		specs.extend((('--peer', {'required': True, 'help': 'Declared similar project root or GitHub owner/repo slug'}), ('--reason', {'required': True, 'help': 'Technical justification (>= 30 chars) why peer changes do not apply'})))
-	if command not in ('recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt'):
+	if 'ratchet-ok' == command:
+		specs.extend((('--file', {'required': True, 'help': 'Relative path or filename of the tracked test file whose expectation is intentionally changing'}), ('--reason', {'required': True, 'help': 'Audited justification (>= 30 chars) citing the requirement/user decision behind the test change'})))
+	if command not in ('recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check'):
 		specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
 	if command in ('turn-begin', 'answer-prepare'):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
@@ -1973,6 +2060,10 @@ def execute(args):
 		r = recover_turn_violation(args.project, args.conversation, reason=args.reason)
 	elif 'similar-project-exempt' == args.command:
 		r = similar_project_exempt(args.project, args.peer, args.reason, args.conversation)
+	elif 'ratchet-ok' == args.command:
+		r = ratchet_ok(args.project, args.file, args.reason, args.conversation)
+	elif 'tdd-check' == args.command:
+		r = tdd_check_turn(args.project, args.conversation)
 	elif 'answer-check' == args.command:
 		from .cli_common import load_operation_input
 		payload = load_operation_input(args, args.response_file)

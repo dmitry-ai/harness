@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
 # https://github.com/dmitry-ai/harness/issues/133
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -141,7 +144,7 @@ def _resolve_folders_json(folders_json_path=None, sp=None):
 		raise
 COMPLETED_STEP_STATUSES = (3, 5)
 _ANTIGRAVITY_MODEL_TIERS = ('flash_lite', 'flash', 'pro')
-_SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment'}
+_SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment', 'bg_tdd_index'}
 def _antigravity_paths(backend=None, *, instance=None, conversation_id=None):
 	try:
 		cfg = settings()
@@ -270,25 +273,38 @@ class AntigravityTurnScanner:
 			pass
 		return (parent_mismatch, child_agent_name, db_grandchildren)
 	def _record_subagent_calls(self, child_cid, c_rows, anchor_step, seg):
+		from ..tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
+		sub_bg: dict[str, dict] = {}
 		for c_pos, c_ev in enumerate(c_rows):
 			if isinstance(c_ev, dict):
+				if c_ev.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and c_ev.get('content'):
+					m_fin = _BG_TASK_FINISHED_RE.search(str(c_ev.get('content')))
+					if m_fin and m_fin.group(1).strip() in sub_bg:
+						sub_bg[m_fin.group(1).strip()]['outcome'] = parse_command_outcome(m_fin.group(2))
 				c_calls = [c for c in c_ev.get('tool_calls') or [] if isinstance(c, dict)]
 				if c_calls:
-					for act_item in extract_issue_actions_from_outputs(self._collect_outputs(c_rows, c_pos)):
+					c_outs = self._collect_outputs(c_rows, c_pos)
+					for act_item in extract_issue_actions_from_outputs(c_outs):
 						seg['issue_actions'].append({**act_item, 'step': anchor_step, 'subagent_id': child_cid})
-					for c_call in c_calls:
-						record_normalized_tool_effects(self.root_p, anchor_step, c_call.get('name', ''), c_call.get('args', {}), '', seg, extra_violation={'subagent_id': child_cid})
+					for c_idx, c_call in enumerate(c_calls):
+						matched = [c_outs[c_idx]] if c_idx < len(c_outs) else c_outs
+						cev = record_normalized_tool_effects(self.root_p, anchor_step, c_call.get('name', ''), c_call.get('args', {}), '', seg, extra_violation={'subagent_id': child_cid}, cmd_outputs=matched)
+						if cev and cev.get('outcome', {}).get('background_task_id'):
+							sub_bg[cev['outcome']['background_task_id']] = cev
 		return ()
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
 		seg['tool_steps'].append(step_idx)
 		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
 		for act_item in extract_issue_actions_from_outputs(outputs):
 			seg['issue_actions'].append({**act_item, 'step': step_idx})
-		for call in calls:
+		for c_idx, call in enumerate(calls):
 			raw_args = call.get('args', {})
 			args = parse_tool_args(raw_args)
 			args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
-			record_normalized_tool_effects(self.root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True)
+			matched = [outputs[c_idx]] if c_idx < len(outputs) else outputs
+			cev = record_normalized_tool_effects(self.root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True, cmd_outputs=matched)
+			if cev and cev.get('outcome', {}).get('background_task_id') and 'bg_tdd_index' in seg:
+				seg['bg_tdd_index'][cev['outcome']['background_task_id']] = cev
 	def _resolve_subagent_child(self, child_cid, is_aa_hint, expected_parent, anchor_step, seg):
 		r = None
 		child_log = _transcript_path(self.paths['brain_dir'], child_cid)
@@ -303,16 +319,22 @@ class AntigravityTurnScanner:
 					r = ([], False, (), None)
 		return r
 	def _scan_segment(self, position, start):
+		from ..tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 		end = self.boundaries[position + 1] if position + 1 < len(self.boundaries) else None
 		segment = [row for row in self.rows if row.get('step_index', -1) > start and (None is end or row.get('step_index', -1) < end)]
-		seg = init_turn_accumulator(extra={'issue_actions': [], 'spawned_subagents': 0, 'completed_subagents': 0, 'answer_prepared_in_segment': False})
+		seg = init_turn_accumulator(extra={'issue_actions': [], 'spawned_subagents': 0, 'completed_subagents': 0, 'answer_prepared_in_segment': False, 'bg_tdd_index': {}})
 		for pos, row in enumerate(segment):
 			if isinstance(row, dict):
 				step_idx = row.get('step_index')
 				if 'CHECKPOINT' == row.get('type') and isinstance(step_idx, int):
 					seg['checkpoint_steps'].append(step_idx)
-				if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and re.search('<SYSTEM_MESSAGE>.*(?:\\bSubagent\\b.*\\bcompleted\\b|\\[Message\\]\\s+timestamp=[^\\n]+\\bsender=[0-9a-f]{8}-[0-9a-f]{4}-)', str(row.get('content') or ''), re.S | re.I):
-					seg['completed_subagents'] += 1
+				if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and row.get('content'):
+					c_str = str(row.get('content'))
+					if re.search('<SYSTEM_MESSAGE>.*(?:\\bSubagent\\b.*\\bcompleted\\b|\\[Message\\]\\s+timestamp=[^\\n]+\\bsender=[0-9a-f]{8}-[0-9a-f]{4}-)', c_str, re.S | re.I):
+						seg['completed_subagents'] += 1
+					m_fin = _BG_TASK_FINISHED_RE.search(c_str)
+					if m_fin and m_fin.group(1).strip() in seg['bg_tdd_index']:
+						seg['bg_tdd_index'][m_fin.group(1).strip()]['outcome'] = parse_command_outcome(m_fin.group(2))
 				calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 				if calls and isinstance(step_idx, int):
 					self._record_tool_calls(step_idx, calls, self._collect_outputs(segment, pos, step_idx=step_idx, file_reads=seg['file_reads']), seg)
