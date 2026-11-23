@@ -1,4 +1,6 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/173
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
@@ -127,6 +129,18 @@ def is_test_file(path: str | Path, *, content: str | None=None) -> bool:
 		stem = p.stem
 		r = any(seg in _TEST_DIR_SEGMENTS for seg in dir_parts_low) or bool(_TEST_FILENAME_RE.match(stem)) or bool(_TEST_CAMEL_SUFFIX_RE.match(stem)) or p.name.lower() in _TEST_HELPER_FILENAMES
 	return r
+def _resolve_deleted_worktree_scope(p: Path) -> Path | None:
+	from ..path_registry import project_paths
+	parts, r = (p.parts, None)
+	for idx in range(len(parts) - 3):
+		if ('\ua616', 'data', 'worktrees') == parts[idx:idx + 3] and idx + 4 < len(parts):
+			proj_root = Path(*parts[:idx]).resolve()
+			rel = Path(*parts[idx + 4:]).as_posix()
+			cands = [cr.resolve() for cr in (*project_paths(proj_root).code_repos, proj_root / '\u2c0f/\u227b/\u2655/\u26ef', proj_root / 'code') if (cr / '.git').exists()]
+			uniq = list(dict.fromkeys(cands))
+			r = next((cr for cr in uniq if (cr / rel).exists()), uniq[0] if 1 == len(uniq) else None)
+			break
+	return r
 def resolve_code_scope(path: str | Path) -> Path:
 	raw = normalize_host_path(path)
 	try:
@@ -134,7 +148,9 @@ def resolve_code_scope(path: str | Path) -> Path:
 	except OSError:
 		p = raw
 	start_dir = p if p.is_dir() else p.parent
-	r = _find_git_ancestor(start_dir) or _find_marker_ancestor(start_dir)
+	r = _resolve_deleted_worktree_scope(p) if '/data/worktrees/' in _norm_posix(p).lower() and (not p.exists()) else None
+	if None is r:
+		r = _find_git_ancestor(start_dir) or _find_marker_ancestor(start_dir)
 	if None is r:
 		r = start_dir.parent if start_dir.name.lower() in _SCOPE_SUBDIR_SEGMENTS and start_dir.parent != start_dir else start_dir
 	return r

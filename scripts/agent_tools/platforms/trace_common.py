@@ -1,3 +1,5 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/173
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
 # https://github.com/dmitry-ai/harness/issues/166
@@ -384,13 +386,13 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 		raw_cwd = args.get('workdir') or args.get('Cwd')
 		eff_cwd = Path(raw_cwd) if isinstance(raw_cwd, str) and raw_cwd.strip() else Path(root_p)
 		if 'tdd_events' in acc:
-			from ..tdd_gate import build_command_tdd_event, build_file_write_tdd_event, shell_code_write_targets
+			from ..tdd.events import build_command_tdd_event, record_tdd_tool_write_event
+			from ..tdd_gate import shell_code_write_targets
+			sub_cid = extra_violation.get('subagent_id') if isinstance(extra_violation, dict) else None
 			for wt in shell_code_write_targets(eff_cmd, cwd=eff_cwd):
-				wev = build_file_write_tdd_event(step_idx, wt, cwd=eff_cwd)
-				if 'non_code' != wev['classification']:
-					acc['tdd_events'].append(wev)
+				record_tdd_tool_write_event(acc, step_idx, wt, cwd=eff_cwd, cmd_outputs=cmd_outputs, sub_step=sub_step, subagent_id=sub_cid)
 			if eff_cmd.strip():
-				tdd_cmd_event = build_command_tdd_event(step_idx, eff_cmd, cmd_outputs or (), cwd=eff_cwd)
+				tdd_cmd_event = build_command_tdd_event(step_idx, eff_cmd, cmd_outputs or (), cwd=eff_cwd, sub_step=sub_step, subagent_id=sub_cid)
 				acc['tdd_events'].append(tdd_cmd_event)
 		if 'issue_first_events' in acc:
 			from ..issue_first_gate import build_code_write_issue_first_event, build_issue_action_events
@@ -423,10 +425,8 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 		if is_write_tool:
 			content_hint = args.get('Content') if name.endswith(('write_file', 'write_to_file')) and isinstance(args.get('Content'), str) else None
 			if 'tdd_events' in acc:
-				from ..tdd_gate import build_file_write_tdd_event
-				wev = build_file_write_tdd_event(step_idx, target_path, cwd=root_p, content=content_hint)
-				if 'non_code' != wev['classification']:
-					acc['tdd_events'].append(wev)
+				from ..tdd.events import record_tdd_tool_write_event
+				record_tdd_tool_write_event(acc, step_idx, target_path, cwd=root_p, content=content_hint, cmd_outputs=cmd_outputs, sub_step=sub_step, subagent_id=extra_violation.get('subagent_id') if isinstance(extra_violation, dict) else None)
 			if 'issue_first_events' in acc:
 				from ..issue_first_gate import build_code_write_issue_first_event
 				wifev = build_code_write_issue_first_event(step_idx, target_path, cwd=root_p, content=content_hint, sub_step=sub_step)

@@ -1,4 +1,6 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/173
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
@@ -10,6 +12,7 @@ import json
 import re
 _BG_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
 _BG_SENDER_RE = re.compile(r'\bsender=([A-Za-z0-9_./:-]+/task-\d+)\b', re.IGNORECASE)
+_DENIED_WRITE_OUT_RE = re.compile(r'Encountered error in (?:tool|step) execution:|tool call denied by pre-tool hook:', re.IGNORECASE)
 _SAFE_COMMIT_EXEC_RE = re.compile(r'\bsafe_commit\.py\b[^\r\n]*--execute\b')
 _SAFE_COMMIT_REPO_RE = re.compile(r'--repo\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
 _SUBAGENT_DONE_RE = re.compile(r'<SYSTEM_MESSAGE>.*(?:\bSubagent\b.*\bcompleted\b|\[Message\]\s+timestamp=[^\n]+\bsender=[0-9a-f]{8}-[0-9a-f]{4}-)', re.S | re.I)
@@ -61,7 +64,9 @@ def _extract_row_call_events(step_idx: int, calls: list[dict], outputs: list[str
 		cname = str(call.get('name') or '')
 		cargs = _normalize_args_dict(call.get('args', {}))
 		if cname in _WRITE_TOOL_NAMES:
-			_append_write_tool_event(step_idx, cname, cargs, cwd, events)
+			matched = [outputs[c_pos]] if c_pos < len(outputs) else outputs
+			if not is_denied_write_output(matched):
+				_append_write_tool_event(step_idx, cname, cargs, cwd, events)
 		elif 'run_command' == cname:
 			_append_command_tool_event(step_idx, c_pos, cargs, outputs, cwd, events, bg_task_index)
 def _is_git_commit_command(cmd: str, *, cwd: Path | None=None) -> tuple[bool, Path | None]:
@@ -165,18 +170,39 @@ def _unwrap_arg_value(val):
 		except ValueError:
 			pass
 	return r
-def build_command_tdd_event(step: int, cmd: str, outputs: list[str] | tuple[str, ...] | str, *, cwd: Path | None=None, scope_hint: Path | None=None) -> dict:
+def build_command_tdd_event(step: int, cmd: str, outputs: list[str] | tuple[str, ...] | str, *, cwd: Path | None=None, scope_hint: Path | None=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict:
 	eff_cwd = Path(cwd).resolve() if None is not cwd else None
 	is_commit, commit_repo = _is_git_commit_command(cmd, cwd=eff_cwd)
 	test_info = classify_test_command(cmd, scope_root=scope_hint)
 	outcome = parse_command_outcome(outputs)
-	return {'cmd': str(cmd or ''), 'commit_scope': str(commit_repo) if None is not commit_repo else None, 'cwd': str(eff_cwd) if None is not eff_cwd else '', 'is_git_commit': is_commit, 'kind': 'command', 'outcome': outcome, 'step': int(step), 'test_info': test_info}
-def build_file_write_tdd_event(step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None) -> dict:
+	ev = {'cmd': str(cmd or ''), 'commit_scope': str(commit_repo) if None is not commit_repo else None, 'cwd': str(eff_cwd) if None is not eff_cwd else '', 'is_git_commit': is_commit, 'kind': 'command', 'outcome': outcome, 'step': int(step), 'test_info': test_info}
+	if None is not sub_step:
+		ev['sub_step'] = int(sub_step)
+	if subagent_id:
+		ev['subagent_id'] = str(subagent_id)
+	return ev
+def build_file_write_tdd_event(step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict:
 	cand = normalize_host_path(raw_path)
 	full = cand.resolve() if cand.is_absolute() else ((Path(cwd).resolve() / cand).resolve() if None is not cwd else cand.resolve())
 	cls = classify_code_path(full, content=content)
 	scope = resolve_code_scope(full) if 'non_code' != cls else full.parent
-	return {'classification': cls, 'kind': 'file_write', 'path': str(full), 'scope': str(scope), 'step': int(step)}
+	ev = {'classification': cls, 'kind': 'file_write', 'path': str(full), 'scope': str(scope), 'step': int(step)}
+	if None is not sub_step:
+		ev['sub_step'] = int(sub_step)
+	if subagent_id:
+		ev['subagent_id'] = str(subagent_id)
+	return ev
+def is_denied_write_output(outputs) -> bool:
+	items = [outputs] if isinstance(outputs, str) else [str(item) for item in (outputs or ()) if item]
+	return bool(items) and all((bool(_DENIED_WRITE_OUT_RE.search(item)) for item in items))
+def record_tdd_tool_write_event(acc: dict, step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None, cmd_outputs=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict | None:
+	r = None
+	if 'tdd_events' in acc and (not is_denied_write_output(cmd_outputs)):
+		wev = build_file_write_tdd_event(step, raw_path, cwd=cwd, content=content, sub_step=sub_step, subagent_id=subagent_id)
+		if 'non_code' != wev['classification']:
+			acc['tdd_events'].append(wev)
+			r = wev
+	return r
 def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None=None) -> list[dict]:
 	rows = _load_transcript_rows(transcript_path)
 	segment = _select_active_segment(rows) if rows else []
