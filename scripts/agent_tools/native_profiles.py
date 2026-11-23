@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Manage Harness ephemeral Git exclusions in install-global and doctor":
+# https://github.com/dmitry-ai/harness/issues/198
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix worktree scope resolution for new files in TDD classifier":
 # https://github.com/dmitry-ai/harness/issues/188
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -830,7 +833,7 @@ def build_shared_native(primary=PRIMARY, *, check=False):
 		_shared_plan(plan, primary, state)
 		_retire_shared_roles(plan, primary, state)
 		return _execute(plan, primary, state, check=check)
-def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMARY, config_dirs=None, codex_homes=None):
+def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMARY, config_dirs=None, codex_homes=None, git_ignore_path=None):
 	primary = Path(primary).resolve()
 	config = _configuration(primary)
 	platforms_cfg = config.get('platforms') or {}
@@ -873,9 +876,8 @@ def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMAR
 			else:
 				_codex_plan(plan, name, codex_all[name], primary, state)
 		_retire_shared_roles(plan, primary, state)
-		result = _execute(plan, primary, state, check=check)
-		result['skipped_disabled'] = [name for name in all_declared if name not in names]
-		return result
+		from .git_ignore import finalize_install_result
+		return finalize_install_result(_execute(plan, primary, state, check=check), all_declared, names, primary, check=check, git_ignore_path=git_ignore_path)
 def legacy_project_projection_paths(root, primary=PRIMARY):
 	root = Path(root).resolve()
 	paths = [root / f'.agents/skills/{name}/SKILL.md' for name in _skills(primary)] + [root / f'.codex/agents/{name}.toml' for _, name, _, _ in _role_values(primary)]

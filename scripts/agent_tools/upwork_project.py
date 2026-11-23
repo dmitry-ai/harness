@@ -336,13 +336,16 @@ def _install_profile_customizations(config, primary=PRIMARY_AGENTS_DIR):
 	from .native_profiles import install_native_profiles
 	result = install_native_profiles(['explicit'], primary=primary, config_dirs={'explicit': Path(config)}, codex_homes={})
 	return result['profiles']['explicit'] | {'valid': result['valid'], 'issues': result['issues']}
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Manage Harness ephemeral Git exclusions in install-global and doctor":
+# https://github.com/dmitry-ai/harness/issues/198
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
-def check_global_customizations(config_dirs=None, primary=PRIMARY_AGENTS_DIR):
+def check_global_customizations(config_dirs=None, primary=PRIMARY_AGENTS_DIR, *, git_ignore_path=None):
 	from .native_profiles import install_native_profiles
 	targets = antigravity_global_config_dirs() if config_dirs is None else config_dirs
-	result = install_native_profiles(list(targets), primary=primary, check=True, config_dirs=targets, codex_homes={})
+	result = install_native_profiles(list(targets), primary=primary, check=True, config_dirs=targets, codex_homes={}, git_ignore_path=git_ignore_path)
 	if UNDECLARED_ANTIGRAVITY_HOME in result['profiles']:
 		profile = result['profiles'][UNDECLARED_ANTIGRAVITY_HOME]
 		issue = {'file': profile['config'], 'message': 'Current Antigravity home is not declared in runtime.json platforms.antigravity.instances'}
@@ -512,7 +515,7 @@ def save_registration(root, platform, result):
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Audit and integrate official Antigravity hooks and slash-commands capabilities into platform adapters":
 # https://github.com/dmitry-ai/harness/issues/25
-def doctor(primary=PRIMARY_AGENTS_DIR):
+def doctor(primary=PRIMARY_AGENTS_DIR, *, git_ignore_path=None):
 	primary = Path(primary)
 	files = sorted((primary / 'rules').glob('*.md'))
 	sizes = {p.name: p.stat().st_size for p in files}
@@ -552,10 +555,10 @@ def doctor(primary=PRIMARY_AGENTS_DIR):
 	# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 	# https://github.com/dmitry-ai/harness/issues/33
-	r['global_customizations'] = check_global_customizations(primary=primary)
+	r['global_customizations'] = check_global_customizations(primary=primary, git_ignore_path=git_ignore_path)
+	r['git_ignore'] = r['global_customizations'].get('git_ignore')
 	from .path_registry import load_registry, paths_report
-	reg_file = primary / 'paths.json'
-	reg = load_registry(reg_file if reg_file.is_file() else None, primary=primary)
+	reg = load_registry((primary / 'paths.json') if (primary / 'paths.json').is_file() else None, primary=primary)
 	p_rep = paths_report(check=True, registry=reg)
 	r['paths_registry'] = {'file': p_rep['registry_file'], 'valid': p_rep['valid'], 'overlays': len(p_rep['discovered_overlays']), 'issues': p_rep['issues']}
 	r['valid'] = r['global_customizations']['valid'] and p_rep['valid']
