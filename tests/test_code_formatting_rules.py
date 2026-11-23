@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add PHP and markup formatting standards derived from mage2pro/core":
+# https://github.com/dmitry-ai/harness/issues/155
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Migrate general code formatting rules with Bash and ES6 guides":
 # https://github.com/dmitry-ai/harness/issues/154
 from __future__ import annotations
@@ -46,5 +49,24 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		expected = native_profiles.shared_native_outputs(HARNESS_ROOT)[codex_bootstrap]
 		self.assertEqual(expected, codex_bootstrap.read_text(encoding='utf-8'))
 		self.assertIn('rules/11-code-formatting.md', expected)
+	def test_mage2pro_derived_php_markup_and_other_guides(self) -> None:
+		rule_text = self._assert_clean_doc(RULE_DOC)
+		for rel in ('programming/php.md', 'markup/xml.md', 'markup/html.md', 'other/json.md', 'other/less.md'):
+			self.assertIn(rel, rule_text, f'rules/11-code-formatting.md missing link to {rel}')
+		php_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'programming/php.md')
+		for token in ('11-code-formatting.md#code-1', '<?php', '?>', 'public', 'final class', ':string', 'function(', 'use(', 'leading comma', '$r', '_P', '`#`', 'not part of'):
+			self.assertIn(token, php_text, f'Missing PHP formatting requirement {token!r}')
+		xml_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'markup/xml.md')
+		for token in ('11-code-formatting.md#code-1', "<?xml version='1.0'?>", 'single quotes', 'alphabetical', 'own line', '/>', 'column 0', 'not part of'):
+			self.assertIn(token, xml_text, f'Missing XML formatting requirement {token!r}')
+		html_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'markup/html.md')
+		for token in ('11-code-formatting.md#code-1', 'single quotes', 'tab', 'not part of'):
+			self.assertIn(token, html_text, f'Missing HTML formatting requirement {token!r}')
+		json_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'other/json.md')
+		for token in ('11-code-formatting.md#code-1', 'double quotes', 'tab', 'leading comma', 'not part of'):
+			self.assertIn(token, json_text, f'Missing JSON formatting requirement {token!r}')
+		less_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'other/less.md')
+		for token in ('11-code-formatting.md#code-1', 'tab', 'single-line', 'leading comma', 'not part of'):
+			self.assertIn(token, less_text, f'Missing LESS formatting requirement {token!r}')
 if '__main__' == __name__:
 	unittest.main()
