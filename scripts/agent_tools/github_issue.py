@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add fetch subcommand and Issue-First pre-flight guards to df_github_issue.py":
+# https://github.com/dmitry-ai/harness/issues/144
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add audited transfer-repo subcommand to df_github_issue.py":
 # https://github.com/dmitry-ai/harness/issues/126
@@ -212,6 +215,8 @@ def _run_verified_mutation(*, action: str, repo: str, consumable: list[tuple[Pat
 			removed = _consume_files(consumable) if consume_input else []
 			out_payload: dict[str, Any] = {'ok': True, 'action': action, 'repo': repo, id_key: ident, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}
 			if 'issue' == kind:
+				if fetched.get('state'):
+					out_payload['state'] = fetched.get('state')
 				eff_parent = parent_number if None is not parent_number else extract_parent_issue_number(remote_body, repo)
 				if None is not eff_parent and eff_parent != ident:
 					out_payload['parent_number'] = int(eff_parent)
@@ -598,7 +603,7 @@ def _saved_issue_parent_number(source_files: list[tuple[Path, bytes]], repo: str
 						break
 					r = None
 	return r
-def _verify_and_persist_parent_issue(source_files: list[tuple[Path, bytes]], repo: str, parent_number: int, *, self_number: int | None=None, project_root: str | Path | None=None) -> dict[str, Any]:
+def _verify_and_persist_parent_issue(source_files: list[tuple[Path, bytes]], repo: str, parent_number: int, *, self_number: int | None=None, project_root: str | Path | None=None, require_open: bool=False) -> dict[str, Any]:
 	pnum = int(parent_number)
 	if None is not self_number and pnum == int(self_number):
 		raise ValueError(f'Issue #{self_number} cannot reference itself as --parent')
@@ -620,6 +625,8 @@ def _verify_and_persist_parent_issue(source_files: list[tuple[Path, bytes]], rep
 			raise ValueError(f'Parent target #{pnum} in {repo} is not a valid GitHub issue')
 		_persist_issue_evidence(source_files, repo, fetched_parent, kind='issue', action=None, project_root=project_root)
 		existing_data = fetched_parent
+	if require_open and 'closed' == str((existing_data or {}).get('state') or '').strip().lower():
+		raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Parent issue #{pnum} in {repo} is closed; open a new parent problem issue before creating new subtasks')
 	return existing_data
 def _try_link_github_sub_issue(repo: str, parent_number: int, child_id: Any) -> bool:
 	if not isinstance(child_id, int) or isinstance(child_id, bool) or 0 >= child_id:
@@ -672,6 +679,10 @@ def _persist_issue_evidence(source_files: list[tuple[Path, bytes]], repo: str, f
 		m_iss = re.search('/issues/(\\d+)\\b', str(fetched.get('html_url') or fetched.get('issue_url') or ''))
 		issue_number = fetched.get('number') or (int(m_iss.group(1)) if m_iss else None)
 		record = {'url': fetched.get('html_url'), 'html_url': fetched.get('html_url'), 'repo': repo, 'kind': kind, 'number': fetched.get('number'), 'issue_number': issue_number, 'id': fetched.get('id'), 'title': fetched.get('title') or f'{repo}#{ident}', 'state': fetched.get('state'), 'state_reason': fetched.get('state_reason'), 'body': fetched.get('body') or ''}
+		if fetched.get('created_at'):
+			record['created_at'] = fetched.get('created_at')
+		if fetched.get('updated_at'):
+			record['updated_at'] = fetched.get('updated_at')
 		if 'issue' == kind:
 			eff_parent = parent_number if None is not parent_number else _saved_issue_parent_number(source_files, repo, issue_number, project_root=project_root) or extract_parent_issue_number(record['body'], repo)
 			if None is not eff_parent and eff_parent != issue_number:
@@ -707,6 +718,67 @@ def cmd_lint(args: argparse.Namespace) -> int:
 	valid = not title_errors and (not body_errors)
 	dump_json({'valid': valid, 'title_errors': title_errors, 'body_errors': body_errors})
 	return 0 if valid else 2
+def _dirty_issue_first_files(repo: str, *, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> list[str]:
+	code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=source_files)
+	if None is code_repo or (not (code_repo / '.git').exists()):
+		return []
+	if None is not project_root and str(project_root).strip():
+		pr = Path(project_root).resolve()
+		pr_low = pr.as_posix().lower()
+		in_temp = '/temp/' in pr_low or '/tmp/' in pr_low
+		if in_temp and (not code_repo.is_relative_to(pr)) and (not pr.is_relative_to(code_repo)):
+			return []
+	from .git_gate import run_git_read
+	from .issue_first_gate import _is_excluded_meta_rel
+	from .tdd_gate import classify_code_path
+	proc = run_git_read(code_repo, ['status', '--porcelain', '-z', '--untracked-files=all'], check=False)
+	if 0 != proc.returncode or (not proc.stdout):
+		return []
+	tracked_code_repo = is_issue_tracked_code_repo(code_repo)
+	entries = [e for e in proc.stdout.decode('utf-8', errors='replace').split('\x00') if e]
+	dirty: list[str] = []
+	idx = 0
+	while idx < len(entries):
+		entry = entries[idx]
+		code_xy = entry[:2]
+		rel_path = entry[3:].replace('\\', '/')
+		if code_xy.startswith(('R', 'C')) and idx + 1 < len(entries):
+			idx += 1
+		idx += 1
+		if not rel_path or _is_excluded_meta_rel(rel_path):
+			continue
+		if tracked_code_repo or 'non_code' != classify_code_path(code_repo / rel_path):
+			if rel_path not in dirty:
+				dirty.append(rel_path)
+	return sorted(dirty)
+def cmd_fetch(args: argparse.Namespace) -> int:
+	repo = _validate_repo(args.repo)
+	number = int(args.issue)
+	project_root = getattr(args, 'project_root', None)
+	fetched = _gh_api(f'repos/{repo}/issues/{number}', method='GET')
+	if not isinstance(fetched, dict) or 'pull_request' in fetched:
+		raise ValueError(f'Target #{number} in {repo} is not a valid GitHub issue')
+	eff_parent = extract_parent_issue_number(str(fetched.get('body') or ''), repo)
+	if None is not eff_parent and eff_parent != number:
+		_verify_and_persist_parent_issue([], repo, eff_parent, self_number=number, project_root=project_root)
+	_persist_issue_evidence([], repo, fetched, kind='issue', action='fetch', project_root=project_root, parent_number=eff_parent)
+	out_payload: dict[str, Any] = {
+		'ok': True,
+		'action': 'fetch',
+		'repo': repo,
+		'number': number,
+		'state': fetched.get('state'),
+		'state_reason': fetched.get('state_reason'),
+		'title': fetched.get('title'),
+		'html_url': fetched.get('html_url'),
+		'verified': True,
+		'body_chars': len(fetched.get('body') or ''),
+	}
+	if None is not eff_parent and eff_parent != number:
+		out_payload['parent_number'] = int(eff_parent)
+		out_payload['parent_url'] = f'https://github.com/{repo}/issues/{int(eff_parent)}'
+	dump_json(out_payload)
+	return 0
 def cmd_create(args: argparse.Namespace) -> int:
 	repo = _validate_repo(args.repo)
 	consumable: list[tuple[Path, bytes]] = []
@@ -719,6 +791,22 @@ def cmd_create(args: argparse.Namespace) -> int:
 	b_path, b_raw, body = read_utf8_no_bom_file(args.body_file)
 	consumable.append((b_path, b_raw))
 	eff_parent = parent_num if None is not parent_num else extract_parent_issue_number(body, repo)
+	if None is eff_parent:
+		dirty_files = _dirty_issue_first_files(repo, project_root=project_root, source_files=consumable)
+		if dirty_files:
+			dump_json({
+				'ok': False,
+				'action': 'create',
+				'stage': 'pre_flight_issue_first',
+				'repo': repo,
+				'dirty_files': dirty_files,
+				'error': (
+					f'EXEC-5 ISSUE-FIRST-GATE: Refusing to create a parent problem issue in {repo} after local code/test files '
+					f'were already modified ({", ".join(dirty_files[:5])}). State the problem as a parent GitHub issue BEFORE '
+					'writing tests or code (or create a child subtask linked to an existing open parent with --parent <N>).'
+				),
+			})
+			return 2
 	payload: dict[str, Any] = {'title': title, 'body': body}
 	if args.label:
 		labels = [lbl.strip() for item in args.label for lbl in item.split(',') if lbl.strip()]
@@ -732,7 +820,7 @@ def cmd_create(args: argparse.Namespace) -> int:
 		payload['milestone'] = args.milestone
 	def _write_issue() -> int:
 		if None is not eff_parent:
-			_verify_and_persist_parent_issue(consumable, repo, eff_parent, project_root=project_root)
+			_verify_and_persist_parent_issue(consumable, repo, eff_parent, project_root=project_root, require_open=True)
 		return _gh_api(f'repos/{repo}/issues', method='POST', payload=payload)['number']
 	def _after_create(_ident: int, fetched: dict[str, Any]) -> dict[str, Any] | None:
 		if None is not eff_parent:
@@ -1008,6 +1096,7 @@ def build_parser() -> argparse.ArgumentParser:
 	sub = r.add_subparsers(dest='subcommand', required=True)
 	sub_defs = (
 		('lint', 'Validate issue title/body Markdown offline.', cmd_lint, ((('--repo', '-R'), {'help': 'Optional owner/repo slug for validating parent issue URLs.'}), (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), ('--title', {'help': 'Issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing issue title.'}), ('--body-file', {'required': True, 'help': 'UTF-8 file containing issue/comment Markdown body.'}), ('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}))),
+		('fetch', 'Fetch an existing GitHub issue read-only and persist verified Evidence JSON.', cmd_fetch, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), ('--project-root', {'help': 'Optional explicit project root directory.'}))),
 		('create', 'Create a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_create, (_REPO_SPEC, (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), (('--title', '-t'), {'help': 'Issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing issue title.'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing issue Markdown body.'}), (('--label', '-l'), {'action': 'append', 'help': 'Issue label(s), repeatable or comma-separated.'}), (('--assignee', '-a'), {'action': 'append', 'help': 'Assignee login(s), repeatable or comma-separated.'}), (('--milestone', '-m'), {'type': int, 'help': 'Milestone number.'}), *_COMMON_TAIL_SPECS)),
 		('edit', 'Update a GitHub issue from a UTF-8 file and verify via API read-back.', cmd_edit, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'required': True, 'help': 'Issue number.'}), (('--parent', '-p'), {'help': 'Parent problem issue number or URL for a child subtask issue.'}), (('--title', '-t'), {'help': 'Updated issue title string.'}), ('--title-file', {'help': 'UTF-8 file containing updated issue title.'}), (('--body-file', '-F'), {'help': 'UTF-8 file containing updated issue Markdown body.'}), ('--state', {'choices': ['open', 'closed'], 'help': 'Optional state change.'}), *_COMMON_TAIL_SPECS)),
 		('comment', 'Add or edit an issue comment from a UTF-8 file and verify via API read-back.', cmd_comment, (_REPO_SPEC, (('--issue', '-i'), {'type': int, 'help': 'Issue number (for creating a new comment).'}), (('--comment-id', '-c'), {'type': int, 'help': 'Comment ID (for editing an existing comment).'}), (('--body-file', '-F'), {'required': True, 'help': 'UTF-8 file containing comment Markdown body.'}), ('--allow-additional-comment', {'action': 'store_true', 'help': 'Explicitly allow creating an additional comment on an issue that already has a tracked comment.'}), *_COMMON_TAIL_SPECS)),
