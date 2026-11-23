@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace monolithic CLI router with declarative registry and modular docs":
+# https://github.com/dmitry-ai/harness/issues/168
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -158,124 +161,14 @@ def analysis_root(file):
 			break
 	return r
 def execute(args):
-	from . import workflow as flow
 	command = args.command
 	if command in COMPLETION_COMMANDS:
 		from .completion import execute as complete
 		r = complete(args)
-	elif 'status' == command:
-		r = flow.status(args.project)
-	elif 'resume' == command:
-		r = flow.resume(args.project, args.reason, read_input_text(args.request_file, encoding='utf-8') if args.request_file else None)
-	elif 'check-project' == command:
-		r = flow.check_project(args.project)
-	elif 'adopt-requests' == command:
-		r = flow.adopt_requests(args.project, args.conversation, allow_finalized=getattr(args, 'allow_finalized', False))
-	elif 'unadopt-requests' == command:
-		r = flow.unadopt_requests(args.project, args.conversation, request_ids=args.request_id)
-	elif 'record-answer' == command:
-		payload = _operation_input(args, args.response_file)
-		r = _consumed(args, args.response_file, payload, flow.record_current_answer(args.project, payload.decode('utf-8')))
-	elif 'save-analysis' == command:
-		from .analysis import save_analysis
-		from .research import inside
-		cand = args.candidate if '-' == str(args.candidate) else inside(args.project, args.candidate)
-		r = _load_consumed_json(args, cand, lambda data: save_analysis(args.project, data, args.expected_sha256))
-	elif 'collect' == command:
-		r = _execute_collect(args)
-	elif 'collect-http' == command:
-		from .research import collect_http, collect_http_batch
-		urls = _collect_cli_urls(args, require_nonempty=True)
-		if 1 == len(urls):
-			r = collect_http(args.project, urls[0], profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
-		else:
-			r = collect_http_batch(args.project, urls, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, browser=getattr(args, 'browser', 'auto'), cdp_port=getattr(args, 'cdp_port', None))
-	elif 'collect-browser' == command:
-		from .research import collect_browser, collect_browser_batch
-		urls = _collect_cli_urls(args, require_nonempty=True)
-		if 1 == len(urls):
-			r = collect_browser(args.project, urls[0], profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
-		else:
-			r = collect_browser_batch(args.project, urls, profile=args.profile, scope=args.scope, session_id=getattr(args, 'session_id', None), refresh_reason=args.refresh_reason, cdp_port=getattr(args, 'cdp_port', None))
-	elif 'evidence-query' == command:
-		from .research import evidence_query
-		urls = _collect_cli_urls(args, require_nonempty=False)
-		r = evidence_query(args.project, urls=urls, include_anchors=bool(getattr(args, 'anchors', False)), grep_pattern=getattr(args, 'grep', None), context_lines=int(getattr(args, 'context_lines', 2)), max_matches=int(getattr(args, 'max_matches', 20)))
-	elif 'extract' == command:
-		from .research import extract_observation
-		r = extract_observation(args.project, args.source, args.profile)
-	elif 'capture-dom' == command:
-		from .research import capture_dom
-		r = capture_dom(args.project, args.url, args.tab_id, session_id=args.session_id, refresh_reason=args.refresh_reason)
-	elif 'extract-file' == command:
-		from .research import extract_file
-		r = extract_file(args.project, args.source, args.profile)
-	elif 'sync-attachments' == command:
-		from .knowledge import sync_project_attachments_and_kb
-		if not args.media_descriptions:
-			r = sync_project_attachments_and_kb(args.project, None, fetch_videos=not args.no_fetch_videos)
-		else:
-			r = _load_consumed_json(args, args.media_descriptions, lambda desc: sync_project_attachments_and_kb(args.project, desc, fetch_videos=not args.no_fetch_videos))
-	elif 'stage' == command:
-		r = flow.complete_stage(args.project, args.stage, args.input, args.output, note=args.note)
-	elif 'question-add' == command:
-		r = _load_consumed_json(args, args.spec, lambda spec: flow.add_question(args.project, spec['id'], spec['question'], spec['impact'], spec['done_when'], spec['inputs'], spec['outputs'], requirements=spec.get('requirements')))
-	elif 'question-claim' == command:
-		r = flow.claim_question(args.project, args.id, args.owner)
-	elif 'question-finish' == command:
-		r = flow.finish_question(args.project, args.id, args.owner, args.output, args.gap, results=read_input_json(args.results))
-	elif 'question-handoff' == command:
-		r = flow.handoff(args.project, args.id, args.previous_owner, args.new_owner, args.reason)
-	elif 'question-search' == command:
-		r = flow.record_search(args.project, args.id, args.owner, args.query, args.useful, args.method_change)
-	elif 'native-review-proof' == command:
-		from .metrics import native_review_proof
-		r = native_review_proof(args.project, args.parent, args.reviewer, instance=getattr(args, 'instance', None))
-	elif 'prepare-review' == command:
-		if '-' == str(args.spec) and '-' == str(args.response_file):
-			raise ValueError('Only one prepare-review input may use stdin')
-		spec_payload = _operation_input(args, args.spec)
-		payload = _operation_input(args, args.response_file)
-		res = flow.prepare_review(args.project, args.parent, json.loads(spec_payload.decode('utf-8-sig')), payload.decode('utf-8'))
-		r = _consumed(args, args.response_file, payload, _consumed(args, args.spec, spec_payload, res))
-	elif 'review-input' == command:
-		r = flow.review_input(args.project, args.package)
-	elif 'record-review' == command:
-		payload = _operation_input(args, args.report)
-		r = _consumed(args, args.report, payload, flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence))
-	elif 'review-disposition' == command:
-		r = flow.record_review_disposition(args.project, args.review_id, args.finding_id, args.status, args.basis, args.evidence, args.parent)
-	elif 'record-experiment' == command:
-		from .experiments import record_experiment
-		r = _load_consumed_json(args, args.spec, lambda spec: record_experiment(args.project, spec))
-	elif 'prepare-experiment' == command:
-		from .experiments import prepare_experiment
-		r = _load_consumed_json(args, args.spec, lambda spec: prepare_experiment(args.project, spec, amendment_of=args.amendment_of, amendment_reason=args.amendment_reason))
-	elif 'native-executor-metadata' == command:
-		from .metrics import native_executor_metadata, record_executor_metadata
-		callback = record_executor_metadata if args.save else native_executor_metadata
-		r = callback(args.project, args.conversation, role=args.role, parent_id=args.parent, instance=getattr(args, 'instance', None))
-	elif 'metrics' == command:
-		from .metrics import project_metrics, summarize, summarize_instance
-		bindings = read_input_json(args.bindings, encoding='utf-8') if args.bindings else None
-		if args.traces:
-			r = summarize(args.traces, bindings)
-		elif getattr(args, 'conversation', None):
-			r = summarize_instance(args.conversation, instance=getattr(args, 'instance', None), platform=getattr(args, 'platform', None), bindings=bindings)
-		else:
-			raise ValueError('Provide trace file paths or --conversation')
-		if args.project:
-			r['project'] = project_metrics(args.project)
-	elif 'source-ref' == command:
-		from .evidence import source_reference
-		r = {'source': source_reference(args.project, args.file, args.part)}
-	elif 'render-analysis' == command:
-		from .analysis import publish_analysis
-		r = publish_analysis(args.input, args.output)
-	elif 'git-read' != command:
-		raise ValueError('Unknown workflow command')
 	else:
-		from .git_gate import read_git
-		extra = [f'--{flag}' for flag in ('short', 'stat', 'check') if getattr(args, flag, False)] + list(args.git_args)
-		r = read_git(args.project, args.git_subcommand, extra)
+		from .cli_domains import OPERATION_HANDLERS
+		handler = OPERATION_HANDLERS.get(command)
+		if None is handler:
+			raise ValueError('Unknown workflow command')
+		r = handler(args)
 	return r

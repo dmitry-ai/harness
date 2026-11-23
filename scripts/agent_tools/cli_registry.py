@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Replace monolithic CLI router with declarative registry and modular docs":
+# https://github.com/dmitry-ai/harness/issues/168
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
 # https://github.com/dmitry-ai/harness/issues/165
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -13,6 +16,8 @@ _REGISTRY: dict[str, dict] = {}
 def _ensure_builtin_plugins() -> None:
 	if not _REGISTRY:
 		_register_builtins()
+def _exec_cli_docs(_args) -> dict:
+	return {'valid': True, 'commands': list(registered_commands()), 'markdown': render_cli_index()}
 def _exec_land_acquire(args) -> dict:
 	from .landing_lease import acquire_lease
 	return acquire_lease(args.repo, owner=args.owner, wait=bool(args.wait), timeout=args.timeout, ttl=args.ttl, poll_interval=args.poll_interval)
@@ -45,6 +50,7 @@ def _format_run_tests(res: dict, args) -> str | None:
 		r = format_text_report(res)
 	return r
 def _register_builtins() -> None:
+	register_command('cli-docs', 'Render Markdown command index directly from registered CLI commands', (), _exec_cli_docs)
 	register_command('land-acquire', 'Acquire FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--wait', {'action': 'store_true', 'help': 'Wait reactively in FIFO queue until acquired'}), ('--timeout', {'type': float, 'default': 600.0}), ('--ttl', {'type': float, 'default': 600.0}), ('--poll-interval', {'type': float, 'default': 2.0})), _exec_land_acquire)
 	register_command('land-release', 'Release FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--force', {'action': 'store_true'})), _exec_land_release)
 	register_command('land-status', 'Inspect FIFO landing lease and queue for a Git repository', (('repo', {'type': Path}),), _exec_land_status)
@@ -88,3 +94,9 @@ def registered_commands() -> tuple[str, ...]:
 	return tuple(sorted(_REGISTRY))
 def register_command(name: str, help_text: str, specs: tuple | list, handler: Callable, *, exit_code_fn: Callable | None=None, text_fn: Callable | None=None) -> None:
 	_REGISTRY[name] = {'help': help_text, 'specs': specs, 'handler': handler, 'exit_code_fn': exit_code_fn, 'text_fn': text_fn}
+def render_cli_index() -> str:
+	_ensure_builtin_plugins()
+	lines = ['# Registered CLI Commands', '']
+	for name, entry in sorted(_REGISTRY.items()):
+		lines.append(f"- `{name}` — {entry['help']}.  ")
+	return '\n'.join(lines) + '\n'

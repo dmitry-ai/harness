@@ -38,7 +38,9 @@ Required GitHub Issue URL references in issue-tracked `code` repositories follow
 ## CODE-4
 Decompose new and compact production Python code into small single-purpose functions and modules: keep functions at most `20` executable SLOC and McCabe cyclomatic complexity at most `8`, keep files at most `300` executable SLOC, and never join multiple statements on one line with `;` (excluding comments, blank lines, docstrings, and multi-line pure declarative constant tables; test files use relaxed limits of `40` SLOC, McCabe `12`, and `600` file SLOC).  
 For pre-existing legacy Python files exceeding `300` SLOC or functions exceeding `20` SLOC or McCabe `8`, enforce a one-way size ratchet in `PreToolUse` (`CODE-SIZE-RATCHET-GATE`) and Git `pre-commit`: never increase executable SLOC or McCabe complexity in an oversized legacy file or function, and extract new logic into a separate compact module or helper.  
+Place tests for each new feature or gate in a dedicated `tests/test_<feature>.py` module rather than appending unrelated scenarios to monolithic test suites such as `tests/test_turn_completion.py`.  
 <!-- https://github.com/dmitry-ai/harness/issues/154 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/161 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/168 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/155 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/156 -->  
