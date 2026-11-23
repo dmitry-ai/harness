@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
+# https://github.com/dmitry-ai/harness/issues/203
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
 # https://github.com/dmitry-ai/harness/issues/201
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -10,7 +13,7 @@ import re
 import shutil
 import subprocess
 from .git_gate import GitRepoGate, _NO_WINDOW
-from .git_ignore import prepare_worktrees_base_dir
+from .git_ignore import ensure_worktree_dir_ignored, prepare_worktrees_base_dir
 from .landing_lease import acquire_lease, release_lease
 from .path_registry import project_paths
 _SAFE_TASK_RE = re.compile(r'[^A-Za-z0-9_.-]+')
@@ -26,6 +29,19 @@ def _apply_porcelain_line(cur: dict, line: str) -> None:
 def _current_branch(repo: Path) -> str:
 	proc = GitRepoGate(repo).run_read(['rev-parse', '--abbrev-ref', 'HEAD'], check=False)
 	return proc.stdout.decode('utf-8', errors='replace').strip() if 0 == proc.returncode else ''
+def _enrich_worktree_entry(main_repo: Path, main_posix: str, base_ref: str, entry: dict) -> None:
+	wp = Path(entry['path'])
+	is_main = wp.resolve().as_posix() == main_posix
+	entry['is_main'] = is_main
+	if not wp.is_dir():
+		entry.update(missing=True, dirty=False, ahead=0, behind=0, stale=not is_main)
+	else:
+		entry['dirty'] = bool(GitRepoGate(wp).run_read(['status', '--porcelain'], check=False).stdout.strip())
+		if is_main:
+			entry.update(ahead=0, behind=0, stale=False)
+		else:
+			ahead, behind = _rev_distance(main_repo, base_ref, str(entry.get('head') or ''))
+			entry.update(ahead=ahead, behind=behind, stale=(not entry['dirty']) and 0 == ahead and 0 < behind)
 def _fail_land(main_repo: Path, wt_path: Path, branch: str, stage: str, error: str, *, test_runs: int=0, test_result: dict | None=None) -> dict:
 	return {'valid': False, 'landed': False, 'stage': stage, 'error': error, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'test_runs': test_runs, 'test_result': test_result}
 def _git_exec(repo: Path, *args: str) -> subprocess.CompletedProcess:
@@ -83,6 +99,14 @@ def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str
 					r = (cr.resolve(), rel)
 					break
 			break
+	return r
+def _rev_distance(main_repo: Path, base_ref: str, head_sha: str) -> tuple[int, int]:
+	r = (0, 0)
+	if head_sha:
+		proc = GitRepoGate(main_repo).run_read(['rev-list', '--left-right', '--count', f'{base_ref}...{head_sha}'], check=False)
+		parts = proc.stdout.decode('utf-8', errors='replace').strip().split() if 0 == proc.returncode else []
+		if 2 == len(parts) and parts[0].isdigit() and parts[1].isdigit():
+			r = (int(parts[1]), int(parts[0]))
 	return r
 def _run_land_tests(wt_path: Path, *, run_tests: bool, workers: int | None) -> tuple[bool, int, dict | None]:
 	tests_dir = wt_path / 'tests'
@@ -159,12 +183,14 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 		err, test_runs, test_res = _rebase_and_test(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
 		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn)
 	return r
-def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=False, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None) -> dict:
+def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None) -> dict:
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):
 		raise ValueError(f'Not a linked git worktree: {wt_path}')
 	main_repo = GitRepoGate(wt_path).main_repo()
 	branch = _current_branch(wt_path)
+	if None is leases_dir:
+		ensure_worktree_dir_ignored(project_paths(main_repo).data_dir / 'repo-leases')
 	lease = acquire_lease(main_repo, owner=owner, wait=True, timeout=wait_timeout, leases_dir=leases_dir)
 	if not lease['acquired']:
 		r = _fail_land(main_repo, wt_path, branch, 'lease_timeout', 'Timed out waiting for FIFO landing lease')
@@ -176,10 +202,12 @@ def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests:
 	return r
 def worktree_status(repo: Path | str) -> dict:
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
-	raw = GitRepoGate(main_repo).git('worktree', 'list', '--porcelain').decode('utf-8', errors='replace')
+	base_ref = _current_branch(main_repo) or 'HEAD'
+	raw = GitRepoGate(main_repo).run_read(['worktree', 'list', '--porcelain']).stdout.decode('utf-8', errors='replace')
 	entries = _parse_worktree_porcelain(raw)
+	main_posix = main_repo.resolve().as_posix()
 	for entry in entries:
-		wp = Path(entry['path'])
-		if wp.is_dir():
-			entry['dirty'] = bool(GitRepoGate(wp).git('status', '--porcelain').strip())
-	return {'valid': True, 'main_repo': main_repo.as_posix(), 'worktrees': entries}
+		_enrich_worktree_entry(main_repo, main_posix, base_ref, entry)
+	stale = [e['path'] for e in entries if e.get('stale')]
+	behind = [e['path'] for e in entries if 0 < int(e.get('behind') or 0)]
+	return {'valid': True, 'main_repo': main_repo.as_posix(), 'base_ref': base_ref, 'worktrees': entries, 'stale_worktrees': stale, 'behind_worktrees': behind}

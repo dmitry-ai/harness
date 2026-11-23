@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
+# https://github.com/dmitry-ai/harness/issues/203
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add deterministic reactive wait primitive for transient repository and journal contention":
 # https://github.com/dmitry-ai/harness/issues/199
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -72,7 +75,9 @@ def _exec_worktree_cleanup(args) -> dict:
 	return worktree_cleanup(args.repo, args.target, force=bool(args.force))
 def _exec_worktree_land(args) -> dict:
 	from .worktree_flow import worktree_land
-	return worktree_land(args.worktree, target_branch=args.target, run_tests=not args.no_tests, push=bool(args.push), remove=bool(args.remove), owner=args.owner, wait_timeout=args.timeout, workers=args.workers)
+	if args.keep and args.remove:
+		raise ValueError('Cannot combine --keep and --remove in worktree-land')
+	return worktree_land(args.worktree, target_branch=args.target, run_tests=not args.no_tests, push=bool(args.push), remove=not bool(args.keep), owner=args.owner, wait_timeout=args.timeout, workers=args.workers)
 def _exec_worktree_status(args) -> dict:
 	from .worktree_flow import worktree_status
 	return worktree_status(args.repo)
@@ -112,7 +117,7 @@ def _register_builtins() -> None:
 	register_command('wait-repo', 'Wait reactively in foreground until a Git repository lease is free and/or working tree is clean', (('repo', {'type': Path}), ('--clean', {'action': 'store_true', 'help': 'Wait until git status --porcelain is empty'}), ('--lease-free', {'action': 'store_true', 'help': 'Wait until FIFO landing lease is free (with PID liveness checks)'}), ('--timeout', {'type': float, 'default': 180.0, 'help': 'Maximum wait seconds before timing out (default: 180)'}), ('--poll', {'type': float, 'default': 1.0, 'help': 'Polling interval in seconds (default: 1.0)'})), _exec_wait_repo)
 	register_command('worktree-begin', 'Create an isolated linked git worktree and task branch', (('repo', {'type': Path}), ('--task', {'required': True}), ('--base', {'default': 'main'}), ('--worktrees-dir', {'type': Path})), _exec_worktree_begin)
 	register_command('worktree-cleanup', 'Remove a linked git worktree and its merged task branch', (('repo', {'type': Path}), ('target', {'type': Path}), ('--force', {'action': 'store_true'})), _exec_worktree_cleanup)
-	register_command('worktree-land', 'Rebase, test once, fast-forward merge, and optionally push a task worktree under FIFO lease', (('worktree', {'type': Path}), ('--target', {'default': 'main'}), ('--no-tests', {'action': 'store_true'}), ('--push', {'action': 'store_true'}), ('--remove', {'action': 'store_true'}), ('--owner', {}), ('--timeout', {'type': float, 'default': 600.0}), ('--workers', {'type': int})), _exec_worktree_land)
+	register_command('worktree-land', 'Rebase, test once, fast-forward merge, and remove (unless --keep) a task worktree under FIFO lease', (('worktree', {'type': Path}), ('--target', {'default': 'main'}), ('--no-tests', {'action': 'store_true'}), ('--push', {'action': 'store_true'}), ('--keep', {'action': 'store_true', 'help': 'Keep the linked worktree and task branch after landing'}), ('--remove', {'action': 'store_true', 'help': 'Remove the linked worktree after landing (default)'}), ('--owner', {}), ('--timeout', {'type': float, 'default': 600.0}), ('--workers', {'type': int})), _exec_worktree_land)
 	register_command('worktree-status', 'List linked git worktrees and dirty status for a repository', (('repo', {'type': Path}),), _exec_worktree_status)
 def add_registered_parsers(sub) -> None:
 	_ensure_builtin_plugins()
