@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add isolated git worktree task workflow and worktree-scoped issue gates":
+# https://github.com/dmitry-ai/harness/issues/165
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
 # https://github.com/dmitry-ai/harness/issues/150
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -75,9 +78,10 @@ from .cli_common import add_arg_specs, consume_unchanged_files, dump_json
 from .git_gate import is_issue_tracked_code_repo, verify_repo_issue_ready_for_close
 from .runtime import HARNESS_META
 from .source_grounding import verify_target_locale
+from .worktree_flow import git_config_file, prioritized_worktree_candidates
 REPO_RE = re.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
 _SLUG_PART_RE = re.compile('^[A-Za-z0-9_.-]+$')
-_COMMON_TAIL_SPECS = (('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete input file(s) after verified publication.'}))
+_COMMON_TAIL_SPECS = (('--target-locale', {'default': 'en-US', 'help': 'Expected target locale (default: en-US per TEXT-1).'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--repo-root', {'help': 'Optional explicit local Git repository or linked worktree root.'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete input file(s) after verified publication.'}))
 _REPO_SPEC = (('--repo', '-R'), {'required': True, 'help': 'Target repository in owner/repo format.'})
 _TITLE_INTRO_SUBORD_RE = re.compile('^(?:when|if|unless|while|after|before|once|where|whenever|although|though|since|because|\\u0435\\u0441\\u043b\\u0438|\\u043a\\u043e\\u0433\\u0434\\u0430|\\u043f\\u043e\\u0441\\u043b\\u0435|\\u043f\\u043e\\u043a\\u0430)\\b[^,]*,\\s+', re.I)
 _TITLE_INTRO_PREP_RE = re.compile('^(?:in|on|at|for|from|to|by|with|without|under|during|upon|inside|outside|across|via|through|per|\\u0432|\\u0432\\u043e|\\u043d\\u0430|\\u043f\\u0440\\u0438|\\u0431\\u0435\\u0437|\\u0434\\u043b\\u044f|\\u0438\\u0437|\\u043f\\u043e|\\u0447\\u0435\\u0440\\u0435\\u0437)\\s+(?:the\\s+)?[A-Za-z0-9_\\u0400-\\u04ff./:-]+(?:\\s+[A-Za-z0-9_\\u0400-\\u04ff./:-]+){0,6},\\s+', re.I)
@@ -347,7 +351,7 @@ def _gh_api(endpoint: str, *, method: str='GET', payload: dict[str, Any] | None=
 		r = merged
 	return r
 def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
-	cfg_file = code_repo / '.git/config'
+	cfg_file = git_config_file(code_repo)
 	r = False
 	if cfg_file.is_file():
 		try:
@@ -356,11 +360,10 @@ def _repo_matches_github_slug(code_repo: Path, repo: str) -> bool:
 		except OSError:
 			r = False
 	return r
-def _find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> Path | None:
+def _find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, *, repo_root: str | Path | None=None) -> Path | None:
 	from .path_registry import project_paths, store_value
-	r = None
-	v2_code_rels = ('\u2c0f/\u227b/\u2655/\u26ef', 'Artifacts/\u227b/Deliverables/\u26ef')
-	candidates: list[Path] = []
+	r, v2_code_rels = (None, ('\u2c0f/\u227b/\u2655/\u26ef', 'Artifacts/\u227b/Deliverables/\u26ef'))
+	candidates: list[Path] = prioritized_worktree_candidates(repo_root)
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
 		try:
@@ -722,8 +725,8 @@ def cmd_lint(args: argparse.Namespace) -> int:
 	valid = not title_errors and (not body_errors)
 	dump_json({'valid': valid, 'title_errors': title_errors, 'body_errors': body_errors})
 	return 0 if valid else 2
-def _dirty_issue_first_files(repo: str, *, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None) -> list[str]:
-	code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=source_files)
+def _dirty_issue_first_files(repo: str, *, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, repo_root: str | Path | None=None) -> list[str]:
+	code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=source_files, repo_root=repo_root)
 	if None is code_repo or (not (code_repo / '.git').exists()):
 		return []
 	if None is not project_root and str(project_root).strip():
@@ -796,7 +799,7 @@ def cmd_create(args: argparse.Namespace) -> int:
 	consumable.append((b_path, b_raw))
 	eff_parent = parent_num if None is not parent_num else extract_parent_issue_number(body, repo)
 	if None is eff_parent:
-		dirty_files = _dirty_issue_first_files(repo, project_root=project_root, source_files=consumable)
+		dirty_files = _dirty_issue_first_files(repo, project_root=project_root, source_files=consumable, repo_root=getattr(args, 'repo_root', None))
 		if dirty_files:
 			dump_json({
 				'ok': False,
@@ -953,7 +956,7 @@ def cmd_close(args: argparse.Namespace) -> int:
 		c_errors = lint_issue_markdown(comment_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=False)
 	commit_err: str | None = None
 	if not c_errors and 'completed' == getattr(args, 'reason', 'completed'):
-		code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=consumable)
+		code_repo = _find_local_code_repo(repo, project_root=project_root, source_files=consumable, repo_root=getattr(args, 'repo_root', None))
 		if None is not code_repo and is_issue_tracked_code_repo(code_repo):
 			try:
 				verify_repo_issue_ready_for_close(code_repo, repo, number, project_root=project_root)

@@ -38,6 +38,7 @@ Do not attach one-shot `schedule` timers (`DurationSeconds`) to background `run_
 When landing concurrent repository changes onto `main`, serialize only the final landing step through `harness.py land-acquire <repo> --wait --timeout <S>` (with `land-release` on exit) so agents proceed strictly in FIFO order with reactive wakeups; for logically related parallel work launched together, prefer coordinating under `swarm` or `invoke_subagent` with `workspace: "share"`.  
 ## EXEC-5
 Before any Git operation, verify the repository root, branch, and remote; commit only an explicit file list in the established order, without unrelated changes or Git hooks.  
+For concurrent tasks on the same repository, isolate development and `Red`-TDD in a linked worktree (`harness.py worktree-begin <repo> --task <id>`), land via `harness.py worktree-land <wt>` (single rebase + single parallel full suite + `--ff-only`), and execute host-global mutations (`harness.py build-native`, `harness.py install-global`) strictly on `main` during landing rather than inside parallel worktrees.  
 Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (preferably via `harness.py git-read` or with `GIT_OPTIONAL_LOCKS=0`; do not combine `git` calls with initial rule reading before `turn-begin` completes).  
 Create, edit, comment on, close, and fetch GitHub issues per the [df-github-issue](../skills/df-github-issue/SKILL.md) skill via `df_github_issue.py` using a UTF-8 file without BOM (`--body-file`) and mandatory read-back verification; never pass Markdown bodies via `--body`/`--comment` on the command line or through a PowerShell pipeline without UTF-8.  
 `df_github_issue.py create` automatically prepends a tab-indented JSON metadata header (`Time`, `Issue`, `Project`, `Journal`, `Agent`, `Trace`) to new GitHub issues before read-back verification unless `--no-metadata` is explicitly passed.  
@@ -69,3 +70,4 @@ Before working with an authenticated portal, read the [authenticated access proc
 <!-- https://github.com/dmitry-ai/harness/issues/152 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/163 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/164 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/165 -->  

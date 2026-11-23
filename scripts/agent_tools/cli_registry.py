@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add isolated git worktree task workflow and worktree-scoped issue gates":
+# https://github.com/dmitry-ai/harness/issues/165
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add deterministic FIFO repository landing lease with reactive wait":
 # https://github.com/dmitry-ai/harness/issues/163
 from __future__ import annotations
@@ -22,6 +25,18 @@ def _exec_land_status(args) -> dict:
 def _exec_run_tests(args) -> dict:
 	from .suite_runner import run_test_suite
 	return run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
+def _exec_worktree_begin(args) -> dict:
+	from .worktree_flow import worktree_begin
+	return worktree_begin(args.repo, args.task, base_ref=args.base, worktrees_dir=args.worktrees_dir)
+def _exec_worktree_cleanup(args) -> dict:
+	from .worktree_flow import worktree_cleanup
+	return worktree_cleanup(args.repo, args.target, force=bool(args.force))
+def _exec_worktree_land(args) -> dict:
+	from .worktree_flow import worktree_land
+	return worktree_land(args.worktree, target_branch=args.target, run_tests=not args.no_tests, push=bool(args.push), remove=bool(args.remove), owner=args.owner, wait_timeout=args.timeout, workers=args.workers)
+def _exec_worktree_status(args) -> dict:
+	from .worktree_flow import worktree_status
+	return worktree_status(args.repo)
 def _format_run_tests(res: dict, args) -> str | None:
 	if 'json' == args.format:
 		r = None
@@ -34,6 +49,10 @@ def _register_builtins() -> None:
 	register_command('land-release', 'Release FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--force', {'action': 'store_true'})), _exec_land_release)
 	register_command('land-status', 'Inspect FIFO landing lease and queue for a Git repository', (('repo', {'type': Path}),), _exec_land_status)
 	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
+	register_command('worktree-begin', 'Create an isolated linked git worktree and task branch', (('repo', {'type': Path}), ('--task', {'required': True}), ('--base', {'default': 'main'}), ('--worktrees-dir', {'type': Path})), _exec_worktree_begin)
+	register_command('worktree-cleanup', 'Remove a linked git worktree and its merged task branch', (('repo', {'type': Path}), ('target', {'type': Path}), ('--force', {'action': 'store_true'})), _exec_worktree_cleanup)
+	register_command('worktree-land', 'Rebase, test once, fast-forward merge, and optionally push a task worktree under FIFO lease', (('worktree', {'type': Path}), ('--target', {'default': 'main'}), ('--no-tests', {'action': 'store_true'}), ('--push', {'action': 'store_true'}), ('--remove', {'action': 'store_true'}), ('--owner', {}), ('--timeout', {'type': float, 'default': 600.0}), ('--workers', {'type': int})), _exec_worktree_land)
+	register_command('worktree-status', 'List linked git worktrees and dirty status for a repository', (('repo', {'type': Path}),), _exec_worktree_status)
 def add_registered_parsers(sub) -> None:
 	_ensure_builtin_plugins()
 	for name, entry in sorted(_REGISTRY.items()):

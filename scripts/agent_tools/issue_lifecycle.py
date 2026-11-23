@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add isolated git worktree task workflow and worktree-scoped issue gates":
+# https://github.com/dmitry-ai/harness/issues/165
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
 # https://github.com/dmitry-ai/harness/issues/123
@@ -292,6 +295,7 @@ def _collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]
 				turn_issues[url] = entry
 	return turn_issues
 def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) -> dict:
+	from .worktree_flow import resolve_touched_repo_file
 	root = Path(root).resolve()
 	repo_touched: dict[Path, set[str]] = {}
 	for raw_p in turn.get('touched_files') or []:
@@ -301,15 +305,9 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 				p = p.resolve() if p.is_absolute() else (root / p).resolve()
 			except OSError:
 				continue
-			for anc in (p, *p.parents):
-				if is_issue_tracked_code_repo(anc):
-					try:
-						rel = p.relative_to(anc).as_posix()
-					except ValueError:
-						break
-					if rel and '.' != rel and (not rel.startswith(('.git/', '\ua616/', '\ua66e/', '_/', '\U0001f56e/', '\u2c0f/\u227a/', 'Artifacts/\u227a/'))):
-						repo_touched.setdefault(anc, set()).add(rel)
-					break
+			resolved = resolve_touched_repo_file(p, is_issue_tracked_code_repo)
+			if None is not resolved:
+				repo_touched.setdefault(resolved[0], set()).add(resolved[1])
 	from .path_registry import project_paths, store_path
 	pp_root = project_paths(root)
 	v2_code_rels = ('\u2c0f/\u227b/\u2655/\u26ef', 'Artifacts/\u227b/Deliverables/\u26ef')
@@ -514,8 +512,9 @@ def evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repo
 			continue
 	return r
 def origin_repo_slug(code_repo: Path) -> str | None:
+	from .worktree_flow import git_config_file
 	r = None
-	cfg_file = Path(code_repo) / '.git/config'
+	cfg_file = git_config_file(Path(code_repo))
 	if cfg_file.is_file():
 		try:
 			cfg_text = cfg_file.read_text(encoding='utf-8', errors='replace')
