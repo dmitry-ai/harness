@@ -42,6 +42,12 @@ class IssueDecompositionTests(unittest.TestCase):
 			res = auditor.audit()
 			self.assertTrue(res['verified'])
 			self.assertEqual(res, issue_lifecycle.code_and_issue_lifecycle_status(Path(tmp), {'touched_files': [], 'issue_actions': []}))
+	def test_issue_lifecycle_exports_multi_subtask_decomposition_helper(self):
+		from agent_tools.issue_lifecycle import _check_multi_subtask_decomposition
+		violations = []
+		with tempfile.TemporaryDirectory() as tmp:
+			_check_multi_subtask_decomposition(Path(tmp), '', {}, {}, {}, {}, [], violations)
+		self.assertEqual([], violations)
 	def test_service_cmd_close_routes_through_module_gh_api_and_checks_readback(self):
 		from agent_tools.issues import GitHubIssueService
 		with tempfile.TemporaryDirectory() as tmp:

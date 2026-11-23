@@ -8,6 +8,13 @@ from .issues import IssueEvidenceWorkspace, TurnIssueLifecycleAuditor
 from .issues.parity import check_similar_project_parity, extract_implemented_m_roots, similar_project_repo_slugs
 _check_similar_project_parity = check_similar_project_parity
 _extract_implemented_m_roots_from_response = extract_implemented_m_roots
+def _check_multi_subtask_decomposition(root: Path, response, repo_touched: dict, committed_by_repo: dict[Path, set[str]], turn_issues: dict, required_issues_by_repo: dict[Path, set[str]], candidate_repos: list[Path], violations: list[str]) -> None:
+	auditor = TurnIssueLifecycleAuditor(Path(root), {}, None, response)
+	auditor.repo_touched = repo_touched
+	auditor.turn_issues = turn_issues
+	auditor.candidate_repos = candidate_repos
+	auditor.violations = violations
+	auditor._check_multi_subtask_decomposition(committed_by_repo, required_issues_by_repo)
 def _collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]:
 	return TurnIssueLifecycleAuditor.collect_turn_issues(turn, turn_state)
 def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) -> dict:
