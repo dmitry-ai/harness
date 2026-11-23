@@ -1,14 +1,20 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce live TDD PreToolUse gate in check_rules_and_server_gate.py":
 # https://github.com/dmitry-ai/harness/issues/136
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+import io
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
 HOOK_SCRIPT = SCRIPT_DIR / 'check_rules_and_server_gate.py'
@@ -19,20 +25,17 @@ import check_rules_and_server_gate as gate
 
 
 def _run_hook(payload: dict) -> dict:
-	proc = subprocess.run(
-		[sys.executable, str(HOOK_SCRIPT)],
-		input=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
-		capture_output=True,
-		check=True,
-	)
-	return json.loads(proc.stdout.decode('utf-8'))
+	buf = io.StringIO()
+	with patch.object(sys, 'stdin', io.StringIO(json.dumps(payload, ensure_ascii=False))), redirect_stdout(buf):
+		gate.main()
+	return json.loads(buf.getvalue())
 
 
 def _init_git_repo(repo: Path) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
-	subprocess.run(['git', 'init', str(repo)], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(repo), 'config', 'user.email', 'test@example.com'], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(repo), 'config', 'user.name', 'Test User'], check=True, capture_output=True)
+	subprocess.run(['git', 'init', '-b', 'main', str(repo)], check=True, capture_output=True)
+	cfg = repo / '.git/config'
+	cfg.write_text(cfg.read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test User\n', encoding='utf-8')
 
 
 def _write_transcript(path: Path, rows: list[dict]) -> Path:
@@ -354,6 +357,18 @@ class TddPreToolUseGateTests(unittest.TestCase):
 			self.assertIsNotNone(
 				gate.check_tdd_gate('write_file', {'Path': str(repo / 'src/untested.py'), 'Content': 'a = 1\n'}, {'cwd': str(repo), 'transcriptPath': str(tx)})
 			)
+
+	def test_cli_subprocess_smoke(self) -> None:
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			repo = base / 'cli_repo'
+			_init_git_repo(repo)
+			tx = _write_transcript(base / 'transcript.jsonl', [{'step_index': 0, 'type': 'USER_INPUT', 'content': 'Smoke'}])
+			payload = {'cwd': str(repo), 'transcriptPath': str(tx), 'toolCall': {'name': 'write_file', 'args': {'Path': str(repo / 'src/app.py'), 'Content': 'x = 1\n'}}}
+			proc = subprocess.run([sys.executable, str(HOOK_SCRIPT)], input=json.dumps(payload, ensure_ascii=False).encode('utf-8'), capture_output=True, check=True)
+			decision = json.loads(proc.stdout.decode('utf-8'))
+			self.assertEqual(decision['decision'], 'deny', decision)
+			self.assertIn('TDD-RED-GATE', decision.get('reason', ''))
 
 
 if '__main__' == __name__:

@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
 # https://github.com/dmitry-ai/harness/issues/161
@@ -241,38 +244,15 @@ class GitRepoGate:
 	def run_read(self, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 		env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 		return subprocess.run(['git', '--no-optional-locks', '-C', str(self.root), *args], input=input_bytes, capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
-	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None) -> dict:
+	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None, git_cache=None) -> dict:
 		from .github_issue import find_tracked_child_issues
+		from .issues.git_read_cache import RepoReadCache
+		cache = git_cache if None is not git_cache else RepoReadCache()
 		issue_url = f'https://github.com/{repo}/issues/{number}'
-		status_out = self.git('status', '--porcelain', '-z').decode('utf-8', errors='replace')
-		dirty_referencing = []
-		entries = [e for e in status_out.split('\x00') if e]
-		idx = 0
-		while idx < len(entries):
-			entry = entries[idx]
-			status_code = entry[:2]
-			rel_path = entry[3:]
-			if status_code.startswith(('R', 'C')) and idx + 1 < len(entries):
-				idx += 1
-			fpath = self.root / rel_path
-			if fpath.is_file() and fpath.suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES:
-				try:
-					if issue_url in extract_issue_urls(fpath.read_text(encoding='utf-8', errors='replace')):
-						dirty_referencing.append(rel_path)
-				except OSError:
-					pass
-			idx += 1
+		dirty_referencing = cache.dirty_referencing_issue(self.root, issue_url, _ISSUE_LINKED_CODE_SUFFIXES, extract_issue_urls)
 		if dirty_referencing:
 			raise ValueError(f'EXEC-5 violation: uncommitted file(s) in {self.root} still reference {issue_url}: {", ".join(dirty_referencing)}; commit and push before closing the issue')
-		commit_sha = ''
-		log_proc = self.run_read(['log', f'--grep={issue_url}', '--fixed-strings', '--format=%H%x1f%B%x1e'], check=False)
-		if 0 == log_proc.returncode and log_proc.stdout:
-			for rec in log_proc.stdout.decode('utf-8', errors='replace').split('\x1e'):
-				if '\x1f' in rec:
-					sha_cand, msg_cand = rec.split('\x1f', 1)
-					if issue_url in extract_issue_urls(msg_cand):
-						commit_sha = sha_cand.strip()
-						break
+		commit_sha = cache.find_commit_for_issue(self.root, issue_url, extract_issue_urls)
 		children = find_tracked_child_issues(repo, number, project_root=project_root, code_repo=self.root)
 		visiting = set(_visiting or ())
 		if children and int(number) not in visiting:
@@ -287,21 +267,13 @@ class GitRepoGate:
 				raise ValueError(f'EXEC-5 violation: parent issue {issue_url} has no completed child issues with verified commits')
 			child_shas: list[str] = []
 			for child in completed_children:
-				c_res = self.verify_issue_ready_for_close(repo, child['number'], project_root=project_root, _visiting=visiting)
+				c_res = self.verify_issue_ready_for_close(repo, child['number'], project_root=project_root, _visiting=visiting, git_cache=cache)
 				if c_res.get('commit_sha'):
 					child_shas.append(c_res['commit_sha'])
 			return {'verified': True, 'repo': str(self.root), 'issue_url': issue_url, 'commit_sha': child_shas[0] if child_shas else '', 'child_issues': [c['number'] for c in completed_children], 'pushed': True}
 		if not commit_sha:
 			raise ValueError(f'EXEC-5 violation: no commit in {self.root} references {issue_url}; commit and push changes before closing the issue as completed')
-		up_proc = self.run_read(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], check=False)
-		pushed = True
-		if 0 == up_proc.returncode:
-			anc_proc = self.run_read(['merge-base', '--is-ancestor', commit_sha, '@{u}'], check=False)
-			unpushed_str = self.git('rev-list', '--count', '@{u}..HEAD').decode('utf-8', errors='replace').strip()
-			unpushed = int(unpushed_str) if unpushed_str.isdigit() else 0
-			if 0 != anc_proc.returncode or 0 < unpushed:
-				pushed = False
-				raise ValueError(f'EXEC-5 violation: commit {commit_sha[:12]} referencing {issue_url} in {self.root} has not been pushed to upstream (run git push before df_github_issue.py close)')
+		pushed = cache.verify_commit_pushed(self.root, commit_sha, issue_url)
 		return {'verified': True, 'repo': str(self.root), 'issue_url': issue_url, 'commit_sha': commit_sha, 'pushed': pushed}
 	def _tdd_project_root(self) -> Path:
 		main_r = self.main_repo()
@@ -673,5 +645,5 @@ def commit_in_worktree(root: Path, paths: list[str], message: str) -> list[str]:
 # https://github.com/dmitry-ai/harness/issues/17
 def commit(root: Path, paths: list[str], message: str, execute=False, *, worktree: bool=False):
 	return GitRepoGate(root, strict=True).commit(paths, message, execute=execute, worktree=worktree)
-def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int, *, project_root: str | Path | None=None) -> dict:
-	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number, project_root=project_root)
+def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int, *, project_root: str | Path | None=None, git_cache=None) -> dict:
+	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number, project_root=project_root, git_cache=git_cache)

@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
@@ -2516,8 +2519,8 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			peer_b = t / 'peer_b'
 			bare_a = t / 'bare_a.git'
 			bare_b = t / 'bare_b.git'
-			subprocess.run(['git', 'init', '--bare', str(bare_a)], check=True, capture_output=True)
-			subprocess.run(['git', 'init', '--bare', str(bare_b)], check=True, capture_output=True)
+			subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare_a)], check=True, capture_output=True)
+			subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare_b)], check=True, capture_output=True)
 			for p, bare, peer_other, slug in ((peer_a, bare_a, peer_b, 'test-org/peer-a'), (peer_b, bare_b, peer_a, 'test-org/peer-b')):
 				(p / '\ua66e/\u227b/1\u201320').mkdir(parents=True)
 				(p / '\ua66e/\u227a/1\u201320').mkdir(parents=True)
@@ -2525,15 +2528,12 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 				(p / '_/\ua616/paths.json').write_text(json.dumps({'profile': 'dual_repo', 'similar_projects': [peer_other.as_posix()]}), encoding='utf-8')
 				c_dir = p / 'code'
 				c_dir.mkdir(parents=True)
-				subprocess.run(['git', 'init'], cwd=c_dir, check=True, capture_output=True)
-				subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=c_dir, check=True, capture_output=True)
-				subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=c_dir, check=True, capture_output=True)
-				subprocess.run(['git', 'remote', 'add', 'origin', f'https://github.com/{slug}.git'], cwd=c_dir, check=True, capture_output=True)
-				subprocess.run(['git', 'remote', 'set-url', '--push', 'origin', str(bare)], cwd=c_dir, check=True, capture_output=True)
+				subprocess.run(['git', 'init', '-b', 'main'], cwd=c_dir, check=True, capture_output=True)
+				cfg = c_dir / '.git/config'
+				cfg.write_text(cfg.read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/{slug}.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n', encoding='utf-8')
 				(c_dir / 'app.py').write_text('x = 0\n', encoding='utf-8')
 				subprocess.run(['git', 'add', 'app.py'], cwd=c_dir, check=True, capture_output=True)
 				subprocess.run(['git', 'commit', '-m', f'https://github.com/{slug}/issues/1'], cwd=c_dir, check=True, capture_output=True)
-				subprocess.run(['git', 'branch', '-M', 'main'], cwd=c_dir, check=True, capture_output=True)
 				subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=c_dir, check=True, capture_output=True)
 			ag_home = t / 'ag_home'
 			backend = ag_home / '.gemini/antigravity'

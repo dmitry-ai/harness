@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Preserve historical delivered turn bytes when tdd_check is absent":
 # https://github.com/dmitry-ai/harness/issues/140
@@ -10,6 +13,7 @@ from contextlib import closing
 import json
 import os
 from pathlib import Path
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -42,38 +46,56 @@ def _wire(field_num: int, payload: bytes) -> bytes:
 	return _varint((field_num << 3) | 2) + _varint(len(payload)) + payload
 
 
+_TEMPLATE_CACHE: dict[int, tuple[tempfile.TemporaryDirectory, Path, Path]] = {}
+
+
+def _build_template_project(issue_num: int) -> tuple[Path, Path]:
+	if issue_num not in _TEMPLATE_CACHE:
+		td = tempfile.TemporaryDirectory()
+		root = Path(td.name).resolve()
+		proj = root / 'proj'
+		code = proj / 'code'
+		bare = root / 'remote.git'
+		(proj / '_/ꘖ/KB/Evidence/GitHub/test-org__demo').mkdir(parents=True, exist_ok=True)
+		(proj / '_/ꙮ/≻').mkdir(parents=True, exist_ok=True)
+		(proj / '_/ꙮ/≺').mkdir(parents=True, exist_ok=True)
+		code.mkdir(parents=True, exist_ok=True)
+		subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare)], check=True, capture_output=True)
+		subprocess.run(['git', 'init', '-b', 'main', str(code)], check=True, capture_output=True)
+		cfg = code / '.git/config'
+		cfg.write_text(cfg.read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test User\n[remote "origin"]\n\turl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n', encoding='utf-8')
+		(code / 'tests').mkdir(parents=True, exist_ok=True)
+		(code / 'tests/test_existing.py').write_text(
+			f'# https://github.com/test-org/demo/issues/{issue_num}\nimport unittest\nclass E(unittest.TestCase):\n\tdef test_e(self):\n\t\tself.assertEqual(1, 1)\n',
+			encoding='utf-8',
+		)
+		(code / 'tests/test_app.py').write_text(
+			f'# https://github.com/test-org/demo/issues/{issue_num}\nimport unittest\nclass A(unittest.TestCase):\n\tdef test_a(self):\n\t\tself.assertEqual(2, 2)\n',
+			encoding='utf-8',
+		)
+		(code / 'app.py').write_text(f'# https://github.com/test-org/demo/issues/{issue_num}\nVAL = 2\n', encoding='utf-8')
+		subprocess.run(['git', '-C', str(code), 'add', 'app.py', 'tests/test_existing.py', 'tests/test_app.py'], check=True, capture_output=True)
+		subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/test-org/demo/issues/{issue_num}'], check=True, capture_output=True)
+		subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
+		ev = proj / f'_/ꘖ/KB/Evidence/GitHub/test-org__demo/issue-{issue_num}.json'
+		ev.write_text(
+			json.dumps({'url': f'https://github.com/test-org/demo/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}),
+			encoding='utf-8',
+		)
+		_TEMPLATE_CACHE[issue_num] = (td, proj, bare)
+	_, t_proj, t_bare = _TEMPLATE_CACHE[issue_num]
+	return (t_proj, t_bare)
+
+
 def _init_project_with_git_code(root: Path, *, issue_num: int = 42) -> tuple[Path, Path, Path]:
+	t_proj, t_bare = _build_template_project(issue_num)
 	proj = root / 'proj'
-	code = proj / 'code'
 	bare = root / 'remote.git'
-	(proj / '_/ꘖ/KB/Evidence/GitHub/test-org__demo').mkdir(parents=True, exist_ok=True)
-	(proj / '_/ꙮ/≻').mkdir(parents=True, exist_ok=True)
-	(proj / '_/ꙮ/≺').mkdir(parents=True, exist_ok=True)
-	code.mkdir(parents=True, exist_ok=True)
-	subprocess.run(['git', 'init', '--bare', str(bare)], check=True, capture_output=True)
-	subprocess.run(['git', 'init', str(code)], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(code), 'config', 'user.email', 'test@example.com'], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(code), 'config', 'user.name', 'Test User'], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(code), 'remote', 'add', 'origin', str(bare)], check=True, capture_output=True)
-	(code / 'tests').mkdir(parents=True, exist_ok=True)
-	(code / 'tests/test_existing.py').write_text(
-		f'# https://github.com/test-org/demo/issues/{issue_num}\nimport unittest\nclass E(unittest.TestCase):\n\tdef test_e(self):\n\t\tself.assertEqual(1, 1)\n',
-		encoding='utf-8',
-	)
-	(code / 'tests/test_app.py').write_text(
-		f'# https://github.com/test-org/demo/issues/{issue_num}\nimport unittest\nclass A(unittest.TestCase):\n\tdef test_a(self):\n\t\tself.assertEqual(2, 2)\n',
-		encoding='utf-8',
-	)
-	(code / 'app.py').write_text(f'# https://github.com/test-org/demo/issues/{issue_num}\nVAL = 2\n', encoding='utf-8')
-	subprocess.run(['git', '-C', str(code), 'add', 'app.py', 'tests/test_existing.py', 'tests/test_app.py'], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/test-org/demo/issues/{issue_num}'], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(code), 'branch', '-M', 'main'], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
-	ev = proj / f'_/ꘖ/KB/Evidence/GitHub/test-org__demo/issue-{issue_num}.json'
-	ev.write_text(
-		json.dumps({'url': f'https://github.com/test-org/demo/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}),
-		encoding='utf-8',
-	)
+	shutil.copytree(t_proj, proj)
+	shutil.copytree(t_bare, bare)
+	code = proj / 'code'
+	cfg = code / '.git/config'
+	cfg.write_text(cfg.read_text(encoding='utf-8').replace(t_bare.as_posix(), bare.as_posix()), encoding='utf-8')
 	return (proj, code, bare)
 
 

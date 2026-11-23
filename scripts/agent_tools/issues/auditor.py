@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
@@ -7,6 +10,7 @@ import re
 from ..git_gate import extract_comment_issue_urls, extract_issue_urls, is_code_file, is_issue_tracked_code_repo, parse_issue_url, run_git_read, verify_repo_issue_ready_for_close
 from ..source_grounding import local_source_grounding_issues
 from ..worktree_flow import resolve_touched_repo_file
+from .git_read_cache import RepoReadCache
 from .linter import IssueMarkdownLinter
 from .parity import check_similar_project_parity, extract_implemented_m_roots, filter_turn_state_items, merge_turn_issue_item, verify_multi_subtask_counts
 from .workspace import IssueEvidenceWorkspace, _V2_CODE_RELS
@@ -22,6 +26,7 @@ class TurnIssueLifecycleAuditor:
 		self.candidate_repos: list[Path] = []
 		self.workspace_code_repos: set[Path] = set()
 		self.turn_issues: dict[str, dict] = {}
+		self.git_cache = RepoReadCache()
 	def _bind_issue_repos(self) -> tuple[dict[Path, set[str]], dict[str, Path]]:
 		for info in self.turn_issues.values():
 			found = self.workspace.find_local_code_repo(info['repo'], project_root=self.root)
@@ -96,8 +101,7 @@ class TurnIssueLifecycleAuditor:
 	def _check_repo_commits_and_files(self, code_repo: Path, rel_paths: list[str], required_issues: set[str]) -> set[str]:
 		committed_urls: set[str] = set()
 		if rel_paths:
-			st_proc = run_git_read(code_repo, ['status', '--porcelain', '-z', '--', *rel_paths], check=False)
-			if 0 == st_proc.returncode and st_proc.stdout.strip(b'\x00'):
+			if self.git_cache.has_dirty_for_paths(code_repo, rel_paths):
 				self.violations.append(f'Modified files in {code_repo} are not committed: {", ".join(rel_paths)}')
 			for rel in rel_paths:
 				self._inspect_touched_code_file(code_repo, rel, required_issues, committed_urls)
@@ -177,13 +181,7 @@ class TurnIssueLifecycleAuditor:
 					break
 		return r
 	def _inspect_latest_commits(self, code_repo: Path, existing_rels: list[str], required_issues: set[str], committed_urls: set[str]) -> None:
-		commit_urls: list[str] = []
-		for rel in existing_rels:
-			log_proc = run_git_read(code_repo, ['log', '-n', '1', '--format=%B', '--', f':(literal){rel}'], check=False)
-			if 0 == log_proc.returncode:
-				for cu in extract_issue_urls(log_proc.stdout.decode('utf-8', errors='replace')):
-					if cu not in commit_urls:
-						commit_urls.append(cu)
+		commit_urls = self.git_cache.latest_commit_urls_for_files(code_repo, existing_rels, extract_issue_urls)
 		if not commit_urls:
 			self.violations.append(f'Latest commit for {", ".join(existing_rels)} in {code_repo} does not reference a GitHub Issue URL')
 		required_issues.update(commit_urls)
@@ -234,7 +232,7 @@ class TurnIssueLifecycleAuditor:
 			if None is not parsed:
 				slug, num = parsed
 				try:
-					ready = verify_repo_issue_ready_for_close(code_repo, slug, num, project_root=self.root)
+					ready = verify_repo_issue_ready_for_close(code_repo, slug, num, project_root=self.root, git_cache=self.git_cache)
 				except (ValueError, RuntimeError) as exc:
 					ready = {'verified': False, 'violations': [str(exc)]}
 				for v in ready.get('violations') or []:

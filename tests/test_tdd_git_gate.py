@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce TDD test coverage and ratchet in Git pre-commit gate":
 # https://github.com/dmitry-ai/harness/issues/137
@@ -5,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,13 +21,19 @@ if str(SCRIPT_DIR) not in sys.path:
 from agent_tools import git_gate
 
 ISSUE_URL = 'https://github.com/dmitry-ai/harness/issues/137'
+_REPO_TEMPLATE: list[tuple[tempfile.TemporaryDirectory, Path]] = []
 
 
 def _init_repo(repo: Path) -> None:
-	repo.mkdir(parents=True, exist_ok=True)
-	subprocess.run(['git', 'init', str(repo)], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(repo), 'config', 'user.email', 'test@example.com'], check=True, capture_output=True)
-	subprocess.run(['git', '-C', str(repo), 'config', 'user.name', 'Test User'], check=True, capture_output=True)
+	if not _REPO_TEMPLATE:
+		td = tempfile.TemporaryDirectory()
+		tmpl = Path(td.name).resolve() / 'repo'
+		tmpl.mkdir(parents=True, exist_ok=True)
+		subprocess.run(['git', 'init', '-b', 'main', str(tmpl)], check=True, capture_output=True)
+		cfg = tmpl / '.git/config'
+		cfg.write_text(cfg.read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test User\n', encoding='utf-8')
+		_REPO_TEMPLATE.append((td, tmpl))
+	shutil.copytree(_REPO_TEMPLATE[0][1], repo)
 
 
 class TddGitGateTests(unittest.TestCase):
