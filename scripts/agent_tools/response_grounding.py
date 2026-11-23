@@ -1,3 +1,5 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/76
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add compact evidence-query command and unify collect-http CLI flags":
 # https://github.com/dmitry-ai/harness/issues/118
@@ -20,8 +22,10 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
+from .evidence_loader import load_observation_bundle
 from .links import _bare_urls, readable_link_issues
-from .research import MAX_BYTES, classify_html_challenge, extract_github_blob_lines, extract_markdown, extractor_version
+from .markdown_links import iter_inline_segments
+from .research import MAX_BYTES
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
 from .upwork_data import extract_upwork_job_url_id
 class ResponseEvidenceAuditor:
@@ -173,34 +177,18 @@ class ResponseEvidenceAuditor:
 						for gq in extract_blockquote_quotes(block.content, min_guillemet_len=20, allow_backtick_quotes=True, min_orig_len=20):
 							self.attributed_quotes.append((target_href, gq))
 			elif block.children:
-				children = block.children
 				ext_in_block: list[str] = []
 				has_local_link = False
-				idx = 0
-				while idx < len(children):
-					token = children[idx]
-					if 'link_open' != token.type:
-						if 'text' == token.type:
-							for u in _bare_urls(token.content):
+				for seg in iter_inline_segments(block.children, include_images=False):
+					if 'link' != seg[0]:
+						if 'text' == seg[1].type:
+							for u in _bare_urls(seg[2]):
 								if u.startswith(('http://', 'https://')):
 									self.authored_urls.append(u)
 									ext_in_block.append(u)
-						idx += 1
 					else:
-						href = token.attrGet('href') or ''
-						label_parts: list[str] = []
-						idx += 1
-						depth = 1
-						while idx < len(children) and 0 < depth:
-							inner = children[idx]
-							if 'link_open' == inner.type:
-								depth += 1
-							elif 'link_close' == inner.type:
-								depth -= 1
-							elif 0 < depth and inner.type in ('text', 'code_inline'):
-								label_parts.append(inner.content)
-							idx += 1
-						label = ' '.join(''.join(label_parts).split())
+						href = seg[1]
+						label = ' '.join(seg[2].split())
 						if href.startswith(('http://', 'https://')):
 							self.authored_links.append((label, href))
 							self.authored_urls.append(href)
@@ -288,116 +276,27 @@ class ResponseEvidenceAuditor:
 							self.observed_urls.add(slug_u)
 							self.observed_titles.setdefault(slug_u, t)
 	def _ingest_observation_bundle(self, jfile: Path, data: dict) -> None:
-		urls_here = [u for u in (data.get('url'), data.get('final_url')) if isinstance(u, str) and u.startswith(('http://', 'https://'))]
-		host = (urlsplit(urls_here[0]).hostname or '').lower() if urls_here else ''
-		valid_status = not data.get('error') and ('dom' == data.get('kind') or 200 <= (data.get('status') or 0) < 300)
-		is_shell_or_empty = False
-		shell_reason = None
-		ext_titles: list[str] = []
-		ext_anchors: set[str] = set()
-		ext_texts: list[str] = []
-		has_html_anchors = False
-		resp_bin = jfile.parent / 'response.bin'
-		has_resp_bin = resp_bin.is_file()
-		cur_ext_ver = extractor_version()
-		recheck_challenge = False
-		ext_files = list(jfile.parent.glob('extracted-*.json'))
-		for ext_file in ext_files:
-			try:
-				ext = json.loads(ext_file.read_text(encoding='utf-8'))
-			except (OSError, ValueError):
-				continue
-			if isinstance(ext, dict):
-				ext_current = ext.get('extractor_version') == cur_ext_ver
-				if not ext_current and has_resp_bin:
-					recheck_challenge = True
-				elif True is ext.get('browser_check_required'):
-					is_shell_or_empty = True
-					shell_reason = 'browser_check_required=True (JS/anti-bot challenge or empty SPA shell)'
-				elif 'headings' in ext and None is ext.get('sitemap') and (0 == ext.get('word_count', 0)):
-					is_shell_or_empty = True
-					shell_reason = 'word_count=0 (empty HTML shell)'
-				t = (ext.get('title') or '').strip()
-				if not t and isinstance(ext.get('headings'), list):
-					h1s = [h.get('text', '').strip() for h in ext['headings'] if isinstance(h, dict) and 1 == h.get('level') and h.get('text')]
-					if h1s:
-						t = h1s[0]
-				if t:
-					ext_titles.append(t)
-				if isinstance(ext.get('anchors'), list):
-					has_html_anchors = True
-					for raw_a in ext['anchors']:
-						if raw_a:
-							a_str = str(raw_a)
-							ext_anchors.add(a_str)
-							if a_str.startswith('user-content-') and 13 < len(a_str):
-								ext_anchors.add(a_str[13:])
-				if isinstance(ext.get('text'), str) and ext['text'].strip():
-					ext_texts.append(ext['text'])
-		if has_resp_bin:
-			try:
-				if resp_bin.stat().st_size <= MAX_BYTES:
-					raw_text = resp_bin.read_bytes().decode(data.get('charset') or 'utf-8', errors='replace')
-					ctype = (data.get('content_type') or '').split(';', 1)[0].strip().lower()
-					is_md = ctype in ('text/markdown', 'text/x-markdown')
-					is_html = (not is_md) and ('html' in ctype or '<title' in raw_text[:4000].lower() or raw_text.lstrip().lower().startswith(('<!doctype html', '<html')))
-					if is_md:
-						md_info = extract_markdown(raw_text)
-						if 0 == md_info.get('word_count', 0):
-							is_shell_or_empty = True
-							shell_reason = 'word_count=0 (empty Markdown response)'
-						if md_info.get('title'):
-							ext_titles.append(md_info['title'])
-						has_html_anchors = True
-						ext_anchors.update((str(a) for a in md_info.get('anchors') or [] if a))
-						if md_info.get('text'):
-							ext_texts.append(md_info['text'])
-					elif is_html:
-						if (not ext_files) or recheck_challenge:
-							if classify_html_challenge(raw_text, status=data.get('status')):
-								is_shell_or_empty = True
-								shell_reason = 'unextracted HTML JS challenge or empty shell'
-						has_html_anchors = True
-						for m_id in re.finditer('\\b(?:id|name)=["\\\']([^"\\\']+)["\\\']', raw_text, re.I):
-							aid = m_id.group(1)
-							ext_anchors.add(aid)
-							if aid.startswith('user-content-') and 13 < len(aid):
-								ext_anchors.add(aid[13:])
-						m_t = re.search('<title[^>]*>(.*?)</title>', raw_text[:16000], re.I | re.S)
-						if m_t:
-							t = ' '.join(m_t.group(1).split())
-							if t:
-								ext_titles.append(t)
-						if 'github.com' == host and any(('/blob/' in (urlsplit(u).path or '') for u in urls_here)):
-							gh_lines = extract_github_blob_lines(raw_text)
-							if gh_lines:
-								ext_texts.append('\n'.join(gh_lines))
-								ext_anchors.update((f'LC{ln_no}' for ln_no in range(1, len(gh_lines) + 1)))
-					if raw_text.strip():
-						ext_texts.append(raw_text)
-					if ('json' in ctype or raw_text.lstrip().startswith('{')) and valid_status and (not is_shell_or_empty):
-						self._ingest_json_observations(json.loads(raw_text), host)
-			except (OSError, ValueError):
-				pass
-		if not (valid_status and (not is_shell_or_empty)):
-			reason = shell_reason or f"error={data.get('error')} status={data.get('status')}"
-			for u in urls_here:
-				self.invalid_observations.setdefault(_norm_url(u), reason)
+		bundle = load_observation_bundle(jfile, data, max_bytes=MAX_BYTES)
+		if None is not bundle['json_payload']:
+			self._ingest_json_observations(bundle['json_payload'], bundle['host'])
+		if not bundle['valid']:
+			for u in bundle['urls']:
+				self.invalid_observations.setdefault(_norm_url(u), bundle['reason'])
 		else:
-			for u in urls_here:
+			for u in bundle['urls']:
 				nu = _norm_url(u)
 				self.observed_urls.add(nu)
 				tk = _discourse_topic_key(nu)
 				if tk:
 					self.observed_topics.add(tk)
-				for t in ext_titles:
+				for t in bundle['titles']:
 					self.observed_titles.setdefault(nu, t)
 					if tk:
 						self.observed_topic_titles.setdefault(tk, t)
-				if has_html_anchors:
-					self.observed_anchors.setdefault(nu, set()).update(ext_anchors)
-				if ext_texts:
-					self.observed_texts.setdefault(nu, []).extend(ext_texts)
+				if bundle['has_html_anchors']:
+					self.observed_anchors.setdefault(nu, set()).update(bundle['anchors'])
+				if bundle['texts']:
+					self.observed_texts.setdefault(nu, []).extend(bundle['texts'])
 	def validate(self) -> list[str]:
 		self._extract_markdown_refs()
 		if self.authored_urls:

@@ -52,18 +52,12 @@ def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 				value = value[int(key)]
 		r = value
 	return r
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/76
 def local_file(root, reference):
-	reference = urldefrag(reference)[0]
-	parsed = urlsplit(reference)
-	if 'file' != parsed.scheme:
-		path = unquote(reference)
-	else:
-		path = unquote(parsed.path)
-		if re.match('^/[A-Za-z]:/', path):
-			path = path[1:]
-		if parsed.netloc and 'localhost' != parsed.netloc:
-			raise ValueError('Remote file URI is not a local project source')
+	from .links import decode_file_uri
 	from .path_registry import project_paths
+	path = decode_file_uri(reference, reject_remote=True)
 	pp = project_paths(root, exact_root=True)
 	root_resolved = pp.root
 	target = (pp.kb_dir / path).resolve()
@@ -120,42 +114,9 @@ def saved_source(root, source, observation=None):
 			plain_text = re.sub('\\[([^\\]]+)\\]\\([^)]+\\)', '\\1', md_text).replace('**', '')
 			r = {'kind': 'text', 'text': md_text + '\n' + plain_text, 'fragment': unquote(fragment), 'file': file, 'sha256': hashlib.sha256(raw).hexdigest()}
 	else:
-		if not observation:
-			from .path_registry import project_paths
-			index = project_paths(root, exact_root=True).http_index_json
-			candidates = json.loads(index.read_text(encoding='utf-8')).values() if index.exists() else []
-			for candidate in candidates:
-				meta = load_observation(root, candidate['observation'])
-				if base in (meta['url'], meta['final_url']):
-					observation = candidate['observation']
-					break
-		if not observation:
-			raise FileNotFoundError('No saved HTTP/DOM observation; use saved primary evidence or collect the required source once')
-		meta = load_observation(root, observation)
-		if base not in (meta['url'], meta['final_url']):
-			raise ValueError('Observation belongs to a different URL')
-		if meta.get('error') or ('http' == meta.get('kind', 'http') and (not 200 <= meta['status'] < 300)):
-			raise ValueError('Saved HTTP result is unavailable; use a different verification method')
-		file = local_file(root, observation).parent / 'response.bin'
-		body = file.read_bytes()
-		ct_low = (meta['content_type'] or '').split(';', 1)[0].strip().lower()
-		if ct_low in ('text/html', 'application/xhtml+xml'):
-			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
-			r = {'kind': 'html', 'data': data, 'raw': body.decode(meta.get('charset') or 'utf-8', errors='replace'), 'fragment': unquote(fragment), 'meta': meta}
-		elif ct_low in ('text/markdown', 'text/x-markdown'):
-			raw_str = body.decode(meta.get('charset') or 'utf-8', errors='replace')
-			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
-			r = {'kind': 'html', 'is_markdown': True, 'data': data, 'raw': raw_str, 'fragment': unquote(fragment), 'meta': meta}
-		else:
-			text = body.decode(meta.get('charset') or 'utf-8', errors='replace')
-			if not ('application/json' == ct_low or ct_low.endswith('+json')):
-				if fragment:
-					raise ValueError('This source format does not support a verified fragment locator')
-				r = {'kind': 'text', 'text': text, 'fragment': unquote(fragment), 'meta': meta}
-			else:
-				value = resolve_pointer(json.loads(text), fragment)
-				text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, indent=2)
-				r = {'kind': 'json', 'text': text, 'fragment': unquote(fragment), 'meta': meta}
+		from .evidence_loader import load_observation_content, resolve_http_observation
+		obs_ref, meta = resolve_http_observation(root, base, observation)
+		r = load_observation_content(root, obs_ref, meta, fragment=fragment)
 	return r
 def contains_quote(text, quote, mode='exact'):
 	if 'exact' == mode:

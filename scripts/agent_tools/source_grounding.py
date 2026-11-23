@@ -317,7 +317,10 @@ class Tier0SourceIndex:
 		self.cache_file = self.pp.grounding_cache_json
 		self.entries: dict[str, dict] = {}
 		self._disk_loaded = False
-	def _build_hydrated_info(self, path: Path, rp: Path, stat_key: tuple[str, int, int] | None, raw: str, sha256: str, tuples: list[dict]) -> dict:
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/76
+	@staticmethod
+	def _build_hydrated_info(path: Path, rp: Path, stat_key: tuple[str, int, int] | None, raw: str, sha256: str, tuples: list[dict], root: Path | None=None) -> dict:
 		extra = [raw]
 		if '.json' == path.suffix.lower() and raw.strip():
 			try:
@@ -326,7 +329,7 @@ class Tier0SourceIndex:
 				pass
 		combined_raw = '\n'.join(extra)
 		is_ticket_source, msg_nums, ticket_id = extract_ticket_metadata(path, raw)
-		r = {'path': path, 'sha256': sha256, 'raw': combined_raw, 'norm': norm_quote_text(combined_raw), 'nums': _source_numeric_tokens(combined_raw), 'is_ticket_source': is_ticket_source, 'msg_nums': msg_nums, 'has_cyrillic': bool(re.search('[\\u0400-\\u04ff]{3,}', raw)), 'ticket_id': ticket_id, 'tier': classify_provenance_tier(path, self.root), 'fact_tuples': tuples, '_raw_source': raw}
+		r = {'path': path, 'sha256': sha256, 'raw': combined_raw, 'norm': norm_quote_text(combined_raw), 'nums': _source_numeric_tokens(combined_raw), 'is_ticket_source': is_ticket_source, 'msg_nums': msg_nums, 'has_cyrillic': bool(re.search('[\\u0400-\\u04ff]{3,}', raw)), 'ticket_id': ticket_id, 'tier': classify_provenance_tier(path, root), 'fact_tuples': tuples, '_raw_source': raw}
 		if None is not stat_key:
 			_SOURCE_INFO_CACHE[stat_key] = r
 		return r
@@ -456,7 +459,7 @@ class Tier0SourceIndex:
 						tuples = extract_fact_tuples(rp, raw, root=self.root)
 						entry = {'mtime_ns': mtime_ns, 'size': size, 'sha256': sha256, 'tickets': dom['tickets'], 'plans_norm': dom['plans_norm'], 'metrics': dom['metrics'], 'fact_tuples': tuples}
 						self.entries[rel] = entry
-						self._build_hydrated_info(rp, rp, stat_key, raw, sha256, tuples)
+						self._build_hydrated_info(rp, rp, stat_key, raw, sha256, tuples, root=self.root)
 						r = (rel, entry, True)
 		return r
 	@classmethod
@@ -467,6 +470,37 @@ class Tier0SourceIndex:
 		if None is r:
 			r = cls(resolved)
 			cls._INDICES[rkey] = r
+		return r
+	@staticmethod
+	def _stat_and_read(path: Path) -> tuple[Path, tuple[str, int, int] | None, bytes, str]:
+		stat_key = None
+		try:
+			rp = path.resolve()
+			st = rp.stat()
+			stat_key = (str(rp), st.st_mtime_ns, st.st_size)
+		except OSError:
+			rp = path
+		try:
+			raw_bytes = rp.read_bytes() if None is not stat_key else b''
+			raw = raw_bytes.decode('utf-8', errors='replace') if None is not stat_key else ''
+		except OSError:
+			raw_bytes, raw = (b'', '')
+		r = (rp, stat_key, raw_bytes, raw)
+		return r
+	@classmethod
+	def hydrate_standalone(cls, path: Path, cache: dict | None=None) -> dict:
+		key = str(path)
+		if None is not cache and key in cache:
+			r = cache[key]
+		else:
+			rp, stat_key, raw_bytes, raw = cls._stat_and_read(path)
+			if None is not stat_key and stat_key in _SOURCE_INFO_CACHE:
+				r = _SOURCE_INFO_CACHE[stat_key]
+			else:
+				sha256 = hashlib.sha256(raw_bytes).hexdigest() if None is not stat_key else ''
+				r = cls._build_hydrated_info(path, rp, stat_key, raw, sha256, extract_fact_tuples(path, raw))
+			if None is not cache:
+				cache[key] = r
 		return r
 	def load_index(self, tickets: list[str] | tuple[str, ...]=()) -> tuple[list[Path], dict[str, dict]]:
 		self._ensure_disk_loaded()
@@ -510,7 +544,7 @@ class Tier0SourceIndex:
 					if None is not stat_key and 'tier_0' == classify_provenance_tier(rp, self.root) and (not rel.startswith('/')) and (':' not in rel):
 						dom = extract_domain_entities(raw, include_substring_metrics=True)
 						self.entries[rel] = {'mtime_ns': stat_key[1], 'size': stat_key[2], 'sha256': sha256, 'tickets': dom['tickets'], 'plans_norm': dom['plans_norm'], 'metrics': dom['metrics'], 'fact_tuples': tuples}
-				r = self._build_hydrated_info(path, rp, stat_key, raw, sha256, tuples)
+				r = self._build_hydrated_info(path, rp, stat_key, raw, sha256, tuples, root=self.root)
 			if None is not cache:
 				cache[key] = r
 		return r
@@ -613,42 +647,7 @@ def _line_grounded_numbers_check(sline: str, ev_nums: set[str], valid_msg_nums: 
 	return r
 def _load_local_source_info(path: Path, cache: dict | None=None, *, root: Path | None=None) -> dict:
 	eff_root = root if None is not root else _infer_source_root(path)
-	if None is not eff_root:
-		r = Tier0SourceIndex.for_root(eff_root).load_source_info(path, cache)
-	else:
-		key = str(path)
-		if None is not cache and key in cache:
-			r = cache[key]
-		else:
-			stat_key = None
-			try:
-				rp = path.resolve()
-				st = rp.stat()
-				stat_key = (str(rp), st.st_mtime_ns, st.st_size)
-			except OSError:
-				rp = path
-			if None is not stat_key and stat_key in _SOURCE_INFO_CACHE:
-				r = _SOURCE_INFO_CACHE[stat_key]
-			else:
-				try:
-					raw_bytes = rp.read_bytes() if None is not stat_key else b''
-					raw = raw_bytes.decode('utf-8', errors='replace') if None is not stat_key else ''
-					sha256 = hashlib.sha256(raw_bytes).hexdigest() if None is not stat_key else ''
-				except OSError:
-					raw, sha256 = ('', '')
-				extra = [raw]
-				if '.json' == path.suffix.lower() and raw.strip():
-					try:
-						_json_scalar_strings(json.loads(raw), extra)
-					except ValueError:
-						pass
-				combined_raw = '\n'.join(extra)
-				is_ticket_source, msg_nums, ticket_id = extract_ticket_metadata(path, raw)
-				r = {'path': path, 'sha256': sha256, 'raw': combined_raw, 'norm': norm_quote_text(combined_raw), 'nums': _source_numeric_tokens(combined_raw), 'is_ticket_source': is_ticket_source, 'msg_nums': msg_nums, 'has_cyrillic': bool(re.search('[\\u0400-\\u04ff]{3,}', raw)), 'ticket_id': ticket_id, 'tier': classify_provenance_tier(path), 'fact_tuples': extract_fact_tuples(path, raw), '_raw_source': raw}
-				if None is not stat_key:
-					_SOURCE_INFO_CACHE[stat_key] = r
-			if None is not cache:
-				cache[key] = r
+	r = Tier0SourceIndex.for_root(eff_root).load_source_info(path, cache) if None is not eff_root else Tier0SourceIndex.hydrate_standalone(path, cache)
 	return r
 def _load_tier0_index(root: Path, tickets: list[str] | tuple[str, ...]=()) -> tuple[list[Path], dict[str, dict]]:
 	return Tier0SourceIndex.for_root(root).load_index(tickets)
@@ -780,9 +779,8 @@ def load_fact_ledger(root: Path) -> list[dict]:
 def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | None=None, observed_texts: dict | None=None, cache: dict | None=None, _visited: set | None=None) -> list[str]:
 	return LocalSourceGroundingAuditor(root, content, doc_path=doc_path, observed_texts=observed_texts, cache=cache, visited=_visited).run()
 def markdown_parser() -> MarkdownIt:
-	r = MarkdownIt('commonmark', {'html': True})
-	r.normalizeLink = lambda value: value
-	r.validateLink = lambda value: True
+	from .markdown_links import parser as md_parser
+	r = md_parser(preserve_links=True)
 	return r
 def norm_quote_text(value: str) -> str:
 	cleaned = re.sub('[`*_~]+', '', value or '')
@@ -805,12 +803,8 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 	r = None
 	raw = urldefrag((href or '').strip())[0].split('?', 1)[0].strip()
 	if raw and (not raw.lower().startswith(('http://', 'https://', 'mailto:', 'javascript:', 'conversation://', '#'))):
-		if not raw.lower().startswith('file://'):
-			raw = unquote(raw)
-		else:
-			raw = unquote(raw[7:])
-			if re.match('^/[A-Za-z]:/', raw):
-				raw = raw[1:]
+		from .links import decode_file_uri
+		raw = decode_file_uri(raw)
 		candidates: list[Path] = []
 		p = Path(raw)
 		if p.is_absolute():

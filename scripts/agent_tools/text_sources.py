@@ -182,34 +182,20 @@ def save_source_check(root, candidate, spec):
 	except (OSError, ValueError, KeyError, TypeError):
 		pass
 	return {**result, 'source_check': path.relative_to(Path(root).resolve()).as_posix()}
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/76
 def probe_links(root, candidate, *, fetcher=None):
-	from .research import collect, extract_bytes, json_data
+	from .evidence_loader import probe_observation_status
+	from .research import collect, json_data
 	from .text_claims import digest
 	from .text_workflow import _folder
-	from urllib.parse import unquote
 	observed, results, findings = ({}, [], [])
 	for url in source_urls(candidate):
 		base, fragment = urldefrag(url)
 		if base not in observed:
 			observed[base] = collect(root, base, scope='client-text-source', max_age=0, refresh_reason='Explicit network check of the exact client-text candidate', fetcher=fetcher)
 		meta = observed[base]
-		status = 'http-ok'
-		ct_low = (meta.get('content_type') or '').split(';', 1)[0].strip().lower()
-		if meta.get('error') or not 200 <= (meta.get('status') or 0) < 300:
-			status = 'unavailable'
-		elif urldefrag(meta['final_url'])[0] != base:
-			status = 'redirect-unverified'
-		elif ct_low not in ('text/html', 'application/xhtml+xml', 'text/markdown', 'text/x-markdown'):
-			if fragment:
-				status = 'anchor-unverified'
-		else:
-			from .evidence import local_file
-			body = local_file(root, meta['observation']).with_name('response.bin').read_bytes()
-			data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
-			if data.get('browser_check_required'):
-				status = 'browser-check-required'
-			elif fragment and (unquote(fragment) not in data['anchors'] or unquote(fragment) in data.get('ambiguous_anchors', [])):
-				status = 'anchor-unverified'
+		status = probe_observation_status(root, meta, base, fragment)
 		result = {'url': url, 'status': status, 'observation': meta['observation'], 'final_url': meta['final_url'], 'http_status': meta['status']}
 		raw = json_data({'schema_version': 1, 'candidate_sha256': digest(candidate.encode()), **result})
 		path = write_immutable_bytes(_folder(root) / 'sources' / (digest(raw) + '-probe.json'), raw, diff_error='Immutable source probe differs')

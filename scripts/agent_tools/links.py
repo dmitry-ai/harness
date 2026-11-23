@@ -66,11 +66,14 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/76
+def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
+	from .markdown_links import decode_file_uri as _decode
+	return _decode(reference, reject_remote=reject_remote)
 def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) -> list[str]:
-	from markdown_it import MarkdownIt
-	parser = MarkdownIt('commonmark', {'html': True})
-	parser.normalizeLink = lambda value: value
-	parser.validateLink = lambda value: True
+	from .markdown_links import parser as md_parser
+	parser = md_parser(preserve_links=True)
 	targets, quote_depth = ([], 0)
 	html = HTMLReferences(authored_only=True)
 	for block in parser.parse(content):
@@ -142,14 +145,8 @@ def _document_urls(text: str):
 	for match in re.finditer('(?:file://|[A-Za-z]:[/\\\\])[^\\s<>`"\\x00-\\x1f]+', text):
 		yield match.group().rstrip('.,;!?)')
 def references(content: str, include_code: bool=False) -> tuple[list[str], list[str]]:
-	try:
-		from markdown_it import MarkdownIt
-	except ImportError as exc:
-		requirements = Path(__file__).resolve().parents[1] / 'requirements-agent-tools.txt'
-		raise RuntimeError(f'Install {requirements} with this Python interpreter') from exc
-	parser = MarkdownIt('commonmark', {'html': True})
-	validate_uri = parser.validateLink
-	parser.validateLink = lambda value: value.lower().startswith('file:') or validate_uri(value)
+	from .markdown_links import parser as md_parser
+	parser = md_parser(allow_file_links=True)
 	links = []
 	html = HTMLReferences()
 	for block in parser.parse(content):
@@ -197,7 +194,7 @@ def validate_content(content: str, *, local_anchors: bool=False, unique_urls: bo
 	r = errors
 	return r
 def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str], str]:
-	from markdown_it import MarkdownIt
+	from .markdown_links import parser as md_parser
 	raw_lines = content.splitlines(keepends=True)
 	fm_title = ''
 	body_text = content
@@ -214,7 +211,7 @@ def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str
 					break
 			line_offset = content[:fm_match.end()].count('\n')
 			body_text = ''.join(raw_lines[line_offset:])
-	tokens = MarkdownIt('commonmark').parse(body_text)
+	tokens = md_parser(html=False).parse(body_text)
 	explicit_counts: Counter = Counter()
 	parsed_rows: list[tuple[int, str, str | None, str, int]] = []
 	for index, token in enumerate(tokens):
