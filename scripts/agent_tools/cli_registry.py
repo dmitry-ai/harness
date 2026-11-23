@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add structured problem metadata builder and CLI command":
+# https://github.com/dmitry-ai/harness/issues/180
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace monolithic CLI router with declarative registry and modular docs":
 # https://github.com/dmitry-ai/harness/issues/168
@@ -27,6 +30,10 @@ def _exec_land_release(args) -> dict:
 def _exec_land_status(args) -> dict:
 	from .landing_lease import lease_status
 	return lease_status(args.repo)
+def _exec_problem_metadata(args) -> dict:
+	from .metadata import build_problem_metadata, render_metadata_header
+	meta = build_problem_metadata(issue_url=args.issue, project_root=args.project, source_project_root=args.source_project, allow_no_issue=bool(args.no_issue))
+	return {'valid': True, 'metadata': meta, 'markdown': render_metadata_header(meta).rstrip('\n') + '\n'}
 def _exec_run_tests(args) -> dict:
 	from .suite_runner import run_test_suite
 	return run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
@@ -42,6 +49,8 @@ def _exec_worktree_land(args) -> dict:
 def _exec_worktree_status(args) -> dict:
 	from .worktree_flow import worktree_status
 	return worktree_status(args.repo)
+def _format_problem_metadata(res: dict, args) -> str | None:
+	return res['markdown'] if 'markdown' == args.format else None
 def _format_run_tests(res: dict, args) -> str | None:
 	if 'json' == args.format:
 		r = None
@@ -54,6 +63,7 @@ def _register_builtins() -> None:
 	register_command('land-acquire', 'Acquire FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--wait', {'action': 'store_true', 'help': 'Wait reactively in FIFO queue until acquired'}), ('--timeout', {'type': float, 'default': 600.0}), ('--ttl', {'type': float, 'default': 600.0}), ('--poll-interval', {'type': float, 'default': 2.0})), _exec_land_acquire)
 	register_command('land-release', 'Release FIFO landing lease for a Git repository', (('repo', {'type': Path}), ('--owner', {'help': 'Lease owner identifier'}), ('--force', {'action': 'store_true'})), _exec_land_release)
 	register_command('land-status', 'Inspect FIFO landing lease and queue for a Git repository', (('repo', {'type': Path}),), _exec_land_status)
+	register_command('problem-metadata', 'Build structured # 0 problem metadata with mandatory GitHub Issue key', (('project', {'type': Path}), ('--issue', {'help': 'Verified GitHub issue URL (mandatory unless --no-issue)'}), ('--no-issue', {'action': 'store_true', 'help': 'Allow null Issue key for non-GitHub workspaces'}), ('--source-project', {'type': Path, 'help': 'Optional distinct owning project root'}), ('--format', {'choices': ('json', 'markdown'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_problem_metadata, text_fn=_format_problem_metadata)
 	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
 	register_command('worktree-begin', 'Create an isolated linked git worktree and task branch', (('repo', {'type': Path}), ('--task', {'required': True}), ('--base', {'default': 'main'}), ('--worktrees-dir', {'type': Path})), _exec_worktree_begin)
 	register_command('worktree-cleanup', 'Remove a linked git worktree and its merged task branch', (('repo', {'type': Path}), ('target', {'type': Path}), ('--force', {'action': 'store_true'})), _exec_worktree_cleanup)

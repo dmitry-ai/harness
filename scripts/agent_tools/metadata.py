@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add structured problem metadata builder and CLI command":
+# https://github.com/dmitry-ai/harness/issues/180
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/170
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend JSON metadata headers to new journal responses":
@@ -35,6 +38,7 @@ from .meta import (
 	_system_display_name,
 	build_github_issue_metadata,
 	build_journal_metadata,
+	build_problem_metadata,
 	extract_leading_metadata_header,
 	format_duration_timecode,
 	format_local_timestamp,
@@ -73,6 +77,7 @@ __all__ = [
 	'_system_display_name',
 	'build_github_issue_metadata',
 	'build_journal_metadata',
+	'build_problem_metadata',
 	'extract_leading_metadata_header',
 	'format_duration_timecode',
 	'format_local_timestamp',
