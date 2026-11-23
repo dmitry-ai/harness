@@ -18,6 +18,7 @@ Only after observing a genuine test-runner failure (`Red`) may an agent implemen
 Every test must verify observable runtime behavior rather than reading or matching production source-code text (`read_text`, `open`, `inspect.getsource`, `readFileSync`, `File.ReadAllText`, `file_get_contents`, `Get-Content`), and assertionless test stubs are prohibited.  
 Existing tests and assertions operate as a one-way Test Ratchet: deleting, skipping, or weakening existing test files, test definitions, or assertions (and weakening assertions in newly created test files after production code has been modified in the same cycle) is prohibited unless an audited `RATCHET-OK` approval (`>= 30` characters citing the requirement or user decision, never a test-fitting excuse) is recorded via `harness.py ratchet-ok` or inside the linked GitHub issue body.  
 Before completing a turn or closing a code task, run the full test suite (not a single-file subset when the repository has multiple test files) after the final edit and verify all tests pass (`Green`); inspect active-turn compliance via `harness.py tdd-check`.  
+Run test commands with fail-fast enabled by default (`harness.py run-tests` for parallel Python `unittest` suites, `-f` for `unittest`, `-x` for `pytest`, `--bail` for JS runners, `-failfast` for `go test`, `--stop-on-failure` for `phpunit`) and a synchronous startup window (`WaitMsBeforeAsync: 10000`, enforced via `EXEC-2-TEST-FAILFAST-GATE` in `PreToolUse`).  
 A test must verify material behavior and reproduce the defect; distinguish mocks, integration tests, and live execution.  
 For code managing persistent connections, daemons, or child-process lifecycles, verify handle release and clean exit on a real process rather than mocks alone.  
 Verify your own changes and the requested environments; a third-party defect does not authorize modifying unrelated files, weakening a check, or substituting a source.  
@@ -32,7 +33,8 @@ Do not terminate the shared browser or delete its lock files.
 Harness execution follows the foreground-only lifecycle in [FILE-3](01-file-boundaries.md#file-3); all entry points must return without leaving autonomous Harness work running.  
 In asynchronous workflows, distinguish submission, acceptance, execution, and result retrieval; track response IDs and timeouts.  
 Before retrying, check whether the first request was accepted; do not promise background continuation without a working mechanism.  
-Bound background commands, browser fixtures, and subagent waits with explicit timeouts (such as `--test-force-exit` and `--test-timeout` for `node --test`, or a `schedule` timer with `DurationSeconds` and `TimerCondition="any"`), and inspect or terminate stalled background tasks via `manage_task` rather than waiting indefinitely.  
+Bound test runs, browser fixtures, and child commands with in-process timeouts (such as `harness.py run-tests --module-timeout` or `--test-force-exit` and `--test-timeout` for `node --test`), and inspect or terminate stalled tasks via `manage_task` rather than waiting indefinitely.  
+Do not attach one-shot `schedule` timers (`DurationSeconds`) to background `run_command` tasks: `run_command` delivers its own reactive completion notification, and redundant timers over active `run_command` tasks are blocked by `EXEC-4-SCHEDULE-GATE` in `PreToolUse`.  
 ## EXEC-5
 Before any Git operation, verify the repository root, branch, and remote; commit only an explicit file list in the established order, without unrelated changes or Git hooks.  
 Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (preferably via `harness.py git-read` or with `GIT_OPTIONAL_LOCKS=0`; do not combine `git` calls with initial rule reading before `turn-begin` completes).  
@@ -64,3 +66,4 @@ Before working with an authenticated portal, read the [authenticated access proc
 <!-- https://github.com/dmitry-ai/harness/issues/139 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/147 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/152 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/164 -->  

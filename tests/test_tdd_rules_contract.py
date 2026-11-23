@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Codify fail-fast defaults and prohibit schedule timers over run_command in rules and docs":
+# https://github.com/dmitry-ai/harness/issues/164
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Codify mandatory TDD workflow and ratchet contract in Harness documentation":
 # https://github.com/dmitry-ai/harness/issues/139
 from __future__ import annotations
@@ -72,6 +75,21 @@ class TddRulesAndDocumentationContractTests(unittest.TestCase):
 		self.assertIn('tool_version', doc_report)
 		self.assertIn('per_file_bytes', doc_report)
 		self.assertIn('08-execution-and-tools.md', doc_report['per_file_bytes'])
+
+	def test_failfast_defaults_and_schedule_prohibition_contract(self) -> None:
+		rule_text = (HARNESS_ROOT / 'rules/08-execution-and-tools.md').read_text(encoding='utf-8')
+		self.assertNotIn('or a `schedule` timer with `DurationSeconds`', rule_text)
+		for token in ('EXEC-4-SCHEDULE-GATE', 'EXEC-2-TEST-FAILFAST-GATE', 'run-tests', 'WaitMsBeforeAsync', 'fail-fast'):
+			self.assertIn(token, rule_text, f'Missing fail-fast / schedule rule term {token!r} in rules/08-execution-and-tools.md')
+		readme_text = (HARNESS_ROOT / 'scripts/README-agent-tools.md').read_text(encoding='utf-8')
+		self.assertIn('# Regression Suite', readme_text)
+		reg_section = readme_text.split('# Regression Suite', 1)[1].split('\n# ', 1)[0]
+		self.assertIn('harness.py run-tests', reg_section)
+		self.assertIn('-f', reg_section)
+		self.assertIn('WaitMsBeforeAsync', reg_section)
+		p_rt = subprocess.run([sys.executable, str(SCRIPT_DIR / 'harness.py'), 'run-tests', '--help'], capture_output=True, text=True, encoding='utf-8', check=True)
+		for opt in ('--workers', '--module-timeout', '--no-failfast', '--module', '--format'):
+			self.assertIn(opt, p_rt.stdout)
 
 
 if '__main__' == __name__:

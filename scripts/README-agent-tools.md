@@ -241,9 +241,11 @@ Substantive readiness requires primary evidence and independent clearance; a pas
 
 # Regression Suite
 
-`python -m unittest discover -s <.agents>/tests -p test_*.py -v`.  
+Canonical parallel fail-fast runner: `python <.agents>/scripts/harness.py run-tests <.agents>/tests [--workers N] [--module-timeout 300] [--no-failfast] [--module <name>] [--format text|json]` (runs modules in longest-processing-time-first order with `-f` and `-b` enabled by default, cancels sibling processes immediately on first failure or module timeout, and satisfies `EXEC-2 TDD-FULL-GATE`).  
+Direct `unittest` fallback must also enable fail-fast and a synchronous startup window (`WaitMsBeforeAsync: 10000`, enforced by `EXEC-2-TEST-FAILFAST-GATE` in `PreToolUse`): `python -m unittest discover -f -s <.agents>/tests -p test_*.py -v`.  
 `UPWORK_CAPTURE_DIR` points tests to saved `*/source.json` fixtures; the test suite creates temporary directories and never modifies real projects or browser state.  
 During cleanup, delete only temporary files created by your own run; preserve material evidence and active reservations.  
+<!-- https://github.com/dmitry-ai/harness/issues/164 -->  
 
 # Material Lifecycle
 
