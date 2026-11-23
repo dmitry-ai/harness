@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
 # https://github.com/dmitry-ai/harness/issues/133
@@ -109,27 +112,26 @@ def _model_fields(primary, role):
 	value = (config.get('roles') or {})[role]
 	return '' if 'parent' == config.get('subagents', {}).get('selection') or value.get('selection') in ('parent', 'inherit') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
 def shared_native_outputs(primary=PRIMARY):
-	primary = Path(primary).resolve()
-	cfg = _configuration(primary)
-	plats = cfg['platforms']
-	r = {}
+	from .path_cache import resolve_code_anchor
+	primary, r = (Path(primary).resolve(), {})
+	canon, plats = (resolve_code_anchor(primary), _configuration(primary)['platforms'])
 	if 'antigravity' in plats:
 		from .upwork_project import canonical_global_hooks
 		for kind in KINDS:
-			r[primary / f'platforms/antigravity/{kind}.json'] = _json({'entries': [{'path': (primary / kind).as_posix()}]}).decode('utf-8')
-		r[primary / 'platforms/antigravity/hooks.json'] = _json(canonical_global_hooks(primary)).decode('utf-8')
+			r[primary / f'platforms/antigravity/{kind}.json'] = _json({'entries': [{'path': (canon / kind).as_posix()}]}).decode('utf-8')
+		r[primary / 'platforms/antigravity/hooks.json'] = _json(canonical_global_hooks(canon)).decode('utf-8')
 		ag_cfg = plats.get('antigravity') or {}
 		ag_roles = ag_cfg.get('roles') or {}
 		if 'AF' in ag_roles:
 			af_cfg = ag_roles['AF']
 			ag_parent = 'parent' == (ag_cfg.get('subagents') or {}).get('selection') or af_cfg.get('selection') in ('parent', 'inherit')
 			model_line = '' if ag_parent or not af_cfg.get('tier') else f'model: {af_cfg["tier"]}\n'
-			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\n{model_line}subagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(primary / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the parent agent selects the model per task complexity, and the requested selection does not prove the actual runtime model.  \n'
+			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\n{model_line}subagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(canon / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the parent agent selects the model per task complexity, and the requested selection does not prove the actual runtime model.  \n'
 	if 'codex' in plats:
-		bootstrap = primary / 'platforms/codex/AGENTS.md'
-		r[bootstrap] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(primary) + '\n'
+		bootstrap = canon / 'platforms/codex/AGENTS.md'
+		r[primary / 'platforms/codex/AGENTS.md'] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(canon) + '\n'
 		for role, name, purpose, _ in _role_values(primary):
-			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(primary / "agents/worker.md").as_posix()}  '
+			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(canon / "agents/worker.md").as_posix()}  '
 			r[primary / f'platforms/codex/agents/{name}.toml'] = f'# Generated from runtime.json and agents/worker.md; do not edit.\n# {ISSUE}\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + _model_fields(primary, role) + f'developer_instructions = {json.dumps(instructions)}\n'
 	return r
 def _legacy_skill(name, primary):

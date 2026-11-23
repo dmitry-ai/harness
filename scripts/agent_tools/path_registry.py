@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Accelerate project_paths and overlay link resolution with fast-path caching":
 # https://github.com/dmitry-ai/harness/issues/174
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -40,9 +43,9 @@ from pathlib import Path
 import re
 import stat
 from typing import Any
-from .path_cache import clear_path_cache, get_ttl_overlay_links, lookup_fast_project_paths, lru_get, lru_put, mark_overlay_links_refreshed, overlay_signature_for_roots, resolve_reverse_map, store_fast_project_paths
-_CODE_ANCHOR = Path(__file__).resolve().parents[2]
-DEFAULT_REGISTRY_FILE = _CODE_ANCHOR / 'paths.json'
+from .path_cache import clear_path_cache, get_ttl_overlay_links, lookup_fast_project_paths, lru_get, lru_put, mark_overlay_links_refreshed, overlay_signature_for_roots, resolve_code_anchor, resolve_reverse_map, store_fast_project_paths
+_CODE_ANCHOR = resolve_code_anchor(Path(__file__).resolve().parents[2])
+DEFAULT_REGISTRY_FILE = Path(__file__).resolve().parents[2] / 'paths.json'
 _VAR_NAME_RE = re.compile('^[A-Za-z_][A-Za-z0-9_]*$')
 _TOKEN_RE = re.compile('\\$\\$\\{|%%|\\$\\{([^}]*)\\}|%([A-Za-z_][A-Za-z0-9_]*)%')
 _URI_SCHEME_RE = re.compile('^[A-Za-z][A-Za-z0-9+.-]*://')
@@ -351,7 +354,7 @@ class PathRegistry:
 		variables = _validate_variables_map(raw.get('variables'), 'paths.json variables')
 		if not variables:
 			raise ValueError('paths.json requires non-empty variables')
-		anchor_code = Path(primary).resolve() if None is not primary else self.source_path.parent.resolve()
+		anchor_code = Path(primary).resolve() if None is not primary else resolve_code_anchor(self.source_path.parent.resolve())
 		self.anchor_code = anchor_code
 		self.has_synthetic_primary = None is not primary and _path_key(anchor_code) != _path_key(self.source_path.parent.resolve())
 		configured_code = expand_template(variables['HARNESS_CODE'], variables, env=self.env, normalize=True) if 'HARNESS_CODE' in variables else ''

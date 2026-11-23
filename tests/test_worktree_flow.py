@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
 # https://github.com/dmitry-ai/harness/issues/165
@@ -124,5 +127,57 @@ class WorktreeFlowTests(unittest.TestCase):
 			finally:
 				os.chdir(prev_cwd)
 			worktree_cleanup(repo, wt)
+	def test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup(self):
+		from agent_tools.tdd.classifier import resolve_code_scope
+		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			proj = root / 'proj'
+			code_repo = proj / 'code'
+			code_repo.mkdir(parents=True, exist_ok=True)
+			self._git(code_repo, 'init', '-b', 'main')
+			self._git(code_repo, 'config', 'user.email', 'test@example.com')
+			self._git(code_repo, 'config', 'user.name', 'Test')
+			(code_repo / 'README.md').write_text('# Demo\n', encoding='utf-8')
+			self._git(code_repo, 'add', '.')
+			self._git(code_repo, 'commit', '-m', 'init')
+			wt_base = proj / '\ua616/data/worktrees'
+			wt = Path(worktree_begin(code_repo, 'new-file-scope', worktrees_dir=wt_base)['worktree'])
+			new_prod = wt / 'scripts/brand_new_module.py'
+			self.assertFalse(new_prod.exists())
+			self.assertEqual(resolve_code_scope(new_prod), wt.resolve())
+			worktree_cleanup(code_repo, wt, force=True)
+			self.assertEqual(resolve_code_scope(new_prod), code_repo.resolve())
+	def test_isolated_temp_project_ignores_unrelated_host_worktree_cwd(self):
+		from agent_tools.issues.repo_locator import find_local_code_repo
+		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			proj = root / 'isolated_proj'
+			code_dir = proj / 'code'
+			code_dir.mkdir(parents=True, exist_ok=True)
+			self._git(code_dir, 'init', '-b', 'main')
+			self._git(code_dir, 'config', 'user.email', 'test@example.com')
+			self._git(code_dir, 'config', 'user.name', 'Test')
+			self._git(code_dir, 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/harness.git')
+			(code_dir / 'README.md').write_text('# Demo\n', encoding='utf-8')
+			self._git(code_dir, 'add', '.')
+			self._git(code_dir, 'commit', '-m', 'init')
+			prev_cwd = os.getcwd()
+			try:
+				os.chdir(HARNESS_ROOT / 'tests')
+				self.assertEqual(find_local_code_repo('dmitry-ai/harness', project_root=proj), code_dir.resolve())
+			finally:
+				os.chdir(prev_cwd)
+	def test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo(self):
+		from agent_tools.path_cache import resolve_code_anchor
+		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = self._init_repo(root, with_tests=False)
+			wt = Path(worktree_begin(repo, 'anchor-wt', worktrees_dir=root / 'wts')['worktree'])
+			self.assertEqual(resolve_code_anchor(wt), repo.resolve())
+			self.assertEqual(resolve_code_anchor(repo), repo.resolve())
+			worktree_cleanup(repo, wt, force=True)
 if '__main__' == __name__:
 	unittest.main()

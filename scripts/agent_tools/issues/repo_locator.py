@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -45,8 +48,16 @@ def _build_global_slug_index(reg: Any, raw_roots: list[str]) -> dict[str, Path]:
 		if search_root.is_dir():
 			_index_dir_tree(search_root, slug_map)
 	return slug_map
+def _initial_repo_candidates(repo_root: str | Path | None, cwd: Path, allow_cwd: bool) -> list[Path]:
+	if allow_cwd:
+		r = prioritized_worktree_candidates(repo_root, cwd=cwd)
+	else:
+		r = [Path(repo_root).resolve()] if None is not repo_root and str(repo_root).strip() else []
+	return r
 def _collect_local_repo_candidates(project_root: str | Path | None, source_files: list[tuple[Path, bytes]] | None, repo_root: str | Path | None) -> list[Path]:
-	cands: list[Path] = prioritized_worktree_candidates(repo_root)
+	cwd = Path.cwd().resolve()
+	allow_cwd = not (_is_isolated_temp_context(project_root, source_files, repo_root) and (not _is_under_tempdir(cwd)))
+	cands: list[Path] = _initial_repo_candidates(repo_root, cwd, allow_cwd)
 	if None is not project_root and str(project_root).strip():
 		pr = Path(project_root).resolve()
 		_append_project_paths(cands, pr)
@@ -57,9 +68,9 @@ def _collect_local_repo_candidates(project_root: str | Path | None, source_files
 		_append_project_paths(cands, resolved)
 		for anc in (resolved, *resolved.parents):
 			_append_repo_roots(cands, anc)
-	cwd = Path.cwd().resolve()
-	for anc in (cwd, *cwd.parents):
-		_append_repo_roots(cands, anc)
+	if allow_cwd:
+		for anc in (cwd, *cwd.parents):
+			_append_repo_roots(cands, anc)
 	return cands
 def _extract_config_slugs(code_repo: Path) -> list[str]:
 	cfg_file = git_config_file(code_repo)

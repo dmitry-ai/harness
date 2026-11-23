@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/173
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
@@ -148,9 +151,11 @@ def resolve_code_scope(path: str | Path) -> Path:
 	except OSError:
 		p = raw
 	start_dir = p if p.is_dir() else p.parent
-	r = _resolve_deleted_worktree_scope(p) if '/data/worktrees/' in _norm_posix(p).lower() and (not p.exists()) else None
+	git_anc = _find_git_ancestor(start_dir)
+	deleted_wt = '/data/worktrees/' in _norm_posix(p).lower() and (not p.exists()) and (None is git_anc or '/data/worktrees/' not in _norm_posix(git_anc).lower())
+	r = _resolve_deleted_worktree_scope(p) if deleted_wt else git_anc
 	if None is r:
-		r = _find_git_ancestor(start_dir) or _find_marker_ancestor(start_dir)
+		r = _find_marker_ancestor(start_dir)
 	if None is r:
 		r = start_dir.parent if start_dir.name.lower() in _SCOPE_SUBDIR_SEGMENTS and start_dir.parent != start_dir else start_dir
 	return r

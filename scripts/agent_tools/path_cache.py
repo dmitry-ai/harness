@@ -1,10 +1,14 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Accelerate project_paths and overlay link resolution with fast-path caching":
 # https://github.com/dmitry-ai/harness/issues/174
 from __future__ import annotations
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
+import json
 import os
 import stat
 import tempfile
@@ -110,6 +114,39 @@ def overlay_signature_for_roots(candidate_roots: tuple[Path, ...], overlay_candi
 			except OSError:
 				pass
 	return tuple(ov_sig)
+def _linked_worktree_main_repo(anchor_dir: Path) -> Path | None:
+	r = None
+	dot_git = anchor_dir / '.git'
+	if dot_git.is_file():
+		try:
+			txt = dot_git.read_text(encoding='utf-8', errors='replace').strip()
+			if txt.lower().startswith('gitdir:'):
+				raw = txt.split(':', 1)[1].strip()
+				gitdir = Path(raw)
+				if not gitdir.is_absolute():
+					gitdir = (anchor_dir / gitdir).resolve()
+				if 'worktrees' == gitdir.parent.name and '.git' == gitdir.parent.parent.name:
+					r = gitdir.parent.parent.parent.resolve()
+		except OSError:
+			r = None
+	return r
+def resolve_code_anchor(anchor_dir: Path) -> Path:
+	resolved = Path(anchor_dir).resolve()
+	r = resolved
+	meta_file = resolved / 'snapshot.json'
+	if meta_file.is_file():
+		try:
+			meta = json.loads(meta_file.read_text(encoding='utf-8-sig'))
+			canon = meta.get('canonical_primary') if isinstance(meta, dict) else None
+			if isinstance(canon, str) and canon.strip():
+				r = Path(canon.strip()).resolve()
+		except (OSError, ValueError):
+			r = resolved
+	else:
+		wt_main = _linked_worktree_main_repo(resolved)
+		if None is not wt_main:
+			r = wt_main
+	return r
 def resolve_journal_data_dir(eff: Path) -> Path:
 	from .path_registry import project_paths, workspace_override
 	fast_root = None
