@@ -1,3 +1,6 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
+# https://github.com/dmitry-ai/harness/issues/143
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Integrate declarative Antigravity addons health and sanctioning into Harness":
 # https://github.com/dmitry-ai/harness/issues/92
@@ -154,7 +157,7 @@ class ShellCommandInspector:
 					consumed = obj.get('consumed_files')
 					act = obj.get('action')
 					repo = obj.get('repo')
-					if obj.get('ok', True) and (not (isinstance(consumed, list) and any((re.search('(?i)(?:[/\\\\]temp[/\\\\]|[/\\\\]tmp[/\\\\])', str(cf)) for cf in consumed)))) and (act in ('create', 'edit', 'comment', 'close')) and isinstance(repo, str) and ('/' in repo):
+					if obj.get('ok', True) and (not (isinstance(consumed, list) and any((re.search('(?i)(?:[/\\\\]temp[/\\\\]|[/\\\\]tmp[/\\\\])', str(cf)) for cf in consumed)))) and (act in ('create', 'fetch', 'edit', 'comment', 'close')) and isinstance(repo, str) and ('/' in repo):
 						num = obj.get('number')
 						if None is num:
 							m = re.search('/issues/(\\d+)\\b', str(obj.get('html_url') or ''))

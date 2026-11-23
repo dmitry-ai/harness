@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
+# https://github.com/dmitry-ai/harness/issues/143
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement universal TDD verification engine in agent_tools/tdd_gate.py":
 # https://github.com/dmitry-ai/harness/issues/135
 from __future__ import annotations
@@ -789,12 +792,13 @@ def ratchet_diff_violations(
 	return violations
 
 
-def shell_code_write_targets(cmd: str, *, cwd: Path | None = None) -> list[Path]:
+def shell_write_targets(cmd: str, *, cwd: Path | None = None, classifications: tuple[str, ...] | None = None) -> list[Path]:
 	if not isinstance(cmd, str) or not cmd.strip():
 		return []
 	base = Path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
 	found: list[Path] = []
 	seen: set[str] = set()
+	allowed = set(classifications) if None is not classifications else None
 	for seg in _split_shell_segments(cmd):
 		for pat in _SHELL_WRITE_CMD_PATTERNS:
 			for m in pat.finditer(seg):
@@ -803,12 +807,16 @@ def shell_code_write_targets(cmd: str, *, cwd: Path | None = None) -> list[Path]
 					continue
 				cand = normalize_host_path(raw_target)
 				full = cand.resolve() if cand.is_absolute() else (base / cand).resolve()
-				if 'production' == classify_code_path(full):
+				if None is allowed or classify_code_path(full) in allowed:
 					key = full.as_posix().lower()
 					if key not in seen:
 						seen.add(key)
 						found.append(full)
 	return found
+
+
+def shell_code_write_targets(cmd: str, *, cwd: Path | None = None) -> list[Path]:
+	return shell_write_targets(cmd, cwd=cwd, classifications=('production',))
 
 
 def shell_test_delete_targets(cmd: str, *, cwd: Path | None = None) -> list[Path]:
