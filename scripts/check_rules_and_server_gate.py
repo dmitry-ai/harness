@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce live PreToolUse Issue-First gate before TDD in check_rules_and_server_gate.py":
+# https://github.com/dmitry-ai/harness/issues/145
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce live TDD PreToolUse gate in check_rules_and_server_gate.py":
 # https://github.com/dmitry-ai/harness/issues/136
 # 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -49,6 +52,7 @@ import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_tools.git_gate import prohibited_git_write_commands
+from agent_tools.issue_first_gate import evaluate_pre_tool_use_issue_first
 from agent_tools.runtime import PRIMARY, sanctioned_addon_code_roots
 from agent_tools.shell_audit import _CDP_PROTOCOL_RE, is_code_file, prohibited_cdp_bypass_commands, protected_browser_perimeter
 from agent_tools.tdd_gate import evaluate_pre_tool_use_tdd
@@ -316,6 +320,8 @@ def check_browser_mcp_gate(name: str, args: dict, payload: dict) -> str | None:
 		if norm_p.endswith('/mcp_config.json') and isinstance(content, str) and re.search('chrome-devtools', content, re.I) and re.search('(?:--autoConnect|--browser-url|--browserUrl)', content, re.I):
 			return 'EXEC-3 / M-5: Configuring chrome-devtools-mcp with --autoConnect or --browser-url against the user Chrome session is prohibited; bind it to chrome-headless-shell with --headless and --isolated.'
 	return None
+def check_issue_first_gate(name: str, args: dict, payload: dict) -> str | None:
+	return evaluate_pre_tool_use_issue_first(name, args, payload)
 def check_tdd_gate(name: str, args: dict, payload: dict) -> str | None:
 	return evaluate_pre_tool_use_tdd(name, args, payload)
 def main():
@@ -337,6 +343,7 @@ def main():
 				('REVIEW-1-BULK-SOURCE-GATE', lambda: check_bulk_source_read_streak(name, args, payload)),
 				('CDP-BYPASS-GATE', lambda: check_cdp_bypass_gate(name, args)),
 				('M-5-BROWSER-MCP-GATE', lambda: check_browser_mcp_gate(name, args, payload)),
+				('EXEC-5-ISSUE-FIRST-GATE', lambda: check_issue_first_gate(name, args, payload)),
 				('EXEC-2-TDD-GATE', lambda: check_tdd_gate(name, args, payload)),
 			):
 				err = check_fn()
