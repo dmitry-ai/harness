@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce TDD test coverage and ratchet in Git pre-commit gate":
 # https://github.com/dmitry-ai/harness/issues/137
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -352,6 +355,43 @@ class GitRepoGate:
 						all_new_diff_urls.update(new_diff_urls)
 			if 1 < len(all_new_diff_urls):
 				raise ValueError(f'Staged files mix changes from multiple GitHub Issues: {sorted(all_new_diff_urls)}')
+			if self.is_issue_tracked():
+				from .github_issue import extract_parent_issue_number
+				from .issue_lifecycle import evidence_issue_files, origin_repo_slug
+				import json as _json
+				repo_slug = origin_repo_slug(self.root)
+				if repo_slug:
+					check_urls: list[str] = []
+					if None is not stripped_msg:
+						check_urls.append(stripped_msg)
+					for u in sorted(all_new_diff_urls):
+						if u not in check_urls:
+							check_urls.append(u)
+					proj_root = self._tdd_project_root()
+					for u in check_urls:
+						parsed = parse_issue_url(u)
+						if None is parsed:
+							continue
+						u_slug, u_num = parsed
+						if u_slug.lower() != repo_slug.lower():
+							raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Referenced issue {u} does not match repository {repo_slug}')
+						ev_files = evidence_issue_files(proj_root, u_slug, f'issue-{u_num}.json', candidate_repos=[self.root])
+						if not ev_files:
+							raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Referenced issue {u} has no saved API read-back Evidence JSON (issue-{u_num}.json); create or fetch the parent issue via df_github_issue.py before writing tests or code')
+						try:
+							ev_data = _json.loads(ev_files[0].read_text(encoding='utf-8'))
+						except (OSError, ValueError):
+							continue
+						if isinstance(ev_data, dict):
+							iss_obj = ev_data.get('issue') if isinstance(ev_data.get('issue'), dict) else ev_data
+							raw_p = ev_data.get('parent_number')
+							if not isinstance(raw_p, int) or isinstance(raw_p, bool):
+								raw_p = iss_obj.get('parent_number') if isinstance(iss_obj, dict) else None
+							if not isinstance(raw_p, int) or isinstance(raw_p, bool):
+								raw_p = extract_parent_issue_number(str((iss_obj or {}).get('body') or ''), u_slug)
+							if isinstance(raw_p, int) and (not isinstance(raw_p, bool)) and raw_p != u_num:
+								if not evidence_issue_files(proj_root, u_slug, f'issue-{raw_p}.json', candidate_repos=[self.root]):
+									raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Child issue {u} references parent #{raw_p}, which has no saved API read-back Evidence JSON (issue-{raw_p}.json)')
 	def verify_push_blob_sizes(self, stdin_lines: list[str] | None=None) -> None:
 		if (self.root / '.git').exists():
 			rev_args: list[str] = []

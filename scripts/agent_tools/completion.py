@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Preserve historical delivered turn bytes when tdd_check is absent":
 # https://github.com/dmitry-ai/harness/issues/140
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -141,7 +144,7 @@ from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
-COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
+COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check', 'issue-first-check', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
@@ -247,6 +250,9 @@ class AnswerPreparationRunner:
 			dc = self.value['delegation_check']
 			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={dc['tool_step_count']}, max_streak={dc.get('max_unpersisted_step_streak', 0)} > {dc['max_unpersisted_steps']}, or unpersisted_source_reads={dc.get('max_unpersisted_source_reads', 0)} >= {dc.get('max_allowed_unpersisted_source_reads', 10)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"
 			self._fail_gate('delegation', detail)
+		self.value['issue_first_check'] = _issue_first_status(self.root, self.turn)
+		if not self.value['issue_first_check']['verified']:
+			self._fail_gate('issue_first', '; '.join(self.value['issue_first_check']['violations']))
 		self.value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(self.root, self.turn, self.value, response=self.response)
 		if not self.value['code_lifecycle_check']['verified']:
 			self._fail_gate('code_lifecycle', 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(self.value['code_lifecycle_check']['violations']))
@@ -535,16 +541,20 @@ def _factual_kb_note_issues(root, turn):
 				except OSError:
 					pass
 	return r
+def _issue_first_status(root, turn):
+	from .issue_first_gate import evaluate_issue_first_events
+	return evaluate_issue_first_events(list(turn.get('issue_first_events') or []), requests=list(turn.get('requests') or []), project_root=root)
 def _tdd_status(root, turn):
 	from .tdd_gate import evaluate_tdd_events
 	return evaluate_tdd_events(list(turn.get('tdd_events') or []), require_final_full_green=True)
-VERIFIED_CHECK_KEYS = ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
+VERIFIED_CHECK_KEYS = ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
 GATE_SPECS = (
 	('exec5', ('EXEC-5 violation in active turn (git read',), lambda root_p, turn, value, rc: bool(value.get('exec5_check', {}).get('verified'))),
 	('http_fetch', ('KB-3 / EXEC-1 violation',), lambda root_p, turn, value, rc: bool(value.get('http_fetch_check', {}).get('verified'))),
 	('compaction', (), lambda root_p, turn, value, rc: bool(value.get('compaction_check', {}).get('verified'))),
 	('evicted_citations', (), lambda root_p, turn, value, rc: bool(value.get('compaction_check', {}).get('verified')) and (not ((set(rc.get('cited_files') or ()) & set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())) if rc.get('cited_files') else set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())))),
 	('delegation', ('REVIEW-1 / KB-3 violation',), lambda root_p, turn, value, rc: bool(value.get('delegation_check', {}).get('verified'))),
+	('issue_first', ('EXEC-5 ISSUE-FIRST-GATE',), lambda root_p, turn, value, rc: bool(value.get('issue_first_check', {}).get('verified'))),
 	('code_lifecycle', ('EXEC-5 violation in active turn (code/issue',), lambda root_p, turn, value, rc: bool(value.get('code_lifecycle_check', {}).get('verified'))),
 	('tdd', ('EXEC-2 TDD-',), lambda root_p, turn, value, rc: bool(value.get('tdd_check', {}).get('verified'))),
 	('language_and_stub', ('TEXT-1:', 'FILE-3 / REVIEW-1:'), lambda root_p, turn, value, rc: bool(value.get('language_and_stub_check', {}).get('verified'))),
@@ -875,8 +885,9 @@ def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	key = _key(native, turn)
 	sim_paths, sim_repos = _similar_projects_metadata(canon_root)
 	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []} if recovered else _code_and_issue_lifecycle_status(canon_root, turn)
+	issue_first_chk = {'verified': True, 'repos': {}, 'violations': []} if recovered else _issue_first_status(canon_root, turn)
 	tdd_chk = {'verified': True, 'scopes': {}, 'violations': []} if recovered else _tdd_status(canon_root, turn)
-	r = {'schema_version': 1, 'key': key, 'project_root': str(canon_root), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(canon_root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, canon_root, key), 'http_fetch_check': _http_fetch_status(turn, canon_root, key), 'compaction_check': _compaction_status(canon_root, key, turn), 'delegation_check': _delegation_status(canon_root, turn), 'budget_check': _budget_status(canon_root, turn), 'code_lifecycle_check': lifecycle, 'tdd_check': tdd_chk, 'instruction_snapshot': _instruction_snapshot(canon_root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	r = {'schema_version': 1, 'key': key, 'project_root': str(canon_root), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(canon_root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, canon_root, key), 'http_fetch_check': _http_fetch_status(turn, canon_root, key), 'compaction_check': _compaction_status(canon_root, key, turn), 'delegation_check': _delegation_status(canon_root, turn), 'budget_check': _budget_status(canon_root, turn), 'issue_first_check': issue_first_chk, 'code_lifecycle_check': lifecycle, 'tdd_check': tdd_chk, 'instruction_snapshot': _instruction_snapshot(canon_root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
 	if sim_paths:
 		r['similar_projects'] = sim_paths
 	if sim_repos:
@@ -968,11 +979,14 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 			value['similar_project_repos'] = sim_repos
 		else:
 			value.pop('similar_project_repos', None)
+		value['issue_first_check'] = _issue_first_status(root, turn)
 		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
 		value['tdd_check'] = _tdd_status(root, turn)
 	else:
 		if 'code_lifecycle_check' not in value:
 			value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []}
+		if not historical_done and 'issue_first_check' not in value:
+			value['issue_first_check'] = {'verified': True, 'repos': {}, 'violations': []}
 		if not historical_done and 'tdd_check' not in value:
 			value['tdd_check'] = {'verified': True, 'scopes': {}, 'violations': []}
 	if False is value.get('readiness_check', {}).get('verified') and (not value.get('admission_failure')):
@@ -1187,7 +1201,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		from .source_grounding import read_only_grounding
 		with read_only_grounding():
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
-		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
+		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
 		if value.get('similar_projects'):
 			r['similar_projects'] = list(value['similar_projects'])
 		if value.get('similar_project_repos'):
@@ -1237,7 +1251,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 				if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
 					value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
 				_persist(path, value)
-		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		if value.get('reserved_journal_steps'):
 			result['reserved_journal_steps'] = list(value['reserved_journal_steps'])
 		if value.get('handed_off_to'):
@@ -1472,6 +1486,23 @@ def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
 		turn_key = _key(native, turn_obj)
 		tdd_chk = _tdd_status(root_p, turn_obj)
 	return {'valid': bool(tdd_chk.get('verified', True)), 'read_only': True, 'role': role, 'turn_key': turn_key, 'tdd_check': tdd_chk, 'event_count': len(turn_obj.get('tdd_events') or [])}
+def issue_first_check_turn(root, conversation=None, *, platform=None, backend=None):
+	from .path_registry import canonicalize_root_dir
+	from .source_grounding import read_only_grounding
+	root_p = canonicalize_root_dir(root)
+	eff_plat = platform_name(platform)
+	eff_conv = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == eff_plat else None)
+	with read_only_grounding():
+		native = _native(root_p, eff_conv, platform=eff_plat, backend=backend)
+		if native['primary']:
+			role = 'primary'
+			turn_obj = _active(native)
+		else:
+			role = 'child'
+			turn_obj = _scan_child_trace_turn(root_p, eff_conv, native)
+		turn_key = _key(native, turn_obj)
+		if_chk = _issue_first_status(root_p, turn_obj)
+	return {'valid': bool(if_chk.get('verified', True)), 'read_only': True, 'role': role, 'turn_key': turn_key, 'issue_first_check': if_chk, 'event_count': len(turn_obj.get('issue_first_events') or [])}
 _norm_journal_text = journal.norm_journal_text
 _find_orphan_or_overwritten_steps = journal.find_orphan_or_overwritten_steps
 def _group(root, native, turn, response, directory, *, allow_reprepare=False):
@@ -1794,6 +1825,7 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 		from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 		child_bg: dict[str, dict] = {}
 		child_pending_tdd: dict[str, dict] = {}
+		child_pending_issue: dict[str, tuple[int, str]] = {}
 		for pos, row in enumerate(rows):
 			if not isinstance(row, dict):
 				continue
@@ -1833,17 +1865,29 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 				pay = row.get('payload') if isinstance(row.get('payload'), dict) else {}
 				if pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not pay.get('output'):
 					c_id = pay.get('call_id')
+					out_val = pay.get('output')
+					out_str = out_val if isinstance(out_val, str) else json.dumps(out_val, ensure_ascii=False)
 					if c_id in child_pending_tdd:
-						out_val = pay.get('output')
-						child_pending_tdd[c_id]['outcome'] = parse_command_outcome(out_val if isinstance(out_val, str) else json.dumps(out_val, ensure_ascii=False))
+						child_pending_tdd[c_id]['outcome'] = parse_command_outcome(out_str)
+					if c_id in child_pending_issue:
+						from .issue_first_gate import build_issue_action_events
+						ci_step, ci_cmd = child_pending_issue.pop(c_id)
+						seg['issue_first_events'].extend(build_issue_action_events(ci_step, ci_cmd, [out_str]))
 				elif pay.get('type') in ('function_call', 'custom_tool_call'):
 					seg['tool_steps'].append(step_idx)
 					raw_in = pay.get('arguments', pay.get('input', {}))
 					raw_cmd = raw_in if isinstance(raw_in, str) else json.dumps(raw_in, ensure_ascii=False)
-					seg['tool_records'].append({'step': step_idx, 'tools': [str(pay.get('name') or '')], 'outputs': []})
-					cev = record_normalized_tool_effects(root_p, step_idx, str(pay.get('name') or ''), raw_in, raw_cmd, seg, track_turn_steps=True)
+					p_name = str(pay.get('name') or '')
+					seg['tool_records'].append({'step': step_idx, 'tools': [p_name], 'outputs': []})
+					cev = record_normalized_tool_effects(root_p, step_idx, p_name, raw_in, raw_cmd, seg, track_turn_steps=True)
 					if cev and pay.get('call_id'):
 						child_pending_tdd[pay['call_id']] = cev
+					if pay.get('call_id') and ('exec' == p_name or p_name.endswith(('exec_command', 'run_command'))):
+						from .issue_first_gate import is_df_github_issue_command
+						cp_args = parse_tool_args(raw_in)
+						ceff_cmd = str(cp_args.get('CommandLine') or cp_args.get('cmd') or cp_args.get('command') or raw_cmd)
+						if is_df_github_issue_command(ceff_cmd):
+							child_pending_issue[pay['call_id']] = (step_idx, ceff_cmd)
 	return merge_turn_accumulators([seg], allow_step_output_recovery=True)
 def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None):
 	if not isinstance(response, str) or not response.strip():
@@ -1889,6 +1933,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		comp_chk = value_obj['compaction_check']
 		evicted_cited = _find_evicted_cited_files(root_p, pp, turn_key, comp_chk, response) if role in ('primary', 'child') else []
 		del_chk = value_obj['delegation_check']
+		issue_first_chk = _issue_first_status(root_p, turn_obj) if role in ('primary', 'child') else {'verified': True, 'repos': {}, 'violations': []}
 		lifecycle_chk = _code_and_issue_lifecycle_status(root_p, turn_obj, value_obj if 'primary' == role else None, response=response)
 		tdd_chk = _tdd_status(root_p, turn_obj) if role in ('primary', 'child') else {'verified': True, 'scopes': {}, 'violations': []}
 		wf_errs: list[str] = []
@@ -1949,6 +1994,8 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 			_push('delegation', 'turn.delegation', [f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={del_chk.get('tool_step_count', 0)}, max_streak={del_chk.get('max_unpersisted_step_streak', 0)} > {del_chk.get('max_unpersisted_steps', 40)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"])
 		if del_chk.get('aa_partial_read_violations'):
 			_push('aa_partial_read', 'turn.aa_partial_read', ['REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(del_chk['aa_partial_read_violations'])])
+		if not issue_first_chk.get('verified', True):
+			_push('issue_first', 'turn.issue_first', list(issue_first_chk.get('violations') or []))
 		if not lifecycle_chk.get('verified', True):
 			_push('code_lifecycle', 'turn.code_lifecycle', [f'EXEC-5 violation in active turn (code/issue lifecycle incomplete): {v}' for v in lifecycle_chk.get('violations') or []])
 		if not tdd_chk.get('verified', True):
@@ -1972,6 +2019,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 				'http_fetch': bool(http_chk.get('verified', True)),
 				'compaction': bool(comp_chk.get('verified', True) and (not evicted_cited)),
 				'delegation': bool(del_chk.get('verified', True) and (not del_chk.get('aa_partial_read_violations'))),
+				'issue_first': bool(issue_first_chk.get('verified', True)),
 				'code_lifecycle': bool(lifecycle_chk.get('verified', True)),
 				'tdd': bool(tdd_chk.get('verified', True)),
 				'workflow': not wf_errs,
@@ -2035,7 +2083,7 @@ def add_parser_arguments(parser, command):
 		specs.extend((('--peer', {'required': True, 'help': 'Declared similar project root or GitHub owner/repo slug'}), ('--reason', {'required': True, 'help': 'Technical justification (>= 30 chars) why peer changes do not apply'})))
 	if 'ratchet-ok' == command:
 		specs.extend((('--file', {'required': True, 'help': 'Relative path or filename of the tracked test file whose expectation is intentionally changing'}), ('--reason', {'required': True, 'help': 'Audited justification (>= 30 chars) citing the requirement/user decision behind the test change'})))
-	if command not in ('recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check'):
+	if command not in ('recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check', 'issue-first-check'):
 		specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
 	if command in ('turn-begin', 'answer-prepare'):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
@@ -2067,6 +2115,8 @@ def execute(args):
 		r = ratchet_ok(args.project, args.file, args.reason, args.conversation)
 	elif 'tdd-check' == args.command:
 		r = tdd_check_turn(args.project, args.conversation)
+	elif 'issue-first-check' == args.command:
+		r = issue_first_check_turn(args.project, args.conversation)
 	elif 'answer-check' == args.command:
 		from .cli_common import load_operation_input
 		payload = load_operation_input(args, args.response_file)

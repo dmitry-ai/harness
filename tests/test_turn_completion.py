@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -2551,8 +2554,12 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 				ev_a = peer_a / f'_/\ua616/KB/Evidence/GitHub/test-org__peer-a/issue-{issue_num}.json'
 				ev_a.parent.mkdir(parents=True, exist_ok=True)
 				ev_a.write_text(json.dumps({'url': f'https://github.com/test-org/peer-a/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}), encoding='utf-8')
-			def _append_tdd_rows(rows_list: list[dict], test_paths: list[Path], prod_paths: list[Path]) -> int:
+			def _append_tdd_rows(rows_list: list[dict], test_paths: list[Path], prod_paths: list[Path], issue_specs: list[tuple[str, int]] = ()) -> int:
 				st = max((r.get('step_index', 0) for r in rows_list), default=0) + 1
+				for slug_i, num_i in issue_specs:
+					rows_list.append({'step_index': st, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'iss-{st}', 'name': 'run_command', 'args': {'CommandLine': f'python scripts/df_github_issue.py create --repo {slug_i} --title "Problem {num_i}" --body-file b.md'}}]})
+					rows_list.append({'step_index': st + 1, 'type': 'GENERIC', 'content': 'Command exited with code 0.\n\nCommand output:\n' + json.dumps({'ok': True, 'action': 'create', 'repo': slug_i, 'number': num_i, 'state': 'open', 'html_url': f'https://github.com/{slug_i}/issues/{num_i}', 'verified': True}) + '\n'})
+					st += 2
 				rows_list.append({'step_index': st, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'wt-{i}', 'name': 'write_file', 'args': {'Path': str(tp)}} for i, tp in enumerate(test_paths)]})
 				rows_list.append({'step_index': st + 1, 'type': 'GENERIC', 'content': 'Created file.'})
 				st += 2
@@ -2573,7 +2580,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			pre1 = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid1, 'cwd': str(peer_a), 'transcriptPath': str(log1), 'invocationNum': 0}, backend_override=backend)
 			self.assertIn('similar_peers=test-org/peer-b', pre1['injectSteps'][0]['systemMessage']['systemMessage'])
 			_commit_and_close_a(peer_a / 'code/app.py', 10, 1)
-			next_st1 = _append_tdd_rows(rows1, [peer_a / 'code/tests/test_app.py'], [peer_a / 'code/app.py'])
+			next_st1 = _append_tdd_rows(rows1, [peer_a / 'code/tests/test_app.py'], [peer_a / 'code/app.py'], [('test-org/peer-a', 10)])
 			log1.write_text(''.join((json.dumps(r) + '\n' for r in rows1)), encoding='utf-8')
 			chk1_bad = completion.check_answer(peer_a, 'Updated peer_a.', cid1, platform='antigravity', backend=backend)
 			self.assertFalse(chk1_bad['valid'])
@@ -2617,7 +2624,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			pre2 = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': cid2, 'cwd': str(peer_a), 'transcriptPath': str(log2), 'invocationNum': 0}, backend_override=backend)
 			self.assertIn('turn_key=', pre2['injectSteps'][0]['systemMessage']['systemMessage'])
 			_commit_and_close_a(peer_a / 'code/app.py', 11, 2)
-			_append_tdd_rows(rows2, [peer_a / 'code/tests/test_app.py'], [peer_a / 'code/app.py'])
+			_append_tdd_rows(rows2, [peer_a / 'code/tests/test_app.py'], [peer_a / 'code/app.py'], [('test-org/peer-a', 11)])
 			log2.write_text(''.join((json.dumps(r) + '\n' for r in rows2)), encoding='utf-8')
 			sub_env = {**os.environ, 'USERPROFILE': str(ag_home), 'APPDATA': str(t / 'sandbox_roaming')}
 			ex_cli = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'similar-project-exempt', str(peer_a), '--peer', 'test-org/peer-b', '--reason', 'peer_a UI workaround uses an Antigravity-only DOM hook not present in peer_b.', '--conversation', cid2, '--platform', 'antigravity'], env=sub_env, capture_output=True, text=True, encoding='utf-8', check=False)
@@ -2643,7 +2650,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			ev_b8 = peer_b / '_/\ua616/KB/Evidence/GitHub/test-org__peer-b/issue-8.json'
 			ev_b8.parent.mkdir(parents=True, exist_ok=True)
 			ev_b8.write_text(json.dumps({'url': 'https://github.com/test-org/peer-b/issues/8', 'issue': {'number': 8, 'state': 'CLOSED'}}), encoding='utf-8')
-			_append_tdd_rows(rows3, [peer_a / 'code/tests/test_app.py', test_b], [peer_a / 'code/app.py', peer_b / 'code/app.py'])
+			_append_tdd_rows(rows3, [peer_a / 'code/tests/test_app.py', test_b], [peer_a / 'code/app.py', peer_b / 'code/app.py'], [('test-org/peer-a', 12), ('test-org/peer-b', 8)])
 			log3.write_text(''.join((json.dumps(r) + '\n' for r in rows3)), encoding='utf-8')
 			prep3_ok = completion.prepare(peer_a, 'Updated both peer_a and peer_b.', cid3, platform='antigravity', backend=backend)
 			self.assertTrue(prep3_ok['ready'])

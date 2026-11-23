@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -207,6 +210,10 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	if matched_state.get('status') not in ('prepared', 'delivered') or (not isinstance(prep, dict)) or (not matched_state.get('readiness_check', {}).get('verified')):
 		detail = (matched_state.get('readiness_check') or {}).get('detail') or 'answer-prepare has not succeeded for the current turn'
 		return {'decision': 'continue', 'reason': f'FILE-3 / EXEC-5 Stop Gate: Turn is not prepared ({detail}). Run harness.py answer-prepare and output the exact prepared response.'}
+	ifc = matched_state.get('issue_first_check') if isinstance(matched_state.get('issue_first_check'), dict) else {}
+	if False is ifc.get('verified'):
+		if_detail = '; '.join((str(v) for v in (ifc.get('violations') or ()))) or 'Issue-First verification failed (parent GitHub issue required before tests and code)'
+		return {'decision': 'continue', 'reason': f'EXEC-5 Stop Gate (ISSUE-FIRST): {if_detail}. Establish a parent GitHub issue via df_github_issue.py before tests/code and re-run harness.py answer-prepare.'}
 	clc = matched_state.get('code_lifecycle_check') if isinstance(matched_state.get('code_lifecycle_check'), dict) else {}
 	if False is clc.get('verified'):
 		clc_detail = '; '.join((str(v) for v in (clc.get('violations') or ()))) or 'code/issue or similar_projects parity lifecycle incomplete'

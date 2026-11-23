@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -166,7 +169,7 @@ def finalize_executor_checks(surface, role, conversation_id, parent_id, requeste
 	status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if {'verified'} == set(checks.values()) else 'unverified'
 	return {'schema_version': 1, 'surface': surface, 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': detail}}
 def init_turn_accumulator(*, extra=None):
-	return {'aa_partial_read_violations': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'checkpoint_steps': [], 'completion_service_steps': [], 'exec5_violations': [], 'file_reads': [], 'file_writes': [], 'http_fetch_violations': [], 'kb_persistence_steps': [], 'subagent_steps': [], 'tdd_events': [], 'tool_records': [], 'tool_steps': [], 'touched_files': [], 'transcript_read_steps': [], **(extra or {})}
+	return {'aa_partial_read_violations': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'checkpoint_steps': [], 'completion_service_steps': [], 'exec5_violations': [], 'file_reads': [], 'file_writes': [], 'http_fetch_violations': [], 'issue_first_events': [], 'kb_persistence_steps': [], 'subagent_steps': [], 'tdd_events': [], 'tool_records': [], 'tool_steps': [], 'touched_files': [], 'transcript_read_steps': [], **(extra or {})}
 def iter_antigravity_subagents(call):
 	r = []
 	if isinstance(call, dict) and 'invoke_subagent' == call.get('name'):
@@ -225,9 +228,10 @@ def merge_turn_accumulators(items, *, allow_step_output_recovery=False):
 	f_reads = [fr for item in items for fr in item.get('file_reads', [])]
 	f_writes = [fw for item in items for fw in item.get('file_writes', [])]
 	i_actions = [a for item in items for a in item.get('issue_actions', [])]
+	if_ev = [e for item in items for e in item.get('issue_first_events', [])]
 	tdd_ev = [e for item in items for e in item.get('tdd_events', [])]
 	compaction, delegation = summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, svc_steps=svc_steps, aa_part_errs=aa_part_errs, allow_step_output_recovery=allow_step_output_recovery)
-	r = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [req for item in items for req in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'tdd_events': tdd_ev, 'compaction': compaction, 'delegation': delegation}
+	r = {**last, 'turn_id': first['turn_id'], 'start_step': first['start_step'], 'requests': [req for item in items for req in item['requests']], 'owned': all((item['owned'] for item in items)), 'exec5_violations': [v for item in items for v in item.get('exec5_violations', [])], 'http_fetch_violations': [v for item in items for v in item.get('http_fetch_violations', [])], 'touched_files': t_files, 'issue_actions': i_actions, 'issue_first_events': if_ev, 'tdd_events': tdd_ev, 'compaction': compaction, 'delegation': delegation}
 	for k in _ACCUMULATOR_INTERNAL_KEYS:
 		r.pop(k, None)
 	return r
@@ -352,7 +356,7 @@ def record_canonical_path(root_p, step_idx, raw_path, is_read, file_reads, file_
 			if cleaned not in touched_files:
 				touched_files.append(cleaned)
 			file_writes.append((step_idx, norm_p))
-def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, acc, *, extra_violation=None, track_turn_steps=False, transcript_tokens=(), cmd_outputs=None):
+def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, acc, *, extra_violation=None, track_turn_steps=False, transcript_tokens=(), cmd_outputs=None, sub_step=None):
 	args = raw_args if isinstance(raw_args, dict) else parse_tool_args(raw_args)
 	scan_text = str(raw_cmd or '')
 	is_shell = 'exec' == name or name.endswith(('exec_command', 'run_command'))
@@ -360,11 +364,11 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 	tdd_cmd_event = None
 	if is_shell:
 		collect_shell_violations(shell_cmd, step_idx, acc['exec5_violations'], acc['http_fetch_violations'], extra=extra_violation)
+		eff_cmd = shell_cmd if name.endswith('run_command') else str(args.get('cmd') or args.get('command') or scan_text)
+		raw_cwd = args.get('workdir') or args.get('Cwd')
+		eff_cwd = Path(raw_cwd) if isinstance(raw_cwd, str) and raw_cwd.strip() else Path(root_p)
 		if 'tdd_events' in acc:
 			from ..tdd_gate import build_command_tdd_event, build_file_write_tdd_event, shell_code_write_targets
-			eff_cmd = shell_cmd if name.endswith('run_command') else str(args.get('cmd') or args.get('command') or scan_text)
-			raw_cwd = args.get('workdir') or args.get('Cwd')
-			eff_cwd = Path(raw_cwd) if isinstance(raw_cwd, str) and raw_cwd.strip() else Path(root_p)
 			for wt in shell_code_write_targets(eff_cmd, cwd=eff_cwd):
 				wev = build_file_write_tdd_event(step_idx, wt, cwd=eff_cwd)
 				if 'non_code' != wev['classification']:
@@ -372,6 +376,15 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 			if eff_cmd.strip():
 				tdd_cmd_event = build_command_tdd_event(step_idx, eff_cmd, cmd_outputs or (), cwd=eff_cwd)
 				acc['tdd_events'].append(tdd_cmd_event)
+		if 'issue_first_events' in acc:
+			from ..issue_first_gate import build_code_write_issue_first_event, build_issue_action_events
+			from ..tdd_gate import shell_write_targets
+			for wt in shell_write_targets(eff_cmd, cwd=eff_cwd):
+				ifev = build_code_write_issue_first_event(step_idx, wt, cwd=eff_cwd, sub_step=sub_step)
+				if None is not ifev:
+					acc['issue_first_events'].append(ifev)
+			if cmd_outputs:
+				acc['issue_first_events'].extend(build_issue_action_events(step_idx, eff_cmd, cmd_outputs, sub_step=sub_step))
 	patch_list = re.findall('^\\*\\*\\* (?:Add|Update|Delete) File:\\s*(.+)$', scan_text, flags=re.M) if 'apply_patch' in name else []
 	for pt in patch_list:
 		record_canonical_path(root_p, step_idx, pt, False, acc['file_reads'], acc['file_writes'], acc['touched_files'])
@@ -380,18 +393,29 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 			pev = build_file_write_tdd_event(step_idx, pt, cwd=root_p)
 			if 'non_code' != pev['classification']:
 				acc['tdd_events'].append(pev)
+		if 'issue_first_events' in acc:
+			from ..issue_first_gate import build_code_write_issue_first_event
+			pifev = build_code_write_issue_first_event(step_idx, pt, cwd=root_p, sub_step=sub_step)
+			if None is not pifev:
+				acc['issue_first_events'].append(pifev)
 	is_read_tool = name.endswith(('read_file', 'view_file'))
 	is_write_tool = name.endswith(('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content'))
 	is_file_tool = is_read_tool or is_write_tool
 	target_path = str(args.get('Path') or args.get('TargetFile') or args.get('AbsolutePath') or args.get('path') or '').strip() if is_file_tool else ''
 	if target_path:
 		record_canonical_path(root_p, step_idx, target_path, is_read_tool, acc['file_reads'], acc['file_writes'], acc['touched_files'])
-		if is_write_tool and 'tdd_events' in acc:
-			from ..tdd_gate import build_file_write_tdd_event
+		if is_write_tool:
 			content_hint = args.get('Content') if name.endswith(('write_file', 'write_to_file')) and isinstance(args.get('Content'), str) else None
-			wev = build_file_write_tdd_event(step_idx, target_path, cwd=root_p, content=content_hint)
-			if 'non_code' != wev['classification']:
-				acc['tdd_events'].append(wev)
+			if 'tdd_events' in acc:
+				from ..tdd_gate import build_file_write_tdd_event
+				wev = build_file_write_tdd_event(step_idx, target_path, cwd=root_p, content=content_hint)
+				if 'non_code' != wev['classification']:
+					acc['tdd_events'].append(wev)
+			if 'issue_first_events' in acc:
+				from ..issue_first_gate import build_code_write_issue_first_event
+				wifev = build_code_write_issue_first_event(step_idx, target_path, cwd=root_p, content=content_hint, sub_step=sub_step)
+				if None is not wifev:
+					acc['issue_first_events'].append(wifev)
 	if track_turn_steps:
 		if is_shell and 'answer_prepared_in_segment' in acc and re.search('\\banswer-prepare\\b', shell_cmd):
 			acc['answer_prepared_in_segment'] = True

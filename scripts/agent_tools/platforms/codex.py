@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -111,7 +114,7 @@ class CodexTurnScanner:
 		self.completed_turn_sub_ids.update(visited_sub_ids - {self.conversation_id})
 	def _finalize_turn(self, t_idx, turn, acc):
 		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(acc['all_request_steps'])
-		turn['issue_actions'] = extract_issue_actions_from_outputs([out for rec in acc['tool_records'] for out in rec.get('outputs', [])])
+		turn['issue_actions'] = [{**act, 'step': rec['step']} for rec in acc['tool_records'] for act in extract_issue_actions_from_outputs(rec.get('outputs', []))]
 		self._collect_subagent_bfs(t_idx, turn, acc)
 		for rec in acc['tool_records']:
 			rec.pop('target_subagents', None)
@@ -192,12 +195,16 @@ class CodexTurnScanner:
 					if call_id in acc['pending_tdd_cmds']:
 						from ..tdd_gate import parse_command_outcome
 						acc['pending_tdd_cmds'][call_id]['outcome'] = parse_command_outcome(out_full)
+					if call_id in acc['pending_issue_cmds']:
+						from ..issue_first_gate import build_issue_action_events
+						c_step, c_cmd = acc['pending_issue_cmds'].pop(call_id)
+						acc['issue_first_events'].extend(build_issue_action_events(c_step, c_cmd, [out_full]))
 			elif 'event_msg' == kind and 'task_started' == ptype:
 				ident = payload.get('turn_id')
 				if not isinstance(ident, str) or not ident:
 					raise ValueError('Native Codex task_started has no turn ID')
-				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': [], 'tdd_events': []}
-				acc = init_turn_accumulator(extra={'all_request_steps': [], 'pending_calls': {}, 'pending_tdd_cmds': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files'], 'tdd_events': current['tdd_events']})
+				current = {'turn_id': ident, 'requests': [], 'completed': False, 'response': None, 'start_step': index, 'final_step': None, 'completion_step': None, 'aborted': False, 'exec5_violations': [], 'http_fetch_violations': [], 'touched_files': [], 'issue_first_events': [], 'tdd_events': []}
+				acc = init_turn_accumulator(extra={'all_request_steps': [], 'pending_calls': {}, 'pending_tdd_cmds': {}, 'pending_issue_cmds': {}, 'exec5_violations': current['exec5_violations'], 'http_fetch_violations': current['http_fetch_violations'], 'touched_files': current['touched_files'], 'issue_first_events': current['issue_first_events'], 'tdd_events': current['tdd_events']})
 				self.turn_entries.append((current, acc))
 			elif None is not current and 'event_msg' == kind and ptype in ('task_complete', 'turn_aborted') and payload.get('turn_id') == current['turn_id']:
 				current['completion_step'], current['aborted'] = (index, 'turn_aborted' == ptype)
@@ -230,11 +237,18 @@ class CodexTurnScanner:
 				cev = record_normalized_tool_effects(self.root_p, index, name, raw_args, raw_cmd, acc, extra_violation={'call_id': payload.get('call_id')}, track_turn_steps=True, transcript_tokens=(str(self.path.name),))
 				if cev and payload.get('call_id'):
 					acc['pending_tdd_cmds'][payload['call_id']] = cev
+				if payload.get('call_id') and ('exec' == name or name.endswith(('exec_command', 'run_command'))):
+					from ..issue_first_gate import is_df_github_issue_command
+					p_args = parse_tool_args(raw_args)
+					eff_cmd = str(p_args.get('CommandLine') or p_args.get('cmd') or p_args.get('command') or raw_cmd)
+					if is_df_github_issue_command(eff_cmd):
+						acc['pending_issue_cmds'][payload['call_id']] = (index, eff_cmd)
 		self.current_turn = current
 	def _visit_subagent_rows(self, sub_id, sub_rows, anchor, turn, acc):
 		r, sub_outputs, sub_spawn_call_ids = ([], [], set())
 		sub_pending_tdd: dict[str, dict] = {}
-		for _, s_item in sub_rows:
+		sub_pending_issue: dict[str, tuple[int, str]] = {}
+		for s_pos, (_, s_item) in enumerate(sub_rows):
 			s_kind, s_pay = (s_item.get('type'), s_item.get('payload', {}))
 			if 'response_item' == s_kind and s_pay.get('type') in ('function_call_output', 'custom_tool_call_output') and None is not s_pay.get('output'):
 				out = s_pay.get('output')
@@ -247,6 +261,10 @@ class CodexTurnScanner:
 				if s_cid in sub_pending_tdd:
 					from ..tdd_gate import parse_command_outcome
 					sub_pending_tdd[s_cid]['outcome'] = parse_command_outcome(out_full)
+				if s_cid in sub_pending_issue:
+					from ..issue_first_gate import build_issue_action_events
+					c_sub, c_cmd = sub_pending_issue.pop(s_cid)
+					acc['issue_first_events'].extend(build_issue_action_events(anchor, c_cmd, [out_full], sub_step=c_sub))
 			elif 'response_item' == s_kind and s_pay.get('type') in ('function_call', 'custom_tool_call'):
 				s_name = s_pay.get('name', '')
 				s_args_in = s_pay.get('arguments', s_pay.get('input', {}))
@@ -256,11 +274,17 @@ class CodexTurnScanner:
 					sub_spawn_call_ids.add(s_pay['call_id'])
 				elif s_name.endswith(('send_input', 'send_message', 'wait', 'wait_agent')):
 					r.extend(_extract_codex_target_subagents(s_args_in))
-				cev = record_normalized_tool_effects(self.root_p, anchor, s_name, s_args_in, s_raw, acc, extra_violation={'subagent_id': sub_id})
+				cev = record_normalized_tool_effects(self.root_p, anchor, s_name, s_args_in, s_raw, acc, extra_violation={'subagent_id': sub_id}, sub_step=s_pos)
 				if cev and s_pay.get('call_id'):
 					sub_pending_tdd[s_pay['call_id']] = cev
+				if s_pay.get('call_id') and ('exec' == s_name or s_name.endswith(('exec_command', 'run_command'))):
+					from ..issue_first_gate import is_df_github_issue_command
+					sp_args = parse_tool_args(s_args_in)
+					seff_cmd = str(sp_args.get('CommandLine') or sp_args.get('cmd') or sp_args.get('command') or s_raw)
+					if is_df_github_issue_command(seff_cmd):
+						sub_pending_issue[s_pay['call_id']] = (s_pos, seff_cmd)
 		for act in extract_issue_actions_from_outputs(sub_outputs):
-			act_with_sub = {**act, 'subagent_id': sub_id}
+			act_with_sub = {**act, 'step': anchor, 'subagent_id': sub_id}
 			if act_with_sub not in turn['issue_actions']:
 				turn['issue_actions'].append(act_with_sub)
 		return r

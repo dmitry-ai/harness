@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -288,7 +291,7 @@ class AntigravityTurnScanner:
 						seg['issue_actions'].append({**act_item, 'step': anchor_step, 'subagent_id': child_cid})
 					for c_idx, c_call in enumerate(c_calls):
 						matched = [c_outs[c_idx]] if c_idx < len(c_outs) else c_outs
-						cev = record_normalized_tool_effects(self.root_p, anchor_step, c_call.get('name', ''), c_call.get('args', {}), '', seg, extra_violation={'subagent_id': child_cid}, cmd_outputs=matched)
+						cev = record_normalized_tool_effects(self.root_p, anchor_step, c_call.get('name', ''), c_call.get('args', {}), '', seg, extra_violation={'subagent_id': child_cid}, cmd_outputs=matched, sub_step=c_pos)
 						if cev and cev.get('outcome', {}).get('background_task_id'):
 							sub_bg[cev['outcome']['background_task_id']] = cev
 		return ()
