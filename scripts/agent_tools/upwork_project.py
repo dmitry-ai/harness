@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
+# https://github.com/dmitry-ai/harness/issues/162
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
 # https://github.com/dmitry-ai/harness/issues/160
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -294,7 +297,7 @@ def legacy_runner_global_hooks(primary=PRIMARY_AGENTS_DIR):
 def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR, *, config_dir: str | Path | None=None):
 	r = {
 		'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_markdown_slop.py', 'timeout': 10}]}]},
-		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
+		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent|schedule', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
 		'final-turn-gate': {
 			'PreInvocation': [{'type': 'command', 'command': 'python harness_hook_runner.py check_pre_invocation.py', 'timeout': 15}],
 			'Stop': [{'type': 'command', 'command': 'python harness_hook_runner.py check_stop_gate.py', 'timeout': 15}],

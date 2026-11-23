@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
+# https://github.com/dmitry-ai/harness/issues/162
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce live PreToolUse Issue-First gate before TDD in check_rules_and_server_gate.py":
 # https://github.com/dmitry-ai/harness/issues/145
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -51,6 +54,7 @@ from pathlib import Path
 import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from agent_tools.failfast_gate import evaluate_pre_tool_use_schedule, evaluate_pre_tool_use_test_failfast
 from agent_tools.git_gate import prohibited_git_write_commands
 from agent_tools.issue_first_gate import evaluate_pre_tool_use_issue_first
 from agent_tools.runtime import PRIMARY, sanctioned_addon_code_roots
@@ -322,6 +326,8 @@ def check_browser_mcp_gate(name: str, args: dict, payload: dict) -> str | None:
 	return None
 def check_issue_first_gate(name: str, args: dict, payload: dict) -> str | None:
 	return evaluate_pre_tool_use_issue_first(name, args, payload)
+def check_schedule_gate(name: str, args: dict, payload: dict) -> str | None:
+	return evaluate_pre_tool_use_schedule(name, args, payload)
 def check_tdd_gate(name: str, args: dict, payload: dict) -> str | None:
 	return evaluate_pre_tool_use_tdd(name, args, payload)
 def main():
@@ -343,6 +349,7 @@ def main():
 				('REVIEW-1-BULK-SOURCE-GATE', lambda: check_bulk_source_read_streak(name, args, payload)),
 				('CDP-BYPASS-GATE', lambda: check_cdp_bypass_gate(name, args)),
 				('M-5-BROWSER-MCP-GATE', lambda: check_browser_mcp_gate(name, args, payload)),
+				('EXEC-4-SCHEDULE-GATE', lambda: check_schedule_gate(name, args, payload)),
 				('EXEC-5-ISSUE-FIRST-GATE', lambda: check_issue_first_gate(name, args, payload)),
 				('EXEC-2-TDD-GATE', lambda: check_tdd_gate(name, args, payload)),
 			):
@@ -350,6 +357,12 @@ def main():
 				if err:
 					decision = {'decision': 'deny', 'reason': f'REJECTED ({gate_label}): {err}'}
 					break
+			if 'allow' == decision.get('decision'):
+				ff_err, ff_overwrite = evaluate_pre_tool_use_test_failfast(name, args)
+				if ff_err:
+					decision = {'decision': 'deny', 'reason': f'REJECTED (EXEC-2-TEST-FAILFAST-GATE): {ff_err}'}
+				elif ff_overwrite:
+					decision = {'decision': 'allow', 'overwrite': ff_overwrite, 'reason': 'EXEC-2-TEST-FAILFAST-GATE: Normalized test command fail-fast and WaitMsBeforeAsync.'}
 	except Exception:
 		decision = {'decision': 'allow'}
 	sys.stdout.write(json.dumps(decision, ensure_ascii=False))

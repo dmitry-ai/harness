@@ -16,7 +16,7 @@
   "rules-and-server-gate": {
     "PreToolUse": [
       {
-        "matcher": "write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent",
+        "matcher": "write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent|schedule",
         "hooks": [
           {
             "type": "command",

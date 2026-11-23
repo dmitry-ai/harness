@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
+# https://github.com/dmitry-ai/harness/issues/162
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
 # https://github.com/dmitry-ai/harness/issues/160
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1026,8 +1029,10 @@ def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None = 
 
 
 def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool = True) -> dict:
+	from .failfast_gate import missing_failfast_flag
 	scopes: dict[str, dict] = {}
 	violations: list[str] = []
+	failfast_warnings: list[str] = []
 
 	def _ensure_scope(scope_str: str) -> dict:
 		return scopes.setdefault(scope_str, {
@@ -1098,6 +1103,15 @@ def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool = 
 			t_info = ev.get('test_info') or {}
 			if not t_info.get('is_test_cmd') or t_info.get('rigged_failure'):
 				continue
+			if t_info.get('is_full_suite'):
+				cmd_text = str(ev.get('cmd') or '')
+				for seg in _split_shell_segments(cmd_text):
+					miss = missing_failfast_flag(seg.strip())
+					if None is not miss:
+						warn = f'EXEC-2 fail-fast advisory: Full-suite command at step {step} ({miss[0]}) omitted "{miss[1]}"; prefer fail-fast or harness.py run-tests.'
+						if warn not in failfast_warnings:
+							failfast_warnings.append(warn)
+						break
 			for sk, st in scopes.items():
 				if not _command_matches_scope(ev, sk, set(st['written_tests'])):
 					continue
@@ -1125,7 +1139,10 @@ def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool = 
 					f'EXEC-2 TDD-FULL-GATE: Repository "{sk}" has production code edits (last edit at step {last_edit}) '
 					'without a subsequent passing (GREEN) full test suite run. Run the full test suite and verify all tests pass.'
 				)
-	return {'verified': not violations, 'scopes': scopes, 'violations': violations}
+	r = {'verified': not violations, 'scopes': scopes, 'violations': violations}
+	if failfast_warnings:
+		r['failfast_warnings'] = failfast_warnings
+	return r
 
 
 def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
