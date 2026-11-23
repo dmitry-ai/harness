@@ -34,8 +34,8 @@ Never bundle multiple autonomous `M-...` subtasks into a single issue or a singl
      `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" lint --title "<title>" --body-file "<path/to/body.md>" [--repo <owner/repo>] [--parent <N>]`  
    - Fetch and verify an existing GitHub issue (persisting read-back Evidence JSON for `Issue-First` tracking when working on an already-open parent issue):  
      `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" fetch --repo <owner/repo> --issue <N> [--project-root "<path>"]`  
-   - Create an issue with `pre_flight_issue_first` dirty-repo guard (for unparented issues), pre-flight syntax checking, UTF-8 stdin JSON transport to `gh api`, and byte-exact read-back verification from GitHub:  
-     `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" create --repo <owner/repo> [--parent <N>] --title "<title>" --body-file "<path/to/body.md>" [--label "<labels>"] --consume-input`  
+   - Create an issue with `pre_flight_issue_first` dirty-repo guard (for unparented issues), pre-flight syntax checking, UTF-8 stdin JSON transport to `gh api`, automatic prepending of a tab-indented JSON metadata header (`Time` in the computer's local timezone, `Issue`, `Project`, `Journal`, `Agent` with `System`/`Instance`/`Model`/`Effort`, and `Trace`; opt out via `--no-metadata`), and byte-exact read-back verification from GitHub:  
+     `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" create --repo <owner/repo> [--parent <N>] --title "<title>" --body-file "<path/to/body.md>" [--label "<labels>"] [--no-metadata] --consume-input`  
    - Edit an existing issue with full read-back verification:  
      `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" edit --repo <owner/repo> --issue <N> [--parent <P>] [--body-file "<path/to/body.md>"] [--title "<new-title>"] --consume-input`  
    - Add or update an issue comment:  
@@ -47,3 +47,4 @@ Never bundle multiple autonomous `M-...` subtasks into a single issue or a singl
 3. If the title contains double quotes `"`, `$`, or backticks `` ` ``, write the title to a separate UTF-8 file and pass `--title-file "<path/to/title.txt>"`.  
 4. Treat the operation as successful only when the exit code is `0` and the tool's JSON output reports `"verified": true`.  
 <!-- https://github.com/dmitry-ai/harness/issues/147 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/152 -->  

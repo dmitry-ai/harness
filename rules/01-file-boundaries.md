@@ -12,6 +12,7 @@ Do not overwrite the snapshot with an intermediate revision; save new user edits
 ## FILE-3
 Journal: the user-specified directory, otherwise `ꙮ/{≻,≺}` (`O-ꙮ`, `journal_version: 3`, with legacy `journal_version: 2` flat `ꙮ/{≻,≺}` and `journal_version: 1` `ꙮ/1 - Analysis/{req,res}` or `ꙮ/{req,res}` temporarily supported and automatically upgraded inside `ꙮ` on the next project operation without altering `V1` project structure outside `ꙮ`).  
 `≻/<range>/<N>.md` (20-entry subfolders `1–20`, `21–40`, … using `U+2013` `–`; legacy: `≻/<N>.md` or `req/<N>.md`) holds the verbatim user request; `≺/<range>/<N>.md` (legacy: `≺/<N>.md` or `res/<N>.md`) holds the complete final response matching the chat; save before publication and verify by reading back.  
+New journal response files recorded via `answer-prepare` or foreground delivery recovery automatically prepend a tab-indented JSON metadata block (`Time`, `Project`, `Journal`, `Agent`, `Trace`) while chat output remains clean without that header; `body_sha256` and delivery verification match the authored chat text after stripping the leading Harness header, and existing historical entries remain untouched.  
 Link multiple requests answered by a single response explicitly; do not invent intermediate responses.  
 For the primary agent, completing any response, including analysis of the instructions themselves, goes through `answer-prepare` per the [turn completion contract](../references/turn-completion.md#answer-preparation).  
 Publish the verified bytes without subsequent editing; a prepared record and delivery confirmed by a native message are distinct states.  
@@ -33,4 +34,5 @@ After a confirmed write, only an unchanged input is deleted; an error or conflic
 Age does not authorize deleting the sole copy of a source file.  
 Do not use `git clean`, mass rollback, or `untracked` status as permission to delete.  
 <!-- https://github.com/dmitry-ai/harness/issues/41 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/109 -->
+<!-- https://github.com/dmitry-ai/harness/issues/109 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/152 -->  
