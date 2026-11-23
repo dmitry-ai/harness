@@ -19,10 +19,11 @@ Never pass Markdown issue bodies or comments via command-line arguments or an un
 Never write three-or-more-item enumerated issue titles (`"X, Y, and Z"`, `"X, Y and Z"`, `"X; Y; Z"`, `"X, Y, Z"`); `df_github_issue.py` rejects them with `ENUMERATED_SLOP_TITLE`.  
 Never bundle multiple autonomous `M-...` subtasks into a single issue or a single commit (`BUNDLED_SUBTASKS_IN_SINGLE_ISSUE`).  
 
-## Parent Problem Issues and Per-Subtask Child Issues
+## Parent Problem Issues, Issue-First Order, and Per-Subtask Child Issues
 
-1. Document the original problem and root causes in a single parent issue without bundling `M-...` implementations or committing code directly against the parent issue.  
-1. For each autonomous subtask (such as each `M-...` recommendation), create a separate child issue via `df_github_issue.py create --parent <parent_number>` and start its body with `Parent: [Issue #<parent_number>](https://github.com/<owner>/<repo>/issues/<parent_number>)`.  
+1. Follow the mandatory `Issue-First` workflow strictly before writing any tests or code in any GitHub-backed repository: first state the problem and root causes in a single open parent/strategic issue via `df_github_issue.py create` (without `--parent`), or register an existing open user-provided parent issue via `df_github_issue.py fetch --repo <owner/repo> --issue <N>`.  
+1. Do not write tests or code first and file an issue afterward: unparented `df_github_issue.py create` enforces `pre_flight_issue_first` and exits with code `2` whenever the local repository already has uncommitted governed test, code, or deliverable files, while `EXEC-5-ISSUE-FIRST-GATE` blocks governed edits before an open parent issue is established in the active turn.  
+1. Do not bundle `M-...` implementations into the parent issue or commit code directly against it; once the parent issue is open, create a separate child issue per autonomous subtask via `df_github_issue.py create --parent <parent_number>` (requiring the parent issue to be `open`) and start its body with `Parent: [Issue #<parent_number>](https://github.com/<owner>/<repo>/issues/<parent_number>)`.  
 1. Commit each child issue in its own separate Git commit whose message is only `https://github.com/<owner>/<repo>/issues/<child_number>`, push, close each child issue via `df_github_issue.py close`, and close the parent issue only after all child subtasks are completed.  
 
 ## Mandatory Workflow
@@ -31,7 +32,9 @@ Never bundle multiple autonomous `M-...` subtasks into a single issue or a singl
 2. Run the required operation via `df_github_issue.py`:  
    - Pre-flight syntax check of the Markdown file without network calls:  
      `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" lint --title "<title>" --body-file "<path/to/body.md>" [--repo <owner/repo>] [--parent <N>]`  
-   - Create an issue with pre-flight syntax checking, UTF-8 stdin JSON transport to `gh api`, and byte-exact read-back verification from GitHub:  
+   - Fetch and verify an existing GitHub issue (persisting read-back Evidence JSON for `Issue-First` tracking when working on an already-open parent issue):  
+     `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" fetch --repo <owner/repo> --issue <N> [--project-root "<path>"]`  
+   - Create an issue with `pre_flight_issue_first` dirty-repo guard (for unparented issues), pre-flight syntax checking, UTF-8 stdin JSON transport to `gh api`, and byte-exact read-back verification from GitHub:  
      `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" create --repo <owner/repo> [--parent <N>] --title "<title>" --body-file "<path/to/body.md>" [--label "<labels>"] --consume-input`  
    - Edit an existing issue with full read-back verification:  
      `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" edit --repo <owner/repo> --issue <N> [--parent <P>] [--body-file "<path/to/body.md>"] [--title "<new-title>"] --consume-input`  
@@ -43,3 +46,4 @@ Never bundle multiple autonomous `M-...` subtasks into a single issue or a singl
      `python "C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/df_github_issue.py" audit-repo --repo <owner/repo> --include-comments`  
 3. If the title contains double quotes `"`, `$`, or backticks `` ` ``, write the title to a separate UTF-8 file and pass `--title-file "<path/to/title.txt>"`.  
 4. Treat the operation as successful only when the exit code is `0` and the tool's JSON output reports `"verified": true`.  
+<!-- https://github.com/dmitry-ai/harness/issues/147 -->  
