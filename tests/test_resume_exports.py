@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+# https://github.com/dmitry-ai/harness/issues/178
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Initialize new Upwork projects in the V2 filesystem layout":
 # https://github.com/dmitry-ai/harness/issues/110
@@ -20,6 +23,7 @@ from pathlib import Path
 from unittest.mock import patch
 import hashlib
 import json
+import os
 import sqlite3
 import unittest
 import uuid
@@ -113,8 +117,9 @@ class ResumeExportTests(ProjectCase):
 			journal.record_answer(directory, ['First exact request', 'Second exact request'], 'Changed answer', 'turn-1')
 	def test_atomic_create_does_not_leave_a_partial_final_file(self):
 		target = self.project / 'ꘖ/data/new-state.json'
-		with patch.object(storage.os, 'fsync', side_effect=OSError('power failure')), self.assertRaises(OSError):
-			storage.create_bytes(target, b'{"complete":true}')
+		with patch.dict(os.environ, {'HARNESS_TEST_NO_FSYNC': '0'}):
+			with patch.object(storage.os, 'fsync', side_effect=OSError('power failure')), self.assertRaises(OSError):
+				storage.create_bytes(target, b'{"complete":true}')
 		self.assertFalse(target.exists())
 		storage.create_bytes(target, b'complete')
 		with self.assertRaises(FileExistsError):

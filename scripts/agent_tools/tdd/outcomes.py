@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+# https://github.com/dmitry-ai/harness/issues/178
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
@@ -8,7 +11,7 @@ _BG_TASK_FINISHED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+finished\s+with\s+re
 _BG_TASK_ID_RE = re.compile(r'task\s+id:\s*([A-Za-z0-9_./:-]+)', re.IGNORECASE)
 _BG_TASK_LOG_RE = re.compile(r'(?:Task\s+logs\s+are\s+available\s+at|Log):\s*(file:///[^\s\'"<>]+)', re.IGNORECASE)
 _EXIT_CODE_RE = re.compile(r'(?im)^(?:(?:Command|Process)\s+exited\s+with\s+code\s+(-?\d+)\.?|Exit\s+code:\s*(-?\d+))\s*$')
-_FAIL_LOG_RE = re.compile(r'(?m:^FAILED\s*\(|^FAIL\b)|(?i:\btest result:\s*FAILED\b|\bFAILURES!\b|\bERRORS!\b|\bFailed!\s*-\s*Failed:\s*[1-9])')
+_FAIL_LOG_RE = re.compile(r'(?m:^FAILED(?:\s*\(|\s+\S)|^FAIL\b)|(?i:\btest result:\s*FAILED\b|\bFAILURES!\b|\bERRORS!\b|\bFailed!\s*-\s*Failed:\s*[1-9]|=+\s+[^=\n]*\b[1-9]\d*\s+(?:failed|errors?)\b[^=\n]*=+)')
 _INVOCATION_ERROR_RE = re.compile(
 	r'(?i)(?:is not recognized as an internal or external command'
 	r'|is not recognized as the name of a cmdlet'
@@ -80,7 +83,7 @@ def _is_pass_log_text(text: str) -> bool:
 	return bool(
 		(re.search(r'(?m)^Ran\s+\d+\s+tests?\s+in\s+\d', text) and re.search(r'(?m)^OK(?:\s|\(|$)', text))
 		or re.search(r'(?i)\btest result:\s*ok\.\s*[1-9]\d*\s+passed;\s*0\s+failed\b|\bPassed!\s*-\s*Failed:\s*0,\s*Passed:\s*[1-9]|\bOK\s*\(\d+\s+tests?', text)
-		or (re.search(r'(?m)^\d+\s+passed\b', text) and (not re.search(r'(?i)\b[1-9]\d*\s+(?:failed|errors?)\b', text)))
+		or (re.search(r'(?m)^(?:=+\s+[^=\n]*\b)?[1-9]\d*\s+passed\b', text) and (not re.search(r'(?i)\b[1-9]\d*\s+(?:failed|errors?)\b', text)))
 		or (re.search(r'[\u2139i]\s+fail\s+0\b', text) and re.search(r'[\u2139i]\s+tests\s+[1-9]\d*\b', text))
 	)
 def _uri_to_local_path(uri: str) -> Path | None:
@@ -110,7 +113,8 @@ def parse_command_outcome(outputs: list[str] | tuple[str, ...] | str, *, task_lo
 		exit_code = _infer_exit_code_from_log_text(combined)
 	full_text = combined + extra_log_text
 	is_inv_err = bool(_INVOCATION_ERROR_RE.search(full_text))
-	ran_zero = bool(_ZERO_TESTS_RE.search(full_text))
-	is_fail = (None is not exit_code) and (0 != exit_code) and (not is_inv_err)
+	has_fail_log = bool(_FAIL_LOG_RE.search(full_text) or _NODE_FAIL_LOG_RE.search(full_text))
+	ran_zero = bool(_ZERO_TESTS_RE.search(full_text)) and (not has_fail_log)
+	is_fail = (None is not exit_code) and (0 != exit_code) and (not is_inv_err) and (not ran_zero)
 	is_pass = (0 == exit_code) and (not ran_zero) and (not is_inv_err)
 	return {'background_log_path': bg_log_path, 'background_task_id': bg_task_id, 'exit_code': exit_code, 'is_failure': is_fail, 'is_invocation_error': is_inv_err, 'is_pass': is_pass, 'ran_zero_tests': ran_zero}
