@@ -10,7 +10,8 @@ For new publications, use typed F/H/M claims with observation scope, verificatio
 Every number, count, date, or interval in a verified `observation`/`client_report` (`essence` and `response_excerpt`) must appear literally in the primary quote or follow from a verified calculation; frame any scope qualifiers inferred beyond the verbatim quote as a hypothesis (`H-*`) rather than a fact (`F-*`).  
 An agent's own KB entry or a high expert score does not promote a supposition to a fact.  
 ## DOC-2
-Frame any unknown or unproven explanation as a hypothesis: **essence**, **arguments for**, **arguments against**, and **expert plausibility in %** with the assessment basis.  
+Every analytical task is presumed to have no single unambiguous solution: automatically and without user reminders, present a set of competing hypotheses (`>= 2`) and/or candidate solution methods (per [DOC-3](#doc-3)) following [df-analysis](../skills/df-analysis/SKILL.md).  
+Frame any unknown or unproven explanation as a hypothesis: **essence** (including a primary link), **arguments for**, **arguments against**, and **expert plausibility in %** with the assessment basis.  
 Cite concrete data from the specific client, alternatives, and missing checks; provide evidence per [LINK-1](02-link-standards.md#link-1).  
 The finding `"no misconceptions established"` is valid; the template does not require inventing theories or objections.  
 Distinguish found counterevidence, absence of found counterevidence, and unavailability of verification.  
@@ -19,6 +20,7 @@ For causal explanations and misconception hypotheses (`causes`, `misconceptions`
 Restating a failure does not establish its cause; without discriminating evidence, retain the conclusion `"cause not established"`.  
 Having no grounds to prefer one version over another does not establish equiprobability or `50/50`; equal prior estimates require an explicitly stated assumption, while other percentages require their own expert basis without artificial normalization to 100%.  
 ## DOC-3
+For every analytical or remediation task, evaluate multiple candidate solution methods (`>= 2`) automatically without user reminders rather than presenting a single unqualified fix, following [df-analysis](../skills/df-analysis/SKILL.md).  
 For each solution method, state: **essence**, **arguments for**, **arguments against**, and **score in %** with an explicit criterion and basis.  
 Link the method to a cause or task via ID; state material applicability conditions and limitations.  
 Unavailability of a client's private system (admin panel, ad account, logs) does not allow declaring the status of facts about a public system (storefront, public API, DNS) confirmed by deterministic observation to be incomplete, hypothetical, or conditional (`limited`/`if`).  
@@ -26,10 +28,18 @@ A missing check of a private console restricts only the steps inside that consol
 A method's score represents expert suitability under the named criterion, not a promise of success or the probability of a hypothesis.  
 State applicability conditions and an observable verification criterion for the result; justify defect severity by impact while preserving sample boundaries.  
 ## DOC-4
-Do not use Markdown tables; start every sentence on a new line.  
+Do not use Markdown tables (enforced deterministically across `PreToolUse`, `answer-check`, `answer-prepare`, and `df_github_issue.py`); start every sentence on a new line.  
 In Markdown, end every sentence inside a paragraph with two trailing spaces before the newline (CommonMark hard line break: `  \n`) so lines do not collapse into a single run-on paragraph when rendered; do not insert blank lines between sentences of the same block.  
 Do not turn ordinary connected prose into bulleted or numbered lists just to get line breaks: lists are permissible only for genuine enumerations of homogeneous items or when explicitly instructed.  
 Connect compact numbered claims with links to their premises; do not fragment a causal chain into independent defects.  
 Preserve hierarchy, format, and boundaries between analysis and recommendations; do not renumber stable IDs when sorting.  
 Repeated `1.` markers are permissible for ordinary lists; addressable paragraphs carry explicit numbers.  
 Accompany verification code with its actual output; extract large reusable code into a shared tool.  
+## DOC-5
+Whenever an agent encounters or investigates any defect, failure, error, or architectural problem, apply the five-section complex problem analysis of [df-analysis](../skills/df-analysis/SKILL.md) autonomously without user reminders:  
+1. `# 0` Problem Metadata: tab-indented `json` block matching Journal and GitHub issue metadata with the mandatory `"Issue"` key (generated via `harness.py problem-metadata`).  
+1. `# 1` Problem Description: concrete failure context with verbatim diagnostic messages (never paraphrased).  
+1. `# 2` Root Cause Analysis: competing hypotheses (`>= 2`) strictly following [DOC-2](#doc-2).  
+1. `# 3` Source Project Attribution: identify which of our projects is the true architectural owner, recognizing that defects frequently originate in a higher-level shared project (very often Harness) rather than the project where the symptom surfaced.  
+1. `# 4` Permanent Systemic Solutions: competing solution methods (`>= 2`) targeting the `# 3` source project without one-off hacks, strictly following [DOC-3](#doc-3).  
+<!-- https://github.com/dmitry-ai/harness/issues/182 -->  

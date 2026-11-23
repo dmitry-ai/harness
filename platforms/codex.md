@@ -18,7 +18,7 @@ Native instructions and role TOML files are generated; edit their canonical sour
 
 A new analysis starts with the `/upwork-init <URL>` or `$upwork-init <URL>` skill.  
 Cleanup of empty auto-created projects starts with `/upwork-cleanup` or `$upwork-cleanup`; the shared skill `skills/upwork-cleanup/SKILL.md` cleans enabled environments/instances while preserving all of `proposals/daily`.  
-Articles use `/df-article` or `$df-article`, and Upwork proposals use `/df-proposal` or `$df-proposal`; the shared procedure is `references/client-text/workflow.md`.  
+Articles use `/df-article` or `$df-article`, Upwork proposals use `/df-proposal` or `$df-proposal` (shared procedure `references/client-text/workflow.md`), and analytical tasks or autonomous complex problem analyses use `/df-analysis` or `$df-analysis` (`DOC-2`, `DOC-3`, `DOC-5`).  
 The workflow and five stages are shared across configured environments; the agent runs the commands while the user enters only requests.  
 For A.A/A.F, use the native subagent tools of the current chat; check roles and subagent selection policy via `runtime`/`doctor`.  
 If the tool supports selecting a named agent type, use the native role from `runtime`; if the API lacks that parameter, pass the role and shared `agents/worker.md` in the prompt without inventing unsupported arguments.  
@@ -66,3 +66,4 @@ When continuing from the other platform, preserve its journal and evidence; the 
 Do not reconstruct requests from summaries and do not declare an unverified receipt confirmed.  
 <!-- https://github.com/dmitry-ai/harness/issues/112 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/133 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/182 -->  

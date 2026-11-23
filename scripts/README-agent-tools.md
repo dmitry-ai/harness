@@ -212,6 +212,7 @@ All paths are confined to the project root; an export never overwrites a source 
 <!-- https://github.com/dmitry-ai/harness/issues/139 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/147 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/152 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/182 -->  
 
 # Additional Tools
 
@@ -226,6 +227,8 @@ Exit codes for standalone link tools: `0` — checks passed; `1` — input or lo
 `harness.py git-read [root] [status|diff|log|rev-parse|show|ls-files] [--short] [--stat] [--check] [--arg <arg>]` (or `upwork_project.py git-read`) executes read-only Git commands strictly with `--no-optional-locks` and `GIT_OPTIONAL_LOCKS=0`; the `git_shim.py` wrapper (`shim/git.cmd`) intercepts read-only `git` invocations in `PATH` and injects `--no-optional-locks`.  
 `df_github_issue.py [lint|fetch|create|edit|comment|close|audit-repo|transfer-repo] ...` performs deterministic fetching (`fetch` with read-back Evidence persistence for already-open parent issues), creation (enforcing `pre_flight_issue_first` dirty-repo rejection for unparented issues, `open`-parent verification for `--parent <N>`, and automatic tab-indented JSON metadata header prepending unless `--no-metadata` is specified), editing, commenting, closing, and auditing of GitHub issues from UTF-8 files without BOM (`--body-file`) via `gh api --input -` with pre-flight syntax linting and mandatory byte-exact read-back verification per the [df-github-issue](../skills/df-github-issue/SKILL.md) skill, as well as audited repository ownership transfers (`transfer-repo --repo <owner/repo> --new-owner <org>`) with read-back verification and Evidence persistence.  
 `validate_statements.py <directory>` checks non-empty `.md` and `Test.md` files in numbered statement directories; it does not prove substantive truth.  
+`problem-metadata <project> [--issue <URL> | --no-issue] [--source-project <path>] [--format json|markdown]` builds the tab-indented JSON metadata block for `# 0` of a [df-analysis](../skills/df-analysis/SKILL.md) complex problem analysis with a mandatory `Issue` key mirroring Journal and GitHub issue metadata.  
+`analysis-check <project> --response-file <candidate.md> [--mode auto|general|problem]` validates candidate Markdown against the `DOC-4` Markdown table ban, `DOC-2`/`DOC-3` multi-hypothesis and multi-method structure, and `DOC-5` five-section complex problem analysis contract (exit code `0` when valid, `2` when violations exist).  
 `metrics <trace.jsonl> ... [--bindings <JSON>] [--project <project>]` aggregates fresh input, cache read, output tokens, and tool calls from observed trace data, deduplicating repeated exports and keeping unknown fields unknown rather than zero.  
 
 # Client Text

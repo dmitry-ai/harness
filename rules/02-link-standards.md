@@ -11,6 +11,7 @@ State third-party sources and inferences explicitly; when evidence is absent, us
 Documentation: read the fragment relevant to the claim and provide the URL down to an existing anchor.  
 If no anchor exists, cite the section title and quote; do not invent an identifier.  
 In structured analysis, record `anchor_exception`: the section title and a link to the observation where the section, quote, and absence of a suitable anchor were verified.  
+For external documentation URLs whose saved `ꘖ/KB/Evidence` observation contains verified anchors, omitting an `#anchor` is rejected during `answer-check` and `answer-prepare` unless `anchor_exception` is documented.  
 Verify the content and destination rather than HTTP 200 alone; distinguish raw HTML from post-JavaScript DOM.  
 ## LINK-3
 For a console, verify the account, property, date range, and filters; take the URL from the relevant screen and do not construct opaque IDs.  
@@ -28,3 +29,4 @@ Use `links.markdown_link`/`readable_reference` when generating links; verify aut
 Do not re-encode an obtained external URL or alter its significant parameters, signatures, or escaped delimiters; display a readable link label while preserving the exact target address.  
 Source documents, primary evidence, verbatim quotes, code, and the exact journal are preserved without byte substitution; that is not a reason to copy percent-encoding into new authored links.  
 URI serialization inside browsers, HTTP, SQLite, native APIs, and hidden hyperlinks of export formats belongs to programmatic transport rather than readable document formatting.  
+<!-- https://github.com/dmitry-ai/harness/issues/182 -->  
