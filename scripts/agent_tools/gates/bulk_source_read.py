@@ -1,9 +1,12 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/79
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 from __future__ import annotations
 import json
 from pathlib import Path
+from ..hook_runtime import read_last_user_segment
 NAME = 'REVIEW-1-BULK-SOURCE-GATE'
 PRIORITY = 70
 MAX_UNPERSISTED_SOURCE_READS = 10
@@ -17,18 +20,7 @@ def _parse_call_args(raw) -> dict:
 			r = {}
 	return r
 def _recent_segment_rows(t_path: Path) -> list[dict]:
-	r: list[dict] = []
-	if t_path.is_file():
-		try:
-			lines = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
-		except Exception:
-			lines = []
-		last_user = -1
-		for idx, row in enumerate(lines):
-			if isinstance(row, dict) and 'USER_INPUT' == row.get('type'):
-				last_user = idx
-		r = [row for row in lines[last_user + 1:] if isinstance(row, dict)]
-	return r
+	return read_last_user_segment(t_path)[2]
 def _update_streak(streak: set[str], cname: str, cargs: dict) -> None:
 	if 'invoke_subagent' == cname:
 		streak.clear()

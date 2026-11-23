@@ -1,3 +1,5 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/79
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
@@ -74,6 +76,7 @@ from agent_tools.gates.rules_budget import check as check_rules_budget
 from agent_tools.gates.schedule_gate import check as check_schedule_gate
 from agent_tools.gates.server_hygiene import check as check_server_hygiene
 from agent_tools.gates.tdd import check as check_tdd_gate
+from agent_tools.hook_runtime import run_json_hook
 def _apply_failfast(name: str, args: dict, decision: dict) -> dict:
 	r = decision
 	if 'allow' == decision.get('decision'):
@@ -83,17 +86,11 @@ def _apply_failfast(name: str, args: dict, decision: dict) -> dict:
 		elif ff_overwrite:
 			r = {'decision': 'allow', 'overwrite': ff_overwrite, 'reason': 'EXEC-2-TEST-FAILFAST-GATE: Normalized test command fail-fast and WaitMsBeforeAsync.'}
 	return r
+def _evaluate_payload(payload: dict) -> dict:
+	tool_call = payload.get('toolCall', {})
+	name, args = (tool_call.get('name', ''), tool_call.get('args', {}))
+	return _apply_failfast(name, args, run_pre_tool_gates(name, args, payload))
 def main():
-	decision = {'decision': 'allow'}
-	try:
-		raw = sys.stdin.read()
-		if raw.strip():
-			payload = json.loads(raw)
-			tool_call = payload.get('toolCall', {})
-			name, args = (tool_call.get('name', ''), tool_call.get('args', {}))
-			decision = _apply_failfast(name, args, run_pre_tool_gates(name, args, payload))
-	except Exception:
-		decision = {'decision': 'allow'}
-	sys.stdout.write(json.dumps(decision, ensure_ascii=False))
+	run_json_hook(_evaluate_payload)
 if '__main__' == __name__:
 	main()

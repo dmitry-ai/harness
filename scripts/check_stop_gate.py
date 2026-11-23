@@ -1,3 +1,5 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/79
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
@@ -126,17 +128,11 @@ def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_ove
 		projects_dir = backend.parent / 'config/projects'
 	return (backend, backend / 'brain', backend / 'conversation_summaries.db', projects_dir)
 def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows: list | None = None) -> dict | None:
-	if not t_dir.is_dir():
-		return None
+	_ensure_scripts_on_path()
+	from agent_tools.hook_runtime import iter_turn_state_files
 	handed_off_fallback: tuple[int, dict] | None = None
-	for sf in t_dir.glob('*.json'):
-		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
-			continue
-		try:
-			st = json.loads(sf.read_text(encoding='utf-8'))
-		except Exception:
-			continue
-		if not isinstance(st, dict) or st.get('conversation_id') != session_id:
+	for _, st in iter_turn_state_files(t_dir):
+		if st.get('conversation_id') != session_id:
 			continue
 		req_steps = {req.get('native_step') for req in st.get('requests') or [] if isinstance(req, dict)}
 		if st.get('native_turn_id') == f'ag-{session_id}-{last_user_step}' or last_user_step in req_steps or st.get('native_start_step') == last_user_step:
@@ -176,15 +172,11 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	log_file = full_t if full_t.is_file() else (t_path if None is not t_path and t_path.is_file() else compact_t)
 	if None is log_file or (not log_file.is_file()):
 		return {'decision': 'allow'}
-	try:
-		rows = [json.loads(line) for line in log_file.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
-	except Exception:
+	_ensure_scripts_on_path()
+	from agent_tools.hook_runtime import read_last_user_segment
+	rows, last_user_step, segment = read_last_user_segment(log_file, by_step_index=True)
+	if None is last_user_step:
 		return {'decision': 'allow'}
-	user_steps = [r.get('step_index') for r in rows if isinstance(r, dict) and 'USER_INPUT' == r.get('type') and isinstance(r.get('step_index'), int)]
-	if not user_steps:
-		return {'decision': 'allow'}
-	last_user_step = user_steps[-1]
-	segment = [r for r in rows if isinstance(r, dict) and isinstance(r.get('step_index'), int) and (r.get('step_index') > last_user_step)]
 	spawned = 0
 	completed = 0
 	last_planner_text = ''
@@ -236,13 +228,8 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 				return {'decision': 'continue', 'reason': 'FILE-3 Stop Gate: Final response text does not match the prepared response in \u227a/<range>/<N>.md (or legacy res/<N>.md). Read back the prepared response file and output its exact bytes without post-prepare edits.'}
 	return {'decision': 'allow'}
 def main():
-	decision = {'decision': 'allow'}
-	try:
-		raw = sys.stdin.read()
-		if raw.strip():
-			decision = evaluate_stop_payload(json.loads(raw))
-	except Exception:
-		decision = {'decision': 'allow'}
-	sys.stdout.write(json.dumps(decision, ensure_ascii=False))
+	_ensure_scripts_on_path()
+	from agent_tools.hook_runtime import run_json_hook
+	run_json_hook(evaluate_stop_payload)
 if '__main__' == __name__:
 	main()

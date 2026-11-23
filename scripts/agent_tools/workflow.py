@@ -700,37 +700,14 @@ def adopt_requests(root, conversation_id, *, allow_finalized=False, backend=None
 # https://github.com/dmitry-ai/harness/issues/43
 def unadopt_requests(root, conversation_id=None, request_ids=None):
 	return WorkflowStateEngine(root).unadopt_requests(conversation_id=conversation_id, request_ids=request_ids)
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/79
 # 2026-10-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
 # https://github.com/dmitry-ai/harness/issues/14
 def doc4_sentence_issues(text):
-	r = []
-	in_fence = False
-	fence_marker = ''
-	for lineno, raw_line in enumerate((text or '').splitlines(), 1):
-		stripped = raw_line.strip()
-		m_fence = re.match('^(`{3,}|~{3,})', stripped)
-		if m_fence:
-			marker = m_fence.group(1)[0]
-			if not in_fence:
-				in_fence = True
-				fence_marker = marker
-			elif stripped.startswith(fence_marker * 3):
-				in_fence = False
-				fence_marker = ''
-			continue
-		if in_fence or not stripped or stripped.startswith(('#', '>', '|')):
-			continue
-		cleaned = re.sub('`[^`]*`', 'code', stripped)
-		cleaned = re.sub('\\[([^\\]]+)\\]\\([^)]+\\)', '\\1', cleaned)
-		cleaned = re.sub('«[^»]*»', '«quote»', cleaned)
-		cleaned = re.sub('\\b(?:\\u0433|\\u0433\\u0433|\\u0442\\.\\u0434|\\u0442\\.\\u043f|\\u0441\\u043c|\\u0438\\u043c|\\u0434\\u0440|\\u043f\\u0440|\\u0443\\u043b|\\u0434|\\u043a\\u0432|\\u0440\\u0438\\u0441|\\u0442\\u0430\\u0431\\u043b|\\u0441\\u0442|\\u043f|\\u0447|\\u0440\\u0443\\u0431|\\u0442\\u044b\\u0441|\\u043c\\u043b\\u043d|\\u043c\\u043b\\u0440\\u0434|\\u0430\\u043d\\u0433\\u043b|\\u0440\\u0443\\u0441|\\u043d\\u0430\\u043f\\u0440|\\u043e\\u043a|vs|Mr|Mrs|Ms|Dr|St|Inc|Ltd|Co|Jr|Sr|e\\.g|i\\.e)\\.', 'abbr', cleaned)
-		is_bold_bullet = bool(re.match('^[-*]\\s+\\*\\*[^*]+\\*\\*', stripped))
-		if is_bold_bullet and re.search('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]{3,}[.!?]\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{2,}\\s+\\S+.*[.!?]\\s*$', cleaned):
-			r.append(f'DOC-4 violation on line {lineno}: multiple sentences on a single bullet line (place each sentence on its own line or use sub-bullets)')
-		elif re.search('(?:[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z0-9«»"(),:-]+\\s+){3,}[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z]{3,}[.!?]\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{2,}\\s+[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z0-9]+\\s+[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z0-9]+', cleaned):
-			r.append(f'DOC-4 violation on line {lineno}: multiple sentences on a single line (place each sentence on its own line)')
-	return r
+	from .hook_runtime import scan_doc4_sentence_issues
+	return scan_doc4_sentence_issues(text, mode='workflow')
 def record_current_answer(root, response, *, journal_directory=None, request_ids=None, preauthorized=None, recorded_steps=None, turn_token=None):
 	return WorkflowStateEngine(root).record_current_answer(response, journal_directory=journal_directory, request_ids=request_ids, preauthorized=preauthorized, recorded_steps=recorded_steps, turn_token=turn_token)
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
