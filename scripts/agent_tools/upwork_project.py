@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add deterministic FIFO repository landing lease with reactive wait":
+# https://github.com/dmitry-ai/harness/issues/163
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
 # https://github.com/dmitry-ai/harness/issues/162
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -569,15 +572,13 @@ def instances_report(*, platform=None, instance=None, conversation=None, include
 	return all_instances(config=config, platform=platform, include_disabled=include_disabled, check_exists=check_exists)
 def main(argv=None):
 	from .cli_common import add_arg_specs
+	from .cli_registry import add_registered_parsers
 	from .operations import add_parsers
 	parser = argparse.ArgumentParser(description=__doc__)
 	sub = parser.add_subparsers(dest='command', required=True)
 	cfg = settings()
 	platforms_map = cfg['platforms']
-	profile_candidates = []
-	for p_name in platforms_map:
-		profile_candidates.extend(platform_homes(p_name, config=cfg, include_disabled=True))
-	all_profiles = tuple(dict.fromkeys(profile_candidates))
+	all_profiles = tuple(dict.fromkeys((h for p_name in platforms_map for h in platform_homes(p_name, config=cfg, include_disabled=True))))
 	codex_profiles = tuple(platform_homes('codex', config=cfg, include_disabled=True)) if 'codex' in platforms_map else ()
 	subcommands = {
 		'inspect': ('Capture the selected tab once, including attachments', (('url', {}), ('--output', {'required': True, 'type': Path}), ('--tab-id', {}), ('--session-id', {'help': 'Authorized runtime text.browser.sessions entry (default: primary session)'}), ('--cdp-port', {'type': int}))),
@@ -596,10 +597,10 @@ def main(argv=None):
 		'install-global': ('Connect selected Antigravity/Codex profiles to shared native Harness sources', (('--target-profile', {'action': 'append', 'choices': all_profiles, 'help': 'Profile to configure; repeat for a pilot, default: enabled profiles'}), ('--check', {'action': 'store_true', 'help': 'Verify shared sources, inherited manifests, directory links and role paths without writing'}))),
 		'build-native': ('Generate/check native projections from canonical policy and runtime', (('--root', {'type': Path}), ('--check', {'action': 'store_true'}))),
 		'policy-instructions': ('Read only the current profile global developer_instructions key', ()),
-		'run-tests': ('Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'}))),
 	}
 	for cmd_name, (help_text, specs) in subcommands.items():
 		add_arg_specs(sub.add_parser(cmd_name, help=help_text), specs)
+	add_registered_parsers(sub)
 	add_parsers(sub)
 	for child in sub.choices.values():
 		add_arg_specs(child, (('--platform', {'choices': tuple(platforms_map)}), ('--codex-profile', {'choices': codex_profiles}), ('--instance', {'help': 'Optional target instance ID from runtime.json'})))
@@ -614,18 +615,14 @@ def run(args):
 	from .cli_common import dump_json, read_input_json, read_input_text, result_exit_code
 	from .operations import COMMANDS, analysis_root, execute
 	try:
-		if args.command in COMMANDS:
+		from .cli_registry import dispatch_registered
+		reg_hit, reg_rc = dispatch_registered(args, dump_json, result_exit_code)
+		if reg_hit:
+			r = reg_rc
+		elif args.command in COMMANDS:
 			result = execute(args)
 			dump_json(result)
 			r = result_exit_code(result, extra_failures=(False is result.get('content_available_for_all'), bool(result.get('error')), bool(result.get('extraction_error')), True is result.get('browser_check_required'), 'conflict' == (result.get('publication') or {}).get('status')))
-		elif 'run-tests' == args.command:
-			from .suite_runner import format_text_report, run_test_suite
-			report = run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
-			if 'json' == args.format:
-				dump_json(report)
-			else:
-				sys.stdout.write(format_text_report(report))
-			r = int(report['exit_code'])
 		elif 'validate-analysis' == args.command:
 			value = read_input_json(args.input)
 			from .analysis import analysis_issues, publish_analysis

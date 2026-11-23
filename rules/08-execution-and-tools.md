@@ -35,6 +35,7 @@ In asynchronous workflows, distinguish submission, acceptance, execution, and re
 Before retrying, check whether the first request was accepted; do not promise background continuation without a working mechanism.  
 Bound test runs, browser fixtures, and child commands with in-process timeouts (such as `harness.py run-tests --module-timeout` or `--test-force-exit` and `--test-timeout` for `node --test`), and inspect or terminate stalled tasks via `manage_task` rather than waiting indefinitely.  
 Do not attach one-shot `schedule` timers (`DurationSeconds`) to background `run_command` tasks: `run_command` delivers its own reactive completion notification, and redundant timers over active `run_command` tasks are blocked by `EXEC-4-SCHEDULE-GATE` in `PreToolUse`.  
+When landing concurrent repository changes onto `main`, serialize only the final landing step through `harness.py land-acquire <repo> --wait --timeout <S>` (with `land-release` on exit) so agents proceed strictly in FIFO order with reactive wakeups; for logically related parallel work launched together, prefer coordinating under `swarm` or `invoke_subagent` with `workspace: "share"`.  
 ## EXEC-5
 Before any Git operation, verify the repository root, branch, and remote; commit only an explicit file list in the established order, without unrelated changes or Git hooks.  
 Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (preferably via `harness.py git-read` or with `GIT_OPTIONAL_LOCKS=0`; do not combine `git` calls with initial rule reading before `turn-begin` completes).  
@@ -66,4 +67,5 @@ Before working with an authenticated portal, read the [authenticated access proc
 <!-- https://github.com/dmitry-ai/harness/issues/139 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/147 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/152 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/163 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/164 -->  
