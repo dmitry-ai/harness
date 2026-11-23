@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add Python and INI formatting standards derived from reference pipelines":
+# https://github.com/dmitry-ai/harness/issues/156
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add PHP and markup formatting standards derived from mage2pro/core":
 # https://github.com/dmitry-ai/harness/issues/155
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -68,5 +71,21 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		less_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'other/less.md')
 		for token in ('11-code-formatting.md#code-1', 'tab', 'single-line', 'leading comma', 'not part of'):
 			self.assertIn(token, less_text, f'Missing LESS formatting requirement {token!r}')
+	def test_python_and_ini_guides_cover_pipeline_standards(self) -> None:
+		rule_text = self._assert_clean_doc(RULE_DOC)
+		for rel in ('programming/python.md', 'other/ini.md'):
+			self.assertIn(rel, rule_text, f'rules/11-code-formatting.md missing link to {rel}')
+		py_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'programming/python.md')
+		for token in ('11-code-formatting.md#code-1', 'from ... import ...', 'import ...', 'None is', "'__main__' == __name__", 'leading comma', 'alphabetical', "encoding='utf-8'", "indent='\\t'", 'lambda', 'ⵗ', 'ᛡ', 'not part of'):
+			self.assertIn(token, py_text, f'Missing Python formatting requirement {token!r}')
+		ini_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'other/ini.md')
+		for token in ('11-code-formatting.md#code-1', 'key = value', 'alphabetical', '`#`', 'not part of'):
+			self.assertIn(token, ini_text, f'Missing INI formatting requirement {token!r}')
+		all_guides = sorted(CODE_FORMATTING_DIR.rglob('*.md'))
+		self.assertGreaterEqual(len(all_guides), 9)
+		for guide in all_guides:
+			rel = guide.relative_to(CODE_FORMATTING_DIR).as_posix()
+			self.assertIn(rel, rule_text, f'Orphaned formatting guide not indexed in {RULE_DOC.name}: {rel}')
+			self._assert_clean_doc(guide)
 if '__main__' == __name__:
 	unittest.main()

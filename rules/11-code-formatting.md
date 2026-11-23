@@ -23,10 +23,12 @@ Before creating or editing a file in a supported language, markup language, or s
    - [Bash](../references/code-formatting/programming/bash.md)  
    - [JavaScript (ES6)](../references/code-formatting/programming/javascript.md)  
    - [PHP](../references/code-formatting/programming/php.md)  
+   - [Python](../references/code-formatting/programming/python.md)  
 1. Markup languages:  
    - [HTML](../references/code-formatting/markup/html.md)  
    - [XML](../references/code-formatting/markup/xml.md)  
 1. Other file formats:  
+   - [INI](../references/code-formatting/other/ini.md)  
    - [JSON](../references/code-formatting/other/json.md)  
    - [LESS](../references/code-formatting/other/less.md)  
 ## CODE-3
@@ -35,3 +37,4 @@ Prose Markdown documents (`.md`) follow [DOC-4](04-statement-structure.md#doc-4)
 Required GitHub Issue URL references in issue-tracked `code` repositories follow [EXEC-5](08-execution-and-tools.md#exec-5) and are exempt from the no-agent-comments restriction in [CODE-1](#code-1).  
 <!-- https://github.com/dmitry-ai/harness/issues/154 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/155 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/156 -->  
