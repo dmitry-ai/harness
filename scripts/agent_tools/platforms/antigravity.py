@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+# https://github.com/dmitry-ai/harness/issues/166
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -114,7 +117,7 @@ from ..runtime import platform_instances, platform_key_for_adapter, platform_set
 from ..knowledge import json_bytes
 from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import create_bytes, replace_bytes, locked
-from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, extract_resource_uri, finalize_executor_checks, init_turn_accumulator, iter_antigravity_subagents, local_uri_to_path, make_tool_trace_event, merge_turn_accumulators, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, read_jsonl_objects, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
+from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, extract_resource_uri, finalize_executor_checks, init_turn_accumulator, is_waiting_status_stub, iter_antigravity_subagents, local_uri_to_path, make_tool_trace_event, merge_turn_accumulators, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, read_jsonl_objects, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
 def _default_folders_json():
 	cfg_all = settings()
 	ag_key = platform_key_for_adapter('antigravity', cfg_all) or 'antigravity'
@@ -150,7 +153,9 @@ def _resolve_folders_json(folders_json_path=None, sp=None):
 		raise
 COMPLETED_STEP_STATUSES = (3, 5)
 _ANTIGRAVITY_MODEL_TIERS = ('flash_lite', 'flash', 'pro')
-_SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment', 'bg_tdd_index'}
+_SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment', 'bg_tdd_index', 'active_bg_tasks'}
+_BG_TASK_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
+_BG_TASK_SENDER_RE = re.compile(r'\bsender=([A-Za-z0-9_./:-]+/task-\d+)\b', re.IGNORECASE)
 def _antigravity_paths(backend=None, *, instance=None, conversation_id=None):
 	try:
 		cfg = settings()
@@ -223,7 +228,7 @@ class AntigravityTurnScanner:
 		j_entry = self.journal_groups.get(req_id)
 		has_single_journal_group = None is not j_entry and 1 == len(j_entry[0].get('request_ids', []))
 		last_text = str(last.get('content') or '')
-		intermediate_wait = None is not end and (not seg['answer_prepared_in_segment']) and (not has_single_journal_group) and (seg['completed_subagents'] < seg['spawned_subagents'] or bool(re.search('(?i)(?:^|\\n)\\s*waiting\\s+for\\s+(?:the\\s+)?(?:remaining\\s+)?(?:\\d+\\s+)?(?:subagents?|background\\s+tasks?|tasks?|commands?)\\b[^\\n]{0,120}\\bto\\s+(?:complete|finish)\\b', last_text)))
+		intermediate_wait = None is not end and (not seg['answer_prepared_in_segment']) and (not has_single_journal_group) and (seg['completed_subagents'] < seg['spawned_subagents'] or bool(seg.get('active_bg_tasks')) or is_waiting_status_stub(last_text))
 		if intermediate_wait:
 			completed, resp_text = (False, None)
 		elif None is not j_entry and (not final or 1 < len(j_entry[0].get('request_ids', []))):
@@ -318,16 +323,28 @@ class AntigravityTurnScanner:
 							sub_bg[cev['outcome']['background_task_id']] = cev
 		return ()
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
+		from ..tdd_gate import _BG_TASK_ID_RE
 		seg['tool_steps'].append(step_idx)
 		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
 		for act_item in extract_issue_actions_from_outputs(outputs):
 			seg['issue_actions'].append({**act_item, 'step': step_idx})
 		for c_idx, call in enumerate(calls):
+			cname = call.get('name', '')
 			raw_args = call.get('args', {})
 			args = parse_tool_args(raw_args)
 			args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
 			matched = [outputs[c_idx]] if c_idx < len(outputs) else outputs
-			cev = record_normalized_tool_effects(self.root_p, step_idx, call.get('name', ''), raw_args, args_text, seg, track_turn_steps=True, cmd_outputs=matched)
+			if cname in ('run_command', 'schedule') and 'active_bg_tasks' in seg:
+				for out_s in matched:
+					for m_tid in _BG_TASK_ID_RE.finditer(out_s):
+						tid = m_tid.group(1).strip().rstrip('.,')
+						if tid:
+							seg['active_bg_tasks'].add(tid)
+			elif 'manage_task' == cname and 'kill' == str(args.get('Action') or '').strip().lower() and 'active_bg_tasks' in seg:
+				kill_tid = str(args.get('TaskId') or '').strip()
+				if kill_tid:
+					seg['active_bg_tasks'].discard(kill_tid)
+			cev = record_normalized_tool_effects(self.root_p, step_idx, cname, raw_args, args_text, seg, track_turn_steps=True, cmd_outputs=matched)
 			if cev and cev.get('outcome', {}).get('background_task_id') and 'bg_tdd_index' in seg:
 				seg['bg_tdd_index'][cev['outcome']['background_task_id']] = cev
 	def _resolve_subagent_child(self, child_cid, is_aa_hint, expected_parent, anchor_step, seg):
@@ -347,7 +364,7 @@ class AntigravityTurnScanner:
 		from ..tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 		end = self.boundaries[position + 1] if position + 1 < len(self.boundaries) else None
 		segment = [row for row in self.rows if row.get('step_index', -1) > start and (None is end or row.get('step_index', -1) < end)]
-		seg = init_turn_accumulator(extra={'issue_actions': [], 'spawned_subagents': 0, 'completed_subagents': 0, 'answer_prepared_in_segment': False, 'bg_tdd_index': {}})
+		seg = init_turn_accumulator(extra={'issue_actions': [], 'spawned_subagents': 0, 'completed_subagents': 0, 'answer_prepared_in_segment': False, 'bg_tdd_index': {}, 'active_bg_tasks': set()})
 		seg_models = []
 		for pos, row in enumerate(segment):
 			if isinstance(row, dict):
@@ -360,9 +377,16 @@ class AntigravityTurnScanner:
 					c_str = str(row.get('content'))
 					if re.search('<SYSTEM_MESSAGE>.*(?:\\bSubagent\\b.*\\bcompleted\\b|\\[Message\\]\\s+timestamp=[^\\n]+\\bsender=[0-9a-f]{8}-[0-9a-f]{4}-)', c_str, re.S | re.I):
 						seg['completed_subagents'] += 1
+					for m_end in _BG_TASK_ENDED_RE.finditer(c_str):
+						seg['active_bg_tasks'].discard(m_end.group(1).strip())
+					for m_snd in _BG_TASK_SENDER_RE.finditer(c_str):
+						seg['active_bg_tasks'].discard(m_snd.group(1).strip())
 					m_fin = _BG_TASK_FINISHED_RE.search(c_str)
-					if m_fin and m_fin.group(1).strip() in seg['bg_tdd_index']:
-						seg['bg_tdd_index'][m_fin.group(1).strip()]['outcome'] = parse_command_outcome(m_fin.group(2))
+					if m_fin:
+						fin_id = m_fin.group(1).strip()
+						seg['active_bg_tasks'].discard(fin_id)
+						if fin_id in seg['bg_tdd_index']:
+							seg['bg_tdd_index'][fin_id]['outcome'] = parse_command_outcome(m_fin.group(2))
 				calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 				if calls and isinstance(step_idx, int):
 					self._record_tool_calls(step_idx, calls, self._collect_outputs(segment, pos, step_idx=step_idx, file_reads=seg['file_reads']), seg)

@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+# https://github.com/dmitry-ai/harness/issues/166
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -54,6 +57,11 @@ _SCRATCH_PATH_TOKENS = ('\ua616/data/scratch/', '\ua616/data/continuation.md', '
 _SERVICE_CMD_RE = re.compile('\\b(?:turn-begin|answer-check|answer-prepare|evidence-query|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b')
 _SHELL_KB_WRITE_RE = re.compile('(?i)\\b(?:Set-Content|Out-File|Add-Content|WriteAllText|WriteAllBytes|write_text|write_bytes|tee)\\b')
 _TOKEN_FIELDS = ('input_tokens', 'cache_read_tokens', 'output_tokens')
+_WAIT_STUB_FENCE_RE = re.compile(r'```[\s\S]*?```')
+_WAIT_STUB_QUOTE_RE = re.compile(r'\u00ab[^\u00bb]{0,400}\u00bb')
+_WAIT_STUB_EN_RE = re.compile(r'(?i)(?:^|\n|\.\s+)\s*waiting\s+for\s+(?:the\s+)?(?:remaining\s+)?(?:\d+\s+)?(?:subagents?|background\s+tasks?|tasks?|commands?|test\s+runs?|tests?|suites?)\b[^\n]{0,140}\bto\s+(?:complete|finish)\b')
+_WAIT_STUB_RU_RE = re.compile(r'(?i)(?:^|\n|[.;]\s*)\s*(?:\u043e\u0436\u0438\u0434\u0430\u044e|\u0436\u0434\u0443)\s+(?:\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438[\u044f\u044e]|\u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438[\u044f\u044e]|\u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438[\u044f\u044e]|\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442(?:\u0430|\u043e\u0432)?)\s+(?:\u043e\u0441\u0442\u0430\u0432\u0448\w*\s+|\u0444\u043e\u043d\u043e\u0432\w*\s+|\u043f\u043e\u043b\u043d\w*\s+)?(?:\d+\s+)?(?:\u0441\u0443\u0431-?\u0430\u0433\u0435\u043d\u0442\w*|\u0437\u0430\u0434\u0430\u0447\w*|\u043a\u043e\u043c\u0430\u043d\u0434\w*|\u043f\u0440\u043e\u0433\u043e\u043d\w*|\u0442\u0435\u0441\u0442\w*|\u043f\u0440\u043e\u0432\u0435\u0440\u043a\w*)')
+_WAIT_STUB_RU_BG_RE = re.compile(r'(?i)(?:^|\n)\s*(?:\u043f\u043e\u043b\u043d\u044b\u0439\s+\u043f\u0440\u043e\u0433\u043e\u043d|\u043f\u0440\u043e\u0433\u043e\u043d\s+\u0442\u0435\u0441\u0442\u043e\u0432|\u0444\u043e\u043d\u043e\u0432\u0430\u044f\s+\u0437\u0430\u0434\u0430\u0447\u0430|\u0437\u0430\u0434\u0430\u0447\u0430|\u043a\u043e\u043c\u0430\u043d\u0434\u0430)\b[^\n]{0,160}\b\u0437\u0430\u043f\u0443\u0449\u0435\u043d[\u0430\u043e]?\s+\u0432\s+\u0444\u043e\u043d\u0435\b')
 def _format_token_counts(known, unavailable):
 	return {field: {'known_sum': known[field], 'unreported_records': unavailable[field], 'complete_total': None if unavailable[field] else known[field]} for field in _TOKEN_FIELDS}
 def _has_kb_target(text):
@@ -170,6 +178,14 @@ def finalize_executor_checks(surface, role, conversation_id, parent_id, requeste
 	return {'schema_version': 1, 'surface': surface, 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': detail}}
 def init_turn_accumulator(*, extra=None):
 	return {'aa_partial_read_violations': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'checkpoint_steps': [], 'completion_service_steps': [], 'exec5_violations': [], 'file_reads': [], 'file_writes': [], 'http_fetch_violations': [], 'issue_first_events': [], 'kb_persistence_steps': [], 'subagent_steps': [], 'tdd_events': [], 'tool_records': [], 'tool_steps': [], 'touched_files': [], 'transcript_read_steps': [], **(extra or {})}
+def is_waiting_status_stub(text: str) -> bool:
+	r = False
+	raw = (text or '').strip()
+	if raw:
+		cleaned = _WAIT_STUB_QUOTE_RE.sub('', _WAIT_STUB_FENCE_RE.sub('', raw)).strip()
+		if cleaned and (not re.search(r'(?m)^#{1,3}\s+', cleaned)) and 600 >= len(cleaned):
+			r = bool(_WAIT_STUB_EN_RE.search(cleaned) or _WAIT_STUB_RU_RE.search(cleaned) or _WAIT_STUB_RU_BG_RE.search(cleaned))
+	return r
 def iter_antigravity_subagents(call):
 	r = []
 	if isinstance(call, dict) and 'invoke_subagent' == call.get('name'):

@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+# https://github.com/dmitry-ai/harness/issues/166
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
 # https://github.com/dmitry-ai/harness/issues/162
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -962,6 +965,59 @@ def build_file_write_tdd_event(step: int, raw_path: str | Path, *, cwd: Path | N
 	}
 
 
+def _antigravity_segment_is_interrupted(seg_rows: list[dict]) -> bool:
+	from .platforms.trace_common import is_waiting_status_stub
+	bg_ended_re = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
+	bg_sender_re = re.compile(r'\bsender=([A-Za-z0-9_./:-]+/task-\d+)\b', re.IGNORECASE)
+	active_bg: set[str] = set()
+	spawned_subs, completed_subs = (0, 0)
+	prepared = False
+	for pos, row in enumerate(seg_rows):
+		if not isinstance(row, dict):
+			continue
+		if row.get('type') in ('SYSTEM_MESSAGE', 'EPHEMERAL_MESSAGE', 'GENERIC') and row.get('content'):
+			c_str = str(row.get('content'))
+			if re.search(r'<SYSTEM_MESSAGE>.*(?:\bSubagent\b.*\bcompleted\b|\[Message\]\s+timestamp=[^\n]+\bsender=[0-9a-f]{8}-[0-9a-f]{4}-)', c_str, re.S | re.I):
+				completed_subs += 1
+			for m_e in bg_ended_re.finditer(c_str):
+				active_bg.discard(m_e.group(1).strip())
+			for m_s in bg_sender_re.finditer(c_str):
+				active_bg.discard(m_s.group(1).strip())
+		calls = [c for c in (row.get('tool_calls') or ()) if isinstance(c, dict)]
+		if not calls:
+			continue
+		outs: list[str] = []
+		for nxt in seg_rows[pos + 1:]:
+			if not isinstance(nxt, dict):
+				continue
+			if nxt.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
+				break
+			if 'GENERIC' == nxt.get('type') and nxt.get('content'):
+				outs.append(str(nxt.get('content')))
+		for c_pos, call in enumerate(calls):
+			cname = str(call.get('name') or '')
+			cargs = _normalize_args_dict(call.get('args', {}))
+			if 'invoke_subagent' == cname:
+				spawned_subs += 1
+			elif cname in ('run_command', 'schedule'):
+				if 'run_command' == cname and re.search(r'\banswer-prepare\b', str(cargs.get('CommandLine') or ''), re.I):
+					prepared = True
+				matched = [outs[c_pos]] if c_pos < len(outs) else outs
+				for out_s in matched:
+					for m_tid in _BG_TASK_ID_RE.finditer(out_s):
+						tid = m_tid.group(1).strip().rstrip('.,')
+						if tid:
+							active_bg.add(tid)
+			elif 'manage_task' == cname and 'kill' == str(cargs.get('Action') or '').strip().lower():
+				kill_tid = str(cargs.get('TaskId') or '').strip()
+				if kill_tid:
+					active_bg.discard(kill_tid)
+	last = seg_rows[-1] if seg_rows else {}
+	has_final_text = isinstance(last, dict) and 'PLANNER_RESPONSE' == last.get('type') and (not last.get('tool_calls')) and bool(str(last.get('content') or '').strip())
+	last_text = str(last.get('content') or '') if isinstance(last, dict) else ''
+	return (not prepared) and (bool(active_bg) or completed_subs < spawned_subs or (not has_final_text) or is_waiting_status_stub(last_text))
+
+
 def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None = None) -> list[dict]:
 	t_path = Path(transcript_path)
 	if 'transcript.jsonl' == t_path.name:
@@ -974,11 +1030,18 @@ def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None = 
 		rows = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
 	except (OSError, ValueError):
 		return []
-	last_user = -1
-	for idx, row in enumerate(rows):
-		if isinstance(row, dict) and 'USER_INPUT' == row.get('type'):
-			last_user = idx
-	segment = rows[last_user + 1:]
+	user_positions = [idx for idx, row in enumerate(rows) if isinstance(row, dict) and 'USER_INPUT' == row.get('type')]
+	if not user_positions:
+		segment = rows
+	else:
+		start_pos = user_positions[-1] + 1
+		for k in range(len(user_positions) - 2, -1, -1):
+			prev_slice = rows[user_positions[k] + 1:user_positions[k + 1]]
+			if _antigravity_segment_is_interrupted(prev_slice):
+				start_pos = user_positions[k] + 1
+			else:
+				break
+		segment = rows[start_pos:]
 	events: list[dict] = []
 	bg_task_index: dict[str, int] = {}
 	for pos, row in enumerate(segment):
