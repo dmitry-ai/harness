@@ -18,6 +18,7 @@ That command reads only the required TOML key rather than the entire configurati
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/08-execution-and-tools.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/09-initial-analysis.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/10-client-text.md
+- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/11-code-formatting.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/platforms/codex.md
 Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  
 Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  
