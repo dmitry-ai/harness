@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
+# https://github.com/dmitry-ai/harness/issues/200
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -233,6 +236,7 @@ def markdown_table_issues(text: str) -> list[str]:
 	return [f'DOC-4 Line {ln}: Markdown table detected; Markdown tables are forbidden by rule DOC-4 (rewrite as structured prose or a list).' for ln in find_markdown_table_lines(text)]
 def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str='auto') -> list[str]:
 	from .metadata import strip_leading_metadata_header
+	from .scatter_banner import validate_scatter_banners
 	body = strip_leading_metadata_header(response or '')
 	sections = _extract_top_sections(body)
 	eff_mode = _detect_mode(body, sections, requests, mode)
@@ -242,6 +246,7 @@ def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str=
 		r = _validate_general(body, _requests_invoke_df_analysis(requests) or 'general' == mode)
 	else:
 		r = []
+	r.extend(validate_scatter_banners(body, sections=sections, mode=eff_mode))
 	return r
 def validate_statements(directory: Path) -> list[str]:
 	directory = Path(directory)

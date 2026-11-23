@@ -27,6 +27,7 @@ Unavailability of a client's private system (admin panel, ad account, logs) does
 A missing check of a private console restricts only the steps inside that console (availability of permissions/buttons), and strictly forbids assuming that already proven properties of the public storefront might be false; an `if` clause does not replace inspecting the observable catalog.  
 A method's score represents expert suitability under the named criterion, not a promise of success or the probability of a hypothesis.  
 State applicability conditions and an observable verification criterion for the result; justify defect severity by impact while preserving sample boundaries.  
+Any recommendation or solution method proposing to create, move, or store project or tool files outside the project root across the user's computer must begin immediately with the mandatory uppercase warning banner required by [FILE-6](01-file-boundaries.md#file-6).  
 ## DOC-4
 Do not use Markdown tables (enforced deterministically across `PreToolUse`, `answer-check`, `answer-prepare`, and `df_github_issue.py`); start every sentence on a new line.  
 In Markdown, end every sentence inside a paragraph with two trailing spaces before the newline (CommonMark hard line break: `  \n`) so lines do not collapse into a single run-on paragraph when rendered; do not insert blank lines between sentences of the same block.  
@@ -43,3 +44,4 @@ Whenever an agent encounters or investigates any defect, failure, error, or arch
 1. `# 3` Source Project Attribution: identify which of our projects is the true architectural owner, recognizing that defects frequently originate in a higher-level shared project (very often Harness) rather than the project where the symptom surfaced.  
 1. `# 4` Permanent Systemic Solutions: competing solution methods (`>= 2`) targeting the `# 3` source project without one-off hacks, strictly following [DOC-3](#doc-3).  
 <!-- https://github.com/dmitry-ai/harness/issues/182 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/200 -->  

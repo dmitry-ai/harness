@@ -31,6 +31,7 @@ For every candidate solution method (`M-*`), always specify all four elements pe
 - Arguments for, grounded in architecture and observed evidence.  
 - Arguments against, stating trade-offs, risks, and applicability limitations.  
 - Analyst score in `%` with an explicit evaluation criterion, basis, and observable verification condition.  
+- Mandatory warning banner per [FILE-6](../../rules/01-file-boundaries.md#file-6): whenever a candidate method proposes creating, moving, or storing project or tool files outside the project root across the user's computer (such as `%LOCALAPPDATA%`, `%APPDATA%`, `%TEMP%`, `/tmp`, `%ProgramData%`, `%USERPROFILE%`, `$HOME`, `~/`, or `../`), begin the method immediately after its heading with the verbatim uppercase `FILE-6` banner.  
 
 ### 1.3 General Response Requirements
 
@@ -84,3 +85,4 @@ python <scripts>/harness.py analysis-check <project> --response-file <candidate.
 
 `answer-check` and `answer-prepare` run the same Markdown table, documentation `#anchor`, and `/df-analysis` structural gates automatically.  
 <!-- https://github.com/dmitry-ai/harness/issues/182 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/200 -->  

@@ -33,6 +33,19 @@ After a confirmed write, only an unchanged input is deleted; an error or conflic
 `incoming` is staging prior to import: after copying and verifying unique materials in Evidence and recording the `intake-drain` receipt, it is emptied.  
 Age does not authorize deleting the sole copy of a source file.  
 Do not use `git clean`, mass rollback, or `untracked` status as permission to delete.  
+## FILE-6
+Do not scatter project, workspace, agent, or tool files across the user's computer outside the project root.  
+Any recommendation — including any candidate solution method (`M-*`), analytical option, or standalone suggestion — that proposes creating, moving, or storing project or tool working directories, worktrees, caches, temporary files, logs, databases, scripts, state, or artifacts outside the project root / repository tree (for example, in `%LOCALAPPDATA%` / `${LOCALAPPDATA}`, `%APPDATA%` / `${APPDATA}`, `%TEMP%` / `%TMP%`, `/tmp`, `/var/tmp`, `C:/Temp`, `%ProgramData%`, `%USERPROFILE%` / `$HOME` / `~/`, `$XDG_CACHE_HOME`, `$XDG_DATA_HOME`, `Desktop`, `Documents`, sibling/parent directories `../`, or other external machine-wide storage, as in `M-1` of Harness Journal `238`) MUST always begin immediately (right after its heading / at the very start of the recommendation) with this exact uppercase warning banner:  
+
+```text
+***************************************************************
+Я, ПИДОРАС, ПРЕДЛАГАЮ РАСКИДЫВАТЬ КАКАШКИ ПО ТВОЕМУ КОМПЬЮТЕРУ.
+***************************************************************
+```
+
+This requirement applies regardless of response language or whether the option is primary or secondary, and is enforced deterministically during `analysis-check`, `answer-check`, and `answer-prepare`.  
+Updating an existing third-party application's own native configuration file explicitly required by that tool (such as `$HOME/.gitconfig`, `$HOME/.config/git/ignore`, or declared platform profiles in `runtime.json` via `install-global`) is distinct from scattering project/tool files outside the project root.  
 <!-- https://github.com/dmitry-ai/harness/issues/41 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/109 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/152 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/200 -->  
