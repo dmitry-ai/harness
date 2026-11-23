@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract PreToolUse and completion gates into priority plugin registry":
+# https://github.com/dmitry-ai/harness/issues/167
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
 # https://github.com/dmitry-ai/harness/issues/166
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -2020,65 +2023,9 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 				gate_requests([root_p, _directory(root_p, value_obj.get('journal') or journal_directory)], [r['text'] for r in requests_list], response, capture=False)
 			except (OSError, ValueError) as exc:
 				wf_errs.append(str(exc))
-		all_issues: list[dict] = []
-		seen_msgs: set[str] = set()
-		def _push(gate_id: str, code: str, msgs: list[str]) -> None:
-			for m in msgs:
-				if m and m not in seen_msgs:
-					seen_msgs.add(m)
-					all_issues.append({'code': code, 'gate_id': gate_id, 'message': m})
-		_push('doc4', 'response.doc4', doc4_errs)
-		_push('links', 'response.links', link_errs)
-		_push('causal_probability', 'response.doc2', prob_errs)
-		_push('source_grounding', 'response.grounding', source_errs)
-		_push('language_and_stub', 'response.language', lang_errs)
-		if not exec5_chk.get('verified', True):
-			cmds = [cmd for item in exec5_chk.get('violations') or [] for cmd in item.get('commands', [])]
-			_push('exec5', 'turn.exec5', ['EXEC-5 violation in active turn (git read command without --no-optional-locks; run recover-turn-violation): ' + '; '.join(cmds)])
-		if not http_chk.get('verified', True):
-			cmds = [cmd for item in http_chk.get('violations') or [] for cmd in item.get('commands', [])]
-			_push('http_fetch', 'turn.http_fetch', ['KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection): ' + '; '.join(cmds)])
-		if role in ('primary', 'child') and (not comp_chk.get('verified', True)):
-			unreread_src = comp_chk.get('unreread_analysis_sources') or []
-			msg_c = ('COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md: ' + ', '.join(unreread_src)) if unreread_src else 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare'
-			_push('compaction', 'turn.compaction', [msg_c])
-		if evicted_cited:
-			_push('evicted_citations', 'turn.evicted_citations', ['COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(evicted_cited)])
-		if 'primary' == role and (not del_chk.get('verified', True)):
-			_push('delegation', 'turn.delegation', [f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={del_chk.get('tool_step_count', 0)}, max_streak={del_chk.get('max_unpersisted_step_streak', 0)} > {del_chk.get('max_unpersisted_steps', 40)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"])
-		if del_chk.get('aa_partial_read_violations'):
-			_push('aa_partial_read', 'turn.aa_partial_read', ['REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(del_chk['aa_partial_read_violations'])])
-		if not issue_first_chk.get('verified', True):
-			_push('issue_first', 'turn.issue_first', list(issue_first_chk.get('violations') or []))
-		if not lifecycle_chk.get('verified', True):
-			_push('code_lifecycle', 'turn.code_lifecycle', [f'EXEC-5 violation in active turn (code/issue lifecycle incomplete): {v}' for v in lifecycle_chk.get('violations') or []])
-		if not tdd_chk.get('verified', True):
-			_push('tdd', 'turn.tdd', list(tdd_chk.get('violations') or []))
-		_push('workflow', 'turn.workflow', wf_errs)
-		return {
-			'valid': not all_issues,
-			'read_only': True,
-			'role': role,
-			'turn_key': turn_key,
-			'response_sha256': sha,
-			'issue_count': len(all_issues),
-			'issues': all_issues,
-			'checks': {
-				'doc4': not doc4_errs,
-				'links': not link_errs,
-				'causal_probability': not prob_errs,
-				'source_grounding': not source_errs,
-				'language_and_stub': not lang_errs,
-				'exec5': bool(exec5_chk.get('verified', True)),
-				'http_fetch': bool(http_chk.get('verified', True)),
-				'compaction': bool(comp_chk.get('verified', True) and (not evicted_cited)),
-				'delegation': bool(del_chk.get('verified', True) and (not del_chk.get('aa_partial_read_violations'))),
-				'issue_first': bool(issue_first_chk.get('verified', True)),
-				'code_lifecycle': bool(lifecycle_chk.get('verified', True)),
-				'tdd': bool(tdd_chk.get('verified', True)),
-				'workflow': not wf_errs,
-			},
-		}
+		from .gates import run_answer_gates
+		all_issues, checks = run_answer_gates({'role': role, 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
+		return {'valid': not all_issues, 'read_only': True, 'role': role, 'turn_key': turn_key, 'response_sha256': sha, 'issue_count': len(all_issues), 'issues': all_issues, 'checks': checks}
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12

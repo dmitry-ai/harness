@@ -1,4 +1,7 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract PreToolUse and completion gates into priority plugin registry":
+# https://github.com/dmitry-ai/harness/issues/167
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -209,22 +212,12 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 			matched_state = target_state
 	if None is matched_state:
 		return {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare before finishing the response.'}
+	_ensure_scripts_on_path()
+	from agent_tools.gates import run_stop_gates
+	gate_hit = run_stop_gates(matched_state)
+	if None is not gate_hit:
+		return gate_hit
 	prep = matched_state.get('prepared')
-	if matched_state.get('status') not in ('prepared', 'delivered') or (not isinstance(prep, dict)) or (not matched_state.get('readiness_check', {}).get('verified')):
-		detail = (matched_state.get('readiness_check') or {}).get('detail') or 'answer-prepare has not succeeded for the current turn'
-		return {'decision': 'continue', 'reason': f'FILE-3 / EXEC-5 Stop Gate: Turn is not prepared ({detail}). Run harness.py answer-prepare and output the exact prepared response.'}
-	ifc = matched_state.get('issue_first_check') if isinstance(matched_state.get('issue_first_check'), dict) else {}
-	if False is ifc.get('verified'):
-		if_detail = '; '.join((str(v) for v in (ifc.get('violations') or ()))) or 'Issue-First verification failed (parent GitHub issue required before tests and code)'
-		return {'decision': 'continue', 'reason': f'EXEC-5 Stop Gate (ISSUE-FIRST): {if_detail}. Establish a parent GitHub issue via df_github_issue.py before tests/code and re-run harness.py answer-prepare.'}
-	clc = matched_state.get('code_lifecycle_check') if isinstance(matched_state.get('code_lifecycle_check'), dict) else {}
-	if False is clc.get('verified'):
-		clc_detail = '; '.join((str(v) for v in (clc.get('violations') or ()))) or 'code/issue or similar_projects parity lifecycle incomplete'
-		return {'decision': 'continue', 'reason': f'EXEC-5 Stop Gate: {clc_detail}. Resolve pending code/issue or similar_projects parity checks and re-run harness.py answer-prepare.'}
-	tddc = matched_state.get('tdd_check') if isinstance(matched_state.get('tdd_check'), dict) else {}
-	if False is tddc.get('verified'):
-		tdd_detail = '; '.join((str(v) for v in (tddc.get('violations') or ()))) or 'TDD Red-First / Full-Suite-Green verification failed'
-		return {'decision': 'continue', 'reason': f'EXEC-2 Stop Gate: {tdd_detail}. Resolve TDD violations, run the full test suite to GREEN, and re-run harness.py answer-prepare.'}
 	if last_planner_text:
 		sha = hashlib.sha256(last_planner_text.encode('utf-8')).hexdigest()
 		if sha != prep.get('response_sha256') and sha != prep.get('body_sha256'):

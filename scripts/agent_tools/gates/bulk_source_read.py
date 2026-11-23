@@ -1,0 +1,55 @@
+# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract PreToolUse and completion gates into priority plugin registry":
+# https://github.com/dmitry-ai/harness/issues/167
+from __future__ import annotations
+import json
+from pathlib import Path
+NAME = 'REVIEW-1-BULK-SOURCE-GATE'
+PRIORITY = 70
+MAX_UNPERSISTED_SOURCE_READS = 10
+def _parse_call_args(raw) -> dict:
+	r = raw if isinstance(raw, dict) else {}
+	if isinstance(raw, str):
+		try:
+			parsed = json.loads(raw)
+			r = parsed if isinstance(parsed, dict) else {}
+		except ValueError:
+			r = {}
+	return r
+def _recent_segment_rows(t_path: Path) -> list[dict]:
+	r: list[dict] = []
+	if t_path.is_file():
+		try:
+			lines = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
+		except Exception:
+			lines = []
+		last_user = -1
+		for idx, row in enumerate(lines):
+			if isinstance(row, dict) and 'USER_INPUT' == row.get('type'):
+				last_user = idx
+		r = [row for row in lines[last_user + 1:] if isinstance(row, dict)]
+	return r
+def _update_streak(streak: set[str], cname: str, cargs: dict) -> None:
+	if 'invoke_subagent' == cname:
+		streak.clear()
+	elif cname in ('write_file', 'edit_file'):
+		wpath = (cargs.get('Path') or '').replace('\\', '/').lower()
+		if wpath.endswith('/kb/analysis.md') or '/\ua616/kb/' in wpath:
+			streak.clear()
+	elif 'read_file' == cname:
+		rpath = (cargs.get('Path') or '').replace('\\', '/').lower()
+		if rpath.endswith('/kb/source.md'):
+			streak.add(rpath)
+def check(name: str, args: dict, payload: dict | None=None) -> str | None:
+	r = None
+	target = (args.get('Path') or '').replace('\\', '/').lower() if 'read_file' == name else ''
+	t_raw = (payload or {}).get('transcriptPath') or ''
+	if target.endswith('/kb/source.md') and t_raw:
+		streak: set[str] = set()
+		for row in _recent_segment_rows(Path(t_raw)):
+			for call in row.get('tool_calls') or []:
+				if isinstance(call, dict):
+					_update_streak(streak, call.get('name', ''), _parse_call_args(call.get('args')))
+		if target not in streak and len(streak) >= MAX_UNPERSISTED_SOURCE_READS:
+			r = f'REVIEW-1 / KB-3: Already read {len(streak)} source.md files in a row without persisting analysis.md or delegating to af-worker (limit: {MAX_UNPERSISTED_SOURCE_READS}). Persist analysis.md for already-read cases or delegate via invoke_subagent before reading more source.md files.'
+	return r
