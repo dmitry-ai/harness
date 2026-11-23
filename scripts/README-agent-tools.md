@@ -225,6 +225,7 @@ Build new links with `agent_tools.links.markdown_link`; `readable_reference` str
 Exit codes for standalone link tools: `0` — checks passed; `1` — input or local validation error; `2` — network check unconfirmed.  
 `safe_commit.py --repo <root> --file <path> -m <message> [--execute]` verifies the exact Git index, unstaged/conflicted files, and Markdown links without running `git add` or `git push`.  
 `harness.py git-read [root] [status|diff|log|rev-parse|show|ls-files] [--short] [--stat] [--check] [--arg <arg>]` (or `upwork_project.py git-read`) executes read-only Git commands strictly with `--no-optional-locks` and `GIT_OPTIONAL_LOCKS=0`; the `git_shim.py` wrapper (`shim/git.cmd`) intercepts read-only `git` invocations in `PATH` and injects `--no-optional-locks`.  
+`harness.py wait-repo <repo> [--clean | --lease-free] [--timeout <S>] [--poll <S>]` waits reactively in the foreground until a repository's FIFO landing lease is free (with PID liveness pruning) and/or `git --no-optional-locks status --porcelain` is empty, complementing `answer-prepare --wait-timeout <S>` (which retries transient lock/lease contention while failing fast with `"retryable": false` on permanent defects).  
 `df_github_issue.py [lint|fetch|create|edit|comment|close|audit-repo|transfer-repo] ...` performs deterministic fetching (`fetch` with read-back Evidence persistence for already-open parent issues), creation (enforcing `pre_flight_issue_first` dirty-repo rejection for unparented issues, `open`-parent verification for `--parent <N>`, and automatic tab-indented JSON metadata header prepending unless `--no-metadata` is specified), editing, commenting, closing, and auditing of GitHub issues from UTF-8 files without BOM (`--body-file`) via `gh api --input -` with pre-flight syntax linting and mandatory byte-exact read-back verification per the [df-github-issue](../skills/df-github-issue/SKILL.md) skill, as well as audited repository ownership transfers (`transfer-repo --repo <owner/repo> --new-owner <org>`) with read-back verification and Evidence persistence.  
 `validate_statements.py <directory>` checks non-empty `.md` and `Test.md` files in numbered statement directories; it does not prove substantive truth.  
 `problem-metadata <project> [--issue <URL> | --no-issue] [--source-project <path>] [--format json|markdown]` builds the tab-indented JSON metadata block for `# 0` of a [df-analysis](../skills/df-analysis/SKILL.md) complex problem analysis with a mandatory `Issue` key mirroring Journal and GitHub issue metadata.  
@@ -257,6 +258,7 @@ During cleanup, delete only temporary files created by your own run; preserve ma
 <!-- https://github.com/dmitry-ai/harness/issues/178 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/183 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/193 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/199 -->  
 
 # Material Lifecycle
 

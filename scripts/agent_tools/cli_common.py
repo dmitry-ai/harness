@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -63,6 +66,9 @@ def load_operation_input(args, path) -> bytes:
 		if actual_sha != str(expected_sha).strip().lower():
 			raise ValueError(f'Input SHA-256 mismatch against --expected-sha256: expected {expected_sha}, got {actual_sha}')
 	return r
+def operation_error_payload(exc: BaseException) -> dict:
+	from .repo_wait import is_transient_contention_error
+	return {'valid': False, 'retryable': is_transient_contention_error(exc), 'issues': [{'code': 'operation.input', 'field': '/', 'message': str(exc)}]}
 def read_input_bytes(path) -> bytes:
 	if '-' != str(path):
 		r = Path(path).read_bytes()

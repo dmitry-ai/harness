@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
@@ -486,8 +489,7 @@ def _read(path):
 	value = json.loads(path.read_bytes().decode('utf-8'))
 	if not isinstance(value, dict):
 		raise ValueError('Completion metadata must be a JSON object: ' + str(path))
-	r = value
-	return r
+	return value
 def _folder(root):
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
@@ -500,15 +502,13 @@ def _directory(root, selected=None):
 	return journal.resolve_journal_dir(root, selected)
 def _key(native, turn):
 	identity = [native['platform'], native['native_backend'], native['conversation_id'], turn['turn_id']]
-	r = _hash(_json(identity))[:40]
-	return r
+	return _hash(_json(identity))[:40]
 def _native(root, conversation=None, *, platform=None, backend=None):
 	platform = platform_name(platform)
 	conversation = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == platform else None)
 	if not conversation:
 		raise ValueError('Select the actual current native conversation; no summary or neighbouring chat fallback')
-	r = adapter(platform).native_answers(Path(root).resolve(), conversation, backend=backend)
-	return r
+	return adapter(platform).native_answers(Path(root).resolve(), conversation, backend=backend)
 def _policy():
 	return {ident: {'source': relative, 'anchor': anchor, 'sha256': _hash((PRIMARY / relative).read_bytes()), 'requirement': RULE_REQUIREMENTS[ident]} for ident, (relative, anchor) in RULES.items()}
 def _violation_recovery(root, key):
@@ -2029,7 +2029,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
-def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None):
+def _prepare_once(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 final response is required')
 	from .causal_checks import unsupported_probability_claims
@@ -2046,8 +2046,10 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 		turn = _active(native)
 		if None is turn or _key(native, turn) != result['turn_key'] or _hash(_json(turn['requests'])) != result['native_requests_sha256']:
 			raise ValueError('The active native turn changed during preparation; no answer was recorded')
-		r = AnswerPreparationRunner(root_p, response, result, native, turn).run()
-	return r
+		return AnswerPreparationRunner(root_p, response, result, native, turn).run()
+def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, wait_timeout: float=0.0, wait_poll: float=1.0):
+	from .repo_wait import run_with_transient_wait
+	return run_with_transient_wait(Path(root), lambda: _prepare_once(root, response, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory), wait_timeout=wait_timeout, poll_interval=wait_poll)
 def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
 	from .path_registry import canonicalize_root_dir
 	root_p = canonicalize_root_dir(root)
@@ -2097,7 +2099,7 @@ def add_parser_arguments(parser, command):
 	if 'answer-check' == command:
 		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Candidate UTF-8 response file to validate, or - for stdin'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
 	if 'answer-prepare' == command:
-		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
+		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'}), ('--wait-timeout', {'type': float, 'default': 180.0, 'help': 'Seconds to wait reactively on transient repo/journal contention (default: 180)'})))
 	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
 		specs.append(('--from-step', {'type': int, 'default': 0}))
 	if 'journal-sync' == command:
@@ -2125,7 +2127,7 @@ def execute(args):
 	elif 'answer-prepare' == args.command:
 		from .cli_common import consume_scratch_input, load_operation_input
 		payload = load_operation_input(args, args.response_file)
-		result = prepare(args.project, payload.decode('utf-8'), args.conversation, watch=not args.no_watch, journal_directory=args.journal)
+		result = prepare(args.project, payload.decode('utf-8'), args.conversation, watch=not args.no_watch, journal_directory=args.journal, wait_timeout=float(getattr(args, 'wait_timeout', 180.0)))
 		r = consume_scratch_input(args, args.response_file, payload, result)
 	elif 'reconcile-unprepared-delivery' == args.command:
 		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)

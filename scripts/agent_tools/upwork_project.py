@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add deterministic FIFO repository landing lease with reactive wait":
 # https://github.com/dmitry-ai/harness/issues/163
@@ -612,7 +615,7 @@ def main(argv=None):
 		r = run(args)
 	return r
 def run(args):
-	from .cli_common import dump_json, read_input_json, read_input_text, result_exit_code
+	from .cli_common import dump_json, operation_error_payload, read_input_json, read_input_text, result_exit_code
 	from .operations import COMMANDS, analysis_root, execute
 	try:
 		from .cli_registry import dispatch_registered
@@ -723,7 +726,7 @@ def run(args):
 			r = result_exit_code(result, extra_failures=(False is (result.get('registration') or {}).get('complete'), 'retained' == (result.get('intake') or {}).get('status')))
 	except (OSError, ValueError, KeyError, TypeError, RuntimeError, sqlite3.Error) as exc:
 		if args.command in COMMANDS or 'json' == getattr(args, 'format', None):
-			dump_json({'valid': False, 'issues': [{'code': 'operation.input', 'field': '/', 'message': str(exc)}]})
+			dump_json(operation_error_payload(exc))
 		else:
 			print(f'ERROR: {type(exc).__name__}: {exc}', file=sys.stderr)
 		r = 1
