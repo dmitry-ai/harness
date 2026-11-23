@@ -229,6 +229,8 @@ Exit codes for standalone link tools: `0` — checks passed; `1` — input or lo
 `validate_statements.py <directory>` checks non-empty `.md` and `Test.md` files in numbered statement directories; it does not prove substantive truth.  
 `problem-metadata <project> [--issue <URL> | --no-issue] [--source-project <path>] [--format json|markdown]` builds the tab-indented JSON metadata block for `# 0` of a [df-analysis](../skills/df-analysis/SKILL.md) complex problem analysis with a mandatory `Issue` key mirroring Journal and GitHub issue metadata.  
 `analysis-check <project> --response-file <candidate.md> [--mode auto|general|problem]` validates candidate Markdown against the `DOC-4` Markdown table ban, `DOC-2`/`DOC-3` multi-hypothesis and multi-method structure, and `DOC-5` five-section complex problem analysis contract (exit code `0` when valid, `2` when violations exist).  
+`perf-timesheet [--trace <jsonl> | --conversation <uuid> | --project <root> --journal-step <N>] [--instance <id>] [--summary-db <db>] [--turn-start-step <S>] [--turn-end-step <E>] [--top-gaps <N>] [--output <json>] [--format json|text]` extracts deterministic Antigravity/Codex turn chronometry, model switches, prompt-cache misses, `CHECKPOINT` compaction pauses, truncated outputs, categorized command durations, background test idle waits, and top wall-clock gaps for [/df--harness--improvement--performance](../skills/df--harness--improvement--performance/SKILL.md).  
+`perf-profile-tests [<tests-dir>] [--workers <N>] [--module <name>] [--pattern <glob>] [--module-timeout <S>] [--cprofile] [--top <N>] [--cprofile-top <N>] [--output <json>] [--format json|text]` profiles `unittest` modules in parallel inside isolated workers, aggregating per-file/per-test timings, `subprocess.Popen` (`git`/`python`/`other`) and `time.sleep` overhead, and optional `cProfile` hotspots for [/df--harness--improvement--performance](../skills/df--harness--improvement--performance/SKILL.md).  
 `metrics <trace.jsonl> ... [--bindings <JSON>] [--project <project>]` aggregates fresh input, cache read, output tokens, and tool calls from observed trace data, deduplicating repeated exports and keeping unknown fields unknown rather than zero.  
 
 # Client Text
@@ -254,6 +256,7 @@ During cleanup, delete only temporary files created by your own run; preserve ma
 <!-- https://github.com/dmitry-ai/harness/issues/168 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/178 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/183 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/193 -->  
 
 # Material Lifecycle
 
