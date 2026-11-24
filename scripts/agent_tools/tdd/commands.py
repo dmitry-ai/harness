@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Strip PowerShell here-strings before shell redirect write-target scanning":
+# https://github.com/dmitry-ai/harness/issues/221
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -8,11 +11,22 @@ from pathlib import Path
 from ..shell_audit import _split_shell_segments, normalize_host_path
 from .classifier import _CODE_SUFFIX_ALT, classify_code_path, count_repo_test_files, is_test_file
 import re
+_BASH_HEREDOC_RE = re.compile(r'(<<-?\s*(?:[\'"]?)([A-Za-z_][A-Za-z0-9_]*)(?:[\'"]?)[^\r\n]*)\r?\n[\s\S]*?\r?\n[ \t]*\2(?=\r?\n|$)')
 _CARGO_TEST_RE = re.compile(r'(?i)\bcargo(?:\.exe)?\s+test\b')
 _DIRECT_SCRIPT_RE = re.compile(r'(?i)(?:^|\s)(?:&\s*)?(?:python(?:3)?|node|pwsh|powershell|bash|sh|php|ruby|ts-node|tsx|bun|deno)(?:\.exe)?\s+|^\s*(?:&\s*)?["\']?(?:[A-Za-z]:[/\\]|\.{1,2}[/\\])?[^\s"\']*(?:test|spec|regression)')
+_EMBEDDED_WRITE_PATTERNS = tuple(
+	re.compile(pat) for pat in (
+		r'(?i)\b(?:Set-Content|Out-File|Add-Content)\b[^\r\n;|&]*?(?:-Path|-LiteralPath|-FilePath)\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))',
+		r'(?i)\b(?:Set-Content|Out-File|Add-Content)\s+(?!-)(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))',
+		r'(?i)\[System\.IO\.File\]::WriteAll(?:Text|Bytes|Lines)\s*\(\s*(?:"([^"]+)"|\'([^\']+)\')',
+		r'(?i)\bPath\s*\(\s*(?:"([^"]+)"|\'([^\']+)\')\s*\)\s*\.\s*write_(?:text|bytes)\s*\(',
+		r'(?i)\bopen\s*\(\s*(?:"([^"]+)"|\'([^\']+)\')\s*,\s*[\'"][wa][^\'"]*[\'"]',
+	)
+)
 _GO_TEST_RE = re.compile(r'(?i)\bgo(?:\.exe)?\s+test\b')
 _HARNESS_RUN_TESTS_RE = re.compile(r'(?i)(?:^|\s)["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+run-tests(?:\s|$)')
 _HARNESS_WATCHDOG_PREFIX_RE = re.compile(r'(?i)^\s*(?:python(?:3(?:\.\d+)?)?(?:\.exe)?\s+)?["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+test-watchdog(?:\s+(?:(?:--timeout|--module-timeout|--format)(?:=|\s+)\S+|--cwd(?:=|\s+)(?:"[^"]+"|\'[^\']+\'|\S+)))*(?:\s+--)?\s+')
+_INLINE_SCRIPT_RE = re.compile(r'(\b(?:python(?:3)?|node)(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-[ce]\s+)(?:"(?:\\.|[^"\\])*"|\'(?:\'\'|[^\'])*\')', re.I)
 _MASK_QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
 _PATTERN_ARG_RE = re.compile(r'(?:-p|--pattern)(?:\s+|=)(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
 _POST_CARGO_RUNNER_SPECS = (
@@ -28,24 +42,24 @@ _PRE_GO_RUNNER_SPECS = (
 	(r'(?i)(?:^|\s|[/\\])(?:phpunit|pest|codecept)(?:\.bat|\.phar|\.exe)?(?:\s|$)', r'--filter\b', True),
 	(r'(?i)\bdotnet(?:\.exe)?\s+test\b', r'--filter\b', False),
 )
+_PS_HERESTRING_RE = re.compile(r"@'[\s\S]*?'@|@\"[\s\S]*?\"@")
 _PYTHON_C_RE = re.compile(r'(?i)\bpython(?:3)?(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-c\b')
 _PYTHON_UNITTEST_RE = re.compile(r'(?i)\bpython(?:3(?:\.\d+)?)?(?:\.exe)?\b[^\r\n]*\s-m\s+unittest\b')
 _RIGGED_FAILURE_RE = re.compile(r'(?:(?:;|&&|\|\|)\s*(?:exit\s+[1-9]\d*|false\b|return\s+[1-9]\d*|throw\b)|;\s*exit\s+\$?1\b)', re.IGNORECASE)
 _SHELL_DELETE_RE = re.compile(r'(?i)\b(?:git\s+rm|Remove-Item|rm|del|erase)\b[^\r\n;|&]*')
+_SHELL_REDIRECT_RE = re.compile(r'(?i)(?:"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|(?:^|\s)#[^\r\n]*)|(?<![0-9&\-=>])>>?(?![</])\s*(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&>]+))')
 _SHELL_TEST_FILE_TOKEN_RE = re.compile(rf'(?:"([^"]+\.(?:{_CODE_SUFFIX_ALT}))"|\'([^\']+\.(?:{_CODE_SUFFIX_ALT}))\'|([^\s;|&"\']+\.(?:{_CODE_SUFFIX_ALT})))', re.IGNORECASE)
-_SHELL_WRITE_CMD_PATTERNS = tuple(
-	re.compile(pat) for pat in (
-		r'(?i)\b(?:Set-Content|Out-File|Add-Content)\b[^\r\n;|&]*?(?:-Path|-LiteralPath|-FilePath)\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))',
-		r'(?i)\b(?:Set-Content|Out-File|Add-Content)\s+(?!-)(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))',
-		r'(?i)\[System\.IO\.File\]::WriteAll(?:Text|Bytes|Lines)\s*\(\s*(?:"([^"]+)"|\'([^\']+)\')',
-		r'(?i)\bPath\s*\(\s*(?:"([^"]+)"|\'([^\']+)\')\s*\)\s*\.\s*write_(?:text|bytes)\s*\(',
-		r'(?i)\bopen\s*\(\s*(?:"([^"]+)"|\'([^\']+)\')\s*,\s*[\'"][wa][^\'"]*[\'"]',
-		r'(?i)(?:^|[^0-9&])>>?\s*(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&>]+))',
-		r'(?i)\btee\b(?:\s+-[a-zA-Z]+)*\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))',
-		r'(?i)\bsed\b[^\r\n;|&]*\s-i[^\s]*[^\r\n;|&]*\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))\s*$',
-		r'(?i)\b(?:Copy-Item|Move-Item|cp|mv)\b[^\r\n;|&]*\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))\s*$',
-	)
+_OUTER_SHELL_WRITE_PATTERNS = (
+	_SHELL_REDIRECT_RE,
+	*(
+		re.compile(pat) for pat in (
+			r'(?i)\btee\b(?:\s+-[a-zA-Z]+)*\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))',
+			r'(?i)\bsed\b[^\r\n;|&]*\s-i[^\s]*[^\r\n;|&]*\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))\s*$',
+			r'(?i)\b(?:Copy-Item|Move-Item|cp|mv)\b[^\r\n;|&]*\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s;|&]+))\s*$',
+		)
+	),
 )
+_SHELL_WRITE_CMD_PATTERNS = _EMBEDDED_WRITE_PATTERNS + _OUTER_SHELL_WRITE_PATTERNS
 def _classify_segment(seg: str) -> tuple[bool, bool]:
 	r = (False, False)
 	for matcher in (_match_harness_run_tests, _match_python_unittest, _match_pre_go_runner, _match_go_or_cargo, _match_post_cargo_runner, _match_direct_test_script):
@@ -53,6 +67,13 @@ def _classify_segment(seg: str) -> tuple[bool, bool]:
 		if None is not hit:
 			r = (True, hit)
 			break
+	return r
+def _collect_write_matches(cmd: str) -> list[str]:
+	r: list[str] = []
+	for seg in _split_shell_segments(cmd):
+		r.extend(_iter_write_matches(seg, _EMBEDDED_WRITE_PATTERNS))
+	for seg in _split_shell_segments(_strip_shell_herestrings(cmd)):
+		r.extend(_iter_write_matches(seg, _OUTER_SHELL_WRITE_PATTERNS))
 	return r
 def _extract_cmd_paths(seg: str) -> list[str]:
 	r: list[str] = []
@@ -72,9 +93,9 @@ def _iter_delete_tokens(seg: str) -> list[str]:
 			if raw_target:
 				r.append(raw_target)
 	return r
-def _iter_write_matches(seg: str) -> list[str]:
+def _iter_write_matches(seg: str, patterns: tuple[re.Pattern[str], ...]=_SHELL_WRITE_CMD_PATTERNS) -> list[str]:
 	r: list[str] = []
-	for pat in _SHELL_WRITE_CMD_PATTERNS:
+	for pat in patterns:
 		for m in pat.finditer(seg):
 			raw_target = next((g for g in m.groups() if g), '')
 			if raw_target and (not raw_target.startswith(('$', '&', '/dev/null', 'nul', 'NUL'))):
@@ -138,6 +159,10 @@ def _single_test_file_in_args(seg: str) -> bool:
 			r = True
 			break
 	return r
+def _strip_shell_herestrings(cmd: str) -> str:
+	r = _PS_HERESTRING_RE.sub('""', cmd)
+	r = _BASH_HEREDOC_RE.sub(r'\1', r)
+	return _INLINE_SCRIPT_RE.sub(r'\1""', r)
 def classify_test_command(cmd: str, *, scope_root: Path | None=None) -> dict:
 	if not isinstance(cmd, str) or not cmd.strip():
 		r = {'is_full_suite': False, 'is_test_cmd': False, 'rigged_failure': False, 'target_paths': []}
@@ -176,13 +201,12 @@ def shell_write_targets(cmd: str, *, cwd: Path | None=None, classifications: tup
 		base = Path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
 		seen: set[str] = set()
 		allowed = set(classifications) if None is not classifications else None
-		for seg in _split_shell_segments(cmd):
-			for raw_target in _iter_write_matches(seg):
-				full = _resolve_shell_target(raw_target, base)
-				key = full.as_posix().lower()
-				if (None is allowed or classify_code_path(full) in allowed) and key not in seen:
-					seen.add(key)
-					r.append(full)
+		for raw_target in _collect_write_matches(cmd):
+			full = _resolve_shell_target(raw_target, base)
+			key = full.as_posix().lower()
+			if (None is allowed or classify_code_path(full) in allowed) and key not in seen:
+				seen.add(key)
+				r.append(full)
 	return r
 def unwrap_watchdog_prefix(seg: str) -> str:
 	m = _HARNESS_WATCHDOG_PREFIX_RE.match(seg or '')
