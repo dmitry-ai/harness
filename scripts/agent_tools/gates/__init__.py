@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -23,6 +26,7 @@ _BUILTIN_TOOLS_MANIFEST = {
 	'journal_write': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'rules_budget': frozenset({'write_file', 'edit_file'}),
 	'schedule_gate': frozenset({'schedule'}),
+	'send_message_gate': frozenset({'send_message'}),
 	'server_hygiene': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'subprocess_hygiene': frozenset({'write_file', 'edit_file'}),
 	'tdd': frozenset({'run_command', 'write_file', 'edit_file'}),

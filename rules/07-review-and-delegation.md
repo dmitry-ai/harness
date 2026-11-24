@@ -22,7 +22,7 @@ Limit parallelism; prevent concurrent writes and competing control over the same
 A worker does not maintain the user journal and does not spawn new auditors without an instruction.  
 ## REVIEW-3
 Before finalizing, check both what contradicts the KB and what is material yet missing from it.  
-Two independent auditors are required for significant or disputed conclusions, architectural changes, or when instructed (or a single adversarial `A.A` falsifier in `review_mode: "falsifier"` after deterministic Stage 1 pre-flight checks when `disproved_claims` is empty and no prior significant findings exist); for a routine response, A.A performs both checks.  
+Significant conclusions default to a single adversarial `A.A` auditor in `review_mode: "falsifier"` (emitted by default by `prepare-review` after deterministic Stage 1 pre-flight checks) when `disproved_claims` is empty and no prior significant findings exist; escalate to two independent `A.A` auditors when `disproved_claims`, `needs_changes`, disputed conclusions, architectural changes, or explicit instruction require it; for a routine response, A.A performs both checks.  
 Justify the risk classification for the current requests and claims: new material causal conclusions, conclusions about hidden configurations, and architectural or pricing changes cannot be downgraded to `routine` by a single parameter.  
 A routine restatement requires previously verified, unchanged grounds; the absence of new HTTP requests does not by itself make a new conclusion routine.  
 Do not call self-review an independent audit.  
@@ -36,10 +36,11 @@ A modified KB requires re-auditing affected conclusions; an independent audit re
 The package binds the exact current requests, response candidate, map of its material claims, auto-discovered `Tier 0` entity sources, and confidence-stripped `blind_verification_predicates`; a new response version requires its own clearance even if the KB is unchanged.  
 The parent's prompt to an independent auditor (`A.A`) must be neutral: pass the project root and package path (verified via `review-input`) without pre-filling positive outcomes (`approved`, `supported`, `direct`, `findings: []`) that omit negative schema alternatives.  
 An independent auditor operates strictly read-only inside the current project root: it does not create or modify files, does not run generators in `scratch`, does not read neighboring projects, reads the candidate response in full (`1..total_lines` without truncated or non-contiguous partial slices), and confirms in `observed`/`tested_claim` every standalone number from an approved claim and `response_excerpt`.  
-The auditor returns either a standard per-claim evaluation covering observation, inference, method sufficiency, alternatives, limitations, and verdict, or an adversarial falsifier report (`review_mode: "falsifier"`) listing `disproved_claims` backed by `Tier 0` primary sources and verbatim quotes.  
+The auditor returns either an adversarial falsifier report (default `review_mode: "falsifier"`, listing `disproved_claims` backed by `Tier 0` primary sources and verbatim quotes) or a standard per-claim evaluation covering observation, inference, method sufficiency, alternatives, limitations, and verdict, including `package` and `package_sha256` and emitted once in its final native `PLANNER_RESPONSE` without duplicating the full JSON payload via `send_message`.  
 In `test_alignment`, compare the exact `target_claim` against the actual `tested_claim`, recording `direct`/`proxy`/`irrelevant` and a `"claim is false, test passes"` counterexample; `proxy` does not permit unqualified `supported` without a visible qualification, and `irrelevant` does not support the claim.  
 The auditor verifies compatibility of recommendations with primary facts: a condition refuted by primary evidence (`dead-end condition`) requires a `needs_changes` verdict and cannot be approved by assuming subjective external moderation discretion.  
 Preserve the original verdict immutable with verified native provenance; record parent dispositions of findings separately and never overwrite the auditor's result with them.  
 `needs_changes` and open findings persist as working state and block completion; a new review attempt does not overwrite a prior report.  
 <!-- https://github.com/dmitry-ai/harness/issues/47 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/133 -->
+<!-- https://github.com/dmitry-ai/harness/issues/133 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/226 -->  

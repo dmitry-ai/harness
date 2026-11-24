@@ -32,13 +32,13 @@ When selecting a different model, pass its identifier and `reasoning_effort` exp
 When inheriting, omit model and effort overrides.  
 The native adapter verifies the parameters chosen by the parent against the child agent's actual `turn_context`.  
 In an assignment to an independent auditor, explicitly specify role A.A, the exact `prepare-review` package path, sources, output report path, and completion criterion.  
-The package binds the current requests, exact response bytes, claim map, KB, and Evidence; the risk category is defined by a justified specification without a default `routine`.  
+The package binds the current requests, exact response bytes, claim map, KB, and Evidence; the risk category is defined by a justified specification without a default `routine`, while `significant` defaults to one adversarial A.A auditor in `review_mode: "falsifier"` per REVIEW-3 (escalating to two independent A.A auditors on `disproved_claims`, `needs_changes`, or prior significant findings; launch a fresh A.A subagent rather than reusing a session near context compaction).  
 The child auditor first runs `review-input <project> --package <package-path> --platform codex` using the shared tool and prints the full JSON output to the native tool log.  
 That command verifies package digests; the auditor then reads its modules and primary sources and performs the substantive review.  
 A native assignment payload may be encrypted: the adapter links the parent and child ciphertext and confirms the specific package via the actual `review-input` call and its output.  
 Ciphertext is never treated as human-readable text.  
 Wait for completion using the native wait tool; use valid parent and child chat UUIDs for the `native-review-proof` receipt.  
-The auditor returns the original JSON verdict in its final native message; `record-review` verifies the report file against that message and receives the launch receipt as a separate argument after completion.  
+The auditor returns the original `schema_version: 2` JSON verdict (with `package` and `package_sha256`) once in its final native message without duplicating the full JSON via intermediate messaging; `record-review` verifies the report file against that message and receives the launch receipt as a separate argument after completion.  
 Record actual metadata for the primary executor, A.A, and A.F via `native-executor-metadata`; `requested` and `observed` are tracked separately, and unknown values are never backfilled from `runtime` defaults.  
 Do not create user chats via `codex exec`, SDKs, or hidden model execution APIs.  
 
@@ -68,3 +68,4 @@ Do not reconstruct requests from summaries and do not declare an unverified rece
 <!-- https://github.com/dmitry-ai/harness/issues/133 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/182 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/193 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/226 -->  

@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -83,6 +86,7 @@ _LAZY_EXPORTS = {
 	'check_journal_write_gate': ('agent_tools.gates.journal_write', 'check'),
 	'check_rules_budget': ('agent_tools.gates.rules_budget', 'check'),
 	'check_schedule_gate': ('agent_tools.gates.schedule_gate', 'check'),
+	'check_send_message_gate': ('agent_tools.gates.send_message_gate', 'check'),
 	'check_server_hygiene': ('agent_tools.gates.server_hygiene', 'check'),
 	'check_subprocess_hygiene_gate': ('agent_tools.gates.subprocess_hygiene', 'check'),
 	'check_tdd_gate': ('agent_tools.gates.tdd', 'check'),

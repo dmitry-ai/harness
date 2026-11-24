@@ -57,7 +57,7 @@ python <tool> stage <project> identity_init --input "ꘖ/project.json" --output 
 Write the actual verification artifact to the declared `--output` path; never fabricate a placeholder file just to obtain a stage receipt.  
 `research` requires closed questions or documented gaps; `analysis` requires current KB modules and evidence; subsequent stages require a current A.A substantive review.  
 In a justified routine case, the primary A.A records a `schema_version: 2` report with `review_kind: self_review` covering the response and every mapped claim, passing identical `--parent` and `--reviewer` UUIDs of the current chat to `record-review`.  
-Self-review is not an independent audit; `significant` work requires two independent A.A reviewers.  
+Self-review is not an independent audit; `significant` work defaults to one adversarial A.A reviewer in `review_mode: "falsifier"` and escalates to two independent A.A reviewers when `disproved_claims`, `needs_changes`, or prior significant findings exist.  
 If any input or output digest changes, the stage becomes `stale` while prior files and receipts remain preserved in history.  
 An interruption between publications does not mark a stage complete; atomic writes and digest checks allow retrying only the unfinished operation.  
 
@@ -205,19 +205,19 @@ In `websites`, explicitly list each client or target project URL (or `null`), it
 python <tool> prepare-review <project> --parent <parent-UUID> --spec <review-JSON> --response-file <exact-candidate>
 ```
 
-The specification contains `risk`, `basis`, `request_scope`, `task_flags`, `claim_ids`, and `claims`; see [review.example.json](review.example.json).  
+The specification contains `risk`, `basis`, `request_scope`, `task_flags`, `claim_ids`, `claims`, and optional `review_mode` (`falsifier` by default for `significant` packages without prior unresolved escalation; `standard` for explicit two-auditor escalation); see the `schema_version: 2` report example in [review.example.json](review.example.json).  
 Each entry in `claims` specifies `claim_id`, the exact `response_excerpt`, and `novelty` (`new|restatement`); every standalone numeric figure in `response_excerpt` must appear in the verified sources of the linked claim.  
 For an analytical response, `claims` and `claim_ids` must be non-empty, and the auditor substantively verifies that the map covers all material claims in the response.  
 A purely procedural status note is recorded via `record_step` and never receives analytical clearance through an empty claim map.  
 Valid `task_flags`: `new_causal_analysis`, `architecture_change`, `pricing_change`, `admin_configuration`, `business_impact`, `material_analysis`; an empty list is permissible only for a justified routine task.  
 The minimum risk category is recomputed from new typed claims; `routine` cannot bypass material causal conclusions, hidden settings, or architectural/pricing changes.  
 A `restatement` requires a previously approved, unchanged version of the claim and its evidence; `significant` defaults to one adversarial A.A auditor in `review_mode: "falsifier"` after deterministic Stage 1 pre-flight checks per REVIEW-3 and escalates to two independent A.A auditors when `disproved_claims`, `needs_changes`, or prior significant findings exist.  
-Delegate using the platform's native subagent tool: in Antigravity call `invoke_subagent` with `TypeName: self` and the parent-selected `Model` (defaulting to `inherit`); in Codex call `spawn_agent` with role A.A and the parent-selected model/effort.  
+Delegate using the platform's native subagent tool: in Antigravity call `invoke_subagent` with `TypeName: self` and the parent-selected `Model` (defaulting to `inherit`); in Codex call `spawn_agent` with role A.A and the parent-selected model/effort; launch a fresh A.A subagent rather than reusing a reviewer approaching context compaction (`CHECKPOINT`) across rounds.  
 Pass the exact project root and full `package` path returned by `prepare-review`; the v2 package binds the current requests, exact response bytes, claim map, KB, primary Evidence, and manual inputs.  
-Across configured environments, the auditor first runs `review-input <project> --package <path> --platform <platform>` to obtain the neutral `report_contract` listing all valid field values (`approved`/`needs_changes`, `supported`/`qualified`/`unsupported`, `direct`/`proxy`/`irrelevant`, and `findings` schema); in Codex, this receipt also binds an encrypted spawn assignment to the package.  
+Across configured environments, the auditor first runs `review-input <project> --package <path> --platform <platform>` to obtain the neutral `report_contract` listing all valid field values (`package`/`package_sha256`, `approved`/`needs_changes`, `falsifier` `disproved_claims` vs `standard` `claim_reviews`, `supported`/`qualified`/`unsupported`, `direct`/`proxy`/`irrelevant`, and `findings` schema); in Codex, this receipt also binds an encrypted spawn assignment to the package.  
 State a neutral goal: audit the five stages, primary evidence, alternatives, KB consistency, and the exact response candidate, including completeness of its claim map.  
 Never pass a desired verdict, a one-sided JSON template (containing only `"approved"`, `"supported"`, `"direct"`, or `"findings": []`), or another reviewer's report to the auditor; the reviewer operates strictly read-only inside the current project root without calling write tools, generating JSON via external scripts, or reading neighboring `daily` folders.  
-The independent auditor returns its `schema_version: 2` JSON report once in its final native `PLANNER_RESPONSE` message (never duplicating the full JSON report via `send_message` beforehand): `package`, `package_sha256`, `scope` (five stages + `kb_consistency` + `response`), `result` (`approved|needs_changes`), `claim_reviews`, and `findings`.  
+The independent auditor returns its `schema_version: 2` JSON report once in its final native `PLANNER_RESPONSE` message (duplicating a full JSON verdict via `send_message` is blocked by `REVIEW-4-SEND-MESSAGE-GATE`): default `review_mode: "falsifier"` includes `package`, `package_sha256`, `scope` (five stages + `kb_consistency` + `response`), `result` (`approved|needs_changes`), `disproved_claims`, and `findings`, while `standard` escalation includes `claim_reviews` instead of `disproved_claims`.  
 For each claim, `claim_reviews` records `claim_id`, `observed`, `inferred`, `method`, `alternatives`, `limits`, `falsification`, `raw_vs_criteria`, and `outcome` (`supported|qualified|unsupported`); when `outcome: supported`, every standalone number in the claim and `response_excerpt` must be explicitly confirmed in `observed` or `test_alignment.tested_claim`.  
 The mandatory `test_alignment` object specifies `target_claim` (the exact `essence` of the claim), `tested_claim`, `relationship` (`direct|proxy|irrelevant`), `rationale`, and `counterexample`.  
 A `proxy` alignment permits at most `qualified` with a visible qualification in the response; `irrelevant` requires `unsupported`, which blocks `approved`.  
@@ -267,3 +267,4 @@ Token counts do not equal quota percentages or billing currency; quality is judg
 <!-- https://github.com/dmitry-ai/harness/issues/109 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/215 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/217 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/226 -->  

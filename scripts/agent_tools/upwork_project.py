@@ -235,10 +235,13 @@ def legacy_runner_global_hooks(primary=PRIMARY_AGENTS_DIR):
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 # https://github.com/dmitry-ai/harness/issues/33
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
 def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR, *, config_dir: str | Path | None=None):
 	r = {
 		'doc4-anti-slop-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_markdown_slop.py', 'timeout': 10}]}]},
-		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent|schedule', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
+		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent|schedule|send_message', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
 		'final-turn-gate': {
 			'PreInvocation': [{'type': 'command', 'command': 'python harness_hook_runner.py check_pre_invocation.py', 'timeout': 15}],
 			'Stop': [{'type': 'command', 'command': 'python harness_hook_runner.py check_stop_gate.py', 'timeout': 15}],

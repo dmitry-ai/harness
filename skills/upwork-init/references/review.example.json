@@ -1,14 +1,18 @@
 {
-  "stage": "causes",
-  "reviewer": "AA",
-  "verdict": "approved",
-  "checked_paths": [
-    "ꘖ/KB/Analysis.json",
-    "ꘖ/KB/Overview.md",
-    "ꘖ/KB/Findings.md",
-    "ꘖ/KB/Decisions.md",
-    "ꘖ/KB/Plan.md"
-  ],
-  "findings": [],
-  "notes": "Hypotheses are separated from facts, probabilities and method suitability scores are justified, and links to Evidence are verified."
+	"schema_version": 2,
+	"review_mode": "falsifier",
+	"package": "ꘖ/data/review-packages/example-package.json",
+	"package_sha256": "<64-hex-sha256-from-review-input>",
+	"scope": [
+		"identity",
+		"concerns",
+		"misconceptions",
+		"causes",
+		"methods",
+		"kb_consistency",
+		"response"
+	],
+	"result": "approved",
+	"disproved_claims": [],
+	"findings": []
 }

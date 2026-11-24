@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -46,7 +49,7 @@ import json
 import re
 from pathlib import Path
 from .research import inside, json_data
-from .review_alignment import TARGET_CLAIM_RULE, alignment_issues, bind_contract_envelope, build_claim_targets, envelope_issues
+from .review_alignment import TARGET_CLAIM_RULE, alignment_issues, bind_contract_envelope, build_claim_targets, envelope_issues, resolve_package_review_mode
 from .storage import read_addressed_json, replace_bytes, write_immutable_bytes
 PACKAGE_HANDLERS = {}
 REVIEW_SCHEMA = 2
@@ -243,7 +246,7 @@ class ReviewQuorumEvaluator:
 				has_escalation = self.significant_findings(package['subject_sha256']) or any(('approved' != item.get('result') for item in latest.values()))
 				merkle_delta = package.get('merkle_delta') or {}
 				all_merkle_cached = bool(merkle_delta.get('cached_claim_ids')) and (not bool(merkle_delta.get('unverified_claim_ids')))
-				if not has_escalation and ('falsifier' == package.get('review_mode') or any(('falsifier' == item.get('review_mode') for item in eligible)) or all_merkle_cached):
+				if not has_escalation and (any(('falsifier' == item.get('review_mode') for item in eligible)) or all_merkle_cached):
 					required = 1
 		return len({item['reviewer_id'] for item in eligible}) >= required
 	def select_authorized_group(self, groups, *, allow_routine_self=True, allow_falsifier_or_cached=True):
@@ -651,10 +654,10 @@ def prepare(root, parent_id, spec, response):
 	_immutable(candidate, payload)
 	ev_inputs = hashes(root, evidence_paths(root))
 	extra_pkg = {'auto_tier0_evidence': discover_entity_tier0_sources(root, response), 'merkle_delta': compute_claim_merkle_delta(root, classified['claims'], value, ev_inputs), 'blind_verification_predicates': build_blind_verification_predicates(classified['claims'], value)}
-	if isinstance(spec, dict) and spec.get('review_mode') in ('standard', 'falsifier'):
-		extra_pkg['review_mode'] = spec['review_mode']
 	data = {'schema_version': REVIEW_SCHEMA, 'project_root': str(root), 'job_id': state['job_id'], 'parent_id': parent_id, **classified, 'requests': requests, 'response': {'file': candidate.relative_to(root).as_posix(), 'sha256': response_sha, 'bytes': len(payload)}, 'kb_inputs': hashes(root, kb_paths(root)), 'evidence_inputs': ev_inputs, 'scope': list(SCOPES), 'knowledge_source': 'agent KB, primary evidence, current requests and exact response; no Context.md', **extra_pkg}
 	data['subject_sha256'] = subject_digest(data)
+	if (mode := resolve_package_review_mode(spec, data, ReviewQuorumEvaluator(root, state))):
+		data['review_mode'] = mode
 	if 'routine' == data['risk'] and ReviewQuorumEvaluator(root, state).significant_findings(data['subject_sha256']):
 		raise ValueError('A significant/critical finding on this exact answer requires a significant package and two independent A.A')
 	package_bytes = json_data(data)
@@ -754,7 +757,7 @@ def authenticate_report(root, package, package_path, data, source_payload, *, pa
 	proof_paths = [package_path, package['response']['file']]
 	if not independent:
 		if 'routine' != package['risk']:
-			raise ValueError('Significant claims require two independent reviewers')
+			raise ValueError('Significant claims default to one independent adversarial falsifier reviewer (or two independent reviewers in standard/escalation mode); self-review is prohibited')
 		if not allow_self or 'routine' != package['risk'] or 'self_review' != data.get('review_kind'):
 			raise ValueError('This subject requires an independent reviewer; only explicit routine analysis self_review is allowed')
 		from .platforms import adapter
@@ -789,7 +792,7 @@ def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=N
 	existing = load(root_p)['reviews'] if isinstance(data.get('addresses_reviews'), list) and data.get('addresses_reviews') else []
 	addressed_ids, extra_proofs = resolve_addressed_reviews(root_p, data, package, prepared['independent'], existing)
 	proof_paths = prepared['proof_paths'] + extra_proofs
-	report_mode = 'falsifier' if ReviewReportValidator.is_falsifier_report(data) else package.get('review_mode', 'standard')
+	report_mode = 'falsifier' if ReviewReportValidator.is_falsifier_report(data) else 'standard'
 	def change(state):
 		read_package(root_p, prepared['package_path'], state=state)
 		if not any((item.get('id') == review_id for item in state['reviews'])):
@@ -873,7 +876,7 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 	selected = evaluator.select_authorized_group(groups)
 	if None is selected:
 		detail = '; '.join(dict.fromkeys(diagnostics))
-		raise ValueError('Need current answer-bound approved A.A review; significant risk requires two independent reviewers' + (': ' + detail if detail else ''))
+		raise ValueError('Need current answer-bound approved A.A review; significant risk defaults to one independent adversarial falsifier reviewer (or two independent reviewers in standard/escalation mode)' + (': ' + detail if detail else ''))
 	path, package, eligible = selected
 	update_verified_claims_cache(root, package, value)
 	return {'package': path, 'package_sha256': digest(inside(root, path).read_bytes()), 'response_sha256': package['response']['sha256'], 'risk': package['risk'], 'review_ids': [item['id'] for item in eligible]}

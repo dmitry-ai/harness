@@ -152,13 +152,13 @@ Rendering places active risks at the top of the report and synchronizes the mana
 
 Internal agents use `ꘖ/KB` and primary evidence; `Context.md` remains an external export.  
 `prepare-review <project> --parent <UUID> --spec <JSON|-> --response-file <text|->` freezes the current requests, exact response bytes, claim map, KB digests, and Evidence, verifying that all standalone numbers in `response_excerpt` are backed by primary sources.  
-The `risk`/`basis`/`request_scope`/`task_flags`/`claim_ids`/`claims` specification has no default `routine`; see [review.example.json](../skills/upwork-init/references/review.example.json).  
-The tool recomputes the minimum risk category from the types of new claims; significant conclusions require two independent A.A auditors, while a routine restatement requires proven unchanged grounds.  
+The `risk`/`basis`/`request_scope`/`task_flags`/`claim_ids`/`claims` specification has no default `routine` and defaults `significant` packages to `review_mode: "falsifier"`; see the `schema_version: 2` report example in [review.example.json](../skills/upwork-init/references/review.example.json).  
+The tool recomputes the minimum risk category from the types of new claims; significant conclusions default to one adversarial A.A auditor in `review_mode: "falsifier"` (escalating to two independent A.A auditors on `disproved_claims`, `needs_changes`, or prior significant findings), while a routine restatement requires proven unchanged grounds.  
 The auditor receives the package, sources, and response candidate without a desired verdict, one-sided JSON template, or another auditor's report.  
-Across configured environments, the auditor first runs `review-input` to obtain a neutral `report_contract` listing all valid outcomes; in Codex this also binds an encrypted spawn assignment to the package.  
+Across configured environments, the auditor first runs `review-input` to obtain a neutral `report_contract` listing all valid outcomes and exact `package`/`package_sha256`; in Codex this also binds an encrypted spawn assignment to the package.  
 
-The authored schema v2 JSON report covers the five stages, `kb_consistency`, `response`, and every mapped claim; it evaluates the method, alternatives, limitations, ability of the test to falsify the claim, and agreement between raw results and pre-registered criteria (when `outcome: supported`, every standalone number in the claim and `response_excerpt` must be confirmed in `observed` or `tested_claim`).  
-An independent auditor operates strictly read-only inside the current project root and returns this JSON in its final native message; `native-review-proof` is generated after completion and verifies the absence of `prompt_bias_issues` and `reviewer_isolation_issues`.  
+The authored schema v2 JSON report includes `package` and `package_sha256` and covers the five stages, `kb_consistency`, `response`, and either `disproved_claims` (default `review_mode: "falsifier"`) or per-claim `claim_reviews` (`standard` escalation: method, alternatives, limitations, falsification, and raw-vs-criteria alignment, with every standalone number in an approved `supported` claim and `response_excerpt` confirmed in `observed` or `tested_claim`).  
+An independent auditor operates strictly read-only inside the current project root and returns this JSON once in its final native message (duplicating full JSON verdicts via `send_message` is blocked by `REVIEW-4-SEND-MESSAGE-GATE`); `native-review-proof` is generated after completion and verifies the absence of `prompt_bias_issues` and `reviewer_isolation_issues`.  
 `record-review --report <JSON|-> --native-evidence <proof>` matches the JSON against the native final message and writes an immutable record.  
 For a routine `self_review`, specify `review_kind` explicitly with identical `parent` and `reviewer` IDs; self-review is not an independent audit.  
 `needs_changes` and `open` findings persist and block completion; `review-disposition` records parent handling separately without overwriting the auditor's verdict.  
@@ -169,6 +169,7 @@ Detailed fields and commands are in [workflow.md](../skills/upwork-init/referenc
 Codex compares model and effort against the parent's native spawn call; Antigravity checks the parent's native `invoke_subagent` selection against available generation/executor/model configuration metadata.  
 Role mappings and the parent-driven subagent selection policy live in `runtime.json`; metadata inspection never launches models and never backfills unknowns from `runtime.json`.  
 A programmatic receipt does not guarantee substantive truth: A.A evaluates meaning.  
+<!-- https://github.com/dmitry-ai/harness/issues/226 -->  
 
 # Exact Journal and External Export
 

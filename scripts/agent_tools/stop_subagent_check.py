@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -9,7 +12,7 @@ import json
 from pathlib import Path
 import re
 import sqlite3
-_CHILD_MSG_RE = re.compile(r'\[Message\]\s+timestamp=[^\n]*?\bsender=([a-f0-9-]{36})\b', re.I)
+_CHILD_MSG_RE = re.compile(r'\[Message\]\s+timestamp=[^\n]*?\bsender=([a-f0-9-]{36})(?!/)\b', re.I)
 _INVOKE_UUID_RE = re.compile(r'"(?:conversationId|agent_id|subagent_id)"\s*:\s*"([a-f0-9-]{36})"', re.I)
 _LEGACY_DONE_RE = re.compile(r'<SYSTEM_MESSAGE>.*\bSubagent\b.*\bcompleted\b', re.S)
 _OPTIONAL_COLS = (('status', "''"), ('not_fully_idle', '0'), ('killed', '0'), ('last_modified_time', "''"))
@@ -26,6 +29,9 @@ def _apply_call(segment: list[dict], pos: int, row: dict, call: dict, state: dic
 		recip = str(args.get('Recipient') or '').strip().lower()
 		if _UUID_RE.fullmatch(recip):
 			state['spawned_uuids'].add(recip)
+			state['completed_uuids'].discard(recip)
+			state['killed_all'] = False
+			state['spawned'] += 1
 def _collect_invoke_outputs(segment: list[dict], pos: int) -> set[str]:
 	found: set[str] = set()
 	for nxt in segment[pos + 1:]:
@@ -71,6 +77,9 @@ def _is_row_running(row: dict) -> bool:
 		not_idle = 0 != int(row.get('not_fully_idle') or 0)
 		r = not_idle or (bool(status) and status not in _TERMINAL_STATUSES)
 	return r
+def _live_running_db_children(conversations_db: Path | None, session_id: str, killed_uuids: set[str]) -> list[str]:
+	db_rows = _query_summary_children(conversations_db, session_id) if session_id else None
+	return sorted({row['conversation_id'] for row in (db_rows or ()) if row['conversation_id'] not in killed_uuids and _is_row_running(row)})
 def _norm_ts(value) -> str:
 	raw = str(value or '').strip()
 	return raw.replace('T', ' ').rstrip('Z')[:19] if 19 <= len(raw) else ''
@@ -157,10 +166,12 @@ def evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: 
 		state = extract_segment_subagent_state(_read_turn_segment(t_path))
 		cond = str(args.get('TimerCondition') or '').strip().lower()
 		sid = str(payload.get('conversationId') or payload.get('conversation_id') or '').strip()
+		db_path = _find_summary_db(t_path)
+		live_running = _live_running_db_children(db_path, sid, state['killed_uuids'])
 		if cond and cond in state['spawned_uuids']:
 			r = f'EXEC-4-SCHEDULE-GATE: Do not attach a schedule timer to invoke_subagent worker "{cond}"; invoke_subagent already delivers reactive completion notifications.'
-		elif has_running_subagents(state, sid, _find_summary_db(t_path)):
-			pending = sorted(state['spawned_uuids'] - state['completed_uuids'] - state['killed_uuids'])
+		elif live_running or has_running_subagents(state, sid, db_path):
+			pending = live_running or sorted(state['spawned_uuids'] - state['completed_uuids'] - state['killed_uuids'])
 			label = ', '.join(pending) if pending else f"{state['spawned']} active"
 			r = f'EXEC-4-SCHEDULE-GATE: Active invoke_subagent worker(s) ({label}) already deliver reactive completion notifications; do not attach a one-shot schedule timer over active subagents.'
 	return r

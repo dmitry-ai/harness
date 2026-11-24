@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -52,4 +55,13 @@ def envelope_issues(data: dict, package: dict, *, review_schema: int, scopes: tu
 		r.append('Review must cover the required subject scope: ' + ', '.join(required_scope))
 	if require_envelope or ('package' in data) or ('package_sha256' in data):
 		r.extend(_package_envelope_issues(data, package))
+	return r
+def resolve_package_review_mode(spec: object, package: dict, evaluator) -> str | None:
+	if isinstance(spec, dict) and spec.get('review_mode') in ('standard', 'falsifier'):
+		r: str | None = spec['review_mode']
+	elif 'significant' == package.get('risk'):
+		has_esc = evaluator.significant_findings(package['subject_sha256']) or any(('approved' != item.get('result') for item in evaluator.latest_for_subject(package).values()))
+		r = 'standard' if has_esc else 'falsifier'
+	else:
+		r = None
 	return r
