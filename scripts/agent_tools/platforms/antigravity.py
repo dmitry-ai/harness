@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
 # https://github.com/dmitry-ai/harness/issues/166
@@ -791,12 +794,12 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 	exact_matches = [m for m in matches if m[2]]
 	selected_match = exact_matches[-1] if exact_matches else matches[-1]
 	invocation, invocation_sub = (selected_match[0], selected_match[1])
-	raw_model = invocation_sub.get('Model')
-	requested_model = raw_model.strip() if isinstance(raw_model, str) and raw_model.strip() else 'inherit'
+	requested_model = invocation_sub['Model'].strip() if isinstance(invocation_sub.get('Model'), str) and invocation_sub['Model'].strip() else 'inherit'
 	is_inherit = 'inherit' == requested_model.lower()
 	resolved_inst = paths['instance'] or instance
 	def _extra():
-		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=[(item.get('step_index', index), item['content']) for index, item in enumerate(parent_inputs) if 'USER_INPUT' == item.get('type') and isinstance(item.get('content'), str)], until=invocation)
+		from .antigravity_review_helpers import resolve_parent_binding_inputs
+		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=resolve_parent_binding_inputs(backend, parent_id, parent_inputs, paths=paths, native_inputs_fn=_native_inputs, extract_transcript_fn=_extract_transcript_user_input), until=invocation)
 		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation, paths=paths), _query_step_model_ids(backend, reviewer_id, paths=paths))
 		if is_inherit and parent_models and child_models and (not child_models.issubset(parent_models)):
 			raise ValueError('Observed reviewer model differs from the inherited A.A model')

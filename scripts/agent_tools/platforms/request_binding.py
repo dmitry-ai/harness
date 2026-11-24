@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
@@ -84,8 +87,33 @@ _UPWORK_JOB_URL_RE = re.compile('https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)
 _LEADING_CMD_RE = re.compile('^\\s*(?:/|\\$)upwork-init\\s+(https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]]))', re.I)
 _LEADING_NATIVE_CMD_RE = re.compile('^\\s*(?:(?:/|\\$)?upwork-init\\s+)?(https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]]))', re.I)
 _SLASH_LINK_HREF_RE = re.compile('^slashcommand;/?upwork-init$', re.I)
+_USER_REQUEST_WRAPPER_RE = re.compile('^\\s*<USER_REQUEST>\\r?\\n([\\s\\S]*?)\\r?\\n</USER_REQUEST>(?:\\s*(?:<(?:ADDITIONAL_METADATA|USER_SETTINGS_CHANGE|SYSTEM_MESSAGE)>[\\s\\S]*)?)?\\s*$')
+def _slash_link_upwork_ids(line_children, idx):
+	depth = 1
+	idx += 1
+	while idx < len(line_children) and 0 < depth:
+		if 'link_open' == line_children[idx].type:
+			depth += 1
+		elif 'link_close' == line_children[idx].type:
+			depth -= 1
+		idx += 1
+	rest_parts = []
+	for child in line_children[idx:]:
+		if 'code_inline' == child.type:
+			break
+		if 'text' == child.type:
+			rest_parts.append(child.content or '')
+	m_rest = re.match('^\\s+(https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]]))', ''.join(rest_parts))
+	return ['~' + m_rest.group(2)] if m_rest else []
+def _strip_user_request_wrapper(text):
+	r = ''
+	if isinstance(text, str) and text.strip():
+		m_wrap = _USER_REQUEST_WRAPPER_RE.match(text)
+		r = m_wrap.group(1) if m_wrap else text
+	return r
 def _extract_leading_upwork_init_ids(text, *, meta=None):
-	if not isinstance(text, str) or not text.strip():
+	text = _strip_user_request_wrapper(text)
+	if not text.strip():
 		return []
 	m_claude = _CLAUDE_CMD_RE.match(text)
 	if m_claude:
@@ -114,22 +142,7 @@ def _extract_leading_upwork_init_ids(text, *, meta=None):
 		return []
 	first = line_children[idx]
 	if 'link_open' == first.type and _SLASH_LINK_HREF_RE.fullmatch(str(first.attrGet('href') or '').strip()):
-		depth = 1
-		idx += 1
-		while idx < len(line_children) and 0 < depth:
-			if 'link_open' == line_children[idx].type:
-				depth += 1
-			elif 'link_close' == line_children[idx].type:
-				depth -= 1
-			idx += 1
-		rest_parts = []
-		for child in line_children[idx:]:
-			if 'code_inline' == child.type:
-				break
-			if 'text' == child.type:
-				rest_parts.append(child.content or '')
-		m_rest = re.match('^\\s+(https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]]))', ''.join(rest_parts))
-		return ['~' + m_rest.group(2)] if m_rest else []
+		return _slash_link_upwork_ids(line_children, idx)
 	if 'text' != first.type:
 		return []
 	parts = []
