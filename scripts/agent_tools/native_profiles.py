@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
+# https://github.com/dmitry-ai/harness/issues/217
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Manage Harness ephemeral Git exclusions in install-global and doctor":
 # https://github.com/dmitry-ai/harness/issues/198
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -129,7 +132,7 @@ def shared_native_outputs(primary=PRIMARY):
 			af_cfg = ag_roles['AF']
 			ag_parent = 'parent' == (ag_cfg.get('subagents') or {}).get('selection') or af_cfg.get('selection') in ('parent', 'inherit')
 			model_line = '' if ag_parent or not af_cfg.get('tier') else f'model: {af_cfg["tier"]}\n'
-			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\n{model_line}subagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(canon / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the parent agent selects the model per task complexity, and the requested selection does not prove the actual runtime model.  \n'
+			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\n{model_line}subagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(canon / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the parent agent selects the model per task complexity, and the requested selection does not prove the actual runtime model.  \nUse `harness.py extract` and `harness.py evidence-query` on saved captures instead of reading raw HTML/JSON bodies into context, write structured findings to the assigned output path (default `\ua616/KB/Evidence/<question>-extract.json`), and return only that file path plus a compact summary of verified facts, quotes, and gaps.  \n<!-- https://github.com/dmitry-ai/harness/issues/217 -->  \n'
 	if 'codex' in plats:
 		bootstrap = canon / 'platforms/codex/AGENTS.md'
 		r[primary / 'platforms/codex/AGENTS.md'] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(canon) + '\n'

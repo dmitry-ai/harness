@@ -86,6 +86,13 @@ class SchemaHelpAndAnalysisMergeM10Tests(unittest.TestCase):
 			self.assertTrue(res['minimal_example'])
 			txt = format_schema_help_text(res)
 			self.assertIn(topic, txt.lower())
+	def test_shared_native_outputs_af_worker_includes_file_handoff_contract(self) -> None:
+		from agent_tools.native_profiles import shared_native_outputs
+		outputs = shared_native_outputs(WT_ROOT)
+		af_text = outputs[WT_ROOT / 'agents/af-worker.md']
+		self.assertIn('evidence-query', af_text)
+		self.assertIn('<question>-extract.json', af_text)
+		self.assertIn('issues/217', af_text)
 	def test_validators_emit_actionable_hints(self) -> None:
 		bad_analysis = {'schema_version': 3, 'facts': [], 'identity': [{'id': 'H-1', 'essence': 'X', 'assessment_basis': 'B', 'knowledge_type': 'hypothesis', 'verification_status': 'limited', 'scope': {}, 'properties': ['content'], 'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive', 'derived_from': [], 'evidence': [], 'missing_checks': [], 'impact': {'severity': 'unknown', 'basis': 'B', 'evidence_claim_ids': []}, 'for': [{'argument': 'A'}], 'against': [], 'counterevidence': {'status': 'unavailable', 'reviewed_sources': ['x'], 'limitations': 'L'}, 'probability_percent': 50}], 'concerns': [], 'misconceptions': [], 'causes': [], 'methods': [], 'notes': {}}
 		issues = contract_issues(bad_analysis)
