@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
+# https://github.com/dmitry-ai/harness/issues/217
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -122,10 +125,15 @@ def _op_review_input(args):
 	from . import workflow as flow
 	return flow.review_input(args.project, args.package)
 def _op_save_analysis(args):
-	from .analysis import save_analysis
 	from .research import inside
 	cand = args.candidate if '-' == str(args.candidate) else inside(args.project, args.candidate)
-	return _load_consumed(args, cand, lambda data: save_analysis(args.project, data, args.expected_sha256))
+	if getattr(args, 'merge', False) or getattr(args, 'partial', False):
+		from .analysis_merge import save_merged_analysis
+		r = _load_consumed(args, cand, lambda data: save_merged_analysis(args.project, data, args.expected_sha256, partial=bool(getattr(args, 'partial', False))))
+	else:
+		from .analysis import save_analysis
+		r = _load_consumed(args, cand, lambda data: save_analysis(args.project, data, args.expected_sha256))
+	return r
 def _op_source_ref(args):
 	from .evidence import source_reference
 	return {'source': source_reference(args.project, args.file, args.part)}

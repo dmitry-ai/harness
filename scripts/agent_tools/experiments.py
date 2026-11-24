@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
+# https://github.com/dmitry-ai/harness/issues/217
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -814,29 +817,11 @@ def requirement_issues(requirements):
 				issues.append(label + ': scope.objects must identify the exact sampled objects')
 			if not isinstance(requirement.get('conditions'), dict):
 				issues.append(label + ': explicit conditions object required')
-			assertions = requirement.get('assertions', [])
-			if not isinstance(assertions, list):
-				issues.append(label + ': assertions must be a list')
-				continue
-			assertion_ids = set()
-			for assertion in assertions:
-				if not isinstance(assertion, dict):
-					issues.append(label + ': deterministic assertion object required')
-					continue
-				if not _text(assertion.get('id')) or assertion.get('id') in assertion_ids:
-					issues.append(label + ': assertion needs a unique id')
-				if isinstance(assertion.get('id'), str):
-					assertion_ids.add(assertion['id'])
-				if bool(_text(assertion.get('artifact_id'))) == bool(_text(assertion.get('artifact_role'))):
-					issues.append(label + ': assertion prebinds exactly one logical artifact ID or role')
-				locator = assertion.get('locator', {})
-				if not isinstance(locator, dict) or locator.get('type') not in ('json_pointer', 'text') or (not isinstance(locator.get('value'), str)) or ('json_pointer' == locator.get('type') and locator['value'] and (not locator['value'].startswith('/'))):
-					issues.append(label + ': assertion needs an exact JSON pointer or text locator')
-				for comparison in (assertion, assertion.get('disconfirming', {})):
-					if not isinstance(comparison, dict) or comparison.get('operator') not in OPERATORS or 'expected' not in comparison or isinstance(comparison.get('expected'), (dict, list)):
-						issues.append(label + ': explicit positive and disconfirming deterministic comparisons required')
+			from .schema_help import requirement_assertion_issues
+			issues.extend(requirement_assertion_issues(label, requirement, OPERATORS))
 		r = issues
-	return r
+	from .schema_help import annotate_experiment_issues
+	return annotate_experiment_issues(r)
 def result_issues(root, requirement, result):
 	if not isinstance(result, dict):
 		r = ['Property result object required']

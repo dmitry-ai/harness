@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
+# https://github.com/dmitry-ai/harness/issues/217
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -81,7 +84,7 @@ _PROJECT_SPECS = {
 	'resume': (('--reason', {'required': True}), ('--request-file', {'type': Path, 'help': 'Exact current user message; kept in service state until final journal'})),
 	'review-disposition': (('--review-id', {'required': True}), ('--finding-id', {'required': True}), ('--status', {'choices': ('resolved', 'rejected'), 'required': True}), ('--basis', {'required': True}), ('--evidence', {'action': 'append', 'required': True}), ('--parent', {'required': True})),
 	'review-input': (('--package', {'required': True}),),
-	'save-analysis': (('--candidate', {'required': True}), ('--expected-sha256', {})),
+	'save-analysis': (('--candidate', {'required': True}), ('--expected-sha256', {}), ('--merge', {'action': 'store_true', 'help': 'Deep-merge candidate patch into existing Analysis.json or analysis-draft.json'}), ('--partial', {'action': 'store_true', 'help': 'Validate supplied claims and stage merged draft in \ua616/data/analysis-draft.json without committing Analysis.json'})),
 	'source-ref': (('file', {}), ('--part', {'action': 'append', 'default': []})),
 	'sync-attachments': (('--media-descriptions', {'type': Path, 'help': 'Optional JSON mapping attachment filename/sha256/video URL to Markdown transcription/analysis'}), ('--no-fetch-videos', {'action': 'store_true', 'help': 'Skip network fetching for external video transcripts'})),
 	'unadopt-requests': (('--conversation', {}), ('--request-id', {'action': 'append', 'default': [], 'help': 'Specific request ID(s) to unadopt'})),

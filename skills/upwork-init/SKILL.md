@@ -115,8 +115,8 @@ After three empty searches on the same question, record the gap or justify a met
 Execute all five stages: client/website identification, client concerns, misconceptions, causes in the client's system, and solution methods.  
 Maintain F/H/M claims, stable IDs, concrete arguments for/against, score bases, and links; never invent causes, misconceptions, or counterevidence.  
 Record new verified findings and corrections in the agent KB immediately, checking dependent claims and topical modules for consistency.  
-Structure and examples are in [README-agent-tools.md](../../scripts/README-agent-tools.md) and [analysis.example.json](references/analysis.example.json).  
-Write the candidate in `ꘖ/data` and publish via `save-analysis` with the expected SHA-256 of the current JSON; `render-analysis` then updates Markdown while preserving history and manual edits.  
+Structure and examples are in [README-agent-tools.md](../../scripts/README-agent-tools.md), [analysis.example.json](references/analysis.example.json), and `harness.py schema-help <analysis|experiment|review>`.  
+Write the candidate in `ꘖ/data` and publish via `save-analysis` (or incrementally via `save-analysis --merge --partial` into `ꘖ/data/analysis-draft.json` followed by `save-analysis --merge`) with the expected SHA-256 of the current JSON; `render-analysis` then updates Markdown while preserving history and manual edits.  
 Run formal validations via `validate-analysis ... --format json --evidence` and `check-project <project>`; passing them does not prove substantive truth.  
 For documentation links, provide a verified `#anchor` or a recorded `anchor_exception` (section title, quote, and observation) per LINK-2.  
 
@@ -143,3 +143,4 @@ Build the external `Ⰿ/≻/♙/Context/output/Context.md` (legacy `ꙮ/0/Contex
 `stage ... finalize` requires a current A.A substantive review (plus independent reviews when required), a consistent KB, a complete journal, an empty `ꘖ/data/scratch` directory, and no one-off scripts in the project; it certifies file and response readiness rather than confirmed UI message delivery.  
 Delete only your own temporary scratch files after verifying permanent copies (`--consume-input`); preserve snapshots, material screenshots, and primary evidence.  
 <!-- https://github.com/dmitry-ai/harness/issues/215 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/217 -->  

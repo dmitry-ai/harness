@@ -135,12 +135,16 @@ Exact quote matching is the default; `quote_match: whitespace` permits normalizi
 Citing documentation without an `#anchor` requires `anchor_exception` (`section` + `observation`), which verifies that the section exists, lacks a suitable anchor, and contains the quote.  
 
 ```text
-python <tool> save-analysis <project> --candidate - --expected-sha256 <current-hash-from-status>
+python <tool> schema-help <analysis|experiment|review> [--format text]
+python <tool> save-analysis <project> --candidate <part.json> --merge --partial
+python <tool> save-analysis <project> --candidate - [--merge] [--expected-sha256 <current-hash-from-status>]
 python <tool> render-analysis <project>/ꘖ/KB/Analysis.json
 python <tool> validate-analysis <project>/ꘖ/KB/Analysis.json --format json --evidence
 python <tool> check-project <project>
 ```
 
+Use `schema-help` to inspect required fields, enums, and minimal examples without reading full Python validator source files; use `save-analysis --merge --partial` to validate and stage sections incrementally in `ꘖ/data/analysis-draft.json` before final commit via `save-analysis --merge`.  
+When delegating extraction to `af-worker`, require it to query saved captures via `extract`/`evidence-query`, write structured findings to `ꘖ/KB/Evidence/<question>-extract.json`, and return only the output path and a compact summary.  
 Omit `--expected-sha256` only when creating `Analysis.json` for the first time; updating an existing file requires its current hash.  
 History of both JSON and rendered Markdown versions is preserved; external edits produce a saved candidate and conflict rather than an unconditional overwrite.  
 Keep incomplete working notes in `ꘖ/data` with an explicit status; they never substitute for a finalized analysis.  
@@ -262,3 +266,4 @@ Duplicate exports of the same step are deduplicated; missing token fields remain
 Token counts do not equal quota percentages or billing currency; quality is judged by evidence completeness, reviewer findings, and their resolution.  
 <!-- https://github.com/dmitry-ai/harness/issues/109 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/215 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/217 -->  

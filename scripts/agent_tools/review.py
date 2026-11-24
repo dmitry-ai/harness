@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
+# https://github.com/dmitry-ai/harness/issues/217
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -416,7 +419,8 @@ class ReviewReportValidator:
 				self.source_reviewer(data, self.package)
 			except (OSError, ValueError, KeyError, TypeError) as exc:
 				r.append(str(exc))
-		return r
+		from .schema_help import annotate_review_issues
+		return annotate_review_issues(r)
 def digest(payload):
 	return hashlib.sha256(payload).hexdigest()
 def findings_closed(root, entry):
@@ -698,11 +702,9 @@ def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evide
 def quorum_satisfied(root, state, package, latest, eligible, *, allow_falsifier_or_cached=True) -> bool:
 	return ReviewQuorumEvaluator(root, state).quorum_satisfied(package, latest, eligible, allow_falsifier_or_cached=allow_falsifier_or_cached)
 def subject_digest(package):
-	if 'client_text' != package.get('kind'):
-		r = digest(json_data({k: package[k] for k in ('project_root', 'job_id', 'requests', 'response', 'kb_inputs', 'evidence_inputs')}))
-	else:
-		r = digest(json_data({k: package[k] for k in ('project_root', 'job_id', 'requests', 'target', 'kb_inputs', 'evidence_inputs')} | {'response_sha256': package['response']['sha256'], 'baseline_sha256': package['baseline']['sha256']}))
-	return r
+	fields = ('project_root', 'job_id', 'requests', 'response', 'kb_inputs', 'evidence_inputs') if 'client_text' != package.get('kind') else ('project_root', 'job_id', 'requests', 'target', 'kb_inputs', 'evidence_inputs')
+	extra = {} if 'client_text' != package.get('kind') else {'response_sha256': package['response']['sha256'], 'baseline_sha256': package['baseline']['sha256']}
+	return digest(json_data({k: package[k] for k in fields} | extra))
 def significant_findings(root, state, subject):
 	return ReviewQuorumEvaluator(root, state).significant_findings(subject)
 def read_package(root, package, *, state=None, require_current=True):
