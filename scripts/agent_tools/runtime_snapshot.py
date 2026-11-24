@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
 from __future__ import annotations
@@ -45,6 +48,11 @@ _VALIDATION_PROBE = (
 	"\tpr = importlib.import_module('agent_tools.path_registry')\n"
 	'\tif pr._CODE_ANCHOR.resolve() != canon:\n'
 	"\t\traise SystemExit(f'anchor mismatch: {pr._CODE_ANCHOR} != {canon}')\n"
+	"if (sdir / 'agent_tools/python_integrity.py').is_file():\n"
+	"\tpi = importlib.import_module('agent_tools.python_integrity')\n"
+	'\tpi_errs = pi.verify_directory_python_integrity(sdir)\n'
+	'\tif pi_errs:\n'
+	"\t\traise SystemExit('; '.join(pi_errs[:5]))\n"
 )
 def _activate_release(prim_p: Path, store: Path, staging: Path, sha: str, *, keep: int, configure_repo_hooks: bool) -> dict:
 	releases_dir = store / 'releases'

@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -92,14 +95,19 @@ def _parse_worktree_porcelain(text: str) -> list[dict]:
 		entries.append(cur)
 	return entries
 def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
+	from .python_integrity import verify_worktree_python_changes
 	reb = _git_exec(wt_path, 'rebase', target_branch)
 	if 0 != reb.returncode:
 		_git_exec(wt_path, 'rebase', '--abort')
 		r = (_fail_land(main_repo, wt_path, branch, 'rebase', reb.stderr.strip() or reb.stdout.strip()), 0, None)
 	else:
-		ok_tests, test_runs, test_res = _run_land_tests(wt_path, run_tests=run_tests, workers=workers)
-		err = None if ok_tests else _fail_land(main_repo, wt_path, branch, 'tests', 'Full test suite failed on rebased worktree', test_runs=test_runs, test_result=test_res)
-		r = (err, test_runs, test_res)
+		py_errs = verify_worktree_python_changes(wt_path, target_branch)
+		if py_errs:
+			r = (_fail_land(main_repo, wt_path, branch, 'python_integrity', '; '.join(py_errs[:5])), 0, None)
+		else:
+			ok_tests, test_runs, test_res = _run_land_tests(wt_path, run_tests=run_tests, workers=workers)
+			err = None if ok_tests else _fail_land(main_repo, wt_path, branch, 'tests', 'Full test suite failed on rebased worktree', test_runs=test_runs, test_result=test_res)
+			r = (err, test_runs, test_res)
 	return r
 def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
 	r = None

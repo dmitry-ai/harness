@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate per-conversation github_issues recording and turn-state filtering":
 # https://github.com/dmitry-ai/harness/issues/195
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -103,10 +106,12 @@ class TurnIssueLifecycleAuditor:
 				self._flag_unclosed_completed_parents(code_repo, slug, parent_nums)
 			verify_multi_subtask_counts(impl_m_roots, per_repo, total_child_urls, self.violations)
 	def _check_repo_commits_and_files(self, code_repo: Path, rel_paths: list[str], required_issues: set[str]) -> set[str]:
+		from ..python_integrity import verify_touched_python_files
 		committed_urls: set[str] = set()
 		if rel_paths:
 			if self.git_cache.has_dirty_for_paths(code_repo, rel_paths):
 				self.violations.append(f'Modified files in {code_repo} are not committed: {", ".join(rel_paths)}')
+			self.violations.extend(verify_touched_python_files(code_repo, rel_paths))
 			for rel in rel_paths:
 				self._inspect_touched_code_file(code_repo, rel, required_issues, committed_urls)
 			existing_rels = [rel for rel in rel_paths if (code_repo / rel).exists()]

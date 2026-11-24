@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
 # https://github.com/dmitry-ai/harness/issues/161
@@ -6,6 +9,7 @@ import ast
 import io
 from pathlib import Path
 import tokenize
+from .python_integrity import check_python_integrity
 from .shell_audit import normalize_host_path
 from .tdd_gate import _compute_edited_content, _git_head_text, _git_index_text, is_test_file
 PROD_FILE_SLOC_LIMIT = 300
@@ -109,6 +113,14 @@ def _is_constant_expr(node: ast.AST) -> bool:
 	else:
 		r = False
 	return r
+def _is_legacy_oversized_baseline(path: str | Path, baseline_source: str | None) -> bool:
+	r = False
+	if None is not baseline_source:
+		base = analyze_python_source(baseline_source)
+		if None is base['syntax_error']:
+			file_lim, func_lim, mccabe_lim = _limits_for_path(path)
+			r = base['file_sloc'] > file_lim or any((f['sloc'] > func_lim or f['mccabe'] > mccabe_lim for f in base['functions'].values()))
+	return r
 def _iter_functions(node: ast.AST, prefix: str='') -> list[tuple[str, ast.AST]]:
 	out: list[tuple[str, ast.AST]] = []
 	for child in ast.iter_child_nodes(node):
@@ -158,13 +170,13 @@ def analyze_python_source(source: str) -> dict:
 	return r
 def check_python_size_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	cur = analyze_python_source(source)
+	rel_label = Path(path).as_posix()
 	if cur['syntax_error']:
-		r = []
+		r = [f'CODE-4: Python syntax error in {rel_label}: {cur["syntax_error"]}']
 	else:
 		raw_base = analyze_python_source(baseline_source) if None is not baseline_source else None
 		base = raw_base if (None is not raw_base and None is raw_base['syntax_error']) else None
 		file_lim, func_lim, mccabe_lim = _limits_for_path(path)
-		rel_label = Path(path).as_posix()
 		errs = _check_file_and_semis(rel_label, cur, base, file_lim)
 		errs.extend(_check_function_limits(rel_label, cur['functions'], base['functions'] if base else {}, func_lim, mccabe_lim))
 		r = errs
@@ -177,8 +189,12 @@ def evaluate_pre_tool_use_code_size(name: str, args: dict, payload: dict) -> str
 			repo_root, target, rel = resolved
 			_, new_text, _, _ = _compute_edited_content(name, args, target)
 			if None is not new_text:
-				errs = check_python_size_violations(rel, new_text, baseline_source=_git_head_text(repo_root, rel))
-				r = '; '.join(errs[:3]) if errs else None
+				base_text = _git_head_text(repo_root, rel)
+				if 'edit_file' != name or (not _is_legacy_oversized_baseline(rel, base_text)):
+					errs = check_python_size_violations(rel, new_text, baseline_source=base_text)
+					if 'write_file' == name and (not errs):
+						errs.extend(check_python_integrity(rel, new_text))
+					r = '; '.join(errs[:3]) if errs else None
 	return r
 def verify_staged_code_size_ratchet(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	repo = Path(repo_root).resolve()
@@ -189,5 +205,8 @@ def verify_staged_code_size_ratchet(repo_root: Path, staged_paths: list[str], *,
 		fpath = repo / rel
 		text = _git_index_text(repo, rel) if use_index else (fpath.read_text(encoding='utf-8', errors='replace') if fpath.is_file() else None)
 		if None is not text:
-			violations.extend(check_python_size_violations(rel, text, baseline_source=_git_head_text(repo, rel)))
+			size_errs = check_python_size_violations(rel, text, baseline_source=_git_head_text(repo, rel))
+			violations.extend(size_errs)
+			if not any(('syntax' in e.lower() for e in size_errs)):
+				violations.extend(check_python_integrity(rel, text))
 	return violations
