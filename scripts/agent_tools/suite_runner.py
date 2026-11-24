@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
 # https://github.com/dmitry-ai/harness/issues/204
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -17,6 +20,7 @@ import sys
 import tempfile
 import threading
 import time
+from .process_tree import POPEN_TREE_KWARGS, kill_process_tree
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _RAN_RE = re.compile(r'(?m)^Ran\s+(\d+)\s+tests?\s+in\s+')
 _SKIP_DIRS = frozenset({'.git', '__pycache__', 'node_modules', 'venv', '.venv', '\ua616', '\ua66e', '\U0001f56e'})
@@ -24,17 +28,7 @@ _SKIPPED_RE = re.compile(r'\bskipped=(\d+)\b')
 def _default_workers() -> int:
 	return min(max(2, (os.cpu_count() or 4) // 2), 8)
 def _kill_process_tree(proc: subprocess.Popen) -> None:
-	if None is proc.poll():
-		if 'nt' == os.name:
-			subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, check=False, timeout=15, creationflags=_NO_WINDOW)
-		try:
-			proc.kill()
-		except OSError:
-			pass
-		try:
-			proc.wait(timeout=5)
-		except (OSError, subprocess.TimeoutExpired):
-			pass
+	kill_process_tree(proc)
 def _module_matches_filters(mod: Path, base_dir: Path, filters: list[str]) -> bool:
 	rel = mod.relative_to(base_dir).as_posix().lower()
 	name = mod.name.lower()
@@ -63,7 +57,7 @@ def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_
 		started = time.monotonic()
 		timed_out, cancelled = (False, False)
 		with tempfile.TemporaryFile() as out_file:
-			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdin=subprocess.DEVNULL, stdout=out_file, stderr=subprocess.STDOUT, env={'HARNESS_TEST_NO_FSYNC': '1', **os.environ}, creationflags=_NO_WINDOW)
+			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdin=subprocess.DEVNULL, stdout=out_file, stderr=subprocess.STDOUT, env={'HARNESS_TEST_NO_FSYNC': '1', **os.environ}, **POPEN_TREE_KWARGS)
 			with active_lock:
 				active_procs.add(proc)
 			try:

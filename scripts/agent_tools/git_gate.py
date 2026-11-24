@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
 # https://github.com/dmitry-ai/harness/issues/204
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -74,6 +77,7 @@ import uuid
 from .links import validate_file
 from .path_registry import project_paths, tool_list, tool_path
 from .shell_audit import READ_SUBCOMMANDS, ShellCommandInspector, _COMMIT_MESSAGE_ISSUE_URL_RE, _CYGDRIVE_RE, _GITHUB_ISSUE_URL_RE, _ISSUE_LINKED_CODE_SUFFIXES, _VALUE_GLOBAL_OPTS, _iter_shell_git_segments, _parse_commit_subcommand_args, _scan_git_global_opts, _split_shell_segments, _unquote, classify_git_argv, extract_comment_issue_urls, extract_issue_actions_from_outputs, extract_issue_urls, is_code_file, normalize_commit_message, normalize_host_path, parse_issue_url, prohibited_git_write_commands, unflagged_git_read_commands, unpersisted_http_fetch_commands
+from .subprocess_hygiene_gate import run_staged_gate
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 HOOKS_DIR = tool_path('git_hooks_dir')
 GITHUB_MAX_BLOB_BYTES = 100 * 1024 * 1024
@@ -294,18 +298,16 @@ class GitRepoGate:
 		self.verify_issue_workflow(relative, message=message, agent_context=True)
 		self.verify_tdd_commit(relative, message=message, agent_context=True, use_index=use_index)
 		self.verify_code_size_ratchet(relative, agent_context=True, use_index=use_index)
+		self.verify_subprocess_hygiene(relative, agent_context=True, use_index=use_index)
 	def verify_code_size_ratchet(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
-			from .code_size_gate import verify_staged_code_size_ratchet
-			violations = verify_staged_code_size_ratchet(self.root, relative, use_index=use_index)
-			if violations:
-				raise ValueError('; '.join(violations))
+			run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)
+	def verify_subprocess_hygiene(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
+		if agent_context and relative:
+			run_staged_gate('subprocess_hygiene_gate', 'verify_staged_subprocess_hygiene', self.root, relative, use_index=use_index)
 	def verify_tdd_commit(self, relative: list[str], message: str | None=None, *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
-			from .tdd_gate import verify_staged_tdd_diff
-			violations = verify_staged_tdd_diff(self.root, relative, message=message, project_root=self._tdd_project_root(), use_index=use_index)
-			if violations:
-				raise ValueError('; '.join(violations))
+			run_staged_gate('tdd_gate', 'verify_staged_tdd_diff', self.root, relative, message=message, project_root=self._tdd_project_root(), use_index=use_index)
 	def verify_issue_workflow(self, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 		if agent_context:
 			stripped_msg = None

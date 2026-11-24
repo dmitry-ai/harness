@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
 # https://github.com/dmitry-ai/harness/issues/204
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -17,6 +20,7 @@ import subprocess
 import sys
 import threading
 import time
+from .process_tree import POPEN_TREE_KWARGS, kill_process_tree
 from .storage import replace_bytes
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _RAN_RE = re.compile(r'(?m)^Ran\s+(\d+)\s+tests?\s+in\s+')
@@ -28,17 +32,15 @@ def _build_worker_cmd(module: Path, *, failfast: bool, buffer_output: bool) -> l
 		cmd.append('-b')
 	cmd.append(module.stem)
 	return cmd
-def _kill_proc_tree(proc: subprocess.Popen) -> None:
-	try:
-		if None is proc.poll():
-			proc.terminate()
+def _close_proc_pipes(proc: subprocess.Popen) -> None:
+	for stream in (proc.stdout, proc.stderr):
+		if None is not stream:
 			try:
-				proc.wait(timeout=0.5)
-			except subprocess.TimeoutExpired:
-				proc.kill()
-				proc.wait(timeout=2.0)
-	except OSError:
-		pass
+				stream.close()
+			except OSError:
+				pass
+def _kill_proc_tree(proc: subprocess.Popen) -> None:
+	kill_process_tree(proc)
 def _load_timings(cache_path: Path | None) -> dict[str, float]:
 	r: dict[str, float] = {}
 	if None is not cache_path and cache_path.is_file():
@@ -71,6 +73,7 @@ def _read_proc_output(proc: subprocess.Popen) -> str:
 		out, err = proc.communicate(timeout=2.0)
 	except (OSError, subprocess.TimeoutExpired):
 		_kill_proc_tree(proc)
+		_close_proc_pipes(proc)
 		out, err = ('', '')
 	parts = [p for p in (out, err) if p]
 	return '\n'.join(parts)
@@ -81,7 +84,7 @@ def _run_single_module(module: Path, tests_dir: Path, *, failfast: bool, buffer_
 	else:
 		cmd = _build_worker_cmd(module, failfast=failfast, buffer_output=buffer_output)
 		env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'PYTHONUTF8': '1', 'GIT_OPTIONAL_LOCKS': '0'}
-		proc = subprocess.Popen(cmd, cwd=str(tests_dir), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, creationflags=_NO_WINDOW)
+		proc = subprocess.Popen(cmd, cwd=str(tests_dir), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, **POPEN_TREE_KWARGS)
 		with active_lock:
 			active_procs.add(proc)
 		try:
