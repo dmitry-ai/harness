@@ -87,16 +87,15 @@ def _validate_runtime(value):
 			raise ValueError(f'runtime.json platforms.{plat_id}.homes must map profile names to home directories')
 		if 'homes' in plat_cfg and 'instances' in plat_cfg:
 			raise ValueError(f'runtime.json platforms.{plat_id} cannot define both instances and legacy homes')
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 def settings(path=None):
+	from .runtime_cache import load_cached_settings
 	runtime_file = Path(path) if None is not path else default_runtime_file(PRIMARY, _CODE_ANCHOR, DEFAULT_REGISTRY_FILE)
-	raw = json.loads(runtime_file.read_text(encoding='utf-8-sig'))
-	reg_rel = raw.get('paths_registry') if isinstance(raw, dict) else None
-	reg_cand = runtime_file.parent / reg_rel if isinstance(reg_rel, str) and reg_rel.strip() else runtime_file.parent / 'paths.json'
-	reg = load_registry(reg_cand if reg_cand.is_file() else None, primary=runtime_file.parent if (runtime_file.parent / 'rules').is_dir() else None)
-	value = reg.expand_data(raw)
-	_validate_runtime(value)
-	r = value
-	return r
+	return load_cached_settings(runtime_file, _validate_runtime)
+_UNPATCHED_SETTINGS = settings
+from .runtime_cache import skip_shell_violations
 def platform_adapter_name(platform, plat_cfg=None, *, config=None):
 	if None is plat_cfg:
 		plat_cfg = (config or settings()).get('platforms', {}).get(platform) or {}
@@ -682,24 +681,6 @@ def default_user_locale(config=None) -> str | None:
 	val = (cfg_all or {}).get('user_default_locale')
 	return val.strip() if isinstance(val, str) and val.strip() else None
 def sanctioned_addon_code_roots(config=None):
-	cfg_all = config
-	if None is cfg_all:
-		try:
-			cfg_all = settings()
-		except Exception:
-			cfg_all = {}
-	roots = []
-	for plat_cfg in ((cfg_all or {}).get('platforms') or {}).values():
-		if not isinstance(plat_cfg, dict):
-			continue
-		addons_cfg = plat_cfg.get('addons')
-		if isinstance(addons_cfg, dict) and isinstance(addons_cfg.get('code_dir'), str) and addons_cfg['code_dir'].strip():
-			roots.append(Path(_expand_path(addons_cfg['code_dir'])).resolve())
-		ui_manage = plat_cfg.get('ui_manage')
-		if isinstance(ui_manage, str) and ui_manage.strip():
-			ui_p = Path(_expand_path(ui_manage)).resolve()
-			for anc in ui_p.parents:
-				if 'code' == anc.name.lower() and (anc.parent / '_').is_dir():
-					roots.append(anc)
-					break
-	return list(dict.fromkeys(roots))
+	import sys
+	from .runtime_cache import cached_addon_roots
+	return cached_addon_roots(config, sys.modules[__name__], _expand_path)

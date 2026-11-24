@@ -837,8 +837,11 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 	from .workflow import check_project, questions_current
 	value = _analysis(root)
 	is_finalized = 'complete' == state.get('stages', {}).get('finalize', {}).get('status')
+	# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Cache runtime settings and deduplicate evidence validation in hot paths":
+	# https://github.com/dmitry-ai/harness/issues/227
 	if not is_finalized:
-		if not questions_current(root, state) or not check_project(root)['valid']:
+		if not questions_current(root, state) or not check_project(root, prevalidated_analysis=value)['valid']:
 			raise ValueError('Complete current research questions/gaps and resolve KB/evidence diagnostics before publication')
 	else:
 		finalize_time = state.get('stages', {}).get('finalize', {}).get('time')

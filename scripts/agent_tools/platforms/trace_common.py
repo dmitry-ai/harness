@@ -49,7 +49,10 @@ import re
 import sqlite3
 from urllib.parse import unquote, urlsplit
 from ..research import json_data
-from ..shell_audit import unflagged_git_read_commands, unpersisted_http_fetch_commands
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
+from ..shell_audit import run_shell_violation_scan, unflagged_git_read_commands, unpersisted_http_fetch_commands
 from ..storage import write_immutable_bytes
 UUID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 _ACCUMULATOR_INTERNAL_KEYS = ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'completion_service_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes')
@@ -389,7 +392,7 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 	shell_cmd = str(args.get('CommandLine') or '') if name.endswith('run_command') else scan_text
 	tdd_cmd_event = None
 	if is_shell:
-		collect_shell_violations(shell_cmd, step_idx, acc['exec5_violations'], acc['http_fetch_violations'], extra=extra_violation)
+		run_shell_violation_scan(collect_shell_violations, shell_cmd, step_idx, acc['exec5_violations'], acc['http_fetch_violations'], extra=extra_violation)
 		eff_cmd = shell_cmd if name.endswith('run_command') else str(args.get('cmd') or args.get('command') or scan_text)
 		raw_cwd = args.get('workdir') or args.get('Cwd')
 		eff_cwd = Path(raw_cwd) if isinstance(raw_cwd, str) and raw_cwd.strip() else Path(root_p)

@@ -63,10 +63,18 @@ def _stat_mtime_size(path: Path) -> tuple[int, int]:
 	except OSError:
 		r = (0, 0)
 	return r
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 def clear_path_cache() -> None:
 	_FAST_PROJECT_PATHS.clear()
 	_OVERLAY_TTL_STATE['expires_at'] = 0.0
 	_OVERLAY_TTL_STATE['reg_path'] = None
+	try:
+		from .runtime_cache import clear_runtime_cache
+		clear_runtime_cache()
+	except Exception:
+		pass
 def default_runtime_file(primary: Path, code_anchor: Path, registry_file: Path) -> Path:
 	snap_rt = registry_file.parent / 'runtime.json'
 	if primary.resolve() == code_anchor.resolve() and (registry_file.parent / 'snapshot.json').is_file() and snap_rt.is_file():

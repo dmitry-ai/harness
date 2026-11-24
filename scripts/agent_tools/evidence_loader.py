@@ -1,12 +1,19 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/76
+from collections import OrderedDict
 import json
+import os
 import re
 from pathlib import Path
 from urllib.parse import unquote, urldefrag, urlsplit
 from .research import classify_html_challenge, extract_bytes, extract_github_blob_lines, extract_markdown, extractor_version, load_observation
 _HTML_CTYPES = ('text/html', 'application/xhtml+xml')
 _MD_CTYPES = ('text/markdown', 'text/x-markdown')
+_OBS_HTML_CACHE: OrderedDict[tuple, dict] = OrderedDict()
+_OBS_HTML_CACHE_LIMIT = 64
 def _add_anchor(anchors: set[str], value: str) -> None:
 	if value:
 		anchors.add(value)
@@ -88,8 +95,61 @@ def _scan_ext_files(ext_files: list[Path], has_resp_bin: bool, state: dict) -> N
 				_inspect_ext_file(ext, cur_ext_ver, has_resp_bin, state)
 		except (OSError, ValueError):
 			continue
+def _has_full_sections(ext: dict) -> bool:
+	secs = ext.get('sections')
+	return isinstance(ext.get('anchor_content'), dict) and isinstance(secs, list) and all((isinstance(s, dict) and 'content' in s for s in secs))
+def _load_saved_extracted_html(obs_dir: Path, meta: dict, *, need_sections: bool) -> dict | None:
+	r = None
+	ext_path = obs_dir / 'extracted-html.json'
+	if ext_path.is_file():
+		try:
+			ext = json.loads(ext_path.read_text(encoding='utf-8'))
+			valid = isinstance(ext, dict) and ext.get('body_sha256') == meta.get('body_sha256') and ext.get('extractor_version') == extractor_version()
+			if valid and all((k in ext for k in ('anchors', 'browser_check_required', 'text'))) and ((not need_sections) or _has_full_sections(ext)):
+				r = ext
+		except (OSError, ValueError):
+			r = None
+	return r
+def _obs_stat(path: Path) -> tuple[int, int]:
+	try:
+		st = os.stat(path)
+		r = (st.st_mtime_ns, st.st_size)
+	except OSError:
+		r = (0, 0)
+	return r
+def _put_obs_cache(key: tuple, data: dict) -> dict:
+	_OBS_HTML_CACHE[key] = data
+	_OBS_HTML_CACHE.move_to_end(key)
+	while _OBS_HTML_CACHE_LIMIT < len(_OBS_HTML_CACHE):
+		_OBS_HTML_CACHE.popitem(last=False)
+	return data
+def _resolve_html_data(obs_dir: Path, body: bytes | None, meta: dict, *, need_sections: bool) -> dict:
+	base_key = (os.path.normcase(str(obs_dir.resolve())), meta.get('body_sha256'), meta.get('content_type'), meta.get('charset') or 'utf-8', meta.get('status'), extractor_version(), _obs_stat(obs_dir / 'extracted-html.json'), _obs_stat(obs_dir / 'response.bin'))
+	hit = _OBS_HTML_CACHE.get((base_key, True)) or (None if need_sections else _OBS_HTML_CACHE.get((base_key, False)))
+	if None is not hit:
+		r = hit
+	else:
+		saved = _load_saved_extracted_html(obs_dir, meta, need_sections=need_sections)
+		if None is not saved:
+			r = _put_obs_cache((base_key, bool(need_sections)), saved)
+		else:
+			raw = (obs_dir / 'response.bin').read_bytes() if None is body else body
+			parsed = extract_bytes(raw, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
+			r = _put_obs_cache((base_key, True), parsed)
+	return r
+def clear_observation_cache() -> None:
+	_OBS_HTML_CACHE.clear()
 def is_valid_observation_status(meta: dict) -> bool:
 	r = (not meta.get('error')) and ('dom' == meta.get('kind') or 200 <= (meta.get('status') or 0) < 300)
+	return r
+def load_analysis_card_validation(root, path: Path, prevalidated, *, analysis_issues_fn, evidence_issues_fn) -> tuple[dict | None, list, list]:
+	if None is not prevalidated:
+		r = (prevalidated, [], [])
+	else:
+		value = json.loads(path.read_text(encoding='utf-8-sig'))
+		contract = analysis_issues_fn(value)
+		ev_issues = evidence_issues_fn(root, value) if isinstance(value, dict) else []
+		r = (value, contract, ev_issues)
 	return r
 def load_observation_bundle(jfile: Path, data: dict, *, max_bytes: int) -> dict:
 	urls_here = [u for u in (data.get('url'), data.get('final_url')) if isinstance(u, str) and u.startswith(('http://', 'https://'))]
@@ -106,15 +166,16 @@ def load_observation_bundle(jfile: Path, data: dict, *, max_bytes: int) -> dict:
 	reason = state['shell_reason'] or f"error={data.get('error')} status={data.get('status')}"
 	r = {'urls': urls_here, 'host': host, 'valid': ok, 'reason': None if ok else reason, 'titles': state['titles'], 'anchors': state['anchors'], 'has_html_anchors': state['has_html_anchors'], 'texts': state['texts'], 'json_payload': state['json_payload']}
 	return r
-def load_observation_content(root, observation_ref: str, meta: dict, *, fragment: str='') -> dict:
+def load_observation_content(root, observation_ref: str, meta: dict, *, fragment: str='', need_sections: bool=True) -> dict:
 	from .evidence import local_file, resolve_pointer
-	body = (local_file(root, observation_ref).parent / 'response.bin').read_bytes()
+	obs_dir = local_file(root, observation_ref).parent
+	body = (obs_dir / 'response.bin').read_bytes()
 	charset = meta.get('charset') or 'utf-8'
 	ct_low = (meta.get('content_type') or '').split(';', 1)[0].strip().lower()
 	raw_str, frag = (body.decode(charset, errors='replace'), unquote(fragment))
 	if ct_low in _HTML_CTYPES + _MD_CTYPES:
-		data = extract_bytes(body, meta['content_type'], 'html', charset, status=meta.get('status'))
-		r = {'kind': 'html', 'data': data, 'raw': raw_str, 'fragment': frag, 'meta': meta}
+		data = _resolve_html_data(obs_dir, body, meta, need_sections=bool(need_sections or frag))
+		r = {'kind': 'html', 'data': data, 'raw': raw_str, 'fragment': frag, 'meta': meta, 'challenge_checked': True}
 		if ct_low in _MD_CTYPES:
 			r['is_markdown'] = True
 	elif 'application/json' == ct_low or ct_low.endswith('+json'):
@@ -135,8 +196,8 @@ def probe_observation_status(root, meta: dict, base_url: str, fragment: str='') 
 		r = 'anchor-unverified' if fragment else 'http-ok'
 	else:
 		from .evidence import local_file
-		body = local_file(root, meta['observation']).with_name('response.bin').read_bytes()
-		data = extract_bytes(body, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
+		obs_dir = local_file(root, meta['observation']).parent
+		data = _resolve_html_data(obs_dir, None, meta, need_sections=False)
 		frag = unquote(fragment)
 		if data.get('browser_check_required'):
 			r = 'browser-check-required'

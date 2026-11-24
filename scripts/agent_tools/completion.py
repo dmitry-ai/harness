@@ -157,7 +157,10 @@ from . import journal
 from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_lifecycle_status, evidence_issue_files as _evidence_issue_files, evidence_issue_state as _evidence_issue_state, origin_repo_slug as _origin_repo_slug
 from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
-from .runtime import PRIMARY, platform_adapter_name, platform_name, settings
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
+from .runtime import PRIMARY, platform_adapter_name, platform_name, settings, skip_shell_violations
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
 COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check', 'issue-first-check', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
@@ -1459,7 +1462,7 @@ def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
 	root_p = canonicalize_root_dir(root)
 	eff_plat = platform_name(platform)
 	eff_conv = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == eff_plat else None)
-	with read_only_grounding():
+	with read_only_grounding(), skip_shell_violations():
 		native = _native(root_p, eff_conv, platform=eff_plat, backend=backend)
 		if native['primary']:
 			role = 'primary'
@@ -1476,7 +1479,7 @@ def issue_first_check_turn(root, conversation=None, *, platform=None, backend=No
 	root_p = canonicalize_root_dir(root)
 	eff_plat = platform_name(platform)
 	eff_conv = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == eff_plat else None)
-	with read_only_grounding():
+	with read_only_grounding(), skip_shell_violations():
 		native = _native(root_p, eff_conv, platform=eff_plat, backend=backend)
 		if native['primary']:
 			role = 'primary'

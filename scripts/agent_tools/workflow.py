@@ -53,7 +53,10 @@ class ProjectHealthAuditor:
 		from .path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
 		self.root = self.pp.root
-	def _analysis_card_issues(self, path):
+	# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Cache runtime settings and deduplicate evidence validation in hot paths":
+	# https://github.com/dmitry-ai/harness/issues/227
+	def _analysis_card_issues(self, path, prevalidated=None):
 		r = []
 		analysis_rel = self.pp.rel_to_root(path)
 		overview_file = self.pp.path('overview_md', self.root / '.md')
@@ -62,11 +65,11 @@ class ProjectHealthAuditor:
 			r.append(problem('analysis.missing', analysis_rel, 'Analysis draft is not saved'))
 		else:
 			try:
-				value = json.loads(path.read_text(encoding='utf-8-sig'))
-				contract_issues = analysis_issues(value)
+				from .evidence_loader import load_analysis_card_validation
+				value, contract_issues, ev_issues = load_analysis_card_validation(self.root, path, prevalidated, analysis_issues_fn=analysis_issues, evidence_issues_fn=evidence_issues)
 				r.extend(contract_issues)
+				r.extend(ev_issues)
 				if isinstance(value, dict):
-					r.extend(evidence_issues(self.root, value))
 					if value.get('schema_version') in (2, 3) and (not contract_issues):
 						from .knowledge import sync_website_card
 						website = sync_website_card(self.root, value, check=True)
@@ -139,7 +142,7 @@ class ProjectHealthAuditor:
 					elif '# Full Audio Transcript:' not in target_text and '# \u041f\u043e\u043b\u043d\u0430\u044f \u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043e\u0432\u043a\u0430 \u0430\u0443\u0434\u0438\u043e\u0437\u0430\u043f\u0438\u0441\u0438:' not in target_text or not re.search('\\[\\d{2}:\\d{2}\\]', target_text):
 						r.append(problem('attachment.video_incomplete', label, f'Client video ({v_heading}) in {label} requires # Video:, # Key Spoken Commentary Points..., and # Full Audio Transcript: with [MM:SS] timestamps (§2.3)', file=target_file))
 		return r
-	def check_project(self):
+	def check_project(self, *, prevalidated_analysis=None):
 		from .runtime import PRIMARY
 		issues = kb_issues(self.root) + attachment_issues(self.root)
 		scan_folders = [self.pp.data_dir]
@@ -161,7 +164,7 @@ class ProjectHealthAuditor:
 				for error in readable_link_issues(document.read_text(encoding='utf-8')):
 					issues.append(problem('document.link_style', self.pp.rel_to_root(document), error, file=document))
 		path = self.pp.kb_dir / 'Analysis.json'
-		issues.extend(self._analysis_card_issues(path))
+		issues.extend(self._analysis_card_issues(path, prevalidated=prevalidated_analysis))
 		for issue in issues:
 			if not issue.get('file'):
 				issue['file'] = str(path)
@@ -730,8 +733,8 @@ def kb_issues(root):
 # https://github.com/dmitry-ai/harness/issues/7
 def attachment_issues(root):
 	return ProjectHealthAuditor(root).attachment_issues()
-def check_project(root):
-	return ProjectHealthAuditor(root).check_project()
+def check_project(root, *, prevalidated_analysis=None):
+	return ProjectHealthAuditor(root).check_project(prevalidated_analysis=prevalidated_analysis)
 def record_review(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=None, risk=None):
 	from .review import record
 	return record(root, report, parent_id=parent_id, reviewer_id=reviewer_id, role=role, native_evidence=native_evidence, risk=risk)

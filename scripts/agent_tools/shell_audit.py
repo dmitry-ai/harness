@@ -43,42 +43,14 @@ def _is_sanctioned_addon_command(seg_norm: str, *, config=None) -> bool:
 		if r_norm and (r_norm + '/' in seg_norm or seg_norm.endswith(r_norm)):
 			return True
 	return False
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
+from .runtime_cache import run_shell_violation_scan
 def protected_browser_perimeter(config=None) -> dict:
-	cfg = config
-	if None is cfg:
-		try:
-			from .runtime import settings
-			cfg = settings()
-		except Exception:
-			cfg = {}
-	ports: set[int] = set()
-	profile_dirs: set[str] = set()
-	active_port_files: set[str] = set()
-	for plat_cfg in ((cfg or {}).get('platforms') or {}).values():
-		if isinstance(plat_cfg, dict) and isinstance(plat_cfg.get('browser'), dict):
-			p = plat_cfg['browser'].get('cdp_port')
-			if isinstance(p, int) and 0 < p < 65536:
-				ports.add(p)
-	sessions = ((cfg or {}).get('text') or {}).get('browser', {}).get('sessions') or {}
-	if isinstance(sessions, dict):
-		for sess in sessions.values():
-			if not isinstance(sess, dict):
-				continue
-			for ep_key in ('endpoint', 'fallback_endpoint'):
-				ep_val = sess.get(ep_key)
-				if isinstance(ep_val, str) and ep_val.strip():
-					parsed = urlsplit(ep_val.strip())
-					if parsed.port:
-						ports.add(int(parsed.port))
-			dap = sess.get('devtools_active_port')
-			if isinstance(dap, str) and dap.strip():
-				norm_dap = dap.strip().replace('\\', '/').rstrip('/')
-				active_port_files.add(norm_dap.casefold())
-			prof = sess.get('profile')
-			if isinstance(prof, dict) and isinstance(prof.get('path'), str) and prof['path'].strip():
-				norm_prof = prof['path'].strip().replace('\\', '/').rstrip('/')
-				profile_dirs.add(norm_prof.casefold())
-	return {'ports': sorted(ports), 'profile_dirs': sorted(profile_dirs), 'active_port_files': sorted(active_port_files)}
+	from . import runtime as _rt
+	from .runtime_cache import cached_browser_perimeter
+	return cached_browser_perimeter(config, _rt)
 class ShellCommandInspector:
 	def _iter_git_segments(self, candidate: str) -> list[tuple[str, list[str]]]:
 		cleaned = re.sub('@\'[\\s\\S]*?\'@|@"[\\s\\S]*?"@', '""', candidate)

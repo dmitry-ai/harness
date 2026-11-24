@@ -85,7 +85,10 @@ def _markdown_section(text: str, fragment: str) -> str:
 	unesc_sec = html_lib.unescape(raw_sec)
 	r = raw_sec if unesc_sec == raw_sec else raw_sec + '\n' + unesc_sec
 	return r
-def saved_source(root, source, observation=None):
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
+def saved_source(root, source, observation=None, *, need_sections=True):
 	base, fragment = urldefrag(source)
 	if urlsplit(base).scheme.lower() not in ('http', 'https'):
 		file = local_file(root, base)
@@ -116,7 +119,7 @@ def saved_source(root, source, observation=None):
 	else:
 		from .evidence_loader import load_observation_content, resolve_http_observation
 		obs_ref, meta = resolve_http_observation(root, base, observation)
-		r = load_observation_content(root, obs_ref, meta, fragment=fragment)
+		r = load_observation_content(root, obs_ref, meta, fragment=fragment, need_sections=need_sections)
 	return r
 def contains_quote(text, quote, mode='exact'):
 	if 'exact' == mode:
@@ -153,7 +156,7 @@ def evidence_issues(root, value, *, skip_structural=False):
 						continue
 					try:
 						if source.startswith(('http://', 'https://')):
-							saved_source(root, source)
+							saved_source(root, source, need_sections=False)
 						else:
 							file = local_file(root, source)
 							if 'observation.json' != file.name and (not file.is_file()):
@@ -179,7 +182,7 @@ def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, 
 	data, fragment = (saved['data'], saved.get('fragment'))
 	is_md = bool(saved.get('is_markdown'))
 	meta_status = (saved.get('meta') or {}).get('status')
-	if data.get('browser_check_required') or ((not is_md) and classify_html_challenge(saved['raw'], parsed=data, status=meta_status)):
+	if data.get('browser_check_required') or ((not is_md) and (not saved.get('challenge_checked')) and classify_html_challenge(saved['raw'], parsed=data, status=meta_status)):
 		raise ValueError('Challenge page requires browser verification; it cannot establish the intended page content')
 	if fragment:
 		if fragment not in data['anchors'] or fragment in data.get('ambiguous_anchors', []):
@@ -212,7 +215,7 @@ def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, 
 		r = matches[0]['content']
 	return r
 def verify_saved_quote(root, source, quote, *, mode='exact', expected_hash=None, require_hash=False, observation=None, documentation=False, exception=None, locator=None, require_bound_observation=False, hash_error='Source hash differs from the referenced observation', absent_error='Quote is absent from the referenced source fragment'):
-	r = saved_source(root, source, observation)
+	r = saved_source(root, source, observation, need_sections=bool(urldefrag(source)[1] or documentation))
 	actual_hash = r.get('sha256') or r.get('meta', {}).get('body_sha256')
 	if (require_hash or expected_hash) and expected_hash != actual_hash:
 		raise ValueError(hash_error)
