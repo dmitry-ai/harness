@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
 # https://github.com/dmitry-ai/harness/issues/217
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -43,13 +46,13 @@ import json
 import re
 from pathlib import Path
 from .research import inside, json_data
-from .review_alignment import TARGET_CLAIM_RULE, alignment_issues, build_claim_targets
+from .review_alignment import TARGET_CLAIM_RULE, alignment_issues, bind_contract_envelope, build_claim_targets, envelope_issues
 from .storage import read_addressed_json, replace_bytes, write_immutable_bytes
 PACKAGE_HANDLERS = {}
 REVIEW_SCHEMA = 2
 SCOPES = ('identity', 'concerns', 'misconceptions', 'causes', 'methods', 'kb_consistency', 'response')
 TASK_FLAGS = {'new_causal_analysis', 'architecture_change', 'pricing_change', 'admin_configuration', 'business_impact', 'material_analysis'}
-REPORT_CONTRACT = {'schema_version': REVIEW_SCHEMA, 'result_options': ['approved', 'needs_changes'], 'required_scope': list(SCOPES), 'claim_review_fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'test_alignment_fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'target_claim_rule': TARGET_CLAIM_RULE, 'relationship_options': ['direct', 'proxy', 'irrelevant'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'finding_fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'claim_review_required': {'fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'test_alignment_required': {'fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'target_claim_rule': TARGET_CLAIM_RULE, 'relationship_options': ['direct', 'proxy', 'irrelevant']}}, 'finding_required': {'fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'status_options': ['open', 'resolved', 'rejected']}, 'falsifier_fields': ['disproved_claims'], 'disproved_claim_fields': ['claim_id', 'excerpt_from_answer', 'contradicting_tier0_source', 'verbatim_quote_from_source', 'falsification_reason']}
+REPORT_CONTRACT = {'schema_version': REVIEW_SCHEMA, 'required_top_level_fields': ['schema_version', 'package', 'package_sha256', 'result', 'scope', 'summary', 'claim_reviews', 'findings'], 'falsifier_required_top_level_fields': ['schema_version', 'review_mode', 'package', 'package_sha256', 'result', 'scope', 'summary', 'disproved_claims', 'findings'], 'result_options': ['approved', 'needs_changes'], 'required_scope': list(SCOPES), 'claim_review_fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'test_alignment_fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'target_claim_rule': TARGET_CLAIM_RULE, 'relationship_options': ['direct', 'proxy', 'irrelevant'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'finding_fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'claim_review_required': {'fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'test_alignment_required': {'fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'target_claim_rule': TARGET_CLAIM_RULE, 'relationship_options': ['direct', 'proxy', 'irrelevant']}}, 'finding_required': {'fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'status_options': ['open', 'resolved', 'rejected']}, 'falsifier_fields': ['disproved_claims'], 'disproved_claim_fields': ['claim_id', 'excerpt_from_answer', 'contradicting_tier0_source', 'verbatim_quote_from_source', 'falsification_reason']}
 class ReviewClassifier:
 	def __init__(self, root, state, value, *, exclude_package=None):
 		self.exclude_package = exclude_package
@@ -264,13 +267,14 @@ class ReviewQuorumEvaluator:
 					break
 		return r
 class ReviewReportValidator:
-	def __init__(self, package, *, candidate=None, text_checks=(), source_reviewer=None):
+	def __init__(self, package, *, candidate=None, text_checks=(), source_reviewer=None, require_envelope=False):
 		from .path_registry import canonicalize_root_dir
 		self.candidate = candidate
 		self.expected = {c['claim_id'] for c in package['claims']}
 		self.package = package
 		self.package_claims = {c['claim_id']: c for c in package['claims']}
 		self.pkg_root = canonicalize_root_dir(package['project_root']) if is_nonempty_text(package.get('project_root')) else None
+		self.require_envelope = require_envelope
 		self.source_reviewer = source_reviewer
 		self.targets = {c['claim_id']: c['essence'] for c in package['claims']}
 		self.text_checks = tuple(text_checks)
@@ -347,13 +351,7 @@ class ReviewReportValidator:
 				except OSError:
 					pass
 	def _check_envelope(self, data, issues):
-		if REVIEW_SCHEMA != data.get('schema_version'):
-			issues.append('Review report schema_version 2 is required')
-		if data.get('result') not in ('approved', 'needs_changes'):
-			issues.append('Review result must be approved or needs_changes')
-		required_scope = self.package.get('scope', list(SCOPES)) if 'client_text' == self.package.get('kind') else SCOPES
-		if not isinstance(data.get('scope'), list) or not all((is_nonempty_text(x) for x in data['scope'])) or (not set(required_scope).issubset(data['scope'])):
-			issues.append('Review must cover the required subject scope: ' + ', '.join(required_scope))
+		issues.extend(envelope_issues(data, self.package, review_schema=REVIEW_SCHEMA, scopes=SCOPES, require_envelope=self.require_envelope))
 	def _check_falsifier(self, data, issues):
 		disproved = data.get('disproved_claims')
 		if not isinstance(disproved, list):
@@ -743,12 +741,14 @@ def input_receipt(root, package):
 	if not reviewer and 'codex' == platform_name() and os.environ.get('CODEX_HOME'):
 		raise ValueError('Native Codex reviewer thread ID is unavailable')
 	handler = _package_handler(data.get('kind'))
-	contract = handler['contract_factory']() if None is not handler and None is not handler.get('contract_factory') else dict(REPORT_CONTRACT)
-	return {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package, 'package_sha256': file_hash(inside(root, package)), 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'claim_targets': build_claim_targets(data.get('claims')), 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks', 'auto_tier0_evidence', 'merkle_delta', 'blind_verification_predicates', 'review_mode') if k in data}}
+	pkg_sha = file_hash(inside(root, package))
+	base_contract = handler['contract_factory']() if None is not handler and None is not handler.get('contract_factory') else dict(REPORT_CONTRACT)
+	contract = bind_contract_envelope(base_contract, package, pkg_sha, data.get('review_mode'))
+	return {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package, 'package_sha256': pkg_sha, 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'claim_targets': build_claim_targets(data.get('claims')), 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks', 'auto_tier0_evidence', 'merkle_delta', 'blind_verification_predicates', 'review_mode') if k in data}}
 def register_package_handler(kind, *, package_reader, contract_factory=None):
 	PACKAGE_HANDLERS[kind] = {'package_reader': package_reader, 'contract_factory': contract_factory}
-def report_issues(data, package, *, candidate=None):
-	return ReviewReportValidator(package, candidate=candidate).validate(data)
+def report_issues(data, package, *, candidate=None, require_envelope=False):
+	return ReviewReportValidator(package, candidate=candidate, require_envelope=require_envelope).validate(data)
 def authenticate_report(root, package, package_path, data, source_payload, *, parent_id, reviewer_id, native_evidence=None, allow_self=True):
 	independent = reviewer_id != parent_id
 	proof_paths = [package_path, package['response']['file']]

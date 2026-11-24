@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
 # https://github.com/dmitry-ai/harness/issues/217
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -8,6 +11,7 @@
 # "Replace monolithic CLI router with declarative registry and modular docs":
 # https://github.com/dmitry-ai/harness/issues/168
 from __future__ import annotations
+from pathlib import Path
 import json
 from .cli_common import consume_scratch_input, load_operation_input, read_input_json, read_input_text
 def _collect_urls(args, *, require_nonempty: bool=True) -> list[str]:
@@ -110,8 +114,9 @@ def _op_record_experiment(args):
 	return _load_consumed(args, args.spec, lambda spec: record_experiment(args.project, spec))
 def _op_record_review(args):
 	from . import workflow as flow
-	payload = load_operation_input(args, args.report)
-	return consume_scratch_input(args, args.report, payload, flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence))
+	report_path = _resolve_project_input(args.project, args.report)
+	payload = load_operation_input(args, report_path)
+	return consume_scratch_input(args, report_path, payload, flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence))
 def _op_render_analysis(args):
 	from .analysis import publish_analysis
 	return publish_analysis(args.input, args.output)
@@ -143,6 +148,14 @@ def _op_stage(args):
 def _op_status(args):
 	from . import workflow as flow
 	return flow.status(args.project)
+def _resolve_project_input(project, raw_path):
+	r = raw_path
+	if isinstance(raw_path, str) and '-' != raw_path and (not Path(raw_path).is_absolute()):
+		from .research import inside
+		proj_cand = inside(project, raw_path)
+		if proj_cand.is_file() or (not Path(raw_path).is_file()):
+			r = str(proj_cand)
+	return r
 def _op_sync_attachments(args):
 	from .knowledge import sync_project_attachments_and_kb
 	if not args.media_descriptions:
