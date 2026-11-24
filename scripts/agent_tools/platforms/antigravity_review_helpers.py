@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+# https://github.com/dmitry-ai/harness/issues/222
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -15,6 +18,18 @@ class RetryableReviewProofError(ValueError):
 	def __init__(self, message: str) -> None:
 		super().__init__(message)
 		self.retryable = True
+def _is_incoming_assignment_row(idx: int, row: dict, parent_id: str | None) -> bool:
+	rtype = row.get('type')
+	content = str(row.get('content') or '')
+	if 0 == idx and rtype in ('USER_INPUT', 'SYSTEM_MESSAGE', None):
+		r = True
+	elif 'USER_INPUT' == rtype:
+		r = True
+	elif 'SYSTEM_MESSAGE' == rtype:
+		r = (not parent_id) or (f'sender={parent_id}' in content)
+	else:
+		r = False
+	return r
 def _is_reviewer_in_flight(conversations_db: Path, reviewer_id: str) -> bool:
 	r = False
 	if conversations_db.is_file():
@@ -54,6 +69,19 @@ def resolve_parent_binding_inputs(backend, parent_id, parent_inputs, *, paths, n
 		r = loaded
 	else:
 		r = [(item.get('step_index', idx), extract_transcript_fn(item)) for idx, item in enumerate(parent_inputs) if 'USER_INPUT' == item.get('type') and isinstance(item.get('content'), str)]
+	return r
+def reviewer_assigned_package(native_log: str | Path, package: str, *, parent_id: str | None=None, final_step: int | None=None) -> bool:
+	rows = read_jsonl_objects(Path(native_log))
+	r = False
+	for idx, row in enumerate(rows):
+		if not isinstance(row, dict):
+			continue
+		step_idx = row.get('step_index')
+		if None is not final_step and isinstance(step_idx, int) and step_idx >= final_step:
+			continue
+		if _is_incoming_assignment_row(idx, row, parent_id) and package in str(row.get('content') or ''):
+			r = True
+			break
 	return r
 def wait_for_reviewer_final_step(paths: dict, backend: Path, reviewer_id: str, *, wait_timeout: float=0.0, poll_interval: float=0.2, transcript_path_fn, db_path_fn, completed_statuses):
 	budget = min(max(0.0, float(wait_timeout or 0.0)), MAX_REVIEW_WAIT_SECONDS)

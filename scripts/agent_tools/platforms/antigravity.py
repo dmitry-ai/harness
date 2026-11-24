@@ -972,14 +972,15 @@ def _proof_paths(native):
 	return _antigravity_paths(conversation_id=cid)
 def _proof_backend(native):
 	return Path(_proof_paths(native)['backend_dir'])
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+# https://github.com/dmitry-ai/harness/issues/222
 def verify_native_proof(root, native, package=None):
+	from .antigravity_review_helpers import reviewer_assigned_package
 	paths = _proof_paths(native)
 	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=paths['backend_dir'], instance=paths['instance'], write=False), ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'), allow_legacy_generation_model=True)
-	if package:
-		with Path(r['native_log']).open(encoding='utf-8') as stream:
-			prompt = json.loads(stream.readline()).get('content', '')
-		if package not in prompt:
-			raise ValueError('Native reviewer was not assigned this immutable KB review package')
+	if package and (not reviewer_assigned_package(r['native_log'], package, parent_id=r.get('parent_id'), final_step=r.get('final_step'))):
+		raise ValueError('Native reviewer was not assigned this immutable KB review package')
 	return r
 def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, folders_json_path=None):
 	if None is not projects_dir or None is not folders_json_path:

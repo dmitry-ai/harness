@@ -325,8 +325,12 @@ def partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 				detail = f'non-contiguous intervals {merged} of {total}' if 1 < len(merged) else f'lines {min_s}-{max_e} of {total}'
 				r.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} ({detail})')
 	return r
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+# https://github.com/dmitry-ai/harness/issues/222
 def persist_review_proof(root, reviewer_id, digest, final_text, proof, *, write=True, diff_error='Existing reviewer proof changed; preserve both and recheck native progress'):
 	from ..path_registry import project_paths
+	from .proof_metadata import reuse_equivalent_proof
 	pp = project_paths(root, exact_root=True)
 	root_p = pp.root
 	target = pp.evidence_dir / 'Reviews' / f'{reviewer_id}-{digest[:16]}-native.json'
@@ -334,7 +338,11 @@ def persist_review_proof(root, reviewer_id, digest, final_text, proof, *, write=
 	proof['authored_response'] = authored.relative_to(root_p).as_posix() if authored.is_relative_to(root_p) else authored.as_posix()
 	if write:
 		write_immutable_bytes(authored, final_text.encode('utf-8'), diff_error='Immutable native authored response differs')
-		write_immutable_bytes(target, json_data(proof), diff_error=diff_error)
+		reused = reuse_equivalent_proof(target, proof)
+		if None is not reused:
+			proof = reused
+		else:
+			write_immutable_bytes(target, json_data(proof), diff_error=diff_error)
 	return {'proof': target.relative_to(root_p).as_posix() if target.is_relative_to(root_p) else target.as_posix(), **proof}
 def prompt_bias_issues(prompt_text):
 	if not isinstance(prompt_text, str) or not prompt_text.strip():
@@ -567,13 +575,7 @@ def verify_review_proof_core(root, native, r, fields, *, trace_error='Review pro
 	authored = Path(root) / r['authored_response']
 	if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != r['final_response_sha256']:
 		raise ValueError('Immutable native authored reviewer response changed')
-	if 'executor_metadata' in native and native['executor_metadata'] != r['executor_metadata']:
-		if not allow_legacy_generation_model:
-			raise ValueError('Native executor metadata differs from saved reviewer proof')
-		saved_meta = native['executor_metadata']
-		if not isinstance(saved_meta, dict) or 'generation_model' in (saved_meta.get('observed') or {}):
-			raise ValueError('Native executor metadata differs from saved reviewer proof')
-		norm_curr = {**r['executor_metadata'], 'observed': {k: v for k, v in (r['executor_metadata'].get('observed') or {}).items() if k in (saved_meta.get('observed') or {})}, 'requested': {k: v for k, v in (r['executor_metadata'].get('requested') or {}).items() if k in (saved_meta.get('requested') or {})}}
-		if saved_meta != norm_curr:
-			raise ValueError('Native executor metadata differs from saved reviewer proof')
+	from .proof_metadata import executor_metadata_equivalent
+	if 'executor_metadata' in native and (not executor_metadata_equivalent(native['executor_metadata'], r.get('executor_metadata'), allow_legacy_generation_model=allow_legacy_generation_model)):
+		raise ValueError('Native executor metadata differs from saved reviewer proof')
 	return r
