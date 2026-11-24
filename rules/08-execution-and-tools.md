@@ -35,7 +35,7 @@ Harness execution follows the foreground-only lifecycle in [FILE-3](01-file-boun
 In asynchronous workflows, distinguish submission, acceptance, execution, and result retrieval; track response IDs and timeouts.  
 Before retrying, check whether the first request was accepted; do not promise background continuation without a working mechanism.  
 Bound test runs, browser fixtures, and child commands with in-process timeouts (such as `harness.py run-tests --module-timeout` or `--test-force-exit` and `--test-timeout` for `node --test`), and inspect or terminate stalled tasks via `manage_task` rather than waiting indefinitely.  
-Do not attach one-shot `schedule` timers (`DurationSeconds`) to background `run_command` tasks: `run_command` delivers its own reactive completion notification, and redundant timers over active `run_command` tasks are blocked by `EXEC-4-SCHEDULE-GATE` in `PreToolUse`.  
+Do not attach one-shot `schedule` timers (`DurationSeconds`) to background `run_command` tasks or active `invoke_subagent` workers: both deliver their own reactive completion notifications, and redundant timers over active `run_command` or `invoke_subagent` work are blocked by `EXEC-4-SCHEDULE-GATE` in `PreToolUse`.  
 When landing concurrent repository changes onto `main`, serialize only the final landing step through `harness.py land-acquire <repo> --wait --timeout <S>` (with `land-release` on exit) so agents proceed strictly in FIFO order with reactive wakeups; for logically related parallel work launched together, prefer coordinating under `swarm` or `invoke_subagent` with `workspace: "share"`.  
 Never delegate waiting for a parallel agent's transient repository or journal lock to the user before exhausting deterministic foreground reactive waiting (`harness.py wait-repo <repo> [--clean | --lease-free] --timeout <S>`, `harness.py land-acquire --wait`, or `harness.py answer-prepare --wait-timeout <S>`) and verifying whether the lock holder PID is still alive.  
 ## EXEC-5
@@ -76,3 +76,4 @@ Before working with an authenticated portal, read the [authenticated access proc
 <!-- https://github.com/dmitry-ai/harness/issues/183 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/185 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/199 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/215 -->  

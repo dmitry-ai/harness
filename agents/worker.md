@@ -16,9 +16,10 @@ Do not maintain the user journal and do not spawn new workers without an instruc
 An independent A.A reviewer receives an immutable KB package and primary data without another reviewer's conclusions.  
 The A.A package also contains the current requests, exact response candidate, and claim map: audit that exact version and every material transition from observation to cause, implication, or method.  
 During an A.A review, verify logical entailment for both `for` and `against` (rejecting dummy or confirming quotes placed in `against` to bypass the `75%` cap), complete coverage of all analysis stages, absence of an empty `Red Flags` heading when `red_flags: []`, and absence of internal procedural notes in the response.  
-An independent A.A returns the original JSON verdict in its final native message without a parent-supplied `approved` template; the launch receipt is generated after completion and passed separately.  
+An independent A.A returns the original JSON verdict once in its final native `PLANNER_RESPONSE` message without duplicating the full JSON report via `send_message` beforehand and without a parent-supplied `approved` template; the launch receipt is generated after completion and passed separately.  
 For A.A, audit all five stages and KB consistency; for A.F, execute the assigned question.  
 Save the result to the assigned output file.  
 Self-review by the primary agent is not an independent audit.  
 Subagent model and effort selection is chosen by the parent agent per `runtime.json`; report available actual metadata.  
-<!-- https://github.com/dmitry-ai/harness/issues/133 -->
+<!-- https://github.com/dmitry-ai/harness/issues/133 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/215 -->  

@@ -1,8 +1,8 @@
 # Antigravity Adapter
 
 New investigations and reviews use the shared [evidence contract](../skills/upwork-init/references/evidence-contract.md) and [workflow](../skills/upwork-init/references/workflow.md).  
-A review package binds the current requests, exact response bytes, and claim map to KB/Evidence; `routine` requires a justified basis, while `significant` requires two independent A.A reviewers.  
-The auditor returns the original JSON verdict in its final native message; the post-completion launch receipt is passed separately, and parent dispositions of findings are recorded as separate entries.  
+A review package binds the current requests, exact response bytes, and claim map to KB/Evidence; `routine` requires a justified basis, while `significant` defaults to one adversarial A.A reviewer in `review_mode: "falsifier"` per REVIEW-3 and escalates to two independent A.A reviewers on findings or `needs_changes`.  
+The auditor returns the original JSON verdict once in its final native `PLANNER_RESPONSE` message without duplicating the full JSON payload via `send_message` beforehand; the post-completion launch receipt is passed separately, and parent dispositions of findings are recorded as separate entries.  
 Metadata for primary/A.A/A.F is saved via `native-executor-metadata`: `requested`/`observed`, sources, and verification status are tracked separately; a requested inheritance or tier does not prove the actual runtime mode.  
 
 Every internal command accepts `--platform antigravity`; it is the backward-compatible default.  
@@ -34,3 +34,4 @@ Creation, research, continuation, review, and completion behavior are governed b
 <!-- https://github.com/dmitry-ai/harness/issues/133 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/182 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/193 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/215 -->  

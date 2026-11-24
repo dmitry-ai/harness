@@ -124,7 +124,7 @@ For documentation links, provide a verified `#anchor` or a recorded `anchor_exce
 
 In a justified routine case, the primary A.A performs the substantive check and KB consistency audit, recording `self_review` explicitly without calling it an independent audit.  
 Delegate independent evaluation of disputed conclusions to A.A via the active platform's native UI subagent tool.  
-For significant or disputed conclusions and architectural changes, use two independent A.A auditors per REVIEW-3.  
+For significant or disputed conclusions and architectural changes, default to one adversarial A.A auditor in `review_mode: "falsifier"` after deterministic Stage 1 pre-flight checks per REVIEW-3, and escalate to two independent A.A auditors whenever `disproved_claims`, `needs_changes`, or prior significant findings arise.  
 Prepare an immutable KB review package and pass it along with primary sources to the reviewer; never pass another auditor's conclusions or a one-sided JSON verdict template in the prompt—the auditor runs `review-input <project> --package <path> --platform <platform>` to obtain the neutral `report_contract` listing all valid outcomes.  
 Before preparing the package, write the exact response candidate and map its material claims; the package binds them to the current requests, KB digests, and primary evidence, and every standalone number in `essence` and `response_excerpt` must be backed by primary quotes or verified calculations.  
 Justify the risk category under REVIEW-3: new material causal, architectural, or pricing conclusions (including a five-stage analysis introducing new `causes`/`misconceptions`/`methods`) require `significant` and cannot be downgraded to `routine` by omitting stages from the claim map; a `routine` restatement requires proven unchanged grounds.  
@@ -142,3 +142,4 @@ Publish the exact verified response bytes; adding new claims after review requir
 Build the external `Ⰿ/≻/♙/Context/output/Context.md` (legacy `ꙮ/0/Context.md`) export only when explicitly requested by the user, without summarizing or truncating sources.  
 `stage ... finalize` requires a current A.A substantive review (plus independent reviews when required), a consistent KB, a complete journal, an empty `ꘖ/data/scratch` directory, and no one-off scripts in the project; it certifies file and response readiness rather than confirmed UI message delivery.  
 Delete only your own temporary scratch files after verifying permanent copies (`--consume-input`); preserve snapshots, material screenshots, and primary evidence.  
+<!-- https://github.com/dmitry-ai/harness/issues/215 -->  

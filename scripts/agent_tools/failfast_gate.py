@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -9,6 +12,7 @@ from pathlib import Path
 import json
 import re
 from .shell_audit import _split_shell_segments
+from .stop_subagent_check import evaluate_schedule_subagent_block
 from .tdd.commands import _HARNESS_WATCHDOG_PREFIX_RE, _mask_quoted, unwrap_watchdog_prefix
 from .tdd_gate import _BG_TASK_FINISHED_RE, _BG_TASK_ID_RE, _normalize_args_dict, classify_test_command
 _BG_TASK_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
@@ -116,21 +120,24 @@ def _parse_wait_ms(raw) -> int | None:
 	elif isinstance(raw, str) and raw.strip().lstrip('-').isdigit():
 		r = int(raw.strip())
 	return r
+def _schedule_block_reason(t_raw: str, args: dict, payload: dict) -> str | None:
+	explicit_schedule, all_tids, active_tids = _active_turn_run_command_tasks(t_raw)
+	r = None
+	if not explicit_schedule:
+		cond = str(args.get('TimerCondition') or '').strip()
+		if cond and cond in all_tids:
+			r = f'EXEC-4-SCHEDULE-GATE: Do not attach a schedule timer to run_command task "{cond}"; run_command already delivers reactive completion notifications. Use in-process timeouts such as harness.py run-tests --module-timeout instead.'
+		elif active_tids:
+			joined = ', '.join(sorted(active_tids))
+			r = f'EXEC-4-SCHEDULE-GATE: Active background run_command task(s) ({joined}) already deliver reactive completion notifications; do not attach a one-shot schedule timer over active run_command tasks.'
+		else:
+			r = evaluate_schedule_subagent_block(t_raw, args, payload)
+	return r
 def _wrap_watchdog_cmd(cmd: str) -> str:
 	return f'python "{_HARNESS_SCRIPT}" test-watchdog --timeout {_DEFAULT_WATCHDOG_TIMEOUT} {cmd.strip()}'
 def evaluate_pre_tool_use_schedule(name: str, args: dict, payload: dict) -> str | None:
-	r = None
-	if 'schedule' == name and (not args.get('CronExpression')) and (True is not args.get('IsDaemon')) and (None is not args.get('DurationSeconds')):
-		t_raw = str(payload.get('transcriptPath') or '').strip()
-		explicit_schedule, all_tids, active_tids = _active_turn_run_command_tasks(t_raw)
-		if not explicit_schedule:
-			cond = str(args.get('TimerCondition') or '').strip()
-			if cond and cond in all_tids:
-				r = f'EXEC-4-SCHEDULE-GATE: Do not attach a schedule timer to run_command task "{cond}"; run_command already delivers reactive completion notifications. Use in-process timeouts such as harness.py run-tests --module-timeout instead.'
-			elif active_tids:
-				joined = ', '.join(sorted(active_tids))
-				r = f'EXEC-4-SCHEDULE-GATE: Active background run_command task(s) ({joined}) already deliver reactive completion notifications; do not attach a one-shot schedule timer over active run_command tasks.'
-	return r
+	is_one_shot = 'schedule' == name and (not args.get('CronExpression')) and (True is not args.get('IsDaemon')) and (None is not args.get('DurationSeconds'))
+	return _schedule_block_reason(str(payload.get('transcriptPath') or '').strip(), args, payload) if is_one_shot else None
 def evaluate_pre_tool_use_test_failfast(name: str, args: dict) -> tuple[str | None, dict | None]:
 	deny_reason, overwrite = (None, {})
 	if 'run_command' == name:

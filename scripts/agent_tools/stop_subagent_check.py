@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
 # https://github.com/dmitry-ai/harness/issues/211
 from __future__ import annotations
@@ -50,6 +53,15 @@ def _filter_turn_db_rows(db_rows: list[dict], state: dict) -> list[dict]:
 		r = [row for row in db_rows if (not _norm_ts(row.get('last_modified_time'))) or _norm_ts(row.get('last_modified_time')) >= first_ts]
 	else:
 		r = list(db_rows)
+	return r
+def _find_summary_db(t_path: Path) -> Path | None:
+	r: Path | None = None
+	for parent in t_path.parents:
+		if 'brain' == parent.name.lower():
+			cand = parent.parent / 'conversation_summaries.db'
+			if cand.is_file():
+				r = cand
+			break
 	return r
 def _is_row_running(row: dict) -> bool:
 	if 0 != int(row.get('killed') or 0):
@@ -114,6 +126,16 @@ def _query_summary_children(conversations_db: Path | None, session_id: str) -> l
 			if None is not conn:
 				conn.close()
 	return r
+def _read_turn_segment(t_path: Path) -> list[dict]:
+	try:
+		rows = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
+	except (OSError, ValueError):
+		rows = []
+	last_user = -1
+	for idx, row in enumerate(rows):
+		if isinstance(row, dict) and 'USER_INPUT' == row.get('type'):
+			last_user = idx
+	return rows[last_user + 1:] if 0 <= last_user else rows
 def _record_invoke(segment: list[dict], pos: int, row: dict, args: dict, state: dict) -> None:
 	sub_list = args.get('Subagents')
 	state['spawned'] += len(sub_list) if isinstance(sub_list, list) and sub_list else 1
@@ -121,6 +143,27 @@ def _record_invoke(segment: list[dict], pos: int, row: dict, args: dict, state: 
 	if not state['first_spawn_ts'] and row.get('created_at'):
 		state['first_spawn_ts'] = str(row.get('created_at'))
 	state['spawned_uuids'].update(_collect_invoke_outputs(segment, pos))
+def _resolve_transcript_file(transcript_path: str) -> Path | None:
+	r = Path(transcript_path) if transcript_path else None
+	if None is not r and 'transcript.jsonl' == r.name:
+		full = r.parent / 'transcript_full.jsonl'
+		if full.is_file():
+			r = full
+	return r if None is not r and r.is_file() else None
+def evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: dict) -> str | None:
+	t_path = _resolve_transcript_file(transcript_path)
+	r: str | None = None
+	if None is not t_path:
+		state = extract_segment_subagent_state(_read_turn_segment(t_path))
+		cond = str(args.get('TimerCondition') or '').strip().lower()
+		sid = str(payload.get('conversationId') or payload.get('conversation_id') or '').strip()
+		if cond and cond in state['spawned_uuids']:
+			r = f'EXEC-4-SCHEDULE-GATE: Do not attach a schedule timer to invoke_subagent worker "{cond}"; invoke_subagent already delivers reactive completion notifications.'
+		elif has_running_subagents(state, sid, _find_summary_db(t_path)):
+			pending = sorted(state['spawned_uuids'] - state['completed_uuids'] - state['killed_uuids'])
+			label = ', '.join(pending) if pending else f"{state['spawned']} active"
+			r = f'EXEC-4-SCHEDULE-GATE: Active invoke_subagent worker(s) ({label}) already deliver reactive completion notifications; do not attach a one-shot schedule timer over active subagents.'
+	return r
 def extract_segment_subagent_state(segment: list[dict]) -> dict:
 	state = {'spawned': 0, 'spawned_uuids': set(), 'completed_uuids': set(), 'killed_uuids': set(), 'killed_all': False, 'legacy_completed': 0, 'first_spawn_ts': '', 'last_planner_text': ''}
 	for pos, row in enumerate(segment or ()):
