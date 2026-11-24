@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
+# https://github.com/dmitry-ai/harness/issues/211
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Align check_stop_gate with Antigravity 2.0 conversationId contract and continuation loop guard":
 # https://github.com/dmitry-ai/harness/issues/197
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -196,19 +199,10 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 	rows, last_user_step, segment = read_last_user_segment(log_file, by_step_index=True)
 	if None is last_user_step:
 		return {'decision': 'allow'}
-	spawned = 0
-	completed = 0
-	last_planner_text = ''
-	for r in segment:
-		if 'EPHEMERAL_MESSAGE' == r.get('type') and re.search('<SYSTEM_MESSAGE>.*\\bSubagent\\b.*\\bcompleted\\b', str(r.get('content') or ''), re.S):
-			completed += 1
-		calls = [c for c in r.get('tool_calls') or [] if isinstance(c, dict)]
-		for c in calls:
-			if 'invoke_subagent' == c.get('name'):
-				spawned += 1
-		if 'PLANNER_RESPONSE' == r.get('type') and (not calls) and str(r.get('content') or '').strip():
-			last_planner_text = str(r.get('content'))
-	if completed < spawned:
+	from agent_tools.stop_subagent_check import extract_segment_subagent_state, has_running_subagents
+	sub_state = extract_segment_subagent_state(segment)
+	last_planner_text = sub_state['last_planner_text']
+	if has_running_subagents(sub_state, session_id, conversations_db):
 		return {'decision': 'allow'}
 	t_dir = _turns_dir(canon_root)
 	matched_state = _find_turn_state(t_dir, session_id, last_user_step, rows=rows)
