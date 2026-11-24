@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
@@ -149,12 +152,14 @@ def native_requests(root, conversation_id, *, backend=None, platform=None, insta
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None, wait_timeout=0.0):
 	from .platforms import adapter
 	platform, backend, resolved_instance = _resolve_target(platform, backend, instance, conversation_id=reviewer_id or parent_id)
 	kw = {'backend': backend, 'write': write}
 	if None is not resolved_instance:
 		kw['instance'] = resolved_instance
+	if 0.0 < float(wait_timeout or 0.0):
+		kw['wait_timeout'] = float(wait_timeout)
 	return adapter(platform).native_review_proof(root, parent_id, reviewer_id, **kw)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":

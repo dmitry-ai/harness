@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace monolithic CLI router with declarative registry and modular docs":
 # https://github.com/dmitry-ai/harness/issues/168
@@ -64,7 +67,7 @@ _PROJECT_SPECS = {
 	'extract': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'html'})),
 	'extract-file': (('source', {}), ('--profile', {'choices': ('html', 'shopify', 'tracking', 'document'), 'default': 'document'})),
 	'native-executor-metadata': (('--conversation', {'required': True}), ('--save', {'action': 'store_true', 'help': 'Persist immutable native metadata; default is read-only'}), ('--role', {'choices': ('primary', 'AA', 'AF'), 'default': 'primary'}), ('--parent', {})),
-	'native-review-proof': (('--parent', {'required': True}), ('--reviewer', {'required': True})),
+	'native-review-proof': (('--parent', {'required': True}), ('--reviewer', {'required': True}), ('--wait-timeout', {'type': float, 'default': 0.0, 'help': 'Optional bounded wait in seconds for an in-flight reviewer to finish streaming its final response (capped at 300)'})),
 	'prepare-experiment': (('--spec', {'required': True, 'type': Path}), ('--amendment-of', {}), ('--amendment-reason', {})),
 	'prepare-review': (('--parent', {'required': True}), ('--spec', {'required': True, 'type': Path, 'help': 'Explicit risk/basis/request_scope/claim_ids/claims JSON'}), ('--response-file', {'required': True, 'type': Path, 'help': 'Exact candidate response; use - for stdin'})),
 	'question-add': (('--spec', {'required': True, 'type': Path}),),

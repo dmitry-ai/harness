@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace monolithic CLI router with declarative registry and modular docs":
 # https://github.com/dmitry-ai/harness/issues/168
@@ -68,7 +71,7 @@ def _op_native_executor_metadata(args):
 	return callback(args.project, args.conversation, role=args.role, parent_id=args.parent, instance=getattr(args, 'instance', None))
 def _op_native_review_proof(args):
 	from .metrics import native_review_proof
-	return native_review_proof(args.project, args.parent, args.reviewer, instance=getattr(args, 'instance', None))
+	return native_review_proof(args.project, args.parent, args.reviewer, instance=getattr(args, 'instance', None), wait_timeout=float(getattr(args, 'wait_timeout', 0.0)))
 def _op_prepare_experiment(args):
 	from .experiments import prepare_experiment
 	return _load_consumed(args, args.spec, lambda spec: prepare_experiment(args.project, spec, amendment_of=args.amendment_of, amendment_reason=args.amendment_reason))

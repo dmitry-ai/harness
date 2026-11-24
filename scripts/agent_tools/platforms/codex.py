@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
@@ -588,7 +591,7 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
 	paths = _paths(backend, profile=instance, conversation_id=reviewer_id or parent_id)
 	home = paths['home']
 	_, parent_path, _, parent_rows = _trace(home, parent_id, paths=paths)

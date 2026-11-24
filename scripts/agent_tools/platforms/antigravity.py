@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
 # https://github.com/dmitry-ai/harness/issues/210
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -765,7 +768,7 @@ def native_tool_trace(root, request):
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
 	root = Path(root).resolve()
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=reviewer_id or parent_id)
 	backend = Path(paths['backend_dir'])
@@ -775,16 +778,8 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 		child = conn.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (reviewer_id,)).fetchone()
 	if None is child or child['parent_conversation_id'] != parent_id or 'self' != child['agent_name']:
 		raise ValueError('Native trace does not establish an independent self/A.A child of this parent')
-	log = _transcript_path(paths['brain_dir'], reviewer_id)
-	raw = log.read_bytes()
-	rows = read_jsonl_objects(raw)
-	last = rows[-1] if rows else {}
-	if 'PLANNER_RESPONSE' != last.get('type') or last.get('tool_calls') or (not last.get('content', '').strip()):
-		raise ValueError('Reviewer has no successful final response in the native trace')
-	with open_readonly_sqlite(_conversation_db_path(backend, reviewer_id, paths=paths)) as conn:
-		final = conn.execute('SELECT idx,step_type,status FROM steps ORDER BY idx DESC LIMIT 1').fetchone()
-	if not final or final[0] != last['step_index'] or 15 != final[1] or (final[2] not in COMPLETED_STEP_STATUSES):
-		raise ValueError('Native database reports an unfinished/failed later reviewer step')
+	from .antigravity_review_helpers import resolve_parent_binding_inputs, wait_for_reviewer_final_step
+	log, raw, rows, last = wait_for_reviewer_final_step(paths, backend, reviewer_id, wait_timeout=wait_timeout, transcript_path_fn=_transcript_path, db_path_fn=_conversation_db_path, completed_statuses=COMPLETED_STEP_STATUSES)
 	parent_log = _transcript_path(paths['brain_dir'], parent_id)
 	parent_inputs = read_jsonl_objects(parent_log)
 	initial_prompt = rows[0].get('content', '')
@@ -798,7 +793,6 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 	is_inherit = 'inherit' == requested_model.lower()
 	resolved_inst = paths['instance'] or instance
 	def _extra():
-		from .antigravity_review_helpers import resolve_parent_binding_inputs
 		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=resolve_parent_binding_inputs(backend, parent_id, parent_inputs, paths=paths, native_inputs_fn=_native_inputs, extract_transcript_fn=_extract_transcript_user_input), until=invocation)
 		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation, paths=paths), _query_step_model_ids(backend, reviewer_id, paths=paths))
 		if is_inherit and parent_models and child_models and (not child_models.issubset(parent_models)):
