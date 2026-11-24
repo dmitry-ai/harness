@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Cache normalized text and numeric tokens in LocalSourceGroundingAuditor corpus":
+# https://github.com/dmitry-ai/harness/issues/216
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
 # https://github.com/dmitry-ai/harness/issues/214
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -172,21 +175,10 @@ class LocalSourceGroundingAuditor:
 				for se in sub_errs[:5]:
 					self.errors.append(f'Linked {ap.parent.parent.name}/{ap.name} -> {se}')
 	def _build_active_corpus(self, filtered_locals: list[Path], ext_urls: list[str], active_primary: list[Path]) -> tuple[list[dict], str, str, set[str], str]:
+		from .grounding_helpers import build_active_corpus_cached
 		active_locals = _filter_primary_sources(list(dict.fromkeys(filtered_locals + self.section_all_locals + active_primary)))
 		active_exts = list(dict.fromkeys(ext_urls + self.section_ext_urls))
-		infos = [self.index.load_source_info(p, self.cache) for p in active_locals]
-		ext_blobs: list[str] = []
-		if self.observed_texts:
-			for u in active_exts:
-				nu = urldefrag(u.strip())[0].rstrip('/')
-				for t in self.observed_texts.get(nu) or []:
-					ext_blobs.append(t)
-		combined_raw = '\n'.join([inf['raw'] for inf in infos] + ext_blobs)
-		combined_norm = norm_quote_text(combined_raw)
-		ev_nums = set().union(*(inf['nums'] for inf in infos)) if infos else set()
-		if ext_blobs:
-			ev_nums.update(_source_numeric_tokens('\n'.join(ext_blobs)))
-		return (infos, combined_raw, combined_norm, ev_nums, ', '.join((self.index.locator_for(p) for p in active_primary[:2])))
+		return build_active_corpus_cached(self, active_locals, active_exts, active_primary, norm_quote_text, _source_numeric_tokens)
 	def _check_blockquote(self, text: str, combined_norm: str, src_label: str) -> None:
 		if not META_REFUTATION_RE.search(text):
 			for bq in extract_blockquote_quotes(text):
