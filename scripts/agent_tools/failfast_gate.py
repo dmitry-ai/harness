@@ -1,14 +1,21 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
 # https://github.com/dmitry-ai/harness/issues/162
 from __future__ import annotations
-import json
 from pathlib import Path
+import json
 import re
 from .shell_audit import _split_shell_segments
+from .tdd.commands import _HARNESS_WATCHDOG_PREFIX_RE, _mask_quoted, unwrap_watchdog_prefix
 from .tdd_gate import _BG_TASK_FINISHED_RE, _BG_TASK_ID_RE, _normalize_args_dict, classify_test_command
 _BG_TASK_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
+_DEFAULT_WATCHDOG_TIMEOUT = 300
+_HARNESS_SCRIPT = (Path(__file__).resolve().parents[1] / 'harness.py').as_posix()
 _MIN_SYNC_WAIT_MS = 5000
+_PYTEST_TIMEOUT_RE = re.compile(r'(?:^|\s)--timeout(?:=|\s+)\d')
 _QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
 _RUNNER_SPECS = (
 	('harness-run-tests', re.compile(r'(?i)(?:^|\s)["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+run-tests\b'), re.compile(r'(?i)\brun-tests\b'), None),
@@ -20,6 +27,7 @@ _RUNNER_SPECS = (
 	('rspec', re.compile(r'(?i)\brspec\b'), re.compile(r'(?:^|\s)(?:--fail-fast\b|--only-failures\b)'), '--fail-fast'),
 )
 _TARGET_SYNC_WAIT_MS = 10000
+_UNSAFE_WRAP_RE = re.compile(r'[$`><&|;(\r\n]')
 def _active_turn_run_command_tasks(transcript_path: str) -> tuple[bool, set[str], set[str]]:
 	explicit_schedule = False
 	all_tids: set[str] = set()
@@ -71,6 +79,36 @@ def _active_turn_run_command_tasks(transcript_path: str) -> tuple[bool, set[str]
 								all_tids.add(tid)
 								active_tids.add(tid)
 	return (explicit_schedule, all_tids, active_tids)
+def _apply_sync_wait(args: dict, overwrite: dict) -> None:
+	if True is not args.get('IsDaemon'):
+		wait_ms = _parse_wait_ms(args.get('WaitMsBeforeAsync'))
+		if None is wait_ms or _MIN_SYNC_WAIT_MS > wait_ms:
+			overwrite['WaitMsBeforeAsync'] = _TARGET_SYNC_WAIT_MS
+def _apply_timeout_guard(cur: str, segs: list[str], is_single: bool) -> tuple[str | None, str]:
+	deny, out_cmd = (None, cur)
+	miss_t = [mt for seg in segs if None is not (mt := missing_timeout_guard(seg))]
+	if miss_t:
+		label, hint = miss_t[0]
+		if is_single and _is_safe_watchdog_wrap(cur):
+			out_cmd = _wrap_watchdog_cmd(cur)
+		else:
+			deny = f'Unbounded test command ({label}) omits a watchdog timeout and stdin detachment; use {hint}.'
+	return (deny, out_cmd)
+def _inject_missing_failfast(cmd: str, segs: list[str], is_single: bool) -> tuple[str | None, str]:
+	deny, cur = (None, cmd)
+	missing = [(seg, miss) for seg in segs if None is not (miss := missing_failfast_flag(seg))]
+	if missing:
+		_, (label, flag, _) = missing[0]
+		if not is_single:
+			deny = f'Multi-segment test command ({label}) omits fail-fast flag "{flag}"; add "{flag}" or use harness.py run-tests.'
+		else:
+			m_cmd = missing_failfast_flag(cur)
+			if None is not m_cmd:
+				pos = m_cmd[2].end()
+				cur = f'{cur[:pos]} {flag}{cur[pos:]}'
+	return (deny, cur)
+def _is_safe_watchdog_wrap(cmd: str) -> bool:
+	return not bool(_UNSAFE_WRAP_RE.search(_QUOTED_RE.sub('', cmd or '')))
 def _parse_wait_ms(raw) -> int | None:
 	r = None
 	if isinstance(raw, int) and (not isinstance(raw, bool)):
@@ -78,6 +116,8 @@ def _parse_wait_ms(raw) -> int | None:
 	elif isinstance(raw, str) and raw.strip().lstrip('-').isdigit():
 		r = int(raw.strip())
 	return r
+def _wrap_watchdog_cmd(cmd: str) -> str:
+	return f'python "{_HARNESS_SCRIPT}" test-watchdog --timeout {_DEFAULT_WATCHDOG_TIMEOUT} {cmd.strip()}'
 def evaluate_pre_tool_use_schedule(name: str, args: dict, payload: dict) -> str | None:
 	r = None
 	if 'schedule' == name and (not args.get('CronExpression')) and (True is not args.get('IsDaemon')) and (None is not args.get('DurationSeconds')):
@@ -95,33 +135,41 @@ def evaluate_pre_tool_use_test_failfast(name: str, args: dict) -> tuple[str | No
 	deny_reason, overwrite = (None, {})
 	if 'run_command' == name:
 		cmd = str(args.get('CommandLine') or '')
-		info = classify_test_command(cmd)
-		if info.get('is_test_cmd'):
+		if classify_test_command(cmd).get('is_test_cmd'):
 			segs = [seg.strip() for seg in _split_shell_segments(cmd) if seg.strip()]
 			unquoted = _QUOTED_RE.sub('', cmd)
 			is_single = (1 == len(segs)) and ('|' not in unquoted) and ('\n' not in unquoted)
-			missing = [(seg, miss) for seg in segs if None is not (miss := missing_failfast_flag(seg))]
-			if missing:
-				_, (label, flag, anchor) = missing[0]
-				if is_single:
-					m_cmd = missing_failfast_flag(cmd)
-					if None is not m_cmd:
-						pos = m_cmd[2].end()
-						overwrite['CommandLine'] = f'{cmd[:pos]} {flag}{cmd[pos:]}'
-				else:
-					deny_reason = f'Multi-segment test command ({label}) omits fail-fast flag "{flag}"; add "{flag}" or use harness.py run-tests.'
-			if None is deny_reason and (True is not args.get('IsDaemon')):
-				wait_ms = _parse_wait_ms(args.get('WaitMsBeforeAsync'))
-				if None is wait_ms or _MIN_SYNC_WAIT_MS > wait_ms:
-					overwrite['WaitMsBeforeAsync'] = _TARGET_SYNC_WAIT_MS
+			deny_reason, cur_cmd = _inject_missing_failfast(cmd, segs, is_single)
+			if None is deny_reason:
+				deny_reason, cur_cmd = _apply_timeout_guard(cur_cmd, [cur_cmd.strip()] if is_single else segs, is_single)
+			if None is deny_reason and cur_cmd != cmd:
+				overwrite['CommandLine'] = cur_cmd
+			if None is deny_reason:
+				_apply_sync_wait(args, overwrite)
 	return (deny_reason, overwrite if overwrite else None)
 def missing_failfast_flag(seg: str) -> tuple[str, str, re.Match] | None:
 	r = None
 	if isinstance(seg, str) and seg.strip():
+		inner = unwrap_watchdog_prefix(seg)
+		prefix_len = len(seg) - len(inner)
+		start = max(0, prefix_len - 1)
+		masked_seg = _mask_quoted(seg)
 		for label, anchor_re, has_re, flag in _RUNNER_SPECS:
-			m_anc = anchor_re.search(seg)
+			hay = seg if 'harness-run-tests' == label else masked_seg
+			m_anc = anchor_re.search(hay, start)
 			if m_anc:
-				if None is not flag and (not has_re.search(seg)):
+				if None is not flag and (not has_re.search(hay[prefix_len:])):
 					r = (label, flag, m_anc)
 				break
+	return r
+def missing_timeout_guard(seg: str) -> tuple[str, str] | None:
+	r = None
+	if isinstance(seg, str) and seg.strip():
+		s = seg.strip()
+		if (not _RUNNER_SPECS[0][1].search(s)) and (not _HARNESS_WATCHDOG_PREFIX_RE.match(s)):
+			masked = _mask_quoted(s)
+			if _RUNNER_SPECS[1][1].search(masked):
+				r = ('unittest', 'harness.py run-tests --module-timeout 300 or harness.py test-watchdog --timeout 300')
+			elif _RUNNER_SPECS[2][1].search(masked) and (not _PYTEST_TIMEOUT_RE.search(masked)):
+				r = ('pytest', '--timeout=<S> or harness.py test-watchdog --timeout 300')
 	return r

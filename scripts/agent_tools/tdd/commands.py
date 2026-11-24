@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
@@ -9,6 +12,8 @@ _CARGO_TEST_RE = re.compile(r'(?i)\bcargo(?:\.exe)?\s+test\b')
 _DIRECT_SCRIPT_RE = re.compile(r'(?i)(?:^|\s)(?:&\s*)?(?:python(?:3)?|node|pwsh|powershell|bash|sh|php|ruby|ts-node|tsx|bun|deno)(?:\.exe)?\s+|^\s*(?:&\s*)?["\']?(?:[A-Za-z]:[/\\]|\.{1,2}[/\\])?[^\s"\']*(?:test|spec|regression)')
 _GO_TEST_RE = re.compile(r'(?i)\bgo(?:\.exe)?\s+test\b')
 _HARNESS_RUN_TESTS_RE = re.compile(r'(?i)(?:^|\s)["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+run-tests(?:\s|$)')
+_HARNESS_WATCHDOG_PREFIX_RE = re.compile(r'(?i)^\s*(?:python(?:3(?:\.\d+)?)?(?:\.exe)?\s+)?["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+test-watchdog(?:\s+(?:(?:--timeout|--module-timeout|--format)(?:=|\s+)\S+|--cwd(?:=|\s+)(?:"[^"]+"|\'[^\']+\'|\S+)))*(?:\s+--)?\s+')
+_MASK_QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
 _PATTERN_ARG_RE = re.compile(r'(?:-p|--pattern)(?:\s+|=)(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
 _POST_CARGO_RUNNER_SPECS = (
 	(r'(?i)\b(?:mvn|mvnw|gradle|gradlew)(?:\.cmd|\.bat)?\b[^\r\n]*\btest\b', r'(?:-Dtest=|--tests\b)', False),
@@ -75,17 +80,20 @@ def _iter_write_matches(seg: str) -> list[str]:
 			if raw_target and (not raw_target.startswith(('$', '&', '/dev/null', 'nul', 'NUL'))):
 				r.append(raw_target)
 	return r
+def _mask_quoted(seg: str) -> str:
+	return _MASK_QUOTED_RE.sub(lambda m: ' ' * len(m.group(0)), seg)
 def _match_direct_test_script(seg: str) -> bool | None:
-	hit = (not _PYTHON_C_RE.search(seg)) and _single_test_file_in_args(seg) and bool(_DIRECT_SCRIPT_RE.search(seg))
+	hit = (not _PYTHON_C_RE.search(_mask_quoted(seg))) and _single_test_file_in_args(seg) and bool(_DIRECT_SCRIPT_RE.search(seg))
 	return False if hit else None
 def _match_go_or_cargo(seg: str) -> bool | None:
+	masked = _mask_quoted(seg)
 	r = None
-	if _GO_TEST_RE.search(seg):
-		r = ('./...' in seg) and (not bool(re.search(r'\s-run\b', seg)))
-	elif _CARGO_TEST_RE.search(seg):
-		after_ct = _CARGO_TEST_RE.split(seg, maxsplit=1)[1]
-		pos_ct = [t for t in re.findall(r'"[^"]+"|\'[^\']+\'|\S+', after_ct) if not t.startswith('-') and '--' != t]
-		r = (not bool(re.search(r'--test\b', seg))) and (0 == len(pos_ct))
+	if _GO_TEST_RE.search(masked):
+		r = ('./...' in seg) and (not bool(re.search(r'\s-run\b', masked)))
+	elif _CARGO_TEST_RE.search(masked):
+		after_ct = _CARGO_TEST_RE.split(masked, maxsplit=1)[1]
+		pos_ct = [t for t in re.findall(r'\S+', after_ct) if not t.startswith('-') and '--' != t]
+		r = (not bool(re.search(r'--test\b', masked))) and (0 == len(pos_ct))
 	return r
 def _match_harness_run_tests(seg: str) -> bool | None:
 	r = None
@@ -100,10 +108,11 @@ def _match_post_cargo_runner(seg: str) -> bool | None:
 def _match_pre_go_runner(seg: str) -> bool | None:
 	return _match_runner_specs(seg, _PRE_GO_RUNNER_SPECS)
 def _match_python_unittest(seg: str) -> bool | None:
+	masked = _mask_quoted(seg)
 	r = None
-	if _PYTHON_UNITTEST_RE.search(seg):
+	if _PYTHON_UNITTEST_RE.search(masked):
 		pat_val = _extract_pattern_arg(seg)
-		if re.search(r'\bdiscover\b', seg):
+		if re.search(r'\bdiscover\b', masked):
 			r = (None is pat_val) or ('*' in pat_val) or ('?' in pat_val)
 		else:
 			after_u = re.split(r'\bunittest\b', seg, maxsplit=1)[1]
@@ -111,9 +120,10 @@ def _match_python_unittest(seg: str) -> bool | None:
 			r = 0 == len(pos_args)
 	return r
 def _match_runner_specs(seg: str, specs: tuple[tuple[str, str | None, bool], ...]) -> bool | None:
+	masked = _mask_quoted(seg)
 	r = None
 	for cmd_re, filt_re, check_file in specs:
-		if re.search(cmd_re, seg):
+		if re.search(cmd_re, masked):
 			filtered = (None is not filt_re and bool(re.search(filt_re, seg))) or (check_file and _single_test_file_in_args(seg))
 			r = not filtered
 			break
@@ -134,7 +144,7 @@ def classify_test_command(cmd: str, *, scope_root: Path | None=None) -> dict:
 	else:
 		is_test, is_full, targets = (False, False, [])
 		for seg in _split_shell_segments(cmd):
-			s = seg.strip()
+			s = unwrap_watchdog_prefix(seg.strip())
 			if s:
 				seg_test, seg_full = _classify_segment(s)
 				if seg_test:
@@ -174,3 +184,6 @@ def shell_write_targets(cmd: str, *, cwd: Path | None=None, classifications: tup
 					seen.add(key)
 					r.append(full)
 	return r
+def unwrap_watchdog_prefix(seg: str) -> str:
+	m = _HARNESS_WATCHDOG_PREFIX_RE.match(seg or '')
+	return seg[m.end():] if m else (seg or '')

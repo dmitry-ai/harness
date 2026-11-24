@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enable parallel pytest-xdist full-suite execution and outcome parsing":
 # https://github.com/dmitry-ai/harness/issues/178
 from __future__ import annotations
@@ -28,7 +31,11 @@ class PytestXdistRunnerTests(unittest.TestCase):
 			self.assertTrue(info_full['is_full_suite'])
 			deny, overwrite = failfast_gate.evaluate_pre_tool_use_test_failfast('run_command', {'CommandLine': full_cmd, 'WaitMsBeforeAsync': 10000})
 			self.assertIsNone(deny)
-			self.assertIsNone(overwrite)
+			self.assertIn('test-watchdog', (overwrite or {}).get('CommandLine', ''))
+			bounded_cmd = f'{full_cmd} --timeout=120'
+			b_deny, b_overwrite = failfast_gate.evaluate_pre_tool_use_test_failfast('run_command', {'CommandLine': bounded_cmd, 'WaitMsBeforeAsync': 10000})
+			self.assertIsNone(b_deny)
+			self.assertIsNone(b_overwrite)
 			for narrowed in (f'python -m pytest "{repo / "tests/test_a.py"}" -k test_a -x', f'python -m pytest "{repo / "tests"}" -k test_a -x'):
 				info_part = tdd_gate.classify_test_command(narrowed, scope_root=repo)
 				self.assertTrue(info_part['is_test_cmd'])

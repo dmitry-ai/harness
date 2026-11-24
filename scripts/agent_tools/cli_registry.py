@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove landed worktrees by default and flag stale worktrees in worktree-status":
 # https://github.com/dmitry-ai/harness/issues/203
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -28,6 +31,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Callable
+import argparse
 import sys
 from .cli_common import add_arg_specs
 _REGISTRY: dict[str, dict] = {}
@@ -64,6 +68,9 @@ def _exec_problem_metadata(args) -> dict:
 def _exec_run_tests(args) -> dict:
 	from .suite_runner import run_test_suite
 	return run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
+def _exec_test_watchdog(args) -> dict:
+	from .watchdog_runner import run_watchdog_cli
+	return run_watchdog_cli(args)
 def _exec_wait_repo(args) -> dict:
 	from .repo_wait import wait_for_repo
 	return wait_for_repo(args.repo, clean=bool(args.clean), lease_free=bool(args.lease_free), timeout=args.timeout, poll_interval=args.poll)
@@ -104,6 +111,8 @@ def _format_run_tests(res: dict, args) -> str | None:
 		from .suite_runner import format_text_report
 		r = format_text_report(res)
 	return r
+def _format_test_watchdog(_res: dict, args) -> str | None:
+	return None if 'json' == args.format else ''
 def _register_builtins() -> None:
 	register_command('analysis-check', 'Validate multi-hypothesis /df-analysis structure and Markdown table ban', (('project', {'type': Path}), ('--response-file', {'type': Path, 'required': True, 'help': 'UTF-8 candidate Markdown file, or - for stdin'}), ('--mode', {'choices': ('auto', 'general', 'problem'), 'default': 'auto', 'help': 'Validation mode (default: auto)'})), _exec_analysis_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2)
 	register_command('cli-docs', 'Render Markdown command index directly from registered CLI commands', (), _exec_cli_docs)
@@ -114,6 +123,7 @@ def _register_builtins() -> None:
 	register_command('perf-timesheet', 'Build deterministic turn chronometry, cache, compaction, and wait telemetry from a trace', (('--trace', {'type': Path, 'help': 'Direct path to Antigravity transcript_full.jsonl or Codex rollout .jsonl'}), ('--conversation', {'help': 'Native conversation UUID (auto-resolved via runtime.json)'}), ('--project', {'type': Path, 'help': 'Project root for --journal-step lookup'}), ('--journal-step', {'type': int, 'help': 'Journal response step number whose Trace metadata identifies the trace'}), ('--summary-db', {'type': Path, 'help': 'Optional path to Antigravity conversation_summaries.db'}), ('--turn-start-step', {'type': int, 'help': 'Optional inclusive starting step index'}), ('--turn-end-step', {'type': int, 'help': 'Optional inclusive ending step index'}), ('--top-gaps', {'type': int, 'default': 10, 'help': 'Number of largest inter-step wall gaps to report (default: 10)'}), ('--output', {'type': Path, 'help': 'Optional output path to persist tab-indented JSON telemetry'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_perf_timesheet, text_fn=_format_perf_timesheet)
 	register_command('problem-metadata', 'Build structured # 0 problem metadata with mandatory GitHub Issue key', (('project', {'type': Path}), ('--issue', {'help': 'Verified GitHub issue URL (mandatory unless --no-issue)'}), ('--no-issue', {'action': 'store_true', 'help': 'Allow null Issue key for non-GitHub workspaces'}), ('--source-project', {'type': Path, 'help': 'Optional distinct owning project root'}), ('--format', {'choices': ('json', 'markdown'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_problem_metadata, text_fn=_format_problem_metadata)
 	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
+	register_command('test-watchdog', 'Run a test command with stdin detached and a hard process-tree watchdog timeout', ((('--timeout', '--module-timeout'), {'dest': 'timeout', 'type': float, 'default': 300.0, 'help': 'Watchdog timeout in seconds (default: 300)'}), ('--cwd', {'type': Path, 'help': 'Optional working directory'}), ('--format', {'choices': ('passthrough', 'json'), 'default': 'passthrough', 'help': 'Output format (default: passthrough)'}), ('cmd', {'nargs': argparse.REMAINDER, 'help': 'Command and arguments to execute under watchdog'})), _exec_test_watchdog, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_test_watchdog)
 	register_command('wait-repo', 'Wait reactively in foreground until a Git repository lease is free and/or working tree is clean', (('repo', {'type': Path}), ('--clean', {'action': 'store_true', 'help': 'Wait until git status --porcelain is empty'}), ('--lease-free', {'action': 'store_true', 'help': 'Wait until FIFO landing lease is free (with PID liveness checks)'}), ('--timeout', {'type': float, 'default': 180.0, 'help': 'Maximum wait seconds before timing out (default: 180)'}), ('--poll', {'type': float, 'default': 1.0, 'help': 'Polling interval in seconds (default: 1.0)'})), _exec_wait_repo)
 	register_command('worktree-begin', 'Create an isolated linked git worktree and task branch', (('repo', {'type': Path}), ('--task', {'required': True}), ('--base', {'default': 'main'}), ('--worktrees-dir', {'type': Path})), _exec_worktree_begin)
 	register_command('worktree-cleanup', 'Remove a linked git worktree and its merged task branch', (('repo', {'type': Path}), ('target', {'type': Path}), ('--force', {'action': 'store_true'})), _exec_worktree_cleanup)

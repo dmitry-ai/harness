@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
 # https://github.com/dmitry-ai/harness/issues/162
@@ -67,7 +70,10 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 			d_bad = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'Set-Location tests; python -m unittest discover -s . -p test_*.py', 'WaitMsBeforeAsync': 500}}})
 			self.assertEqual(d_bad['decision'], 'deny', d_bad)
 			self.assertIn('EXEC-2-TEST-FAILFAST-GATE', d_bad.get('reason', ''))
-			d_ok = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'Set-Location tests; python -m unittest discover -f -s . -p test_*.py', 'WaitMsBeforeAsync': 10000}}})
+			d_unbounded = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'Set-Location tests; python -m unittest discover -f -s . -p test_*.py', 'WaitMsBeforeAsync': 10000}}})
+			self.assertEqual(d_unbounded['decision'], 'deny', d_unbounded)
+			self.assertIn('EXEC-2-TEST-FAILFAST-GATE', d_unbounded.get('reason', ''))
+			d_ok = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': f'Set-Location tests; python "{SCRIPT_DIR / "harness.py"}" run-tests . --module-timeout 120', 'WaitMsBeforeAsync': 10000}}})
 			self.assertEqual(d_ok['decision'], 'allow', d_ok)
 			self.assertNotIn('overwrite', d_ok)
 	def test_pre_tool_use_overwrites_single_segment_test_commands_and_low_wait_ms(self) -> None:
@@ -86,7 +92,10 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 				ov = dec.get('overwrite') or {}
 				self.assertIn(expected_flag, ov.get('CommandLine', ''), (cmd, dec))
 				self.assertEqual(ov.get('WaitMsBeforeAsync'), 10000, (cmd, dec))
-			clean = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'python -m unittest discover -f -s tests -p "test_*.py"', 'WaitMsBeforeAsync': 10000}}})
+			wrapped_u = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'python -m unittest discover -f -s tests -p "test_*.py"', 'WaitMsBeforeAsync': 10000}}})
+			self.assertEqual(wrapped_u['decision'], 'allow', wrapped_u)
+			self.assertIn('test-watchdog', (wrapped_u.get('overwrite') or {}).get('CommandLine', ''))
+			clean = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': f'python "{SCRIPT_DIR / "harness.py"}" test-watchdog --timeout 120 python -m unittest discover -f -s tests -p "test_*.py"', 'WaitMsBeforeAsync': 10000}}})
 			self.assertEqual(clean['decision'], 'allow', clean)
 			self.assertNotIn('overwrite', clean)
 			opt_out = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': f'python "{SCRIPT_DIR / "harness.py"}" run-tests tests --no-failfast', 'WaitMsBeforeAsync': 500}}})
