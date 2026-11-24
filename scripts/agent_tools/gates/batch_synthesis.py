@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
@@ -5,6 +8,7 @@ from __future__ import annotations
 import re
 NAME = 'VERIFY-1-BATCH-SYNTHESIS-GATE'
 PRIORITY = 60
+TOOLS = frozenset({'run_command', 'write_file', 'edit_file'})
 _ANALYSIS_RE = re.compile('analysis' + '\\.md', re.I)
 _WRITE_CALL_RE = re.compile('\\b(?:write_' + 'text|write_' + 'bytes|open\\s*\\()\\b')
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:

@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/79
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
@@ -7,9 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 import re
 from ..hook_runtime import iter_turn_state_files
-from ..path_registry import project_paths
 NAME = 'SCOPE-2-EXTERNAL-WRITE-GATE'
 PRIORITY = 40
+TOOLS = frozenset({'run_command'})
 EXTERNAL_WRITE_INTENT_RE = re.compile('(?i)\\b(?:github|gh\\s+issue|df_github_issue|df-github-issue|issue\\s*#?\\d+|create\\s+(?:an?\\s+)?issue|open\\s+(?:an?\\s+)?issue|close\\s+(?:the\\s+)?issue|edit\\s+(?:the\\s+)?issue|comment\\s+on\\s+issue|git\\s+push|commit|pull\\s+request|\\u0438\\u0441\\u043f\\u0440\\u0430\\u0432\\w+|\\u0441\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\u0443\\u0439\\w*|\\u043f\\u0435\\u0440\\u0435\\u0434\\u0435\\u043b\\u0430\\u0439\\w*|\\u0437\\u0430\\u043a\\u043e\\u043c\\u043c\\u0438\\u0442\\w+|\\u043e\\u043f\\u0443\\u0431\\u043b\\u0438\\u043a\\u0443\\u0439\\w*|\\u0441\\u043e\\u0437\\u0434\\u0430\\u0439\\w*\\s+issue|\\u0437\\u0430\\u043a\\u0440\\u043e\\u0439\\w*\\s+issue|\\u043e\\u0431\\u043d\\u043e\\u0432\\u0438\\w*\\s+issue)\\b')
 def _cand_paths_from_cmd(cmd: str) -> list[Path]:
 	cands: list[Path] = []
@@ -32,6 +35,7 @@ def _is_uninstructed_open_turn(tdata: dict) -> bool:
 		r = bool(req_text.strip()) and (not EXTERNAL_WRITE_INTENT_RE.search(req_text))
 	return r
 def _check_df_issue_turn_intent(cmd: str) -> str | None:
+	from ..path_registry import project_paths
 	r = None
 	proj_root = _upwork_project_root_for_command(cmd)
 	turns_dir = project_paths(proj_root).turns_dir if None is not proj_root else None
@@ -39,6 +43,7 @@ def _check_df_issue_turn_intent(cmd: str) -> str | None:
 		r = 'SCOPE-2 / EXEC-5: Uninstructed external GitHub write (df_github_issue.py create/edit/comment/close) during a read-only analysis turn is prohibited without an explicit user instruction.'
 	return r
 def _match_upwork_root(cand: Path) -> Path | None:
+	from ..path_registry import project_paths
 	r = None
 	try:
 		pp = project_paths(cand)

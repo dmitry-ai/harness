@@ -1,11 +1,14 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 from __future__ import annotations
 import re
-from ..runtime import PRIMARY
 NAME = 'RULES-BUDGET-GATE'
 PRIORITY = 10
+TOOLS = frozenset({'write_file', 'edit_file'})
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	r = None
 	path = args.get('Path', '')
@@ -14,6 +17,7 @@ def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	if content:
 		byte_len = len(content.encode('utf-8'))
 		if normalized.endswith('90-project.md') and 4000 < byte_len:
+			from ..runtime import PRIMARY
 			r = f"Size of 90-project.md ({byte_len} bytes) exceeds the 4,000-byte limit to avoid dropping out of the Antigravity system prompt. Run 'python {(PRIMARY / 'scripts/split_project_rules.py').as_posix()}' for automatic splitting or move the new section into a separate module .agents/rules/9X-<topic>.md."
 		elif re.search('/9[1-9]-[^/]+\\.md$', normalized) and 6000 < byte_len:
 			r = f'Size of rule module {path} ({byte_len} bytes) exceeds the 6,000-byte limit. Split it into smaller topical modules.'

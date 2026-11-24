@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/79
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add read-only answer-check pre-flight validation command to harness CLI":
@@ -11,9 +14,8 @@ import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_tools.hook_runtime import ABBREVIATIONS, ABBR_RE, MULTI_SENT_RE, iter_turn_state_files, run_json_hook, scan_doc4_sentence_issues
-from agent_tools.path_registry import project_paths, resolve_project_root
-from agent_tools.source_grounding import local_source_grounding_issues
 def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
+	from agent_tools.path_registry import project_paths
 	pp = project_paths(proj_root)
 	norm_p = target.as_posix().lower()
 	r = None
@@ -38,6 +40,7 @@ def _evaluate_payload(payload: dict) -> dict:
 			decision = {'decision': 'deny', 'reason': f'REJECTED (DOC-4 / VERIFY-1 Anti-Slop Hook): {violation}'}
 	return decision
 def _infer_project_root(target: Path) -> Path:
+	from agent_tools.path_registry import resolve_project_root
 	resolved = resolve_project_root(target)
 	markers = ('\ua616', '_/\ua616', '\ua66e', '\U0001f56e')
 	if resolved != target.resolve().parent or any(((resolved / m).is_dir() for m in markers)):
@@ -75,6 +78,7 @@ def check_markdown_content(content, path=None):
 				proj_root = _infer_project_root(p_obj)
 				r = _check_turn_budget_gate(proj_root, p_obj)
 				if None is r:
+					from agent_tools.source_grounding import local_source_grounding_issues
 					issues = local_source_grounding_issues(proj_root, content, doc_path=p_obj)
 					if issues:
 						r = '; '.join(issues[:3])

@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
@@ -5,10 +8,13 @@ from __future__ import annotations
 from pathlib import Path
 import re
 from .bulk_source_read import _parse_call_args, _recent_segment_rows
-from ..shell_audit import _CDP_PROTOCOL_RE
 NAME = 'M-5-BROWSER-MCP-GATE'
 PRIORITY = 90
+TOOLS = frozenset({'mcp_*', 'invoke_subagent', 'write_file', 'edit_file'})
 _AUTO_CONN_RE = re.compile('(?:--auto' + 'Connect|--browser' + '-url|--browser' + 'Url)', re.I)
+def _prompt_uses_loopback_cdp(prompt: str) -> bool:
+	from ..shell_audit import _CDP_PROTOCOL_RE
+	return bool(_CDP_PROTOCOL_RE.search(prompt))
 def _turn_has_background_mcp_new_page(payload: dict) -> bool:
 	t_raw = (payload or {}).get('transcriptPath') or ''
 	r = False
@@ -32,7 +38,7 @@ def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 			r = 'EXEC-3 / M-5: Browser MCP new_page must set background=true (or isolatedContext) so user browser windows are never focused or hijacked.'
 		elif name.endswith(('navigate_page', 'close_page', 'select_page')) and (not _turn_has_background_mcp_new_page(payload or {})):
 			r = 'EXEC-3 / M-5: Calling navigate_page/close_page/select_page without first creating an agent-owned background page via new_page(background=true) in this turn is prohibited; user tabs are strictly read-only.'
-	elif 'invoke_subagent' == name and 'browser' == str(args.get('TypeName') or '').strip().lower() and _CDP_PROTOCOL_RE.search(str(args.get('Prompt') or '')):
+	elif 'invoke_subagent' == name and 'browser' == str(args.get('TypeName') or '').strip().lower() and _prompt_uses_loopback_cdp(str(args.get('Prompt') or '')):
 		r = 'EXEC-3 / M-5: Instructing browser subagent to attach to loopback CDP endpoints is prohibited.'
 	elif name in ('write_file', 'edit_file'):
 		norm_p = (args.get('Path') or '').replace('\\', '/').lower()

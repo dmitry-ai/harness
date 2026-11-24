@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/79
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
@@ -9,6 +12,7 @@ from pathlib import Path
 from ..hook_runtime import read_last_user_segment
 NAME = 'REVIEW-1-BULK-SOURCE-GATE'
 PRIORITY = 70
+TOOLS = frozenset({'read_file'})
 MAX_UNPERSISTED_SOURCE_READS = 10
 def _parse_call_args(raw) -> dict:
 	r = raw if isinstance(raw, dict) else {}
