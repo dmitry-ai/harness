@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+# https://github.com/dmitry-ai/harness/issues/213
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add deterministic reactive wait primitive for transient repository and journal contention":
 # https://github.com/dmitry-ai/harness/issues/199
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -160,11 +163,10 @@ COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint'
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
 class AnswerPreparationRunner:
-	def __init__(self, root, response, result, native, turn):
+	def __init__(self, root, response, result, native, turn, *, blocked_report=False):
 		from .path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
-		self.root = self.pp.root
-		self.response = response
+		self.root, self.response, self.blocked_report = (self.pp.root, response, bool(blocked_report))
 		self.sha = _hash(response.encode('utf-8'))
 		self.result = result
 		self.native = native
@@ -185,22 +187,13 @@ class AnswerPreparationRunner:
 			self.wf_identifiers = {req['id'] for req in self.turn['requests']}
 			self.wf_covered = {req['id'] for req in self.wf_state['requests']} & self.wf_identifiers
 			self.is_finalized = 'complete' == self.wf_state.get('stages', {}).get('finalize', {}).get('status')
-			kb_scan = _factual_kb_note_issues(self.root, self.turn)
-			if kb_scan['issues']:
-				self._fail_gate('factual_kb_note', 'KB-2 / DOC-1 violation in factual research note: ' + '; '.join(kb_scan['issues']))
-			has_kb_or_issue_mutation = kb_scan['has_normative'] or bool(self.turn.get('issue_actions')) or bool(self.value.get('github_issues'))
-			touches_client_deliverable = any((_is_client_deliverable_path(tf, self.root) for tf in (self.turn.get('touched_files') or ())))
-			has_hm_tags = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', self.response))
-			if self.is_finalized:
-				self.has_substantive_hm = kb_scan['has_analysis'] or (has_hm_tags and 0 == self.value['delegation_check'].get('aa_subagent_step_count', 0))
-			else:
-				self.has_substantive_hm = has_hm_tags or has_kb_or_issue_mutation or touches_client_deliverable
-			if self.wf_covered and self.wf_covered != self.wf_identifiers:
-				raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
-			if not self.wf_covered and self.pp.project_json.is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', req.get('text', '')) for req in self.turn['requests']))) and (not self.is_finalized or self.has_substantive_hm):
-				self._fail_gate('workflow_adoption', 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project')
+		from .blocked_report import audit_runner_workflow_scope
+		audit_runner_workflow_scope(self, factual_kb_fn=_factual_kb_note_issues, is_deliv_fn=_is_client_deliverable_path)
 	def _authorize_and_sync_workflow(self):
-		if None is self.wf_state or not self.wf_covered:
+		if self.blocked_report:
+			from .blocked_report import record_blocked_report_entry
+			record_blocked_report_entry(self)
+		elif None is self.wf_state or not self.wf_covered:
 			self._record_journal_entry()
 		elif self.is_finalized and (not self.has_substantive_hm):
 			self._record_journal_entry()
@@ -217,22 +210,8 @@ class AnswerPreparationRunner:
 			except (OSError, ValueError) as exc:
 				self._fail_gate('review_authorize', str(exc), cause=exc)
 			self._record_journal_entry()
-			pending = {req['id'] for req in self.wf_state['requests'] if not req.get('response_prepared') and (req.get('native_conversation_id') in (None, self.native['conversation_id']) or req['id'] in self.wf_identifiers)}
-			if pending:
-				if pending != self.wf_identifiers:
-					raise ValueError('Align unanswered tracked requests with the exact current native turn before preparation')
-				from .workflow import record_current_answer
-				prep = self.value['prepared']
-				record_current_answer(self.root, self.response, journal_directory=self.value['journal'], request_ids=self.wf_identifiers, preauthorized=approval, recorded_steps=prep['journal_steps'], turn_token=Path(prep['group_file']).stem)
-			elif any((req['response_prepared']['sha256'] != self.sha for req in self.wf_state['requests'] if req['id'] in self.wf_identifiers)):
-				if not self.allow_reprepare:
-					raise ValueError('Tracked analysis requests already have different prepared response bytes')
-				from .workflow import update
-				def update_reprepared(s):
-					for req in s.get('requests', []):
-						if req['id'] in self.wf_identifiers:
-							req['response_prepared'] = {'sha256': self.sha, 'prepared_at': _now()}
-				update(self.root, {'action': 'reprepare_before_delivery', 'request_ids': sorted(self.wf_identifiers)}, update_reprepared)
+			from .blocked_report import sync_authorized_workflow_requests
+			sync_authorized_workflow_requests(self, approval, _now)
 	def _check_evicted_citations(self):
 		unreread_cited = _find_evicted_cited_files(self.root, self.pp, self.result['turn_key'], self.value['compaction_check'], self.response)
 		if unreread_cited:
@@ -1946,7 +1925,7 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 						if is_df_github_issue_command(ceff_cmd):
 							child_pending_issue[pay['call_id']] = (step_idx, ceff_cmd)
 	return merge_turn_accumulators([seg], allow_step_output_recovery=True)
-def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None):
+def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None, blocked_report=False):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 candidate response is required')
 	from check_markdown_slop import markdown_slop_issues
@@ -1993,43 +1972,15 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		issue_first_chk = _issue_first_status(root_p, turn_obj) if role in ('primary', 'child') else {'verified': True, 'repos': {}, 'violations': []}
 		lifecycle_chk = _code_and_issue_lifecycle_status(root_p, turn_obj, value_obj if 'primary' == role else None, response=response)
 		tdd_chk = _tdd_status(root_p, turn_obj) if role in ('primary', 'child') else {'verified': True, 'scopes': {}, 'violations': []}
-		wf_errs: list[str] = []
-		if 'primary' == role and pp.workflow_json.is_file():
-			from .workflow import load
-			wf_state = load(root_p)
-			wf_ids = {req['id'] for req in requests_list}
-			wf_cov = {req['id'] for req in wf_state.get('requests') or []} & wf_ids
-			is_fin = 'complete' == wf_state.get('stages', {}).get('finalize', {}).get('status')
-			kb_scan = _factual_kb_note_issues(root_p, turn_obj)
-			for kb_e in kb_scan['issues']:
-				wf_errs.append(f'KB-2 / DOC-1 violation in factual research note: {kb_e}')
-			has_kb_mut = kb_scan['has_normative'] or bool(turn_obj.get('issue_actions')) or bool(value_obj.get('github_issues'))
-			touches_deliv = any((_is_client_deliverable_path(tf, root_p) for tf in (turn_obj.get('touched_files') or ())))
-			has_hm = bool(re.search('\\b(?:H|M)-(?:[A-Za-z0-9]+-)*\\d+\\b', response))
-			substantive_hm = (kb_scan['has_analysis'] or (has_hm and 0 == del_chk.get('aa_subagent_step_count', 0))) if is_fin else (has_hm or has_kb_mut or touches_deliv)
-			if wf_cov and wf_cov != wf_ids:
-				wf_errs.append('Adopt all exact current requests before preparing a tracked analysis response')
-			elif not wf_cov and pp.project_json.is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', req.get('text', '')) for req in requests_list))) and (not is_fin or substantive_hm):
-				wf_errs.append('REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project')
-			elif wf_cov and (not is_fin or substantive_hm):
-				from .review import authorize
-				try:
-					authorize(root_p, wf_state, response=response, request_ids=wf_ids)
-				except (OSError, ValueError) as exc:
-					wf_errs.append(str(exc))
-		if 'primary' == role and (pp.data_dir / 'client-text/index.json').is_file():
-			from .text_workflow import gate_requests
-			try:
-				gate_requests([root_p, _directory(root_p, value_obj.get('journal') or journal_directory)], [r['text'] for r in requests_list], response, capture=False)
-			except (OSError, ValueError) as exc:
-				wf_errs.append(str(exc))
+		from .blocked_report import evaluate_check_workflow_errors
+		wf_errs = evaluate_check_workflow_errors(root_p, pp, role, response, requests_list, turn_obj, value_obj, del_chk, blocked_report=bool(blocked_report), journal_directory=journal_directory, factual_kb_fn=_factual_kb_note_issues, is_deliv_fn=_is_client_deliverable_path, dir_fn=_directory)
 		from .gates import run_answer_gates
 		all_issues, checks = run_answer_gates({'role': role, 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
 		return {'valid': not all_issues, 'read_only': True, 'role': role, 'turn_key': turn_key, 'response_sha256': sha, 'issue_count': len(all_issues), 'issues': all_issues, 'checks': checks}
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
-def _prepare_once(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None):
+def _prepare_once(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, blocked_report=False):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 final response is required')
 	from .causal_checks import unsupported_probability_claims
@@ -2046,10 +1997,10 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 		turn = _active(native)
 		if None is turn or _key(native, turn) != result['turn_key'] or _hash(_json(turn['requests'])) != result['native_requests_sha256']:
 			raise ValueError('The active native turn changed during preparation; no answer was recorded')
-		return AnswerPreparationRunner(root_p, response, result, native, turn).run()
-def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, wait_timeout: float=0.0, wait_poll: float=1.0):
+		return AnswerPreparationRunner(root_p, response, result, native, turn, blocked_report=blocked_report).run()
+def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, wait_timeout: float=0.0, wait_poll: float=1.0, blocked_report: bool=False):
 	from .repo_wait import run_with_transient_wait
-	return run_with_transient_wait(Path(root), lambda: _prepare_once(root, response, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory), wait_timeout=wait_timeout, poll_interval=wait_poll)
+	return run_with_transient_wait(Path(root), lambda: _prepare_once(root, response, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory, blocked_report=blocked_report), wait_timeout=wait_timeout, poll_interval=wait_poll)
 def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
 	from .path_registry import canonicalize_root_dir
 	root_p = canonicalize_root_dir(root)
@@ -2097,9 +2048,9 @@ def add_parser_arguments(parser, command):
 	if 'recover-checkpoint' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Inspect read-only pre-checkpoint file SHA-256/line index and step summary without writing receipts or bypassing COMPACT-1'}))
 	if 'answer-check' == command:
-		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Candidate UTF-8 response file to validate, or - for stdin'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'})))
+		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Candidate UTF-8 response file to validate, or - for stdin'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'}), ('--blocked-report', {'action': 'store_true', 'help': 'Validate as a pre-finalize blocker report requiring continuation.md and forbidding H-*/M-* claims'})))
 	if 'answer-prepare' == command:
-		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'}), ('--wait-timeout', {'type': float, 'default': 180.0, 'help': 'Seconds to wait reactively on transient repo/journal contention (default: 180)'})))
+		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'}), ('--wait-timeout', {'type': float, 'default': 180.0, 'help': 'Seconds to wait reactively on transient repo/journal contention (default: 180)'}), ('--blocked-report', {'action': 'store_true', 'help': 'Record a pre-finalize blocker report in the journal without closing workflow review/finalize gates'})))
 	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
 		specs.append(('--from-step', {'type': int, 'default': 0}))
 	if 'journal-sync' == command:
@@ -2123,11 +2074,11 @@ def execute(args):
 	elif 'answer-check' == args.command:
 		from .cli_common import load_operation_input
 		payload = load_operation_input(args, args.response_file)
-		r = check_answer(args.project, payload.decode('utf-8'), args.conversation, response_path=args.response_file, journal_directory=args.journal)
+		r = check_answer(args.project, payload.decode('utf-8'), args.conversation, response_path=args.response_file, journal_directory=args.journal, blocked_report=bool(getattr(args, 'blocked_report', False)))
 	elif 'answer-prepare' == args.command:
 		from .cli_common import consume_scratch_input, load_operation_input
 		payload = load_operation_input(args, args.response_file)
-		result = prepare(args.project, payload.decode('utf-8'), args.conversation, watch=not args.no_watch, journal_directory=args.journal, wait_timeout=float(getattr(args, 'wait_timeout', 180.0)))
+		result = prepare(args.project, payload.decode('utf-8'), args.conversation, watch=not args.no_watch, journal_directory=args.journal, wait_timeout=float(getattr(args, 'wait_timeout', 180.0)), blocked_report=bool(getattr(args, 'blocked_report', False)))
 		r = consume_scratch_input(args, args.response_file, payload, result)
 	elif 'reconcile-unprepared-delivery' == args.command:
 		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)
