@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
+# https://github.com/dmitry-ai/harness/issues/214
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
 # https://github.com/dmitry-ai/harness/issues/131
@@ -155,16 +158,9 @@ class LocalSourceGroundingAuditor:
 			if not active_primary:
 				self._check_unlinked_deliverable_metrics(block.content)
 			else:
+				from .grounding_helpers import audit_block_lines
 				infos, combined_raw, combined_norm, ev_nums, src_label = self._build_active_corpus(filtered_locals, ext_urls, active_primary)
-				if 0 < self.quote_depth:
-					self._check_blockquote(block.content, combined_norm, src_label)
-				else:
-					ticket_infos = [inf for inf in infos if inf['is_ticket_source']]
-					valid_msg_nums = {n for inf in ticket_infos for n in inf['msg_nums']}
-					bound_ticket_ids = {inf['ticket_id'] for inf in ticket_infos if inf['ticket_id']}
-					any_cyrillic_source = any((inf['has_cyrillic'] for inf in infos))
-					for line in block.content.split('\n'):
-						self._check_prose_line(line.strip(), infos, combined_raw, combined_norm, ev_nums, src_label, ticket_infos, valid_msg_nums, bound_ticket_ids, any_cyrillic_source)
+				audit_block_lines(self, block, infos, combined_raw, combined_norm, ev_nums, src_label)
 	def _audit_linked_analyses(self) -> None:
 		for ap in self.linked_analyses:
 			try:
@@ -190,7 +186,7 @@ class LocalSourceGroundingAuditor:
 		ev_nums = set().union(*(inf['nums'] for inf in infos)) if infos else set()
 		if ext_blobs:
 			ev_nums.update(_source_numeric_tokens('\n'.join(ext_blobs)))
-		return (infos, combined_raw, combined_norm, ev_nums, ', '.join((p.name for p in active_primary[:2])))
+		return (infos, combined_raw, combined_norm, ev_nums, ', '.join((self.index.locator_for(p) for p in active_primary[:2])))
 	def _check_blockquote(self, text: str, combined_norm: str, src_label: str) -> None:
 		if not META_REFUTATION_RE.search(text):
 			for bq in extract_blockquote_quotes(text):

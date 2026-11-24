@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
+# https://github.com/dmitry-ai/harness/issues/214
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -49,8 +52,13 @@ def _infer_project_root(target: Path) -> Path:
 		cwd_res = resolve_project_root(Path.cwd().resolve())
 		r = cwd_res if any(((cwd_res / m).is_dir() for m in markers)) else resolved
 	return r
+def _format_grounding_issues(issues: list[str]) -> str:
+	unique = list(dict.fromkeys(issues))
+	return unique[0] if 1 == len(unique) else f'{len(unique)} grounding issues: ' + '; '.join(unique)
 def _is_request_journal_file(norm_p: str) -> bool:
 	return '/req/' in norm_p or bool(re.search('(?:^|/)\\ua66e/(?:[^/]+/)?\\u227b/', norm_p))
+def _is_scratch_draft_file(norm_p: str) -> bool:
+	return '/data/scratch/' in norm_p
 def _resolve_markdown_content(name: str, args: dict, path: str):
 	if 'write_file' == name:
 		content = args.get('Content')
@@ -77,11 +85,11 @@ def check_markdown_content(content, path=None):
 			if not _is_request_journal_file(norm_p) and '/source/' not in norm_p and 'source.md' != p_obj.name.lower():
 				proj_root = _infer_project_root(p_obj)
 				r = _check_turn_budget_gate(proj_root, p_obj)
-				if None is r:
+				if None is r and (not _is_scratch_draft_file(norm_p)):
 					from agent_tools.source_grounding import local_source_grounding_issues
 					issues = local_source_grounding_issues(proj_root, content, doc_path=p_obj)
 					if issues:
-						r = '; '.join(issues[:3])
+						r = _format_grounding_issues(issues)
 	return r
 def is_abbreviation_end(text):
 	return bool(ABBR_RE.search(text.rstrip()))
