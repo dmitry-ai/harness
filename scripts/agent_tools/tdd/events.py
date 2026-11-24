@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/173
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
@@ -7,7 +10,7 @@ from pathlib import Path
 from ..shell_audit import classify_git_argv, normalize_host_path
 from .classifier import classify_code_path, resolve_code_scope
 from .commands import classify_test_command
-from .outcomes import _BG_TASK_FINISHED_RE, _BG_TASK_ID_RE, parse_command_outcome
+from .outcomes import _BG_TASK_FINISHED_RE, _BG_TASK_ID_RE, extract_bg_task_ids, parse_command_outcome
 import json
 import re
 _BG_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
@@ -120,8 +123,8 @@ def _scan_segment_calls(calls: list[dict], outs: list[str], active_bg: set[str])
 		cargs = _normalize_args_dict(call.get('args', {}))
 		if 'invoke_subagent' == cname:
 			spawned += 1
-		elif cname in ('run_command', 'schedule'):
-			if 'run_command' == cname and re.search(r'\banswer-prepare\b', str(cargs.get('CommandLine') or ''), re.I):
+		elif 'run_command' == cname:
+			if re.search(r'\banswer-prepare\b', str(cargs.get('CommandLine') or ''), re.I):
 				prepared = True
 			_track_bg_command_outputs(c_pos, outs, active_bg)
 		elif 'manage_task' == cname and 'kill' == str(cargs.get('Action') or '').strip().lower():
@@ -156,10 +159,7 @@ def _select_active_segment(rows: list[dict]) -> list[dict]:
 def _track_bg_command_outputs(c_pos: int, outs: list[str], active_bg: set[str]) -> None:
 	matched = [outs[c_pos]] if c_pos < len(outs) else outs
 	for out_s in matched:
-		for m_tid in _BG_TASK_ID_RE.finditer(out_s):
-			tid = m_tid.group(1).strip().rstrip('.,')
-			if tid:
-				active_bg.add(tid)
+		active_bg.update(extract_bg_task_ids(out_s))
 def _unwrap_arg_value(val):
 	r = val
 	if isinstance(val, str) and 2 <= len(val) and '"' == val[0] and '"' == val[-1]:

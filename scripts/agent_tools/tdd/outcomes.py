@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enable parallel pytest-xdist full-suite execution and outcome parsing":
 # https://github.com/dmitry-ai/harness/issues/178
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -7,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import re
+_BG_HEADER_SPLIT_RE = re.compile(r'(?m)^(?:Command output|Output|Log output):\s*$')
 _BG_TASK_FINISHED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+finished\s+with\s+result:\s*([\s\S]*)', re.IGNORECASE)
 _BG_TASK_ID_RE = re.compile(r'task\s+id:\s*([A-Za-z0-9_./:-]+)', re.IGNORECASE)
 _BG_TASK_LOG_RE = re.compile(r'(?:Task\s+logs\s+are\s+available\s+at|Log):\s*(file:///[^\s\'"<>]+)', re.IGNORECASE)
@@ -38,8 +42,8 @@ def _collect_log_candidates(bg_log_path: str | None, task_log_paths: list[Path] 
 			r.append(p_obj)
 	return r
 def _extract_bg_meta(combined: str) -> tuple[str | None, str | None]:
-	m_tid = _BG_TASK_ID_RE.search(combined)
-	bg_tid = m_tid.group(1).strip().rstrip('.,') if m_tid else None
+	tids = extract_bg_task_ids(combined)
+	bg_tid = tids[0] if tids else None
 	m_log = _BG_TASK_LOG_RE.search(combined)
 	lp = _uri_to_local_path(m_log.group(1)) if m_log else None
 	return (bg_tid, str(lp) if None is not lp else None)
@@ -100,6 +104,15 @@ def _uri_to_local_path(uri: str) -> Path | None:
 		elif re.match(r'^/[A-Za-z]:/', p_str):
 			p_str = p_str[1:]
 		r = Path(p_str)
+	return r
+def extract_bg_task_ids(text: str) -> list[str]:
+	r: list[str] = []
+	header = _BG_HEADER_SPLIT_RE.split(text or '', maxsplit=1)[0]
+	if not _EXIT_CODE_RE.search(header):
+		for m_tid in _BG_TASK_ID_RE.finditer(header):
+			tid = m_tid.group(1).strip().rstrip('.,')
+			if tid and tid not in r:
+				r.append(tid)
 	return r
 def parse_command_outcome(outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None) -> dict:
 	parts = [outputs] if isinstance(outputs, str) else [str(o) for o in (outputs or ()) if o]

@@ -328,8 +328,11 @@ class AntigravityTurnScanner:
 						if cev and cev.get('outcome', {}).get('background_task_id'):
 							sub_bg[cev['outcome']['background_task_id']] = cev
 		return ()
+	# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+	# https://github.com/dmitry-ai/harness/issues/224
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
-		from ..tdd_gate import _BG_TASK_ID_RE
+		from ..tdd.outcomes import extract_bg_task_ids
 		seg['tool_steps'].append(step_idx)
 		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
 		for act_item in extract_issue_actions_from_outputs(outputs):
@@ -340,12 +343,9 @@ class AntigravityTurnScanner:
 			args = parse_tool_args(raw_args)
 			args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
 			matched = [outputs[c_idx]] if c_idx < len(outputs) else outputs
-			if cname in ('run_command', 'schedule') and 'active_bg_tasks' in seg:
+			if 'run_command' == cname and 'active_bg_tasks' in seg:
 				for out_s in matched:
-					for m_tid in _BG_TASK_ID_RE.finditer(out_s):
-						tid = m_tid.group(1).strip().rstrip('.,')
-						if tid:
-							seg['active_bg_tasks'].add(tid)
+					seg['active_bg_tasks'].update(extract_bg_task_ids(out_s))
 			elif 'manage_task' == cname and 'kill' == str(args.get('Action') or '').strip().lower() and 'active_bg_tasks' in seg:
 				kill_tid = str(args.get('TaskId') or '').strip()
 				if kill_tid:

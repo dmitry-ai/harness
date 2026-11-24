@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
 # https://github.com/dmitry-ai/harness/issues/211
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -136,6 +139,7 @@ def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_ove
 def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows: list | None = None) -> dict | None:
 	_ensure_scripts_on_path()
 	from agent_tools.hook_runtime import iter_turn_state_files
+	from agent_tools.stop_hook_guard import handoff_matches_user_step
 	handed_off_fallback: tuple[int, dict] | None = None
 	for _, st in iter_turn_state_files(t_dir):
 		if str(st.get('conversation_id') or '').strip().lower() != session_id:
@@ -145,10 +149,8 @@ def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows:
 			return st
 		if None is not rows and 'handed_off' == st.get('status'):
 			start_step = st.get('native_start_step')
-			if isinstance(start_step, int) and start_step <= last_user_step:
-				has_prior_final = any((isinstance(r, dict) and 'PLANNER_RESPONSE' == r.get('type') and (not (r.get('tool_calls') or ())) and str(r.get('content') or '').strip() and isinstance(r.get('step_index'), int) and start_step < r['step_index'] < last_user_step for r in rows))
-				if not has_prior_final and (None is handed_off_fallback or start_step > handed_off_fallback[0]):
-					handed_off_fallback = (start_step, st)
+			if isinstance(start_step, int) and start_step <= last_user_step and handoff_matches_user_step(st, rows, last_user_step) and (None is handed_off_fallback or start_step > handed_off_fallback[0]):
+				handed_off_fallback = (start_step, st)
 	return handed_off_fallback[1] if None is not handed_off_fallback else None
 def _resolve_backend_fallback(session_id: str) -> Path:
 	return _resolve_stop_paths(session_id)[0]
@@ -215,14 +217,14 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 			handoff_root = Path(handoff_raw).resolve()
 			target_state = _find_turn_state(_turns_dir(handoff_root), session_id, last_user_step)
 			if None is target_state:
-				return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare in {handoff_root} before finishing the response.'}, payload)
+				return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare in {handoff_root} before finishing the response.'}, payload, segment=segment)
 			matched_state = target_state
 	if None is matched_state:
-		return apply_continuation_guard(t_dir, session_id, last_user_step, None, {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare before finishing the response.'}, payload)
+		return apply_continuation_guard(t_dir, session_id, last_user_step, None, {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare before finishing the response.'}, payload, segment=segment)
 	from agent_tools.gates import run_stop_gates
 	gate_hit = run_stop_gates(matched_state)
 	decision = gate_hit if None is not gate_hit else _evaluate_prepared_match(matched_state, last_planner_text)
-	return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, decision, payload)
+	return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, decision, payload, segment=segment)
 def main():
 	_ensure_scripts_on_path()
 	from agent_tools.hook_runtime import run_json_hook
