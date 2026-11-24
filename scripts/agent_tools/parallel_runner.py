@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+# https://github.com/dmitry-ai/harness/issues/204
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deduplicate historical admission fixtures and guard optional temp fsync":
 # https://github.com/dmitry-ai/harness/issues/177
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -78,7 +81,7 @@ def _run_single_module(module: Path, tests_dir: Path, *, failfast: bool, buffer_
 	else:
 		cmd = _build_worker_cmd(module, failfast=failfast, buffer_output=buffer_output)
 		env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'PYTHONUTF8': '1', 'GIT_OPTIONAL_LOCKS': '0'}
-		proc = subprocess.Popen(cmd, cwd=str(tests_dir), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, creationflags=_NO_WINDOW)
+		proc = subprocess.Popen(cmd, cwd=str(tests_dir), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, creationflags=_NO_WINDOW)
 		with active_lock:
 			active_procs.add(proc)
 		try:

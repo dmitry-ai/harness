@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+# https://github.com/dmitry-ai/harness/issues/204
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -152,10 +155,10 @@ class GitRepoGate:
 					hp = HOOKS_DIR / hname
 					if hp.is_file():
 						hp.chmod(hp.stat().st_mode | 0o755)
-				proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
+				proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
 				current = (proc.stdout or '').strip()
 				if (normalize_host_path(current).resolve() != HOOKS_DIR.resolve()) if current else True:
-					subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(HOOKS_DIR)], capture_output=True, check=False, creationflags=_NO_WINDOW)
+					subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(HOOKS_DIR)], stdin=subprocess.DEVNULL, capture_output=True, check=False, creationflags=_NO_WINDOW)
 				r = HOOKS_DIR
 			except OSError:
 				r = None
@@ -243,7 +246,7 @@ class GitRepoGate:
 		return r
 	def run_read(self, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 		env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-		return subprocess.run(['git', '--no-optional-locks', '-C', str(self.root), *args], input=input_bytes, capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
+		return subprocess.run(['git', '--no-optional-locks', '-C', str(self.root), *args], **({'input': input_bytes} if None is not input_bytes else {'stdin': subprocess.DEVNULL}), capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
 	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None, git_cache=None) -> dict:
 		from .github_issue import find_tracked_child_issues
 		from .issues.git_read_cache import RepoReadCache
@@ -500,7 +503,7 @@ class WorktreeCommitTransaction:
 		finally:
 			if resolved_wt.exists():
 				shutil.rmtree(resolved_wt, ignore_errors=True)
-			subprocess.run(['git', '-C', str(self.gate.root), 'worktree', 'prune'], capture_output=True, check=False, creationflags=_NO_WINDOW)
+			subprocess.run(['git', '-C', str(self.gate.root), 'worktree', 'prune'], stdin=subprocess.DEVNULL, capture_output=True, check=False, creationflags=_NO_WINDOW)
 def _ancestor_process_names(pid: int | None=None) -> list[str]:
 	r: list[str] = []
 	if 'nt' == os.name:
@@ -576,7 +579,7 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 		if expired:
 			running = False
 			if check_running and 'nt' == os.name:
-				proc = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq git-credential-store.exe', '/NH'], capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
+				proc = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq git-credential-store.exe', '/NH'], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
 				running = 'git-credential-store' in (proc.stdout or '').lower()
 			if not running:
 				for lp in expired:
@@ -593,7 +596,7 @@ def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[
 		raise ValueError(f'Unsupported read-only Git subcommand: {subcommand}')
 	return GitRepoGate(root, strict=True).read_git(subcommand, args)
 def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
-	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], input=input_bytes, capture_output=True, env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}, check=check, creationflags=_NO_WINDOW)
+	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], **({'input': input_bytes} if None is not input_bytes else {'stdin': subprocess.DEVNULL}), capture_output=True, env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}, check=check, creationflags=_NO_WINDOW)
 def _main_repo_for_worktree(root: Path) -> Path:
 	return GitRepoGate(root).main_repo()
 def is_issue_tracked_code_repo(root: Path) -> bool:

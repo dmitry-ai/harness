@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+# https://github.com/dmitry-ai/harness/issues/204
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
 # https://github.com/dmitry-ai/harness/issues/192
 from __future__ import annotations
@@ -60,7 +63,7 @@ def _run_worker(mod_path: Path, top_dir: Path, *, timeout_s: float, cprofile_top
 	env['PYTHONPATH'] = f'{scripts_dir}{os.pathsep}{py_path}' if py_path else str(scripts_dir)
 	cmd = [sys.executable, '-m', 'agent_tools.perf.suite_worker', str(mod_path), str(top_dir), str(out_json), str(cprofile_top)]
 	try:
-		proc = subprocess.run(cmd, cwd=str(top_dir.parent), env=env, capture_output=True, text=True, encoding='utf-8', timeout=timeout_s, creationflags=_NO_WINDOW)
+		proc = subprocess.run(cmd, cwd=str(top_dir.parent), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=timeout_s, creationflags=_NO_WINDOW)
 		r = json.loads(out_json.read_text(encoding='utf-8')) if 0 == proc.returncode and out_json.is_file() else _worker_error(mod_path, top_dir, f'exit {proc.returncode}: {(proc.stderr or proc.stdout).strip()[:300]}')
 	except subprocess.TimeoutExpired:
 		r = _worker_error(mod_path, top_dir, f'timeout after {timeout_s}s')
