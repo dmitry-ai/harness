@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove landed worktrees by default and flag stale worktrees in worktree-status":
 # https://github.com/dmitry-ai/harness/issues/203
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -46,23 +49,34 @@ def _fail_land(main_repo: Path, wt_path: Path, branch: str, stage: str, error: s
 	return {'valid': False, 'landed': False, 'stage': stage, 'error': error, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'test_runs': test_runs, 'test_result': test_result}
 def _git_exec(repo: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '-C', str(Path(repo).resolve()), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', check=False, creationflags=_NO_WINDOW)
-def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn) -> dict:
+def _maybe_promote_snapshot(main_repo: Path, *, promote_snapshot: bool | None, snapshot_store: Path | None) -> dict | None:
+	from .runtime_snapshot import is_harness_code_repo, promote_runtime_snapshot
+	should = promote_snapshot if None is not promote_snapshot else is_harness_code_repo(main_repo)
+	return promote_runtime_snapshot(main_repo, store_dir=snapshot_store) if should else None
+def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None) -> dict:
 	ff = _git_exec(main_repo, 'merge', '--ff-only', branch)
 	if 0 != ff.returncode:
 		r = _fail_land(main_repo, wt_path, branch, 'ff_merge', ff.stderr.strip() or ff.stdout.strip(), test_runs=test_runs, test_result=test_res)
 	else:
 		if post_merge_fn:
 			post_merge_fn(main_repo)
-		p_err = ''
-		if push:
-			p_proc = _git_exec(main_repo, 'push')
-			p_err = '' if 0 == p_proc.returncode else (p_proc.stderr.strip() or p_proc.stdout.strip())
-		if p_err:
-			r = _fail_land(main_repo, wt_path, branch, 'push', p_err, test_runs=test_runs, test_result=test_res)
+		snap = _maybe_promote_snapshot(main_repo, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
+		if None is not snap and (not snap.get('valid')):
+			r = _fail_land(main_repo, wt_path, branch, 'snapshot_promote', str(snap.get('error') or 'Runtime snapshot promotion failed'), test_runs=test_runs, test_result=test_res)
 		else:
-			removed = bool(worktree_cleanup(main_repo, wt_path, force=True)['valid']) if remove else False
-			head = GitRepoGate(main_repo).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
-			r = {'valid': True, 'landed': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'target_branch': target_branch, 'head': head, 'test_runs': test_runs, 'test_result': test_res, 'pushed': push, 'removed': removed}
+			r = _push_and_finish_land(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, snap=snap)
+	return r
+def _push_and_finish_land(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, snap: dict | None) -> dict:
+	p_err = ''
+	if push:
+		p_proc = _git_exec(main_repo, 'push')
+		p_err = '' if 0 == p_proc.returncode else (p_proc.stderr.strip() or p_proc.stdout.strip())
+	if p_err:
+		r = _fail_land(main_repo, wt_path, branch, 'push', p_err, test_runs=test_runs, test_result=test_res)
+	else:
+		removed = bool(worktree_cleanup(main_repo, wt_path, force=True)['valid']) if remove else False
+		head = GitRepoGate(main_repo).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
+		r = {'valid': True, 'landed': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'target_branch': target_branch, 'head': head, 'test_runs': test_runs, 'test_result': test_res, 'pushed': push, 'removed': removed, 'runtime_snapshot': snap}
 	return r
 def _parse_worktree_porcelain(text: str) -> list[dict]:
 	entries: list[dict] = []
@@ -174,16 +188,16 @@ def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False)
 	if branch and branch.startswith('task/'):
 		branch_deleted = 0 == _git_exec(main_repo, 'branch', '-D' if force else '-d', branch).returncode
 	return {'valid': not wt_path.exists(), 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'branch_deleted': branch_deleted}
-def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn) -> dict:
+def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None) -> dict:
 	if GitRepoGate(wt_path).git('status', '--porcelain').strip():
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_worktree', 'Worktree has uncommitted changes')
 	elif GitRepoGate(main_repo).git('status', '--porcelain').strip():
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_main', 'Main checkout has uncommitted changes')
 	else:
 		err, test_runs, test_res = _rebase_and_test(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
-		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn)
+		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
 	return r
-def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None) -> dict:
+def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None) -> dict:
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):
 		raise ValueError(f'Not a linked git worktree: {wt_path}')
@@ -196,7 +210,7 @@ def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests:
 		r = _fail_land(main_repo, wt_path, branch, 'lease_timeout', 'Timed out waiting for FIFO landing lease')
 	else:
 		try:
-			r = _land_under_lease(main_repo, wt_path, branch, target_branch=target_branch, run_tests=run_tests, push=push, remove=remove, workers=workers, post_merge_fn=post_merge_fn)
+			r = _land_under_lease(main_repo, wt_path, branch, target_branch=target_branch, run_tests=run_tests, push=push, remove=remove, workers=workers, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
 		finally:
 			release_lease(main_repo, owner=lease['owner'], leases_dir=leases_dir)
 	return r

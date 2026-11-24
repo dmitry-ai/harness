@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -151,22 +154,8 @@ class GitRepoGate:
 				self.git('commit', '--only', '-m', message, '--', *[f':(literal){p}' for p in r])
 		return r
 	def ensure_hooks(self) -> Path | None:
-		r = None
-		if (self.root / '.git').exists() and HOOKS_DIR.is_dir():
-			main_repo = self.main_repo()
-			try:
-				for hname in ('pre-commit', 'commit-msg', 'pre-push'):
-					hp = HOOKS_DIR / hname
-					if hp.is_file():
-						hp.chmod(hp.stat().st_mode | 0o755)
-				proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
-				current = (proc.stdout or '').strip()
-				if (normalize_host_path(current).resolve() != HOOKS_DIR.resolve()) if current else True:
-					subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(HOOKS_DIR)], stdin=subprocess.DEVNULL, capture_output=True, check=False, creationflags=_NO_WINDOW)
-				r = HOOKS_DIR
-			except OSError:
-				r = None
-		return r
+		from .runtime_snapshot import ensure_repo_git_hooks
+		return ensure_repo_git_hooks(self.root, self.main_repo(), HOOKS_DIR)
 	def git(self, *args) -> bytes:
 		result = self.run_read(list(args), check=False)
 		if 0 != result.returncode:

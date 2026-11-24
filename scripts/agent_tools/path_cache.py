@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix worktree scope resolution for new files in TDD classifier":
 # https://github.com/dmitry-ai/harness/issues/188
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -64,6 +67,13 @@ def clear_path_cache() -> None:
 	_FAST_PROJECT_PATHS.clear()
 	_OVERLAY_TTL_STATE['expires_at'] = 0.0
 	_OVERLAY_TTL_STATE['reg_path'] = None
+def default_runtime_file(primary: Path, code_anchor: Path, registry_file: Path) -> Path:
+	snap_rt = registry_file.parent / 'runtime.json'
+	if primary.resolve() == code_anchor.resolve() and (registry_file.parent / 'snapshot.json').is_file() and snap_rt.is_file():
+		r = snap_rt
+	else:
+		r = primary / 'runtime.json'
+	return r
 def get_ttl_overlay_links(reg: Any, default_registry_file: Path, discovery_state: dict[str, Any]) -> dict[str, Path] | None:
 	r = None
 	if reg.source_path == default_registry_file.resolve() and None is not discovery_state['fingerprint']:

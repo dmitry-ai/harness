@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
 # https://github.com/dmitry-ai/harness/issues/201
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -125,7 +128,8 @@ def finalize_install_result(result: dict, all_declared: list, names: list, prima
 	if not gi.get('valid'):
 		result['valid'] = False
 		result.setdefault('issues', []).extend(gi.get('issues') or [])
-	return result
+	from .runtime_snapshot import finalize_native_install
+	return finalize_native_install(result, primary, check=check)
 def merge_managed_git_ignore(existing_text: str, *, patterns: tuple[str, ...]=HARNESS_GLOBAL_IGNORE_PATTERNS) -> str:
 	nl = '\r\n' if '\r\n' in existing_text else '\n'
 	block = render_managed_git_ignore_block(patterns, newline=nl)

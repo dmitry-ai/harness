@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Fix worktree scope resolution for new files in TDD classifier":
 # https://github.com/dmitry-ai/harness/issues/188
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -43,7 +46,7 @@ from pathlib import Path
 import re
 import stat
 from typing import Any
-from .path_cache import clear_path_cache, get_ttl_overlay_links, lookup_fast_project_paths, lru_get, lru_put, mark_overlay_links_refreshed, overlay_signature_for_roots, resolve_code_anchor, resolve_reverse_map, store_fast_project_paths
+from .path_cache import clear_path_cache, default_runtime_file, get_ttl_overlay_links, lookup_fast_project_paths, lru_get, lru_put, mark_overlay_links_refreshed, overlay_signature_for_roots, resolve_code_anchor, resolve_reverse_map, store_fast_project_paths
 _CODE_ANCHOR = resolve_code_anchor(Path(__file__).resolve().parents[2])
 DEFAULT_REGISTRY_FILE = Path(__file__).resolve().parents[2] / 'paths.json'
 _VAR_NAME_RE = re.compile('^[A-Za-z_][A-Za-z0-9_]*$')

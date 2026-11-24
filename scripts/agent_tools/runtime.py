@@ -1,3 +1,6 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
 # https://github.com/dmitry-ai/harness/issues/131
@@ -34,7 +37,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
-from .path_registry import default_platform_paths, derive_platform_system_paths, load_registry, normalize_path_str, store_path, tool_path, var_value
+from .path_registry import DEFAULT_REGISTRY_FILE, _CODE_ANCHOR, default_platform_paths, default_runtime_file, derive_platform_system_paths, load_registry, normalize_path_str, store_path, tool_path, var_value
 PRIMARY = Path(var_value('HARNESS_CODE')).resolve()
 HARNESS_ROOT = Path(var_value('HARNESS_ROOT')).resolve()
 HARNESS_META = Path(var_value('HARNESS_META')).resolve()
@@ -85,7 +88,7 @@ def _validate_runtime(value):
 		if 'homes' in plat_cfg and 'instances' in plat_cfg:
 			raise ValueError(f'runtime.json platforms.{plat_id} cannot define both instances and legacy homes')
 def settings(path=None):
-	runtime_file = Path(path) if None is not path else PRIMARY / 'runtime.json'
+	runtime_file = Path(path) if None is not path else default_runtime_file(PRIMARY, _CODE_ANCHOR, DEFAULT_REGISTRY_FILE)
 	raw = json.loads(runtime_file.read_text(encoding='utf-8-sig'))
 	reg_rel = raw.get('paths_registry') if isinstance(raw, dict) else None
 	reg_cand = runtime_file.parent / reg_rel if isinstance(reg_rel, str) and reg_rel.strip() else runtime_file.parent / 'paths.json'
