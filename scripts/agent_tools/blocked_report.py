@@ -1,10 +1,16 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+# https://github.com/dmitry-ai/harness/issues/225
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 # https://github.com/dmitry-ai/harness/issues/213
 from __future__ import annotations
 from pathlib import Path
 import re
 _BLOCKER_HINT_RE = re.compile(r'(?i)(?:block(?:er|ed|ing)?|error|fail(?:ed|ure)?|pause[d]?|interrupt(?:ed)?|unavailab\w*|timeout|expired|mismatch|\u0431\u043b\u043e\u043a\u0435\u0440\w*|\u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\w*|\u043e\u0448\u0438\u0431\u043a\w*|\u0441\u0431\u043e[\u0439\u0435\u0432\u044f]\w*|\u043f\u0440\u0435\u0440\u0432\u0430\u043d\w*|\u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\w*)')
+_CLIENT_HM_CLAIM_RE = re.compile(r'\b(?:H|M)-(?:SITE|IDENTITY|CONCERN|MISC|CAUSE|METHOD|CLIENT|RF)-[A-Za-z0-9-]*\b', re.I)
+_DOC5_HEADER_RE = re.compile(r'(?m)^#\s+0\b')
+_DOC5_SECTIONS_RE = re.compile(r'(?m)^#\s+([1-4])\b')
 _FENCED_RE = re.compile(r'```[\s\S]*?```')
 _HM_CLAIM_RE = re.compile(r'\b(?:H|M)-(?:[A-Za-z0-9]+-)*\d+\b')
 _STAGE_HEADING_RE = re.compile(r'(?im)^#{1,3}\s+(?:\d+\.\s+)?(?:client identification|client concerns|possible misconceptions|causes of the problem|solution methods|\u0438\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f\s+\u043a\u043b\u0438\u0435\u043d\u0442\u0430|\u0447\u0442\u043e\s+\u0432\u043e\u043b\u043d\u0443\u0435\u0442|\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u044b\u0435\s+\u0437\u0430\u0431\u043b\u0443\u0436\u0434\u0435\u043d\u0438\u044f|\u043f\u0440\u0438\u0447\u0438\u043d\u044b\s+\u043f\u0440\u043e\u0431\u043b\u0435\u043c\w*|\u043c\u0435\u0442\u043e\u0434\u044b\s+\u0440\u0435\u0448\u0435\u043d\u0438\u044f)\b')
@@ -33,6 +39,11 @@ def _continuation_blocker_issue(cont_path: Path) -> str | None:
 		if 20 > len(text) or (not _BLOCKER_HINT_RE.search(text)):
 			r = 'FILE-3 / REVIEW-3 blocked-report: \ua616/data/continuation.md must explicitly document the active blocker before calling answer-prepare --blocked-report'
 	return r
+def _is_doc5_blocker_analysis(response: str) -> bool:
+	txt = response or ''
+	has_meta = bool(_DOC5_HEADER_RE.search(txt)) and ('"Issue"' in txt or '"Source Project"' in txt)
+	has_sections = 4 <= len(set(_DOC5_SECTIONS_RE.findall(txt)))
+	return has_meta and has_sections
 def _standard_workflow_errors(root_p: Path, pp, response: str, requests_list: list, turn_obj: dict, value_obj: dict, del_chk: dict, *, factual_kb_fn, is_deliv_fn) -> list[str]:
 	from .workflow import load
 	wf_state = load(root_p)
@@ -72,7 +83,9 @@ def blocked_report_issues(pp, response: str, *, workflow_exists: bool, is_finali
 	if None is not cont_err:
 		issues.append(cont_err)
 	prose = _FENCED_RE.sub('', response or '')
-	if _HM_CLAIM_RE.search(prose):
+	has_client_hm = bool(_CLIENT_HM_CLAIM_RE.search(prose))
+	has_generic_hm = bool(_HM_CLAIM_RE.search(prose)) and (not _is_doc5_blocker_analysis(response or ''))
+	if has_client_hm or has_generic_hm:
 		issues.append('REVIEW-3 blocked-report: analytical H-*/M-* claims are prohibited in --blocked-report; complete A.A review authorization instead')
 	if _STAGE_HEADING_RE.search(prose):
 		issues.append('REVIEW-3 blocked-report: five-stage analysis sections are prohibited in --blocked-report; complete A.A review authorization instead')
@@ -95,6 +108,23 @@ def evaluate_check_workflow_errors(root_p: Path, pp, role: str, response: str, r
 		except (OSError, ValueError) as exc:
 			wf_errs.append(str(exc))
 	return wf_errs
+def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn) -> None:
+	if_chk = issue_first_fn(runner.root, runner.turn)
+	lc_chk = lifecycle_fn(runner.root, runner.turn, runner.value, response=runner.response)
+	tdd_chk = tdd_fn(runner.root, runner.turn)
+	runner.value['issue_first_check'] = if_chk
+	runner.value['code_lifecycle_check'] = lc_chk
+	runner.value['tdd_check'] = tdd_chk
+	if runner.blocked_report:
+		diag = {k: list(chk.get('violations') or []) for k, chk in (('issue_first', if_chk), ('code_lifecycle', lc_chk), ('tdd', tdd_chk)) if not chk.get('verified', True)}
+		runner.value['blocked_hygiene_diagnostics'] = diag
+	else:
+		if not if_chk['verified']:
+			runner._fail_gate('issue_first', '; '.join(if_chk['violations']))
+		if not lc_chk['verified']:
+			runner._fail_gate('code_lifecycle', 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(lc_chk['violations']))
+		if not tdd_chk['verified']:
+			runner._fail_gate('tdd', '; '.join(tdd_chk['violations']))
 def record_blocked_report_entry(runner) -> None:
 	runner._record_journal_entry()
 	runner.value['completion_kind'] = 'blocked_report'

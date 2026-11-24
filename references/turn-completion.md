@@ -35,10 +35,12 @@ When the user explicitly opts out of journaling under SCOPE-1, honor the opt-out
 ## Answer Preparation
 
 ```text
-python <agents>/scripts/harness.py answer-check <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md [--conversation <native-uuid>] [--platform codex|antigravity]
-python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input [--wait-timeout <S>] --platform codex
-python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input [--wait-timeout <S>] --conversation <native-uuid> --platform antigravity
+python <agents>/scripts/harness.py answer-check <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md [--blocked-report] [--conversation <native-uuid>] [--platform codex|antigravity]
+python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input [--blocked-report] [--wait-timeout <S>] --platform codex
+python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input [--blocked-report] [--wait-timeout <S>] --conversation <native-uuid> --platform antigravity
 ```
+
+For pre-finalize tracked workflow projects blocked by an unresolvable external or Harness defect, document the active blocker and next step in `ꘖ/data/continuation.md` and pass `--blocked-report` to `answer-check` and `answer-prepare`: this records the blocker report (including mandatory five-part `DOC-5` `/df-analysis` problem reports without client Upwork claims or five-stage headings) in `ꙮ` with `completion_kind: "blocked_report"`, preserves any deferred `issue_first`/`tdd`/`code_lifecycle` diagnostics in `blocked_hygiene_diagnostics`, and leaves `workflow.json` stages open until review authorization completes.  
 
 `answer-check` performs a single read-only pre-flight pass over a candidate response (`DOC-4` line structure, `LINK-4` / `LINK-5` readable links and local file/anchor/`#L10-L20`/JSON-pointer targets, `DOC-2` equiprobability checks, `ResponseEvidenceAuditor` / `local_source_grounding_issues`, `compaction_check` / evicted citations, `EXEC-5` / `issue_first_check`, `EXEC-2` / `tdd_check`, and `EXEC-5` / `code_lifecycle_check`) across primary turns, Plan Mode, and child `A.A` / `A.F` subagents without writing to `ꙮ` or `ꘖ/data/turns` and without acquiring sequence locks, returning compact JSON diagnostics with exit code `0` (`valid: true`) or `2` (`valid: false`).  
 
@@ -129,3 +131,4 @@ Criteria: routine analysis and articles use the same FILE-3 contract; an incompl
 <!-- https://github.com/dmitry-ai/harness/issues/182 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/199 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/200 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/225 -->  

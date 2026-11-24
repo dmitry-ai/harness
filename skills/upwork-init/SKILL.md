@@ -138,9 +138,11 @@ Omit internal procedural sections about artifact generation (`finalize`, `Contex
 Validate authored Markdown/text files with `validate_links.py --readable <files>`; use human-readable `<...>` paths and never alter exact source captures or journals.  
 When Red Flags are present, verify their prominent placement at the very top of the final response and at the end of `readme.md` (legacy root `.md`) inside the level-1 section; mentioning them only inside KB modules is insufficient.  
 Save the exact requests and complete final response; when multiple requests share a single response, link them explicitly via `record-answer` / `answer-prepare`.  
+If an unresolvable external or Harness blocker prevents completing A.A review authorization before `finalize`, document the blocker in `ꘖ/data/continuation.md` and journal the blocker report via `answer-check --blocked-report` and `answer-prepare --blocked-report` (permitting mandatory `DOC-5` `/df-analysis` blocker reports while keeping client analysis claims blocked and `workflow.json` stages open).  
 Publish the exact verified response bytes; adding new claims after review requires clearance of the new version, including when continuing a previously finalized project.  
 Build the external `Ⰿ/≻/♙/Context/output/Context.md` (legacy `ꙮ/0/Context.md`) export only when explicitly requested by the user, without summarizing or truncating sources.  
 `stage ... finalize` requires a current A.A substantive review (plus independent reviews when required), a consistent KB, a complete journal, an empty `ꘖ/data/scratch` directory, and no one-off scripts in the project; it certifies file and response readiness rather than confirmed UI message delivery.  
 Delete only your own temporary scratch files after verifying permanent copies (`--consume-input`); preserve snapshots, material screenshots, and primary evidence.  
 <!-- https://github.com/dmitry-ai/harness/issues/215 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/217 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/225 -->  

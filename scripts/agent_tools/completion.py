@@ -241,15 +241,11 @@ class AnswerPreparationRunner:
 			dc = self.value['delegation_check']
 			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={dc['tool_step_count']}, max_streak={dc.get('max_unpersisted_step_streak', 0)} > {dc['max_unpersisted_steps']}, or unpersisted_source_reads={dc.get('max_unpersisted_source_reads', 0)} >= {dc.get('max_allowed_unpersisted_source_reads', 10)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"
 			self._fail_gate('delegation', detail)
-		self.value['issue_first_check'] = _issue_first_status(self.root, self.turn)
-		if not self.value['issue_first_check']['verified']:
-			self._fail_gate('issue_first', '; '.join(self.value['issue_first_check']['violations']))
-		self.value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(self.root, self.turn, self.value, response=self.response)
-		if not self.value['code_lifecycle_check']['verified']:
-			self._fail_gate('code_lifecycle', 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(self.value['code_lifecycle_check']['violations']))
-		self.value['tdd_check'] = _tdd_status(self.root, self.turn)
-		if not self.value['tdd_check']['verified']:
-			self._fail_gate('tdd', '; '.join(self.value['tdd_check']['violations']))
+		# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+		# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+		# https://github.com/dmitry-ai/harness/issues/225
+		from .blocked_report import evaluate_runner_code_hygiene
+		evaluate_runner_code_hygiene(self, issue_first_fn=_issue_first_status, lifecycle_fn=_code_and_issue_lifecycle_status, tdd_fn=_tdd_status)
 		lang_issues = _intermediate_or_language_issues(self.turn['requests'], self.response)
 		self.value['language_and_stub_check'] = {'verified': not lang_issues, 'issues': lang_issues}
 		if lang_issues:
@@ -1975,7 +1971,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		from .blocked_report import evaluate_check_workflow_errors
 		wf_errs = evaluate_check_workflow_errors(root_p, pp, role, response, requests_list, turn_obj, value_obj, del_chk, blocked_report=bool(blocked_report), journal_directory=journal_directory, factual_kb_fn=_factual_kb_note_issues, is_deliv_fn=_is_client_deliverable_path, dir_fn=_directory)
 		from .gates import run_answer_gates
-		all_issues, checks = run_answer_gates({'role': role, 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
+		all_issues, checks = run_answer_gates({'role': role, 'blocked_report': bool(blocked_report), 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
 		return {'valid': not all_issues, 'read_only': True, 'role': role, 'turn_key': turn_key, 'response_sha256': sha, 'issue_count': len(all_issues), 'issues': all_issues, 'checks': checks}
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":

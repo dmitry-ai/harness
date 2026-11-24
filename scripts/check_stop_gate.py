@@ -1,4 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+# https://github.com/dmitry-ai/harness/issues/225
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -217,10 +220,10 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 			handoff_root = Path(handoff_raw).resolve()
 			target_state = _find_turn_state(_turns_dir(handoff_root), session_id, last_user_step)
 			if None is target_state:
-				return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare in {handoff_root} before finishing the response.'}, payload, segment=segment)
+				return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare (or answer-prepare --blocked-report after saving continuation.md if blocked) in {handoff_root} before finishing the response.'}, payload, segment=segment)
 			matched_state = target_state
 	if None is matched_state:
-		return apply_continuation_guard(t_dir, session_id, last_user_step, None, {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare before finishing the response.'}, payload, segment=segment)
+		return apply_continuation_guard(t_dir, session_id, last_user_step, None, {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare (or answer-prepare --blocked-report after saving continuation.md for a pre-finalize blocker) before finishing the response.'}, payload, segment=segment)
 	from agent_tools.gates import run_stop_gates
 	gate_hit = run_stop_gates(matched_state)
 	decision = gate_hit if None is not gate_hit else _evaluate_prepared_match(matched_state, last_planner_text)

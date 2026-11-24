@@ -1,7 +1,11 @@
+# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+# https://github.com/dmitry-ai/harness/issues/225
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 from __future__ import annotations
+_BLOCKED_REPORT_DEFERRED_GATES = frozenset({'code_lifecycle', 'issue_first', 'tdd'})
 def _compaction_messages(ctx: dict) -> list[str]:
 	msgs: list[str] = []
 	comp = ctx['comp_chk']
@@ -62,7 +66,10 @@ def _build_checks_map(ctx: dict) -> dict[str, bool]:
 def run_answer_gates(ctx: dict) -> tuple[list[dict], dict[str, bool]]:
 	issues: list[dict] = []
 	seen: set[str] = set()
+	deferred = _BLOCKED_REPORT_DEFERRED_GATES if ctx.get('blocked_report') else frozenset()
 	for gate_id, code, fn in ANSWER_GATES:
+		if gate_id in deferred:
+			continue
 		for msg in fn(ctx):
 			if msg and msg not in seen:
 				seen.add(msg)
