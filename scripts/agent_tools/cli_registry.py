@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add deterministic rules-audit CLI and aggregate budget enforcement":
+# https://github.com/dmitry-ai/harness/issues/244
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/239
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
@@ -75,6 +78,15 @@ def _exec_problem_metadata(args) -> dict:
 	from .metadata import build_problem_metadata, render_metadata_header
 	meta = build_problem_metadata(issue_url=args.issue, project_root=args.project, source_project_root=args.source_project, allow_no_issue=bool(args.no_issue))
 	return {'valid': True, 'metadata': meta, 'markdown': render_metadata_header(meta).rstrip('\n') + '\n'}
+def _exec_rules_audit(args) -> dict:
+	from .rules_audit import audit_rules, build_semantic_audit_brief
+	from .rules_manifest import resolve_rules_primary
+	from .runtime import PRIMARY
+	prim = resolve_rules_primary(args.primary, PRIMARY)
+	rep = audit_rules(prim, workspace=args.workspace)
+	if args.semantic_brief:
+		rep['semantic_brief'] = build_semantic_audit_brief(prim, workspace=args.workspace)
+	return rep
 def _exec_run_tests(args) -> dict:
 	from .suite_runner import run_test_suite
 	return run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
@@ -131,6 +143,13 @@ def _format_perf_timesheet(res: dict, args) -> str | None:
 	return r
 def _format_problem_metadata(res: dict, args) -> str | None:
 	return res['markdown'] if 'markdown' == args.format else None
+def _format_rules_audit(res: dict, args) -> str | None:
+	if 'json' == args.format:
+		r = None
+	else:
+		from .rules_audit import format_rules_audit_text
+		r = format_rules_audit_text(res)
+	return r
 def _format_run_tests(res: dict, args) -> str | None:
 	if 'json' == args.format:
 		r = None
@@ -156,6 +175,7 @@ def _register_analysis_builtins() -> None:
 	register_command('perf-profile-tests', 'Profile unittest modules in parallel with Popen, sleep, and optional cProfile telemetry', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..6)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--cprofile', {'action': 'store_true', 'help': 'Collect and aggregate cProfile hotspot functions across workers'}), ('--top', {'type': int, 'default': 15, 'help': 'Number of slowest files and tests to rank (default: 15)'}), ('--cprofile-top', {'type': int, 'default': 25, 'help': 'Number of cProfile hotspots to retain (default: 25)'}), ('--output', {'type': Path, 'help': 'Optional output path to persist tab-indented JSON profile'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_perf_profile_tests, exit_code_fn=lambda res: 0 if res.get('valid') else 1, text_fn=_format_perf_profile_tests)
 	register_command('perf-timesheet', 'Build deterministic turn chronometry, cache, compaction, and wait telemetry from a trace', (('--trace', {'type': Path, 'help': 'Direct path to Antigravity transcript_full.jsonl or Codex rollout .jsonl'}), ('--conversation', {'help': 'Native conversation UUID (auto-resolved via runtime.json)'}), ('--project', {'type': Path, 'help': 'Project root for --journal-step lookup'}), ('--journal-step', {'type': int, 'help': 'Journal response step number whose Trace metadata identifies the trace'}), ('--summary-db', {'type': Path, 'help': 'Optional path to Antigravity conversation_summaries.db'}), ('--turn-start-step', {'type': int, 'help': 'Optional inclusive starting step index'}), ('--turn-end-step', {'type': int, 'help': 'Optional inclusive ending step index'}), ('--top-gaps', {'type': int, 'default': 10, 'help': 'Number of largest inter-step wall gaps to report (default: 10)'}), ('--output', {'type': Path, 'help': 'Optional output path to persist tab-indented JSON telemetry'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_perf_timesheet, text_fn=_format_perf_timesheet)
 	register_command('problem-metadata', 'Build structured # 0 problem metadata with mandatory GitHub Issue key', (('project', {'type': Path}), ('--issue', {'help': 'Verified GitHub issue URL (mandatory unless --no-issue)'}), ('--no-issue', {'action': 'store_true', 'help': 'Allow null Issue key for non-GitHub workspaces'}), ('--source-project', {'type': Path, 'help': 'Optional distinct owning project root'}), ('--format', {'choices': ('json', 'markdown'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_problem_metadata, text_fn=_format_problem_metadata)
+	register_command('rules-audit', 'Run deterministic offline rules configuration smell audit and optional neutral A.A semantic brief', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--workspace', {'type': Path, 'help': 'Optional workspace root to inspect auto-loaded AGENTS.md/GEMINI.md'}), ('--semantic-brief', {'action': 'store_true', 'help': 'Generate a neutral read-only A.A semantic audit brief'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_rules_audit, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=_format_rules_audit)
 	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
 	register_command('runtime-promote', 'Export, validate, and atomically activate an immutable HEAD runtime snapshot with LKG fallback', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--store-dir', {'type': Path, 'help': 'Optional runtime snapshot store directory'}), ('--keep', {'type': int, 'default': 5, 'help': 'Number of recent releases to retain (default: 5)'})), _exec_runtime_promote)
 def _register_builtins() -> None:

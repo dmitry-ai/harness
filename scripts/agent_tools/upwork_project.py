@@ -444,6 +444,9 @@ def save_registration(root, platform, result):
 	from .registration import save_registration as save
 	r = save(root, platform, result)
 	return r
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add deterministic rules-audit CLI and aggregate budget enforcement":
+# https://github.com/dmitry-ai/harness/issues/244
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support model_decision trigger class in doctor and Codex loader":
 # https://github.com/dmitry-ai/harness/issues/241
@@ -456,9 +459,9 @@ def save_registration(root, platform, result):
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Audit and integrate official Antigravity hooks and slash-commands capabilities into platform adapters":
 # https://github.com/dmitry-ai/harness/issues/25
-def doctor(primary=PRIMARY_AGENTS_DIR, *, git_ignore_path=None):
-	primary = Path(primary)
-	from .rules_manifest import validate_shared_rules_for_doctor
+def doctor(primary=None, *, git_ignore_path=None):
+	from .rules_manifest import resolve_rules_primary, validate_shared_rules_for_doctor
+	primary = resolve_rules_primary(primary, PRIMARY_AGENTS_DIR)
 	files, sizes, rule_meta = validate_shared_rules_for_doctor(primary)
 	from .operations import COMMANDS
 	version_files = sorted((p for p in primary.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.json') and ('__pycache__' not in p.parts)))

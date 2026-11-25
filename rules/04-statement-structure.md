@@ -7,7 +7,7 @@ description: "Typed facts, mandatory multi-hypothesis/method /df-analysis, DOC-4
 Separate observation, source wording, hypothesis, implication, and recommended action; co-occurrence never proves causation, and an agent KB entry or high expert score never promotes a supposition to a fact.  
 Every number, count, date, or interval in a verified `observation` or `client_report` must appear literally in the primary quote or follow from a verified calculation; frame inferred scope qualifiers as hypotheses (`H-*`).  
 ## DOC-2
-Every analytical task lacks a single unambiguous solution: autonomously present competing hypotheses (`>= 2`) and/or solution methods ([DOC-3](#doc-3)) per [df-analysis](../skills/df-analysis/SKILL.md) (read when structuring analytical or complex problem reports).  
+Every analytical task has no single unambiguous solution: autonomously present competing hypotheses (`>= 2`) and/or solution methods ([DOC-3](#doc-3)) per [df-analysis](../skills/df-analysis/SKILL.md) (read when structuring analytical or complex problem reports).  
 Frame each hypothesis with **essence** (plus primary link), **arguments for**, **arguments against**, and **expert plausibility in %** with explicit basis, grounded in concrete evidence per [LINK-1](02-link-standards.md#link-1).  
 Distinguish found counterevidence, absence of counterevidence (`not_found`, capped at `<= 75%`), and unavailable checks; `"no misconceptions established"` and `"cause not established"` are valid outcomes.  
 Never assume `50/50` equiprobability from lack of data without an explicit prior assumption, and never artificially normalize scores to `100%`.  

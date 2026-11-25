@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add deterministic rules-audit CLI and aggregate budget enforcement":
+# https://github.com/dmitry-ai/harness/issues/244
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Refactor shared rules into compact three-layer M-2 architecture":
 # https://github.com/dmitry-ai/harness/issues/242
@@ -11,6 +14,10 @@ import math
 import re
 ALLOWED_TRIGGERS = frozenset({'always_on', 'model_decision'})
 _FRONTMATTER_RE = re.compile(r'^---\r?\n(.*?)\r?\n---\r?\n?', re.S)
+def _build_doctor_rule_meta(primary: Path, always: list[dict], on_demand: list[dict], always_bytes: int, always_tokens: int) -> dict:
+	from .rules_audit import audit_rules
+	audit = audit_rules(primary)
+	return {'always_on_rules': [e['name'] for e in always], 'model_decision_rules': [e['name'] for e in on_demand], 'always_on_rule_bytes': always_bytes, 'always_on_estimated_tokens': always_tokens, 'rules_audit': {'valid': audit['valid'], 'issue_count': audit['issue_count'], 'issues': audit['issues'], 'total_always_on_bytes': audit['total_always_on_bytes'], 'total_always_on_tokens': audit['total_always_on_tokens']}}
 def _parse_frontmatter_value(raw: str) -> str:
 	val = raw.strip()
 	if val.startswith('"') and val.endswith('"'):
@@ -72,10 +79,20 @@ def render_codex_loader(primary: Path, local=(), *, restore_global: bool=True, d
 		lines.extend((f'- {path.as_posix()} — {desc}' for path, desc in on_demand))
 	lines.extend(['Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  ', 'Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  ', 'Never pick a neighboring project.  ', 'If the root of the current task is unknown, determine it from the explicit chat binding.  ', f'''For the established root of every turn, run the Python tool "{(disp / 'scripts/harness.py').as_posix()}" turn-begin "<exact root of current chat>" --platform codex; the UUID is read from CODEX_THREAD_ID and the profile from CODEX_HOME.  ''', 'FILE-3 and EXEC-5 also apply to ordinary analytical responses and .agents investigations; the article/proposal profile does not define their scope.  ', 'Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (or via harness.py git-read; read rules in batches without Get-Content output truncation and do not bundle git calls with initial rule reading before turn-begin completes).  ', 'Before publishing the final response, the primary agent runs answer-prepare with the exact UTF-8 bytes per references/turn-completion.md; a child subagent does not maintain the user journal.  '])
 	return '\n'.join(lines)
+def resolve_rules_primary(primary: str | Path | None, fallback: Path) -> Path:
+	if None is not primary:
+		r = Path(primary)
+	else:
+		from .path_cache import resolve_code_anchor
+		checkout = Path(__file__).resolve().parents[2]
+		is_wt = (checkout / '.git').is_file() and (checkout / 'rules').is_dir() and resolve_code_anchor(checkout).resolve() == Path(fallback).resolve()
+		r = checkout if is_wt else Path(fallback)
+	return r
 def scan_shared_rules(primary: Path) -> list[dict]:
 	return [inspect_shared_rule(p) for p in sorted((Path(primary) / 'rules').glob('*.md'))]
-def validate_shared_rules_for_doctor(primary: Path, *, max_file_bytes: int=24000, max_always_on_bytes: int | None=None, max_always_on_tokens: int | None=None) -> tuple[list[Path], dict[str, int], dict]:
-	entries = scan_shared_rules(Path(primary))
+def validate_shared_rules_for_doctor(primary: Path, *, max_file_bytes: int=6000, max_always_on_bytes: int | None=24000, max_always_on_tokens: int | None=7000) -> tuple[list[Path], dict[str, int], dict]:
+	prim = Path(primary)
+	entries = scan_shared_rules(prim)
 	if not entries:
 		raise ValueError('Rules are missing in shared rules directory')
 	for entry in entries:
@@ -90,5 +107,5 @@ def validate_shared_rules_for_doctor(primary: Path, *, max_file_bytes: int=24000
 		raise ValueError(f'Aggregate always_on rules ({always_tokens} estimated tokens) exceed the {max_always_on_tokens:,}-token budget')
 	files = [e['path'] for e in entries]
 	sizes = {e['name']: e['bytes'] for e in entries}
-	meta = {'always_on_rules': [e['name'] for e in always], 'model_decision_rules': [e['name'] for e in on_demand], 'always_on_rule_bytes': always_bytes, 'always_on_estimated_tokens': always_tokens}
+	meta = _build_doctor_rule_meta(prim, always, on_demand, always_bytes, always_tokens)
 	return (files, sizes, meta)
