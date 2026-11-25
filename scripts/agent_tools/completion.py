@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+# https://github.com/dmitry-ai/harness/issues/255
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 # https://github.com/dmitry-ai/harness/issues/251
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -170,6 +173,7 @@ import re
 import sqlite3
 from . import journal
 from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_lifecycle_status, evidence_issue_files as _evidence_issue_files, evidence_issue_state as _evidence_issue_state, origin_repo_slug as _origin_repo_slug
+from .journal_sync_all import reconcile_before_begin, resolve_sync_provenance
 from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -397,7 +401,7 @@ class TurnJournalReconciler:
 					value['recovered_after_delivery'] = not bool(value['prepared']) and (not recorded['reused_complete_journal_group'])
 				if self.adopt_conflict:
 					value['recovered_after_delivery'] = True
-				provenance = 'prepared' if value['prepared'] and (not self.adopt_conflict) else 'recovered_native' if value['recovered_after_delivery'] else 'existing_journal'
+				provenance = resolve_sync_provenance(value, adopt_conflict=self.adopt_conflict)
 				preparation_verified = bool(value['prepared']) and value.get('readiness_check', {}).get('verified', True) and (not self.adopt_conflict)
 				value['journal_record'] = recorded
 				delivery = self._build_delivery(value, turn, recorded, sha, provenance, preparation_verified)
@@ -1224,25 +1228,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 					launcher_handoff = []
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
 		key = _key(native, turn)
-		earlier_completed = any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) and _key(native, t) != key for t in native.get('turns', [])))
-		native_reconciliation = None
-		if earlier_completed:
-			existing_path = _folder(root) / (key + '.json')
-			sync_journal = journal_directory
-			if existing_path.is_file():
-				try:
-					saved_j = _read(existing_path).get('journal')
-					if saved_j:
-						if None is not journal_directory and _directory(root, saved_j) != _directory(root, journal_directory):
-							raise ValueError('The native turn already has a different journal; preserve its original binding')
-						sync_journal = saved_j
-				except (OSError, ValueError) as exc:
-					if 'already has a different journal' in str(exc):
-						raise
-			try:
-				native_reconciliation = sync(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'], journal_directory=sync_journal, _preloaded_native=native)
-			except (OSError, ValueError, sqlite3.Error) as exc:
-				native_reconciliation = {'valid': False, 'error': str(exc)}
+		native_reconciliation, foreign_reconciliation = reconcile_before_begin(root, native, turn, key, journal_directory, folder_fn=_folder, dir_fn=_directory, read_fn=_read, sync_fn=sync, key_fn=_key)
 		with locked(_turn_lock(root, key)):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
 			if 'handed_off' != value.get('status'):
@@ -1267,6 +1253,8 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		if value.get('similar_project_repos'):
 			result['similar_project_repos'] = list(value['similar_project_repos'])
 		result['execution_mode'] = 'foreground-only'
+		if foreign_reconciliation:
+			result['foreign_reconciliation'] = foreign_reconciliation
 		if None is not native_reconciliation:
 			result['native_reconciliation'] = native_reconciliation
 			current = next((item for item in (native_reconciliation.get('turns') or ()) if item.get('turn_key') == value['key']), None)

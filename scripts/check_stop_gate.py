@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+# https://github.com/dmitry-ai/harness/issues/255
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -217,11 +220,11 @@ def evaluate_stop_payload(payload: dict, *, backend_override: Path | None = None
 				return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, {'decision': 'continue', 'reason': f'FILE-3 / SCOPE-3 Stop Gate: Launcher turn was handed off to {handoff_root}, which has no turn-begin / answer-prepare record for the active turn. Run turn-begin and answer-prepare (or answer-prepare --blocked-report after saving continuation.md if blocked) in {handoff_root} before finishing the response.'}, payload, segment=segment)
 			matched_state = target_state
 	if None is matched_state:
-		return apply_continuation_guard(t_dir, session_id, last_user_step, None, {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare (or answer-prepare --blocked-report after saving continuation.md for a pre-finalize blocker) before finishing the response.'}, payload, segment=segment)
+		return apply_continuation_guard(t_dir, session_id, last_user_step, None, {'decision': 'continue', 'reason': 'FILE-3 / SCOPE-3 Stop Gate: Active turn has no turn-begin / answer-prepare record. Run turn-begin and answer-prepare (or answer-prepare --blocked-report after saving continuation.md for a pre-finalize blocker) before finishing the response.'}, payload, segment=segment, emergency_ctx={'root': canon_root, 'backend': backend, 'rows': rows, 'last_planner_text': last_planner_text, 'log_file': log_file})
 	from agent_tools.gates import run_stop_gates
 	gate_hit = run_stop_gates(matched_state)
 	decision = gate_hit if None is not gate_hit else _evaluate_prepared_match(matched_state, last_planner_text)
-	return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, decision, payload, segment=segment)
+	return apply_continuation_guard(t_dir, session_id, last_user_step, matched_state, decision, payload, segment=segment, emergency_ctx={'root': canon_root, 'backend': backend, 'rows': rows, 'last_planner_text': last_planner_text, 'log_file': log_file})
 def main():
 	_ensure_scripts_on_path()
 	from agent_tools.hook_runtime import run_json_hook
