@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
 # https://github.com/dmitry-ai/harness/issues/255
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -173,7 +176,7 @@ import re
 import sqlite3
 from . import journal
 from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_lifecycle_status, evidence_issue_files as _evidence_issue_files, evidence_issue_state as _evidence_issue_state, origin_repo_slug as _origin_repo_slug
-from .journal_sync_all import reconcile_before_begin, resolve_sync_provenance
+from .journal_sync_all import reconcile_before_begin, resolve_sync_provenance, sync_all_open
 from .platforms import adapter
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -2021,8 +2024,8 @@ _strip_local_file_scheme = journal.strip_local_file_scheme
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
-def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, _preloaded_native=None):
-	return TurnJournalReconciler(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=adopt_conflict, preloaded_native=_preloaded_native).run()
+def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, all_open=False, _preloaded_native=None):
+	return sync_all_open(root, journal_directory=journal_directory, adopt_conflict=adopt_conflict, from_step=from_step, folder_fn=_folder, dir_fn=_directory, read_fn=_read, sync_fn=sync) if all_open else TurnJournalReconciler(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=adopt_conflict, preloaded_native=_preloaded_native).run()
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
@@ -2054,7 +2057,7 @@ def add_parser_arguments(parser, command):
 	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
 		specs.append(('--from-step', {'type': int, 'default': 0}))
 	if 'journal-sync' == command:
-		specs.append(('--adopt-conflict', {'action': 'store_true', 'help': 'Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries'}))
+		specs.extend((('--adopt-conflict', {'action': 'store_true', 'help': 'Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries'}), ('--all-open', {'action': 'store_true', 'help': 'Reconcile all eligible idle open turn reservations across conversations in this project'})))
 	add_arg_specs(parser, specs)
 def execute(args):
 	if 'turn-begin' == args.command:
@@ -2083,7 +2086,7 @@ def execute(args):
 	elif 'reconcile-unprepared-delivery' == args.command:
 		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)
 	elif 'journal-sync' == args.command:
-		r = sync(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal, adopt_conflict=getattr(args, 'adopt_conflict', False))
+		r = sync(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal, adopt_conflict=getattr(args, 'adopt_conflict', False), all_open=bool(getattr(args, 'all_open', False)))
 	elif 'sync-conversation-title' == args.command:
 		r = sync_conversation_title(args.project, args.conversation, journal_directory=args.journal, dry_run=bool(getattr(args, 'dry_run', False)))
 	else:

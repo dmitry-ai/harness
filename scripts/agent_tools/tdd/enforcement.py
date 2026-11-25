@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/250
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/239
@@ -15,6 +18,7 @@ from .evaluator import evaluate_tdd_events
 from .events import extract_antigravity_tdd_events
 from .exemption import is_diff_exempt
 from .ratchet import find_ratchet_approval, ratchet_diff_violations
+from .service_exempt import is_service_finalization_call
 from .substantive import is_substantive_test_content, source_text_assertion_issues
 import difflib
 import os
@@ -253,12 +257,13 @@ def _verify_staged_test_file(repo: Path, rel: str, fpath: Path, head_text: str |
 	return r
 def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | None:
 	r = None
-	cwd_raw = str(payload.get('cwd') or '').strip()
-	cwd = Path(cwd_raw).resolve() if cwd_raw else None
-	if name in ('write_file', 'edit_file'):
-		r = _eval_pre_write(name, args, cwd, payload)
-	elif 'run_command' == name:
-		r = _eval_pre_run_command(str(args.get('CommandLine') or ''), cwd, payload)
+	if not is_service_finalization_call(name, args, payload):
+		cwd_raw = str(payload.get('cwd') or '').strip()
+		cwd = Path(cwd_raw).resolve() if cwd_raw else None
+		if name in ('write_file', 'edit_file'):
+			r = _eval_pre_write(name, args, cwd, payload)
+		elif 'run_command' == name:
+			r = _eval_pre_run_command(str(args.get('CommandLine') or ''), cwd, payload)
 	return r
 def verify_staged_tdd_diff(repo_root: Path, staged_paths: list[str], *, message: str | None=None, project_root: Path | None=None, use_index: bool=False) -> list[str]:
 	repo = Path(repo_root).resolve()

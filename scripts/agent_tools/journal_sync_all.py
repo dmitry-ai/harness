@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
 # https://github.com/dmitry-ai/harness/issues/255
 from __future__ import annotations
@@ -6,6 +9,7 @@ from pathlib import Path
 from typing import Any
 import sqlite3
 from . import journal
+from .path_registry import canonicalize_root_dir
 from .platforms.trace_common import open_readonly_sqlite
 from .runtime import platform_adapter_name, resolve_antigravity_paths
 def _antigravity_summary_is_idle(st: dict[str, Any], cid: str) -> bool:
@@ -19,6 +23,16 @@ def _antigravity_summary_is_idle(st: dict[str, Any], cid: str) -> bool:
 		except (OSError, sqlite3.Error):
 			r = False
 	return r
+def _collect_all_open_candidates(root: Path, jdir: Path, *, folder_fn, read_fn) -> list[tuple[str, dict[str, Any]]]:
+	entries: dict[str, dict[str, Any]] = dict(journal.iter_turn_reservations(jdir))
+	turns_dir = folder_fn(root)
+	if turns_dir.is_dir():
+		for path in sorted(turns_dir.glob('*.json')):
+			if '-' not in path.stem and path.stem not in entries:
+				st = _load_turn_state_safe(path, read_fn)
+				if isinstance(st, dict) and st.get('conversation_id') and st.get('status') in ('open', 'conflict'):
+					entries[path.stem] = {'conversation_id': str(st['conversation_id'])}
+	return sorted(entries.items())
 def _is_foreign_open_eligible(st: dict[str, Any], *, adopt_conflict: bool=False) -> tuple[bool, str]:
 	recorded = any((isinstance(st.get(k), dict) and 'journal_steps' in st[k] for k in ('prepared', 'journal_record', 'delivery')))
 	status = str(st.get('status') or '')
@@ -133,4 +147,22 @@ def resolve_sync_provenance(value: dict[str, Any], *, adopt_conflict: bool) -> s
 	else:
 		r = 'existing_journal'
 	return r
-__all__ = ['reconcile_before_begin', 'reconcile_foreign_open_reservations', 'resolve_sync_provenance']
+def sync_all_open(root: Path, *, journal_directory: Any=None, adopt_conflict: bool=False, from_step: int=0, folder_fn, dir_fn, read_fn, sync_fn) -> dict[str, Any]:
+	root_p = canonicalize_root_dir(root)
+	jdir = dir_fn(root_p, journal_directory)
+	synced: list[dict[str, Any]] = []
+	skipped: list[dict[str, Any]] = []
+	seen_cids: set[str] = set()
+	for turn_key, entry in _collect_all_open_candidates(root_p, jdir, folder_fn=folder_fn, read_fn=read_fn):
+		cid_low = str(entry.get('conversation_id') or '').strip().lower()
+		if cid_low and cid_low in seen_cids:
+			continue
+		hit, miss = _try_sync_foreign_entry(root_p, turn_key, entry, journal_directory, folder_fn=folder_fn, read_fn=read_fn, sync_fn=sync_fn, adopt_conflict=adopt_conflict, from_step=from_step)
+		if None is not hit:
+			seen_cids.add(cid_low)
+			synced.append(hit)
+		elif None is not miss:
+			skipped.append(miss)
+	valid = all((bool((item.get('result') or {}).get('valid')) for item in synced))
+	return {'valid': valid, 'all_open': True, 'adopt_conflict': bool(adopt_conflict), 'journal': str(jdir), 'synced_count': len(synced), 'skipped_count': len(skipped), 'synced': synced, 'skipped': skipped}
+__all__ = ['reconcile_before_begin', 'reconcile_foreign_open_reservations', 'resolve_sync_provenance', 'sync_all_open']
