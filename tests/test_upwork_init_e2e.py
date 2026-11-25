@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add full offline CLI and hook end-to-end lifecycle test for /upwork-init":
 # https://github.com/dmitry-ai/harness/issues/235
 from __future__ import annotations
@@ -155,6 +158,23 @@ def _doc5_blocked_report(src_link: str) -> str:
 		'- Arguments for: Avoids stalled turns and preserves audit trail.  \n'
 		'- Arguments against: Requires follow-up turn.  \n'
 		'- Score: 90% for safe recovery.  \n'
+	) + _doc5_companion_blocks(src_link)
+def _doc5_companion_block(header: str, tag: str, desc: str, src_link: str) -> str:
+	return (
+		f'\n---\n\n# {header}\n\n# 0. Metadata ({tag})\n\n'
+		'```json\n{"Time": "2026-11-25 18:01:00 UTC+3", "Issue": null, "Project": {"Name": "Harness", "Path": "C:/work/research/provision/code/AI/harness"}}\n```\n\n'
+		f'# 1. Problem ({tag})\n\n{desc}  \n\n# 2. Root Cause ({tag})\n\n'
+		f'## H-{tag}-1: Direct gap\n- Essence: Confirmed in [continuation.md](<{src_link}>).  \n- Arguments for: Observed directly.  \n- Arguments against: Minor noise.  \n- Plausibility: 85%.  \n\n'
+		f'## H-{tag}-2: Secondary factor\n- Essence: External timing in [continuation.md](<{src_link}>).  \n- Arguments for: Possible factor.  \n- Arguments against: Not primary.  \n- Plausibility: 20%.  \n\n'
+		f'# 3. Source Project ({tag})\n\nHarness owns this verification layer.  \n\n# 4. Solutions ({tag})\n\n'
+		f'## M-{tag}-1: Systemic check\n- Essence: Add automated check.  \n- Arguments for: Prevents recurrence.  \n- Arguments against: Small cost.  \n- Score: 90%.  \n\n'
+		f'## M-{tag}-2: Manual check\n- Essence: Verify manually.  \n- Arguments for: Fast setup.  \n- Arguments against: Unreliable.  \n- Score: 20%.  \n'
+	)
+def _doc5_companion_blocks(src_link: str) -> str:
+	return (
+		_doc5_companion_block('Analysis 2: Culprit attribution', '2', 'Who introduced the upstream blocker: external endpoint returned `HTTP 503`.', src_link)
+		+ _doc5_companion_block('Analysis 3: Test and verification escape', '3', 'Why tests did not catch the `HTTP 503` retry gap during pre-flight.', src_link)
+		+ _doc5_companion_block('Analysis 4: Journal and reporting integrity', '4', 'Verified Journal `ꙮ` (`FILE-3`) recording via `answer-prepare --blocked-report`.', src_link)
 	)
 def _stop_payload(cwd: Path, cid: str, tx: Path) -> dict:
 	return {'hookEventName': 'Stop', 'cwd': str(cwd), 'workspacePaths': [str(cwd)], 'conversationId': cid, 'transcriptPath': str(tx), 'terminationReason': 'NO_TOOL_CALL', 'error': '', 'fullyIdle': True, 'continuationActive': False, 'executionNum': 0}

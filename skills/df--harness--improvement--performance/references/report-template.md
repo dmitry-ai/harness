@@ -12,7 +12,7 @@ Every performance audit produced under [SKILL.md](../SKILL.md) conforms strictly
 
 ## 2. Five-Section Report Structure (`DOC-5`)
 
-Use this exact top-level structure (optionally preceded by a brief executive summary pointing to verified telemetry totals):  
+Use this exact top-level `# 0`..`# 4` structure for the primary performance problem analysis (optionally preceded by a brief executive summary pointing to verified telemetry totals), followed by the three mandatory separate `# 0`..`# 4` companion analyses required by [df-analysis](../../df-analysis/SKILL.md#21-mandatory-four-separate-analyses) (`§2` Culprit and Provenance Attribution, `§3` Test and Verification Escape, and `§4` Journal, Reporting, and Observability Integrity):  
 
 ### `# 0` Problem Metadata
 
@@ -68,3 +68,4 @@ Before running `harness.py answer-prepare`, confirm every gate passes:
 1. `harness.py answer-check <project> --response-file <candidate.md> --conversation <uuid>` exits `0` (`valid: true`).  
 1. `harness.py answer-prepare <project> --response-file <candidate.md> --consume-input --conversation <uuid>` exits `0` (`ready: true`), and the clean body (matching `body_sha256`) is published verbatim.  
 <!-- https://github.com/dmitry-ai/harness/issues/193 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/249 -->  

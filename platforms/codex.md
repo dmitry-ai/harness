@@ -18,7 +18,7 @@ Native instructions and role TOML files are generated; edit their canonical sour
 
 A new analysis starts with the `/upwork-init <URL>` or `$upwork-init <URL>` skill.  
 Cleanup of empty auto-created projects starts with `/upwork-cleanup` or `$upwork-cleanup`; the shared skill `skills/upwork-cleanup/SKILL.md` cleans enabled environments/instances while preserving all of `proposals/daily`.  
-Articles use `/df-article` or `$df-article`, Upwork proposals use `/df-proposal` or `$df-proposal` (shared procedure `references/client-text/workflow.md`), analytical tasks or autonomous complex problem analyses use `/df-analysis` or `$df-analysis` (`DOC-2`, `DOC-3`, `DOC-5`), and Harness performance audits/optimization plans use `/df--harness--improvement--performance` or `$df--harness--improvement--performance` with `perf-timesheet` and `perf-profile-tests`.  
+Articles use `/df-article` or `$df-article`, Upwork proposals use `/df-proposal` or `$df-proposal` (shared procedure `references/client-text/workflow.md`), analytical tasks or autonomous four-track separate complex problem analyses use `/df-analysis` or `$df-analysis` (`DOC-2`, `DOC-3`, `DOC-5`: Primary Problem plus separate Culprit/Provenance, Test & Verification Escape, and Journal & Reporting Integrity analyses), and Harness performance audits/optimization plans use `/df--harness--improvement--performance` or `$df--harness--improvement--performance` with `perf-timesheet` and `perf-profile-tests`.  
 The workflow and five stages are shared across configured environments; the agent runs the commands while the user enters only requests.  
 For A.A/A.F, use the native subagent tools of the current chat; check roles and subagent selection policy via `runtime`/`doctor`.  
 If the tool supports selecting a named agent type, use the native role from `runtime`; if the API lacks that parameter, pass the role and shared `agents/worker.md` in the prompt without inventing unsupported arguments.  
@@ -69,3 +69,4 @@ Do not reconstruct requests from summaries and do not declare an unverified rece
 <!-- https://github.com/dmitry-ai/harness/issues/182 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/193 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/226 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/249 -->  

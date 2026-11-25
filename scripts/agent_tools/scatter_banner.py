@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
 # https://github.com/dmitry-ai/harness/issues/200
@@ -43,19 +46,23 @@ _PROPOSAL_STOP_RE = re.compile(
 _REC_HEAD_RE = re.compile(r'(?i)^(?:рекомендаци\w*|предложени\w*|recommendation\w*|proposal\w*|option\s*\d+|вариант\s*\d+)\b')
 def _bare_banner_at_start(lines: list[str]) -> bool:
 	return 3 <= len(lines) and [ln.rstrip() for ln in lines[:3]] == list(SCATTER_BANNER_LINES)
-def _collect_candidate_recommendations(body: str, sections: dict[int, tuple[str, str]], mode: str) -> list[tuple[str, str]]:
+def _collect_candidate_recommendations(body: str, sections: dict[int, tuple[str, str]], mode: str, blocks: list[dict] | None=None) -> list[tuple[str, str]]:
 	from .statements import _parse_explicit_items, _parse_section_items
 	raw_items: list[tuple[str, str]] = []
-	if 'problem' == mode and 4 in sections:
-		raw_items.extend(_parse_section_items(sections[4][1]))
+	if 'problem' == mode:
+		sec_list = [b['sections'] for b in blocks] if None is not blocks else [sections]
+		for sec in sec_list:
+			if 4 in sec:
+				raw_items.extend(_parse_section_items(sec[4][1]))
 	_, explicit_mets = _parse_explicit_items(body)
 	raw_items.extend(explicit_mets)
 	raw_items.extend(_parse_standalone_recommendations(body))
-	seen: set[str] = set()
+	seen: set[tuple[str, str]] = set()
 	r: list[tuple[str, str]] = []
 	for lbl, item_body in raw_items:
-		if lbl not in seen:
-			seen.add(lbl)
+		key = (lbl, item_body)
+		if key not in seen:
+			seen.add(key)
 			r.append((lbl, item_body))
 	return r
 def _fenced_banner_at_start(lines: list[str]) -> bool:
@@ -103,7 +110,7 @@ def has_leading_scatter_banner(body: str) -> bool:
 def proposes_external_scattering(body: str) -> bool:
 	prop = _proposal_slice(body or '')
 	return _has_unnegated_match(prop, _EXT_PATH_RE) or _has_unnegated_match(prop, _OUTSIDE_PROSE_RE)
-def validate_scatter_banners(body: str, *, sections: dict[int, tuple[str, str]] | None=None, mode: str='auto') -> list[str]:
+def validate_scatter_banners(body: str, *, sections: dict[int, tuple[str, str]] | None=None, blocks: list[dict] | None=None, mode: str='auto') -> list[str]:
 	from .statements import _extract_top_sections
-	secs = sections if None is not sections else _extract_top_sections(body)
-	return [f'FILE-6 / DOC-3: Recommendation "{lbl}" proposes creating, moving, or storing project or tool files outside the project root without starting immediately with the mandatory uppercase FILE-6 warning banner.' for lbl, item in _collect_candidate_recommendations(body, secs, mode) if proposes_external_scattering(item) and (not has_leading_scatter_banner(item))]
+	secs = sections if None is not sections else ({} if None is not blocks else _extract_top_sections(body))
+	return [f'FILE-6 / DOC-3: Recommendation "{lbl}" proposes creating, moving, or storing project or tool files outside the project root without starting immediately with the mandatory uppercase FILE-6 warning banner.' for lbl, item in _collect_candidate_recommendations(body, secs, mode, blocks=blocks) if proposes_external_scattering(item) and (not has_leading_scatter_banner(item))]

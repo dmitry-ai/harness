@@ -37,11 +37,17 @@ Preserve hierarchy, format, and boundaries between analysis and recommendations;
 Repeated `1.` markers are permissible for ordinary lists; addressable paragraphs carry explicit numbers.  
 Accompany verification code with its actual output; extract large reusable code into a shared tool.  
 ## DOC-5
-Whenever an agent encounters or investigates any defect, failure, error, or architectural problem, apply the five-section complex problem analysis of [df-analysis](../skills/df-analysis/SKILL.md) autonomously without user reminders:  
-1. `# 0` Problem Metadata: tab-indented `json` block matching Journal and GitHub issue metadata with the mandatory `"Issue"` key (generated via `harness.py problem-metadata`).  
-1. `# 1` Problem Description: concrete failure context with verbatim diagnostic messages (never paraphrased).  
+Whenever an agent encounters or investigates any defect, failure, error, or architectural problem, apply [df-analysis](../skills/df-analysis/SKILL.md) autonomously without user reminders as **four separate, independent five-section (`# 0`..`# 4`) analyses** (never merging them into one analysis):  
+1. Primary Problem (`§1`): the failure, defect, hook denial, regression, or architectural problem itself.  
+1. Culprit and Provenance Attribution (`§2`): who or what specifically introduced, broke, or triggered the primary problem (exact agent/profile/model/conversation/turn/journal step, commit SHA, promotion or external change, ignored warnings, and failed guardrails).  
+1. Test and Verification Escape (`§3`): why existing automated tests, linters, hooks, CI, and verification gates failed to catch and block the culprit or defect.  
+1. Journal, Reporting, and Observability Integrity (`§4`): whether and why outputs or reports bypassed the Unified Journal `ꙮ` ([FILE-3](01-file-boundaries.md#file-3)), left orphaned reservations or unrecorded turns, failed-open in `Stop Gate`, or broke failure observability.  
+Each of the four separate analyses must contain all five sections:  
+1. `# 0` Problem Metadata: tab-indented `json` block matching Journal and GitHub issue metadata with the mandatory `"Issue"` key (generated via `harness.py problem-metadata`, using a dedicated parent GitHub Issue per distinct defect track or `--no-issue` / `null` only in non-GitHub workspaces or verified-clean companion audits).  
+1. `# 1` Problem Description: concrete failure, provenance, test-escape, or Journal-audit context with verbatim diagnostic messages (never paraphrased).  
 1. `# 2` Root Cause Analysis: competing hypotheses (`>= 2`) strictly following [DOC-2](#doc-2).  
 1. `# 3` Source Project Attribution: identify which of our projects is the true architectural owner, recognizing that defects frequently originate in a higher-level shared project (very often Harness) rather than the project where the symptom surfaced.  
 1. `# 4` Permanent Systemic Solutions: competing solution methods (`>= 2`) targeting the `# 3` source project without one-off hacks, strictly following [DOC-3](#doc-3).  
 <!-- https://github.com/dmitry-ai/harness/issues/182 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/200 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/249 -->  

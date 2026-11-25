@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
 # https://github.com/dmitry-ai/harness/issues/200
@@ -54,6 +57,15 @@ def _check_item_group(items: list[tuple[str, str]], *, require_link: bool, kind:
 	for label, body in items:
 		errs.extend(_check_item_fields(label, body, require_link=require_link, kind=kind))
 	return errs
+def _check_problem_blocks(blocks: list[dict]) -> list[str]:
+	from .problem_tracks import companion_track_issues
+	errs: list[str] = []
+	multi = 1 < len(blocks)
+	for idx, blk in enumerate(blocks, 1):
+		prefix = f'[Analysis #{idx}] ' if multi else ''
+		errs.extend((f'{prefix}{err}' for err in _check_problem_sections(blk['sections'])))
+	errs.extend(companion_track_issues(blocks))
+	return errs
 def _check_problem_metadata(body: str) -> list[str]:
 	m = _JSON_FENCE_RE.search(body or '')
 	if None is m:
@@ -81,16 +93,16 @@ def _check_problem_sections(sections: dict[int, tuple[str, str]]) -> list[str]:
 	if 4 in sections:
 		errs.extend(_check_item_group(_parse_section_items(sections[4][1]), require_link=False, kind='solution method', context='Section # 4 (Systemic Solutions)'))
 	return errs
-def _detect_mode(text: str, sections: dict[int, tuple[str, str]], requests: list | tuple, mode: str) -> str:
+def _detect_mode(text: str, blocks: list[dict], requests: list | tuple, mode: str) -> str:
 	if mode in ('general', 'problem'):
 		r = mode
 	else:
-		has_s0_meta = 0 in sections and bool(_PROB_HEAD_RE.search(sections[0][0]))
-		has_s1_prob = 1 in sections and bool(_PROB_HEAD_RE.search(sections[1][0])) and bool({2, 3, 4} & set(sections))
+		has_s0_meta = any((0 in b['sections'] and bool(_PROB_HEAD_RE.search(b['sections'][0][0])) for b in blocks))
+		has_s1_prob = any((1 in b['sections'] and bool(_PROB_HEAD_RE.search(b['sections'][1][0])) and bool({2, 3, 4} & set(b['sections'])) for b in blocks))
 		if has_s0_meta or has_s1_prob:
 			r = 'problem'
 		elif _requests_invoke_df_analysis(requests):
-			r = 'problem' if 0 in sections else 'general'
+			r = 'problem' if any((0 in b['sections'] for b in blocks)) else 'general'
 		else:
 			hyps, mets = _parse_explicit_items(text)
 			r = 'general' if hyps or mets else 'none'
@@ -236,17 +248,18 @@ def markdown_table_issues(text: str) -> list[str]:
 	return [f'DOC-4 Line {ln}: Markdown table detected; Markdown tables are forbidden by rule DOC-4 (rewrite as structured prose or a list).' for ln in find_markdown_table_lines(text)]
 def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str='auto') -> list[str]:
 	from .metadata import strip_leading_metadata_header
+	from .problem_tracks import extract_problem_blocks
 	from .scatter_banner import validate_scatter_banners
 	body = strip_leading_metadata_header(response or '')
-	sections = _extract_top_sections(body)
-	eff_mode = _detect_mode(body, sections, requests, mode)
+	blocks = extract_problem_blocks(body, _mask_fenced_lines, _TOP_HEAD_RE)
+	eff_mode = _detect_mode(body, blocks, requests, mode)
 	if 'problem' == eff_mode:
-		r = _check_problem_sections(sections)
+		r = _check_problem_blocks(blocks)
 	elif 'general' == eff_mode:
 		r = _validate_general(body, _requests_invoke_df_analysis(requests) or 'general' == mode)
 	else:
 		r = []
-	r.extend(validate_scatter_banners(body, sections=sections, mode=eff_mode))
+	r.extend(validate_scatter_banners(body, blocks=blocks, mode=eff_mode))
 	return r
 def validate_statements(directory: Path) -> list[str]:
 	directory = Path(directory)
