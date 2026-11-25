@@ -172,6 +172,16 @@ def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> 
 	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
 	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	return hashlib.sha256(raw).hexdigest()[:40]
+def _resolve_pre_invocation_target(canon_root: Path, backend: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path | None:
+	_ensure_scripts_on_path()
+	from agent_tools.turn_routing import resolve_active_turn_state
+	orig_st = resolve_active_turn_state(_turns_dir(canon_root), conversation_id, max_user_step)
+	if isinstance(orig_st, dict) and 'handed_off' == orig_st.get('status'):
+		r: Path | None = None
+	else:
+		routed = _routed_pre_invocation_root(canon_root, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
+		r = None if _turn_step_already_covered(_turns_dir(routed), backend, conversation_id, max_user_step) else routed
+	return r
 def _routed_pre_invocation_root(canon_root: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path:
 	_ensure_scripts_on_path()
 	from agent_tools.turn_routing import resolve_handoff_target_root
@@ -238,8 +248,8 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	max_user_step = _latest_completed_user_step(conversations_dir, conversation_id)
 	if None is max_user_step:
 		return {}
-	canon_root = _routed_pre_invocation_root(canon_root, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
-	if _turn_step_already_covered(_turns_dir(canon_root), backend, conversation_id, max_user_step):
+	canon_root = _resolve_pre_invocation_target(canon_root, backend, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
+	if None is canon_root:
 		return {}
 	with _pre_flush_begin_context(brain_dir, conversations_dir, conversation_id):
 		try:

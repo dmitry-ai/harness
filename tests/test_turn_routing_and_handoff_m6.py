@@ -89,6 +89,19 @@ class TurnRoutingAndHandoffM6Tests(unittest.TestCase):
 			msg = str(((out.get('injectSteps') or [{}])[0].get('systemMessage') or {}).get('systemMessage') or '')
 			self.assertIn(launcher.as_posix(), msg, out)
 			self.assertEqual([], list((daily / '\ua616/data/turns').glob('*.json')))
+	def test_pre_invocation_fast_exits_on_same_turn1_handed_off_step(self) -> None:
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			launcher, daily = _setup_launcher_and_daily(base)
+			req1 = f'/upwork-init https://upwork.com/jobs/~{JOB_1}'
+			backend, log_file = _build_ag_env(base, launcher, req1, 'unused')
+			log_file.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': req1}) + '\n', encoding='utf-8')
+			with closing(sqlite3.connect(backend / 'conversations' / f'{CID}.db')) as conn:
+				conn.execute('DELETE FROM steps WHERE idx > 0')
+				conn.commit()
+			out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': CID, 'cwd': str(launcher), 'transcriptPath': str(log_file), 'invocationNum': 1}, backend_override=backend)
+			self.assertEqual({}, out)
+			self.assertEqual([], list((daily / '\ua616/data/turns').glob('*.json')))
 	def test_pre_invocation_routes_turn2_handed_off_to_daily_without_launcher_orphan(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
