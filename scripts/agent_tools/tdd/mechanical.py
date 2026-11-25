@@ -1,4 +1,6 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/250
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/239
 from __future__ import annotations
 from datetime import datetime, timezone
@@ -27,6 +29,8 @@ def _candidate_recipe_dirs(project_root: Path | None, repo_root: Path | None) ->
 	except (OSError, ValueError, ImportError):
 		pass
 	return [d for d in dirs if d.is_dir()]
+def _collect_recipe_files(project_root: Path | None, repo: Path) -> list[Path]:
+	return [rf for td in _candidate_recipe_dirs(project_root, repo) for rf in sorted(td.glob(f'*{_MECH_SUFFIX}'))]
 def _compile_recipe_regex(recipe: dict) -> re.Pattern[str] | None:
 	pat = str(recipe.get('pattern') or '')
 	if not pat:
@@ -95,6 +99,8 @@ def _load_recipe_entries(rf: Path) -> list[dict]:
 	if isinstance(raw, list):
 		r = [item for item in raw if isinstance(item, dict)]
 	return r
+def _read_disk_text(fpath: Path) -> str | None:
+	return fpath.read_text(encoding='utf-8', errors='replace') if fpath.is_file() else None
 def _recipe_matches_repo(item: dict, repo_posix: str, repo_slug: str | None, msg_norm: str | None) -> bool:
 	iss_url = str(item.get('issue_url') or '').strip()
 	ok_reason = validate_mechanical_reason(str(item.get('reason') or ''))[0]
@@ -158,28 +164,29 @@ def _validate_recipe_inputs(issue_url: str, pattern: str, replacement: str, reas
 def find_matching_mechanical_recipes(repo_root: Path | None, *, message: str | None=None, project_root: Path | None=None) -> list[dict]:
 	r: list[dict] = []
 	if None is not repo_root:
-		from ..issue_lifecycle import origin_repo_slug
 		repo = Path(repo_root).resolve()
-		repo_posix = repo.as_posix()
-		repo_slug = origin_repo_slug(repo) if (repo / '.git').exists() else None
-		msg_norm = normalize_commit_message(message) if None is not message else None
-		for td in _candidate_recipe_dirs(project_root, repo):
-			for rf in sorted(td.glob(f'*{_MECH_SUFFIX}')):
+		r_files = _collect_recipe_files(project_root, repo)
+		if r_files:
+			from ..issues.repo_locator import _extract_config_slugs
+			repo_posix = repo.as_posix()
+			slugs = _extract_config_slugs(repo) if (repo / '.git').exists() else []
+			repo_slug = slugs[0] if slugs else None
+			msg_norm = normalize_commit_message(message) if None is not message else None
+			for rf in r_files:
 				r.extend((it for it in _load_recipe_entries(rf) if _recipe_matches_repo(it, repo_posix, repo_slug, msg_norm)))
 	return r
 def is_git_file_mechanical_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
 	repo = Path(repo_root).resolve()
-	fpath = repo / rel_posix
-	cur = disk_text
-	if None is cur:
-		cur = _git_read_text(repo, ['show', f':{rel_posix}']) if use_index else (fpath.read_text(encoding='utf-8', errors='replace') if fpath.is_file() else None)
-	head = _git_read_text(repo, ['show', f'HEAD:{rel_posix}'])
-	if None is cur:
+	recipes = find_matching_mechanical_recipes(repo, message=message, project_root=project_root)
+	if not recipes:
 		r = False
-	elif None is not head and head != cur:
-		r = is_mechanical_diff_exempt(head, cur, repo_root=repo, message=message, project_root=project_root)
 	else:
-		r = _is_last_commit_mechanical_exempt(repo, rel_posix, project_root=project_root)
+		cur = disk_text if None is not disk_text else (_git_read_text(repo, ['show', f':{rel_posix}']) if use_index else _read_disk_text(repo / rel_posix))
+		if None is cur:
+			r = False
+		else:
+			head = _git_read_text(repo, ['show', f'HEAD:{rel_posix}'])
+			r = matches_any_mechanical_recipes(head, cur, recipes) if None is not head and head != cur else _is_last_commit_mechanical_exempt(repo, rel_posix, project_root=project_root)
 	return r
 def is_mechanical_diff_exempt(old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
 	recipes = find_matching_mechanical_recipes(repo_root, message=message, project_root=project_root)

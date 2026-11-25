@@ -1,4 +1,6 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/250
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/239
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/238
@@ -17,6 +19,7 @@ from .substantive import is_substantive_test_content, source_text_assertion_issu
 import difflib
 import os
 import subprocess
+_HEAD_TEXT_CACHE: dict[tuple[str, str, str], str | None] = {}
 def _active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[str]:
 	r: list[str] = []
 	for blob in (new_text or '', old_text or ''):
@@ -44,6 +47,19 @@ def _diff_added_lines(old_text: str | None, new_text: str) -> tuple[list[str], s
 				added_lines.append(new_lines[idx])
 				added_nums.add(idx + 1)
 	return (added_lines, added_nums)
+def _eval_pre_code_write(name: str, args: dict, target_path: Path, cls: str, cwd: Path | None, payload: dict) -> str | None:
+	scope = resolve_code_scope(target_path)
+	if 'production' != cls:
+		sc_state = _load_pre_tool_tdd_state(payload, cwd)['scopes'].get(str(scope)) if target_path.is_file() else None
+		r = _eval_pre_test_write(name, args, target_path, scope, cwd, sc_state)
+	else:
+		old_disk, new_text, _, _ = _compute_edited_content(name, args, target_path)
+		if is_diff_exempt(target_path, old_disk, new_text, repo_root=scope, project_root=cwd or scope):
+			r = None
+		else:
+			sc_state = _load_pre_tool_tdd_state(payload, cwd)['scopes'].get(str(scope))
+			r = _eval_pre_prod_write(target_path, sc_state)
+	return r
 def _eval_pre_prod_write(target_path: Path, sc_state: dict | None) -> str | None:
 	if None is not sc_state and sc_state.get('state') in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
 		r = None
@@ -52,8 +68,15 @@ def _eval_pre_prod_write(target_path: Path, sc_state: dict | None) -> str | None
 	else:
 		r = f'EXEC-2 TDD-RED-GATE: Cannot write/edit production code "{target_path.name}" before writing a failing test. Strict TDD applies to all code: write a behavioral test first, run it to observe failure (RED), and only then implement production code.'
 	return r
-def _eval_pre_run_command(cmd: str, cwd: Path | None, tdd_state: dict) -> str | None:
-	return _eval_shell_prod_writes(cmd, cwd, tdd_state) or _eval_shell_test_deletes(cmd, cwd)
+def _eval_pre_run_command(cmd: str, cwd: Path | None, payload: dict) -> str | None:
+	prod_targets = shell_code_write_targets(cmd, cwd=cwd)
+	del_targets = shell_test_delete_targets(cmd, cwd=cwd)
+	if (not prod_targets) and (not del_targets):
+		r = None
+	else:
+		prod_err = _eval_shell_prod_writes(prod_targets, cwd, _load_pre_tool_tdd_state(payload, cwd)) if prod_targets else None
+		r = prod_err or (_eval_shell_test_deletes(del_targets, cwd) if del_targets else None)
+	return r
 def _eval_pre_test_write(name: str, args: dict, target_path: Path, scope: Path, cwd: Path | None, sc_state: dict | None) -> str | None:
 	old_disk, new_text, added_lines, added_nums = _compute_edited_content(name, args, target_path)
 	if None is new_text:
@@ -70,7 +93,7 @@ def _eval_pre_test_write(name: str, args: dict, target_path: Path, scope: Path, 
 				rel_posix = _rel_posix_for_scope(target_path, scope)
 				r = _eval_test_ratchet_and_fitting(rel_posix, scope, cwd, old_disk, new_text, sc_state)
 	return r
-def _eval_pre_write(name: str, args: dict, cwd: Path | None, tdd_state: dict) -> str | None:
+def _eval_pre_write(name: str, args: dict, cwd: Path | None, payload: dict) -> str | None:
 	r = None
 	raw_p = str(args.get('Path') or '').strip()
 	if raw_p:
@@ -79,27 +102,21 @@ def _eval_pre_write(name: str, args: dict, cwd: Path | None, tdd_state: dict) ->
 		content_hint = args.get('Content') if 'write_file' == name and isinstance(args.get('Content'), str) else None
 		cls = classify_code_path(target_path, content=content_hint)
 		if 'non_code' != cls:
-			scope = resolve_code_scope(target_path)
-			sc_state = tdd_state['scopes'].get(str(scope))
-			if 'production' == cls:
-				old_disk, new_text, _, _ = _compute_edited_content(name, args, target_path)
-				r = None if is_diff_exempt(target_path, old_disk, new_text, repo_root=scope, project_root=cwd or scope) else _eval_pre_prod_write(target_path, sc_state)
-			else:
-				r = _eval_pre_test_write(name, args, target_path, scope, cwd, sc_state)
+			r = _eval_pre_code_write(name, args, target_path, cls, cwd, payload)
 	return r
-def _eval_shell_prod_writes(cmd: str, cwd: Path | None, tdd_state: dict) -> str | None:
+def _eval_shell_prod_writes(prod_targets: list[Path], cwd: Path | None, tdd_state: dict) -> str | None:
 	from .mechanical import find_matching_mechanical_recipes
 	r = None
-	for target_p in shell_code_write_targets(cmd, cwd=cwd):
+	for target_p in prod_targets:
 		scope = resolve_code_scope(target_p)
 		sc_state = tdd_state['scopes'].get(str(scope))
 		if (None is sc_state or sc_state.get('state') not in ('RED_VERIFIED', 'GREEN_IMPLEMENTING')) and (not find_matching_mechanical_recipes(scope, project_root=cwd or scope)):
 			r = f'EXEC-2 TDD-RED-GATE: Shell command writes production code file "{target_p.name}" before a failing (RED) test was written and observed. Write a failing test first.'
 			break
 	return r
-def _eval_shell_test_deletes(cmd: str, cwd: Path | None) -> str | None:
+def _eval_shell_test_deletes(del_targets: list[Path], cwd: Path | None) -> str | None:
 	r = None
-	for del_test in shell_test_delete_targets(cmd, cwd=cwd):
+	for del_test in del_targets:
 		scope = resolve_code_scope(del_test)
 		rel_posix = _rel_posix_for_scope(del_test, scope)
 		if None is not _git_head_text(scope, rel_posix):
@@ -122,8 +139,34 @@ def _eval_test_ratchet_and_fitting(rel_posix: str, scope: Path, cwd: Path | None
 		if fit_errs:
 			r = 'EXEC-2 TDD-ANTI-FITTING-GATE: Production code was already edited in this cycle; do not weaken or rewrite test assertions to fit the code! ' + '; '.join(fit_errs[:2])
 	return r
+def _git_head_sha(repo_root: Path) -> str | None:
+	gitdir, common = _resolve_git_dirs(repo_root)
+	r = None
+	if None is not gitdir and (gitdir / 'HEAD').is_file():
+		try:
+			raw = (gitdir / 'HEAD').read_text(encoding='utf-8', errors='replace').strip()
+			if raw.startswith('ref:'):
+				ref_p = common / raw[4:].strip()
+				cand = ref_p.read_text(encoding='utf-8', errors='replace').strip() if ref_p.is_file() else ''
+			else:
+				cand = raw
+			if 40 == len(cand) and all((ch in '0123456789abcdefABCDEF' for ch in cand)):
+				r = cand.lower()
+		except OSError:
+			r = None
+	return r
 def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
-	return _git_show_text(repo_root, f'HEAD:{rel_posix}')
+	sha = _git_head_sha(repo_root)
+	if None is sha:
+		r = _git_show_text(repo_root, f'HEAD:{rel_posix}')
+	else:
+		key = (str(repo_root).lower(), sha, rel_posix)
+		if key not in _HEAD_TEXT_CACHE:
+			if 256 <= len(_HEAD_TEXT_CACHE):
+				_HEAD_TEXT_CACHE.clear()
+			_HEAD_TEXT_CACHE[key] = _git_show_text(repo_root, f'HEAD:{rel_posix}')
+		r = _HEAD_TEXT_CACHE[key]
+	return r
 def _git_index_text(repo_root: Path, rel_posix: str) -> str | None:
 	return _git_show_text(repo_root, f':{rel_posix}')
 def _git_show_text(repo_root: Path, spec: str) -> str | None:
@@ -139,11 +182,24 @@ def _git_show_text(repo_root: Path, spec: str) -> str | None:
 		if 0 == proc.returncode:
 			r = proc.stdout.decode('utf-8', errors='replace')
 	return r
+def _load_pre_tool_tdd_state(payload: dict, cwd: Path | None) -> dict:
+	t_raw = str(payload.get('transcriptPath') or '').strip()
+	events = extract_antigravity_tdd_events(Path(t_raw), cwd=cwd) if t_raw else []
+	return evaluate_tdd_events(events, require_final_full_green=False, project_root=cwd)
 def _rel_posix_for_scope(target_path: Path, scope: Path) -> str:
 	try:
 		r = target_path.relative_to(scope).as_posix()
 	except ValueError:
 		r = target_path.name
+	return r
+def _resolve_git_dirs(repo_root: Path) -> tuple[Path | None, Path | None]:
+	dot = repo_root / '.git'
+	if dot.is_dir():
+		r: tuple[Path | None, Path | None] = (dot, dot)
+	elif dot.is_file():
+		r = _resolve_worktree_git_dirs(repo_root, dot)
+	else:
+		r = (None, None)
 	return r
 def _resolve_new_text(name: str, args: dict, old_disk: str | None) -> str | None:
 	r = None
@@ -155,6 +211,19 @@ def _resolve_new_text(name: str, args: dict, old_disk: str | None) -> str | None
 		repl_str = args.get('Replacement')
 		if None is not old_disk and isinstance(target_str, str) and isinstance(repl_str, str) and target_str in old_disk:
 			r = old_disk.replace(target_str, repl_str)
+	return r
+def _resolve_worktree_git_dirs(repo_root: Path, dot: Path) -> tuple[Path | None, Path | None]:
+	r: tuple[Path | None, Path | None] = (None, None)
+	try:
+		txt = dot.read_text(encoding='utf-8', errors='replace').strip()
+		if txt.lower().startswith('gitdir:'):
+			gd = normalize_host_path(txt.split(':', 1)[1].strip())
+			gd = gd.resolve() if gd.is_absolute() else (repo_root / gd).resolve()
+			cd_file = gd / 'commondir'
+			common = (gd / cd_file.read_text(encoding='utf-8', errors='replace').strip()).resolve() if cd_file.is_file() else gd
+			r = (gd, common)
+	except OSError:
+		r = (None, None)
 	return r
 def _staged_entry_texts(repo: Path, rel: str, use_index: bool, issue_urls: list[str]) -> tuple[Path, str | None, str | None, str]:
 	fpath = repo / rel
@@ -186,13 +255,10 @@ def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | Non
 	r = None
 	cwd_raw = str(payload.get('cwd') or '').strip()
 	cwd = Path(cwd_raw).resolve() if cwd_raw else None
-	t_raw = str(payload.get('transcriptPath') or '').strip()
-	events = extract_antigravity_tdd_events(Path(t_raw), cwd=cwd) if t_raw else []
-	tdd_state = evaluate_tdd_events(events, require_final_full_green=False)
 	if name in ('write_file', 'edit_file'):
-		r = _eval_pre_write(name, args, cwd, tdd_state)
+		r = _eval_pre_write(name, args, cwd, payload)
 	elif 'run_command' == name:
-		r = _eval_pre_run_command(str(args.get('CommandLine') or ''), cwd, tdd_state)
+		r = _eval_pre_run_command(str(args.get('CommandLine') or ''), cwd, payload)
 	return r
 def verify_staged_tdd_diff(repo_root: Path, staged_paths: list[str], *, message: str | None=None, project_root: Path | None=None, use_index: bool=False) -> list[str]:
 	repo = Path(repo_root).resolve()

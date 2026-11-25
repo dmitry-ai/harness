@@ -1,4 +1,6 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/250
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/173
@@ -32,16 +34,25 @@ def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: di
 			st['cycle_had_prod_edit'] = False
 			st['cycle_green_step'] = None
 			orders[sk]['written_test'] = None
-def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None) -> None:
+def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None, exempt_cache: dict[tuple[str, str], bool] | None=None) -> None:
 	cls = ev.get('classification')
 	scope_str = str(ev.get('scope') or '')
 	fpath = str(ev.get('path') or '')
-	if 'non_code' != cls and scope_str and ('production' != cls or (not is_write_event_exempt(fpath, scope_str, project_root=project_root))):
+	if 'test' == cls and scope_str:
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
-		if 'test' == cls:
-			_apply_test_write(st, st_ord, fpath, step, order)
-		elif 'production' == cls:
-			_apply_prod_write(st, st_ord, fpath, step, order, violations)
+		_apply_test_write(st, st_ord, fpath, step, order)
+	elif 'production' == cls and scope_str:
+		_apply_prod_file_event(fpath, scope_str, step, order, scopes, orders, violations, project_root, {} if None is exempt_cache else exempt_cache)
+def _apply_prod_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> None:
+	existing = scopes.get(scope_str)
+	if None is not existing and existing['state'] in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
+		st, st_ord = (existing, orders[scope_str])
+		st_ord['unverified_prod_writes'].append((fpath, order))
+		_apply_prod_write(st, st_ord, fpath, step, order, violations)
+	elif not _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
+		st, st_ord = _ensure_scope(scopes, orders, scope_str)
+		st_ord['last_non_exempt_prod'] = order
+		_apply_prod_write(st, st_ord, fpath, step, order, violations)
 def _apply_prod_write(st: dict, st_ord: dict, fpath: str, step: int, order: tuple[int, int, int], violations: list[str]) -> None:
 	st['any_prod_edit'] = True
 	if fpath not in st['touched_prod_files']:
@@ -65,6 +76,7 @@ def _apply_test_write(st: dict, st_ord: dict, fpath: str, step: int, order: tupl
 		st_ord['written_test'] = order
 	st['last_code_edit_step'] = step
 	st_ord['last_code_edit'] = order
+	st_ord['last_test_edit'] = order
 def _collect_failfast_warnings(cmd_text: str, step: int, failfast_warnings: list[str]) -> None:
 	from ..failfast_gate import missing_failfast_flag
 	for seg in _split_shell_segments(cmd_text):
@@ -74,14 +86,11 @@ def _collect_failfast_warnings(cmd_text: str, step: int, failfast_warnings: list
 			if warn not in failfast_warnings:
 				failfast_warnings.append(warn)
 			break
-def _collect_final_green_violations(scopes: dict[str, dict], orders: dict[str, dict]) -> list[str]:
+def _collect_final_green_violations(scopes: dict[str, dict], orders: dict[str, dict], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> list[str]:
 	r: list[str] = []
 	for sk, st in sorted(scopes.items()):
-		if st['any_prod_edit']:
-			last_edit_ord = orders[sk]['last_code_edit']
-			full_green_ord = orders[sk]['last_full_green']
-			if None is full_green_ord or (None is not last_edit_ord and full_green_ord <= last_edit_ord):
-				r.append(f"EXEC-2 TDD-FULL-GATE: Repository \"{sk}\" has production code edits (last edit at step {st['last_code_edit_step']}) without a subsequent passing (GREEN) full test suite run. Run the full test suite and verify all tests pass.")
+		if _scope_needs_final_full_green(sk, st, orders[sk], project_root, exempt_cache):
+			r.append(f"EXEC-2 TDD-FULL-GATE: Repository \"{sk}\" has production code edits (last edit at step {st['last_code_edit_step']}) without a subsequent passing (GREEN) full test suite run. Run the full test suite and verify all tests pass.")
 	return r
 def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[str]) -> bool:
 	scope_p = Path(scope_str).resolve()
@@ -122,7 +131,7 @@ def _ensure_scope(scopes: dict[str, dict], orders: dict[str, dict], scope_str: s
 		'written_test_step': None,
 		'written_tests': [],
 	})
-	st_ord = orders.setdefault(scope_str, {'last_code_edit': None, 'last_full_green': None, 'written_test': None})
+	st_ord = orders.setdefault(scope_str, {'last_code_edit': None, 'last_full_green': None, 'last_non_exempt_prod': None, 'last_test_edit': None, 'unverified_prod_writes': [], 'written_test': None})
 	return (st, st_ord)
 def _git_main_repo_root(repo: Path) -> Path:
 	r = repo.resolve()
@@ -139,6 +148,18 @@ def _git_main_repo_root(repo: Path) -> Path:
 		except OSError:
 			pass
 	return r
+def _has_non_exempt_prod(sk: str, st_ord: dict, project_root: Path | None, exempt_cache: dict[tuple[str, str], bool], *, min_order: tuple[int, int, int] | None=None) -> bool:
+	known = st_ord['last_non_exempt_prod']
+	if None is not known and (None is min_order or known >= min_order):
+		r = True
+	else:
+		r = any((not _is_exempt_cached(fp, sk, project_root, exempt_cache) for fp, ord_ in st_ord['unverified_prod_writes'] if None is min_order or ord_ >= min_order))
+	return r
+def _is_exempt_cached(fpath: str, scope_str: str, project_root: Path | None, cache: dict[tuple[str, str], bool]) -> bool:
+	key = (scope_str, fpath)
+	if key not in cache:
+		cache[key] = is_write_event_exempt(fpath, scope_str, project_root=project_root)
+	return cache[key]
 def _order_tdd_events(events: list[dict] | tuple[dict, ...] | None) -> list[tuple[tuple[int, int, int], int, dict]]:
 	sub_ids: dict[str, int] = {}
 	tagged: list[tuple[tuple[int, int, int], int, dict]] = []
@@ -164,6 +185,15 @@ def _resolve_event_target_scopes(targets: list[str], cwd_p: Path | None) -> list
 		except OSError:
 			continue
 	return r
+def _scope_needs_final_full_green(sk: str, st: dict, st_ord: dict, project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> bool:
+	last_edit_ord, full_green_ord = (st_ord['last_code_edit'], st_ord['last_full_green'])
+	if (not st['any_prod_edit']) or (None is not full_green_ord and (None is last_edit_ord or full_green_ord > last_edit_ord)):
+		r = False
+	elif None is full_green_ord or (None is not st_ord['last_test_edit'] and st_ord['last_test_edit'] >= full_green_ord):
+		r = _has_non_exempt_prod(sk, st_ord, project_root, exempt_cache)
+	else:
+		r = _has_non_exempt_prod(sk, st_ord, project_root, exempt_cache, min_order=full_green_ord)
+	return r
 def _scopes_overlap(resolved_scopes: list[Path], scope_p: Path, scope_key: str, scope_main_key: str, is_full_cmd: bool) -> bool:
 	direct = any(rs.as_posix().lower() == scope_key or rs.is_relative_to(scope_p) or scope_p.is_relative_to(rs) for rs in resolved_scopes)
 	return direct or (is_full_cmd and any(_git_main_repo_root(rs).as_posix().lower() == scope_main_key for rs in resolved_scopes))
@@ -183,15 +213,16 @@ def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool=Tr
 	orders: dict[str, dict] = {}
 	violations: list[str] = []
 	failfast_warnings: list[str] = []
+	exempt_cache: dict[tuple[str, str], bool] = {}
 	for order, _, ev in _order_tdd_events(events):
 		kind = ev.get('kind')
 		step = order[0]
 		if 'file_write' == kind:
-			_apply_file_write_event(ev, step, order, scopes, orders, violations, project_root=project_root)
+			_apply_file_write_event(ev, step, order, scopes, orders, violations, project_root=project_root, exempt_cache=exempt_cache)
 		elif 'command' == kind:
 			_apply_command_event(ev, step, order, scopes, orders, failfast_warnings)
 	if require_final_full_green:
-		violations.extend(_collect_final_green_violations(scopes, orders))
+		violations.extend(_collect_final_green_violations(scopes, orders, project_root, exempt_cache))
 	r = {'scopes': scopes, 'verified': not violations, 'violations': violations}
 	if failfast_warnings:
 		r['failfast_warnings'] = failfast_warnings
