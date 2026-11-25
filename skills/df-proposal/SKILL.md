@@ -21,3 +21,4 @@ Numbering serves clarity and verifiable cross-references; it never dictates a fi
 
 The specific Upwork job post determines the number of submission fields and each field's character limit.  
 Before finalizing, validate the Cover Letter and each screening question answer separately; total document length does not prove compliance with individual field limits.  
+Start with `begin` for the current instruction, prepare a separate candidate verified via `check`, obtain independent review for substantive revisions before `apply`, validate the user reply via `response --against` without editing unrelated drafts, and record the exact journal.  

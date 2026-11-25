@@ -22,4 +22,4 @@ References to external standards, code literals, and verbatim quotes remain unto
 Use `render --diff` to preview a proposal and `render -o` to write a separate candidate file; the shared `apply` operation writes the registered target document.  
 
 Upwork proposals use their own skill [df-proposal](../df-proposal/SKILL.md); letters use the shared procedure with `kind=letter` and the user-specified layout.  
-Validate the deliverable and journal per the shared contract, then persist them as instructed by the user.  
+Start with `begin` for the current instruction, prepare a separate candidate verified via `check` (scope, claim map, primary grounds, and command replay), pass independent review for substantive revisions before `apply`, validate the user reply via `response --against` built from the actual diff and operation receipts without editing unrelated texts, and record the exact journal.  

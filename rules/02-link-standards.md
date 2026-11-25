@@ -1,32 +1,20 @@
 ---
 trigger: always_on
-description: "Claim, exact quote, and verified source address"
+description: "Substantive citations, verified documentation anchors, and human-readable links"
 ---
 # Sources
 ## LINK-1
-Support every substantive claim with an exact quote and a link next to it; prove platform behavior from its documentation or source code, and client specifics from client data.  
-Documentation of a capability does not prove a client's configuration; the presence of a link does not prove a claim.  
-State third-party sources and inferences explicitly; when evidence is absent, use [DOC-2](04-statement-structure.md#doc-2).  
+Support every substantive claim with a verbatim quote and a link next to it; prove platform behavior from official docs or source code, and client specifics from client data.  
+Documented capability never proves client configuration, and a bare link never proves a claim; state inferences explicitly and use [DOC-2](04-statement-structure.md#doc-2) when evidence is missing.  
 ## LINK-2
-Documentation: read the fragment relevant to the claim and provide the URL down to an existing anchor.  
-If no anchor exists, cite the section title and quote; do not invent an identifier.  
-In structured analysis, record `anchor_exception`: the section title and a link to the observation where the section, quote, and absence of a suitable anchor were verified.  
+Read the relevant documentation fragment and cite its URL down to an existing `#anchor`; if no anchor exists, record `anchor_exception` (section title, quote, and link to the saved observation).  
 For external documentation URLs whose saved `ꘖ/KB/Evidence` observation contains verified anchors, omitting an `#anchor` is rejected during `answer-check` and `answer-prepare` unless `anchor_exception` is documented.  
-Verify the content and destination rather than HTTP 200 alone; distinguish raw HTML from post-JavaScript DOM.  
+Verify destination content rather than HTTP 200 alone, and distinguish raw HTML from post-JavaScript DOM.  
 ## LINK-3
-For a console, verify the account, property, date range, and filters; take the URL from the relevant screen and do not construct opaque IDs.  
-Strip tracking parameters; other URL shortenings are permissible only after verifying identical content and anchor resolution.  
-For Google documentation that supports `hl=en`, prefer the English version.  
+For consoles, verify account, property, date range, and filters, taking the URL from the actual screen without constructing opaque IDs; strip tracking parameters and prefer `hl=en` for Google documentation.  
 ## LINK-4
-Introduce a piece of evidence once within a document and reference its paragraph; a standalone response must include its own required sources.  
-Use relative paths and stable heading IDs inside files; in chat, use clickable paths as required by the environment.  
-After moving files, re-verify paths and anchors; do not add `<a name=...>` into the agent KB.  
+Introduce each piece of evidence once per document and reference its paragraph; standalone responses include their own required sources.  
+Use relative paths and stable heading IDs inside files, clickable paths in chat, and never insert `<a name=...>` into the agent KB.  
 ## LINK-5
-All agents, including primary, A.A, and A.F, write human-readable links in all authored texts: intermediate Markdown/KB, drafts, reports, final documents, and materials for publication or client delivery.  
-Do not apply URL encoding to authored text, link labels, or file paths: preserve spaces and Unicode instead of `%20`, `%D0...`, `%EA...`.  
-In Markdown, wrap destinations containing spaces or parentheses in `<...>`: `[Source](<folder with spaces/ꘖ/file.json>)`; path scope follows LINK-4.  
-Use `links.markdown_link`/`readable_reference` when generating links; verify authored documents with `validate_links.py --readable` before completion.  
-Do not re-encode an obtained external URL or alter its significant parameters, signatures, or escaped delimiters; display a readable link label while preserving the exact target address.  
-Source documents, primary evidence, verbatim quotes, code, and the exact journal are preserved without byte substitution; that is not a reason to copy percent-encoding into new authored links.  
-URI serialization inside browsers, HTTP, SQLite, native APIs, and hidden hyperlinks of export formats belongs to programmatic transport rather than readable document formatting.  
-<!-- https://github.com/dmitry-ai/harness/issues/182 -->  
+Write human-readable links without URL percent-encoding (`%20`, `%D0...`) in all authored Markdown, drafts, reports, and chat replies, wrapping destinations containing spaces or parentheses in `<...>`.  
+Before finalizing authored Markdown documents, verify readable links with [validate_links.py](../scripts/validate_links.py) (`--readable`); preserve exact external URLs, verbatim quotes, raw captures, and journals without altering bytes.  

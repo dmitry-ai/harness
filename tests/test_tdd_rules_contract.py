@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Codify fail-fast defaults and prohibit schedule timers over run_command in rules and docs":
 # https://github.com/dmitry-ai/harness/issues/164
@@ -35,7 +38,7 @@ class TddRulesAndDocumentationContractTests(unittest.TestCase):
 
 		# Canonical rule budget and mandatory TDD contract terms
 		rule_bytes = rule_doc.read_bytes()
-		self.assertLess(len(rule_bytes), 20000, 'rules/08-execution-and-tools.md must remain comfortably under system prompt budget')
+		self.assertLess(len(rule_bytes), 6000, 'rules/08-execution-and-tools.md must remain comfortably under system prompt budget')
 		rule_text = rule_bytes.decode('utf-8')
 		for token in ('RATCHET-OK', 'ratchet-ok', 'tdd-check', 'Red', 'full test suite'):
 			self.assertIn(token, rule_text, f'Missing mandatory TDD term {token!r} in rules/08-execution-and-tools.md')
@@ -79,9 +82,11 @@ class TddRulesAndDocumentationContractTests(unittest.TestCase):
 	def test_failfast_defaults_and_schedule_prohibition_contract(self) -> None:
 		rule_text = (HARNESS_ROOT / 'rules/08-execution-and-tools.md').read_text(encoding='utf-8')
 		self.assertNotIn('or a `schedule` timer with `DurationSeconds`', rule_text)
-		for token in ('EXEC-4-SCHEDULE-GATE', 'EXEC-2-TEST-FAILFAST-GATE', 'run-tests', 'WaitMsBeforeAsync', 'fail-fast'):
+		for token in ('run-tests', 'WaitMsBeforeAsync', 'fail-fast', 'DurationSeconds'):
 			self.assertIn(token, rule_text, f'Missing fail-fast / schedule rule term {token!r} in rules/08-execution-and-tools.md')
 		readme_text = (HARNESS_ROOT / 'scripts/README-agent-tools.md').read_text(encoding='utf-8')
+		for gate_tok in ('EXEC-4-SCHEDULE-GATE', 'EXEC-2-TEST-FAILFAST-GATE'):
+			self.assertIn(gate_tok, readme_text)
 		self.assertIn('# Regression Suite', readme_text)
 		reg_section = readme_text.split('# Regression Suite', 1)[1].split('\n# ', 1)[0]
 		self.assertIn('harness.py run-tests', reg_section)

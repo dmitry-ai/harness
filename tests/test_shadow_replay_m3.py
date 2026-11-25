@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
 from __future__ import annotations
@@ -44,16 +47,14 @@ class ShadowReplayM3Tests(unittest.TestCase):
 		from agent_tools.cli_registry import registered_commands
 		import check_markdown_slop
 		self.assertIn('shadow-replay', registered_commands())
-		rule_doc = WT_ROOT / 'rules/08-execution-and-tools.md'
+		skill_doc = WT_ROOT / 'skills/upwork-init/SKILL.md'
 		readme_doc = WT_ROOT / 'scripts/README-agent-tools.md'
-		for doc in (rule_doc, readme_doc):
+		for doc in (skill_doc, readme_doc):
 			self.assertEqual(links.validate_file(doc, local_anchors=True, readable_links=True), [])
 			self.assertEqual(check_markdown_slop.markdown_slop_issues(doc.read_text(encoding='utf-8')), [])
-		rule_bytes = rule_doc.read_bytes()
-		self.assertLess(len(rule_bytes), 20000)
-		rule_text = rule_bytes.decode('utf-8')
+		skill_text = skill_doc.read_text(encoding='utf-8')
 		for tok in ('shadow-replay', '\ua616/data/scratch/shadow-replay', 'FILE-6', 'stages_verified'):
-			self.assertIn(tok, rule_text)
+			self.assertIn(tok, skill_text)
 		self.assertIn('shadow-replay', readme_doc.read_text(encoding='utf-8'))
 	def test_shadow_replay_cli_executes_downstream_pipeline_and_cleans_scratch(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

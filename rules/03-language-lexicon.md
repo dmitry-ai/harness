@@ -1,22 +1,17 @@
 ---
 trigger: always_on
-description: "Language, exact terminology, and semantic density"
+description: "Response language, exact terminology, semantic density, and numeric precision"
 ---
 # Language
 ## TEXT-1
-Reply to the user in the language of the request; when a user request contains no natural-language prose (only a slash/dollar command, URL, file path, code, or log), reply in the default user language configured via `user_default_locale` in `runtime.json` rather than switching to the English language of system rules or error messages.  
-Write to the client in the specified language, defaulting to English US for new English text.  
-Do not translate an existing document or alter its style without an instruction.  
+Reply in the language of the user's request; if the request has no natural-language prose (only a command, URL, path, code, or log), use `user_default_locale` from [runtime.json](../runtime.json) (consult when resolving default locale).  
+Write to clients in the requested language (defaulting new English text to English US); never translate or restyle an existing document without instruction.  
 ## TEXT-2
-Lead with the conclusion; one item expresses one claim, piece of evidence, or inference.  
-Eliminate repetition, self-praise, empty disclaimers, promises, and invented jargon; length is determined by substance.  
-In technical analysis, the grammatical subject is the component or action; do not attribute motives or misconceptions to the client without [DOC-2](04-statement-structure.md#doc-2).  
+Lead with the conclusion; let one item express one claim, piece of evidence, or inference.  
+Eliminate repetition, self-praise, empty disclaimers, promises, and invented jargon; use the component or action as the grammatical subject in technical analysis, and never attribute motives or misconceptions without [DOC-2](04-statement-structure.md#doc-2).  
 ## TEXT-3
-Use one consistent term per entity according to the source and glossary.  
-Reproduce UI labels verbatim; put code and identifiers in backticks, and UI labels in `«»` where required by the profile or Russian text.  
-Do not add emoji of your own; preserve quotations verbatim.  
+Use one consistent term per entity per source and glossary; reproduce UI labels verbatim (in `«»` for Russian or profiles that require it), wrap code and identifiers in backticks, and never add emoji of your own.  
 ## TEXT-4
-State units, time periods, and justified precision for numbers; do not append `.00` to integer counts.  
-Do not present expert percentages as statistical probabilities: state the basis and uncertainty per [DOC-2](04-statement-structure.md#doc-2).  
-In English, prefer `website`, `frontend`, `e.g.`, and full verb forms; do not edit official names or verbatim quotes to fit style preferences.  
-<!-- https://github.com/dmitry-ai/harness/issues/131 -->  
+State units, time periods, and justified precision for numbers; omit `.00` on integer counts.  
+Never present expert percentages as statistical probabilities: state the basis and uncertainty per [DOC-2](04-statement-structure.md#doc-2).  
+In authored English prose, prefer `website`, `frontend`, `e.g.`, and full verb forms while preserving official names and verbatim quotes.  

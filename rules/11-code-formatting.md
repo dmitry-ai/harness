@@ -1,22 +1,17 @@
 ---
-trigger: always_on
-description: "Unified code formatting standards and dispatch to format-specific specifications"
+trigger: model_decision
+description: "Read before creating or editing source code, markup, or structured configuration files (CODE-1..CODE-4 formatting, style, and Python size ratchet standards)"
 ---
 # Code Formatting
 ## CODE-1
-Never add unrequested or explanatory comments of your own in code.  
-Never delete or alter existing comments already present in the code ([FILE-1](01-file-boundaries.md#file-1)).  
-Never write completely blank lines in source code or structured markup and configuration files.  
-Always indent new code with tab characters (`\t`) instead of spaces whenever the language or format syntax permits (`indent_style = tab`, `indent_size = 4`).  
-Never change the existing indentation of pre-existing code lines outside the scope of your edit.  
-Allow at most one single return point per function or method.  
-Name the variable storing the future return value of a function `r` (`$r` in PHP); omit that variable whenever `return <expression>` directly suffices.  
-In comparisons between a variable and a constant or literal, always place the constant on the left whenever language syntax permits (Yoda comparisons, e.g., `'Enter' === e.key`, `null === $v`, `None is x`, `200 != status`).  
-In `if` / `else` branching, always place the shorter conditional block (fewer lines of code) above the longer block: if `BLOCK_1` has more lines (`C1 > C2`) than `BLOCK_2`, invert the condition and move `BLOCK_1` into `else`.  
-Never create an empty `if` or `else` block when `C1 = 0` or `C2 = 0`; in brace-delimited languages, place `else` on a new line after `}` (`}\nelse {`).  
-Enclose string literals in single quotes (`'...'`) by default whenever language syntax permits; use double quotes (`"..."`) only when they provide a concrete advantage (such as variable interpolation in Bash or PHP, escape sequences, avoiding escaped apostrophes, or strict format requirements such as JSON).  
-Maintain alphabetical order for functions and methods at the same visibility and scope level, inserting any newly added function in its alphabetical position; also keep imports, constants, XML/HTML attributes, CLI options, and non-ordered maps alphabetically ordered where semantics do not dictate another order.  
-When modifying existing user code, never rewrite the entire file unnecessarily ([FILE-1](01-file-boundaries.md#file-1)); when presenting proposed edits in chat rather than editing workspace files directly, provide numbered targeted edits with each edit headed by a level-1 Markdown heading (`#`).  
+Never add unrequested or explanatory comments of your own in code, and never delete or alter existing comments ([FILE-1](01-file-boundaries.md#file-1)).  
+Never write completely blank lines in source code or structured markup/config files; indent new code with tab characters (`\t`, `indent_size = 4`) wherever syntax permits, preserving pre-existing indentation outside edit scope.  
+Allow at most one single return point per function or method; name the accumulated return variable `r` (`$r` in PHP) and omit it when `return <expression>` directly suffices.  
+Place the constant on the left in comparisons with variables (Yoda comparisons, e.g., `'Enter' === e.key`, `null === $v`, `None is x`, `200 != status`).  
+In `if` / `else` branching, place the shorter block (fewer lines) above the longer block, never create an empty branch, and place `else` on a new line after `}` (`}\nelse {`) in brace-delimited languages.  
+Use single quotes (`'...'`) for string literals by default, switching to double quotes (`"..."`) only for concrete syntax or interpolation advantages (such as JSON, Bash/PHP variables, escape sequences, or unescaped apostrophes).  
+Keep imports, constants, XML/HTML attributes, CLI options, non-ordered maps, and same-scope functions/methods alphabetically ordered.  
+Never rewrite an entire user file unnecessarily ([FILE-1](01-file-boundaries.md#file-1)); when presenting edits in chat, provide numbered targeted edits each headed by `#`.  
 ## CODE-2
 Before creating or editing a file in a supported language, markup language, or structured format, read and apply its format-specific specification under `references/code-formatting/`:  
 1. Programming languages:  
@@ -32,15 +27,9 @@ Before creating or editing a file in a supported language, markup language, or s
    - [JSON](../references/code-formatting/other/json.md)  
    - [LESS](../references/code-formatting/other/less.md)  
 ## CODE-3
-General rules in [CODE-1](#code-1) apply across all code and structured files unless a format-specific guide or the target format's syntax requires an exception (for example, double quotes in strict JSON or spaces in YAML).  
-Prose Markdown documents (`.md`) follow [DOC-4](04-statement-structure.md#doc-4) rather than source-code zero-blank-line rules.  
-Required GitHub Issue URL references in issue-tracked `code` repositories follow [EXEC-5](08-execution-and-tools.md#exec-5) and are exempt from the no-agent-comments restriction in [CODE-1](#code-1).  
+[CODE-1](#code-1) applies across all code and structured files unless a format guide or language syntax requires an exception (e.g., double quotes in JSON or spaces in YAML).  
+Prose Markdown documents (`.md`) follow [DOC-4](04-statement-structure.md#doc-4) rather than zero-blank-line code rules; required GitHub Issue URL references in issue-tracked `code` repositories follow [EXEC-5](08-execution-and-tools.md#exec-5) and are exempt from the no-agent-comments rule in [CODE-1](#code-1).  
 ## CODE-4
-Decompose new and compact production Python code into small single-purpose functions and modules: keep functions at most `20` executable SLOC and McCabe cyclomatic complexity at most `8`, keep files at most `300` executable SLOC, and never join multiple statements on one line with `;` (excluding comments, blank lines, docstrings, and multi-line pure declarative constant tables; test files use relaxed limits of `40` SLOC, McCabe `12`, and `600` file SLOC).  
-For pre-existing legacy Python files exceeding `300` SLOC or functions exceeding `20` SLOC or McCabe `8`, enforce a one-way size ratchet in `PreToolUse` (`CODE-SIZE-RATCHET-GATE`) and Git `pre-commit`: never increase executable SLOC or McCabe complexity in an oversized legacy file or function, and extract new logic into a separate compact module or helper.  
-Place tests for each new feature or gate in a dedicated `tests/test_<feature>.py` module rather than appending unrelated scenarios to monolithic test suites such as `tests/test_turn_completion.py`.  
-<!-- https://github.com/dmitry-ai/harness/issues/154 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/161 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/168 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/155 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/156 -->  
+Decompose new and compact production Python code into small single-purpose functions and modules: keep functions at most `20` executable SLOC and McCabe complexity at most `8`, keep files at most `300` executable SLOC, and never join statements with `;` (test limits: `40` SLOC, McCabe `12`, `600` file SLOC).  
+Pre-existing oversized legacy Python files and functions operate under a one-way size ratchet: never increase their executable SLOC or McCabe complexity, and extract new logic into separate compact helpers.  
+Place tests for each new feature or gate in a dedicated `tests/test_<feature>.py` module rather than appending unrelated scenarios to monolithic test suites.  

@@ -1,53 +1,27 @@
 ---
 trigger: always_on
-description: "Facts, hypotheses, solution methods, and compact documents"
+description: "Typed facts, mandatory multi-hypothesis/method /df-analysis, DOC-4 layout, and DOC-5 problem analysis"
 ---
 # Statements
 ## DOC-1
-Separate observation, source wording, hypothesis, implication, and recommended action.  
-A fact requires primary evidence; co-occurrence of events does not prove causation, and a discovered defect does not prove client ignorance.  
-For new publications, use typed F/H/M claims with observation scope, verification status, primary grounds, and dependency versions per the skill contract.  
-Every number, count, date, or interval in a verified `observation`/`client_report` (`essence` and `response_excerpt`) must appear literally in the primary quote or follow from a verified calculation; frame any scope qualifiers inferred beyond the verbatim quote as a hypothesis (`H-*`) rather than a fact (`F-*`).  
-An agent's own KB entry or a high expert score does not promote a supposition to a fact.  
+Separate observation, source wording, hypothesis, implication, and recommended action; co-occurrence never proves causation, and an agent KB entry or high expert score never promotes a supposition to a fact.  
+Every number, count, date, or interval in a verified `observation` or `client_report` must appear literally in the primary quote or follow from a verified calculation; frame inferred scope qualifiers as hypotheses (`H-*`).  
 ## DOC-2
-Every analytical task is presumed to have no single unambiguous solution: automatically and without user reminders, present a set of competing hypotheses (`>= 2`) and/or candidate solution methods (per [DOC-3](#doc-3)) following [df-analysis](../skills/df-analysis/SKILL.md).  
-Frame any unknown or unproven explanation as a hypothesis: **essence** (including a primary link), **arguments for**, **arguments against**, and **expert plausibility in %** with the assessment basis.  
-Cite concrete data from the specific client, alternatives, and missing checks; provide evidence per [LINK-1](02-link-standards.md#link-1).  
-The finding `"no misconceptions established"` is valid; the template does not require inventing theories or objections.  
-Distinguish found counterevidence, absence of found counterevidence, and unavailability of verification.  
-An empty `against` list is permissible with `counterevidence`: `status` (`not_found`/`unavailable`), reviewed sources, and limitations; a dummy or confirming quote does not fill the gap, and the score of an unverified hypothesis without a counter-observation cannot exceed `75%`.  
-For causal explanations and misconception hypotheses (`causes`, `misconceptions`), record the considered alternatives (including a literal reading of the client's words) and the discriminating check; matching symptoms do not establish a specific hidden setting or mechanism.  
-Restating a failure does not establish its cause; without discriminating evidence, retain the conclusion `"cause not established"`.  
-Having no grounds to prefer one version over another does not establish equiprobability or `50/50`; equal prior estimates require an explicitly stated assumption, while other percentages require their own expert basis without artificial normalization to 100%.  
+Every analytical task lacks a single unambiguous solution: autonomously present competing hypotheses (`>= 2`) and/or solution methods ([DOC-3](#doc-3)) per [df-analysis](../skills/df-analysis/SKILL.md) (read when structuring analytical or complex problem reports).  
+Frame each hypothesis with **essence** (plus primary link), **arguments for**, **arguments against**, and **expert plausibility in %** with explicit basis, grounded in concrete evidence per [LINK-1](02-link-standards.md#link-1).  
+Distinguish found counterevidence, absence of counterevidence (`not_found`, capped at `<= 75%`), and unavailable checks; `"no misconceptions established"` and `"cause not established"` are valid outcomes.  
+Never assume `50/50` equiprobability from lack of data without an explicit prior assumption, and never artificially normalize scores to `100%`.  
 ## DOC-3
-For every analytical or remediation task, evaluate multiple candidate solution methods (`>= 2`) automatically without user reminders rather than presenting a single unqualified fix, following [df-analysis](../skills/df-analysis/SKILL.md).  
-For each solution method, state: **essence**, **arguments for**, **arguments against**, and **score in %** with an explicit criterion and basis.  
-Link the method to a cause or task via ID; state material applicability conditions and limitations.  
-Unavailability of a client's private system (admin panel, ad account, logs) does not allow declaring the status of facts about a public system (storefront, public API, DNS) confirmed by deterministic observation to be incomplete, hypothetical, or conditional (`limited`/`if`).  
-A missing check of a private console restricts only the steps inside that console (availability of permissions/buttons), and strictly forbids assuming that already proven properties of the public storefront might be false; an `if` clause does not replace inspecting the observable catalog.  
-A method's score represents expert suitability under the named criterion, not a promise of success or the probability of a hypothesis.  
-State applicability conditions and an observable verification criterion for the result; justify defect severity by impact while preserving sample boundaries.  
-Any recommendation or solution method proposing to create, move, or store project or tool files outside the project root across the user's computer must begin immediately with the mandatory uppercase warning banner required by [FILE-6](01-file-boundaries.md#file-6).  
+Evaluate competing candidate solution methods (`>= 2`) with **essence**, **arguments for**, **arguments against**, **score in %** with explicit criterion and basis, applicability conditions, and an observable verification criterion.  
+Link methods to causes or tasks via ID; unavailability of a private console restricts only console-internal steps and never downgrades proven public storefront or API facts to `limited` or conditional `if`.  
+Any method or recommendation proposing files outside the project root must begin immediately with the mandatory warning banner in [FILE-6](01-file-boundaries.md#file-6).  
 ## DOC-4
-Do not use Markdown tables (enforced deterministically across `PreToolUse`, `answer-check`, `answer-prepare`, and `df_github_issue.py`); start every sentence on a new line.  
-In Markdown, end every sentence inside a paragraph with two trailing spaces before the newline (CommonMark hard line break: `  \n`) so lines do not collapse into a single run-on paragraph when rendered; do not insert blank lines between sentences of the same block.  
-Do not turn ordinary connected prose into bulleted or numbered lists just to get line breaks: lists are permissible only for genuine enumerations of homogeneous items or when explicitly instructed.  
-Connect compact numbered claims with links to their premises; do not fragment a causal chain into independent defects.  
-Preserve hierarchy, format, and boundaries between analysis and recommendations; do not renumber stable IDs when sorting.  
-Repeated `1.` markers are permissible for ordinary lists; addressable paragraphs carry explicit numbers.  
-Accompany verification code with its actual output; extract large reusable code into a shared tool.  
+Do not use Markdown tables; start every sentence on a new line ended with two trailing spaces (`  \n`, CommonMark hard break) without blank lines inside a paragraph.  
+Use lists only for genuine enumerations of homogeneous items or when instructed; keep stable IDs unrenumbered when sorting, accompany verification code with its actual output, and extract reusable code into shared tools.  
 ## DOC-5
-Whenever an agent encounters or investigates any defect, failure, error, or architectural problem, apply [df-analysis](../skills/df-analysis/SKILL.md) autonomously without user reminders as **four separate, independent five-section (`# 0`..`# 4`) analyses** (never merging them into one analysis):  
+For any defect, failure, error, or architectural problem, autonomously apply [df-analysis](../skills/df-analysis/SKILL.md) as **four separate five-section (`# 0`..`# 4`) analyses** (never merging them):  
 1. Primary Problem (`§1`): the failure, defect, hook denial, regression, or architectural problem itself.  
-1. Culprit and Provenance Attribution (`§2`): who or what specifically introduced, broke, or triggered the primary problem (exact agent/profile/model/conversation/turn/journal step, commit SHA, promotion or external change, ignored warnings, and failed guardrails).  
-1. Test and Verification Escape (`§3`): why existing automated tests, linters, hooks, CI, and verification gates failed to catch and block the culprit or defect.  
-1. Journal, Reporting, and Observability Integrity (`§4`): whether and why outputs or reports bypassed the Unified Journal `ꙮ` ([FILE-3](01-file-boundaries.md#file-3)), left orphaned reservations or unrecorded turns, failed-open in `Stop Gate`, or broke failure observability.  
-Each of the four separate analyses must contain all five sections:  
-1. `# 0` Problem Metadata: tab-indented `json` block matching Journal and GitHub issue metadata with the mandatory `"Issue"` key (generated via `harness.py problem-metadata`, using a dedicated parent GitHub Issue per distinct defect track or `--no-issue` / `null` only in non-GitHub workspaces or verified-clean companion audits).  
-1. `# 1` Problem Description: concrete failure, provenance, test-escape, or Journal-audit context with verbatim diagnostic messages (never paraphrased).  
-1. `# 2` Root Cause Analysis: competing hypotheses (`>= 2`) strictly following [DOC-2](#doc-2).  
-1. `# 3` Source Project Attribution: identify which of our projects is the true architectural owner, recognizing that defects frequently originate in a higher-level shared project (very often Harness) rather than the project where the symptom surfaced.  
-1. `# 4` Permanent Systemic Solutions: competing solution methods (`>= 2`) targeting the `# 3` source project without one-off hacks, strictly following [DOC-3](#doc-3).  
-<!-- https://github.com/dmitry-ai/harness/issues/182 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/200 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/249 -->  
+1. Culprit and Provenance (`§2`): who or what introduced or triggered it (agent/profile/model/turn/step, commit SHA, external change, ignored warnings, failed guardrails).  
+1. Test and Verification Escape (`§3`): why existing tests, linters, hooks, CI, and gates failed to catch and block it.  
+1. Journal and Reporting Integrity (`§4`): whether outputs bypassed Unified Journal `ꙮ` ([FILE-3](01-file-boundaries.md#file-3)), left unrecorded turns, failed-open in `Stop Gate`, or broke observability.  
+Each analysis includes `# 0` Problem Metadata (tab-indented `json` with mandatory `"Issue"` key via `harness.py problem-metadata`, dedicated parent issue per defect track or `--no-issue`/`null` only for non-GitHub workspaces or verified-clean audits), `# 1` Problem Description (verbatim diagnostics), `# 2` Root Cause Analysis (`>= 2` hypotheses per [DOC-2](#doc-2)), `# 3` Source Project Attribution (true architectural owner, often Harness), and `# 4` Permanent Systemic Solutions (`>= 2` methods targeting `# 3` per [DOC-3](#doc-3)).  

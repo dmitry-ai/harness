@@ -13,13 +13,12 @@ That command reads only the required TOML key rather than the entire configurati
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/03-language-lexicon.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/04-statement-structure.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/05-verification-audit.md
-- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/06-knowledge-base.md
-- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/07-review-and-delegation.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/08-execution-and-tools.md
-- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/09-initial-analysis.md
-- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/10-client-text.md
-- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/11-code-formatting.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/platforms/codex.md
+On-demand shared rules (trigger: model_decision — read before executing matching work):  
+- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/06-knowledge-base.md — Read when maintaining project knowledge bases (🕮/Project.md, ꘖ/KB), saving primary evidence, continuing interrupted analyses, or exporting Context.md
+- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/07-review-and-delegation.md — Read when delegating work to A.A/A.F subagents, preparing or auditing independent reviews (prepare-review, falsifier mode), or authorizing workflow.json stages
+- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/11-code-formatting.md — Read before creating or editing source code, markup, or structured configuration files (CODE-1..CODE-4 formatting, style, and Python size ratchet standards)
 Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  
 Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  
 Never pick a neighboring project.  

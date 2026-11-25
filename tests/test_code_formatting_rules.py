@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add Python and INI formatting standards derived from reference pipelines":
 # https://github.com/dmitry-ai/harness/issues/156
@@ -43,8 +46,8 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 			self.assertIn(token, js_text, f'Missing JavaScript formatting requirement {token!r}')
 	def test_general_rule_passes_doctor_native_bootstrap_and_lint(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
-		self.assertLess(len(RULE_DOC.read_bytes()), 20000, 'rules/11-code-formatting.md must stay under per-file budget')
-		for token in ('trigger: always_on', '## CODE-1', '## CODE-2', '## CODE-3', 'EXEC-5', 'DOC-4', 'FILE-1', 'tab', 'blank lines', 'single return point', '`r`', 'constant on the left', 'shorter', 'single quotes', 'alphabetical', 'programming/bash.md', 'programming/javascript.md'):
+		self.assertLess(len(RULE_DOC.read_bytes()), 6000, 'rules/11-code-formatting.md must stay under per-file budget')
+		for token in ('trigger: model_decision', '## CODE-1', '## CODE-2', '## CODE-3', 'EXEC-5', 'DOC-4', 'FILE-1', 'tab', 'blank lines', 'single return point', '`r`', 'constant on the left', 'shorter', 'single quotes', 'alphabetical', 'programming/bash.md', 'programming/javascript.md'):
 			self.assertIn(token, rule_text, f'Missing general rule token {token!r} in {RULE_DOC.name}')
 		doc_report = upwork_project.doctor(primary=HARNESS_ROOT)
 		self.assertIn('11-code-formatting.md', doc_report['per_file_bytes'])

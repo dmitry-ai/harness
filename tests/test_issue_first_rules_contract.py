@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Codify mandatory pre-TDD Issue-First workflow in Harness rules and documentation":
 # https://github.com/dmitry-ai/harness/issues/147
@@ -32,9 +35,9 @@ class IssueFirstRulesAndDocsContractTests(unittest.TestCase):
 			self.assertEqual(slop_errs, [], f'DOC-4 slop errors in {doc.name}: {slop_errs}')
 
 		rule_bytes = rule_doc.read_bytes()
-		self.assertLess(len(rule_bytes), 20000, 'rules/08-execution-and-tools.md must remain comfortably under system prompt budget')
+		self.assertLess(len(rule_bytes), 6000, 'rules/08-execution-and-tools.md must remain comfortably under system prompt budget')
 		rule_text = rule_bytes.decode('utf-8')
-		for token in ('Issue-First', 'issue-first-check', 'df_github_issue.py fetch', 'pre_flight_issue_first', 'EXEC-5-ISSUE-FIRST-GATE'):
+		for token in ('Issue-First', 'issue-first-check', 'df-github-issue', 'fetch'):
 			self.assertIn(token, rule_text, f'Missing Issue-First term {token!r} in rules/08-execution-and-tools.md')
 
 		skill_text = skill_doc.read_text(encoding='utf-8')

@@ -4,6 +4,9 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Replace per-profile Harness projections with shared native connections":
 # https://github.com/dmitry-ai/harness/issues/35
@@ -195,4 +198,4 @@ class LexiconAndProjectionTests(TemporaryCase):
 		manifest = json.loads((primary / 'platforms/antigravity/skills.json').read_text(encoding='utf-8'))
 		self.assertEqual(manifest['entries'], [{'path': (primary / 'skills').as_posix()}])
 		self.assertTrue((primary / 'skills/df-article/SKILL.md').is_file())
-		self.assertIn('10-client-text.md', (output / '.codex/config.toml').read_text(encoding='utf-8'))
+		self.assertIn('00-scope.md', (output / '.codex/config.toml').read_text(encoding='utf-8'))

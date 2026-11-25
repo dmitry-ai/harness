@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Document JSON metadata header contract in rules and references":
 # https://github.com/dmitry-ai/harness/issues/152
@@ -33,15 +36,15 @@ class MetadataRulesAndDocsContractTests(unittest.TestCase):
 			self.assertEqual(slop_errs, [], f'DOC-4 slop errors in {doc.name}: {slop_errs}')
 
 		exec_bytes = exec_rule.read_bytes()
-		self.assertLess(len(exec_bytes), 20000, 'rules/08-execution-and-tools.md must remain under system prompt budget')
+		self.assertLess(len(exec_bytes), 6000, 'rules/08-execution-and-tools.md must remain under system prompt budget')
 
 		file_text = file_rule.read_text(encoding='utf-8')
 		for token in ('JSON metadata', 'body_sha256', 'chat'):
 			self.assertIn(token, file_text, f'Missing metadata term {token!r} in rules/01-file-boundaries.md')
 
 		exec_text = exec_bytes.decode('utf-8')
-		for token in ('JSON metadata', '--no-metadata'):
-			self.assertIn(token, exec_text, f'Missing metadata term {token!r} in rules/08-execution-and-tools.md')
+		for token in ('df-github-issue', 'Issue-First'):
+			self.assertIn(token, exec_text, f'Missing metadata pointer {token!r} in rules/08-execution-and-tools.md')
 
 		turn_text = turn_doc.read_text(encoding='utf-8')
 		for token in ('JSON metadata', 'body_sha256', 'Time', 'Agent', 'Trace'):

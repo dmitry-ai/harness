@@ -1,36 +1,21 @@
 ---
-trigger: always_on
-description: "KB ownership, knowledge types, stable IDs, and agent KB context export"
+trigger: model_decision
+description: "Read when maintaining project knowledge bases (🕮/Project.md, ꘖ/KB), saving primary evidence, continuing interrupted analyses, or exporting Context.md"
 ---
 # Knowledge Base
 ## KB-1
-`🕮/` (legacy `V1`: `KB/`) belongs to the user; the agent creates `Project.md` inside that manual KB directory once during initial analysis (and synchronizes the `# 2. Current Client Project` section during `sync-attachments`), and thereafter does not modify it or other manual KB files without a new direct instruction.  
-Immediately port the complete initial document into `ꘖ/KB/Project.md` (as well as `ꘖ/KB/Projects.md` and `ꘖ/KB/Evidence.md`), including verbatim and in full all attached text files (including PDF and DOCX) with Markdown formatting, complete transcripts of client videos (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:` with `[MM:SS]` timestamps), and complete descriptions of images (verbatim text and UI labels in `«»`, confirmations and contradictions against client statements with `%` scores); store all further research exclusively in `ꘖ/KB`.  
-External `http(s)://` links in a project response must be backed by entries in `ꘖ/KB` (modules, `Analysis.json`, or `Project.md`) and saved primary observations; adding external URLs to a response while bypassing `ꘖ/KB` is blocked.  
-Re-running `init` does not regenerate user-authored or agent-enriched documents.  
+`🕮/` belongs to the user; the agent creates `🕮/Project.md` once during initial analysis (synchronizing `# 2. Current Client Project` during `sync-attachments`) and thereafter never modifies manual KB files without explicit instruction (for `fs_version: 1` paths, see [legacy-v1-compatibility.md](../references/legacy-v1-compatibility.md)).  
+Immediately port the complete initial document into `ꘖ/KB/Project.md` (`Projects.md`, `Evidence.md`), including verbatim attached text documents (PDF/DOCX/TXT/MD with Markdown formatting), full timestamped `[MM:SS]` video transcripts (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:`), and full image descriptions (verbatim text/UI labels in `«»`, confirmations/contradictions with `%` scores); store all further research exclusively in `ꘖ/KB`.  
+External `http(s)://` links in project responses must be backed by `ꘖ/KB` entries and saved primary observations; re-running `init` preserves user-authored and agent-enriched documents.  
 ## KB-2
-The KB consists of compact topical modules, primary evidence, and a relationship registry; each fact is stored once.  
-Use stable IDs: F for observation/quoted client report, H for hypothesis, M for method; a heading with the ID serves as the target anchor without HTML tags.  
-An F entry contains the claim, exact quote, source, and observation date/scope; client statements do not become independent facts.  
-For new analyses, structured F claims live in the analysis registry while topical Markdown modules expand their primary grounds via stable IDs.  
-References to derived F/H/M items carry verifiable digests; a changed ground requires re-evaluating the dependent conclusion rather than keeping the old percentage.  
-H and M conform to [DOC-2](04-statement-structure.md#doc-2) and [DOC-3](04-statement-structure.md#doc-3); link causes to concerns and methods to causes or tasks.  
-A mentioned domain, a name in a review, a prior contract, or a folder name does not establish identity, website ownership, or that all jobs belong to one business.  
+Organize `ꘖ/KB` into compact topical modules, primary evidence, and a relationship registry so each fact is stored once under stable IDs (`F` observation/client report, `H` hypothesis, `M` method; headings act as anchors without HTML tags).  
+Record claim, verbatim quote, source, date, and scope on `F` entries; derived F/H/M references carry verifiable digests, and changed grounds require re-evaluating dependent conclusions rather than preserving old scores.  
+Frame `H` per [DOC-2](04-statement-structure.md#doc-2) and `M` per [DOC-3](04-statement-structure.md#doc-3); a mentioned domain, review name, prior contract, or folder name never proves identity or website ownership.  
 ## KB-3
-Read the overview and relevant topical modules before investigating; save new verified findings and corrections before responding, updating dependencies and the glossary.  
-Internal agents of every active environment work with their own agent KB (`ꘖ/KB`), primary evidence, and its `Progress.md` navigation.  
-Keep the KB current and self-consistent at all times: after new data arrives, audit dependent claims, update permitted modules, and explicitly mark anything unverified or stale.  
-After an interruption and a `"Continue analysis"` request in the current chat, restore the next step from the KB and service receipts; the mere presence of an old file does not prove stage completion.  
-A project may be continued in another environment or instance and in a new chat using the same root on disk, including semi-manual proposal preparation after initial analysis.  
-Also read the exact journal and existing `draft.md`/`final.md` deliverables (`Ⰿ/≻/♕/🖂/Letters/**` or legacy `result/**`); do not carry over a conversation from one platform to another via fabricated history.  
-Record the current instruction, working files, open questions, and next step in `ꘖ/data/continuation.md` with links to real artifacts.  
-Completion of initial analysis and readiness of a proposal are distinct; a new instruction regarding a draft does not by itself require re-collection or all five analysis stages.  
-H percentages change with evidence; promotion to a fact requires a separate observation rather than a high score.  
-Preserve provenance of prior versions and material sources; handle temporary files per [FILE-5](01-file-boundaries.md#file-5).  
-Perform network HTTP(S) and browser DOM observations through `harness.py collect`, `collect-http`, or `collect-browser` (with `upwork_project.py` retained as a compatibility alias), saving into `ꘖ/KB/Evidence/HTTP` and `ꘖ/data/http-index.json`; ad-hoc network calls in the shell that bypass evidence storage are prohibited.  
-If context compaction (`CHECKPOINT`/`compaction`) occurs after tool calls before publishing the response, restore pre-compaction results via `recover-checkpoint` or by reading the full transcript.  
+Read the overview and relevant topical modules before investigating; save verified findings and audit dependent claims before responding.  
+On continuation (`"Continue analysis"` or cross-platform handoff on the same disk root), restore state from `ꘖ/KB`, receipts, exact journal, existing deliverables, and `ꘖ/data/continuation.md` without fabricating chat history or re-running finished stages.  
+Run HTTP(S) and browser DOM observations exclusively through `harness.py collect`, `collect-http`, or `collect-browser`, saving under `ꘖ/KB/Evidence/HTTP`; after context compaction (`CHECKPOINT`), restore pre-compaction reads via `recover-checkpoint` or `transcript_full.jsonl`.  
+Preserve provenance of prior versions and handle temporary files per [FILE-5](01-file-boundaries.md#file-5).  
 ## KB-4
-`Ⰿ/≻/♙/Context/output/Context.md` in `V2` (`O`) projects (legacy `V1`: `ꙮ/0/Context.md`) exports the current generation timestamp and the Agent Knowledge Base (`ꘖ/KB`: all `.md` files, strictly excluding the `Evidence` subfolder).  
-It is the unified export for external agents, primarily Gemini DeepThink in the web UI at `https://gemini.google.com`; the user submits it manually.  
-Internal agents do not use `Context.md` as their working KB; build the external export when requested by the user.  
-All paths are confined to the project root; an export never overwrites a source file.  
+`Ⰿ/≻/♙/Context/output/Context.md` exports the generation timestamp and `ꘖ/KB/*.md` (strictly excluding `Evidence/`) for manual submission to external agents (primarily Gemini DeepThink).  
+Build `Context.md` only when explicitly requested by the user; internal agents work directly with `ꘖ/KB` and never overwrite source files.  

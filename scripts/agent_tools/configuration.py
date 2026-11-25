@@ -202,11 +202,14 @@ def _native_config(root, instructions=None):
 	wanted = _root_options(existing, instructions, legacy_bytes=legacy_bytes, expected_block=owned.get('block_sha256') if isinstance(owned, dict) else None)
 	return (config_path, wanted, {config_path: actual})
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support model_decision trigger class in doctor and Codex loader":
 # https://github.com/dmitry-ai/harness/issues/241
-def _loader(primary, local=(), *, restore_global=True):
+def _loader(primary, local=(), *, restore_global=True, display_root=None):
 	from .rules_manifest import render_codex_loader
-	return render_codex_loader(primary, local, restore_global=restore_global)
+	return render_codex_loader(primary, local, restore_global=restore_global, display_root=display_root)
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6

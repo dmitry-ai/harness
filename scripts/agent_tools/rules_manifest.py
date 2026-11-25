@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Support model_decision trigger class in doctor and Codex loader":
 # https://github.com/dmitry-ai/harness/issues/241
 from __future__ import annotations
@@ -18,16 +21,18 @@ def _parse_frontmatter_value(raw: str) -> str:
 	else:
 		r = val.strip("'") if val.startswith("'") and val.endswith("'") else val
 	return r
-def _split_codex_rule_paths(primary: Path) -> tuple[list[Path], list[tuple[Path, str]]]:
+def _split_codex_rule_paths(primary: Path, display_root: Path | None=None) -> tuple[list[Path], list[tuple[Path, str]]]:
+	disp = Path(display_root) if None is not display_root else Path(primary)
 	always_paths: list[Path] = []
 	on_demand: list[tuple[Path, str]] = []
 	for path in sorted((Path(primary) / 'rules').glob('*.md')):
 		meta = parse_rule_frontmatter(path.read_text(encoding='utf-8-sig'))
+		shown = disp / 'rules' / path.name
 		if 'model_decision' == meta.get('trigger'):
 			desc = (meta.get('description') or 'Read when relevant').strip()
-			on_demand.append((path, desc))
+			on_demand.append((shown, desc))
 		else:
-			always_paths.append(path)
+			always_paths.append(shown)
 	return (always_paths, on_demand)
 def _validate_rule_entry(entry: dict, max_file_bytes: int) -> None:
 	if max_file_bytes <= entry['bytes']:
@@ -53,18 +58,19 @@ def parse_rule_frontmatter(text: str) -> dict[str, str]:
 		if sep and key.strip() and (not key.startswith(' ')):
 			values[key.strip()] = _parse_frontmatter_value(raw_val)
 	return values
-def render_codex_loader(primary: Path, local=(), *, restore_global: bool=True) -> str:
+def render_codex_loader(primary: Path, local=(), *, restore_global: bool=True, display_root: Path | None=None) -> str:
 	prim = Path(primary)
-	always_paths, on_demand = _split_codex_rule_paths(prim)
-	paths = [*always_paths, prim / 'platforms/codex.md', *local]
+	disp = Path(display_root) if None is not display_root else prim
+	always_paths, on_demand = _split_codex_rule_paths(prim, disp)
+	paths = [*always_paths, disp / 'platforms/codex.md', *local]
 	lines = ['Read the listed canonical rule sources before executing the task.  ', 'Shared always_on rules and the Codex adapter are mandatory in every new chat, including child subagents.  ', 'For project-specific sources, honor the frontmatter trigger; links are not copies of the rules.  ']
 	if restore_global:
-		lines.extend([f'''First run the Python tool "{(prim / 'scripts/harness.py').as_posix()}" policy-instructions --platform codex; apply the returned global developer_instructions of the active profile in addition to these rules.  ''', 'That command reads only the required TOML key rather than the entire configuration file.  '])
+		lines.extend([f'''First run the Python tool "{(disp / 'scripts/harness.py').as_posix()}" policy-instructions --platform codex; apply the returned global developer_instructions of the active profile in addition to these rules.  ''', 'That command reads only the required TOML key rather than the entire configuration file.  '])
 	lines.extend((f'- {path.as_posix()}' for path in dict.fromkeys(paths)))
 	if on_demand:
 		lines.append('On-demand shared rules (trigger: model_decision — read before executing matching work):  ')
 		lines.extend((f'- {path.as_posix()} — {desc}' for path, desc in on_demand))
-	lines.extend(['Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  ', 'Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  ', 'Never pick a neighboring project.  ', 'If the root of the current task is unknown, determine it from the explicit chat binding.  ', f'''For the established root of every turn, run the Python tool "{(prim / 'scripts/harness.py').as_posix()}" turn-begin "<exact root of current chat>" --platform codex; the UUID is read from CODEX_THREAD_ID and the profile from CODEX_HOME.  ''', 'FILE-3 and EXEC-5 also apply to ordinary analytical responses and .agents investigations; the article/proposal profile does not define their scope.  ', 'Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (or via harness.py git-read; read rules in batches without Get-Content output truncation and do not bundle git calls with initial rule reading before turn-begin completes).  ', 'Before publishing the final response, the primary agent runs answer-prepare with the exact UTF-8 bytes per references/turn-completion.md; a child subagent does not maintain the user journal.  '])
+	lines.extend(['Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  ', 'Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  ', 'Never pick a neighboring project.  ', 'If the root of the current task is unknown, determine it from the explicit chat binding.  ', f'''For the established root of every turn, run the Python tool "{(disp / 'scripts/harness.py').as_posix()}" turn-begin "<exact root of current chat>" --platform codex; the UUID is read from CODEX_THREAD_ID and the profile from CODEX_HOME.  ''', 'FILE-3 and EXEC-5 also apply to ordinary analytical responses and .agents investigations; the article/proposal profile does not define their scope.  ', 'Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (or via harness.py git-read; read rules in batches without Get-Content output truncation and do not bundle git calls with initial rule reading before turn-begin completes).  ', 'Before publishing the final response, the primary agent runs answer-prepare with the exact UTF-8 bytes per references/turn-completion.md; a child subagent does not maintain the user journal.  '])
 	return '\n'.join(lines)
 def scan_shared_rules(primary: Path) -> list[dict]:
 	return [inspect_shared_rule(p) for p in sorted((Path(primary) / 'rules').glob('*.md'))]

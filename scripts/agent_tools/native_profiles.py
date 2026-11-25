@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
 # https://github.com/dmitry-ai/harness/issues/217
@@ -135,7 +138,7 @@ def shared_native_outputs(primary=PRIMARY):
 			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\n{model_line}subagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(canon / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the parent agent selects the model per task complexity, and the requested selection does not prove the actual runtime model.  \nUse `harness.py extract` and `harness.py evidence-query` on saved captures instead of reading raw HTML/JSON bodies into context, write structured findings to the assigned output path (default `\ua616/KB/Evidence/<question>-extract.json`), and return only that file path plus a compact summary of verified facts, quotes, and gaps.  \n<!-- https://github.com/dmitry-ai/harness/issues/217 -->  \n'
 	if 'codex' in plats:
 		bootstrap = canon / 'platforms/codex/AGENTS.md'
-		r[primary / 'platforms/codex/AGENTS.md'] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(canon) + '\n'
+		r[primary / 'platforms/codex/AGENTS.md'] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(primary, display_root=canon) + '\n'
 		for role, name, purpose, _ in _role_values(primary):
 			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(canon / "agents/worker.md").as_posix()}  '
 			r[primary / f'platforms/codex/agents/{name}.toml'] = f'# Generated from runtime.json and agents/worker.md; do not edit.\n# {ISSUE}\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + _model_fields(primary, role) + f'developer_instructions = {json.dumps(instructions)}\n'
