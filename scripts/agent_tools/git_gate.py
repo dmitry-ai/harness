@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
+# https://github.com/dmitry-ai/harness/issues/243
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
@@ -289,7 +292,7 @@ class GitRepoGate:
 		self.verify_issue_workflow(relative, message=message, agent_context=True)
 		self.verify_tdd_commit(relative, message=message, agent_context=True, use_index=use_index)
 		self.verify_code_size_ratchet(relative, agent_context=True, use_index=use_index)
-		self.verify_subprocess_hygiene(relative, agent_context=True, use_index=use_index)
+		run_staged_gate('staged_gates', 'verify_staged_extra_gates', self.root, relative, use_index=use_index)
 	def verify_code_size_ratchet(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
 			run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)

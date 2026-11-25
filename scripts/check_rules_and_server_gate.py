@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
+# https://github.com/dmitry-ai/harness/issues/243
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce single falsifier review default and block duplicate send_message reports":
 # https://github.com/dmitry-ai/harness/issues/226
@@ -80,6 +83,7 @@ _LAZY_EXPORTS = {
 	'check_bulk_source_read_streak': ('agent_tools.gates.bulk_source_read', 'check'),
 	'check_cdp_bypass_gate': ('agent_tools.gates.cdp_bypass', 'check'),
 	'check_code_size_gate': ('agent_tools.gates.code_size', 'check'),
+	'check_code_style_gate': ('agent_tools.gates.code_style', 'check'),
 	'check_external_write_gate': ('agent_tools.gates.external_write', 'check'),
 	'check_git_write_gate': ('agent_tools.gates.git_write', 'check'),
 	'check_issue_first_gate': ('agent_tools.gates.issue_first', 'check'),

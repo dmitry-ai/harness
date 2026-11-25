@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
+# https://github.com/dmitry-ai/harness/issues/243
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce single falsifier review default and block duplicate send_message reports":
 # https://github.com/dmitry-ai/harness/issues/226
@@ -20,6 +23,7 @@ _BUILTIN_TOOLS_MANIFEST = {
 	'bulk_source_read': frozenset({'read_file'}),
 	'cdp_bypass': frozenset({'run_command', 'read_file', 'write_file', 'edit_file'}),
 	'code_size': frozenset({'write_file', 'edit_file'}),
+	'code_style': frozenset({'write_file', 'edit_file'}),
 	'external_write': frozenset({'run_command'}),
 	'git_write': frozenset({'run_command'}),
 	'issue_first': frozenset({'run_command', 'write_file', 'edit_file'}),
