@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+# https://github.com/dmitry-ai/harness/issues/232
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 # https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -215,9 +218,8 @@ class AnswerPreparationRunner:
 				approval = authorize(self.root, self.wf_state, response=self.response, request_ids=self.wf_identifiers)
 			except (OSError, ValueError) as exc:
 				self._fail_gate('review_authorize', str(exc), cause=exc)
-			self._record_journal_entry()
-			from .blocked_report import sync_authorized_workflow_requests
-			sync_authorized_workflow_requests(self, approval, _now)
+			from .blocked_report import prepare_and_sync_authorized_workflow
+			prepare_and_sync_authorized_workflow(self, approval, _now)
 	def _check_evicted_citations(self):
 		unreread_cited = _find_evicted_cited_files(self.root, self.pp, self.result['turn_key'], self.value['compaction_check'], self.response)
 		if unreread_cited:
@@ -996,10 +998,9 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 		value['journal'] = str(saved_directory)
 	if not historical_done:
 		value['project_root'] = str(root)
+	from .reconcile_helpers import resolve_saved_turn_requests
 	old, current = (value['requests'], turn['requests'])
-	if len(current) < len(old) or not all((_same_saved_request(old_item, cur_item, root) for old_item, cur_item in zip(old, current))):
-		raise ValueError('Native requests changed before the saved boundary; preserved')
-	merged_requests = [*old, *current[len(old):]]
+	merged_requests = resolve_saved_turn_requests(root, native, turn, value, recovered=recovered, same_req_fn=_same_saved_request, journal_dir_fn=_directory)
 	if not (value.get('prepared') and len(current) > len(old)):
 		value['requests'] = merged_requests
 		r = (path, value)
