@@ -444,6 +444,9 @@ def save_registration(root, platform, result):
 	from .registration import save_registration as save
 	r = save(root, platform, result)
 	return r
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support model_decision trigger class in doctor and Codex loader":
+# https://github.com/dmitry-ai/harness/issues/241
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove Antigravity addons runtime health probing from Harness":
 # https://github.com/dmitry-ai/harness/issues/93
@@ -455,12 +458,8 @@ def save_registration(root, platform, result):
 # https://github.com/dmitry-ai/harness/issues/25
 def doctor(primary=PRIMARY_AGENTS_DIR, *, git_ignore_path=None):
 	primary = Path(primary)
-	files = sorted((primary / 'rules').glob('*.md'))
-	sizes = {p.name: p.stat().st_size for p in files}
-	if not files or any((size >= 24000 for size in sizes.values())):
-		raise ValueError('Rules are missing or exceed the 24,000-byte per-file limit')
-	if any((not re.search('^trigger: always_on\\s*$', p.read_text(encoding='utf-8'), re.M) for p in files)):
-		raise ValueError('Every shared rule must remain always_on')
+	from .rules_manifest import validate_shared_rules_for_doctor
+	files, sizes, rule_meta = validate_shared_rules_for_doctor(primary)
 	from .operations import COMMANDS
 	version_files = sorted((p for p in primary.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.json') and ('__pycache__' not in p.parts)))
 	tool_version = hashlib.sha256(b''.join((p.relative_to(primary).as_posix().encode() + hashlib.sha256(p.read_bytes()).digest() for p in version_files))).hexdigest()
@@ -475,6 +474,7 @@ def doctor(primary=PRIMARY_AGENTS_DIR, *, git_ignore_path=None):
 		'rules': len(files),
 		'rule_bytes': sum(sizes.values()),
 		'per_file_bytes': sizes,
+		**rule_meta,
 		'skills': sorted((p.parent.name for p in (primary / 'skills').glob('*/SKILL.md'))),
 		'resolved_role_defaults': {role: role_settings(active_platform, role) for role in ('AA', 'AF') if role in roles_cfg},
 		'subagent_policy': plat_cfg.get('subagents', {'selection': 'configured_roles'}),

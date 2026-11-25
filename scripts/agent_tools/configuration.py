@@ -201,15 +201,12 @@ def _native_config(root, instructions=None):
 	legacy_bytes = len(legacy.read_bytes()) if legacy.exists() and receipt_sha256(receipt.get(str(legacy))) == _digest(legacy.read_bytes()) else None
 	wanted = _root_options(existing, instructions, legacy_bytes=legacy_bytes, expected_block=owned.get('block_sha256') if isinstance(owned, dict) else None)
 	return (config_path, wanted, {config_path: actual})
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Support model_decision trigger class in doctor and Codex loader":
+# https://github.com/dmitry-ai/harness/issues/241
 def _loader(primary, local=(), *, restore_global=True):
-	paths = [*sorted((primary / 'rules').glob('*.md')), primary / 'platforms/codex.md', *local]
-	lines = ['Read the listed canonical rule sources before executing the task.  ', 'Shared always_on rules and the Codex adapter are mandatory in every new chat, including child subagents.  ', 'For project-specific sources, honor the frontmatter trigger; links are not copies of the rules.  ']
-	if restore_global:
-		lines.extend([f'''First run the Python tool "{(primary / 'scripts/harness.py').as_posix()}" policy-instructions --platform codex; apply the returned global developer_instructions of the active profile in addition to these rules.  ''', 'That command reads only the required TOML key rather than the entire configuration file.  '])
-	lines.extend((f'- {path.as_posix()}' for path in dict.fromkeys(paths)))
-	lines.extend(['Then, in the exact project root of the current chat, read local .agents/rules/*.md and .agents/rules.json.  ', 'Read all additional path sources from rules.json while honoring their trigger; you do not need to re-read the shared rules directory.  ', 'Never pick a neighboring project.  ', 'If the root of the current task is unknown, determine it from the explicit chat binding.  ', f'''For the established root of every turn, run the Python tool "{(primary / 'scripts/harness.py').as_posix()}" turn-begin "<exact root of current chat>" --platform codex; the UUID is read from CODEX_THREAD_ID and the profile from CODEX_HOME.  ''', 'FILE-3 and EXEC-5 also apply to ordinary analytical responses and .agents investigations; the article/proposal profile does not define their scope.  ', 'Run read-only Git checks with `--no-optional-locks` so the index is not updated as a side effect (or via harness.py git-read; read rules in batches without Get-Content output truncation and do not bundle git calls with initial rule reading before turn-begin completes).  ', 'Before publishing the final response, the primary agent runs answer-prepare with the exact UTF-8 bytes per references/turn-completion.md; a child subagent does not maintain the user journal.  '])
-	r = '\n'.join(lines)
-	return r
+	from .rules_manifest import render_codex_loader
+	return render_codex_loader(primary, local, restore_global=restore_global)
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
