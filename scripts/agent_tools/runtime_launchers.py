@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add soft watchdog timeout with LKG fallback to harness_hook_runner":
+# https://github.com/dmitry-ai/harness/issues/252
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
@@ -13,7 +16,50 @@ _RUNNER_COMMON = (
 	'import os\n'
 	'from pathlib import Path\n'
 	'import runpy\n'
+	'import subprocess\n'
 	'import sys\n'
+	"_CHILD_RUNPY = (\n"
+	"\t\"import pathlib, runpy, sys\\n\"\n"
+	"\t\"sp = pathlib.Path(sys.argv[1]).resolve()\\n\"\n"
+	"\t\"sd = str(sp.parent)\\n\"\n"
+	"\t\"sys.path = [sd, *[p for p in sys.path if p != sd]]\\n\"\n"
+	"\t\"sys.argv = [str(sp), *sys.argv[2:]]\\n\"\n"
+	"\t\"try:\\n\"\n"
+	"\t\"\\trunpy.run_path(str(sp), run_name='__main__')\\n\"\n"
+	"\t\"except SystemExit:\\n\"\n"
+	"\t\"\\traise\\n\"\n"
+	"\t\"except Exception as exc:\\n\"\n"
+	"\t\"\\tsys.stderr.write(f'HARNESS_HOOK_EXC:{type(exc).__name__}: {exc}\\\\n')\\n\"\n"
+	"\t\"\\traise SystemExit(86)\\n\"\n"
+	")\n"
+	"_WATCHDOG_DEFAULTS = {'check_markdown_slop.py': 6.0, 'check_pre_invocation.py': 10.0, 'check_rules_and_server_gate.py': 6.0, 'check_stop_gate.py': 10.0}\n"
+	'def _watchdog_seconds(script_name: str) -> float | None:\n'
+	"\traw = os.environ.get('HARNESS_HOOK_WATCHDOG_SECONDS', '').strip()\n"
+	'\tif raw:\n'
+	'\t\ttry:\n'
+	'\t\t\tval = float(raw)\n'
+	'\t\t\treturn val if 0.0 < val else None\n'
+	'\t\texcept ValueError:\n'
+	'\t\t\tpass\n'
+	'\treturn _WATCHDOG_DEFAULTS.get(script_name, 6.0)\n'
+	'def _exec_release_watchdog(release_dir: Path, script_name: str, extra_argv: list[str], raw_stdin: str, timeout_s: float) -> tuple[str, int]:\n'
+	"\tscript_path = (release_dir / 'scripts' / script_name).resolve()\n"
+	'\tif not script_path.is_file():\n'
+	"\t\traise FileNotFoundError(f'Missing snapshot script: {script_path}')\n"
+	"\tenv = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'}\n"
+	"\tproc = subprocess.Popen([sys.executable, '-c', _CHILD_RUNPY, str(script_path), *extra_argv], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))\n"
+	'\ttry:\n'
+	'\t\tout, err = proc.communicate(input=raw_stdin, timeout=timeout_s)\n'
+	'\texcept subprocess.TimeoutExpired:\n'
+	'\t\tproc.kill()\n'
+	'\t\tproc.communicate()\n'
+	"\t\traise TimeoutError(f'Hook watchdog timeout after {timeout_s:g}s')\n"
+	"\tif 86 == proc.returncode and 'HARNESS_HOOK_EXC:' in (err or ''):\n"
+	"\t\tdetail = next((ln.split('HARNESS_HOOK_EXC:', 1)[1].strip() for ln in err.splitlines() if 'HARNESS_HOOK_EXC:' in ln), err.strip())\n"
+	'\t\traise RuntimeError(detail)\n'
+	'\tif err:\n'
+	'\t\tsys.stderr.write(err)\n'
+	"\treturn (out or '', int(proc.returncode or 0))\n"
 	'def _log_fallback(store: Path, script_name: str, cur_sha: str, prev_sha: str, exc: BaseException) -> None:\n'
 	'\tts = datetime.now(timezone.utc).isoformat()\n'
 	'\tline = f"{ts} fallback script={script_name} current={cur_sha} previous={prev_sha} error={type(exc).__name__}: {exc}\\n"\n'
@@ -53,7 +99,7 @@ _RUNNER_COMMON = (
 	'\tfinally:\n'
 	'\t\tsys.path, sys.argv, sys.stdin, sys.stdout = (orig_path, orig_argv, orig_in, orig_out)\n'
 	"\treturn (buf.getvalue() if None is not buf else '', rc)\n"
-	'def _run_from_snapshot(store: Path, script_name: str, extra_argv: list[str], raw_stdin: str, *, capture_stdout: bool) -> tuple[bool, int]:\n'
+	'def _run_from_snapshot(store: Path, script_name: str, extra_argv: list[str], raw_stdin: str, *, capture_stdout: bool, watchdog_s: float | None=None) -> tuple[bool, int]:\n'
 	"\tptr_file = store / 'current.json'\n"
 	"\tif '1' == os.environ.get('HARNESS_DEV_LIVE_HOOKS') or (not ptr_file.is_file()):\n"
 	'\t\treturn (False, 0)\n'
@@ -66,7 +112,10 @@ _RUNNER_COMMON = (
 	'\tif not cur_sha:\n'
 	'\t\treturn (False, 0)\n'
 	'\ttry:\n'
-	"\t\tout, rc = _exec_release_script(store / 'releases' / cur_sha, script_name, extra_argv, raw_stdin, capture_stdout=capture_stdout)\n"
+	'\t\tif capture_stdout and None is not watchdog_s and 0.0 < watchdog_s:\n'
+	"\t\t\tout, rc = _exec_release_watchdog(store / 'releases' / cur_sha, script_name, extra_argv, raw_stdin, watchdog_s)\n"
+	'\t\telse:\n'
+	"\t\t\tout, rc = _exec_release_script(store / 'releases' / cur_sha, script_name, extra_argv, raw_stdin, capture_stdout=capture_stdout)\n"
 	'\texcept Exception as exc:\n'
 	'\t\tif prev_sha and prev_sha != cur_sha:\n'
 	'\t\t\t_log_fallback(store, script_name, cur_sha, prev_sha, exc)\n'
@@ -134,7 +183,7 @@ _HOOK_MAIN = (
 	'\textra_argv = list(sys.argv[2:])\n'
 	"\traw_stdin = '' if sys.stdin.isatty() else sys.stdin.read()\n"
 	"\tstore_raw = os.environ.get('HARNESS_RUNTIME_STORE') or RUNTIME_STORE\n"
-	'\thandled, rc = _run_from_snapshot(Path(store_raw), script_name, extra_argv, raw_stdin, capture_stdout=True)\n'
+	'\thandled, rc = _run_from_snapshot(Path(store_raw), script_name, extra_argv, raw_stdin, capture_stdout=True, watchdog_s=_watchdog_seconds(script_name))\n'
 	'\tif handled:\n'
 	'\t\tif 0 != rc:\n'
 	'\t\t\traise SystemExit(rc)\n'
