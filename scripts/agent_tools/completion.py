@@ -1,4 +1,6 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/239
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/238
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
@@ -1057,7 +1059,7 @@ def conversation_journal_steps(root, journal_directory, conversation_id: str) ->
 	t_dir = _folder(root_p)
 	if t_dir.is_dir():
 		for sf in t_dir.glob('*.json'):
-			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
+			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
 				continue
 			try:
 				st_obj = _read(sf)
@@ -1113,7 +1115,7 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 		cid_low = str(native.get('conversation_id') or '').strip().lower()
 		if t_dir.is_dir():
 			for sf in sorted(t_dir.glob('*.json'), key=lambda p: p.stat().st_mtime_ns, reverse=True):
-				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
+				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
 					continue
 				try:
 					st_obj = _read(sf)
@@ -1146,7 +1148,7 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 		return []
 	handed_off: list[dict] = []
 	for sf in sorted(t_dir.glob('*.json')):
-		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')):
+		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
 			continue
 		try:
 			st = _read(sf)

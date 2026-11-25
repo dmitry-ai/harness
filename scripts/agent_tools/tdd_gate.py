@@ -1,4 +1,6 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/239
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
@@ -82,6 +84,12 @@ from .tdd.exemption import (
 	is_git_path_exempt,
 	is_write_event_exempt,
 )
+from .tdd.mechanical import (
+	find_matching_mechanical_recipes,
+	matches_mechanical_recipe,
+	record_mechanical_exemption,
+	validate_mechanical_reason,
+)
 from .tdd.outcomes import (
 	_BG_TASK_FINISHED_RE,
 	_BG_TASK_ID_RE,
@@ -129,6 +137,7 @@ __all__ = [
 	'evaluate_pre_tool_use_tdd',
 	'evaluate_tdd_events',
 	'extract_antigravity_tdd_events',
+	'find_matching_mechanical_recipes',
 	'find_ratchet_approval',
 	'is_comment_only_diff',
 	'is_diff_exempt',
@@ -137,13 +146,16 @@ __all__ = [
 	'is_substantive_test_content',
 	'is_test_file',
 	'is_write_event_exempt',
+	'matches_mechanical_recipe',
 	'parse_command_outcome',
 	'ratchet_diff_violations',
+	'record_mechanical_exemption',
 	'resolve_code_scope',
 	'shell_code_write_targets',
 	'shell_test_delete_targets',
 	'shell_write_targets',
 	'source_text_assertion_issues',
+	'validate_mechanical_reason',
 	'validate_ratchet_reason',
 	'verify_staged_tdd_diff',
 ]

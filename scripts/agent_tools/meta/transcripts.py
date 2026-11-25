@@ -1,3 +1,5 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/239
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/170
 from __future__ import annotations
@@ -7,7 +9,7 @@ from .formatting import _split_model_and_effort
 import json
 import sqlite3
 _EMPTY_TRANSCRIPT_KEYS = ('request_timestamp', 'response_timestamp', 'model', 'effort', 'turn_index')
-_SKIP_STATE_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')
+_SKIP_STATE_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
 def _ag_transcript_file(ag_paths: dict[str, Any] | None, conversation_id: str) -> Path | None:
 	if not isinstance(ag_paths, dict) or not ag_paths.get('brain_dir'):
 		r: Path | None = None

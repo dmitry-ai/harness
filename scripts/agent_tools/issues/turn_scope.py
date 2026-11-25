@@ -1,3 +1,5 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/239
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Isolate per-conversation github_issues recording and turn-state filtering":
 # https://github.com/dmitry-ai/harness/issues/195
@@ -6,7 +8,7 @@ from pathlib import Path
 from typing import Any
 import json
 import os
-_SKIP_TURN_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')
+_SKIP_TURN_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
 def _candidate_turns_dirs(root: Path) -> list[Path]:
 	from ..path_registry import project_paths
 	resolved = Path(root).resolve()

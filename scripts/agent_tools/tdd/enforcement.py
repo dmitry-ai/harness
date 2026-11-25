@@ -1,4 +1,6 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/239
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
@@ -86,10 +88,12 @@ def _eval_pre_write(name: str, args: dict, cwd: Path | None, tdd_state: dict) ->
 				r = _eval_pre_test_write(name, args, target_path, scope, cwd, sc_state)
 	return r
 def _eval_shell_prod_writes(cmd: str, cwd: Path | None, tdd_state: dict) -> str | None:
+	from .mechanical import find_matching_mechanical_recipes
 	r = None
 	for target_p in shell_code_write_targets(cmd, cwd=cwd):
-		sc_state = tdd_state['scopes'].get(str(resolve_code_scope(target_p)))
-		if None is sc_state or sc_state.get('state') not in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
+		scope = resolve_code_scope(target_p)
+		sc_state = tdd_state['scopes'].get(str(scope))
+		if (None is sc_state or sc_state.get('state') not in ('RED_VERIFIED', 'GREEN_IMPLEMENTING')) and (not find_matching_mechanical_recipes(scope, project_root=cwd or scope)):
 			r = f'EXEC-2 TDD-RED-GATE: Shell command writes production code file "{target_p.name}" before a failing (RED) test was written and observed. Write a failing test first.'
 			break
 	return r

@@ -1,3 +1,5 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/239
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
@@ -11,7 +13,7 @@ import sys
 ABBREVIATIONS = '\\b(?:\\u0433|\\u0433\\u0433|\\u0442\\.\\u0434|\\u0442\\.\\u043f|\\u0441\\u043c|\\u0438\\u043c|\\u0434\\u0440|\\u043f\\u0440|\\u0443\\u043b|\\u0434|\\u043a\\u0432|\\u0440\\u0438\\u0441|\\u0442\\u0430\\u0431\\u043b|\\u0441\\u0442|\\u043f|\\u0447|\\u0440\\u0443\\u0431|\\u0442\\u044b\\u0441|\\u043c\\u043b\\u043d|\\u043c\\u043b\\u0440\\u0434|\\u0430\\u043d\\u0433\\u043b|\\u0440\\u0443\\u0441|\\u043d\\u0430\\u043f\\u0440|\\u043e\\u043a|vs|Mr|Mrs|Ms|Dr|St|Inc|Ltd|Co|Jr|Sr|e\\.g|i\\.e)\\.'
 ABBR_RE = re.compile(ABBREVIATIONS, re.IGNORECASE)
 MULTI_SENT_RE = re.compile('(?:[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9\\u00ab\\u00bb"(),:-]+\\s+){2,}[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9]+[.!?]\\s+[\\u0410-\\u042f\\u0401A-Z][a-z\\u0430-\\u044f\\u0451A-Za-z0-9]')
-_AUX_TURN_SUFFIXES = ('-recovery.json', '-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json')
+_AUX_TURN_SUFFIXES = ('-recovery.json', '-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
 _FENCE_RE = re.compile('^(`{3,}|~{3,})')
 _WF_BOLD_BULLET_RE = re.compile('^[-*]\\s+\\*\\*[^*]+\\*\\*')
 _WF_BOLD_SENT_RE = re.compile('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]{3,}[.!?]\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{2,}\\s+\\S+.*[.!?]\\s*$')
