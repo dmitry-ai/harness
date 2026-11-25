@@ -1,3 +1,5 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
@@ -304,26 +306,8 @@ class GitRepoGate:
 				stripped_msg = normalize_commit_message(message)
 				if None is parse_issue_url(stripped_msg):
 					raise ValueError('Commit message for an agent commit must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
-			all_new_diff_urls: set[str] = set()
-			for name in relative:
-				path = self.root / name
-				if path.is_file() and path.suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES:
-					content = path.read_text(encoding='utf-8', errors='replace')
-					if content.strip():
-						file_urls = set(_GITHUB_ISSUE_URL_RE.findall(content))
-						if not file_urls:
-							raise ValueError(f'Issue-tracked code file lacks a GitHub Issue URL reference: {name}')
-						if None is not stripped_msg and stripped_msg not in file_urls:
-							raise ValueError(f'Issue-tracked code file {name} does not reference the commit GitHub Issue URL {stripped_msg}')
-						added_urls, head_urls = self._extract_added_diff_urls(name)
-						new_diff_urls = added_urls - head_urls
-						if 1 < len(new_diff_urls):
-							raise ValueError(f'Staged diff in {name} introduces multiple distinct GitHub Issue URLs: {sorted(new_diff_urls)}')
-						if None is not stripped_msg and new_diff_urls and (new_diff_urls != {stripped_msg}):
-							raise ValueError(f'Staged diff in {name} introduces GitHub Issue URL(s) {sorted(new_diff_urls)} not matching commit message {stripped_msg}')
-						all_new_diff_urls.update(new_diff_urls)
-			if 1 < len(all_new_diff_urls):
-				raise ValueError(f'Staged files mix changes from multiple GitHub Issues: {sorted(all_new_diff_urls)}')
+			from .tdd.exemption import verify_staged_issue_urls
+			all_new_diff_urls = verify_staged_issue_urls(self, relative, stripped_msg, project_root=self._tdd_project_root())
 			if self.is_issue_tracked():
 				from .github_issue import extract_parent_issue_number
 				from .issue_lifecycle import evidence_issue_files, origin_repo_slug
@@ -629,8 +613,8 @@ def _normalize_repo_paths(root: Path, paths: list[str]) -> list[str]:
 # 2026-10-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 # https://github.com/dmitry-ai/harness/issues/17
-def check_commit(root: Path, paths: list[str]) -> list[str]:
-	return GitRepoGate(root, strict=True).check_commit(paths)
+def check_commit(root: Path, paths: list[str], *, message: str | None=None) -> list[str]:
+	return GitRepoGate(root, strict=True).check_commit(paths, message=message)
 def create_isolated_worktree(root: Path, label: str='isolated') -> Path:
 	return WorktreeCommitTransaction(GitRepoGate(root, strict=True), label=label).create()
 def remove_isolated_worktree(root: Path, wt_dir: Path) -> None:

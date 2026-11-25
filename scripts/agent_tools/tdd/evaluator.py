@@ -1,3 +1,5 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/173
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -7,6 +9,7 @@ from pathlib import Path
 from ..shell_audit import _split_shell_segments, normalize_host_path
 from .classifier import _norm_posix, resolve_code_scope
 from .commands import classify_test_command
+from .exemption import is_write_event_exempt
 def _apply_command_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], failfast_warnings: list[str]) -> None:
 	outcome = ev.get('outcome') or {}
 	if ev.get('is_git_commit') and outcome.get('exit_code') in (0, None):
@@ -29,11 +32,11 @@ def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: di
 			st['cycle_had_prod_edit'] = False
 			st['cycle_green_step'] = None
 			orders[sk]['written_test'] = None
-def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str]) -> None:
+def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None) -> None:
 	cls = ev.get('classification')
 	scope_str = str(ev.get('scope') or '')
 	fpath = str(ev.get('path') or '')
-	if 'non_code' != cls and scope_str:
+	if 'non_code' != cls and scope_str and ('production' != cls or (not is_write_event_exempt(fpath, scope_str, project_root=project_root))):
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
 		if 'test' == cls:
 			_apply_test_write(st, st_ord, fpath, step, order)
@@ -175,7 +178,7 @@ def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step:
 		if scope_full:
 			st['last_full_green_step'] = step
 			st_ord['last_full_green'] = order
-def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool=True) -> dict:
+def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool=True, project_root: Path | None=None) -> dict:
 	scopes: dict[str, dict] = {}
 	orders: dict[str, dict] = {}
 	violations: list[str] = []
@@ -184,7 +187,7 @@ def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool=Tr
 		kind = ev.get('kind')
 		step = order[0]
 		if 'file_write' == kind:
-			_apply_file_write_event(ev, step, order, scopes, orders, violations)
+			_apply_file_write_event(ev, step, order, scopes, orders, violations, project_root=project_root)
 		elif 'command' == kind:
 			_apply_command_event(ev, step, order, scopes, orders, failfast_warnings)
 	if require_final_full_green:

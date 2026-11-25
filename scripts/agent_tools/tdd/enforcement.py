@@ -1,3 +1,5 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
@@ -7,6 +9,7 @@ from .classifier import classify_code_path, resolve_code_scope
 from .commands import shell_code_write_targets, shell_test_delete_targets
 from .evaluator import evaluate_tdd_events
 from .events import extract_antigravity_tdd_events
+from .exemption import is_diff_exempt
 from .ratchet import find_ratchet_approval, ratchet_diff_violations
 from .substantive import is_substantive_test_content, source_text_assertion_issues
 import difflib
@@ -77,7 +80,8 @@ def _eval_pre_write(name: str, args: dict, cwd: Path | None, tdd_state: dict) ->
 			scope = resolve_code_scope(target_path)
 			sc_state = tdd_state['scopes'].get(str(scope))
 			if 'production' == cls:
-				r = _eval_pre_prod_write(target_path, sc_state)
+				old_disk, new_text, _, _ = _compute_edited_content(name, args, target_path)
+				r = None if is_diff_exempt(target_path, old_disk, new_text, repo_root=scope, project_root=cwd or scope) else _eval_pre_prod_write(target_path, sc_state)
 			else:
 				r = _eval_pre_test_write(name, args, target_path, scope, cwd, sc_state)
 	return r
@@ -195,7 +199,8 @@ def verify_staged_tdd_diff(repo_root: Path, staged_paths: list[str], *, message:
 	for rel in staged_paths or ():
 		fpath, head_text, disk_text, cls = _staged_entry_texts(repo, rel, use_index, issue_urls)
 		if 'production' == cls and None is not disk_text:
-			staged_prod.append(rel)
+			if not is_diff_exempt(fpath, head_text, disk_text, repo_root=repo, message=message, project_root=project_root):
+				staged_prod.append(rel)
 		elif 'test' == cls:
 			if None is not disk_text:
 				staged_tests.append(rel)

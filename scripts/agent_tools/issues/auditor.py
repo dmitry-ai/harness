@@ -1,3 +1,5 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
 # https://github.com/dmitry-ai/harness/issues/186
@@ -197,6 +199,7 @@ class TurnIssueLifecycleAuditor:
 		required_issues.update(commit_urls)
 		committed_urls.update(commit_urls)
 	def _inspect_touched_code_file(self, code_repo: Path, rel: str, required_issues: set[str], committed_urls: set[str]) -> None:
+		from ..tdd.exemption import is_git_path_exempt
 		fpath = code_repo / rel
 		if fpath.is_file() and is_code_file(rel):
 			try:
@@ -204,7 +207,7 @@ class TurnIssueLifecycleAuditor:
 				urls_in_file, comment_urls = (extract_issue_urls(file_text), extract_comment_issue_urls(file_text))
 			except OSError:
 				urls_in_file, comment_urls = ([], set())
-			if not urls_in_file:
+			if (not urls_in_file) and (not is_git_path_exempt(code_repo, rel, project_root=self.root)):
 				self.violations.append(f'Modified code file {fpath} does not reference a GitHub Issue URL')
 			for cu in comment_urls:
 				if cu in self.turn_issues:

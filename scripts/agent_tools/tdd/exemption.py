@@ -1,0 +1,46 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/238
+from __future__ import annotations
+from pathlib import Path
+from ..shell_audit import _GITHUB_ISSUE_URL_RE, _ISSUE_LINKED_CODE_SUFFIXES
+from .comment_diff import is_comment_only_diff, is_git_file_comment_only
+def is_diff_exempt(path: str | Path, old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
+	return is_comment_only_diff(path, old_text, new_text)
+def is_git_path_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
+	return is_git_file_comment_only(repo_root, rel_posix, disk_text=disk_text, use_index=use_index)
+def is_write_event_exempt(raw_path: str | Path, scope_str: str, *, project_root: Path | None=None) -> bool:
+	r = False
+	if raw_path and scope_str:
+		fpath = Path(str(raw_path))
+		scope = Path(scope_str)
+		try:
+			rel = fpath.resolve().relative_to(scope.resolve()).as_posix()
+		except (OSError, ValueError):
+			rel = ''
+		if rel and (scope / '.git').exists():
+			r = is_git_path_exempt(scope, rel, project_root=project_root)
+	return r
+def verify_staged_issue_urls(gate, relative: list[str], stripped_msg: str | None, *, project_root: Path | None=None) -> set[str]:
+	all_new: set[str] = set()
+	for name in relative:
+		path = gate.root / name
+		if path.is_file() and path.suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES:
+			content = path.read_text(encoding='utf-8', errors='replace')
+			if content.strip() and (not is_git_path_exempt(gate.root, name, disk_text=content, message=stripped_msg, project_root=project_root)):
+				_verify_single_file_issue_urls(gate, name, content, stripped_msg, all_new)
+	if 1 < len(all_new):
+		raise ValueError(f'Staged files mix changes from multiple GitHub Issues: {sorted(all_new)}')
+	return all_new
+def _verify_single_file_issue_urls(gate, name: str, content: str, stripped_msg: str | None, all_new: set[str]) -> None:
+	file_urls = set(_GITHUB_ISSUE_URL_RE.findall(content))
+	if not file_urls:
+		raise ValueError(f'Issue-tracked code file lacks a GitHub Issue URL reference: {name}')
+	if None is not stripped_msg and stripped_msg not in file_urls:
+		raise ValueError(f'Issue-tracked code file {name} does not reference the commit GitHub Issue URL {stripped_msg}')
+	added_urls, head_urls = gate._extract_added_diff_urls(name)
+	new_diff_urls = added_urls - head_urls
+	if 1 < len(new_diff_urls):
+		raise ValueError(f'Staged diff in {name} introduces multiple distinct GitHub Issue URLs: {sorted(new_diff_urls)}')
+	if None is not stripped_msg and new_diff_urls and (new_diff_urls != {stripped_msg}):
+		raise ValueError(f'Staged diff in {name} introduces GitHub Issue URL(s) {sorted(new_diff_urls)} not matching commit message {stripped_msg}')
+	all_new.update(new_diff_urls)

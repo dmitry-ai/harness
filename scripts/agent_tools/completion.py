@@ -1,4 +1,5 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# https://github.com/dmitry-ai/harness/issues/238
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -541,7 +542,7 @@ def _issue_first_status(root, turn):
 	return evaluate_issue_first_events(list(turn.get('issue_first_events') or []), requests=list(turn.get('requests') or []), project_root=root)
 def _tdd_status(root, turn):
 	from .tdd_gate import evaluate_tdd_events
-	return evaluate_tdd_events(list(turn.get('tdd_events') or []), require_final_full_green=True)
+	return evaluate_tdd_events(list(turn.get('tdd_events') or []), require_final_full_green=True, project_root=root)
 VERIFIED_CHECK_KEYS = ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
 GATE_SPECS = (
 	('exec5', ('EXEC-5 violation in active turn (git read',), lambda root_p, turn, value, rc: bool(value.get('exec5_check', {}).get('verified'))),
