@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+# https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
@@ -375,7 +378,7 @@ class WorkflowStateEngine:
 		state['requests'] = [x for x in state.get('requests', []) if not ((conversation_id and x.get('native_conversation_id') == conversation_id) or (req_ids and x.get('id') in req_ids))]
 	def _finalize_stage(self, state, out_hashes, outputs):
 		from .journal import get_existing_step_ids, journal_pair_dirs, resolve_journal_dir, step_errors, step_file
-		from .links import readable_link_issues
+		from .links import chat_reply_link_issues
 		from .review import authorize
 		from .text_workflow import gate_paths
 		gate_paths([self.root / name for name in outputs])
@@ -392,7 +395,7 @@ class WorkflowStateEngine:
 		reply = step_file(res_dir, latest, directory=journal)
 		from .metadata import strip_leading_metadata_header
 		reply_body = strip_leading_metadata_header(reply.read_bytes().decode('utf-8'))
-		link_issues = readable_link_issues(reply_body)
+		link_issues = chat_reply_link_issues(reply_body)
 		if link_issues:
 			raise ValueError('\n'.join(link_issues))
 		if reply.relative_to(self.root).as_posix() not in out_hashes:
@@ -507,12 +510,12 @@ class WorkflowStateEngine:
 		return all(((t := self._resolve_receipt_artifact(path)).is_file() and file_hash(t) == digest for group in ('inputs', 'outputs') for path, digest in receipt.get(group, {}).items())) and ('kb_inputs' not in receipt or receipt['kb_inputs'] == self.kb_hashes()) and ('evidence_inputs' not in receipt or receipt['evidence_inputs'] == self.evidence_hashes())
 	def record_current_answer(self, response, *, journal_directory=None, request_ids=None, preauthorized=None, recorded_steps=None, turn_token=None):
 		from .journal import ensure_project_journal_upgraded, record_answer, resolve_journal_dir
-		from .links import readable_link_issues
+		from .links import chat_reply_link_issues
 		from .path_registry import project_paths
 		from .review import authorize
 		ensure_project_journal_upgraded(self.root, selected=journal_directory)
 		self.pp = project_paths(self.root, exact_root=True)
-		issues = readable_link_issues(response, allow_unencoded_file_uri=True)
+		issues = chat_reply_link_issues(response)
 		if issues:
 			raise ValueError('\n'.join(issues))
 		analysis_path = self.pp.kb_dir / 'Analysis.json'

@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+# https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 # https://github.com/dmitry-ai/harness/issues/109
@@ -49,8 +52,7 @@ def readable_reference(value: str | Path) -> str:
 			path = '//' + parsed.netloc + path
 		elif re.match('^/[A-Za-z]:/', path):
 			path = path[1:]
-	r = _readable_escapes(path) + query_sep + query + fragment_sep + _readable_escapes(fragment)
-	return r
+	return _readable_escapes(path) + query_sep + query + fragment_sep + _readable_escapes(fragment)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
@@ -68,6 +70,8 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 # https://github.com/dmitry-ai/harness/issues/9
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/76
+def chat_reply_link_issues(content: str) -> list[str]:
+	return readable_link_issues(content, allow_unencoded_file_uri=True)
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	from .markdown_links import decode_file_uri as _decode
 	return _decode(reference, reject_remote=reject_remote)
@@ -103,8 +107,7 @@ def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) 
 		readable = readable_reference(target)
 		if target != readable:
 			errors.append(f'LINK-5: Use a readable document link: {readable} (instead of {target})')
-	r = errors
-	return r
+	return errors
 class HTMLReferences(HTMLParser):
 	def __init__(self, *, authored_only=False):
 		super().__init__(convert_charrefs=True)

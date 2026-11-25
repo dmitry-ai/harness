@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+# https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
@@ -26,7 +29,7 @@ from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
 from .evidence_loader import load_observation_bundle
-from .links import _bare_urls, readable_link_issues
+from .links import _bare_urls, chat_reply_link_issues
 from .markdown_links import iter_inline_segments
 from .research import MAX_BYTES
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
@@ -38,7 +41,7 @@ class ResponseEvidenceAuditor:
 		self.response = response
 		self.requests = requests
 		self.touched_files = touched_files
-		self.errors = list(readable_link_issues(response, allow_unencoded_file_uri=True))
+		self.errors = list(chat_reply_link_issues(response))
 		self.authored_links: list[tuple[str, str]] = []
 		self.authored_urls: list[str] = []
 		self.attributed_quotes: list[tuple[str, str]] = []

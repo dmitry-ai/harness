@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+# https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 # https://github.com/dmitry-ai/harness/issues/213
@@ -1758,8 +1761,8 @@ def _authored_nonquote_hrefs(content: str) -> list[str]:
 	return [*hrefs, *html.links]
 def _response_link_issues(root_p: Path, response: str, *, response_path: Path | None = None, scratch_dir: Path | None = None) -> list[str]:
 	from urllib.parse import unquote, urldefrag, urlsplit
-	from .links import heading_anchors, readable_link_issues, references
-	errors: list[str] = list(readable_link_issues(response, allow_unencoded_file_uri=True))
+	from .links import chat_reply_link_issues, heading_anchors, references
+	errors: list[str] = list(chat_reply_link_issues(response))
 	available_self = set(references(response)[1]) | heading_anchors(response)
 	base_dirs = [root_p]
 	if None is not response_path and '-' != str(response_path):
