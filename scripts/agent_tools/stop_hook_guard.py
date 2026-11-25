@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
@@ -100,17 +103,16 @@ def extract_stop_context(payload: dict) -> tuple[str, str, str]:
 		cand_id = m.group(1).lower() if m else ''
 	session_id = cand_id if _UUID_RE.fullmatch(cand_id) else ''
 	return (cwd_raw, session_id, t_path_raw)
-def handoff_matches_user_step(st: dict, rows: list[dict], last_user_step: int) -> bool:
+def handoff_matches_user_step(st: dict, rows: list[dict], last_user_step: int, *, user_text: str | None=None) -> bool:
 	from .platforms.request_binding import _extract_leading_upwork_init_ids
 	r = True
 	target_job = str((st.get('handed_off_to') or {}).get('job_id') or '').strip()
 	if target_job:
-		for row in rows:
-			if isinstance(row, dict) and 'USER_INPUT' == row.get('type') and last_user_step == row.get('step_index'):
-				new_ids = _extract_leading_upwork_init_ids(str(row.get('content') or ''))
-				if new_ids and target_job not in new_ids:
-					r = False
-				break
+		matched_text = next((str(row.get('content') or '') for row in rows if isinstance(row, dict) and 'USER_INPUT' == row.get('type') and last_user_step == row.get('step_index')), user_text)
+		if matched_text:
+			new_ids = _extract_leading_upwork_init_ids(matched_text)
+			if new_ids and target_job not in new_ids:
+				r = False
 	return r
 def is_journal_opt_out(payload: dict, rows: list[dict], last_user_step: int, matched_state: dict | None) -> bool:
 	if isinstance(matched_state, dict) and False is matched_state.get('journal_required'):

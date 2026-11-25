@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225
@@ -141,20 +144,8 @@ def _resolve_stop_paths(session_id: str, t_path: Path | None = None, backend_ove
 	return (backend, backend / 'brain', backend / 'conversation_summaries.db', projects_dir)
 def _find_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows: list | None = None) -> dict | None:
 	_ensure_scripts_on_path()
-	from agent_tools.hook_runtime import iter_turn_state_files
-	from agent_tools.stop_hook_guard import handoff_matches_user_step
-	handed_off_fallback: tuple[int, dict] | None = None
-	for _, st in iter_turn_state_files(t_dir):
-		if str(st.get('conversation_id') or '').strip().lower() != session_id:
-			continue
-		req_steps = {req.get('native_step') for req in st.get('requests') or [] if isinstance(req, dict)}
-		if st.get('native_turn_id') == f'ag-{session_id}-{last_user_step}' or last_user_step in req_steps or st.get('native_start_step') == last_user_step:
-			return st
-		if None is not rows and 'handed_off' == st.get('status'):
-			start_step = st.get('native_start_step')
-			if isinstance(start_step, int) and start_step <= last_user_step and handoff_matches_user_step(st, rows, last_user_step) and (None is handed_off_fallback or start_step > handed_off_fallback[0]):
-				handed_off_fallback = (start_step, st)
-	return handed_off_fallback[1] if None is not handed_off_fallback else None
+	from agent_tools.turn_routing import resolve_active_turn_state
+	return resolve_active_turn_state(t_dir, session_id, last_user_step, rows=rows)
 def _resolve_backend_fallback(session_id: str) -> Path:
 	return _resolve_stop_paths(session_id)[0]
 def _evaluate_prepared_match(matched_state: dict, last_planner_text: str) -> dict:

@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
@@ -167,26 +170,16 @@ def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> 
 	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
 	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	return hashlib.sha256(raw).hexdigest()[:40]
+def _routed_pre_invocation_root(canon_root: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path:
+	_ensure_scripts_on_path()
+	from agent_tools.turn_routing import resolve_handoff_target_root
+	routed = resolve_handoff_target_root(_turns_dir(canon_root), conversation_id, max_user_step, brain_dir=brain_dir, conversations_dir=conversations_dir, t_path=t_path)
+	return routed if None is not routed else canon_root
 def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str, max_user_step: int) -> bool:
-	if not t_dir.is_dir():
-		return False
-	direct = t_dir / f'{_expected_turn_key(backend, conversation_id, max_user_step)}.json'
-	candidates = [direct] if direct.is_file() else []
-	for sf in t_dir.glob('*.json'):
-		if sf != direct and (not sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json'))):
-			candidates.append(sf)
-	for sf in candidates:
-		try:
-			st = json.loads(sf.read_text(encoding='utf-8'))
-		except Exception:
-			continue
-		if not isinstance(st, dict) or st.get('conversation_id') != conversation_id:
-			continue
-		req_steps = {req.get('native_step') for req in st.get('requests') or [] if isinstance(req, dict)}
-		if st.get('native_turn_id') == f'ag-{conversation_id}-{max_user_step}' or max_user_step in req_steps or st.get('native_start_step') == max_user_step:
-			if st.get('status') in ('open', 'prepared', 'delivered', 'conflict', 'handed_off'):
-				return True
-	return False
+	_ensure_scripts_on_path()
+	from agent_tools.turn_routing import resolve_active_turn_state
+	st = resolve_active_turn_state(t_dir, conversation_id, max_user_step)
+	return isinstance(st, dict) and st.get('status') in ('open', 'prepared', 'delivered', 'conflict', 'handed_off')
 def _terminate_error(message: str) -> dict:
 	return {'injectSteps': [{'errorMessage': {'userMessage': f'Harness PreInvocation turn-begin blocked: {message}'}}], 'terminationBehavior': 'terminate'}
 def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> str | None:
@@ -243,8 +236,8 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	max_user_step = _latest_completed_user_step(conversations_dir, conversation_id)
 	if None is max_user_step:
 		return {}
-	t_dir = _turns_dir(canon_root)
-	if _turn_step_already_covered(t_dir, backend, conversation_id, max_user_step):
+	canon_root = _routed_pre_invocation_root(canon_root, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
+	if _turn_step_already_covered(_turns_dir(canon_root), backend, conversation_id, max_user_step):
 		return {}
 	with _pre_flush_begin_context(brain_dir, conversations_dir, conversation_id):
 		try:
