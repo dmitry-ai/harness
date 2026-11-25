@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
 # https://github.com/dmitry-ai/harness/issues/232
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -476,7 +479,7 @@ def _read(path):
 def _folder(root):
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
-	return pp.turns_dir if pp.has_explicit_path('turns_dir') else (data_dir_for(root) / 'turns')
+	return pp.turns_dir if pp.has_explicit_path('turns_dir') else (pp.data_dir / 'turns')
 def _turn_lock(root, key):
 	return _folder(root) / f'turn-{key}.lock'
 def _journal_lock(root):

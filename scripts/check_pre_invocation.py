@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -59,9 +62,8 @@ def _turns_dir(canon_root: Path) -> Path:
 	_ensure_scripts_on_path()
 	try:
 		from agent_tools.path_registry import project_paths
-		from agent_tools.storage import data_dir_for
 		pp = project_paths(canon_root, exact_root=True)
-		return pp.turns_dir if pp.has_explicit_path('turns_dir') else (data_dir_for(canon_root) / 'turns')
+		return pp.turns_dir if pp.has_explicit_path('turns_dir') else (pp.data_dir / 'turns')
 	except Exception:
 		return (canon_root / '_/\ua616/data/turns') if (canon_root / '_/\ua616').is_dir() else (canon_root / '\ua616/data/turns')
 def _scratch_answer_path(canon_root: Path, turn_key: str) -> str:

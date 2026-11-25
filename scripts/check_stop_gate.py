@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -76,7 +79,7 @@ def _turns_dir(root: Path) -> Path:
 	_ensure_scripts_on_path()
 	try:
 		from agent_tools.path_registry import project_paths
-		return project_paths(root).turns_dir
+		return project_paths(root, exact_root=True).turns_dir
 	except Exception:
 		return (root / '_/\ua616/data/turns') if (root / '_/\ua616').is_dir() else (root / '\ua616/data/turns')
 def _is_child_conversation(backend: Path, conversation_id: str, *, conversations_db: Path | None = None) -> bool:

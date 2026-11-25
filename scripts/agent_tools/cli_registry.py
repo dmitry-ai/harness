@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
 # https://github.com/dmitry-ai/harness/issues/217
@@ -85,6 +88,9 @@ def _exec_runtime_status(args) -> dict:
 def _exec_schema_help(args) -> dict:
 	from .schema_help import schema_help_payload
 	return schema_help_payload(args.topic)
+def _exec_shadow_replay(args) -> dict:
+	from .shadow_replay import run_shadow_replay
+	return run_shadow_replay(args.project, args.conversation, launcher=args.launcher, workspace=args.workspace, platform=args.platform or 'antigravity', backend=args.backend, response_file=args.response_file, keep=bool(args.keep))
 def _exec_test_watchdog(args) -> dict:
 	from .watchdog_runner import run_watchdog_cli
 	return run_watchdog_cli(args)
@@ -150,6 +156,7 @@ def _register_builtins() -> None:
 	register_command('runtime-promote', 'Export, validate, and atomically activate an immutable HEAD runtime snapshot with LKG fallback', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--store-dir', {'type': Path, 'help': 'Optional runtime snapshot store directory'}), ('--keep', {'type': int, 'default': 5, 'help': 'Number of recent releases to retain (default: 5)'})), _exec_runtime_promote)
 	register_command('runtime-status', 'Inspect active and LKG immutable runtime snapshots', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--store-dir', {'type': Path, 'help': 'Optional runtime snapshot store directory'})), _exec_runtime_status)
 	register_command('schema-help', 'Print compact JSON or text contract, enums, and minimal example for analysis, experiment, or review schemas', (('topic', {'choices': ('analysis', 'experiment', 'review'), 'help': 'Schema topic'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_schema_help, exit_code_fn=lambda res: 0 if res.get('valid') else 1, text_fn=_format_schema_help)
+	register_command('shadow-replay', 'Replay remaining downstream /upwork-init CLI and hook stages on a workspace-local shadow copy without mutating live files', (('project', {'type': Path, 'help': 'Source project directory to clone and replay'}), ('--conversation', {'required': True, 'help': 'Native conversation UUID to replay'}), ('--launcher', {'type': Path, 'help': 'Optional launcher project directory to clone for PreInvocation and Stop Gate handoff checks'}), ('--workspace', {'type': Path, 'help': 'Optional workspace root hosting ꘖ/data/scratch/shadow-replay (defaults to project)'}), ('--backend', {'type': Path, 'help': 'Optional explicit native backend directory override'}), ('--response-file', {'type': Path, 'help': 'Optional candidate response file overriding prepared journal reply'}), ('--keep', {'action': 'store_true', 'help': 'Retain workspace-local shadow copy after replay instead of cleaning it up'})), _exec_shadow_replay, exit_code_fn=lambda res: 0 if res.get('valid') else 2)
 	register_command('test-watchdog', 'Run a test command with stdin detached and a hard process-tree watchdog timeout', ((('--timeout', '--module-timeout'), {'dest': 'timeout', 'type': float, 'default': 300.0, 'help': 'Watchdog timeout in seconds (default: 300)'}), ('--cwd', {'type': Path, 'help': 'Optional working directory'}), ('--format', {'choices': ('passthrough', 'json'), 'default': 'passthrough', 'help': 'Output format (default: passthrough)'}), ('cmd', {'nargs': argparse.REMAINDER, 'help': 'Command and arguments to execute under watchdog'})), _exec_test_watchdog, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_test_watchdog)
 	register_command('wait-repo', 'Wait reactively in foreground until a Git repository lease is free and/or working tree is clean', (('repo', {'type': Path}), ('--clean', {'action': 'store_true', 'help': 'Wait until git status --porcelain is empty'}), ('--lease-free', {'action': 'store_true', 'help': 'Wait until FIFO landing lease is free (with PID liveness checks)'}), ('--timeout', {'type': float, 'default': 180.0, 'help': 'Maximum wait seconds before timing out (default: 180)'}), ('--poll', {'type': float, 'default': 1.0, 'help': 'Polling interval in seconds (default: 1.0)'})), _exec_wait_repo)
 	register_command('worktree-begin', 'Create an isolated linked git worktree and task branch', (('repo', {'type': Path}), ('--task', {'required': True}), ('--base', {'default': 'main'}), ('--worktrees-dir', {'type': Path})), _exec_worktree_begin)

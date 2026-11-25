@@ -252,6 +252,7 @@ Canonical parallel fail-fast runners: `python -m pytest <.agents>/tests -n auto 
 Inner TDD loop discipline (`EXEC-2`): on intermediate Red/Green debugging iterations, run a narrow single-case filter (`python -m pytest <file> -k <test_name> -x`, where a `-k` typo exits immediately with code `5` `no tests ran` instead of `unittest`'s silent `Ran 0 tests` / `OK`) rather than re-running unrelated slow files, and run the parallel full test suite once after the final edit.  
 Direct `unittest` fallback must also enable fail-fast and a synchronous startup window (`WaitMsBeforeAsync: 10000`, enforced by `EXEC-2-TEST-FAILFAST-GATE` in `PreToolUse`): `python -m unittest discover -f -s <.agents>/tests -p test_*.py -v`.  
 Subsystem references: [Worktrees, FIFO Landing Lease, and Parallel Testing](docs/worktrees-and-testing.md) and [Open-Closed Plugin Registries and Code Size Ratchet](docs/plugin-registries.md) (or run `harness.py cli-docs` for the generated command index).  
+`harness.py shadow-replay <project> --conversation <UUID> [--launcher <launcher>] [--workspace <root>] [--platform antigravity|codex] [--backend <dir>] [--response-file <md>] [--keep]` replays remaining downstream `/upwork-init` CLI and hook stages (`PreInvocation`, `turn-begin`, review authorization, `answer-check`, `answer-prepare`, `stage finalize`, and `Stop Gate`) on an isolated workspace-local copy under `<workspace>/ꘖ/data/scratch/shadow-replay/` (preserving live source files and suppressing live Antigravity title RPCs), cleans up the shadow copy automatically on exit, and reports `stages_verified` alongside `stages_not_run` (exit code `0` when valid, `2` on failure).  
 `UPWORK_CAPTURE_DIR` points tests to saved `*/source.json` fixtures; the test suite creates temporary directories and never modifies real projects or browser state.  
 During cleanup, delete only temporary files created by your own run; preserve material evidence and active reservations.  
 <!-- https://github.com/dmitry-ai/harness/issues/164 -->  
@@ -261,6 +262,7 @@ During cleanup, delete only temporary files created by your own run; preserve ma
 <!-- https://github.com/dmitry-ai/harness/issues/193 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/199 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/200 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/237 -->  
 
 # Material Lifecycle
 
