@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
+# https://github.com/dmitry-ai/harness/issues/234
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
 # https://github.com/dmitry-ai/harness/issues/232
 from __future__ import annotations
@@ -33,6 +36,8 @@ def _trim_narrowed_reservation(jdir: Path, value: dict, current: list) -> None:
 				if isinstance(value.get('reserved_journal_steps'), list):
 					value['reserved_journal_steps'] = [p[1] for p in pairs]
 def resolve_saved_turn_requests(root: Path, native: dict, turn: dict, value: dict, *, recovered: bool, same_req_fn, journal_dir_fn) -> list:
+	if turn.get('clarifications'):
+		value['clarifications'] = list(turn['clarifications'])
 	old, current = (value['requests'], turn['requests'])
 	prefix_ok = all((same_req_fn(o, c, root) for o, c in zip(old, current)))
 	if len(current) >= len(old) and prefix_ok:

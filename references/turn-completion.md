@@ -41,6 +41,7 @@ python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/
 ```
 
 For pre-finalize tracked workflow projects blocked by an unresolvable external or Harness defect, document the active blocker and next step in `ꘖ/data/continuation.md` and pass `--blocked-report` to `answer-check` and `answer-prepare`: this records the blocker report (including mandatory five-part `DOC-5` `/df-analysis` problem reports without client Upwork claims or five-stage headings) in `ꙮ` with `completion_kind: "blocked_report"`, preserves any deferred `issue_first`/`tdd`/`code_lifecycle` diagnostics in `blocked_hygiene_diagnostics`, and leaves `workflow.json` stages open until review authorization completes.  
+Do not park a blocked turn in `CASCADE_RUN_STATUS_RUNNING` or bypass `Stop Gate` via `ask_question` (reserve `ask_question` strictly for legitimate user product decisions); when completed `ask_question` tool outputs (`A1: ...`) occur within an Antigravity turn, `AntigravityTurnScanner` preserves them under `clarifications` in the turn state without altering native `USER_INPUT` segmentation.  
 
 `answer-check` performs a single read-only pre-flight pass over a candidate response (`DOC-4` line structure, `LINK-4` / `LINK-5` readable links and local file/anchor/`#L10-L20`/JSON-pointer targets, `DOC-2` equiprobability checks, `ResponseEvidenceAuditor` / `local_source_grounding_issues`, `compaction_check` / evicted citations, `EXEC-5` / `issue_first_check`, `EXEC-2` / `tdd_check`, and `EXEC-5` / `code_lifecycle_check`) across primary turns, Plan Mode, and child `A.A` / `A.F` subagents without writing to `ꙮ` or `ꘖ/data/turns` and without acquiring sequence locks, returning compact JSON diagnostics with exit code `0` (`valid: true`) or `2` (`valid: false`).  
 
@@ -132,3 +133,4 @@ Criteria: routine analysis and articles use the same FILE-3 contract; an incompl
 <!-- https://github.com/dmitry-ai/harness/issues/199 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/200 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/225 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/234 -->  

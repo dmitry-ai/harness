@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
+# https://github.com/dmitry-ai/harness/issues/234
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
@@ -249,14 +252,10 @@ class AntigravityTurnScanner:
 		start_row = self.row_by_step.get(start)
 		req_ts = start_row.get('created_at') if isinstance(start_row, dict) and isinstance(start_row.get('created_at'), str) and start_row['created_at'].strip() else None
 		resp_ts = last.get('created_at') if completed and isinstance(last.get('created_at'), str) and last['created_at'].strip() else None
-		raw_model = seg_models[-1] if seg_models else None
-		model_name, effort_val = (None, None)
-		if raw_model:
-			cfg = _configuration(raw_model)
-			model_name = cfg.get('model') or raw_model
-			effort_val = cfg.get('effort')
+		from .clarifications import build_segment_metadata
+		seg_meta = build_segment_metadata(segment, seg_models, _configuration)
 		self.completed_turn_cids.update(visited_cids - {self.conversation_id})
-		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'request_timestamp': req_ts, 'response_timestamp': resp_ts, 'model': model_name, 'effort': effort_val, **{k: v for k, v in seg.items() if k not in _SEGMENT_TRANSIENT_KEYS}}
+		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'request_timestamp': req_ts, 'response_timestamp': resp_ts, **seg_meta, **{k: v for k, v in seg.items() if k not in _SEGMENT_TRANSIENT_KEYS}}
 	def _load_context(self):
 		from .request_binding import completion_project_id
 		from ..journal import completed_request_group_index, resolve_journal_dir
@@ -284,15 +283,8 @@ class AntigravityTurnScanner:
 		self.journal_groups = completed_request_group_index(self.jdir)
 		self.boundaries = sorted((index for index, _ in self.inputs))
 	def _merge_pending(self, items):
-		merged = merge_turn_accumulators(items, allow_step_output_recovery=True)
-		req_ts = next((it.get('request_timestamp') for it in items if it.get('request_timestamp')), None)
-		if None is not req_ts:
-			merged['request_timestamp'] = req_ts
-		for key in ('model', 'effort'):
-			val = next((it.get(key) for it in reversed(items) if it.get(key)), None)
-			if None is not val:
-				merged[key] = val
-		return merged
+		from .clarifications import merge_segment_metadata
+		return merge_segment_metadata(merge_turn_accumulators(items, allow_step_output_recovery=True), items)
 	def _query_child_summary(self, child_cid, expected_parent):
 		child_agent_name, db_grandchildren, parent_mismatch = (None, [], False)
 		try:
