@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
 # https://github.com/dmitry-ai/harness/issues/186
@@ -172,7 +175,12 @@ def _set_local_hooks_path(main_repo: Path, hooks_dir: Path) -> None:
 def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints: tuple[str, ...]) -> tuple[bool, str]:
 	proc = subprocess.run([sys.executable, '-I', '-c', _VALIDATION_PROBE, str(staging), canonical_primary.as_posix(), json.dumps(list(entrypoints))], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60, check=False, creationflags=_NO_WINDOW)
 	detail = (proc.stderr or proc.stdout or '').strip()
-	return (0 == proc.returncode, detail)
+	if 0 != proc.returncode:
+		r = (False, detail)
+	else:
+		from .snapshot_canary import run_pre_tool_use_canary
+		r = run_pre_tool_use_canary(staging)
+	return r
 def check_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=None) -> dict:
 	prim_p = Path(primary).resolve()
 	store = runtime_store_dir(prim_p, store_dir=store_dir)

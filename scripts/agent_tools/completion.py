@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/239
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/238
@@ -545,9 +548,13 @@ def _issue_first_status(root, turn):
 def _tdd_status(root, turn):
 	from .tdd_gate import evaluate_tdd_events
 	return evaluate_tdd_events(list(turn.get('tdd_events') or []), require_final_full_green=True, project_root=root)
-VERIFIED_CHECK_KEYS = ('exec5_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
+def _hook_crash_status(root, native, turn, value, response):
+	from .hook_crash_audit import evaluate_hook_crash_check
+	return evaluate_hook_crash_check(root, native, turn, value, response)
+VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
 GATE_SPECS = (
 	('exec5', ('EXEC-5 violation in active turn (git read',), lambda root_p, turn, value, rc: bool(value.get('exec5_check', {}).get('verified'))),
+	('hook_crash', ('DOC-5 / EXEC-5 hook_crash_check',), lambda root_p, turn, value, rc: bool(value.get('hook_crash_check', {}).get('verified', True))),
 	('http_fetch', ('KB-3 / EXEC-1 violation',), lambda root_p, turn, value, rc: bool(value.get('http_fetch_check', {}).get('verified'))),
 	('compaction', (), lambda root_p, turn, value, rc: bool(value.get('compaction_check', {}).get('verified'))),
 	('evicted_citations', (), lambda root_p, turn, value, rc: bool(value.get('compaction_check', {}).get('verified')) and (not ((set(rc.get('cited_files') or ()) & set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())) if rc.get('cited_files') else set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())))),
@@ -904,7 +911,7 @@ def _persist_turn_recovery(root, conversation, suffix, build_receipt, *, platfor
 	if None is turn:
 		raise ValueError('No active primary native turn to recover')
 	key = _key(native, turn)
-	receipt, extra = build_receipt(root, key, turn)
+	receipt, extra = build_receipt(root, key, turn, native)
 	receipt_path = _folder(root) / f'{key}-{suffix}.json'
 	with locked(_turn_lock(root, key)):
 		replace_bytes(receipt_path, _json(receipt))
@@ -1359,12 +1366,8 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None, 
 		out['pre_checkpoint_records_preview'] = indexed_records[-5:]
 	return out
 def recover_turn_violation(root, conversation=None, *, reason=None, platform=None, backend=None):
-	def build_receipt(root_p, key, turn):
-		exec5_v = list(turn.get('exec5_violations') or [])
-		http_v = list(turn.get('http_fetch_violations') or [])
-		receipt = {'turn_key': key, 'recovered_at': _now(), 'reason': (reason or 'Retrospective turn violation acknowledged for journal completion').strip(), 'covered_exec5_steps': [item.get('step') for item in exec5_v if None is not item.get('step')], 'covered_http_fetch_steps': [item.get('step') for item in http_v if None is not item.get('step')], 'exec5_violations': exec5_v, 'http_fetch_violations': http_v}
-		return (receipt, lambda value: {'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check']})
-	return _persist_turn_recovery(root, conversation, 'violation-recovery', build_receipt, platform=platform, backend=backend)
+	from .hook_crash_audit import build_violation_recovery_receipt
+	return _persist_turn_recovery(root, conversation, 'violation-recovery', lambda rp, k, t, nat: build_violation_recovery_receipt(rp, k, t, reason, _now, native=nat), platform=platform, backend=backend)
 def similar_project_exempt(root, peer, reason, conversation=None, *, platform=None, backend=None):
 	from .issue_lifecycle import similar_project_repo_slugs
 	from .path_registry import canonicalize_root_dir, load_registry, project_paths
@@ -1984,7 +1987,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		from .blocked_report import evaluate_check_workflow_errors
 		wf_errs = evaluate_check_workflow_errors(root_p, pp, role, response, requests_list, turn_obj, value_obj, del_chk, blocked_report=bool(blocked_report), journal_directory=journal_directory, factual_kb_fn=_factual_kb_note_issues, is_deliv_fn=_is_client_deliverable_path, dir_fn=_directory)
 		from .gates import run_answer_gates
-		all_issues, checks = run_answer_gates({'role': role, 'blocked_report': bool(blocked_report), 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
+		all_issues, checks = run_answer_gates({'role': role, 'blocked_report': bool(blocked_report), 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'hook_crash_chk': _hook_crash_status(root_p, native, turn_obj, value_obj, response), 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
 		return {'valid': not all_issues, 'read_only': True, 'role': role, 'turn_key': turn_key, 'response_sha256': sha, 'issue_count': len(all_issues), 'issues': all_issues, 'checks': checks}
 # 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":

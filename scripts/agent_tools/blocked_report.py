@@ -1,4 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
 # https://github.com/dmitry-ai/harness/issues/232
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -113,6 +116,8 @@ def evaluate_check_workflow_errors(root_p: Path, pp, role: str, response: str, r
 			wf_errs.append(str(exc))
 	return wf_errs
 def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn) -> None:
+	from .hook_crash_audit import check_runner_hook_crashes
+	check_runner_hook_crashes(runner)
 	if_chk = issue_first_fn(runner.root, runner.turn)
 	lc_chk = lifecycle_fn(runner.root, runner.turn, runner.value, response=runner.response)
 	tdd_chk = tdd_fn(runner.root, runner.turn)

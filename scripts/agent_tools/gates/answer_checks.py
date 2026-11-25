@@ -1,3 +1,6 @@
+# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225
@@ -30,6 +33,9 @@ def _exec5_messages(ctx: dict) -> list[str]:
 		cmds = [cmd for item in chk.get('violations') or [] for cmd in item.get('commands', [])]
 		r = ['EXEC-5 violation in active turn (git read command without --no-optional-locks; run recover-turn-violation): ' + '; '.join(cmds)]
 	return r
+def _hook_crash_messages(ctx: dict) -> list[str]:
+	chk = ctx.get('hook_crash_chk') or {}
+	return [] if chk.get('verified', True) else [str(chk.get('detail') or 'DOC-5 / EXEC-5 hook_crash_check: unhandled JSON hook failure in active turn')]
 def _http_messages(ctx: dict) -> list[str]:
 	chk = ctx['http_chk']
 	if chk.get('verified', True):
@@ -51,6 +57,7 @@ ANSWER_GATES = (
 	('source_grounding', 'response.grounding', lambda c: list(c['source_errs'])),
 	('language_and_stub', 'response.language', lambda c: list(c['lang_errs'])),
 	('exec5', 'turn.exec5', _exec5_messages),
+	('hook_crash', 'turn.hook_crash', _hook_crash_messages),
 	('http_fetch', 'turn.http_fetch', _http_messages),
 	('compaction', 'turn.compaction', _compaction_messages),
 	('evicted_citations', 'turn.evicted_citations', _evicted_messages),
@@ -62,7 +69,7 @@ ANSWER_GATES = (
 	('workflow', 'turn.workflow', lambda c: list(c['wf_errs'])),
 )
 def _build_checks_map(ctx: dict) -> dict[str, bool]:
-	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
+	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
 def run_answer_gates(ctx: dict) -> tuple[list[dict], dict[str, bool]]:
 	issues: list[dict] = []
 	seen: set[str] = set()
