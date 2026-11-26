@@ -35,6 +35,17 @@ _PATTERN_RULES = (
 	('strip', re.compile('(\\(\\s*\\\\?|\\b(?:version|from|to|in|at|with|by|for)\\s*`?)$'), 'TRUNCATED_END', 'Text ends abruptly with an unfinished token or open delimiter (caused by PowerShell `0 -> NUL byte truncation)'),
 )
 _TECH_MARKERS = ('app/code/', 'vendor/', '::', '### Problem', '## 1. Root Cause', '## Summary')
+# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
+# 2026-11-26 "Add blocking architecture audit gates with module-hash caching": https://github.com/dmitry-ai/harness/issues/363
+# @used-by :meth:`IssueMarkdownLinter._check_body_policy()`
+# @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_issue_linter_enforces_architecture_pattern_specs_on_structural_parent_issues()`
+def _check_arch_policy(text: str, out: list[dict[str, Any]]) -> None:
+	from ..arch.spec import validate_arch_spec_markdown
+	from ..arch.triggers import classify_markdown_arch_trigger
+	if classify_markdown_arch_trigger(text, is_issue=True, is_parent_issue=True)['triggered']:
+		spec_res = validate_arch_spec_markdown(text, require_full_fields=True)
+		for err in spec_res['issues']:
+			out.append({'code': err['code'], 'message': err['message']})
 # 2026-11-24
 # "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
 # https://github.com/dmitry-ai/harness/issues/77
@@ -76,18 +87,9 @@ class IssueMarkdownLinter:
 			if 2 <= len(m_roots):
 				out.append({'code': 'BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', 'message': f'Issue body bundles multiple autonomous remediation subtasks ({", ".join(m_roots)}); document the original problem in a parent issue and create a separate child issue (--parent <N>) with its own commit for each autonomous subtask'})
 			# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
+			# 2026-11-26 "Add blocking architecture audit gates with module-hash caching": https://github.com/dmitry-ai/harness/issues/363
 			if None is parent_number:
-				IssueMarkdownLinter._check_arch_policy(text, out)
-	# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
-	# @used-by :meth:`IssueMarkdownLinter._check_body_policy()`
-	@staticmethod
-	def _check_arch_policy(text: str, out: list[dict[str, Any]]) -> None:
-		from ..arch.spec import validate_arch_spec_markdown
-		from ..arch.triggers import classify_markdown_arch_trigger
-		if classify_markdown_arch_trigger(text, is_issue=True, is_parent_issue=True)['triggered']:
-			spec_res = validate_arch_spec_markdown(text, require_full_fields=True)
-			for err in spec_res['issues']:
-				out.append({'code': err['code'], 'message': err['message']})
+				_check_arch_policy(text, out)
 	# @used-by :meth:`IssueMarkdownLinter.lint()`
 	@staticmethod
 	def _check_encoding_and_patterns(text: str, out: list[dict[str, Any]]) -> None:

@@ -68,25 +68,30 @@ class ArchSpecAndTriggersTests(unittest.TestCase):
 		new_small = 'def add(a, b):\n\treturn int(a) + int(b)\n'
 		tr_small = classify_code_change_trigger('scripts/agent_tools/helper.py', old_small, new_small)
 		self.assertFalse(tr_small['triggered'], tr_small)
-		new_cls = 'from .catalog import load_pattern_catalog\nclass PolicyEngine:\n\tdef run(self):\n\t\treturn load_pattern_catalog()\n'
+		new_cls = 'import agent_tools.runtime\nfrom .catalog import load_pattern_catalog\nclass PolicyEngine:\n\tasync def fetch(self):\n\t\treturn 1\n\tdef run(self):\n\t\treturn load_pattern_catalog()\n'
 		tr_cls = classify_code_change_trigger('scripts/agent_tools/policy.py', old_small, new_cls)
 		self.assertTrue(tr_cls['triggered'])
 		self.assertIn('PolicyEngine', tr_cls['added_classes'])
 		self.assertTrue(bool(tr_cls['added_cross_imports']))
+		self.assertIn('agent_tools.runtime', tr_cls['added_cross_imports'])
 		self.assertTrue(classify_code_change_trigger('scripts/agent_tools/gates/answer_checks.py', 'X = 1\n', 'X = 2\n')['triggered'])
 		self.assertTrue(classify_code_change_trigger('scripts/agent_tools/a.py', old_small, new_small, changed_prod_files=['scripts/agent_tools/a.py', 'scripts/agent_tools/b.py'])['triggered'])
 		self.assertFalse(classify_code_change_trigger('tests/test_sample.py', None, new_cls)['triggered'])
 		syms = extract_code_symbols(new_cls, rel_path='scripts/agent_tools/policy.py')
 		self.assertIn('PolicyEngine', syms['classes'])
+		self.assertIn('fetch', syms['functions'])
 		self.assertIn('run', syms['functions'])
 		self.assertIn('WidgetProxy', extract_code_symbols('export class WidgetProxy { render() { return 1; } }\n', rel_path='web/proxy.js')['classes'])
 	# @used-by :mod:`unittest`
 	def test_issue_linter_enforces_architecture_pattern_specs_on_structural_parent_issues(self) -> None:
-		from agent_tools.issues.linter import IssueMarkdownLinter
+		from agent_tools.issues.linter import IssueMarkdownLinter, _check_arch_policy
 		linter = IssueMarkdownLinter()
 		bad_issue = '## Problem\nNeed a new routing subsystem across multiple modules.\n\n## Architecture\nCreate `scripts/agent_tools/router.py` with class `TaskRouter` and hook into `gates/__init__.py` and `cli_registry.py`.\n'
 		bad_errs = linter.lint(bad_issue, is_title=False, check_structure_policy=True, parent_number=None)
 		self.assertIn('MISSING_ARCH_PATTERN_SPEC', {e['code'] for e in bad_errs}, bad_errs)
+		direct_out: list[dict] = []
+		_check_arch_policy(bad_issue, direct_out)
+		self.assertIn('MISSING_ARCH_PATTERN_SPEC', {e['code'] for e in direct_out})
 		good_issue = bad_issue + '\n- **Pattern:** Chain of Responsibility\n- **Category:** Behavioral\n- **Intent:** Route tool checks through ordered handlers.\n- **Participants:** `TaskRouter`, `gates/__init__.py`, `cli_registry.py`\n- **Collaboration:** Handlers inspect requests sequentially until one denies.\n- **Consequences:** Open-closed extensibility with slight dispatch indirection.\n'
 		good_codes = {e['code'] for e in linter.lint(good_issue, is_title=False, check_structure_policy=True, parent_number=None)}
 		self.assertNotIn('MISSING_ARCH_PATTERN_SPEC', good_codes)

@@ -146,7 +146,7 @@ def classify_code_change_trigger(rel_path: str, old_text: str | None, new_text: 
 		r = {'triggered': bool(reasons), 'reasons': reasons, 'added_classes': added_classes, 'added_cross_imports': added_cross, 'added_sloc': added_sloc, 'symbols': sorted(new_sym['classes'] | new_sym['functions'])}
 	return r
 # @used-by :func:`agent_tools.arch.evaluator.evaluate_response_architecture()`
-# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_arch_policy()`
+# @used-by :func:`agent_tools.issues.linter._check_arch_policy()`
 # @used-by :mod:`agent_tools.arch.triggers`
 # @used-by :mod:`agent_tools.arch`
 def classify_markdown_arch_trigger(text: str, *, is_issue: bool=False, is_parent_issue: bool=False) -> dict:

@@ -132,7 +132,7 @@ def extract_declared_participants(specs: list[dict]) -> list[str]:
 # @used-by :func:`agent_tools.arch.evaluator.evaluate_response_architecture()`
 # @used-by :func:`agent_tools.arch.review_store._build_package_payload()`
 # @used-by :func:`agent_tools.arch.review_store.inspect_arch_status()`
-# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_arch_policy()`
+# @used-by :func:`agent_tools.issues.linter._check_arch_policy()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_spec_validator_accepts_gof_ru_and_idiom_exception()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_spec_validator_rejects_unknown_mismatched_and_incomplete_specs()`
 # @used-by :mod:`agent_tools.arch.spec`
