@@ -38,10 +38,13 @@ def _seed_harness_git_repo(base: Path) -> Path:
 	(repo / 'runtime.json').write_text((HARNESS_ROOT / 'runtime.json').read_text(encoding='utf-8'), encoding='utf-8')
 	(repo / 'scripts/agent_tools/__init__.py').write_text('', encoding='utf-8')
 	(repo / 'scripts/agent_tools/gates/__init__.py').write_text('def discover_pre_tool_gates():\n\treturn []\n', encoding='utf-8')
-	for rel in ('scripts/agent_tools/path_cache.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/runtime_snapshot.py'):
+	# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+	for rel in ('scripts/Df/__init__.py', 'scripts/Df/Core/lib/fs/.py', 'scripts/Df/Core/lib/git.py', 'scripts/agent_tools/path_cache.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/runtime_snapshot.py'):
 		src = HARNESS_ROOT / rel
 		if src.is_file():
-			(repo / rel).write_text(src.read_text(encoding='utf-8'), encoding='utf-8')
+			dst = repo / rel
+			dst.parent.mkdir(parents=True, exist_ok=True)
+			dst.write_text(src.read_text(encoding='utf-8'), encoding='utf-8')
 	slop_src = (
 		'import json\nimport sys\n'
 		'def main():\n'

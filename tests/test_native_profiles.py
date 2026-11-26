@@ -950,7 +950,8 @@ class NativeProfileTests(TemporaryCase):
 		from agent_tools import upwork_project as up
 		v2_primary = self.root / 'v2_harness/\u2c0f/\u227b/\u2655/\u26ef'
 		shutil.copytree(self.primary, v2_primary)
-		(v2_primary / 'scripts/agent_tools').mkdir(parents=True, exist_ok=True)
+		# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+		shutil.copytree(runtime.PRIMARY / 'scripts/Df', v2_primary / 'scripts/Df', ignore=shutil.ignore_patterns('__pycache__'), dirs_exist_ok=True)
 		for rel in ('scripts/check_markdown_slop.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/source_grounding.py', 'paths.json'):
 			src = runtime.PRIMARY / rel
 			dst = v2_primary / rel
