@@ -13,6 +13,9 @@ import time
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206
 from .process_tree import POPEN_TREE_KWARGS, kill_process_tree
+# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
+from .pytest_worksteal_runner import resolve_runner_mode, run_pytest_for_suite
+from .worker_semaphore import worker_slot_budget
 # 2026-11-23
 # "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
 # https://github.com/dmitry-ai/harness/issues/160
@@ -50,7 +53,7 @@ def _resolve_tests_dir(raw_dir: Path | str | None) -> Path:
 	if sub_tests.is_dir() and (not any(base.glob('test_*.py'))):
 		base = sub_tests.resolve()
 	return base
-# @used-by :func:`run_test_suite()`
+# @used-by :func:`_run_unittest_suite()`
 def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_timeout: float, stop_event: threading.Event, active_lock: threading.Lock, active_procs: set[subprocess.Popen]) -> dict:
 	rel = mod_path.relative_to(top_dir).as_posix()
 	if stop_event.is_set():
@@ -96,7 +99,38 @@ def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_
 		status = 'timeout' if timed_out else 'cancelled' if cancelled else 'passed' if 0 == rc else 'failed'
 		r = {'module': rel, 'status': status, 'returncode': rc, 'elapsed': elapsed, 'tests': tests, 'skipped': skipped, 'output': output}
 	return r
+# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
 # @used-by :func:`run_test_suite()`
+def _run_unittest_suite(base: Path, ordered: list[Path], *, eff_workers: int, failfast: bool, module_timeout: float) -> list[dict]:
+	stop_event, active_lock, active_procs, results, aborted = (threading.Event(), threading.Lock(), set(), [], False)
+	executor = ThreadPoolExecutor(max_workers=eff_workers)
+	try:
+		pending = {executor.submit(_run_module_worker, mod, base, failfast=failfast, module_timeout=float(module_timeout), stop_event=stop_event, active_lock=active_lock, active_procs=active_procs): mod for mod in ordered}
+		while pending and (not aborted):
+			done, pending = wait(pending, return_when=FIRST_COMPLETED)
+			for fut in done:
+				res = fut.result()
+				results.append(res)
+				if failfast and res['status'] in ('failed', 'timeout'):
+					aborted = True
+					break
+	finally:
+		if aborted:
+			stop_event.set()
+			_terminate_active(active_lock, active_procs)
+		executor.shutdown(wait=True, cancel_futures=aborted)
+	return results
+# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
+# @used-by :func:`run_test_suite()`
+def _summarize_suite(base: Path, ordered: list[Path], results: list[dict], *, eff_workers: int, failfast: bool, module_timeout: float, elapsed: float) -> dict:
+	passed = sum((1 for x in results if 'passed' == x['status']))
+	failed = sum((1 for x in results if 'failed' == x['status']))
+	timed_out = sum((1 for x in results if 'timeout' == x['status']))
+	total_tests = sum((int(x['tests']) for x in results))
+	skipped_tests = sum((int(x['skipped']) for x in results))
+	ok = (0 == failed) and (0 == timed_out) and (passed == len(ordered)) and (0 < total_tests)
+	return {'cancelled_modules': len(ordered) - passed - failed - timed_out, 'elapsed': elapsed, 'exit_code': 0 if ok else 1, 'failed_modules': failed, 'failfast': bool(failfast), 'module_timeout': float(module_timeout), 'ok': ok, 'passed_modules': passed, 'results': results, 'runner': 'unittest', 'scheduled_order': [m.relative_to(base).as_posix() for m in ordered], 'skipped_tests': skipped_tests, 'tests_dir': base.as_posix(), 'timed_out_modules': timed_out, 'total_modules': len(ordered), 'total_tests': total_tests, 'workers': eff_workers}
+# @used-by :func:`_run_unittest_suite()`
 def _terminate_active(active_lock: threading.Lock, active_procs: set[subprocess.Popen]) -> None:
 	with active_lock:
 		procs = list(active_procs)
@@ -142,64 +176,20 @@ def format_text_report(report: dict) -> str:
 			parts.append(f"timeouts={report['timed_out_modules']}")
 		lines.append(f"FAILED ({', '.join(parts) or 'error'})")
 	return '\n'.join(lines) + '\n'
+# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
 # @used-by :func:`agent_tools.cli_registry._exec_run_tests()`
-def run_test_suite(tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, failfast: bool=True, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> dict:
+# @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_pytest_worksteal_runner_and_cli_runner_option()`
+def run_test_suite(tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, failfast: bool=True, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, runner: str='auto') -> dict:
 	base, ordered = discover_test_modules(tests_dir, pattern=pattern, modules=modules)
 	if not ordered:
 		raise ValueError(f'No test modules matched pattern {pattern!r} in {base}')
-	eff_workers = max(1, int(workers)) if None is not workers else _default_workers()
-	eff_workers = min(eff_workers, len(ordered))
-	stop_event = threading.Event()
-	active_lock = threading.Lock()
-	active_procs: set[subprocess.Popen] = set()
+	req_workers = min(max(1, int(workers)) if None is not workers else _default_workers(), len(ordered))
 	started = time.monotonic()
-	results: list[dict] = []
-	executor = ThreadPoolExecutor(max_workers=eff_workers)
-	aborted = False
-	try:
-		pending = {executor.submit(_run_module_worker, mod, base, failfast=failfast, module_timeout=float(module_timeout), stop_event=stop_event, active_lock=active_lock, active_procs=active_procs): mod for mod in ordered}
-		while pending:
-			done, pending = wait(pending, return_when=FIRST_COMPLETED)
-			for fut in done:
-				res = fut.result()
-				results.append(res)
-				if failfast and res['status'] in ('failed', 'timeout'):
-					aborted = True
-					stop_event.set()
-					_terminate_active(active_lock, active_procs)
-					break
-			if aborted:
-				break
-	finally:
-		if aborted:
-			stop_event.set()
-			_terminate_active(active_lock, active_procs)
-			executor.shutdown(wait=True, cancel_futures=True)
+	with worker_slot_budget(req_workers) as lease:
+		eff_workers = min(max(1, int(lease['granted'])), len(ordered))
+		if 'pytest' == resolve_runner_mode(runner):
+			r = run_pytest_for_suite(base, ordered, workers=eff_workers, failfast=failfast, module_timeout=module_timeout)
 		else:
-			executor.shutdown(wait=True, cancel_futures=False)
-	elapsed = round(time.monotonic() - started, 3)
-	passed = sum((1 for x in results if 'passed' == x['status']))
-	failed = sum((1 for x in results if 'failed' == x['status']))
-	timed_out = sum((1 for x in results if 'timeout' == x['status']))
-	cancelled = len(ordered) - passed - failed - timed_out
-	total_tests = sum((int(x['tests']) for x in results))
-	skipped_tests = sum((int(x['skipped']) for x in results))
-	ok = (0 == failed) and (0 == timed_out) and (passed == len(ordered)) and (0 < total_tests)
-	return {
-		'ok': ok,
-		'exit_code': 0 if ok else 1,
-		'tests_dir': base.as_posix(),
-		'workers': eff_workers,
-		'failfast': bool(failfast),
-		'module_timeout': float(module_timeout),
-		'scheduled_order': [m.relative_to(base).as_posix() for m in ordered],
-		'total_modules': len(ordered),
-		'passed_modules': passed,
-		'failed_modules': failed,
-		'timed_out_modules': timed_out,
-		'cancelled_modules': cancelled,
-		'total_tests': total_tests,
-		'skipped_tests': skipped_tests,
-		'elapsed': elapsed,
-		'results': results,
-	}
+			results = _run_unittest_suite(base, ordered, eff_workers=eff_workers, failfast=failfast, module_timeout=module_timeout)
+			r = _summarize_suite(base, ordered, results, eff_workers=eff_workers, failfast=failfast, module_timeout=module_timeout, elapsed=round(time.monotonic() - started, 3))
+	return r

@@ -9,6 +9,7 @@ import subprocess
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 POPEN_TREE_KWARGS: dict = {'creationflags': _NO_WINDOW} if 'nt' == os.name else {'start_new_session': True}
 # @used-by :func:`agent_tools.parallel_runner._kill_proc_tree()`
+# @used-by :func:`agent_tools.pytest_worksteal_runner.run_pytest_worksteal()`
 # @used-by :func:`agent_tools.suite_runner._kill_process_tree()`
 # @used-by :func:`agent_tools.watchdog_runner._kill_watchdog_tree()`
 def kill_process_tree(proc: subprocess.Popen, *, wait_timeout: float=5.0) -> None:

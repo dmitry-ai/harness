@@ -14,6 +14,7 @@ _REGISTRY: dict[str, dict] = {}
 # @used-by :func:`execute_registered()`
 # @used-by :func:`registered_commands()`
 # @used-by :func:`render_cli_index()`
+# @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_pytest_worksteal_runner_and_cli_runner_option()`
 def _ensure_builtin_plugins() -> None:
 	if not _REGISTRY:
 		_register_builtins()
@@ -94,10 +95,11 @@ def _exec_rules_audit(args) -> dict:
 	if args.semantic_brief:
 		rep['semantic_brief'] = build_semantic_audit_brief(prim, workspace=args.workspace)
 	return rep
+# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
 # @used-by :func:`_register_analysis_builtins()`
 def _exec_run_tests(args) -> dict:
 	from .suite_runner import run_test_suite
-	return run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
+	return run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module, runner=args.runner)
 # 2026-11-24
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
@@ -257,7 +259,8 @@ def _register_analysis_builtins() -> None:
 	register_command('repo-tag', 'Allocate or reuse a daily-counter Git tag on a commit and optionally build a verified GitHub blob URL', (('repo', {'type': Path}), ('--commit', {'default': 'HEAD', 'help': 'Commit-ish to tag (default: HEAD)'}), ('--date', {'help': 'Optional YYYY-MM-DD override'}), ('--push', {'action': 'store_true', 'help': 'Push created/existing tag to origin'}), ('--file', {'help': 'Optional repository-relative file path to build a verified GitHub URL'}), ('--lines', {'help': 'Optional line range anchor such as L19-L23'}), ('--anchor', {'help': 'Optional heading anchor for Markdown files'})), _exec_repo_tag)
 	register_command('repo-tag-retro', 'Preview or apply chronological daily-counter Git tags across historical issue-closing commits', (('repo', {'type': Path}), ('--apply', {'action': 'store_true', 'help': 'Create planned lightweight tags locally'}), ('--push', {'action': 'store_true', 'help': 'Push tags to origin after applying'}), ('--include-task-groups', {'action': 'store_true', 'help': 'Also tag final commits of reconstructed non-issue task groups'}), ('--extra-commit', {'action': 'append', 'default': [], 'help': 'Additional commit SHA to tag; repeatable'})), _exec_repo_tag_retro)
 	register_command('rules-audit', 'Run deterministic offline rules configuration smell audit and optional neutral A.A semantic brief', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--workspace', {'type': Path, 'help': 'Optional workspace root to inspect auto-loaded AGENTS.md/GEMINI.md'}), ('--semantic-brief', {'action': 'store_true', 'help': 'Generate a neutral read-only A.A semantic audit brief'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_rules_audit, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=_format_rules_audit)
-	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
+	# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
+	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--runner', {'choices': ('auto', 'unittest', 'pytest'), 'default': 'auto', 'help': 'Test runner backend (default: auto)'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
 	register_command('runtime-promote', 'Export, validate, and atomically activate an immutable HEAD runtime snapshot with LKG fallback', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--store-dir', {'type': Path, 'help': 'Optional runtime snapshot store directory'}), ('--keep', {'type': int, 'default': 5, 'help': 'Number of recent releases to retain (default: 5)'})), _exec_runtime_promote)
 # @used-by :func:`_ensure_builtin_plugins()`
 def _register_builtins() -> None:

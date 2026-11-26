@@ -685,9 +685,9 @@ class HTMLData(HTMLParser):
 		if not tags.intersection(('script', 'style', 'head')):
 			self.text.append(value)
 			self.position += len(value)
-	# @used-by :func:`agent_tools.parallel_runner.run_parallel_tests()`
+	# @used-by :func:`agent_tools.parallel_runner._run_unittest_modules()`
 	# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
-	# @used-by :func:`agent_tools.suite_runner.run_test_suite()`
+	# @used-by :func:`agent_tools.suite_runner._run_unittest_suite()`
 	# @used-by :func:`extract_bytes()`
 	# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 	def result(self):

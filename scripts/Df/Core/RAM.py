@@ -335,6 +335,7 @@ class RAM:
 	# @used-by :meth:`test_turn_completion.CompletionCase.test_sync_respects_the_custom_journal_of_an_unprepared_turn()`
 	# @used-by :meth:`test_turn_completion.CompletionCase.test_tracked_initial_analysis_still_requires_answer_bound_approval()`
 	# @used-by :meth:`test_turn_completion.CompletionCase.test_waiting_for_writer_lock_does_not_allow_a_stale_ready_result()`
+	# @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_worker_semaphore_bounds_total_slots_and_reclaims_dead_and_expired()`
 	# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
 	# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_cli_worktree_begin_status_cleanup()`
 	# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup()`
@@ -367,7 +368,7 @@ class RAM:
 	# @used-by :func:`agent_tools.runtime.using()`
 	# @used-by :func:`agent_tools.runtime_cache.skip_shell_violations()`
 	# @used-by :func:`agent_tools.source_grounding.read_only_grounding()`
-	# @used-by :func:`agent_tools.suite_runner.run_test_suite()`
+	# @used-by :func:`agent_tools.suite_runner._run_unittest_suite()`
 	# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
 	# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`

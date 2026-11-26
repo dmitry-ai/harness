@@ -1800,6 +1800,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_upwork_init_e2e`
 	# @used-by :mod:`test_verification_observability`
 	# @used-by :mod:`test_watchdog_and_timeout_gate`
+	# @used-by :mod:`test_worker_semaphore_and_xdist`
 	# @used-by :mod:`test_worktree_cleanup_guard`
 	# @used-by :mod:`test_worktree_comment_exemption`
 	# @used-by :mod:`test_worktree_flow`
@@ -1883,6 +1884,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_workflow._folder()`
 	# @used-by :func:`agent_tools.upwork_project.configure_project()`
+	# @used-by :func:`agent_tools.worker_semaphore.default_slots_dir()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 	# @used-by :func:`check_pre_invocation._turns_dir()`
 	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
@@ -2353,6 +2355,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.upwork_project.default_context_config()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`agent_tools.worker_semaphore.default_slots_dir()`
 # @used-by :func:`agent_tools.workflow.evidence_paths()`
 # @used-by :func:`agent_tools.workflow.kb_paths()`
 # @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`

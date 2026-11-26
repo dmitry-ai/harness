@@ -226,6 +226,7 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler.run()`
@@ -351,6 +352,7 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_issue_evidence()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_repo_transfer_evidence()`
