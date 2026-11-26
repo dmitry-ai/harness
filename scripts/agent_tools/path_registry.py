@@ -1682,6 +1682,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_core_text_misc`
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_qa`
+	# @used-by :mod:`test_df_upstream_fixes`
 	# @used-by :mod:`test_diff_coverage_gate`
 	# @used-by :mod:`test_dirty_diff_issue_scope`
 	# @used-by :mod:`test_doc5_context_trigger`

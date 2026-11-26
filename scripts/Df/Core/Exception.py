@@ -16,6 +16,7 @@ class Exception(builtins.Exception):
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_exception_and_json_class()`
 	# @used-by :meth:`test_df_qa.TestDfQa.test_diagnostics_and_exceptions()`
 	# @used-by :meth:`test_df_qa.TestDfQa.test_trace_and_failure()`
+	# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_326_exception_stack_levels()`
 	# @see :meth:`builtins.Exception.__init__()`
 	@override
 	def __init__(self, *a: Any) -> None:
@@ -52,7 +53,9 @@ class Exception(builtins.Exception):
 		if None is not a1:
 			if isinstance(a1, BaseException):
 				r = a1
-			elif int is type(r):
+			# 2026-11-26 "Fix Df\Core\Exception::__construct() checking $prev instead of $a1 for stack levels": https://github.com/dmitry-ai/harness/issues/326
+			# Upstream defect: https://github.com/mage2pro/core/issues/469
+			elif int is type(a1):
 				self.__stackLevelsCountToSkip = a1
 		return r
 	# Provide subclasses with a typed accessor for the wrapped previous exception.
@@ -71,6 +74,7 @@ class Exception(builtins.Exception):
 	# Return the count of trailing stack frames to omit from diagnostic reports.
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/Exception.php#L87-L90
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_exception_and_json_class()`
+	# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_326_exception_stack_levels()`
 	def getStackLevelsCountToSkip(self) -> int:
 		return self.__stackLevelsCountToSkip
 	# 2016-07-31
