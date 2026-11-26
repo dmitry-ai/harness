@@ -103,9 +103,11 @@ def _extract_recommended_commands(response: str) -> list[tuple[str, str, str | N
 				m_dom = _DOMAIN_ARG_RE.search(rest)
 				found.append((subcmd, snippet[:120], m_dom.group(1).lower() if None is not m_dom else None))
 	return found
+# 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
 # @used-by :func:`agent_tools.response_grounding.ResponseEvidenceAuditor.validate()`
 def response_turn_gate_issues(root: Path, response: str, *, requests: list | tuple=(), turn: dict[str, Any] | None=None, native: dict[str, Any] | None=None) -> list[str]:
-	return [*analysis_gate_issues(response, requests=requests), *unverified_cli_command_issues(response, turn=turn, native=native)]
+	turn_ctx = {'root': root, 'turn': turn, 'native': native}
+	return [*analysis_gate_issues(response, requests=requests, turn_context=turn_ctx), *unverified_cli_command_issues(response, turn=turn, native=native)]
 # @used-by :func:`response_turn_gate_issues()`
 def unverified_cli_command_issues(response: str, *, turn: dict[str, Any] | None=None, native: dict[str, Any] | None=None) -> list[str]:
 	errs: list[str] = []

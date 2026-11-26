@@ -91,20 +91,10 @@ def _check_problem_sections(sections: dict[int, tuple[str, str]]) -> list[str]:
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
-def _detect_mode(text: str, blocks: list[dict], requests: list | tuple, mode: str) -> str:
-	if mode in ('general', 'problem'):
-		r = mode
-	else:
-		has_s0_meta = any((0 in b['sections'] and bool(_PROB_HEAD_RE.search(b['sections'][0][0])) for b in blocks))
-		has_s1_prob = any((1 in b['sections'] and bool(_PROB_HEAD_RE.search(b['sections'][1][0])) and bool({2, 3, 4} & set(b['sections'])) for b in blocks))
-		if has_s0_meta or has_s1_prob:
-			r = 'problem'
-		elif _requests_invoke_df_analysis(requests):
-			r = 'problem' if any((0 in b['sections'] for b in blocks)) else 'general'
-		else:
-			hyps, mets = _parse_explicit_items(text)
-			r = 'general' if hyps or mets else 'none'
-	return r
+# 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
+def _detect_mode(text: str, blocks: list[dict], requests: list | tuple, mode: str, *, turn_context: dict | None=None) -> str:
+	from .doc5_context import detect_df_analysis_mode
+	return detect_df_analysis_mode(text, blocks, requests, mode, turn_context=turn_context, prob_head_re=_PROB_HEAD_RE, req_cmd_fn=_requests_invoke_df_analysis, explicit_fn=_parse_explicit_items)
 def _extract_top_sections(text: str) -> dict[int, tuple[str, str]]:
 	sections: dict[int, tuple[str, list[str]]] = {}
 	cur: int | None = None
@@ -212,8 +202,9 @@ def _validate_metadata_obj(obj: object) -> list[str]:
 			if req_key not in obj:
 				errs.append(f'DOC-5 / df-analysis: Section # 0 metadata is missing required "{req_key}" key')
 	return errs
-def analysis_gate_issues(response: str, *, requests: list | tuple=()) -> list[str]:
-	return [*markdown_table_issues(response), *validate_df_analysis(response, requests=requests, mode='auto')]
+# 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
+def analysis_gate_issues(response: str, *, requests: list | tuple=(), turn_context: dict | None=None) -> list[str]:
+	return [*markdown_table_issues(response), *validate_df_analysis(response, requests=requests, mode='auto', turn_context=turn_context)]
 def external_anchor_issues(label: str, href: str, norm_url: str, observed_anchors: dict[str, set[str]], response: str) -> list[str]:
 	errs: list[str] = []
 	frag = urlsplit(href).fragment
@@ -247,7 +238,8 @@ def markdown_table_issues(text: str) -> list[str]:
 # 2026-11-24
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
-def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str='auto') -> list[str]:
+# 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
+def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str='auto', turn_context: dict | None=None) -> list[str]:
 	from .metadata import strip_leading_metadata_header
 	# 2026-11-25
 	# "Require separate companion /df-analysis tracks for every complex problem analysis":
@@ -262,7 +254,7 @@ def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str=
 	# "Require separate companion /df-analysis tracks for every complex problem analysis":
 	# https://github.com/dmitry-ai/harness/issues/249
 	blocks = extract_problem_blocks(body, _mask_fenced_lines, _TOP_HEAD_RE)
-	eff_mode = _detect_mode(body, blocks, requests, mode)
+	eff_mode = _detect_mode(body, blocks, requests, mode, turn_context=turn_context)
 	if 'problem' == eff_mode:
 		r = _check_problem_blocks(blocks)
 	elif 'general' == eff_mode:
