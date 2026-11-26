@@ -85,6 +85,7 @@ def _update_fence(stripped: str, in_fence: bool, marker: str) -> tuple[bool, str
 	return r
 # @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
 # @used-by :func:`agent_tools.issue_first_inherit._iter_candidate_issue_nums()`
+# @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
 # @used-by :func:`agent_tools.turn_routing._collect_turn_candidates()`
 # @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_incremental_disk_cache_appends_and_invalidation()`

@@ -3044,6 +3044,7 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 # 2026-11-24
 # "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 # https://github.com/dmitry-ai/harness/issues/213
+# 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
 # @used-by :func:`agent_tools.shadow_replay._run_answer_prepare()`
 # @used-by :func:`execute()`
 # @used-by :func:`test_contract_invariants._run_parity_defect_case()`
@@ -3064,6 +3065,7 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_idle_prepared_turn_transitions_to_delivered_via_foreign_sync_and_all_open_without_mutating_journal()`
 # @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_antigravity_prepare_prepends_metadata_and_stop_gate_and_sync_accept_clean_chat_reply()`
 # @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_codex_prepare_reprepare_and_unprepared_recovery_prepend_metadata()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_targeted_wait_bypasses_foreign_lease_on_readonly_and_noncode_turns()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 # @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_answer_prepare_wait_timeout_retries_transient_lock_and_recovers()`
 # @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green()`
@@ -3098,7 +3100,7 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 # @used-by :meth:`test_verification_observability.VerificationObservabilityTests.test_prepare_enforces_verification_observability_check()`
 def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, wait_timeout: float=0.0, wait_poll: float=1.0, blocked_report: bool=False):
 	from .repo_wait import run_with_transient_wait
-	return run_with_transient_wait(Path(root), lambda: _prepare_once(root, response, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory, blocked_report=blocked_report), wait_timeout=wait_timeout, poll_interval=wait_poll)
+	return run_with_transient_wait(Path(root), lambda: _prepare_once(root, response, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory, blocked_report=blocked_report), wait_timeout=wait_timeout, poll_interval=wait_poll, conversation=conversation, platform=platform, backend=backend)
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16

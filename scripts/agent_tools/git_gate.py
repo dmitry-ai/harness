@@ -46,6 +46,7 @@ class GitRepoGate:
 	# @used-by :func:`agent_tools.polyglot_land._branch_touched_files()`
 	# @used-by :func:`agent_tools.polyglot_land.dirty_blocking_main_files()`
 	# @used-by :func:`agent_tools.repo_wait._dirty_files()`
+	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait.wait_for_repo()`
 	# @used-by :func:`agent_tools.worktree_flow._current_branch()`
 	# @used-by :func:`agent_tools.worktree_flow._enrich_worktree_entry()`
@@ -57,6 +58,8 @@ class GitRepoGate:
 	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_status()`
+	# @used-by :func:`agent_tools.worktree_land_flow._branch_sha()`
+	# @used-by :func:`agent_tools.worktree_land_flow.execute_optimistic_worktree_land()`
 	# @used-by :func:`check_commit()`
 	# @used-by :func:`commit()`
 	# @used-by :func:`commit_in_worktree()`
@@ -212,6 +215,8 @@ class GitRepoGate:
 	# @used-by :func:`agent_tools.worktree_flow._land_under_lease()`
 	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`
+	# @used-by :func:`agent_tools.worktree_land_flow._branch_sha()`
+	# @used-by :func:`agent_tools.worktree_land_flow.execute_optimistic_worktree_land()`
 	# @used-by :func:`git()`
 	# @used-by :meth:`GitRepoGate._staged_paths()`
 	# @used-by :meth:`GitRepoGate.assert_toplevel()`
@@ -270,6 +275,7 @@ class GitRepoGate:
 	# @used-by :func:`_main_repo_for_worktree()`
 	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
 	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
+	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait.wait_for_repo()`
 	# @used-by :func:`agent_tools.worktree_flow.git_config_file()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`

@@ -118,6 +118,8 @@ class RAM:
 	# @used-by :func:`agent_tools.registration._read()`
 	# @used-by :func:`agent_tools.repo_link_gate._enclosing_github_repo()`
 	# @used-by :func:`agent_tools.repo_tags._find_git_root()`
+	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
+	# @used-by :func:`agent_tools.repo_wait._normalize_repo_list()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 	# @used-by :func:`agent_tools.repo_wait.wait_for_repo()`
 	# @used-by :func:`agent_tools.research._write_cached_extraction()`

@@ -1735,6 +1735,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_multiturn_handoff_stop_guard_and_schedule_m1`
 	# @used-by :mod:`test_native_review_binding_m4`
 	# @used-by :mod:`test_observability_diagnostics`
+	# @used-by :mod:`test_optimistic_worktree_land`
 	# @used-by :mod:`test_parallel_runner`
 	# @used-by :mod:`test_parallel_test_runner`
 	# @used-by :mod:`test_path_cache_and_diff_cov_perf`
@@ -2010,6 +2011,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.project_rename_state.rewrite_launcher_handoffs()`
 	# @used-by :func:`agent_tools.project_rename_state.rewrite_project_internal_state()`
 	# @used-by :func:`agent_tools.project_rename_verify._launcher_stale_files()`
+	# @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
 	# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 	# @used-by :func:`agent_tools.shadow_replay._run_pre_invocation()`
 	# @used-by :func:`agent_tools.tdd.mechanical._candidate_recipe_dirs()`
@@ -2321,6 +2323,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.registration._expected()`
 # @used-by :func:`agent_tools.registration._read()`
 # @used-by :func:`agent_tools.registration.save_registration()`
+# @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.compute_site_summary()`

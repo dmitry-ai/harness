@@ -151,6 +151,7 @@ def _interpret_health_proc(proc: subprocess.CompletedProcess, eff: dict[str, Any
 		r = {'ok': False, 'skipped': False, 'state': state or 'error', 'exit_code': proc.returncode, 'error': detail[:600]}
 	return r
 # @used-by :func:`agent_tools.worktree_flow._land_under_lease()`
+# @used-by :func:`agent_tools.worktree_land_flow._phase2_commit_under_lease()`
 # @used-by :mod:`agent_tools.polyglot_land`
 def dirty_blocking_main_files(main_repo: Path, branch: str) -> list[str]:
 	from .addon_observability import is_live_runtime_data_file

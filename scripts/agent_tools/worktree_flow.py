@@ -6,7 +6,6 @@ import shutil
 import subprocess
 from .git_gate import GitRepoGate, _NO_WINDOW
 from .git_ignore import ensure_worktree_dir_ignored, prepare_worktrees_base_dir
-from .landing_lease import acquire_lease, release_lease
 from .path_registry import project_paths
 # 2026-11-23
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
@@ -51,7 +50,9 @@ def _enrich_worktree_entry(main_repo: Path, main_posix: str, base_ref: str, entr
 # @used-by :func:`_push_and_finish_land()`
 # @used-by :func:`_rebase_and_test()`
 # @used-by :func:`_run_land_checks()`
-# @used-by :func:`worktree_land()`
+# @used-by :func:`agent_tools.worktree_land_flow._fifo_fallback_land()`
+# @used-by :func:`agent_tools.worktree_land_flow._phase2_commit_under_lease()`
+# @used-by :func:`agent_tools.worktree_land_flow.execute_optimistic_worktree_land()`
 def _fail_land(main_repo: Path, wt_path: Path, branch: str, stage: str, error: str, *, test_runs: int=0, test_result: dict | None=None) -> dict:
 	return {'valid': False, 'landed': False, 'stage': stage, 'error': error, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'test_runs': test_runs, 'test_result': test_result}
 # @used-by :func:`_merge_and_finalize()`
@@ -72,6 +73,7 @@ def _maybe_promote_snapshot(main_repo: Path, *, promote_snapshot: bool | None, s
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
 # @used-by :func:`_land_under_lease()`
+# @used-by :func:`agent_tools.worktree_land_flow._phase2_commit_under_lease()`
 def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool=True, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	ff = _git_exec(main_repo, 'merge', '--ff-only', branch)
 	if 0 != ff.returncode:
@@ -158,6 +160,7 @@ def _run_land_checks(main_repo: Path, wt_path: Path, branch: str, target_branch:
 			err = _fail_land(main_repo, wt_path, branch, 'diff_coverage', cov_msg, test_runs=test_runs, test_result=test_res)
 	return (err, test_runs, test_res)
 # @used-by :func:`_land_under_lease()`
+# @used-by :func:`agent_tools.worktree_land_flow._run_optimistic_loop()`
 def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
 	from .python_integrity import verify_worktree_python_changes
 	reb = _git_exec(wt_path, 'rebase', target_branch)
@@ -251,6 +254,7 @@ def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path
 			cands.append(anc)
 			break
 	return cands
+# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 # @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_touched_repos()`
 def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
@@ -271,6 +275,11 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_optimistic_phase1_runs_tests_without_holding_fifo_lease()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_repeated_main_collisions_fall_back_to_fifo_lease()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_targeted_wait_blocks_when_turn_touches_leased_repo_or_worktree()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
@@ -319,6 +328,8 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_targeted_wait_blocks_when_turn_touches_leased_repo_or_worktree()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
@@ -347,10 +358,11 @@ def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False)
 	return {'valid': outcome['ok'], 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'branch_deleted': branch_deleted, 'error': outcome['error'], 'removal_errors': outcome['removal_errors'], 'locking_processes': outcome['locking_processes']}
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
-# @used-by :func:`worktree_land()`
-def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
+# 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
+# @used-by :func:`agent_tools.worktree_land_flow._fifo_fallback_land()`
+def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False, check_dirty_worktree: bool=True) -> dict:
 	from .polyglot_land import dirty_blocking_main_files
-	if GitRepoGate(wt_path).git('status', '--porcelain').strip():
+	if check_dirty_worktree and GitRepoGate(wt_path).git('status', '--porcelain').strip():
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_worktree', 'Worktree has uncommitted changes')
 	elif dirty_blocking_main_files(main_repo, branch):
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_main', 'Main checkout has uncommitted changes')
@@ -359,9 +371,14 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, run_tests=run_tests, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
+# 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
 # @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_optimistic_phase1_runs_tests_without_holding_fifo_lease()`
+# @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_repeated_main_collisions_fall_back_to_fifo_lease()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
@@ -376,7 +393,8 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
-def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
+def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False, max_optimistic_retries: int=2) -> dict:
+	from .worktree_land_flow import execute_optimistic_worktree_land
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):
 		raise ValueError(f'Not a linked git worktree: {wt_path}')
@@ -384,15 +402,7 @@ def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests:
 	branch = _current_branch(wt_path)
 	if None is leases_dir:
 		ensure_worktree_dir_ignored(project_paths(main_repo).data_dir / 'repo-leases')
-	lease = acquire_lease(main_repo, owner=owner, wait=True, timeout=wait_timeout, leases_dir=leases_dir)
-	if not lease['acquired']:
-		r = _fail_land(main_repo, wt_path, branch, 'lease_timeout', 'Timed out waiting for FIFO landing lease')
-	else:
-		try:
-			r = _land_under_lease(main_repo, wt_path, branch, target_branch=target_branch, run_tests=run_tests, push=push, remove=remove, workers=workers, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
-		finally:
-			release_lease(main_repo, owner=lease['owner'], leases_dir=leases_dir)
-	return r
+	return execute_optimistic_worktree_land(main_repo, wt_path, branch, target_branch=target_branch, run_tests=run_tests, push=push, remove=remove, owner=owner, wait_timeout=wait_timeout, leases_dir=leases_dir, workers=workers, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag, max_optimistic_retries=max_optimistic_retries)
 # @used-by :func:`agent_tools.cli_registry._exec_worktree_status()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
