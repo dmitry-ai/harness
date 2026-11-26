@@ -115,6 +115,7 @@ def _build_checks_map(ctx: dict) -> dict[str, bool]:
 # https://github.com/dmitry-ai/harness/issues/167
 # @used-by :func:`agent_tools.completion.check_answer()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_answer_gates_collect_issues_and_checks_map()`
+# @used-by :meth:`test_open_child_deferral_gate.OpenChildDeferralGateTests.test_open_deferred_child_blocks_lifecycle_and_answer_gates()`
 # @used-by :mod:`agent_tools.gates`
 def run_answer_gates(ctx: dict) -> tuple[list[dict], dict[str, bool]]:
 	issues: list[dict] = []

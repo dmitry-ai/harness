@@ -12,6 +12,8 @@ from ..worktree_flow import resolve_touched_repo_file
 from .git_read_cache import RepoReadCache
 from .linter import IssueMarkdownLinter
 from .parity import check_similar_project_parity, extract_implemented_m_roots, filter_turn_state_items, merge_turn_issue_item, verify_multi_subtask_counts
+# 2026-11-26 "Block active-turn open deferred child issues in lifecycle auditor": https://github.com/dmitry-ai/harness/issues/367
+from .scope_completeness import flag_parent_and_deferred_children
 # 2026-11-24
 # "Isolate per-conversation github_issues recording and turn-state filtering":
 # https://github.com/dmitry-ai/harness/issues/195
@@ -200,15 +202,10 @@ class TurnIssueLifecycleAuditor:
 			raw_p = iss_obj.get('parent_number')
 			pnum = raw_p if isinstance(raw_p, int) and (not isinstance(raw_p, bool)) else self.linter.extract_parent_number(b_txt, slug)
 		return pnum
+	# 2026-11-26 "Block active-turn open deferred child issues in lifecycle auditor": https://github.com/dmitry-ai/harness/issues/367
 	# @used-by :meth:`TurnIssueLifecycleAuditor._check_multi_subtask_decomposition()`
 	def _flag_unclosed_completed_parents(self, code_repo: Path, slug: str, parent_nums: set[int]) -> None:
-		for pnum in sorted(parent_nums):
-			children = self.workspace.find_tracked_child_issues(slug, pnum, project_root=self.root, code_repo=code_repo)
-			if children and all(('closed' == c.get('state') for c in children)):
-				p_url = f'https://github.com/{slug}/issues/{pnum}'
-				p_state = self.workspace.evidence_issue_state(self.root, slug, pnum, self.candidate_repos) or (self.turn_issues.get(p_url) or {}).get('state') or 'open'
-				if 'closed' != p_state:
-					self.violations.append(f'EXEC-5 violation: parent issue {p_url} in {slug} remains {p_state} after all tracked child subtask issues are closed; close it via df_github_issue.py close')
+		flag_parent_and_deferred_children(self, code_repo, slug, parent_nums)
 	# @used-by :meth:`TurnIssueLifecycleAuditor._check_multi_subtask_decomposition()`
 	def _flag_unparented_multi_commits(self, slug: str, committed_urls: set[str]) -> None:
 		for c_url in sorted(committed_urls):
@@ -275,6 +272,7 @@ class TurnIssueLifecycleAuditor:
 	# @used-by :meth:`TurnIssueLifecycleAuditor._check_multi_subtask_decomposition()`
 	def _parent_linked_committed_urls(self, slug: str, req_urls: list[str], committed_urls: set[str]) -> list[str]:
 		return [c_url for c_url in req_urls if c_url in committed_urls and (parsed := parse_issue_url(c_url)) and parsed[0].lower() == slug.lower() and (None is not self._resolve_parent_number(parsed[0], parsed[1]))]
+	# @used-by :func:`agent_tools.issues.scope_completeness.find_open_deferred_children()`
 	# @used-by :meth:`TurnIssueLifecycleAuditor._committed_parent_numbers()`
 	# @used-by :meth:`TurnIssueLifecycleAuditor._flag_unparented_multi_commits()`
 	# @used-by :meth:`TurnIssueLifecycleAuditor._has_workspace_parent_issue()`

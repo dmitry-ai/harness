@@ -1735,6 +1735,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_multiturn_handoff_stop_guard_and_schedule_m1`
 	# @used-by :mod:`test_native_review_binding_m4`
 	# @used-by :mod:`test_observability_diagnostics`
+	# @used-by :mod:`test_open_child_deferral_gate`
 	# @used-by :mod:`test_optimistic_worktree_land`
 	# @used-by :mod:`test_parallel_runner`
 	# @used-by :mod:`test_parallel_test_runner`

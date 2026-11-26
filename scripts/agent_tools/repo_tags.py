@@ -159,6 +159,7 @@ def commit_date_day(repo: Path, commit: str='HEAD') -> str:
 # @used-by :func:`test_issue_close_acceptance._commit_and_tag()`
 # @used-by :func:`test_issue_first_completion._init_github_project()`
 # @used-by :func:`test_issue_preflight_and_batch._commit_and_tag()`
+# @used-by :func:`test_open_child_deferral_gate._init_repo()`
 # @used-by :func:`test_repo_link_gate._init_tagged_repo()`
 # @used-by :func:`test_tdd_completion._build_template_project()`
 # @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_close_requires_committed_issue_url_in_local_code_repo()`

@@ -140,6 +140,8 @@ class IssueEvidenceWorkspace:
 			ev_files.append(hm)
 		return ev_files
 	# @used-by :func:`agent_tools.issue_lifecycle.evidence_issue_state()`
+	# @used-by :func:`agent_tools.issues.scope_completeness._flag_unclosed_parent()`
+	# @used-by :func:`agent_tools.issues.scope_completeness.find_open_deferred_children()`
 	@staticmethod
 	def evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repos=()) -> str | None:
 		r = None
@@ -179,6 +181,7 @@ class IssueEvidenceWorkspace:
 	def find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, *, repo_root: str | Path | None=None) -> Path | None:
 		return find_local_code_repo(repo, project_root=project_root, source_files=source_files, repo_root=repo_root)
 	# @used-by :func:`agent_tools.github_issue.find_tracked_child_issues()`
+	# @used-by :func:`agent_tools.issues.scope_completeness._flag_unclosed_parent()`
 	# @used-by :meth:`test_repo_locator_perf.RepoLocatorPerformanceTests.test_find_tracked_child_issues_passes_code_repo_without_rescanning()`
 	def find_tracked_child_issues(self, repo: str, parent_number: int, *, project_root: str | Path | None=None, code_repo: Path | None=None) -> list[dict[str, Any]]:
 		pnum = int(parent_number)

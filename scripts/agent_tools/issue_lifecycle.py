@@ -36,6 +36,8 @@ def _collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_post_checkpoint_evicted_citation_gate_and_issue48_defect_filing_gate()`
 # @used-by :meth:`test_issue_conversation_isolation.IssueConversationIsolationTests.test_analytical_turn_ignores_foreign_and_legacy_broadcast_issues_with_dirty_repo()`
 # @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
+# @used-by :meth:`test_open_child_deferral_gate.OpenChildDeferralGateTests.test_open_deferred_child_blocks_lifecycle_and_answer_gates()`
+# @used-by :meth:`test_open_child_deferral_gate.OpenChildDeferralGateTests.test_unparented_open_bug_and_prior_turn_open_child_remain_allowed()`
 # @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_issue_lifecycle_auditor_requires_pushed_tag_on_closing_commit()`
 # @used-by :meth:`test_turn_completion.IssueLifecycleTests.test_mixed_multi_commit_closed_issues_and_open_backlog_issue()`
 # @used-by :meth:`test_turn_completion.IssueLifecycleTests.test_multi_subtask_parent_and_child_commits_enforced_in_lifecycle()`
