@@ -47,6 +47,8 @@ _TEST_FILENAME_RE = re.compile(r'^(?:test[_.-].+|.+[_.-](?:tests?|specs?)|confte
 _TEST_HELPER_FILENAMES = frozenset({
 	'conftest.py', 'helpers.py', 'test_helpers.py', 'testutils.py', 'test_utils.py', 'fixtures.py',
 	'testworkspace.cs', 'windowlifecyclehost.cs', 'runhidden.vbs',
+	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+	'assertions.java', 'assertions.hpp',
 })
 def _count_dir_tests(dp: Path, filenames: list[str], cap: int) -> int:
 	r = 0

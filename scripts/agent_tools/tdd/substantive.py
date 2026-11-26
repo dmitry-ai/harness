@@ -18,6 +18,9 @@ _ASSERTION_LINE_RE = re.compile(
 	r'|\bassert\.(?:strictEqual|deepStrictEqual|deepEqual|equal|ok|throws|rejects|match|fail)\s*\('
 	r'|\bAssert\.\w+\s*\('
 	r'|\bAssert::\w+\s*\('
+	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+	r'|\b[A-Za-z_]\w*\.assert(?:Equals|True|False|Null|NotNull|Throws|Same|NotSame|ArrayEquals)\s*\('
+	r'|\bthrow\s+new\s+AssertionError\b'
 	r'|\$this->assert\w+\s*\('
 	r'|\|\s*Should\s+-'
 	r'|\bAssert-\w+\b'

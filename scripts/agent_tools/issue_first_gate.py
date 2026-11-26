@@ -77,20 +77,13 @@ def resolve_issue_first_target(path: str | Path, *, content: str | None = None) 
 	}
 
 
+# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
 def is_df_github_issue_command(cmd: str) -> bool:
-	if not isinstance(cmd, str) or 'df_github_issue.py' not in cmd.lower():
-		return False
-	for seg in _split_shell_segments(cmd):
-		s = seg.strip()
-		if not s:
-			continue
-		if re.search(r'(?i)\bpython(?:3(?:\.\d+)?)?(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-c\b', s):
-			continue
-		if _DF_ISSUE_CMD_RE.match(s):
-			return True
-	return False
+	from .issue_first_bg import is_df_issue_command_text
+	return is_df_issue_command_text(cmd, _DF_ISSUE_CMD_RE)
 
 
+# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
 def build_code_write_issue_first_event(
 	step: int,
 	raw_path: str | Path,
@@ -98,24 +91,19 @@ def build_code_write_issue_first_event(
 	cwd: Path | None = None,
 	content: str | None = None,
 	sub_step: int | None = None,
+	cmd_outputs=None,
 ) -> dict | None:
-	cand = normalize_host_path(raw_path)
-	full = cand.resolve() if cand.is_absolute() else ((Path(cwd).resolve() / cand).resolve() if None is not cwd else cand.resolve())
-	info = resolve_issue_first_target(full, content=content)
-	if None is info:
-		return None
-	ev: dict = {
-		'kind': 'code_write',
-		'step': int(step),
-		'path': str(full),
-		'rel_path': info['rel_path'],
-		'repo_root': str(info['repo_root']),
-		'repo_slug': info['repo_slug'],
-		'classification': info['classification'],
-	}
-	if None is not sub_step:
-		ev['sub_step'] = int(sub_step)
-	return ev
+	from .tdd.events import is_denied_write_output
+	r: dict | None = None
+	if not is_denied_write_output(cmd_outputs):
+		cand = normalize_host_path(raw_path)
+		full = cand.resolve() if cand.is_absolute() else ((Path(cwd).resolve() / cand).resolve() if None is not cwd else cand.resolve())
+		info = resolve_issue_first_target(full, content=content)
+		if None is not info:
+			r = {'kind': 'code_write', 'step': int(step), 'path': str(full), 'rel_path': info['rel_path'], 'repo_root': str(info['repo_root']), 'repo_slug': info['repo_slug'], 'classification': info['classification']}
+			if None is not sub_step:
+				r['sub_step'] = int(sub_step)
+	return r
 
 
 def build_issue_action_events(
@@ -443,42 +431,9 @@ def extract_antigravity_issue_first_events(transcript_path: Path, *, cwd: Path |
 		if u_content.strip():
 			requests.append({'text': u_content})
 	segment = rows[last_user + 1:] if 0 <= last_user else rows
-	events: list[dict] = []
-	for pos, row in enumerate(segment):
-		if not isinstance(row, dict):
-			continue
-		step_idx = row.get('step_index') if isinstance(row.get('step_index'), int) else pos
-		calls = [c for c in (row.get('tool_calls') or ()) if isinstance(c, dict)]
-		if not calls:
-			continue
-		outputs: list[str] = []
-		for nxt in segment[pos + 1:]:
-			if not isinstance(nxt, dict):
-				continue
-			if nxt.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
-				break
-			if 'GENERIC' == nxt.get('type') and nxt.get('content'):
-				outputs.append(str(nxt.get('content')))
-		for c_pos, call in enumerate(calls):
-			cname = str(call.get('name') or '')
-			cargs = _normalize_args_dict(call.get('args', {}))
-			if cname in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content'):
-				raw_p = str(cargs.get('Path') or cargs.get('TargetFile') or cargs.get('AbsolutePath') or cargs.get('path') or '').strip()
-				if raw_p:
-					content_hint = cargs.get('Content') if 'write_file' == cname and isinstance(cargs.get('Content'), str) else None
-					ev = build_code_write_issue_first_event(step_idx, raw_p, cwd=cwd, content=content_hint)
-					if None is not ev:
-						events.append(ev)
-			elif 'run_command' == cname:
-				cmd = str(cargs.get('CommandLine') or '').strip()
-				if not cmd:
-					continue
-				for wt in shell_write_targets(cmd, cwd=cwd):
-					wev = build_code_write_issue_first_event(step_idx, wt, cwd=cwd)
-					if None is not wev:
-						events.append(wev)
-				matched_outs = [outputs[c_pos]] if c_pos < len(outputs) else outputs
-				events.extend(build_issue_action_events(step_idx, cmd, matched_outs))
+	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+	from .issue_first_bg import extract_segment_issue_first_events
+	events = extract_segment_issue_first_events(segment, cwd, build_code_write_issue_first_event, build_issue_action_events)
 	return (events, requests)
 
 

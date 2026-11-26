@@ -453,7 +453,7 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 			from ..issue_first_gate import build_code_write_issue_first_event, build_issue_action_events
 			from ..tdd_gate import shell_write_targets
 			for wt in shell_write_targets(eff_cmd, cwd=eff_cwd):
-				ifev = build_code_write_issue_first_event(step_idx, wt, cwd=eff_cwd, sub_step=sub_step)
+				ifev = build_code_write_issue_first_event(step_idx, wt, cwd=eff_cwd, sub_step=sub_step, cmd_outputs=cmd_outputs)
 				if None is not ifev:
 					acc['issue_first_events'].append(ifev)
 			if cmd_outputs:
@@ -484,7 +484,8 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 				record_tdd_tool_write_event(acc, step_idx, target_path, cwd=root_p, content=content_hint, cmd_outputs=cmd_outputs, sub_step=sub_step, subagent_id=extra_violation.get('subagent_id') if isinstance(extra_violation, dict) else None)
 			if 'issue_first_events' in acc:
 				from ..issue_first_gate import build_code_write_issue_first_event
-				wifev = build_code_write_issue_first_event(step_idx, target_path, cwd=root_p, content=content_hint, sub_step=sub_step)
+				# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+				wifev = build_code_write_issue_first_event(step_idx, target_path, cwd=root_p, content=content_hint, sub_step=sub_step, cmd_outputs=cmd_outputs)
 				if None is not wifev:
 					acc['issue_first_events'].append(wifev)
 	if track_turn_steps:

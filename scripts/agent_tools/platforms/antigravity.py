@@ -383,12 +383,9 @@ class AntigravityTurnScanner:
 						seg['active_bg_tasks'].discard(m_end.group(1).strip())
 					for m_snd in _BG_TASK_SENDER_RE.finditer(c_str):
 						seg['active_bg_tasks'].discard(m_snd.group(1).strip())
-					m_fin = _BG_TASK_FINISHED_RE.search(c_str)
-					if m_fin:
-						fin_id = m_fin.group(1).strip()
-						seg['active_bg_tasks'].discard(fin_id)
-						if fin_id in seg['bg_tdd_index']:
-							seg['bg_tdd_index'][fin_id]['outcome'] = parse_command_outcome(m_fin.group(2))
+					# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+					from ..issue_first_bg import handle_antigravity_bg_task_message
+					handle_antigravity_bg_task_message(c_str, step_idx, seg, parse_command_outcome)
 				calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 				if calls and isinstance(step_idx, int):
 					# 2026-11-01

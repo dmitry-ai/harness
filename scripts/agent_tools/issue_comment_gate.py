@@ -86,8 +86,12 @@ def _check_class_scope(rel_label: str, ln: int, st: int, en: int, changed_code: 
 		r = f'ISSUE-COMMENT-GATE (MISPLACED_ISSUE_COMMENT): Issue URL comment at {rel_label}:{ln} sits on class header while only method at line {touched[0][0]} changed; place it at the modified block or method header'
 	return r
 def _check_diff_issue_lines(rel_label: str, source: str, base_lines: list[str], cur_lines: list[str], base_scan: dict, cur_scan: dict, suffix: str) -> list[str]:
+	from .tdd.comment_diff import is_comment_only_diff
 	errs: list[str] = []
 	diff_info = _diff_changes(base_lines, cur_lines, base_scan, cur_scan)
+	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+	if is_comment_only_diff(rel_label, '\n'.join(base_lines), source):
+		diff_info['changed_code'], diff_info['del_anchors'] = (set(), set())
 	base_urls = {u for urls in base_scan['issue_lines'].values() for u in urls}
 	if 0.70 > len(diff_info['changed_code']) / max(1, len(cur_scan['code_lines'])):
 		py_info = _build_py_spans(source) if suffix in ('.py', '.pyi') else ({}, {})

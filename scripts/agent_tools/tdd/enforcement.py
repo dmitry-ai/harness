@@ -85,7 +85,8 @@ def _eval_pre_run_command(cmd: str, cwd: Path | None, payload: dict) -> str | No
 	return r
 def _eval_pre_test_write(name: str, args: dict, target_path: Path, scope: Path, cwd: Path | None, sc_state: dict | None) -> str | None:
 	old_disk, new_text, added_lines, added_nums = _compute_edited_content(name, args, target_path)
-	if None is new_text:
+	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+	if None is new_text or is_diff_exempt(target_path, old_disk, new_text, repo_root=scope, project_root=cwd or scope):
 		r = None
 	else:
 		ok_sub, sub_err = is_substantive_test_content(target_path, new_text)
@@ -257,14 +258,16 @@ def _staged_entry_texts(repo: Path, rel: str, use_index: bool, issue_urls: list[
 	return (fpath, head_text, disk_text, cls)
 def _verify_staged_test_file(repo: Path, rel: str, fpath: Path, head_text: str | None, disk_text: str | None, project_root: Path | None, issue_urls: list[str]) -> list[str]:
 	r: list[str] = []
-	if None is not disk_text:
+	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+	exempt = None is not head_text and None is not disk_text and is_diff_exempt(fpath, head_text, disk_text, repo_root=repo, project_root=project_root or repo)
+	if (not exempt) and None is not disk_text:
 		ok_sub, sub_err = is_substantive_test_content(fpath, disk_text)
 		if not ok_sub:
 			r.append(f'EXEC-2 TDD-SUBSTANTIVE-TEST-GATE: {sub_err}')
 		added_lines, added_nums = _diff_added_lines(head_text, disk_text)
 		for b_err in source_text_assertion_issues(fpath, added_lines, full_content=disk_text, added_line_numbers=added_nums):
 			r.append(f'EXEC-2 TDD-BEHAVIORAL-GATE: {b_err}')
-	if None is not head_text:
+	if (not exempt) and None is not head_text:
 		approval = find_ratchet_approval(rel, repo_root=repo, project_root=project_root or repo, issue_urls=issue_urls)
 		for r_err in ratchet_diff_violations(rel, head_text, disk_text, approval=approval):
 			r.append(f'EXEC-2 {r_err}')
