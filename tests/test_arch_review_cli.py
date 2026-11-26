@@ -30,6 +30,7 @@ def _init_text_workspace(proj: Path) -> None:
 	pp.text_project_json.parent.mkdir(parents=True, exist_ok=True)
 	pp.text_project_json.write_text(json.dumps({'schema_version': 1, 'kind': 'client_text_workspace', 'project_root': str(pp.root), 'id': text_project_id(pp.root)}), encoding='utf-8')
 # 2026-11-26 "Add arch-auditor subagent role and content-addressed review CLI": https://github.com/dmitry-ai/harness/issues/361
+# @used-by :meth:`ArchReviewCliTests.test_antigravity_arch_record_review_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
 def _run_arch_cli(argv: list[str]) -> tuple[int, str]:
 	from agent_tools.cli_registry import add_registered_parsers, dispatch_registered
@@ -40,6 +41,7 @@ def _run_arch_cli(argv: list[str]) -> tuple[int, str]:
 	with redirect_stdout(buf):
 		_, code = dispatch_registered(ns, lambda res: sys.stdout.write(json.dumps(res)), lambda res: 0 if res.get('valid', True) else 2)
 	return (0 if None is code else int(code), buf.getvalue())
+# @used-by :meth:`ArchReviewCliTests.test_antigravity_arch_record_review_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`ArchReviewCliTests.test_antigravity_native_review_proof_supports_arch_auditor_role()`
 # @used-by :meth:`ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
 # @used-by :meth:`ArchReviewCliTests.test_cli_registry_and_send_message_gate_expose_arch_commands_and_block_verdict_duplication()`
@@ -57,10 +59,13 @@ def _sample_verdict(pkg_rel: str, pkg_sha: str, *, result: str='approved', outco
 		'pattern_checks': [{'pattern': 'Strategy', 'category': 'Behavioral', 'participants_verified': participants_ok, 'overengineering_risk': 'low', 'outcome': outcome, 'evidence': 'Checked module symbols.'}],
 		'findings': [] if None is findings else findings,
 	}
+# 2026-11-27 "Pass ARCH role through Antigravity native_review_proof binding": https://github.com/dmitry-ai/harness/issues/393
+# @used-by :meth:`ArchReviewCliTests.test_antigravity_arch_record_review_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`ArchReviewCliTests.test_antigravity_native_review_proof_supports_arch_auditor_role()`
 # @used-by :meth:`ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
-def _seed_ag_arch_backend(root: Path, project: Path, pkg_rel: str, verdict_json: str) -> Path:
-	_init_text_workspace(project)
+def _seed_ag_arch_backend(root: Path, project: Path, pkg_rel: str, verdict_json: str, *, init_text: bool=True) -> Path:
+	if init_text:
+		_init_text_workspace(project)
 	backend = root / 'ag-backend'
 	brain = backend / 'brain'
 	convs = backend / 'conversations'
@@ -124,6 +129,37 @@ class ArchReviewCliTests(unittest.TestCase):
 		p = patch('agent_tools.runtime.default_runtime_file', return_value=WT_ROOT / 'runtime.json')
 		p.start()
 		self.addCleanup(p.stop)
+	# 2026-11-27 "Pass ARCH role through Antigravity native_review_proof binding": https://github.com/dmitry-ai/harness/issues/393
+	# @used-by :mod:`unittest`
+	def test_antigravity_arch_record_review_works_on_bare_code_workspace_without_text_marker(self) -> None:
+		from agent_tools.platforms import antigravity as ag
+		with tempfile.TemporaryDirectory() as td:
+			base = Path(td).resolve()
+			proj, scratch = (base / 'bare-ag', base / 'bare-ag/\ua616/data/scratch')
+			scratch.mkdir(parents=True)
+			resp_f, rep_f, ev_f = (scratch / 'cand.md', scratch / 'ok.json', scratch / 'ev.json')
+			resp_f.write_text('Proposed Strategy routing with clear separation.\n', encoding='utf-8')
+			code_p, out_p = _run_arch_cli(['arch-prepare', str(proj), '--parent', _PARENT_ID, '--kind', 'response', '--response-file', str(resp_f), '--consume-input'])
+			self.assertEqual(0, code_p)
+			prep = json.loads(out_p)
+			verdict_bytes = json.dumps(_sample_verdict(prep['package'], prep['package_sha256'])).encode('utf-8')
+			rep_f.write_bytes(verdict_bytes)
+			backend = _seed_ag_arch_backend(base, proj, prep['package'], verdict_bytes.decode('utf-8'), init_text=False)
+			self.assertFalse((proj / '\ua616/data/text-project.json').exists())
+			self.assertFalse((proj / '\ua616/project.json').exists())
+			proof = ag.native_review_proof(proj, _PARENT_ID, _REVIEWER_ID, backend=backend, role='ARCH')
+			self.assertEqual('code_workspace', proof['project_kind'])
+			self.assertIsNone(proof['job_id'])
+			self.assertEqual('ARCH', proof['executor_metadata']['role'])
+			ev_f.write_text(json.dumps(proof), encoding='utf-8')
+			with patch.object(ag, 'platform_instances', return_value={}), patch.object(ag, '_default_platform_paths', return_value={'backend_dir': str(backend)}):
+				verified = ag.verify_native_proof(proj, proof, package=Path(prep['package']).name)
+				self.assertEqual('code_workspace', verified['project_kind'])
+				code_ok, out_ok = _run_arch_cli(['arch-record-review', str(proj), '--report', str(rep_f), '--parent', _PARENT_ID, '--reviewer', _REVIEWER_ID, '--native-evidence', str(ev_f), '--consume-input'])
+			self.assertEqual(0, code_ok, out_ok)
+			self.assertEqual('approved', json.loads(out_ok)['result'])
+			with self.assertRaises(ValueError):
+				ag.native_review_proof(proj, _PARENT_ID, _REVIEWER_ID, backend=backend, role='AA')
 	# @used-by :mod:`unittest`
 	def test_antigravity_native_review_proof_supports_arch_auditor_role(self) -> None:
 		from agent_tools.platforms import antigravity as ag

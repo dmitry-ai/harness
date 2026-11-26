@@ -890,6 +890,7 @@ def native_tool_trace(root, request):
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 # @used-by :func:`verify_native_proof()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_antigravity_arch_record_review_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_antigravity_native_review_proof_supports_arch_auditor_role()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_exact_native_workspace_allows_plain_continuation_and_independent_review()`
@@ -937,7 +938,8 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 		# 2026-11-24
 		# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
 		# https://github.com/dmitry-ai/harness/issues/210
-		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=resolve_parent_binding_inputs(backend, parent_id, parent_inputs, paths=paths, native_inputs_fn=_native_inputs, extract_transcript_fn=_extract_transcript_user_input), until=invocation)
+		# 2026-11-27 "Pass ARCH role through Antigravity native_review_proof binding": https://github.com/dmitry-ai/harness/issues/393
+		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=resolve_parent_binding_inputs(backend, parent_id, parent_inputs, paths=paths, native_inputs_fn=_native_inputs, extract_transcript_fn=_extract_transcript_user_input), until=invocation, role=role)
 		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation, paths=paths), _query_step_model_ids(backend, reviewer_id, paths=paths))
 		if is_inherit and parent_models and child_models and (not child_models.issubset(parent_models)):
 			raise ValueError(f'Observed reviewer model differs from the inherited {role} model')
@@ -948,7 +950,8 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 		if executor_metadata['requested'].get('tier'):
 			model_selection['tier'] = executor_metadata['requested']['tier']
 		return {'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'model_selection': model_selection, 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation}
-	return build_native_review_proof(root, 'antigravity-ui', parent_id, reviewer_id, expected_agent, log, parent_log, raw, last['step_index'], last['content'], [initial_prompt, *extra_msgs, *(m[1]['Prompt'] for m in matches)], rows, extra_fields_fn=_extra, write=write)
+	# 2026-11-27 "Pass ARCH role through Antigravity native_review_proof binding": https://github.com/dmitry-ai/harness/issues/393
+	return build_native_review_proof(root, 'antigravity-ui', parent_id, reviewer_id, expected_agent, log, parent_log, raw, last['step_index'], last['content'], [initial_prompt, *extra_msgs, *(m[1]['Prompt'] for m in matches)], rows, extra_fields_fn=_extra, write=write, role=role)
 # 2026-10-15
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -1088,14 +1091,15 @@ def native_requests(root, conversation_id, *, backend=None, instance=None):
 	backend = Path(paths['backend_dir'])
 	selected, _, _ = _request_scope(root, conversation_id, backend, paths=paths)
 	return current_turn_requests(selected, conversation_id, 'antigravity-ui', 'Native Antigravity requests do not identify this project; open the chat in the exact project workspace or pass its /upwork-init URL')
+# 2026-11-27 "Pass ARCH role through Antigravity native_review_proof binding": https://github.com/dmitry-ai/harness/issues/393
 # @used-by :func:`native_review_proof()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_legacy_job_mention_after_foreign_init_cannot_reactivate_old_project()`
-def require_current_binding(root, conversation_id, *, backend=None, instance=None, inputs=None, until=None):
-	from .request_binding import format_binding_diagnostic, native_project_id
+def require_current_binding(root, conversation_id, *, backend=None, instance=None, inputs=None, until=None, role='AA'):
+	from .request_binding import format_binding_diagnostic, review_project_id
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
-	job_id = native_project_id(root)
+	job_id = review_project_id(root, role=role)
 	selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until, identifier=job_id, paths=paths)
 	diag = format_binding_diagnostic(str(Path(root).resolve()), binding, expected_job_id=job_id)
 	return require_turn_binding(selected, active, binding, f'Native Antigravity conversation is currently bound to another project or no exact project root ({diag})')
@@ -1193,6 +1197,7 @@ def _proof_backend(native):
 # 2026-11-24
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_antigravity_arch_record_review_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 # @used-by :meth:`test_reused_reviewer_and_metadata_drift_m5.ReusedReviewerAndMetadataDriftM5Tests.test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention()`
 def verify_native_proof(root, native, package=None):
