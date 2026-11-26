@@ -115,6 +115,23 @@ def _parse_worktree_porcelain(text: str) -> list[dict]:
 	if cur:
 		entries.append(cur)
 	return entries
+# 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
+# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# @used-by :func:`_rebase_and_test()`
+def _run_land_checks(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
+	ok_tests, test_runs, test_res = _run_land_tests(main_repo, wt_path, run_tests=run_tests, workers=workers)
+	err: dict | None = None
+	if not ok_tests:
+		stage = str((test_res or {}).get('failure_stage') or 'tests')
+		msg = 'Host state mutated during sandboxed tests' if 'host_mutation' == stage else 'Full test suite failed on rebased worktree'
+		err = _fail_land(main_repo, wt_path, branch, stage, msg, test_runs=test_runs, test_result=test_res)
+	elif run_tests:
+		from .tdd.diff_coverage import verify_worktree_diff_coverage
+		cov = verify_worktree_diff_coverage(wt_path, target_branch)
+		if not cov.get('valid'):
+			joined = ', '.join(cov.get('uncovered', ())[:8])
+			err = _fail_land(main_repo, wt_path, branch, 'diff_coverage', f'Uncovered newly added production functions: {joined}', test_runs=test_runs, test_result=test_res)
+	return (err, test_runs, test_res)
 def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
 	from .python_integrity import verify_worktree_python_changes
 	reb = _git_exec(wt_path, 'rebase', target_branch)
@@ -129,12 +146,8 @@ def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch:
 		if py_errs:
 			r = (_fail_land(main_repo, wt_path, branch, 'python_integrity', '; '.join(py_errs[:5])), 0, None)
 		else:
-			# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
-			ok_tests, test_runs, test_res = _run_land_tests(main_repo, wt_path, run_tests=run_tests, workers=workers)
-			stage = str((test_res or {}).get('failure_stage') or 'tests')
-			msg = 'Host state mutated during sandboxed tests' if 'host_mutation' == stage else 'Full test suite failed on rebased worktree'
-			err = None if ok_tests else _fail_land(main_repo, wt_path, branch, stage, msg, test_runs=test_runs, test_result=test_res)
-			r = (err, test_runs, test_res)
+			# 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
+			r = _run_land_checks(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
 	return r
 def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
 	r = None

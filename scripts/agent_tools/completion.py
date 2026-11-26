@@ -1880,9 +1880,10 @@ def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
 		else:
 			role = 'child'
 			turn_obj = _scan_child_trace_turn(root_p, eff_conv, native)
+		# 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
+		from .tdd.diff_coverage import enrich_tdd_check_report
 		turn_key = _key(native, turn_obj)
-		tdd_chk = _tdd_status(root_p, turn_obj)
-	return {'valid': bool(tdd_chk.get('verified', True)), 'read_only': True, 'role': role, 'turn_key': turn_key, 'tdd_check': tdd_chk, 'event_count': len(turn_obj.get('tdd_events') or [])}
+		return enrich_tdd_check_report(root_p, role, turn_key, turn_obj, _tdd_status(root_p, turn_obj))
 # 2026-11-23
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
