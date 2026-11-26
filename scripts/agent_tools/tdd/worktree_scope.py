@@ -68,6 +68,7 @@ def resolve_tdd_scope_key(path: str | Path, scope: str | Path) -> str:
 		r = f'{scope_s}{_WT_KEY_SEP}{wt_id}' if None is not wt_id and (None is scope_wt or scope_wt.lower() != wt_id.lower()) else scope_s
 	return r
 # @used-by :func:`agent_tools.tdd.evaluator._apply_commit_reset()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 def scope_matches_commit(scope_key: str, commit_scope: str | None, event: dict | None=None) -> bool:
 	base, sk_wt = split_tdd_scope_key(scope_key)
 	c_wt = _commit_worktree_id(commit_scope, event)

@@ -18,6 +18,7 @@ def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', *args], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
+# @used-by :meth:`CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 # @used-by :meth:`CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 def _setup_fanout_project(root: Path, slug: str='acme/demo') -> tuple[Path, Path]:
 	proj = root / 'proj'
@@ -39,6 +40,7 @@ def _setup_fanout_project(root: Path, slug: str='acme/demo') -> tuple[Path, Path
 	return (proj, code)
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
+# @used-by :meth:`CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 def _write_evidence(proj: Path, slug: str, number: int, *, state: str='open', parent_number: int | None=None) -> Path:
 	ev_dir = proj / '\ua616/KB/Evidence/GitHub' / slug.replace('/', '__')
 	ev_dir.mkdir(parents=True, exist_ok=True)
@@ -52,6 +54,7 @@ def _write_evidence(proj: Path, slug: str, number: int, *, state: str='open', pa
 	return out
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
+# @used-by :meth:`CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 def _write_parent_turn(proj: Path, parent_cid: str, slug: str, issues: list[dict]) -> Path:
 	gh_map: dict = {}
 	for item in issues:
@@ -135,6 +138,31 @@ class CodeFanoutGatesTests(unittest.TestCase):
 			self.assertIsNotNone(err_primary)
 			self.assertIn('ISSUE-FIRST-GATE', err_primary)
 			worktree_cleanup(code, wt, force=True)
+	# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+	# @used-by :mod:`unittest`
+	def test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset(self) -> None:
+		from agent_tools.tdd import worktree_scope
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			proj, code = _setup_fanout_project(root)
+			_write_evidence(proj, 'acme/demo', 10, state='open')
+			_write_parent_turn(proj, 'parent-cid-m', 'acme/demo', [{'number': 10, 'state': 'open'}])
+			w_args = {'Content': 'import unittest\nclass M(unittest.TestCase):\n\tdef test_m(self):\n\t\tself.assertEqual(1, 1)\n', 'Path': str(code / 'tests/test_m.py')}
+			self.assertIsNone(issue_first_gate.evaluate_pre_tool_use_issue_first('write_file', w_args, {'cwd': str(proj), 'parentConversationId': 'parent-cid-m'}))
+			err_no_tx = issue_first_gate.evaluate_pre_tool_use_issue_first('write_file', w_args, {'cwd': str(proj)})
+			self.assertIsNotNone(err_no_tx)
+			self.assertIn('transcript unavailable', err_no_tx)
+			ta_path = code / 'tests/test_a.py'
+			ev_t = tdd_gate.build_file_write_tdd_event(1, ta_path, cwd=code)
+			ev_r = tdd_gate.build_command_tdd_event(2, f'python -m unittest -f -b "{ta_path}"', 'Command exited with code 1.\nFAILED (failures=1)\n', cwd=code)
+			ev_p = tdd_gate.build_file_write_tdd_event(3, code / 'mod_a.py', cwd=code)
+			ev_c = tdd_gate.build_command_tdd_event(4, f'git -C "{code}" commit -m https://github.com/acme/demo/issues/10', 'Command exited with code 0.\n[main 2222222] ok\n', cwd=code)
+			res = tdd_gate.evaluate_tdd_events([ev_t, ev_r, ev_p, ev_c], require_final_full_green=False)
+			self.assertTrue(res['verified'], res)
+			self.assertEqual('IDLE', res['scopes'][str(code)]['state'])
+			self.assertTrue(worktree_scope.scope_matches_commit(str(code), str(code)))
+			self.assertFalse(worktree_scope.scope_matches_commit(str(code), str(proj)))
+			self.assertFalse(worktree_scope.scope_matches_commit(f'{code}::wt:wt-x', str(code)))
 	# @used-by :mod:`unittest`
 	def test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green(self) -> None:
 		harness_py = SCRIPTS / 'harness.py'

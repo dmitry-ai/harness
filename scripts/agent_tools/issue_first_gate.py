@@ -475,6 +475,7 @@ def extract_antigravity_issue_first_events(transcript_path: Path, *, cwd: Path |
 # @used-by :func:`agent_tools.gates.issue_first.check()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_evaluate_pre_tool_use_issue_first_blocks_spoofing_and_enforces_live_order()`
 def evaluate_pre_tool_use_issue_first(name: str, args: dict, payload: dict) -> str | None:
 	cwd_raw = str(payload.get('cwd') or '').strip()
