@@ -5,11 +5,13 @@ from ..shell_audit import _split_shell_segments, normalize_host_path
 from .classifier import _norm_posix, resolve_code_scope
 from .commands import classify_test_command
 from .exemption import is_write_event_exempt
+# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+from .worktree_scope import canonical_scope_path, resolve_tdd_scope_key, scope_matches_commit, worktree_command_matches
 # @used-by :func:`evaluate_tdd_events()`
 def _apply_command_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], failfast_warnings: list[str]) -> None:
 	outcome = ev.get('outcome') or {}
 	if ev.get('is_git_commit') and outcome.get('exit_code') in (0, None):
-		_apply_commit_reset(ev.get('commit_scope'), scopes, orders)
+		_apply_commit_reset(ev.get('commit_scope'), scopes, orders, ev=ev)
 	t_info = ev.get('test_info') or {}
 	if t_info.get('is_test_cmd') and (not t_info.get('rigged_failure')):
 		if t_info.get('is_full_suite'):
@@ -17,11 +19,11 @@ def _apply_command_event(ev: dict, step: int, order: tuple[int, int, int], scope
 		for sk, st in scopes.items():
 			if _command_matches_scope(ev, sk, set(st['written_tests'])):
 				_update_scope_from_test_cmd(sk, st, orders[sk], ev, step, order, outcome, t_info)
+# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
 # @used-by :func:`_apply_command_event()`
-def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: dict[str, dict]) -> None:
-	c_key = Path(c_scope).resolve().as_posix().lower() if None is not c_scope else None
+def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: dict[str, dict], *, ev: dict | None=None) -> None:
 	for sk, st in scopes.items():
-		if None is c_key or Path(sk).resolve().as_posix().lower() == c_key:
+		if scope_matches_commit(sk, c_scope, ev):
 			st['state'] = 'IDLE'
 			st['written_test_step'] = None
 			st['red_step'] = None
@@ -32,8 +34,9 @@ def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: di
 # @used-by :func:`evaluate_tdd_events()`
 def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None, exempt_cache: dict[tuple[str, str], bool] | None=None) -> None:
 	cls = ev.get('classification')
-	scope_str = str(ev.get('scope') or '')
 	fpath = str(ev.get('path') or '')
+	# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+	scope_str = resolve_tdd_scope_key(fpath, str(ev.get('scope') or ''))
 	if 'test' == cls and scope_str:
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
 		_apply_test_write(st, st_ord, fpath, step, order)
@@ -96,23 +99,22 @@ def _collect_final_green_violations(scopes: dict[str, dict], orders: dict[str, d
 		if _scope_needs_final_full_green(sk, st, orders[sk], project_root, exempt_cache):
 			r.append(f"EXEC-2 TDD-FULL-GATE: Repository \"{sk}\" has production code edits (last edit at step {st['last_code_edit_step']}) without a subsequent passing (GREEN) full test suite run. Run the full test suite and verify all tests pass.")
 	return r
+# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
 # @used-by :func:`_apply_command_event()`
 def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[str]) -> bool:
-	scope_p = Path(scope_str).resolve()
-	scope_key = scope_p.as_posix().lower()
-	scope_main_key = _git_main_repo_root(scope_p).as_posix().lower()
-	cmd_norm = _norm_posix(str(event.get('cmd') or '')).lower()
 	t_info = event.get('test_info') or {}
 	is_full_cmd = bool(t_info.get('is_full_suite'))
-	cwd_raw = event.get('cwd')
-	cwd_p = Path(cwd_raw).resolve() if cwd_raw else None
-	resolved_scopes = _resolve_event_target_scopes(t_info.get('target_paths') or [], cwd_p)
-	r = (
-		_scopes_overlap(resolved_scopes, scope_p, scope_key, scope_main_key, is_full_cmd)
-		or any(Path(tf).name.lower() in cmd_norm or Path(tf).stem.lower() in cmd_norm for tf in written_test_files)
-		or scope_key in cmd_norm
-		or ((not resolved_scopes) and _cwd_matches_scope(cwd_p, scope_p, scope_key, scope_main_key, is_full_cmd))
-	)
+	if False is worktree_command_matches(event, scope_str, is_full_cmd):
+		r = False
+	else:
+		scope_p = canonical_scope_path(scope_str)
+		scope_key = scope_p.as_posix().lower()
+		scope_main_key = _git_main_repo_root(scope_p).as_posix().lower()
+		cmd_norm = _norm_posix(str(event.get('cmd') or '')).lower()
+		cwd_raw = event.get('cwd')
+		cwd_p = Path(cwd_raw).resolve() if cwd_raw else None
+		resolved_scopes = _resolve_event_target_scopes(t_info.get('target_paths') or [], cwd_p)
+		r = _scopes_overlap(resolved_scopes, scope_p, scope_key, scope_main_key, is_full_cmd) or any(Path(tf).name.lower() in cmd_norm or Path(tf).stem.lower() in cmd_norm for tf in written_test_files) or scope_key in cmd_norm or ((not resolved_scopes) and _cwd_matches_scope(cwd_p, scope_p, scope_key, scope_main_key, is_full_cmd))
 	return r
 # @used-by :func:`_command_matches_scope()`
 def _cwd_matches_scope(cwd_p: Path | None, scope_p: Path, scope_key: str, scope_main_key: str, is_full_cmd: bool) -> bool:
@@ -184,7 +186,8 @@ def _has_non_exempt_prod(sk: str, st_ord: dict, project_root: Path | None, exemp
 def _is_exempt_cached(fpath: str, scope_str: str, project_root: Path | None, cache: dict[tuple[str, str], bool]) -> bool:
 	key = (scope_str, fpath)
 	if key not in cache:
-		cache[key] = is_write_event_exempt(fpath, scope_str, project_root=project_root)
+		# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+		cache[key] = is_write_event_exempt(fpath, str(canonical_scope_path(scope_str)), project_root=project_root)
 	return cache[key]
 # 2026-11-24
 # "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
@@ -235,7 +238,8 @@ def _scopes_overlap(resolved_scopes: list[Path], scope_p: Path, scope_key: str, 
 	return direct or (is_full_cmd and any(_git_main_repo_root(rs).as_posix().lower() == scope_main_key for rs in resolved_scopes))
 # @used-by :func:`_apply_command_event()`
 def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step: int, order: tuple[int, int, int], outcome: dict, t_info: dict) -> None:
-	scope_full = bool(t_info.get('is_full_suite')) or classify_test_command(str(ev.get('cmd') or ''), scope_root=Path(sk))['is_full_suite']
+	# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+	scope_full = bool(t_info.get('is_full_suite')) or classify_test_command(str(ev.get('cmd') or ''), scope_root=canonical_scope_path(sk))['is_full_suite']
 	if outcome.get('is_failure') and 'TEST_WRITTEN' == st['state'] and None is not st_ord['written_test'] and order > st_ord['written_test']:
 		st['state'] = 'RED_VERIFIED'
 		st['red_step'] = step
@@ -252,6 +256,7 @@ def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step:
 # @used-by :func:`agent_tools.tdd.enforcement._load_pre_tool_tdd_state()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_completed_prior_turn_does_not_bleed_tdd_events_into_unrelated_followup()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_tdd_gate_records_non_failfast_full_suite_warning_without_breaking_verified()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_linked_worktree_scope_accepts_full_suite_green_on_main_repo()`

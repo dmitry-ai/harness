@@ -256,6 +256,7 @@ def cmd_transfer_repo(args: argparse.Namespace) -> int:
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
 # @used-by :func:`agent_tools.issue_first_gate._load_evidence_issue_info()`
+# @used-by :func:`agent_tools.issue_first_inherit._evidence_parent_number()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
 def extract_parent_issue_number(body: str, repo: str | None=None) -> int | None:
 	return _LINTER.extract_parent_number(body, repo)

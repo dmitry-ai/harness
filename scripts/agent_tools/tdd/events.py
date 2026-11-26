@@ -200,6 +200,7 @@ def _unwrap_arg_value(val):
 	return r
 # @used-by :func:`_append_command_tool_event()`
 # @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_tdd_gate_records_non_failfast_full_suite_warning_without_breaking_verified()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_linked_worktree_scope_accepts_full_suite_green_on_main_repo()`
@@ -228,6 +229,7 @@ def build_command_tdd_event(step: int, cmd: str, outputs: list[str] | tuple[str,
 # @used-by :func:`_append_write_tool_event()`
 # @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
 # @used-by :func:`record_tdd_tool_write_event()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_tdd_gate_records_non_failfast_full_suite_warning_without_breaking_verified()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_linked_worktree_scope_accepts_full_suite_green_on_main_repo()`

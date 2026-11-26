@@ -305,6 +305,7 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.issue_comment_gate._diff_changes()`
 	# @used-by :func:`agent_tools.issue_comment_gate._scan_record_code()`
 	# @used-by :func:`agent_tools.issue_first_gate.evaluate_issue_first_events()`
+	# @used-by :func:`agent_tools.issue_first_inherit._extract_turn_gh_nums()`
 	# @used-by :func:`agent_tools.issues.parity._evaluate_similar_peer_item()`
 	# @used-by :func:`agent_tools.issues.parity._find_peer_issue_resolution()`
 	# @used-by :func:`agent_tools.issues.parity._peer_code_repo_candidates()`
@@ -360,6 +361,7 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
 	# @used-by :func:`agent_tools.tdd.enforcement._diff_added_lines()`
 	# @used-by :func:`agent_tools.tdd.substantive._collect_read_wrapper_params()`
+	# @used-by :func:`agent_tools.tdd.worktree_scope.extract_command_worktree_ids()`
 	# @used-by :func:`agent_tools.text_browser._verify_context_anchor()`
 	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
@@ -1048,6 +1050,8 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.grounding_domains._check_mem_tuples()`
 	# @used-by :func:`agent_tools.grounding_helpers._assemble_corpus()`
 	# @used-by :func:`agent_tools.intake.commit_capture()`
+	# @used-by :func:`agent_tools.issue_first_inherit._extract_issue_nums_from_turn()`
+	# @used-by :func:`agent_tools.issue_first_inherit._iter_candidate_issue_nums()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
 	# @used-by :func:`agent_tools.issues.workspace._update_turn_issue_entry()`
 	# @used-by :func:`agent_tools.journal.get_existing_step_ids()`

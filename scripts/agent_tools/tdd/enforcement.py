@@ -10,6 +10,8 @@ from .exemption import is_diff_exempt
 from .ratchet import find_ratchet_approval, ratchet_diff_violations
 from .service_exempt import is_service_finalization_call
 from .substantive import is_substantive_test_content, source_text_assertion_issues
+# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+from .worktree_scope import resolve_tdd_scope_key
 import difflib
 import os
 import subprocess
@@ -60,8 +62,10 @@ def _diff_added_lines(old_text: str | None, new_text: str) -> tuple[list[str], s
 # @used-by :func:`_eval_pre_write()`
 def _eval_pre_code_write(name: str, args: dict, target_path: Path, cls: str, cwd: Path | None, payload: dict) -> str | None:
 	scope = resolve_code_scope(target_path)
+	# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+	scope_key = resolve_tdd_scope_key(target_path, scope)
 	if 'production' != cls:
-		sc_state = _load_pre_tool_tdd_state(payload, cwd)['scopes'].get(str(scope)) if target_path.is_file() else None
+		sc_state = _load_pre_tool_tdd_state(payload, cwd)['scopes'].get(scope_key) if target_path.is_file() else None
 		r = _eval_pre_test_write(name, args, target_path, scope, cwd, sc_state)
 	else:
 		old_disk, new_text, _, _ = _compute_edited_content(name, args, target_path)
@@ -71,7 +75,7 @@ def _eval_pre_code_write(name: str, args: dict, target_path: Path, cls: str, cwd
 		if is_diff_exempt(target_path, old_disk, new_text, repo_root=scope, project_root=cwd or scope):
 			r = None
 		else:
-			sc_state = _load_pre_tool_tdd_state(payload, cwd)['scopes'].get(str(scope))
+			sc_state = _load_pre_tool_tdd_state(payload, cwd)['scopes'].get(scope_key)
 			r = _eval_pre_prod_write(target_path, sc_state)
 	return r
 # @used-by :func:`_eval_pre_code_write()`
@@ -132,7 +136,8 @@ def _eval_shell_prod_writes(prod_targets: list[Path], cwd: Path | None, tdd_stat
 	r = None
 	for target_p in prod_targets:
 		scope = resolve_code_scope(target_p)
-		sc_state = tdd_state['scopes'].get(str(scope))
+		# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+		sc_state = tdd_state['scopes'].get(resolve_tdd_scope_key(target_p, scope))
 		# 2026-11-25
 		# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 		# https://github.com/dmitry-ai/harness/issues/239

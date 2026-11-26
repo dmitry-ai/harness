@@ -263,6 +263,9 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 			break
 	return r if None is not r else _resolve_deleted_worktree_file(path, is_tracked_fn)
 # @used-by :func:`agent_tools.cli_registry._exec_worktree_begin()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
@@ -305,6 +308,9 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 # 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
 # @used-by :func:`_push_and_finish_land()`
 # @used-by :func:`agent_tools.cli_registry._exec_worktree_cleanup()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`

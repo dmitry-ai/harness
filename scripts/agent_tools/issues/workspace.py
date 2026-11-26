@@ -194,6 +194,7 @@ class IssueEvidenceWorkspace:
 				self._collect_child_issue_file(ifile, repo, pnum, by_num)
 		return [by_num[k] for k in sorted(by_num)]
 	# @used-by :func:`agent_tools.github_issue._issue_target_for_path()`
+	# @used-by :func:`agent_tools.issue_first_inherit._turns_and_evidence_dirs()`
 	# @used-by :meth:`IssueEvidenceWorkspace._target_for_project_root()`
 	# @used-by :meth:`IssueEvidenceWorkspace.find_tracked_child_issues()`
 	# @used-by :meth:`IssueEvidenceWorkspace.resolve_issue_targets()`

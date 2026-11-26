@@ -195,6 +195,8 @@ def _resolve_deleted_worktree_scope(p: Path) -> Path | None:
 # @used-by :func:`agent_tools.tdd.evaluator._cwd_matches_scope()`
 # @used-by :func:`agent_tools.tdd.evaluator._resolve_event_target_scopes()`
 # @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
+# @used-by :func:`agent_tools.tdd.worktree_scope.canonical_scope_path()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_classifier_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_resolve_code_scope_normalizes_git_and_non_git_test_dirs()`
 # @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_resolve_code_scope_maps_deleted_worktree_to_main_code_repo()`

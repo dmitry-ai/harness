@@ -141,6 +141,7 @@ class RAM:
 	# @used-by :func:`agent_tools.tdd.exemption.is_write_event_exempt()`
 	# @used-by :func:`agent_tools.tdd.mechanical._resolve_repo_binding()`
 	# @used-by :func:`agent_tools.tdd.mechanical.find_matching_mechanical_recipes()`
+	# @used-by :func:`agent_tools.tdd.worktree_scope.canonical_scope_path()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_cli.main()`

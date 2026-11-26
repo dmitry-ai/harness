@@ -1670,6 +1670,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_cli_command_grounding`
 	# @used-by :mod:`test_cli_common`
 	# @used-by :mod:`test_cli_registry`
+	# @used-by :mod:`test_code_fanout_gates`
 	# @used-by :mod:`test_code_formatting_rules`
 	# @used-by :mod:`test_code_size_gate`
 	# @used-by :mod:`test_code_style_gate`
@@ -2258,6 +2259,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.intake._snapshot()`
 # @used-by :func:`agent_tools.intake._validate_receipt()`
 # @used-by :func:`agent_tools.intake.commit_capture()`
+# @used-by :func:`agent_tools.issue_first_inherit._candidate_project_roots()`
 # @used-by :func:`agent_tools.issues.acceptance_gate._load_acceptance_receipt()`
 # @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
 # @used-by :func:`agent_tools.issues.parity._peer_code_repo_candidates()`

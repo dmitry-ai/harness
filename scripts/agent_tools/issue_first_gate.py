@@ -471,6 +471,8 @@ def extract_antigravity_issue_first_events(transcript_path: Path, *, cwd: Path |
 
 
 # @used-by :func:`agent_tools.gates.issue_first.check()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_evaluate_pre_tool_use_issue_first_blocks_spoofing_and_enforces_live_order()`
 def evaluate_pre_tool_use_issue_first(name: str, args: dict, payload: dict) -> str | None:
 	cwd_raw = str(payload.get('cwd') or '').strip()
@@ -500,12 +502,9 @@ def evaluate_pre_tool_use_issue_first(name: str, args: dict, payload: dict) -> s
 
 	t_raw = str(payload.get('transcriptPath') or '').strip()
 	if not t_raw:
-		first_target, first_info = pending_targets[0]
-		return (
-			f'EXEC-5 ISSUE-FIRST-GATE: Cannot edit "{first_info["rel_path"]}" in {first_info["repo_slug"]} '
-			f'without an established open parent GitHub issue (transcript unavailable). State the problem as a parent GitHub issue via '
-			f'df_github_issue.py create --repo {first_info["repo_slug"]} BEFORE developing tests or code.'
-		)
+		# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+		from .issue_first_inherit import missing_transcript_issue_first_error
+		return missing_transcript_issue_first_error(pending_targets, payload, cwd)
 
 	events, requests = extract_antigravity_issue_first_events(Path(t_raw), cwd=cwd)
 	base_eval = evaluate_issue_first_events(events, requests=requests, project_root=cwd)
@@ -515,18 +514,12 @@ def evaluate_pre_tool_use_issue_first(name: str, args: dict, payload: dict) -> s
 		repo_st = base_eval['repos'].get(slug_key)
 		if repo_st and repo_st.get('active_parents'):
 			continue
-		pending_ev = {
-			'kind': 'code_write',
-			'step': next_step,
-			'path': str(target_path),
-			'rel_path': info['rel_path'],
-			'repo_root': str(info['repo_root']),
-			'repo_slug': info['repo_slug'],
-			'classification': info['classification'],
-		}
+		# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+		from .issue_first_inherit import has_inherited_open_parent_issue
+		pending_ev = {'kind': 'code_write', 'step': next_step, 'path': str(target_path), 'rel_path': info['rel_path'], 'repo_root': str(info['repo_root']), 'repo_slug': info['repo_slug'], 'classification': info['classification']}
 		probe = evaluate_issue_first_events([*events, pending_ev], requests=requests, project_root=cwd or info['repo_root'])
 		probe_st = probe['repos'].get(slug_key)
-		if probe_st and probe_st.get('active_parents'):
+		if (probe_st and probe_st.get('active_parents')) or has_inherited_open_parent_issue(payload, info, cwd, Path(t_raw)):
 			continue
 		if probe['violations']:
 			return probe['violations'][-1]
