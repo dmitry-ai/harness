@@ -100,5 +100,15 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		self.assertIn('The argument', cm.exception.message())
 		self.assertEqual(2, cm.exception.getStackLevelsCountToSkip())
 		self.assertIsNone(cm.exception._prev())
+	# 2026-11-26 "Return error message from Df\Qa\Trace\Formatter::p() catch handler": https://github.com/dmitry-ai/harness/issues/335
+	# Upstream defect: https://github.com/mage2pro/core/issues/478
+	# @used-by :mod:`unittest`
+	def test_335_formatter_catch_returns_message(self) -> None:
+		from Df.Qa.Trace.Formatter import Formatter
+		class BrokenTrace:
+			# @used-by :meth:`TestDfUpstreamFixes.test_335_formatter_catch_returns_message()`
+			def __iter__(self):
+				raise RuntimeError('broken trace')
+		self.assertEqual('broken trace', Formatter.p(BrokenTrace()))
 if '__main__' == __name__:
 	unittest.main()
