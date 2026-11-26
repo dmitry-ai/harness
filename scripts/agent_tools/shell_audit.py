@@ -155,26 +155,9 @@ class ShellCommandInspector:
 					pos = end_idx
 					if tail.strip() or not isinstance(obj, dict):
 						continue
-					consumed = obj.get('consumed_files')
-					act = obj.get('action')
-					repo = obj.get('repo')
-					# 2026-11-23
-					# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
-					# https://github.com/dmitry-ai/harness/issues/143
-					if obj.get('ok', True) and (not (isinstance(consumed, list) and any((re.search('(?i)(?:[/\\\\]temp[/\\\\]|[/\\\\]tmp[/\\\\])', str(cf)) for cf in consumed)))) and (act in ('create', 'fetch', 'edit', 'comment', 'close')) and isinstance(repo, str) and ('/' in repo):
-						num = obj.get('number')
-						if None is num:
-							m = re.search('/issues/(\\d+)\\b', str(obj.get('html_url') or ''))
-							if m:
-								num = int(m.group(1))
-						if isinstance(num, int):
-							# 2026-11-18
-							# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
-							# https://github.com/dmitry-ai/harness/issues/84
-							entry = {'action': act, 'repo': repo, 'number': num, 'url': f'https://github.com/{repo}/issues/{num}', 'ok': bool(obj.get('ok', True)), 'state': obj.get('state')}
-							if isinstance(obj.get('parent_number'), int) and (not isinstance(obj.get('parent_number'), bool)):
-								entry['parent_number'] = obj['parent_number']
-							r.append(entry)
+					# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+					from .issues.batch_commands import extract_actions_from_decoded_obj
+					r.extend(extract_actions_from_decoded_obj(obj))
 		return r
 	# @used-by :func:`_parse_commit_subcommand_args()`
 	# @used-by :meth:`ShellCommandInspector.prohibited_git_write_commands()`
@@ -403,6 +386,8 @@ def extract_comment_issue_urls(text: str) -> set[str]:
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._finalize_turn()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_extract_issue_actions_recognizes_fetch_and_anti_spoofing_command_check()`
+# @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_close_enforces_grounding_consumes_inputs_and_extracts_actions()`
+# @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_create_verifies_readback_and_action_extraction()`
 def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> list[dict]:
 	return _INSPECTOR.extract_issue_actions(outputs)
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`

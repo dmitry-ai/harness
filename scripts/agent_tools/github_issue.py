@@ -63,6 +63,7 @@ def _gh_api(endpoint: str, *, method: str='GET', payload: dict[str, Any] | None=
 # 2026-11-24
 # "Isolate per-conversation github_issues recording and turn-state filtering":
 # https://github.com/dmitry-ai/harness/issues/195
+# @used-by :func:`build_parser()`
 # @used-by :func:`cmd_audit_repo()`
 # @used-by :func:`cmd_close()`
 # @used-by :func:`cmd_comment()`
@@ -211,10 +212,9 @@ def build_parser() -> argparse.ArgumentParser:
 		# https://github.com/dmitry-ai/harness/issues/126
 		('transfer-repo', 'Transfer a GitHub repository to a new owner/organization with read-back verification and Evidence persistence.', cmd_transfer_repo, (_REPO_SPEC, ('--new-owner', {'required': True, 'help': 'Destination GitHub user or organization login.'}), ('--new-name', {'help': 'Optional new repository name after transfer.'}), ('--project-root', {'help': 'Optional explicit project root directory.'}), ('--poll-attempts', {'type': int, 'default': 8, 'help': 'Number of read-back verification attempts.'}), ('--poll-interval', {'type': float, 'default': 1.5, 'help': 'Seconds between read-back verification attempts.'}))),
 	)
-	for name, help_text, fn, specs in sub_defs:
-		p = sub.add_parser(name, help=help_text)
-		add_arg_specs(p, specs)
-		p.set_defaults(func=fn)
+	# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+	from .issues.batch_commands import register_issue_subparsers
+	register_issue_subparsers(sub, sub_defs, _COMMON_TAIL_SPECS, _service)
 	return r
 # 2026-11-24
 # "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
@@ -309,6 +309,7 @@ def lint_issue_markdown(text: str, *, is_title: bool=False, target_locale: str='
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`test_issue_close_acceptance._run_close_cli()`
+# @used-by :func:`test_issue_preflight_and_batch._run_cli_json()`
 # @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_close_requires_committed_issue_url_in_local_code_repo()`
 # @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_and_consume_input_with_readback_verification()`
 # @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out()`

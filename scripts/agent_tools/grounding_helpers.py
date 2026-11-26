@@ -2,6 +2,14 @@
 from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urldefrag
+# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+import re
+_TEST_SUMMARY_RES = (
+	re.compile(r'(?i)\bRan\s+\d+(?:,\d{3})*\s+tests?(?:\s+in\s+\d+(?:\.\d+)?\s*m?s)?\b'),
+	re.compile(r'(?i)\b\d+(?:,\d{3})*(?:\s*/\s*\d+(?:,\d{3})*)?\s+(?:tests?\s+)?(?:passed|passing|failed|failing|skipped|errors?|warnings?|xfailed|xpassed|ok)\b(?:\s*,\s*\d+(?:,\d{3})*\s+(?:passed|failed|skipped|errors?|warnings?|xfailed|xpassed)\b)*(?:\s+in\s+\d+(?:\.\d+)?\s*m?s\b)?'),
+	re.compile(r'(?i)\b\d+(?:,\d{3})*\s*/\s*\d+(?:,\d{3})*\s+(?:test\s+)?(?:modules?|tests?|suites?|files?|checks?|cases?)\b'),
+	re.compile(r'(?i)\b(?:workers|passed|skipped|failed|failures|errors|total_tests|total_modules|passed_modules|failed_modules|exit_code|returncode|issue_count)\s*=\s*\d+(?:\.\d+)?\b'),
+)
 # @used-by :func:`audit_active_block()`
 # @used-by :func:`build_active_corpus_cached()`
 def _assemble_corpus(infos: list[dict], ext_entries: list[tuple[str, str, set[str]]]) -> tuple[list[dict], str, str, set[str]]:
@@ -119,3 +127,15 @@ def build_active_corpus_cached(auditor, active_locals: list[Path], active_exts: 
 	infos, combined_raw, combined_norm, ev_nums = cached
 	label = ', '.join((auditor.index.locator_for(p) for p in active_primary[:2]))
 	return (infos, combined_raw, combined_norm, ev_nums, label)
+# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+# @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
+def clean_line_for_number_grounding(sline: str, *, is_ticket: bool=False) -> str:
+	cleaned = re.sub(r'\[[^\]]*\]\([^)]*\)', ' ', sline)
+	cleaned = re.sub(r'https?://\S+|file://\S+', ' ', cleaned)
+	cleaned = cleaned.replace('`', ' ')
+	cleaned = re.sub(r'\b\d+(?:[.,]\d+)?\s*%', ' ', cleaned)
+	cleaned = re.sub(r'(?i)\b(?:line|lines|\u0441\u0442\u0440\u043e\u043a\w*)\s+\d+(?:\s*[\u2013\u2014-]\s*\d+)?', ' ', cleaned)
+	if not is_ticket:
+		for pat in _TEST_SUMMARY_RES:
+			cleaned = pat.sub(' ', cleaned)
+	return cleaned

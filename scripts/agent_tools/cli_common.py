@@ -9,7 +9,7 @@ import sys
 # @used-by :func:`agent_tools.cli.main()`
 # @used-by :func:`agent_tools.cli_registry.add_registered_parsers()`
 # @used-by :func:`agent_tools.completion.add_parser_arguments()`
-# @used-by :func:`agent_tools.github_issue.build_parser()`
+# @used-by :func:`agent_tools.issues.batch_commands.register_issue_subparsers()`
 # @used-by :func:`agent_tools.operations.add_parsers()`
 # @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :func:`agent_tools.upwork_project.main()`
@@ -38,6 +38,7 @@ def consume_scratch_input(args, path, payload: bytes, result: dict) -> dict:
 				result['consumed_input'] = str(target)
 			r = result
 	return r
+# @used-by :func:`agent_tools.issues.batch_commands._run_batch_items()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._finalize_close()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._verify_mutation_readback()`
 # @used-by :mod:`agent_tools.github_issue`
@@ -50,6 +51,10 @@ def consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 	return r
 # @used-by :func:`agent_tools.cli.main()`
 # @used-by :func:`agent_tools.github_issue.main()`
+# @used-by :func:`agent_tools.issues.batch_commands._run_batch_items()`
+# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
+# @used-by :func:`agent_tools.issues.comment_grounding.emit_grounding_failure()`
+# @used-by :func:`agent_tools.issues.comment_grounding.validate_close_comment()`
 # @used-by :func:`agent_tools.issues.repo_commands.run_audit_repo()`
 # @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
 # @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
@@ -63,7 +68,6 @@ def consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._post_close_comment()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._verify_close_prereqs()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._verify_mutation_readback()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_comment()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_create()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService.run_verified_mutation()`
 def dump_json(payload, *, stream=None) -> None:

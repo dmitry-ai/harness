@@ -73,6 +73,7 @@ _READ_ONLY_GROUNDING: ContextVar[bool] = ContextVar('harness_read_only_grounding
 # @used-by :func:`agent_tools.completion.issue_first_check_turn()`
 # @used-by :func:`agent_tools.completion.recover_checkpoint()`
 # @used-by :func:`agent_tools.completion.tdd_check_turn()`
+# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_grounding()`
 @contextmanager
 def read_only_grounding():
 	tok = _READ_ONLY_GROUNDING.set(True)
@@ -717,11 +718,9 @@ def _line_grounded_numbers_check(sline: str, ev_nums: set[str], valid_msg_nums: 
 	ev_with_calc = set(ev_nums) | set(verified_calc_nums)
 	for calc_err in calc_errors:
 		r.append(f'{calc_err} (inline arithmetic mismatch)')
-	cleaned = re.sub('\\[[^\\]]*\\]\\([^)]*\\)', ' ', sline)
-	cleaned = re.sub('https?://\\S+|file://\\S+', ' ', cleaned)
-	cleaned = cleaned.replace('`', ' ')
-	cleaned = re.sub('\\b\\d+(?:[.,]\\d+)?\\s*%', ' ', cleaned)
-	cleaned = re.sub('(?i)\\b(?:line|lines|\\u0441\\u0442\\u0440\\u043e\\u043a\\w*)\\s+\\d+(?:\\s*[\\u2013\\u2014-]\\s*\\d+)?', ' ', cleaned)
+	# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+	from .grounding_helpers import clean_line_for_number_grounding
+	cleaned = clean_line_for_number_grounding(sline, is_ticket=is_ticket)
 	for num in sorted(standalone_numbers(cleaned)):
 		norm_num = num.replace(',', '')
 		if not (1 == len(norm_num) and norm_num.isdigit()):
@@ -941,6 +940,7 @@ def load_fact_ledger(root: Path) -> list[dict]:
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_grounding()`
 # @used-by :func:`agent_tools.review.prepare()`
 # @used-by :func:`check_markdown_slop._check_doc_grounding_and_links()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_comments_evidence()`
@@ -949,6 +949,7 @@ def load_fact_ledger(root: Path) -> list[dict]:
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_fact_tuple_ledger_and_contradictions()`
+# @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_test_summary_counts_allowed_alongside_blob_link_while_ungrounded_numbers_fail()`
 # @used-by :meth:`test_scratch_slop_and_grounding_loc_m7.ScratchSlopAndGroundingLocM7Tests.test_scratch_draft_defers_grounding_but_keeps_doc4_syntax_checks()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_client_deliverable_grounding_and_evicted_step_output_gate()`
 def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | None=None, observed_texts: dict | None=None, cache: dict | None=None, _visited: set | None=None) -> list[str]:

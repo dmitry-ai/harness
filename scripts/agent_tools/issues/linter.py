@@ -238,6 +238,8 @@ class IssueMarkdownLinter:
 			r = IssueMarkdownLinter._parse_parent_str(str(raw_parent).strip(), repo, raw_parent)
 		return r
 	# @used-by :func:`agent_tools.github_issue.read_utf8_no_bom_file()`
+	# @used-by :func:`agent_tools.issues.batch_commands._load_batch_spec()`
+	# @used-by :func:`agent_tools.issues.comment_grounding.validate_close_comment()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
 	# @used-by :func:`agent_tools.issues.service_helpers.resolve_title()`
 	@staticmethod

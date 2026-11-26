@@ -1107,6 +1107,7 @@ class WorkflowStateEngine:
 	# @used-by :func:`git_fixture_cache.run_harness_inprocess()`
 	# @used-by :func:`test_evidence_contract.v3_analysis()`
 	# @used-by :func:`test_issue_close_acceptance._run_close_cli()`
+	# @used-by :func:`test_issue_preflight_and_batch._make_fake_gh()`
 	# @used-by :func:`test_stop_emergency_capture_and_foreign_sync._reserve_foreign()`
 	# @used-by :func:`test_text_browser.dom_fixture()`
 	# @used-by :func:`update()`

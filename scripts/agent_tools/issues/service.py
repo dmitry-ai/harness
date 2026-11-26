@@ -182,23 +182,16 @@ class GitHubIssueService:
 			prefixed = prepend_metadata_header(body, meta_obj)
 			self._api(f'repos/{repo}/issues/{num}', method='PATCH', payload={'body': prefixed})
 			state['body'], state['prepended'] = (prefixed, True)
+	# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
 	# @used-by :meth:`GitHubIssueService.cmd_close()`
 	def _verify_close_prereqs(self, args: argparse.Namespace, repo: str, number: int, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, project_root: str | Path | None) -> tuple[str | None, Path | None, int | None]:
-		comment_body, c_errors = (None, [])
-		if args.comment_file:
-			c_path, c_raw, comment_body = self.linter.read_utf8_no_bom_file(args.comment_file)
-			consumable.append((c_path, c_raw))
-			c_errors = self.linter.lint(comment_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=False)
+		from .comment_grounding import validate_close_comment
+		comment_body, err_rc = validate_close_comment(self, args, repo, number, consumable, target_locale, container_text, project_root)
 		# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
-		code_repo, commit_err, err_stage = self._check_close_commit_readiness(args, repo, number, consumable, project_root) if (not c_errors) and 'completed' == getattr(args, 'reason', 'completed') else (None, None, 'pre_flight_commit_check')
-		if c_errors:
-			dump_json({'ok': False, 'action': 'close', 'stage': 'pre_flight_comment_lint', 'repo': repo, 'number': number, 'comment_errors': c_errors})
-			err_rc: int | None = 2
-		elif commit_err:
+		code_repo, commit_err, err_stage = self._check_close_commit_readiness(args, repo, number, consumable, project_root) if None is err_rc and 'completed' == getattr(args, 'reason', 'completed') else (None, None, 'pre_flight_commit_check')
+		if None is err_rc and commit_err:
 			dump_json({'ok': False, 'action': 'close', 'stage': err_stage, 'repo': repo, 'number': number, 'error': commit_err})
 			err_rc = 2
-		else:
-			err_rc = None
 		return (comment_body, code_repo, err_rc)
 	# @used-by :meth:`GitHubIssueService.run_verified_mutation()`
 	def _verify_mutation_readback(self, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, eff_expected_body: str | None, kind: str, id_key: str, ident: Any, fetched: dict[str, Any], consume_input: bool, project_root: str | Path | None, parent_number: int | None, self_number: int | None, eff_struct: bool, post_write_fn) -> int:
@@ -223,6 +216,7 @@ class GitHubIssueService:
 	def cmd_audit_repo(self, args: argparse.Namespace) -> int:
 		return run_audit_repo(self._api, self.linter, args)
 	# @used-by :func:`agent_tools.github_issue.cmd_close()`
+	# @used-by :func:`agent_tools.issues.batch_commands.run_batch_close()`
 	# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_close_blocks_antigravity_addons_when_companion_unhealthy()`
 	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_service_cmd_close_routes_through_module_gh_api_and_checks_readback()`
 	# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_close_blocks_on_unhealthy_repo_health_command()`
@@ -237,17 +231,18 @@ class GitHubIssueService:
 			comment_ok, comment_id = self._post_close_comment(repo, number, comment_body, target_locale, container_text, consumable, project_root) if None is not comment_body else (True, None)
 			r = 2 if not comment_ok else self._finalize_close(args, repo, number, comment_id, code_repo, consumable, project_root)
 		return r
+	# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
 	# @used-by :func:`agent_tools.github_issue.cmd_comment()`
 	def cmd_comment(self, args: argparse.Namespace) -> int:
+		from .comment_grounding import check_comment_preflight
 		repo = self.linter.validate_repo(args.repo)
 		b_path, b_raw, body = self.linter.read_utf8_no_bom_file(args.body_file)
 		consumable = [(b_path, b_raw)]
 		target_locale, project_root = (getattr(args, 'target_locale', 'en-US') or 'en-US', getattr(args, 'project_root', None))
 		container_text = self.workspace.load_saved_issue_container_text(consumable, repo, getattr(args, 'issue', None), project_root=project_root)
-		existing_cids = self.workspace.find_existing_issue_comments(consumable, repo, args.issue, project_root=project_root) if None is args.comment_id and None is not args.issue and (not getattr(args, 'allow_additional_comment', False)) else []
-		if existing_cids:
-			dump_json({'ok': False, 'action': 'comment', 'stage': 'idempotent_comment_gate', 'repo': repo, 'issue': args.issue, 'existing_comment_ids': existing_cids, 'error': f'EXEC-5 / SCOPE-2: Issue #{args.issue} already has tracked comment(s) {existing_cids} in KB/Evidence/GitHub; use --comment-id {existing_cids[-1]} to update the existing comment in place instead of posting a duplicate comment (or pass --allow-additional-comment if explicitly instructed)'})
-			r = 2
+		err_rc = check_comment_preflight(self, args, repo, body, consumable, project_root)
+		if None is not err_rc:
+			r = err_rc
 		else:
 			# @used-by :meth:`GitHubIssueService.cmd_comment()`
 			def _write_comment() -> int:
@@ -261,6 +256,7 @@ class GitHubIssueService:
 			r = self.run_verified_mutation(action='comment', repo=repo, consumable=consumable, target_locale=target_locale, container_text=container_text, expected_title=None, expected_body=body, write_fn=_write_comment, read_fn=lambda cid: self._api(f'repos/{repo}/issues/comments/{cid}', method='GET'), kind='comment', id_key='comment_id', consume_input=args.consume_input, project_root=project_root)
 		return r
 	# @used-by :func:`agent_tools.github_issue.cmd_create()`
+	# @used-by :func:`agent_tools.issues.batch_commands.run_batch_create()`
 	def cmd_create(self, args: argparse.Namespace) -> int:
 		repo, consumable = (self.linter.validate_repo(args.repo), [])
 		target_locale, project_root = (getattr(args, 'target_locale', 'en-US') or 'en-US', getattr(args, 'project_root', None))

@@ -469,6 +469,7 @@ class _Plan:
 	# @used-by :func:`_shared_plan()`
 	# @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
 	# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
+	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
 	# @used-by :func:`retire_owned_project_projections()`
 	# @used-by :meth:`_Plan.file()`

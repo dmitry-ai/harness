@@ -107,7 +107,8 @@ def _register_bg_issue_tasks(cmd: str, matched: list[str], bg_cmds: dict[str, tu
 def _var_issue_matches(cmd: str, segments: list[str]) -> bool:
 	r = False
 	for vname in _DF_ISSUE_VAR_RE.findall(cmd):
-		pat = re.compile(rf'(?i)(?:^|[\s&;])(?:python(?:3(?:\.\d+)?)?(?:\.exe)?\s+(?:-[A-Za-z0-9_]+\s+)*)?["\']?{re.escape(vname)}["\']?\s+(?:create|fetch|edit|comment|close)\b')
+		# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+		pat = re.compile(rf'(?i)(?:^|[\s&;])(?:python(?:3(?:\.\d+)?)?(?:\.exe)?\s+(?:-[A-Za-z0-9_]+\s+)*)?["\']?{re.escape(vname)}["\']?\s+(?:create|fetch|edit|comment|close|batch-create|batch-close)\b')
 		if any((pat.search(s) and (not _PY_INLINE_C_RE.search(s)) for s in segments)):
 			r = True
 			break

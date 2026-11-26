@@ -205,6 +205,8 @@ class AntigravityContinuationTests(ProjectCase):
 		self.inputs(['  Continue analysis.\nAfter outage.  '])
 	# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
 	# @used-by :func:`agent_tools.cli_registry._exec_shadow_replay()`
+	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
+	# @used-by :func:`agent_tools.issues.comment_grounding.validate_close_comment()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
 	# @used-by :meth:`AntigravityContinuationTests.test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text()`
 	# @used-by :meth:`AntigravityContinuationTests.test_foreign_or_multiple_native_workspaces_cannot_claim_identical_request()`

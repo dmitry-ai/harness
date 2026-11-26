@@ -20,7 +20,8 @@ _EXCLUDED_META_PARTS = frozenset(p.casefold() for p in (
 ))
 _DF_ISSUE_CMD_RE = re.compile(
 	r'^\s*(?:&\s*)?(?:["\']?[^\s"\']*python(?:3(?:\.\d+)?)?(?:\.exe)?["\']?\s+(?:-[A-Za-z0-9_]+\s+)*)?'
-	r'["\']?(?:[^"\']*[/\\])?df_github_issue\.py["\']?\s+(create|fetch|edit|comment|close)\b',
+	# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+	r'["\']?(?:[^"\']*[/\\])?df_github_issue\.py["\']?\s+(create|fetch|edit|comment|close|batch-create|batch-close)\b',
 	re.IGNORECASE,
 )
 _HASH_ISSUE_REF_RE = re.compile(r'(?<![A-Za-z0-9_/])#(\d+)\b')
@@ -90,6 +91,7 @@ def resolve_issue_first_target(path: str | Path, *, content: str | None = None) 
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_extract_issue_actions_recognizes_fetch_and_anti_spoofing_command_check()`
+# @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_create_verifies_readback_and_action_extraction()`
 def is_df_github_issue_command(cmd: str) -> bool:
 	from .issue_first_bg import is_df_issue_command_text
 	return is_df_issue_command_text(cmd, _DF_ISSUE_CMD_RE)

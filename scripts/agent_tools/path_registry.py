@@ -1307,6 +1307,7 @@ def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None,
 			return (idx, anc)
 	return (None, None)
 # @used-by :func:`agent_tools.analysis.publish_analysis()`
+# @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
 # @used-by :func:`agent_tools.issues.service_helpers.resolve_metadata_project_root()`
 # @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`check_markdown_slop._infer_project_root()`
@@ -1719,6 +1720,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_issue_first_github_cli`
 	# @used-by :mod:`test_issue_first_pre_tool_use`
 	# @used-by :mod:`test_issue_first_rules_contract`
+	# @used-by :mod:`test_issue_preflight_and_batch`
 	# @used-by :mod:`test_java_xref`
 	# @used-by :mod:`test_journal_idle_sync_and_liveness`
 	# @used-by :mod:`test_journal_integrity`
@@ -2261,6 +2263,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.intake.commit_capture()`
 # @used-by :func:`agent_tools.issue_first_inherit._candidate_project_roots()`
 # @used-by :func:`agent_tools.issues.acceptance_gate._load_acceptance_receipt()`
+# @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
 # @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
 # @used-by :func:`agent_tools.issues.parity._peer_code_repo_candidates()`
 # @used-by :func:`agent_tools.issues.repo_locator._append_peer_repos()`

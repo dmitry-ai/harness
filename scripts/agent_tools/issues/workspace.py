@@ -155,6 +155,7 @@ class IssueEvidenceWorkspace:
 				continue
 		return r
 	# @used-by :func:`agent_tools.github_issue._find_existing_issue_comments()`
+	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
 	def find_existing_issue_comments(self, source_files: list[tuple[Path, bytes]], repo: str, issue_num: int, project_root: str | Path | None=None) -> list[int]:
 		safe_repo, r = (repo.replace('/', '__'), [])
 		for gh_root, _ in self.resolve_issue_targets(source_files, repo, project_root=project_root):
@@ -169,6 +170,7 @@ class IssueEvidenceWorkspace:
 		return r
 	# @used-by :func:`agent_tools.github_issue._find_local_code_repo()`
 	# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
+	# @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
 	# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
 	# @used-by :func:`agent_tools.issues.service_helpers.resolve_metadata_project_root()`
 	# @used-by :meth:`IssueEvidenceWorkspace.resolve_issue_targets()`

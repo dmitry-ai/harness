@@ -246,6 +246,7 @@ class RAM:
 	# @used-by :meth:`test_intake.IntakeTests.test_symlinked_material_cannot_import_or_delete_outside_target()`
 	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_evidence_workspace_uses_locked_atomic_turn_updates()`
 	# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_cli_issue_first_check_read_only_and_legacy_delivered_immutability()`
+	# @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_close_enforces_grounding_consumes_inputs_and_extracts_actions()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_changed_created_link_does_not_stop_other_guarded_rollback()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_check_creates_no_lock_receipt_or_profile_files()`

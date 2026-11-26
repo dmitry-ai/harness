@@ -19,7 +19,8 @@ EXTERNAL_WRITE_INTENT_RE = re.compile('(?i)\\b(?:github|gh\\s+issue|df_github_is
 # @used-by :func:`_upwork_project_root_for_command()`
 def _cand_paths_from_cmd(cmd: str) -> list[Path]:
 	cands: list[Path] = []
-	for m in re.finditer('(?:--project-root|--body-file|-F|--title-file|--comment-file)\\s+(?:"([^"]+)"|\'([^\']+)\'|(\\S+))', cmd):
+	# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+	for m in re.finditer('(?:--project-root|--body-file|-F|--title-file|--comment-file|--spec-file|-S)\\s+(?:"([^"]+)"|\'([^\']+)\'|(\\S+))', cmd):
 		raw_p = m.group(1) or m.group(2) or m.group(3)
 		if raw_p:
 			try:
@@ -86,6 +87,7 @@ def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 			r = 'EXEC-5 / SCOPE-2: Direct mutating gh api calls (POST/PATCH/PUT/DELETE) in the shell are prohibited; use df_github_issue.py.'
 		elif any((re.search('(?:--input|-f|--raw-field|-F|--field)(?:\\s|=|$)', m.group(1)) and (not re.search('(?:--method(?:\\s+|=)|-X\\s*)GET\\b', m.group(1), re.I)) for m in re.finditer('(?:^|[;|\\n&]|\\s)(gh(?:\\.exe)?\\s+api\\b[^;|\\n]*)', cmd, re.I))):
 			r = 'EXEC-5 / SCOPE-2: Direct mutating gh api calls with input/field arguments are prohibited; use df_github_issue.py.'
-		elif re.search('\\bdf_github_issue\\.py\\s+(?:create|edit|comment|close)\\b', cmd, re.I):
+		# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
+		elif re.search('\\bdf_github_issue\\.py\\s+(?:create|edit|comment|close|batch-create|batch-close)\\b', cmd, re.I):
 			r = _check_df_issue_turn_intent(cmd)
 	return r
