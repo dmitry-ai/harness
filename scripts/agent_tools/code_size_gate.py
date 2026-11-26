@@ -4,6 +4,8 @@ import ast
 import io
 from pathlib import Path
 import tokenize
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Core.lib.git import df_git_root
 # 2026-11-24
 # "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
 # https://github.com/dmitry-ai/harness/issues/186
@@ -100,15 +102,11 @@ def _count_mccabe_in_node(node: ast.AST) -> int:
 		if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
 			count += _count_mccabe_in_node(child)
 	return count
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_resolve_python_target()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _find_git_root(path: Path) -> Path | None:
-	start = path if path.is_dir() else path.parent
-	r = None
-	for anc in (start, *start.parents):
-		if (anc / '.git').exists():
-			r = anc
-			break
-	return r
+	return df_git_root(path)
 # @used-by :func:`_unique_fn_map()`
 def _function_metrics(fn_node: ast.AST, effective_lines: set[int]) -> dict:
 	start = fn_node.lineno

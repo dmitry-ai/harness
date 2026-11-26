@@ -1,6 +1,7 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 import re
+from Df.Core.lib.text.source import df_match_delim
 from ..tdd.comment_lexers_c import can_start_regex
 from ..tdd.comment_scanners import scan_block_comment, scan_js_regex, scan_line_comment, scan_quoted
 # 2026-11-26
@@ -144,6 +145,7 @@ def find_arrow_after_eq(toks: list[tuple[str, str, int]], eq_idx: int) -> int:
 		if j < n and '=>' == toks[j][1]:
 			r = j
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`agent_tools.xref.js_imports.parse_destruct_require()`
 # @used-by :func:`agent_tools.xref.js_imports.parse_esm_export_list()`
 # @used-by :func:`agent_tools.xref.js_imports.parse_module_exports_rhs()`
@@ -156,18 +158,9 @@ def find_arrow_after_eq(toks: list[tuple[str, str, int]], eq_idx: int) -> int:
 # @used-by :func:`agent_tools.xref.js_model._parse_top_func()`
 # @used-by :func:`arrow_body_end()`
 # @used-by :func:`find_arrow_after_eq()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def match_delim(toks: list[tuple[str, str, int]], start: int, open_ch: str, close_ch: str) -> int:
-	depth, i, n, r = (0, start, len(toks), len(toks) - 1)
-	while i < n:
-		if open_ch == toks[i][1]:
-			depth += 1
-		elif close_ch == toks[i][1]:
-			depth -= 1
-			if 0 == depth:
-				r = i
-				break
-		i += 1
-	return r
+	return df_match_delim(toks, start, open_ch, close_ch)
 # @used-by :func:`agent_tools.xref.js_model._finish_class_member()`
 # @used-by :func:`agent_tools.xref.js_model._parse_fn_expr_body()`
 # @used-by :func:`agent_tools.xref.js_model._parse_named_var_decl()`

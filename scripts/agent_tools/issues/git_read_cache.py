@@ -5,6 +5,7 @@ import os
 import subprocess
 # 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
+from Df.Core.lib.fs import df_path_suffix
 _LOG_MAX_COUNT = 100
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # 2026-11-24
@@ -35,11 +36,11 @@ def _git_read(repo: Path, args: list[str]) -> subprocess.CompletedProcess:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 # 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_iter_untracked_files()`
 # @used-by :meth:`RepoReadCache.dirty_referencing_issue()`
 def _effective_suffix(path: str | Path) -> str:
-	p = Path(path)
-	return p.suffix.lower() or (p.name.lower() if p.name.startswith('.') else '')
+	return df_path_suffix(path)
 # 2026-11-24
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196

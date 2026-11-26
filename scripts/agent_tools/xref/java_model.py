@@ -1,6 +1,7 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from Df.Core.lib.text.source import df_line_indent
 from .java_lex import extract_param_types, match_delim, skip_annotation, tokenize_java
 # 2026-11-26
 # "Extend cross-reference engine for JS/TS and Java":
@@ -57,10 +58,11 @@ def _find_method_paren(toks: list[tuple[str, str, int]], start: int, end: int) -
 # @used-by :func:`_parse_type_body()`
 def _is_enum_const_region(toks: list[tuple[str, str, int]], i: int, end: int) -> bool:
 	return 'word' == toks[i][0] and i + 1 < end and toks[i + 1][1] in (',', ';', '}')
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_record_method_def()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _line_indent(lines: list[str], lineno: int) -> str:
-	raw = lines[lineno - 1] if 1 <= lineno <= len(lines) else ''
-	return raw[:len(raw) - len(raw.lstrip(' \t'))]
+	return df_line_indent(lines[lineno - 1] if 1 <= lineno <= len(lines) else '')
 # @used-by :func:`_parse_type_body_item()`
 def _parse_member(toks: list[tuple[str, str, int]], i: int, end: int, anchor_ln: int, mods: set[str], has_ov: bool, ctx: dict) -> int:
 	p_open = _find_method_paren(toks, i, end)

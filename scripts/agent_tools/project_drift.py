@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import re
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Core.lib.json_io import df_json_dict_load
 from .diagnostics import problem
 from .path_registry import project_paths
 from .project_rename import resolve_promotable_target_domain
@@ -23,19 +25,13 @@ def _kb_identity_mismatch_issues(pp, value: dict) -> list[dict]:
 				rel_proj = pp.rel_to_root(proj_file)
 				r.append(problem('kb.identity_mismatch', rel_proj, f'Established client identity in Analysis.json is not synced to {rel_proj} (# 1.1 Name is still unknown)', file=proj_file))
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_registered_title_mismatches()`
 # @used-by :func:`domain_drift_issues()`
 # @used-by :func:`require_no_domain_drift_for_finalize()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _load_json_dict(path: Path) -> dict | None:
-	r = None
-	if path.is_file():
-		try:
-			raw = json.loads(path.read_text(encoding='utf-8-sig'))
-			if isinstance(raw, dict):
-				r = raw
-		except (OSError, ValueError):
-			r = None
-	return r
+	return df_json_dict_load(path)
 # @used-by :func:`domain_drift_issues()`
 def _registered_title_mismatches(pp, expected_domain: str) -> list[str]:
 	r: list[str] = []

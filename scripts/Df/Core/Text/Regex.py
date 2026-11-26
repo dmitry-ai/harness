@@ -116,6 +116,7 @@ class Regex(O):
 	# Return matched string, list of capture groups (when >= 2 groups), None on no match, or False on regex error.
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/Text/Regex.php#L4-L47
 	# @used-by :func:`Df.Core.lib.date.df_date_from_timestamp_14()`
+	# @used-by :func:`Df.Core.lib.fs.df_uri_file_decode()`
 	# @used-by :func:`Df.Core.lib.text.is_.guid.df_is_guid()`
 	# @used-by :func:`Df.Core.lib.text.regex.df_preg_match()`
 	# @used-by :func:`Df.Qa.lib.validation.check.df_is_email()`

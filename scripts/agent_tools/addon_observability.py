@@ -9,7 +9,9 @@ import json
 import os
 import re
 # 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.fs import df_path_posix
 from Df.Core.lib.state import df_is_windows
+from Df.Qa.lib.validation.check_strict import df_is_int_strict
 from .hook_crash_audit import _load_turn_rows, _load_violation_receipt
 _ADDONS_SLUG = 'dmitry-ai/antigravity-addons'
 _DISCLOSE_WT_RE = re.compile(r'(?i)(?:worktree|permission\s+denied|failed\s+to\s+delete|блокировк\w*|не\s+удалось\s+удалить)')
@@ -42,16 +44,18 @@ def _is_pid_alive(pid: int) -> bool:
 		except OSError:
 			r = False
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_runtime_issues_from_data()`
 # @used-by :func:`_touches_antigravity_addons()`
 # @used-by :func:`is_live_runtime_data_file()`
 def _norm_posix(value: str | Path) -> str:
-	return str(value or '').replace('\\', '/').casefold()
+	return df_path_posix(value or '').casefold()
 # @used-by :func:`inspect_companion_runtime_health()`
 def _runtime_issues_from_data(data: dict[str, Any], pid_alive_fn) -> tuple[list[str], str, int | None, str]:
 	issues: list[str] = []
 	state = str(data.get('state') or '').strip()
-	pid = data.get('pid') if isinstance(data.get('pid'), int) and (not isinstance(data.get('pid'), bool)) else None
+	# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+	pid = data.get('pid') if df_is_int_strict(data.get('pid')) else None
 	rt_path = str(data.get('runtimePath') or '').strip()
 	errors = data.get('errors') if isinstance(data.get('errors'), dict) else {}
 	if 'error' == state.lower() or errors:

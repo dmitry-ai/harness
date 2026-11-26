@@ -1,6 +1,6 @@
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import nullcontext
-import hashlib
+from Df.Core.lib.sha256 import df_sha256
 import json
 import os
 from pathlib import Path
@@ -26,6 +26,7 @@ INDEX_MARKER = '<!-- upwork-intake:generated v1 -->\n'
 # @used-by :func:`commit_capture()`
 def _bytes(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_receipt()`
 # @used-by :func:`_remaining()`
 # @used-by :func:`_retired()`
@@ -34,7 +35,7 @@ def _bytes(value):
 # @used-by :func:`_validate_receipt()`
 # @used-by :func:`commit_capture()`
 def _hash(payload):
-	return hashlib.sha256(payload).hexdigest()
+	return df_sha256(payload)
 # @used-by :func:`_plain()`
 # @used-by :func:`_receipt()`
 def _linked(path):

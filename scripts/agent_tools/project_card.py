@@ -6,13 +6,17 @@ from pathlib import Path
 import re
 # 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 from Df.Core.lib.text.n.normalize import df_normalize
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Core.lib.sha256 import df_sha256
 from .storage import locked, replace_bytes
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`sync_block()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _digest(data):
-	return hashlib.sha256(data).hexdigest()
+	return df_sha256(data)
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7

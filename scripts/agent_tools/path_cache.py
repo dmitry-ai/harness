@@ -9,6 +9,7 @@ import stat
 import tempfile
 import threading
 import time
+from Df.Core.lib.fs import df_stat_sig
 # 2026-11-24
 # "Accelerate project_paths and overlay link resolution with fast-path caching":
 # https://github.com/dmitry-ai/harness/issues/174
@@ -58,14 +59,10 @@ def _stat_mtime(path: Path) -> int:
 	except OSError:
 		r = 0
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_fast_sig()`
 def _stat_mtime_size(path: Path) -> tuple[int, int]:
-	try:
-		st = os.stat(path)
-		r = (st.st_mtime_ns, st.st_size)
-	except OSError:
-		r = (0, 0)
-	return r
+	return df_stat_sig(path) or (0, 0)
 # 2026-11-26 "Add RLock to path_cache and migrate diff_coverage to sys.monitoring": https://github.com/dmitry-ai/harness/issues/352
 # @used-by :func:`agent_tools.path_registry.clear_registry_cache()`
 # @used-by :func:`agent_tools.project_rename._apply_rename_mutations()`

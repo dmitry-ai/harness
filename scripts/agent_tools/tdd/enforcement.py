@@ -10,11 +10,10 @@ from .exemption import is_diff_exempt
 from .ratchet import find_ratchet_approval, ratchet_diff_violations
 from .service_exempt import is_service_finalization_call
 from .substantive import is_substantive_test_content, source_text_assertion_issues
+from Df.Core.lib.git import df_git_read_text
 # 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
 from .worktree_scope import resolve_tdd_scope_key
 import difflib
-import os
-import subprocess
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
@@ -231,21 +230,11 @@ def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 # @used-by :func:`agent_tools.xref_gate._staged_overrides()`
 def _git_index_text(repo_root: Path, rel_posix: str) -> str | None:
 	return _git_show_text(repo_root, f':{rel_posix}')
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_git_head_text()`
 # @used-by :func:`_git_index_text()`
 def _git_show_text(repo_root: Path, spec: str) -> str | None:
-	r = None
-	if (repo_root / '.git').exists():
-		proc = subprocess.run(
-			['git', '--no-optional-locks', '-C', str(repo_root), 'show', spec],
-			capture_output=True,
-			env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'},
-			check=False,
-			creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
-		)
-		if 0 == proc.returncode:
-			r = proc.stdout.decode('utf-8', errors='replace')
-	return r
+	return df_git_read_text(repo_root, 'show', spec) if (repo_root / '.git').exists() else None
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250

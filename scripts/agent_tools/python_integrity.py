@@ -8,6 +8,8 @@ import py_compile
 import subprocess
 import symtable
 import tempfile
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Core.lib.git import df_git_read_text
 # 2026-11-24
 # "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
 # https://github.com/dmitry-ai/harness/issues/186
@@ -35,13 +37,13 @@ def _collect_undefined_globals(table: symtable.SymbolTable, defined: set[str], o
 			out.add(sym.get_name())
 	for child in table.get_children():
 		_collect_undefined_globals(child, defined, out)
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`agent_tools.xref_gate._git_changed_paths()`
 # @used-by :func:`agent_tools.xref_gate.verify_worktree_xref_changes()`
 # @used-by :func:`verify_worktree_python_changes()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _git_read_text(repo: Path, *args: str) -> str | None:
-	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
-	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=30, check=False, creationflags=_NO_WINDOW)
-	return proc.stdout if 0 == proc.returncode else None
+	return df_git_read_text(repo, *args)
 # @used-by :func:`check_python_integrity()`
 def _has_wildcard_import(tree: ast.AST) -> bool:
 	return any((isinstance(node, ast.ImportFrom) and any(('*' == a.name for a in node.names)) for node in _iter_module_level_imports(tree)))

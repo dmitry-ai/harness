@@ -1584,6 +1584,7 @@ class ProjectPaths:
 	# @used-by :meth:`ProjectPaths.journal_dir()`
 	def has_explicit_path(self, name: str) -> bool:
 		return name in self._explicit_overlay_paths
+	# @used-by :func:`Df.Core.lib.fs.df_uri_file_decode()`
 	# @used-by :func:`_candidate_discovery_roots()`
 	# @used-by :func:`_is_linked()`
 	# @used-by :func:`_validate_similar_project_groups()`
@@ -1688,6 +1689,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_analysis`
 	# @used-by :mod:`test_df_core_array`
 	# @used-by :mod:`test_df_core_base`
+	# @used-by :mod:`test_df_core_qa_s10`
 	# @used-by :mod:`test_df_core_text_misc`
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_harness_dedup_s8`

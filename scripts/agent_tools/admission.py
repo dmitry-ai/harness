@@ -3,18 +3,25 @@ from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Core.lib.json_io import df_json_bytes
+from Df.Core.lib.sha256 import df_sha256
 from .storage import create_bytes, data_dir_for
 _SEAL = object()
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`binding()`
 # @used-by :func:`capture()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def _bytes(value):
-	return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')) + '\n').encode('utf-8')
+	return df_json_bytes(value)
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`binding()`
 # @used-by :func:`capture()`
 # @used-by :func:`verify()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _digest(value):
-	return hashlib.sha256(value).hexdigest()
+	return df_sha256(value)
 # @used-by :func:`agent_tools.completion._record()`
 # @used-by :func:`agent_tools.journal.record_answer()`
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`

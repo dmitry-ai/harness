@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import re
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Core.lib.json_io import df_json_dict_load
 from . import journal
 from .diagnostics import problem
 SEQUENCE_RECOVERY_FILE = 'sequence-recovery.json'
@@ -66,19 +68,12 @@ def _iter_turn_states(turns_dir: Path, read_fn) -> list[tuple[Path, dict]]:
 				except (OSError, ValueError):
 					pass
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_turn_index_for_project()`
 # @used-by :func:`acknowledged_sequence_gaps()`
 # @used-by :func:`prune_terminal_conflict_reservations()`
 def _load_json_dict(path: Path) -> dict | None:
-	r = None
-	if path.is_file():
-		try:
-			data = json.loads(path.read_text(encoding='utf-8-sig'))
-			if isinstance(data, dict):
-				r = data
-		except (OSError, ValueError):
-			r = None
-	return r
+	return df_json_dict_load(path)
 # @used-by :func:`turn_matches_handoff()`
 def _mentioned_other_job(reqs: list[dict], job_str: str) -> bool:
 	target_num = str(job_str or '').lstrip('~').strip()

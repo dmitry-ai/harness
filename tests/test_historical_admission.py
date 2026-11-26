@@ -35,6 +35,7 @@ class Later(datetime):
 	# @used-by :func:`Df.Core.lib.date.df_date()`
 	# @used-by :func:`Df.Core.lib.date.df_date_from_timestamp_14()`
 	# @used-by :func:`Df.Core.lib.date.df_now()`
+	# @used-by :func:`Df.Core.lib.time.df_utc_iso()`
 	# @used-by :func:`agent_tools.budget._active_window_5h_steps()`
 	# @used-by :func:`agent_tools.cleanup_audit._istanbul_stamp()`
 	# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
@@ -51,7 +52,6 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.runtime.request_day()`
 	# @used-by :func:`agent_tools.runtime_snapshot._activate_release()`
 	# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
-	# @used-by :func:`agent_tools.shadow_replay_command.persist_shadow_replay_receipt()`
 	# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 	# @used-by :func:`agent_tools.text_browser.collect_cdp_dom()`
 	# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`

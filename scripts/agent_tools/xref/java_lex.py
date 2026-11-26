@@ -1,6 +1,7 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 import re
+from Df.Core.lib.text.source import df_match_delim
 from ..tdd.comment_scanners import scan_block_comment, scan_line_comment, scan_quoted, scan_triple_quote
 # 2026-11-26
 # "Extend cross-reference engine for JS/TS and Java":
@@ -123,6 +124,7 @@ def extract_param_types(toks: list[tuple[str, str, int]], open_p: int, close_p: 
 			seg_start = i + 1
 		i += 1
 	return (params, is_varargs)
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_parse_single_param()`
 # @used-by :func:`agent_tools.xref.java_graph._record_java_call()`
 # @used-by :func:`agent_tools.xref.java_model._find_decl_end()`
@@ -136,18 +138,9 @@ def extract_param_types(toks: list[tuple[str, str, int]], open_p: int, close_p: 
 # @used-by :func:`agent_tools.xref.java_model._scan_type_header()`
 # @used-by :func:`agent_tools.xref.java_model._skip_enum_constants()`
 # @used-by :func:`skip_annotation()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def match_delim(toks: list[tuple[str, str, int]], start: int, open_ch: str, close_ch: str) -> int:
-	depth, i, n, r = (0, start, len(toks), len(toks) - 1)
-	while i < n:
-		if open_ch == toks[i][1]:
-			depth += 1
-		elif close_ch == toks[i][1]:
-			depth -= 1
-			if 0 == depth:
-				r = i
-				break
-		i += 1
-	return r
+	return df_match_delim(toks, start, open_ch, close_ch)
 # @used-by :func:`_parse_single_param()`
 # @used-by :func:`agent_tools.xref.java_model._consume_modifiers()`
 # @used-by :func:`agent_tools.xref.java_model._find_method_paren()`

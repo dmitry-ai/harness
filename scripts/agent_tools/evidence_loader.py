@@ -5,6 +5,7 @@ import os
 import re
 from pathlib import Path
 from urllib.parse import unquote, urldefrag, urlsplit
+from Df.Core.lib.fs import df_stat_sig
 from .research import classify_html_challenge, extract_bytes, extract_github_blob_lines, extract_markdown, extractor_version, load_observation
 _HTML_CTYPES = ('text/html', 'application/xhtml+xml')
 _MD_CTYPES = ('text/markdown', 'text/x-markdown')
@@ -121,14 +122,10 @@ def _load_saved_extracted_html(obs_dir: Path, meta: dict, *, need_sections: bool
 		except (OSError, ValueError):
 			r = None
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_resolve_html_data()`
 def _obs_stat(path: Path) -> tuple[int, int]:
-	try:
-		st = os.stat(path)
-		r = (st.st_mtime_ns, st.st_size)
-	except OSError:
-		r = (0, 0)
-	return r
+	return df_stat_sig(path) or (0, 0)
 # @used-by :func:`_resolve_html_data()`
 def _put_obs_cache(key: tuple, data: dict) -> dict:
 	_OBS_HTML_CACHE[key] = data

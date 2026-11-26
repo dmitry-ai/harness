@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+from Df.Core.lib.text.source import df_text_rewrite_pairs
 from .journal import _raw_state_dir, resolve_journal_dir
 from .path_registry import project_paths
 from .storage import replace_bytes
@@ -58,13 +59,12 @@ def _rewrite_json_file(path: Path, pairs: list[tuple[str, str]], backups: list[t
 		data = json.loads(path.read_text(encoding='utf-8-sig'))
 		updated = _rewrite_value(data, pairs)
 		replace_bytes(path, (json.dumps(updated, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_rewrite_value()`
 # @used-by :func:`rewrite_project_internal_state()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _rewrite_text(text: str, pairs: list[tuple[str, str]]) -> str:
-	out = text
-	for old_s, new_s in pairs:
-		out = re.sub(re.escape(old_s), lambda _m, rep=new_s: rep, out, flags=re.IGNORECASE)
-	return out
+	return df_text_rewrite_pairs(text, pairs)
 # @used-by :func:`_rewrite_json_file()`
 # @used-by :func:`rewrite_launcher_handoffs()`
 def _rewrite_value(value, pairs: list[tuple[str, str]]):

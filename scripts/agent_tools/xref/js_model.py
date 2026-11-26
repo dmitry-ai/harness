@@ -1,6 +1,7 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from Df.Core.lib.text.source import df_line_indent
 from .js_imports import parse_cjs_exports, parse_destruct_require, parse_esm_export_list, parse_esm_import
 from .js_lex import arrow_body_end, find_arrow_after_eq, match_delim, skip_ts_type_until, tokenize_js, unquote
 # 2026-11-26
@@ -56,10 +57,11 @@ def _finish_class_member(toks: list[tuple[str, str, int]], name_i: int, end: int
 			b_end = min(arrow_body_end(toks, arr), end - 1)
 			r = (_make_js_def(mname, f'{cls_name}#{mname}', cls_name, ln, arr + 1, b_end, lines, is_static=is_static, has_ts_ov=has_ov, is_ts=is_ts), b_end + 1)
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_make_js_def()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _line_indent(lines: list[str], lineno: int) -> str:
-	raw = lines[lineno - 1] if 1 <= lineno <= len(lines) else ''
-	return raw[:len(raw) - len(raw.lstrip(' \t'))]
+	return df_line_indent(lines[lineno - 1] if 1 <= lineno <= len(lines) else '')
 # @used-by :func:`_finish_class_member()`
 # @used-by :func:`_parse_fn_expr_body()`
 # @used-by :func:`_parse_top_func()`

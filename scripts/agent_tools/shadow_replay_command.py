@@ -2,7 +2,6 @@
 # "Add mutating command execution mode to shadow-replay with isolated native profiles":
 # https://github.com/dmitry-ai/harness/issues/289
 from __future__ import annotations
-from datetime import datetime, timezone
 from pathlib import Path
 import json
 import os
@@ -10,6 +9,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from Df.Core.lib.time import df_utc_iso
 from .journal import resolve_journal_dir, state_dir
 from .path_registry import project_paths
 from .project_rename import _infer_daily_root, rename_project
@@ -158,7 +158,8 @@ def persist_shadow_replay_receipt(ws_root: Path, src_project: Path, report: dict
 	if ws_root.resolve() != src_project.resolve():
 		dest = project_paths(ws_root, exact_root=True).data_dir / 'shadow-replay-receipt.json'
 		mode = 'exec_rename_domain' if exec_rename_domain else ('command' if command else 'replay')
-		payload = {'schema_version': 1, 'recorded_at': datetime.now(timezone.utc).isoformat(), 'repo_head': _harness_repo_head(), 'valid': bool(report.get('valid')), 'exit_code': 0 if report.get('valid') else 2, 'mode': mode, 'project': str(src_project), 'exec_rename_domain': exec_rename_domain, 'command': command, 'stages_verified': list(report.get('stages_verified') or ()), 'errors': list(report.get('errors') or ())}
+		# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+		payload = {'schema_version': 1, 'recorded_at': df_utc_iso(), 'repo_head': _harness_repo_head(), 'valid': bool(report.get('valid')), 'exit_code': 0 if report.get('valid') else 2, 'mode': mode, 'project': str(src_project), 'exec_rename_domain': exec_rename_domain, 'command': command, 'stages_verified': list(report.get('stages_verified') or ()), 'errors': list(report.get('errors') or ())}
 		replace_bytes(dest, (json.dumps(payload, ensure_ascii=False, indent='\t') + '\n').encode('utf-8'))
 		r = str(dest)
 	return r

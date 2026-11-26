@@ -4,6 +4,8 @@ from pathlib import Path
 import ast
 import difflib
 import re
+from Df.Core.lib.fs import df_path_suffix
+from Df.Core.lib.git import df_git_root
 from .shell_audit import _GITHUB_ISSUE_URL_RE, normalize_host_path
 from .tdd_gate import _compute_edited_content, _git_head_text, _git_index_text
 _AUTHOR_RE = re.compile(r'Dmitrii\s+Fediuk\s+https://github\.com/dmitrii-fediuk', re.I)
@@ -147,14 +149,10 @@ def _diff_changes(base_lines: list[str], cur_lines: list[str], base_scan: dict, 
 		if tag in ('delete', 'replace') and any((bl in base_scan['code_lines'] for bl in range(i1 + 1, i2 + 1))):
 			del_anchors.add(min(max(1, j1 + 1), max(1, len(cur_lines))))
 	return {'added_issue': added_issue, 'changed_code': changed_code, 'del_anchors': del_anchors}
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_resolve_comment_target()`
 def _find_git_root(path: Path) -> Path | None:
-	r = None
-	for anc in (path.parent, *path.parent.parents):
-		if (anc / '.git').exists():
-			r = anc
-			break
-	return r
+	return df_git_root(path.parent)
 # @used-by :func:`_is_pure_comment_line()`
 def _is_line_comment_prefix(s: str, suffix: str) -> bool:
 	if suffix in _HASH_SUFFIXES:
@@ -204,12 +202,12 @@ def _record_py_node(node: ast.AST, spans: dict[int, tuple[int, int, str]], class
 		st = int(node.lineno)
 		spans.setdefault(st, (st, int(getattr(node, 'end_lineno', st) or st), 'block'))
 # 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_resolve_comment_target()`
 # @used-by :func:`check_issue_comment_violations()`
 # @used-by :func:`verify_staged_issue_comment_placement()`
 def _path_suffix(path: str | Path) -> str:
-	p = Path(path)
-	return p.suffix.lower() or (p.name.lower() if p.name.startswith('.') else '')
+	return df_path_suffix(path)
 # @used-by :func:`evaluate_pre_tool_use_issue_comment()`
 def _resolve_comment_target(args: dict, payload: dict) -> tuple[Path | None, Path, str] | None:
 	raw_p = str(args.get('Path') or '').strip()

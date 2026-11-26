@@ -1,11 +1,11 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from Df.Core.lib.fs import df_path_suffix
+from Df.Core.lib.git import df_git_read_text
 from .classifier import _GIT_HOOK_SCRIPT_NAMES, _has_shebang
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 from .comment_lexers import lex_batch, lex_c_like, lex_cmake, lex_dockerfile, lex_fsharp, lex_hash_script, lex_hcl, lex_indent_hash, lex_lua, lex_php, lex_python, lex_rust, lex_sass, lex_sed, lex_sfc, lex_sql, lex_tcl, lex_vbscript, lex_zig
-import os
-import subprocess
 COMMENT_LEXER_LANGUAGES: tuple[str, ...] = (
 	'awk',
 	'batch',
@@ -181,6 +181,7 @@ _SHEBANG_MAP = (
 	('pwsh', 'powershell'),
 	('php', 'php'),
 )
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`agent_tools.tdd.diff_executability._classify_existing_git_path()`
 # @used-by :func:`agent_tools.tdd.diff_executability._classify_last_commit_path()`
 # @used-by :func:`agent_tools.tdd.diff_executability._read_current_git_text()`
@@ -189,20 +190,7 @@ _SHEBANG_MAP = (
 # @used-by :func:`agent_tools.tdd.mechanical._is_last_commit_mechanical_exempt()`
 # @used-by :func:`agent_tools.tdd.mechanical.is_git_file_mechanical_exempt()`
 def _git_read_text(repo: Path, args: list[str]) -> str | None:
-	r = None
-	if (repo / '.git').exists():
-		proc = subprocess.run(
-			['git', '--no-optional-locks', '-C', str(repo), *args],
-			stdin=subprocess.DEVNULL,
-			capture_output=True,
-			env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'},
-			timeout=30,
-			check=False,
-			creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
-		)
-		if 0 == proc.returncode:
-			r = proc.stdout.decode('utf-8', errors='replace')
-	return r
+	return df_git_read_text(repo, *args) if (repo / '.git').exists() else None
 # @used-by :func:`detect_comment_language()`
 def _lang_from_shebang(first_line: str) -> str:
 	low = first_line.lower()
@@ -227,8 +215,9 @@ def _read_first_line(path: Path, content: str | None) -> str:
 def detect_comment_language(path: str | Path, *, content: str | None=None) -> str | None:
 	p = Path(str(path))
 	# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+	# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 	name_low = p.name.lower()
-	suffix = p.suffix.lower() or (name_low if name_low.startswith('.') else '')
+	suffix = df_path_suffix(p)
 	if suffix in _EXTENSION_LANG:
 		r: str | None = _EXTENSION_LANG[suffix]
 	elif name_low in _BASENAME_LANG:

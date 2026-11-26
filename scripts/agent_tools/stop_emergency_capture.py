@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
-import hashlib
+from Df.Core.lib.sha256 import df_sha256_file, df_sha256_text
 from . import admission, journal
 from .metadata import build_journal_metadata, prepend_metadata_header, strip_leading_metadata_header
 from .storage import locked
@@ -51,8 +51,9 @@ def _record_emergency_files(root: Path, native: dict[str, Any], turn: dict[str, 
 		cap = admission.capture([root, jdir], eff_reqs, eff_resp, identity)
 		steps = journal.record_answer(jdir, eff_reqs, eff_resp, token, request_ids, admission=cap, reserved_turn_key=turn_key)
 		_, res_dir = journal.journal_pair_dirs(jdir)
-		body_sha = hashlib.sha256(strip_leading_metadata_header(raw_text).encode('utf-8')).hexdigest()
-		rec = {'journal_steps': steps, 'response_sha256': hashlib.sha256(eff_resp.encode('utf-8')).hexdigest(), 'body_sha256': body_sha, 'response_file': str(journal.step_file(res_dir, steps[0], directory=jdir)), 'group_file': str(group_file), 'group_sha256': hashlib.sha256(group_file.read_bytes()).hexdigest(), 'recorded_at': completion_mod._now(), 'reused_complete_journal_group': False, 'admission': cap.reference}
+		# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+		body_sha = df_sha256_text(strip_leading_metadata_header(raw_text))
+		rec = {'journal_steps': steps, 'response_sha256': df_sha256_text(eff_resp), 'body_sha256': body_sha, 'response_file': str(journal.step_file(res_dir, steps[0], directory=jdir)), 'group_file': str(group_file), 'group_sha256': df_sha256_file(group_file), 'recorded_at': completion_mod._now(), 'reused_complete_journal_group': False, 'admission': cap.reference}
 		r = (rec, request_ids)
 	return r
 # @used-by :func:`maybe_emergency_capture_journal()`

@@ -8,6 +8,9 @@ from .xref import check_java_file_local, check_js_file_local, check_python_file_
 import os
 import re
 import tempfile
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Core.lib.fs import df_path_suffix
+from Df.Core.lib.git import df_git_root
 # 2026-11-26
 # "Enforce cross-reference compliance in PreToolUse and Git gates":
 # https://github.com/dmitry-ai/harness/issues/306
@@ -32,15 +35,10 @@ _LANG_EXTS = {
 	'python': ('.py',),
 }
 _SKIP_PARTS = frozenset({'.git', '.venv', '__pycache__', 'build', 'dist', 'node_modules', 'out', 'target', 'venv', '\ua616', '\ua66e'})
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_resolve_xref_target()`
 def _find_git_root(path: Path) -> Path | None:
-	start = path if path.is_dir() else path.parent
-	r = None
-	for anc in (start, *start.parents):
-		if (anc / '.git').exists():
-			r = anc
-			break
-	return r
+	return df_git_root(path)
 # @used-by :func:`check_file_xref_violations()`
 # @used-by :func:`verify_staged_xref()`
 # @used-by :func:`verify_worktree_xref_changes()`
@@ -98,12 +96,13 @@ def _is_repo_lang_synced(repo: Path, lang: str, changed_rels: set[str]) -> bool:
 def _is_skipped_rel(rel: str) -> bool:
 	return any((p in _SKIP_PARTS or p.lower() in _SKIP_PARTS for p in Path(rel).parts))
 # 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_iter_repo_source_files()`
 # @used-by :func:`_lang_for_rel()`
 # @used-by :func:`_resolve_xref_target()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _path_suffix(path: str | Path) -> str:
-	p = Path(path)
-	return p.suffix.lower() or (p.name.lower() if p.name.startswith('.') else '')
+	return df_path_suffix(path)
 # @used-by :func:`_is_repo_lang_synced()`
 # @used-by :func:`is_xref_governed_repo()`
 def _iter_repo_source_files(repo: Path, exts: tuple[str, ...] | None=None) -> list[tuple[str, Path]]:

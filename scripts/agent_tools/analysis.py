@@ -1,6 +1,6 @@
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from pathlib import Path
-import hashlib
+from Df.Core.lib.sha256 import df_sha256
 import json
 import re
 from .diagnostics import problem, require_valid
@@ -426,6 +426,7 @@ def publish_analysis(source, target=None):
 			result['status'] = 'conflict'
 		r = result
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`agent_tools.analysis_merge._load_merge_base()`
 # @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
 # @used-by :func:`agent_tools.knowledge.sync_website_card()`
@@ -434,7 +435,7 @@ def publish_analysis(source, target=None):
 # @used-by :func:`publish_owned()`
 # @used-by :func:`save_analysis()`
 def digest(data):
-	return hashlib.sha256(data).hexdigest()
+	return df_sha256(data)
 # @used-by :func:`agent_tools.intake._index()`
 # @used-by :func:`agent_tools.operations._execute_collect()`
 # @used-by :func:`publish_analysis()`

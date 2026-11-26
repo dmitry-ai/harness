@@ -2,7 +2,7 @@
 from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urldefrag, urlsplit
-import hashlib
+from Df.Core.lib.sha256 import df_sha256
 import json
 import re
 # 2026-11-13
@@ -21,6 +21,7 @@ from .text_sections import content_blocks as blocks
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`agent_tools.text_sources._attempt()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`agent_tools.text_sources.probe_links()`
@@ -57,7 +58,7 @@ from .text_sections import content_blocks as blocks
 # @used-by :meth:`test_text_workflow.TextTransactionTests.test_unregistered_candidate_output_requires_cas_and_keeps_history()`
 # @used-by :meth:`test_text_workflow.TextWorkspaceCase.manifest()`
 def digest(data):
-	return hashlib.sha256(data).hexdigest()
+	return df_sha256(data)
 # @used-by :func:`validate_map()`
 def _nonempty(value):
 	return isinstance(value, str) and bool(value.strip())

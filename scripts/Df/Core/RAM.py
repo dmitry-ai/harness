@@ -29,6 +29,7 @@ class RAM:
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L19-L29
 	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
 	# @used-by :func:`Df.Core.lib.cache.dfcf.dfcf()`
+	# @used-by :func:`Df.Core.lib.git.df_git_root()`
 	# @used-by :func:`agent_tools.admission.capture()`
 	# @used-by :func:`agent_tools.analysis.publish_owned()`
 	# @used-by :func:`agent_tools.analysis.save_analysis()`
@@ -45,7 +46,6 @@ class RAM:
 	# @used-by :func:`agent_tools.cli_common.consume_scratch_input()`
 	# @used-by :func:`agent_tools.cli_common.consume_unchanged_files()`
 	# @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
-	# @used-by :func:`agent_tools.code_size_gate._find_git_root()`
 	# @used-by :func:`agent_tools.completion._group()`
 	# @used-by :func:`agent_tools.completion._instruction_snapshot()`
 	# @used-by :func:`agent_tools.completion._persist()`
@@ -65,7 +65,6 @@ class RAM:
 	# @used-by :func:`agent_tools.evidence.local_file()`
 	# @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
 	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
-	# @used-by :func:`agent_tools.gates.worktree_isolation._find_git_repo_root()`
 	# @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 	# @used-by :func:`agent_tools.git_ignore._plan_global_git_ignore()`
 	# @used-by :func:`agent_tools.git_ignore.sync_global_git_ignore()`
@@ -75,7 +74,6 @@ class RAM:
 	# @used-by :func:`agent_tools.intake._restore()`
 	# @used-by :func:`agent_tools.intake.commit_capture()`
 	# @used-by :func:`agent_tools.intake.drain_incoming()`
-	# @used-by :func:`agent_tools.issue_comment_gate._find_git_root()`
 	# @used-by :func:`agent_tools.issue_first_gate._find_git_repo_root()`
 	# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
 	# @used-by :func:`agent_tools.journal._migrate_journal_state_dir()`
@@ -117,7 +115,6 @@ class RAM:
 	# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
 	# @used-by :func:`agent_tools.registration._read()`
 	# @used-by :func:`agent_tools.repo_link_gate._enclosing_github_repo()`
-	# @used-by :func:`agent_tools.repo_tags._find_git_root()`
 	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait._normalize_repo_list()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
@@ -134,7 +131,6 @@ class RAM:
 	# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 	# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 	# @used-by :func:`agent_tools.storage.write_immutable_bytes()`
-	# @used-by :func:`agent_tools.tdd.classifier._find_git_ancestor()`
 	# @used-by :func:`agent_tools.tdd.classifier._is_project_marker_dir()`
 	# @used-by :func:`agent_tools.tdd.classifier._resolve_deleted_worktree_scope()`
 	# @used-by :func:`agent_tools.tdd.classifier.resolve_code_scope()`
@@ -168,7 +164,6 @@ class RAM:
 	# @used-by :func:`agent_tools.xref.java_tags.is_valid_java_external()`
 	# @used-by :func:`agent_tools.xref.js_tags.is_valid_js_external()`
 	# @used-by :func:`agent_tools.xref.python_tags.is_valid_external_target()`
-	# @used-by :func:`agent_tools.xref_gate._find_git_root()`
 	# @used-by :func:`split_project_rules.main()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`

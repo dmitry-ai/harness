@@ -1,15 +1,19 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+from Df.Qa.lib.validation.check_strict import df_is_sne
 # 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
 TARGET_CLAIM_RULE = 'Copy claims[i].essence verbatim in its original language without translating or paraphrasing (see claim_targets)'
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_package_envelope_issues()`
 # @used-by :func:`alignment_issues()`
 # @used-by :func:`build_claim_targets()`
 # @used-by :func:`envelope_issues()`
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _nonempty(value) -> bool:
-	return isinstance(value, str) and bool(value.strip())
+	return df_is_sne(value)
 # 2026-11-24
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223

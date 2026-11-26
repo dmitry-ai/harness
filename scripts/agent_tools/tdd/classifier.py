@@ -1,6 +1,8 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from Df.Core.lib.fs import df_path_posix
+from Df.Core.lib.git import df_git_root
 from ..shell_audit import normalize_host_path
 import os
 import re
@@ -59,14 +61,10 @@ def _count_dir_tests(dp: Path, filenames: list[str], cap: int) -> int:
 			if cap <= r:
 				break
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`resolve_code_scope()`
 def _find_git_ancestor(start_dir: Path) -> Path | None:
-	r = None
-	for anc in (start_dir, *start_dir.parents):
-		if (anc / '.git').exists():
-			r = anc
-			break
-	return r
+	return df_git_root(start_dir)
 # @used-by :func:`resolve_code_scope()`
 def _find_marker_ancestor(start_dir: Path) -> Path | None:
 	r = None
@@ -98,11 +96,12 @@ def _is_project_marker_dir(anc: Path) -> bool:
 		except OSError:
 			pass
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`agent_tools.tdd.evaluator._command_matches_scope()`
 # @used-by :func:`agent_tools.tdd.ratchet._match_ratchet_target()`
 # @used-by :func:`resolve_code_scope()`
 def _norm_posix(path: str | Path) -> str:
-	return str(path).replace('\\', '/')
+	return df_path_posix(path)
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
 # @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :func:`agent_tools.tdd.commands.shell_write_targets()`

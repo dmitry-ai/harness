@@ -1,8 +1,8 @@
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-import hashlib
-import json
 from pathlib import Path
+import json
 import re
+from Df.Core.lib.sha256 import df_sha256, df_sha256_file, df_sha256_text
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
@@ -27,7 +27,8 @@ def snapshot_draft(source: Path, turn: str) -> Path:
 	# 2026-10-14
 	# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 	# https://github.com/dmitry-ai/harness/issues/3
-	source_id = hashlib.sha256(str(source).casefold().encode('utf-8')).hexdigest()[:24]
+	# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+	source_id = df_sha256_text(str(source).casefold())[:24]
 	archive = snapshots / turn / source_id
 	archive.mkdir(parents=True, exist_ok=True)
 	saved = archive / 'draft.md'
@@ -40,7 +41,7 @@ def snapshot_draft(source: Path, turn: str) -> Path:
 			# https://github.com/dmitry-ai/harness/issues/3
 			if receipt['source'] != str(source):
 				raise ValueError('Snapshot belongs to a different source')
-			if hashlib.sha256(saved.read_bytes()).hexdigest() != receipt['sha256']:
+			if df_sha256_file(saved) != receipt['sha256']:
 				raise ValueError('Snapshot changed after capture')
 			if previous.read_bytes() != saved.read_bytes():
 				raise ValueError('draft.prev.md changed; preserve both versions before continuing')
@@ -48,7 +49,7 @@ def snapshot_draft(source: Path, turn: str) -> Path:
 		else:
 			data = source.read_bytes()
 			create_bytes(saved, data)
-			create_bytes(archive / 'snapshot.json', json.dumps({'source': str(source), 'turn': turn, 'sha256': hashlib.sha256(data).hexdigest()}, ensure_ascii=False, indent=2).encode('utf-8'))
+			create_bytes(archive / 'snapshot.json', json.dumps({'source': str(source), 'turn': turn, 'sha256': df_sha256(data)}, ensure_ascii=False, indent=2).encode('utf-8'))
 			if source.read_bytes() != data:
 				raise ValueError('Source changed during capture; snapshot retained for inspection')
 			replace_bytes(previous, data)

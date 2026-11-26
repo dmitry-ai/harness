@@ -10,6 +10,7 @@ import re
 import subprocess
 # 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 from Df.Core.lib.array.first import df_first
+from Df.Core.lib.git import df_git_root
 from .git_gate import _NO_WINDOW, run_git_read
 from .issues.repo_locator import origin_repo_slug
 from .worktree_flow import git_config_file
@@ -51,15 +52,11 @@ def _configured_timezone() -> ZoneInfo:
 	except Exception:
 		pass
 	return ZoneInfo(tz_name)
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`build_github_blob_url()`
 def _find_git_root(path: Path) -> Path | None:
-	start = path if path.is_dir() else path.parent
-	r = None
-	for anc in (start, *start.parents):
-		if (anc / '.git').exists():
-			r = anc.resolve()
-			break
-	return r
+	root = df_git_root(path)
+	return root.resolve() if None is not root else None
 # @used-by :func:`ensure_commit_tag()`
 # @used-by :func:`push_tag()`
 # @used-by :func:`retro_tag_repo()`

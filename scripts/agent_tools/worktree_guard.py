@@ -10,6 +10,7 @@ import re
 import stat
 import subprocess
 # 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.fs import df_path_posix
 from Df.Core.lib.state import df_is_windows
 from .git_gate import _NO_WINDOW
 _MANAGED_WT_RE = re.compile(r'(?i)(?:\ua616[\\/]data[\\/]worktrees|\.git[\\/]worktrees)(?:[\\/][^\s"\';)}]+)?')
@@ -41,10 +42,11 @@ def _has_managed_worktree_delete(cmd: str) -> bool:
 					r = True
 					break
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_parse_process_row()`
 # @used-by :func:`find_worktree_lock_holders()`
 def _norm_posix(value: str | Path) -> str:
-	return str(value or '').replace('\\', '/').casefold().rstrip('/')
+	return df_path_posix(value or '').casefold().rstrip('/')
 # @used-by :func:`find_worktree_lock_holders()`
 def _parse_process_row(row: dict[str, Any], target_posix: str, target_win: str) -> dict[str, Any] | None:
 	r: dict[str, Any] | None = None

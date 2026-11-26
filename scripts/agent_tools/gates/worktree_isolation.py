@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import time
 # 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.git import df_git_root
 from Df.Core.lib.state import df_is_windows
 # 2026-11-24
 # "Add PreToolUse worktree isolation gate for live main checkouts":
@@ -54,15 +55,10 @@ def _evaluate_main_checkout(name: str, repo_root: Path, cwd: str | None) -> str 
 			if 2 <= active:
 				r = f'EXEC-5: Direct {name} inside main checkout ({repo_root.as_posix()}) is blocked while {active} concurrent open turns are active in {turns_dir.as_posix()}; create an isolated linked worktree via harness.py worktree-begin "{repo_root.as_posix()}" --task <task-id>.'
 	return r
+# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # @used-by :func:`_governed_repo_for_path()`
 def _find_git_repo_root(path: Path) -> Path | None:
-	r = None
-	start = path if path.is_dir() else path.parent
-	for anc in (start, *start.parents):
-		if (anc / '.git').exists():
-			r = anc
-			break
-	return r
+	return df_git_root(path)
 # @used-by :func:`_evaluate_main_checkout()`
 def _find_turns_dir(repo_root: Path, cwd: str | None) -> Path | None:
 	r = None
