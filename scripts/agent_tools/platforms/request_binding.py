@@ -29,9 +29,7 @@ def text_project_id(root):
 # https://github.com/dmitry-ai/harness/issues/13
 # @used-by :func:`agent_tools.completion.begin()`
 # @used-by :func:`agent_tools.platforms.antigravity._request_scope()`
-# @used-by :func:`agent_tools.platforms.antigravity.require_current_binding()`
 # @used-by :func:`agent_tools.platforms.codex._request_scope()`
-# @used-by :func:`agent_tools.platforms.codex.require_current_binding()`
 # @used-by :func:`completion_project_id()`
 # @used-by :func:`review_project_id()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
@@ -99,6 +97,8 @@ def completion_project_id(root):
 		r = text_project_id(pp.root)
 	return r
 # 2026-11-27 "Support ARCH role fallback in review_project_id and native_project_fields": https://github.com/dmitry-ai/harness/issues/391
+# @used-by :func:`agent_tools.platforms.antigravity.require_current_binding()`
+# @used-by :func:`agent_tools.platforms.codex.require_current_binding()`
 # @used-by :func:`native_project_fields()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_review_project_id_and_fields_support_bare_code_workspace_for_arch_only()`
 def review_project_id(root, *, role='AA'):
