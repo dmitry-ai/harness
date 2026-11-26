@@ -172,5 +172,14 @@ class HookTraceCacheAndWatchdogTests(unittest.TestCase):
 			self.assertIsNone(stats['index_path'])
 			self.assertEqual([row0], rows)
 			self.assertEqual([], list(untracked.rglob('*')))
+	# @used-by :mod:`unittest`
+	def test_origin_repo_slug_skips_git_subprocess_for_local_repo_without_origin(self) -> None:
+		from agent_tools.issues import repo_locator
+		with tempfile.TemporaryDirectory() as td:
+			repo = Path(td).resolve() / 'local_only'
+			(repo / '.git').mkdir(parents=True)
+			(repo / '.git/config').write_text('[core]\n\trepositoryformatversion = 0\n\tfilemode = false\n[user]\n\tname = T\n', encoding='utf-8')
+			with patch.object(repo_locator, 'run_git_read', side_effect=AssertionError('git remote spawn should be skipped')):
+				self.assertIsNone(repo_locator.origin_repo_slug(repo))
 if '__main__' == __name__:
 	unittest.main()

@@ -230,6 +230,7 @@ def _safe_task_id(task_id: str) -> str:
 	if not clean:
 		raise ValueError('A non-empty task identifier is required')
 	return clean[:48]
+# @used-by :func:`agent_tools.issues.repo_locator._config_may_have_origin_remote()`
 # @used-by :func:`agent_tools.issues.repo_locator._extract_config_slugs()`
 # @used-by :func:`agent_tools.repo_tag_gate._resolve_origin_push_target()`
 # @used-by :func:`agent_tools.repo_tags.has_origin_remote()`

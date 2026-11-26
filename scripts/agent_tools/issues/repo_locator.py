@@ -93,6 +93,18 @@ def _collect_local_repo_candidates(project_root: str | Path | None, source_files
 		for anc in (cwd, *cwd.parents):
 			_append_repo_roots(cands, anc)
 	return cands
+# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
+# @used-by :func:`origin_repo_slug()`
+def _config_may_have_origin_remote(code_repo: Path) -> bool:
+	cfg_file = git_config_file(code_repo)
+	r = True
+	if cfg_file.is_file():
+		try:
+			low = cfg_file.read_text(encoding='utf-8', errors='replace').lower()
+			r = '[remote "origin"]' in low or '[include' in low
+		except OSError:
+			r = True
+	return r
 # 2026-11-24
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
@@ -224,10 +236,12 @@ def find_local_code_repo(repo: str, project_root: str | Path | None=None, source
 # @used-by :func:`agent_tools.repo_link_gate._enclosing_github_repo()`
 # @used-by :func:`agent_tools.repo_tags.build_github_blob_url()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.origin_repo_slug()`
+# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_origin_repo_slug_skips_git_subprocess_for_local_repo_without_origin()`
 def origin_repo_slug(code_repo: Path) -> str | None:
 	slugs = _extract_config_slugs(Path(code_repo))
 	r = slugs[0] if slugs else None
-	if None is r:
+	# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
+	if None is r and _config_may_have_origin_remote(Path(code_repo)):
 		proc = run_git_read(code_repo, ['remote', 'get-url', 'origin'], check=False)
 		if 0 == proc.returncode:
 			m = _GITHUB_SLUG_RE.search(proc.stdout.decode('utf-8', errors='replace').strip())
