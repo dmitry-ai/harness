@@ -325,7 +325,8 @@ class TurnIssueLifecycleAuditor:
 		sim_status = check_similar_project_parity(self.root, self.repo_touched, self.turn_issues, self.turn_state, self.candidate_repos, self.violations)
 		self._check_turn_issue_evidence(repo_by_url)
 		self._check_multi_subtask_decomposition(committed_by_repo, required_by_repo)
-		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations}
+		# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
+		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations, **({'deferred_children': getattr(self, 'deferred_children', [])} if getattr(self, 'deferred_children', None) else {})}
 	# 2026-11-24
 	# "Isolate per-conversation github_issues recording and turn-state filtering":
 	# https://github.com/dmitry-ai/harness/issues/195

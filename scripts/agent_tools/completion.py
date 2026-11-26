@@ -195,6 +195,7 @@ class AnswerPreparationRunner:
 	# @used-by :func:`agent_tools.blocked_report.evaluate_runner_code_hygiene()`
 	# @used-by :func:`agent_tools.blocked_report.prepare_and_sync_authorized_workflow()`
 	# @used-by :func:`agent_tools.hook_crash_audit.check_runner_hook_crashes()`
+	# @used-by :func:`agent_tools.scope_deferral.check_runner_scope_deferral()`
 	# @used-by :func:`agent_tools.verification_observability.check_runner_verification_observability()`
 	# @used-by :meth:`AnswerPreparationRunner._authorize_and_sync_workflow()`
 	# @used-by :meth:`AnswerPreparationRunner._check_evicted_citations()`
@@ -815,7 +816,8 @@ def _hook_crash_status(root, native, turn, value, response):
 # https://github.com/dmitry-ai/harness/issues/251
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 # 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
-VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'addon_observability_check', 'verification_observability_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
+# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
+VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'addon_observability_check', 'verification_observability_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'scope_deferral_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60

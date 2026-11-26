@@ -1668,6 +1668,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_bounded_foreign_sync`
 	# @used-by :mod:`test_budget_status_scoping`
 	# @used-by :mod:`test_chat_reply_link_issues_m5`
+	# @used-by :mod:`test_clarification_stop_consent`
 	# @used-by :mod:`test_cleanup_audit`
 	# @used-by :mod:`test_cleanup_integration`
 	# @used-by :mod:`test_cleanup_lifecycle`

@@ -74,6 +74,15 @@ def _lifecycle_messages(ctx: dict) -> list[str]:
 def _partial_read_messages(ctx: dict) -> list[str]:
 	p_viols = ctx['del_chk'].get('aa_partial_read_violations') or []
 	return ['REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(p_viols)] if p_viols else []
+# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
+# @used-by :mod:`agent_tools.gates.answer_checks`
+def _scope_deferral_messages(ctx: dict) -> list[str]:
+	chk = ctx.get('scope_deferral_chk')
+	if None is chk:
+		from ..scope_deferral import evaluate_scope_deferral
+		chk = evaluate_scope_deferral(ctx.get('turn'), ctx.get('value'), ctx.get('lifecycle_chk'), ctx.get('response'), blocked_report=bool(ctx.get('blocked_report')))
+		ctx['scope_deferral_chk'] = chk
+	return [] if chk.get('verified', True) else list(chk.get('violations') or ())
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
@@ -99,6 +108,8 @@ ANSWER_GATES = (
 	('aa_partial_read', 'turn.aa_partial_read', _partial_read_messages),
 	('issue_first', 'turn.issue_first', lambda c: [] if c['issue_first_chk'].get('verified', True) else list(c['issue_first_chk'].get('violations') or [])),
 	('code_lifecycle', 'turn.code_lifecycle', _lifecycle_messages),
+	# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
+	('scope_deferral', 'turn.scope_deferral', _scope_deferral_messages),
 	('tdd', 'turn.tdd', lambda c: [] if c['tdd_chk'].get('verified', True) else list(c['tdd_chk'].get('violations') or [])),
 	('workflow', 'turn.workflow', lambda c: list(c['wf_errs'])),
 )
@@ -109,11 +120,14 @@ def _build_checks_map(ctx: dict) -> dict[str, bool]:
 	# https://github.com/dmitry-ai/harness/issues/251
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 	# 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
-	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'addon_observability': bool((ctx.get('addon_obs_chk') or {}).get('verified', True)), 'verification_observability': bool((ctx.get('verification_observability_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
+	# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
+	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'addon_observability': bool((ctx.get('addon_obs_chk') or {}).get('verified', True)), 'verification_observability': bool((ctx.get('verification_observability_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'scope_deferral': bool((ctx.get('scope_deferral_chk') or {}).get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 # @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_explicit_user_stop_consent_in_clarifications_unblocks_deferral()`
+# @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_step_100_102_real_clarifications_rejected_with_open_deferred_children()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_answer_gates_collect_issues_and_checks_map()`
 # @used-by :meth:`test_open_child_deferral_gate.OpenChildDeferralGateTests.test_open_deferred_child_blocks_lifecycle_and_answer_gates()`
 # @used-by :mod:`agent_tools.gates`

@@ -29,11 +29,20 @@ def find_open_deferred_children(auditor, slug: str) -> dict[int, list[str]]:
 		if 'closed' != eff_state:
 			grouped.setdefault(pnum, []).append(issue_url)
 	return grouped
+# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._flag_unclosed_completed_parents()`
 def flag_parent_and_deferred_children(auditor, code_repo: Path, slug: str, parent_nums: set[int]) -> None:
+	from ..scope_deferral import find_explicit_stop_consent
 	for pnum in sorted(parent_nums):
 		_flag_unclosed_parent(auditor, code_repo, slug, pnum)
-	for pnum, child_urls in sorted(find_open_deferred_children(auditor, slug).items()):
-		joined = ', '.join(child_urls)
-		p_url = f'https://github.com/{slug}/issues/{pnum}'
-		auditor.violations.append(f'SCOPE-2 / EXEC-5 violation: active turn created open deferred child issue(s) under parent {p_url} in {slug} ({joined}) without completing them; finish all requested subtasks, pass --blocked-report for a documented blocker, or obtain explicit user authorization to stop the turn early')
+	deferred = find_open_deferred_children(auditor, slug)
+	if deferred:
+		recorded = list(getattr(auditor, 'deferred_children', ()))
+		has_consent = None is not find_explicit_stop_consent(auditor.turn, auditor.turn_state)
+		for pnum, child_urls in sorted(deferred.items()):
+			p_url = f'https://github.com/{slug}/issues/{pnum}'
+			recorded.append({'repo': slug, 'parent_number': pnum, 'parent_url': p_url, 'children': child_urls})
+			if not has_consent:
+				joined = ', '.join(child_urls)
+				auditor.violations.append(f'SCOPE-2 / EXEC-5 violation: active turn created open deferred child issue(s) under parent {p_url} in {slug} ({joined}) without completing them; finish all requested subtasks, pass --blocked-report for a documented blocker, or obtain explicit user authorization to stop the turn early')
+		auditor.deferred_children = recorded

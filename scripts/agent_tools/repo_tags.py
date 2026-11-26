@@ -154,6 +154,7 @@ def commit_date_day(repo: Path, commit: str='HEAD') -> str:
 # @used-by :func:`agent_tools.worktree_flow._apply_land_tag()`
 # @used-by :func:`build_github_blob_url()`
 # @used-by :func:`run_repo_tag_cli()`
+# @used-by :func:`test_clarification_stop_consent._build_fixture()`
 # @used-by :func:`test_dirty_diff_issue_scope._init_repo()`
 # @used-by :func:`test_git_lifecycle_memoization._init_multi_issue_repo()`
 # @used-by :func:`test_issue_close_acceptance._commit_and_tag()`

@@ -157,6 +157,9 @@ def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn
 	runner.value['issue_first_check'] = if_chk
 	runner.value['code_lifecycle_check'] = lc_chk
 	runner.value['tdd_check'] = tdd_chk
+	# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
+	from .scope_deferral import check_runner_scope_deferral
+	check_runner_scope_deferral(runner, lc_chk)
 	if runner.blocked_report:
 		diag = {k: list(chk.get('violations') or []) for k, chk in (('issue_first', if_chk), ('code_lifecycle', lc_chk), ('tdd', tdd_chk)) if not chk.get('verified', True)}
 		runner.value['blocked_hygiene_diagnostics'] = diag
