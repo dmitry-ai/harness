@@ -24,7 +24,7 @@ Never bundle multiple autonomous `M-...` subtasks into a single issue or a singl
 1. Follow the mandatory `Issue-First` workflow strictly before writing any tests or code in any GitHub-backed repository: first state the problem and root causes in a single open parent/strategic issue via `df_github_issue.py create` (without `--parent`), or register an existing open user-provided parent issue via `df_github_issue.py fetch --repo <owner/repo> --issue <N>`.  
 1. Do not write tests or code first and file an issue afterward: unparented `df_github_issue.py create` enforces `pre_flight_issue_first` and exits with code `2` whenever the local repository already has uncommitted governed test, code, or deliverable files, while `EXEC-5-ISSUE-FIRST-GATE` blocks governed edits before an open parent issue is established in the active turn.  
 1. Do not bundle `M-...` implementations into the parent issue or commit code directly against it; once the parent issue is open, create a separate child issue per autonomous subtask via `df_github_issue.py create --parent <parent_number>` (requiring the parent issue to be `open`) and start its body with `Parent: [Issue #<parent_number>](https://github.com/<owner>/<repo>/issues/<parent_number>)`.  
-1. Commit each child issue in its own separate Git commit whose message is only `https://github.com/<owner>/<repo>/issues/<child_number>`, push, close each child issue via `df_github_issue.py close`, and close the parent issue only after all child subtasks are completed.  
+1. Commit each child issue in its own separate Git commit whose message is only `https://github.com/<owner>/<repo>/issues/<child_number>`, push, assign and push a daily Git tag (`YYYY-MM-DD` or `YYYY-MM-DD--<N>`) via `harness.py repo-tag <repo> --commit <sha> --push` (enforced by `df_github_issue.py close` and `issue_lifecycle.py`), close each child issue via `df_github_issue.py close`, and close the parent issue only after all child subtasks are completed.  
 
 ## Mandatory Workflow
 
@@ -48,3 +48,4 @@ Never bundle multiple autonomous `M-...` subtasks into a single issue or a singl
 4. Treat the operation as successful only when the exit code is `0` and the tool's JSON output reports `"verified": true`.  
 <!-- https://github.com/dmitry-ai/harness/issues/147 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/152 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/265 -->  

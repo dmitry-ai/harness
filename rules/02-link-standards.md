@@ -18,3 +18,6 @@ Use relative paths and stable heading IDs inside files, clickable paths in chat,
 ## LINK-5
 Write human-readable links without URL percent-encoding (`%20`, `%D0...`) in all authored Markdown, drafts, reports, and chat replies, wrapping destinations containing spaces or parentheses in `<...>`.  
 Before finalizing authored Markdown documents, verify readable links with [validate_links.py](../scripts/validate_links.py) (`--readable`); preserve exact external URLs, verbatim quotes, raw captures, and journals without altering bytes.  
+## LINK-6
+When referencing a file or code fragment in a GitHub-backed repository from chat, issues, KBs, or another repository, `file:///` links and cross-repository relative links are prohibited; assign a pushed daily Git tag (`YYYY-MM-DD` for the first tag of a calendar day, `YYYY-MM-DD--<N>` for `N >= 2`) via `harness.py repo-tag` and link to `https://github.com/<owner>/<repo>/blob/<tag>/<path>[#L<start>-L<end>]` (or `/tree/<tag>/<dir>`).  
+Intra-repository relative links remain valid inside the same repository, and unencoded `file:///` links remain permitted only for non-GitHub-repository or gitignored local files.  
