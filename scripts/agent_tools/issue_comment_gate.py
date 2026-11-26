@@ -48,7 +48,7 @@ def _check_added_issue_line(rel_label: str, ln: int, cur_lines: list[str], cur_s
 	else:
 		nxt = _next_code_line(ln, cur_scan['code_lines'], len(cur_lines))
 		if ln <= cur_scan['header_end'] and None is not nxt:
-			r = _check_header_placement(rel_label, ln, nxt, cur_lines, changed_code, del_anchors, py_info, suffix)
+			r = _check_header_placement(rel_label, ln, nxt, cur_lines, changed_code, del_anchors, py_info, suffix, comment_only=bool(diff_info.get('comment_only')))
 		elif changed_code or del_anchors:
 			r = _check_body_placement(rel_label, ln, nxt, cur_lines, changed_code, del_anchors, py_info, suffix)
 	return r
@@ -91,7 +91,7 @@ def _check_diff_issue_lines(rel_label: str, source: str, base_lines: list[str], 
 	diff_info = _diff_changes(base_lines, cur_lines, base_scan, cur_scan)
 	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
 	if is_comment_only_diff(rel_label, '\n'.join(base_lines), source):
-		diff_info['changed_code'], diff_info['del_anchors'] = (set(), set())
+		diff_info['changed_code'], diff_info['del_anchors'], diff_info['comment_only'] = (set(), set(), True)
 	base_urls = {u for urls in base_scan['issue_lines'].values() for u in urls}
 	if 0.70 > len(diff_info['changed_code']) / max(1, len(cur_scan['code_lines'])):
 		py_info = _build_py_spans(source) if suffix in ('.py', '.pyi') else ({}, {})
@@ -101,13 +101,13 @@ def _check_diff_issue_lines(rel_label: str, source: str, base_lines: list[str], 
 				if None is not err:
 					errs.append(err)
 	return errs
-def _check_header_placement(rel_label: str, ln: int, nxt: int, cur_lines: list[str], changed_code: set[int], del_anchors: set[int], py_info: tuple, suffix: str) -> str | None:
+def _check_header_placement(rel_label: str, ln: int, nxt: int, cur_lines: list[str], changed_code: set[int], del_anchors: set[int], py_info: tuple, suffix: str, *, comment_only: bool=False) -> str | None:
 	r: str | None = None
 	direct = nxt in changed_code or any((1 >= abs(d - nxt) for d in del_anchors))
 	if not direct:
 		is_imp = bool(_IMPORT_LINE_RE.match(cur_lines[nxt - 1]))
 		st, en, kind = _construct_span(cur_lines, nxt, suffix, py_info[0])
-		in_unit = (not is_imp) and kind in ('func', 'class', 'block') and bool(changed_code) and any((st <= c <= en for c in changed_code))
+		in_unit = (not is_imp) and kind in ('func', 'class', 'block') and (comment_only or any((st <= c <= en for c in changed_code)))
 		if not in_unit:
 			r = f'ISSUE-COMMENT-GATE (HEADER_DUMPED_ISSUE_COMMENT): Issue URL comment at {rel_label}:{ln} is dumped in the file header above unchanged line {nxt}; place it immediately before the modified block or function/method header'
 	return r

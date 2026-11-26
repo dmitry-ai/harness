@@ -25,10 +25,16 @@ def _seed(repo: Path, rel: str, text: str) -> None:
 # https://github.com/dmitry-ai/harness/issues/276
 class CommentExemptionAndDeniedWritesTests(unittest.TestCase):
 	def test_issue_comment_gate_skips_body_misalignment_on_comment_only_diff(self) -> None:
+		from agent_tools import native_profiles
 		from agent_tools.issue_comment_gate import check_issue_comment_violations
-		base_css = '/* 2026-10-12 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n\thttps://github.com/o/r/issues/4 */\n/* 2026-10-20 https://github.com/o/r/issues/12 */\n.a {\n\tcolor: red;\n}\n.b {\n\tcolor: blue;\n}\n'
+		base_css = '/* 2026-10-12 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n\thttps://github.com/o/r/issues/4 */\n.a {\n\tcolor: red;\n}\n.b {\n\tcolor: blue;\n}\n'
 		cur_css = '/* 2026-10-12 Dmitrii Fediuk https://github.com/dmitrii-fediuk */\n/* 2026-10-20 https://github.com/o/r/issues/12 */\n.a {\n\tcolor: red;\n}\n/* 2026-10-12 https://github.com/o/r/issues/4 */\n/* 2026-11-01 https://github.com/o/r/issues/24 */\n.b {\n\tcolor: blue;\n}\n'
 		self.assertEqual([], check_issue_comment_violations('CSS/folders.css', cur_css, baseline_source=base_css))
+		base_py = '# 2026-10-12 Dmitrii Fediuk https://github.com/dmitrii-fediuk\nimport os\ndef f():\n\treturn 1\n'
+		bad_py = '# 2026-10-12 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n# 2026-11-26 https://github.com/o/r/issues/99\nimport os\ndef f():\n\treturn 1\n'
+		self.assertTrue(any(('HEADER_DUMPED_ISSUE_COMMENT' in e for e in check_issue_comment_violations('a.py', bad_py, baseline_source=base_py))))
+		af_path = WT_ROOT / 'agents/af-worker.md'
+		self.assertEqual(native_profiles.shared_native_outputs(WT_ROOT)[af_path], af_path.read_text(encoding='utf-8'))
 	def test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions(self) -> None:
 		from agent_tools.tdd.enforcement import evaluate_pre_tool_use_tdd, verify_staged_tdd_diff
 		from agent_tools.tdd.substantive import is_substantive_test_content
