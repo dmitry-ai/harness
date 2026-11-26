@@ -142,6 +142,15 @@ def _exec_worktree_land(args) -> dict:
 def _exec_worktree_status(args) -> dict:
 	from .worktree_flow import worktree_status
 	return worktree_status(args.repo)
+# 2026-11-26
+# "Implement Python AST cross-reference analyzer and sync CLI":
+# https://github.com/dmitry-ai/harness/issues/287
+def _exec_xref_check(args) -> dict:
+	from .xref import run_xref_check
+	return run_xref_check(args.repo, lang=args.lang, files=args.file or None)
+def _exec_xref_sync(args) -> dict:
+	from .xref import run_xref_sync
+	return run_xref_sync(args.repo, lang=args.lang, apply=not bool(args.dry_run), files=args.file or None)
 def _format_perf_profile_tests(res: dict, args) -> str | None:
 	if 'json' == args.format:
 		r = None
@@ -181,6 +190,16 @@ def _format_schema_help(res: dict, args) -> str | None:
 	return r
 def _format_test_watchdog(_res: dict, args) -> str | None:
 	return None if 'json' == args.format else ''
+# 2026-11-26
+# "Implement Python AST cross-reference analyzer and sync CLI":
+# https://github.com/dmitry-ai/harness/issues/287
+def _format_xref(res: dict, args) -> str | None:
+	if 'json' == args.format:
+		r = None
+	else:
+		from .xref import format_xref_text
+		r = format_xref_text(res)
+	return r
 def _register_analysis_builtins() -> None:
 	register_command('analysis-check', 'Validate multi-hypothesis /df-analysis structure and Markdown table ban', (('project', {'type': Path}), ('--response-file', {'type': Path, 'required': True, 'help': 'UTF-8 candidate Markdown file, or - for stdin'}), ('--mode', {'choices': ('auto', 'general', 'problem'), 'default': 'auto', 'help': 'Validation mode (default: auto)'})), _exec_analysis_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2)
 	register_command('cli-docs', 'Render Markdown command index directly from registered CLI commands', (), _exec_cli_docs)
@@ -213,6 +232,11 @@ def _register_runtime_builtins() -> None:
 	# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 	register_command('worktree-land', 'Rebase, test once, fast-forward merge, and remove (unless --keep) a task worktree under FIFO lease', (('worktree', {'type': Path}), ('--target', {'default': 'main'}), ('--no-tests', {'action': 'store_true'}), ('--push', {'action': 'store_true'}), ('--tag', {'action': 'store_true', 'help': 'Assign a daily-counter Git tag on the landed commit and push it when --push is set'}), ('--keep', {'action': 'store_true', 'help': 'Keep the linked worktree and task branch after landing'}), ('--remove', {'action': 'store_true', 'help': 'Remove the linked worktree after landing (default)'}), ('--owner', {}), ('--timeout', {'type': float, 'default': 600.0}), ('--workers', {'type': int})), _exec_worktree_land)
 	register_command('worktree-status', 'List linked git worktrees and dirty status for a repository', (('repo', {'type': Path}),), _exec_worktree_status)
+	# 2026-11-26
+	# "Implement Python AST cross-reference analyzer and sync CLI":
+	# https://github.com/dmitry-ai/harness/issues/287
+	register_command('xref-check', 'Validate navigable cross-reference annotations (@used-by, @uses, @see, @override)', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), _exec_xref_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=_format_xref)
+	register_command('xref-sync', 'Synchronize navigable @used-by and @override/@see cross-reference annotations', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--dry-run', {'action': 'store_true'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), _exec_xref_sync, text_fn=_format_xref)
 def add_registered_parsers(sub) -> None:
 	_ensure_builtin_plugins()
 	for name, entry in sorted(_REGISTRY.items()):
