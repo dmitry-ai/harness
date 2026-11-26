@@ -67,5 +67,24 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		with self.assertRaises(DFE) as cm:
 			df_assert_count(3, [1, 2])
 		self.assertEqual('The array should have 3 elements, but it has 2.', cm.exception.message())
+	# 2026-11-26 "Remove unused df_dump() call in df_type()": https://github.com/dmitry-ai/harness/issues/333
+	# Upstream defect: https://github.com/mage2pro/core/issues/476
+	# @used-by :mod:`unittest`
+	def test_333_df_type_skips_unused_dump(self) -> None:
+		from Df.Qa.lib.dump.type import df_type
+		class ExplodingStr:
+			# @used-by :meth:`TestDfUpstreamFixes.test_333_df_type_skips_unused_dump()`
+			def __str__(self) -> str:
+				raise RuntimeError('df_dump should not be evaluated by df_type')
+		class ExplodingIter:
+			# @used-by :meth:`TestDfUpstreamFixes.test_333_df_type_skips_unused_dump()`
+			def __iter__(self):
+				raise RuntimeError('df_dump should not iterate object in df_type')
+		res = df_type(ExplodingStr())
+		self.assertIn('an object:', res)
+		self.assertIn('ExplodingStr', res)
+		res_it = df_type(ExplodingIter())
+		self.assertIn('an object:', res_it)
+		self.assertIn('ExplodingIter', res_it)
 if '__main__' == __name__:
 	unittest.main()
