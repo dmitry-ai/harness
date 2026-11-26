@@ -22,6 +22,7 @@ _REVIEWER_ID = '22222222-2222-4222-8222-222222222222'
 # 2026-11-26 "Add arch-auditor subagent role and content-addressed review CLI": https://github.com/dmitry-ai/harness/issues/361
 # @used-by :func:`_seed_ag_arch_backend()`
 # @used-by :func:`_seed_codex_arch_home()`
+# @used-by :meth:`ArchReviewCliTests.test_review_project_id_and_fields_support_bare_code_workspace_for_arch_only()`
 def _init_text_workspace(proj: Path) -> None:
 	from agent_tools.path_registry import project_paths
 	from agent_tools.platforms.request_binding import text_project_id
@@ -263,6 +264,30 @@ class ArchReviewCliTests(unittest.TestCase):
 			status = inspect_arch_status(proj, repo=proj)
 			self.assertTrue(status['valid'])
 			self.assertEqual(1, status['approved_module_count'])
+	# 2026-11-27 "Support ARCH role fallback in review_project_id and native_project_fields": https://github.com/dmitry-ai/harness/issues/391
+	# @used-by :mod:`unittest`
+	def test_review_project_id_and_fields_support_bare_code_workspace_for_arch_only(self) -> None:
+		from agent_tools.platforms.request_binding import completion_project_id, native_project_fields, review_project_id
+		with tempfile.TemporaryDirectory() as td:
+			base = Path(td).resolve()
+			bare = base / 'bare-code'
+			bare.mkdir()
+			expected = completion_project_id(bare)
+			self.assertTrue(expected.startswith('text-'))
+			self.assertEqual(expected, review_project_id(bare, role='ARCH'))
+			self.assertEqual({'project_id': expected, 'project_kind': 'code_workspace', 'job_id': None}, native_project_fields(bare, role='ARCH'))
+			with self.assertRaises(ValueError):
+				review_project_id(bare, role='AA')
+			with self.assertRaises(ValueError):
+				native_project_fields(bare, role='AA')
+			text_ws = base / 'text-ws'
+			text_ws.mkdir()
+			_init_text_workspace(text_ws)
+			self.assertEqual({'project_id': completion_project_id(text_ws), 'project_kind': 'client_text_workspace', 'job_id': None}, native_project_fields(text_ws, role='ARCH'))
+			up_ws = base / 'upwork-ws'
+			(up_ws / '\ua616').mkdir(parents=True)
+			(up_ws / '\ua616/project.json').write_text(json.dumps({'job_id': '~0123456789'}), encoding='utf-8')
+			self.assertEqual({'project_id': '~0123456789', 'project_kind': 'upwork_job', 'job_id': '~0123456789'}, native_project_fields(up_ws, role='ARCH'))
 	# @used-by :mod:`unittest`
 	def test_validator_rejects_pattern_washing_and_rubber_stamp_approvals(self) -> None:
 		from agent_tools.arch.review_validator import ArchitectureAuditValidator

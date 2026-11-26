@@ -2119,6 +2119,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.path_cache._fast_sig()`
 	# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
 	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
+	# @used-by :func:`agent_tools.platforms.request_binding.native_project_fields()`
 	# @used-by :func:`agent_tools.platforms.request_binding.native_project_id()`
 	# @used-by :func:`agent_tools.project_drift.domain_drift_issues()`
 	# @used-by :func:`agent_tools.project_rename._validate_rename_inputs()`
@@ -2134,6 +2135,7 @@ class ProjectPaths:
 	def project_json(self) -> Path:
 		return Path(self.paths_str['project_json'])
 	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
+	# @used-by :func:`agent_tools.platforms.request_binding.native_project_fields()`
 	# @used-by :func:`agent_tools.platforms.request_binding.native_project_id()`
 	# @used-by :func:`test_arch_review_cli._init_text_workspace()`
 	@property
@@ -2335,6 +2337,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.path_cache.resolve_journal_data_dir()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
 # @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
+# @used-by :func:`agent_tools.platforms.request_binding.native_project_fields()`
 # @used-by :func:`agent_tools.platforms.request_binding.native_project_id()`
 # @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
 # @used-by :func:`agent_tools.polyglot_land._sandbox_root()`

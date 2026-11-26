@@ -33,7 +33,7 @@ def text_project_id(root):
 # @used-by :func:`agent_tools.platforms.codex._request_scope()`
 # @used-by :func:`agent_tools.platforms.codex.require_current_binding()`
 # @used-by :func:`completion_project_id()`
-# @used-by :func:`native_project_fields()`
+# @used-by :func:`review_project_id()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_existing_real_job_identity_wins_and_invalid_job_file_cannot_fall_back()`
 # @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_internal_identity_is_explicit_and_validated_without_creating_upwork_state()`
@@ -67,19 +67,23 @@ def native_project_id(root):
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# 2026-11-27 "Support ARCH role fallback in review_project_id and native_project_fields": https://github.com/dmitry-ai/harness/issues/391
 # @used-by :func:`agent_tools.platforms.trace_common.build_native_review_proof()`
 # @used-by :func:`agent_tools.text_review.prepare()`
 # @used-by :func:`agent_tools.text_review.read_package()`
-def native_project_fields(root):
-	identifier = native_project_id(root)
-	is_text = identifier.startswith('text-')
-	r = {'project_id': identifier, 'project_kind': 'client_text_workspace' if is_text else 'upwork_job', 'job_id': None if is_text else identifier}
-	return r
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_review_project_id_and_fields_support_bare_code_workspace_for_arch_only()`
+def native_project_fields(root, *, role='AA'):
+	identifier = review_project_id(root, role=role)
+	pp = project_paths(root, exact_root=True)
+	kind = 'upwork_job' if pp.project_json.is_file() else ('client_text_workspace' if pp.text_project_json.is_file() else 'code_workspace')
+	return {'project_id': identifier, 'project_kind': kind, 'job_id': identifier if 'upwork_job' == kind else None}
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
+# @used-by :func:`review_project_id()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._load_context()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_review_project_id_and_fields_support_bare_code_workspace_for_arch_only()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
 def completion_project_id(root):
 	root_p = Path(root).resolve()
@@ -94,6 +98,11 @@ def completion_project_id(root):
 	else:
 		r = text_project_id(pp.root)
 	return r
+# 2026-11-27 "Support ARCH role fallback in review_project_id and native_project_fields": https://github.com/dmitry-ai/harness/issues/391
+# @used-by :func:`native_project_fields()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_review_project_id_and_fields_support_bare_code_workspace_for_arch_only()`
+def review_project_id(root, *, role='AA'):
+	return completion_project_id(root) if 'ARCH' == role else native_project_id(root)
 # 2026-10-31
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
