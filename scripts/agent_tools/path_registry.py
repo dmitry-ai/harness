@@ -1765,6 +1765,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_shadow_replay_m3`
 	# @used-by :mod:`test_shell_herestring_write_targets_m4`
 	# @used-by :mod:`test_snapshot_canary_and_hook_crash_audit`
+	# @used-by :mod:`test_snapshot_latency_and_delegation_policy`
 	# @used-by :mod:`test_source_diagnostics_scanner`
 	# @used-by :mod:`test_source_grounding`
 	# @used-by :mod:`test_stop_emergency_capture_and_foreign_sync`

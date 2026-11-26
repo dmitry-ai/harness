@@ -112,5 +112,11 @@ def run_pre_tool_use_canary(staging: Path, *, max_seconds: float=CANARY_MAX_SECO
 		creationflags=_NO_WINDOW,
 	)
 	detail = (proc.stderr or proc.stdout or '').strip()
-	return (0 == proc.returncode, detail)
+	# 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
+	if 0 != proc.returncode:
+		r = (False, detail)
+	else:
+		from .snapshot_latency_canary import run_large_transcript_latency_canary
+		r = run_large_transcript_latency_canary(staging)
+	return r
 __all__ = ['CANARY_COMMITTED_FILES', 'CANARY_MAX_SECONDS', 'CANARY_MAX_SUBPROCESSES', 'run_pre_tool_use_canary']

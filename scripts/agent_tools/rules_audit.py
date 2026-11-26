@@ -135,6 +135,7 @@ def _touches_audit_surface(staged_paths: list[str]) -> bool:
 # @used-by :meth:`test_repo_tags_docs.RepoTagsDocsTests.test_rules_and_docs_codify_daily_tagging_and_link6_within_budgets()`
 # @used-by :meth:`test_rules_audit.RulesAuditTests.test_detects_broken_links_blind_references_drift_and_skill_leakage()`
 # @used-by :meth:`test_rules_audit.RulesAuditTests.test_detects_budget_html_comment_and_cross_platform_codex_leaks()`
+# @used-by :meth:`test_snapshot_latency_and_delegation_policy.SnapshotLatencyAndDelegationPolicyTests.test_delegation_rule_and_worktree_doc_codify_multi_track_policy_and_pass_audits()`
 def audit_rules(primary: str | Path, *, workspace: str | Path | None=None, max_file_bytes: int=MAX_RULE_FILE_BYTES, max_always_on_bytes: int=MAX_ALWAYS_ON_BYTES, max_always_on_tokens: int=MAX_ALWAYS_ON_TOKENS, overrides: dict[Path, bytes] | None=None) -> dict:
 	prim = Path(primary).resolve()
 	ws = Path(workspace).resolve() if None is not workspace else None
