@@ -6,6 +6,7 @@ from typing import Any
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/array/other/unique_fast.php#L2-L25
 # @used-by :func:`Df.Harness.lib.cleanup_audit_ops._extract_removed_record()`
 # @used-by :func:`Df.Harness.lib.hook_markdown_ops._format_grounding_issues()`
+# @used-by :func:`Df.Harness.lib.shell.dfh_extract_issue_urls()`
 # @used-by :func:`agent_tools.grounding_helpers.audit_active_block()`
 # @used-by :func:`agent_tools.issues.git_read_cache._parse_log_index()`
 # @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`

@@ -14,7 +14,7 @@ def df_path_inside(child: str | Path, parent: str | Path) -> bool:
 	return r
 # Normalize a path string or Path to forward-slash POSIX form.
 # @used-by :func:`Df.Harness.lib.hook_addon_ops._norm_posix()`
-# @used-by :func:`agent_tools.worktree_guard._norm_posix()`
+# @used-by :meth:`Df.Harness.Git.WorktreeLockFinder.WorktreeLockFinder.__norm_posix()`
 # @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.norm_posix()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_fs_and_git_helpers()`
 def df_path_posix(path: str | Path) -> str:

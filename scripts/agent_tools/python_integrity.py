@@ -23,7 +23,7 @@ def verify_python_file_integrity(path: Path, *, rel_label: str | None=None) -> l
 # @used-by :mod:`agent_tools.python_integrity`
 def verify_touched_python_files(repo_root: Path, rel_paths: list[str] | set[str]) -> list[str]:
 	return PythonIntegrity.verify_touched(repo_root, rel_paths)
-# @used-by :func:`agent_tools.worktree_flow._rebase_and_test()`
+# @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.verify()`
 # @used-by :mod:`agent_tools.python_integrity`
 def verify_worktree_python_changes(wt_path: Path, target_branch: str) -> list[str]:
 	return PythonIntegrity.verify_worktree(wt_path, target_branch)

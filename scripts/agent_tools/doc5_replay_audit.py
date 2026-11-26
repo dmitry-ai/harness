@@ -134,7 +134,7 @@ def audit_local_saved_turns(project_root: Path | str, *, limit: int=20) -> dict[
 			results.append({'turn_key': entry['key'], 'requires_doc5': req})
 	fps = [x['turn_key'] for x in results if x['requires_doc5']]
 	return {'valid': not fps, 'checked': len(results), 'false_positives': fps, 'results': results}
-# @used-by :func:`agent_tools.worktree_flow._check_land_diff_coverage()`
+# @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__check_diff_coverage()`
 # @used-by :meth:`test_doc5_replay_audit.Doc5ReplayAuditTests.test_worktree_land_enforces_answer_gate_corpus_before_merge()`
 # @used-by :mod:`agent_tools.doc5_replay_audit`
 def verify_worktree_answer_gate_corpus(wt_path: Path, target_branch: str) -> dict[str, Any]:

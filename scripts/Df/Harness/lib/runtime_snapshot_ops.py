@@ -96,7 +96,7 @@ def dfh_effective_git_hooks_dir(fallback_dir: str | Path | None=None, *, store_d
 	else:
 		r = dfh_tool_path('git_hooks_dir').resolve()
 	return r
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.ensure_hooks()`
+# @used-by :meth:`Df.Harness.Git.HookInstaller.HookInstaller.install()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def dfh_ensure_repo_git_hooks(repo_root: Path, main_repo: Path, fallback_dir: Path) -> Path | None:
 	r: Path | None = None
@@ -161,8 +161,8 @@ def dfh_has_git_head(repo: Path) -> bool:
 		except (OSError, RuntimeError, subprocess.SubprocessError):
 			r = False
 	return r
-# @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
 # @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__evaluate_main_checkout()`
+# @used-by :meth:`Df.Harness.Git.WorktreeMerger.WorktreeMerger.__maybe_promote_snapshot()`
 # @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def dfh_is_harness_code_repo(repo: str | Path) -> bool:

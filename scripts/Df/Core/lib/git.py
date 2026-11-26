@@ -19,11 +19,11 @@ def df_git_read_text(repo: str | Path, *args: str, timeout: int=30) -> str | Non
 	return proc.stdout if 0 == proc.returncode else None
 # Locate the nearest enclosing Git repository root containing `.git`, or None.
 # @used-by :func:`agent_tools.code_size_gate._find_git_root()`
-# @used-by :func:`agent_tools.repo_tags._find_git_root()`
 # @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.resolve_python_target()`
 # @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.resolve_target()`
 # @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__governed_repo_for_path()`
 # @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.resolve_target()`
+# @used-by :meth:`Df.Harness.Git.BlobUrlBuilder.BlobUrlBuilder.build()`
 # @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_fs_and_git_helpers()`
 def df_git_root(path: str | Path) -> Path | None:

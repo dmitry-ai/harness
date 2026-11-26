@@ -18,9 +18,9 @@ from Df.Core.lib.array.other.ita import df_ita
 # @used-by :func:`Df.Qa.lib.diagnostics.df_webserver()`
 # @used-by :func:`Df.Qa.lib.validation.error._parse_error_args()`
 # @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
-# @used-by :func:`agent_tools.repo_tags.pick_preferred_tag()`
 # @used-by :func:`agent_tools.tdd.outcomes.parse_command_outcome()`
 # @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__build_ag_meta()`
+# @used-by :meth:`Df.Harness.Git.TagSelector.TagSelector.pick()`
 # @used-by :meth:`Df.Harness.Perf.AntigravityTimesheetAnalyzer.AntigravityTimesheetAnalyzer.__ag_timestamps()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
 # @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.__extract_bg_meta()`

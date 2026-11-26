@@ -78,19 +78,7 @@ class TrackedPopen(subprocess.Popen):
 		finally:
 			self.__perf_finish()
 		return r
-	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_land_acquire()`
-	# @used-by :func:`test_stdin_detachment._kill_tree()`
-	# @used-by :meth:`Df.Harness.TestRunner.ProcessTree.ProcessTree.__finish_kill()`
-	# @used-by :meth:`Df.Harness.TestRunner.PytestWorkstealRunner.PytestWorkstealRunner.run()`
-	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__poll_module_proc()`
-	# @used-by :meth:`Df.Harness.TestRunner.WatchdogRunner.WatchdogRunner.__poll_until_exit()`
-	# @used-by :meth:`agent_tools.text_browser.CDPSession.close()`
-	# @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.close()`
 	# @used-by :meth:`subprocess.Popen.wait()`
-	# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_concurrent_fresh_files_succeed_without_permission_error()`
-	# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`
-	# @used-by :meth:`test_path_cache_and_diff_cov_perf.PathCacheAndDiffCovPerfTests.test_path_cache_rlock_handles_concurrent_eviction_and_clear()`
-	# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 	# @see :meth:`subprocess.Popen.wait()`
 	@override
 	def wait(self, *a, **kw):

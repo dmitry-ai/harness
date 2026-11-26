@@ -18,9 +18,9 @@ def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def finalize_native_install(result: dict, primary: Path, *, check: bool) -> dict:
 	return dfh_finalize_native_install(result, primary, check=check, promote_fn=promote_runtime_snapshot)
-# @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
 # @used-by :func:`finalize_native_install()`
 # @used-by :func:`test_hook_runner_watchdog._seed_two_releases()`
+# @used-by :meth:`Df.Harness.Git.WorktreeMerger.WorktreeMerger.__maybe_promote_snapshot()`
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_runtime_snapshot_canary_skips_non_executable_and_runs_for_code_or_config()`
 # @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_snapshot_promotion_and_auditor_reject_undefined_global()`

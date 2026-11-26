@@ -236,8 +236,8 @@ def find_local_code_repo(repo: str, project_root: str | Path | None=None, source
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
 # @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
-# @used-by :func:`agent_tools.repo_tags.build_github_blob_url()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
+# @used-by :meth:`Df.Harness.Git.BlobUrlBuilder.BlobUrlBuilder.build()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.origin_repo_slug()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_origin_repo_slug_skips_git_subprocess_for_local_repo_without_origin()`
 def origin_repo_slug(code_repo: Path) -> str | None:

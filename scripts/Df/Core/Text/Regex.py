@@ -141,6 +141,7 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.request_binding.dfh_extract_leading_upwork_init_ids()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter._partition_rule_sections()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter._used_rule_indices()`
+	# @used-by :func:`Df.Harness.lib.shell.dfh_extract_comment_issue_urls()`
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Harness.lib.uri.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Qa.lib.validation.check.df_is_email()`
@@ -167,8 +168,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.response_grounding._discourse_topic_key()`
 	# @used-by :func:`agent_tools.scatter_banner._fenced_banner_at_start()`
 	# @used-by :func:`agent_tools.scatter_banner._parse_standalone_recommendations()`
-	# @used-by :func:`agent_tools.shell_audit.extract_comment_issue_urls()`
-	# @used-by :func:`agent_tools.shell_audit.normalize_host_path()`
 	# @used-by :func:`agent_tools.source_grounding.extract_authored_prose()`
 	# @used-by :func:`agent_tools.statements._extract_top_sections()`
 	# @used-by :func:`agent_tools.statements._is_table_header_pair()`
@@ -198,6 +197,9 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.__strip_frontmatter()`
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.parse_frontmatter()`
 	# @used-by :meth:`Df.Harness.Gate.SendMessageGate.SendMessageGate.__is_duplicate_verdict_payload()`
+	# @used-by :meth:`Df.Harness.Git.BlobSizeValidator.BlobSizeValidator.__collect_push_revs()`
+	# @used-by :meth:`Df.Harness.Git.GitSegmentExtractor.GitSegmentExtractor.extract()`
+	# @used-by :meth:`Df.Harness.Git.HostPathNormalizer.HostPathNormalizer.normalize()`
 	# @used-by :meth:`Df.Harness.Meta.HeaderRenderer.HeaderRenderer.extract_leading()`
 	# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__resolve_rel_to_root()`
 	# @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__prepare_maps()`
@@ -243,12 +245,10 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.parse_tag_line()`
 	# @used-by :meth:`Regex.matchInt()`
 	# @used-by :meth:`Regex.test()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_push_blob_sizes()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._collect_m_subtask_groups()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.validate_repo()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.validate_slug_part()`
-	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._iter_git_segments()`
 	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
 	# @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part1()`
 	def match(self) -> str | list[str] | None | bool:

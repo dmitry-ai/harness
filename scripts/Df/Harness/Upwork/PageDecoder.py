@@ -41,22 +41,12 @@ class PageDecoder:
 	# @used-by :func:`agent_tools.issues.service_helpers.gh_api_call()`
 	# @used-by :func:`agent_tools.links._readable_escapes()`
 	# @used-by :func:`agent_tools.links.fetch_page()`
-	# @used-by :func:`agent_tools.polyglot_land._branch_touched_files()`
-	# @used-by :func:`agent_tools.repo_tags._commit_sha_and_day()`
-	# @used-by :func:`agent_tools.repo_tags._read_tag_refs()`
-	# @used-by :func:`agent_tools.repo_tags._resolve_commit_sha()`
-	# @used-by :func:`agent_tools.repo_tags._validate_blob_fragment()`
 	# @used-by :func:`agent_tools.repo_tags.commit_date_day()`
 	# @used-by :func:`agent_tools.repo_tags.list_repo_tags()`
-	# @used-by :func:`agent_tools.repo_tags.plan_retro_tags()`
 	# @used-by :func:`agent_tools.repo_tags.tags_at_commit()`
-	# @used-by :func:`agent_tools.repo_tags.validate_tree_path_and_fragment()`
-	# @used-by :func:`agent_tools.repo_wait._dirty_files()`
 	# @used-by :func:`agent_tools.research.extract_bytes()`
 	# @used-by :func:`agent_tools.upwork_extract.decode_page()`
 	# @used-by :func:`agent_tools.worktree_flow._current_branch()`
-	# @used-by :func:`agent_tools.worktree_flow._rev_distance()`
-	# @used-by :func:`agent_tools.worktree_flow.worktree_status()`
 	# @used-by :func:`test_arch_audit_gates._record_verdict()`
 	# @used-by :func:`test_failfast_and_schedule_gate._run_hook()`
 	# @used-by :func:`test_turn_completion.assert_journal_response_body()`
@@ -80,6 +70,26 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Gate.RulesAuditor.RulesAuditor.__inspect_workspace_auto_files()`
 	# @used-by :meth:`Df.Harness.Gate.RulesAuditor.RulesAuditor.__load_rule_entries()`
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.inspect_rule()`
+	# @used-by :meth:`Df.Harness.Git.BlobSizeValidator.BlobSizeValidator.__verify_push()`
+	# @used-by :meth:`Df.Harness.Git.BlobSizeValidator.BlobSizeValidator.__verify_staged()`
+	# @used-by :meth:`Df.Harness.Git.BlobUrlBuilder.BlobUrlBuilder.__validate_blob_fragment()`
+	# @used-by :meth:`Df.Harness.Git.BlobUrlBuilder.BlobUrlBuilder.__validate_tree_path()`
+	# @used-by :meth:`Df.Harness.Git.CommitTagger.CommitTagger.__commit_sha_and_day()`
+	# @used-by :meth:`Df.Harness.Git.CommitTagger.CommitTagger.__read_tag_refs()`
+	# @used-by :meth:`Df.Harness.Git.DirtyMainChecker.DirtyMainChecker.__branch_touched()`
+	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.extract_added_diff_urls()`
+	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.git()`
+	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.read_git()`
+	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.staged_paths()`
+	# @used-by :meth:`Df.Harness.Git.RepoWaiter.RepoWaiter.__dirty_files()`
+	# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__plan()`
+	# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__read_tag_refs()`
+	# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__resolve_sha()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeCleaner.WorktreeCleaner.__current_branch()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeCreator.WorktreeCreator.__current_branch()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__current_branch()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__rev_distance()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.inspect()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.load_jsonl_rows()`
 	# @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__register_single()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__read_state()`
@@ -97,12 +107,6 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.extract_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__capture_on_page()`
 	# @used-by :meth:`Df.Harness.Upwork.PdfLigatureRepairer.PdfLigatureRepairer.parse_streams()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._extract_added_diff_urls()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._staged_paths()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.git()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.read_git()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_push_blob_sizes()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_staged_blob_sizes()`
 	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache._dirty_entries()`
 	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache._load_log()`
 	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache._tracked_diff_urls()`

@@ -26,7 +26,7 @@ def is_git_path_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None
 # @used-by :mod:`agent_tools.tdd`
 def is_write_event_exempt(raw_path: str | Path, scope_str: str, *, project_root: Path | None=None) -> bool:
 	return Exemption.is_write_event_exempt(raw_path, scope_str, project_root=project_root, git_non_exec_fn=diff_executability.is_git_path_non_executable)
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
+# @used-by :meth:`Df.Harness.Git.IssueWorkflowVerifier.IssueWorkflowVerifier.verify()`
 # @used-by :meth:`test_cross_repo_issue_urls.CrossRepoIssueUrlsTests.test_staged_issue_urls_ignore_foreign_repo_urls_and_check_dotpy()`
 # @used-by :mod:`agent_tools.tdd.exemption`
 def verify_staged_issue_urls(gate, relative: list[str], stripped_msg: str | None, *, project_root: Path | None=None) -> set[str]:

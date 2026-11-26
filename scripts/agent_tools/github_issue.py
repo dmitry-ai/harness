@@ -257,7 +257,7 @@ def cmd_transfer_repo(args: argparse.Namespace) -> int:
 # https://github.com/dmitry-ai/harness/issues/84
 # @used-by :func:`agent_tools.issue_first_gate._load_evidence_issue_info()`
 # @used-by :func:`agent_tools.issue_first_inherit._evidence_parent_number()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
+# @used-by :meth:`Df.Harness.Git.IssueWorkflowVerifier.IssueWorkflowVerifier.__extract_parent()`
 def extract_parent_issue_number(body: str, repo: str | None=None) -> int | None:
 	return _LINTER.extract_parent_number(body, repo)
 # 2026-11-18
@@ -276,7 +276,7 @@ find_local_code_repo = _find_local_code_repo
 # 2026-11-18
 # "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/84
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.verify()`
 def find_tracked_child_issues(repo: str, parent_number: int, *, project_root: str | Path | None=None, code_repo: Path | None=None) -> list[dict[str, Any]]:
 	return _WORKSPACE.find_tracked_child_issues(repo, parent_number, project_root=project_root, code_repo=code_repo)
 # 2026-11-18

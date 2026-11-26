@@ -50,17 +50,17 @@ def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) 
 	return TurnIssueLifecycleAuditor(Path(root), turn, turn_state, response).audit()
 # @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_has_recorded_hook_issue()`
 # @used-by :func:`agent_tools.issue_first_gate._load_evidence_issue_info()`
+# @used-by :meth:`Df.Harness.Git.IssueWorkflowVerifier.IssueWorkflowVerifier.__verify_single_url()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.__find_issue_approval()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
 def evidence_issue_files(root: Path, repo_slug: str, fname: str, candidate_repos=()) -> list[Path]:
 	return IssueEvidenceWorkspace.evidence_issue_files(root, repo_slug, fname, candidate_repos)
 # @used-by unused
 def evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repos=()) -> str | None:
 	return IssueEvidenceWorkspace.evidence_issue_state(root, repo_slug, number, candidate_repos)
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
+# @used-by :meth:`Df.Harness.Git.IssueWorkflowVerifier.IssueWorkflowVerifier.__verify_tracked_evidence()`
 # @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.verify_staged_issue_urls()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_existing_repo()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
 def origin_repo_slug(code_repo: Path) -> str | None:
 	return IssueEvidenceWorkspace.origin_repo_slug(code_repo)

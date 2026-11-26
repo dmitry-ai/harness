@@ -210,8 +210,6 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.path_resolve.dfh_resolve_journal_data_dir()`
 	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_persist_shadow_replay_receipt()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_data_dir_for()`
-	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
-	# @used-by :func:`agent_tools.polyglot_land._sandbox_root()`
 	# @used-by :func:`agent_tools.research.collect()`
 	# @used-by :func:`agent_tools.research.observed_use()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
@@ -225,6 +223,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__arch_dir()`
 	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
+	# @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__init__()`
+	# @used-by :meth:`Df.Harness.Git.PolyglotTestRunner.PolyglotTestRunner.__sandbox_root()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.build()`
 	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.load_media_descriptions()`
@@ -435,7 +435,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
 	# @used-by :func:`agent_tools.markdown_links.display_address()`
-	# @used-by :func:`agent_tools.polyglot_land._expand_token()`
 	# @used-by :func:`agent_tools.statements.is_documentation_url()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
 	# @used-by :func:`check_pre_invocation._ensure_scripts_on_path()`
@@ -449,6 +448,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_file_uri()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_relative_cross_repo()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
+	# @used-by :meth:`Df.Harness.Git.VerificationSpecResolver.VerificationSpecResolver.__expand_token()`
 	# @used-by :meth:`Df.Harness.Path.PathReporter.PathReporter.__check_similar_groups()`
 	# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_core_maps()`
 	# @used-by :meth:`Df.Harness.Perf.SuiteWorker.SuiteWorker.main()`
@@ -541,6 +541,8 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
 	# @used-by :mod:`test_df_harness_s11_wave2b`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cross_wave`
+	# @used-by :mod:`test_df_harness_s11_wave2c_git`
 	# @used-by :mod:`test_df_harness_s11_wave2d_cli_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion`
@@ -835,9 +837,9 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
 	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
 	# @used-by :func:`agent_tools.issues.turn_scope._candidate_turns_dirs()`
-	# @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
 	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
 	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
+	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__active_turn_paths()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__find_issue_state_pair()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__launcher_stale_files()`
@@ -873,7 +875,7 @@ class ProjectPaths:
 	def workflow_json(self) -> Path:
 		return Path(self.paths_str['workflow_json'])
 	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_begin()`
-	# @used-by :func:`agent_tools.git_ignore.prepare_worktrees_base_dir()`
+	# @used-by :func:`Df.Harness.lib.worktree.dfh_prepare_worktrees_base_dir()`
 	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 	@property
 	def worktrees_dir(self) -> Path:

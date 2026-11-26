@@ -34,7 +34,7 @@ def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | Non
 	de = sys.modules.get('agent_tools.tdd.diff_executability')
 	return Enforcement(event_extractor=extract_antigravity_tdd_events, diff_non_exec_fn=getattr(de, 'is_non_executable_diff', None)).evaluate_pre_tool_use(name, args, payload)
 # @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_tdd_commit()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_tdd_commit()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_hardening_header_exit_code_indirect_source_read_and_index_blob()`

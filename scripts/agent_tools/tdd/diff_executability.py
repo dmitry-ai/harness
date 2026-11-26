@@ -15,8 +15,8 @@ def _summarize_categories(file_categories: dict[str, str]) -> dict[str, Any]:
 # @used-by :mod:`agent_tools.tdd`
 def classify_git_path(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> str:
 	return DiffExecutability.classify_git_path(repo_root, rel_posix, disk_text=disk_text, use_index=use_index, message=message, project_root=project_root)
-# @used-by :func:`agent_tools.polyglot_land.run_polyglot_land_tests()`
 # @used-by :func:`resolve_land_test_plan()`
+# @used-by :meth:`Df.Harness.Git.PolyglotTestRunner.PolyglotTestRunner.run()`
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
 # @used-by :mod:`agent_tools.tdd_gate`
@@ -29,7 +29,7 @@ def classify_git_range(repo_root: Path, base_ref: str, head_ref: str='HEAD', *, 
 # @used-by :mod:`agent_tools.tdd`
 def classify_text_diff(path: str | Path, old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> str:
 	return DiffExecutability.classify_text_diff(path, old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)
-# @used-by :func:`agent_tools.worktree_flow._attach_land_telemetry()`
+# @used-by :func:`Df.Harness.lib.worktree.dfh_attach_land_telemetry()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_format_land_diff_telemetry_truncates_and_preserves_counts()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
 # @used-by :mod:`agent_tools.tdd_gate`
@@ -51,7 +51,7 @@ def is_git_path_non_executable(repo_root: Path, rel_posix: str, *, disk_text: st
 # @used-by :mod:`agent_tools.tdd`
 def is_non_executable_diff(path: str | Path, old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
 	return DiffExecutability.is_non_executable_diff(path, old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)
-# @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
+# @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__run_land_checks()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`

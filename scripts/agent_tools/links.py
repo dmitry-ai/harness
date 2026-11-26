@@ -366,8 +366,8 @@ def heading_anchors(content: str) -> set[str]:
 # @used-by :func:`Df.Harness.lib.journal_integrity_ops.dfh_validate_step_cli()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
 # @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.check_links_and_blind_references()`
+# @used-by :meth:`Df.Harness.Git.CommitVerifier.CommitVerifier.__check_markdown()`
 # @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.issues()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.check_commit()`
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_stage4_docs_document_arch_audit_gate_and_lint_cleanly()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`

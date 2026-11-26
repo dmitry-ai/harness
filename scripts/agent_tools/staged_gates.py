@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 from Df.Harness.Gate.StagedGates import StagedGates
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate._verify_agent_staged()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_agent_staged()`
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_staged_pre_commit_enforces_approved_receipts_cache_and_anti_pattern_washing()`
 # @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_pre_commit_emits_non_blocking_mixed_warning_to_stderr()`
 # @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban()`

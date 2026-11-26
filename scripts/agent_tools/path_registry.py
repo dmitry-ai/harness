@@ -32,6 +32,7 @@ def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 	return dfh_refresh_known_overlay_links(reg, candidate_roots_fn=_candidate_discovery_roots, default_registry_file=DEFAULT_REGISTRY_FILE)
 # @used-by :func:`agent_tools.issues.parity.check_similar_project_parity()`
 # @used-by :func:`agent_tools.text_workflow._roots()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.is_issue_tracked()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_github_issue()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_problem()`
@@ -41,7 +42,6 @@ def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 # @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
 # @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.__init__()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.__init__()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_df_servers_relocation_and_nested_server_artifact_root()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
@@ -86,7 +86,7 @@ def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path
 # @used-by unused
 def expand_structure(value: Any, variables: dict[str, str], *, env: dict[str, str] | None=None) -> Any:
 	return dfh_expand_structure(value, variables, env=env)
-# @used-by :func:`agent_tools.polyglot_land._expand_token()`
+# @used-by :meth:`Df.Harness.Git.VerificationSpecResolver.VerificationSpecResolver.__expand_token()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_apache_prefix_concatenation_windows_env_vars_globs_and_escapes()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_template_and_schema_error_paths_reject_cycles_unknowns_symlinks_and_conflicts()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
@@ -96,10 +96,10 @@ def expand_template(template: str, variables: dict[str, str], *, env: dict[str, 
 def is_tracked_workspace(root: str | Path, *, registry: PathRegistry | None=None, projects_dirs=None) -> tuple[bool, Path]:
 	return dfh_is_tracked_workspace(root, registry=registry, projects_dirs=projects_dirs)
 # @used-by :func:`agent_tools.issues.repo_locator._search_registry_and_roots()`
-# @used-by :func:`agent_tools.polyglot_land.resolve_repo_verification_spec()`
 # @used-by :func:`agent_tools.research.inside()`
 # @used-by :func:`canonicalize_root_dir()`
 # @used-by :func:`discover_overlay_file()`
+# @used-by :meth:`Df.Harness.Git.VerificationSpecResolver.VerificationSpecResolver.resolve()`
 # @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_indexed()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
@@ -122,10 +122,10 @@ def normalize_path_str(raw: str, *, preserve_trailing_slash: bool=False) -> str:
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:
 	return PathReporter(project, expand=expand, check=check, registry=registry).run()
+# @used-by :func:`Df.Harness.lib.worktree.dfh_prepare_worktrees_base_dir()`
 # @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 # @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
-# @used-by :func:`agent_tools.git_ignore.prepare_worktrees_base_dir()`
 # @used-by :func:`agent_tools.issue_first_inherit._candidate_project_roots()`
 # @used-by :func:`agent_tools.issues.acceptance_gate._load_acceptance_receipt()`
 # @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
@@ -137,9 +137,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
 # @used-by :func:`agent_tools.issues.service_helpers.resolve_metadata_project_root()`
 # @used-by :func:`agent_tools.issues.turn_scope._candidate_turns_dirs()`
-# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
-# @used-by :func:`agent_tools.polyglot_land._sandbox_root()`
-# @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.compute_site_summary()`
@@ -155,8 +152,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`agent_tools.text_workflow._folder()`
-# @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`
-# @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
 # @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 # @used-by :func:`test_arch_review_cli._init_text_workspace()`
 # @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
@@ -183,6 +178,14 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.record_run()`
 # @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
 # @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
+# @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__init__()`
+# @used-by :meth:`Df.Harness.Git.PolyglotTestRunner.PolyglotTestRunner.__sandbox_root()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.is_issue_tracked()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.tdd_project_root()`
+# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__active_turn_paths()`
+# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__workspace_code_repos()`
+# @used-by :meth:`Df.Harness.Git.WorktreePathResolver.WorktreePathResolver.__resolve_deleted()`
+# @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__run_land_checks()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.__find_issue_state_pair()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
@@ -262,8 +265,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate._tdd_project_root()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_repos_and_issues()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
@@ -340,12 +341,13 @@ def store_path(name: str, *, registry: PathRegistry | None=None) -> Path:
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.resolve_issue_targets()`
 def store_value(name: str, *, registry: PathRegistry | None=None) -> Any:
 	return dfh_store_value(name, registry=registry)
-# @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
+# @used-by :meth:`Df.Harness.Git.CredentialLockCleaner.CredentialLockCleaner.__collect_candidates()`
 # @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.find_poppler_tool()`
 def tool_list(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> list[str]:
 	return dfh_tool_list(name, project_root=project_root, registry=registry)
-# @used-by :func:`agent_tools.polyglot_land._resolve_node_exe()`
+# @used-by :meth:`Df.Harness.Git.HookInstaller.HookInstaller.install()`
+# @used-by :meth:`Df.Harness.Git.VerificationSpecResolver.VerificationSpecResolver.__resolve_node_exe()`
 # @used-by :mod:`agent_tools.git_gate`
 # @used-by :mod:`agent_tools.runtime`
 def tool_path(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> Path:

@@ -75,6 +75,7 @@ def df_trim_text_a(s: str, trimA: list[str], f: Callable[[str, str], str]) -> st
 # @used-by :func:`agent_tools.markdown_links.technical_label()`
 # @used-by :func:`agent_tools.worktree_flow._apply_porcelain_line()`
 # @used-by :func:`df_trim_text_left_right()`
+# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__apply_line()`
 # @used-by :meth:`Df.Harness.Xref.Java.Tags.Tags.__classify_javadoc_line()`
 # @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.parse_jsdoc_lines()`
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part2()`

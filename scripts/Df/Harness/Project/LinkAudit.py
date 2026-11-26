@@ -21,6 +21,7 @@ KB_DOCUMENT_READABLE_CALL_SITES = frozenset({
 class LinkAudit:
 	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_link_audit_accepts_wave2c_call_sites_and_guarded_cdp_class_seam()`
 	# @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_link_audit_tracks_completion_links_call_site()`
 	def __init__(self, scripts_dir: Path, *, require_expected_chat_sites: bool=True) -> None:
 		self.__base = Path(scripts_dir).resolve()
@@ -66,6 +67,7 @@ class LinkAudit:
 		return r
 	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_link_audit_accepts_wave2c_call_sites_and_guarded_cdp_class_seam()`
 	# @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_link_audit_tracks_completion_links_call_site()`
 	def audit(self) -> list[str]:
 		hits: list[tuple[str, str, str, object, int]] = []

@@ -37,7 +37,7 @@ def select_targeted_test_modules(repo_root: Path, changed_prod_rels: list[str], 
 # @used-by :mod:`agent_tools.tdd.diff_coverage`
 def verify_repo_diff_coverage(repo_root: Path, *, base_ref: str='HEAD') -> dict[str, Any]:
 	return DiffCoverage.verify_repo(repo_root, base_ref=base_ref)
-# @used-by :func:`agent_tools.worktree_flow._check_land_diff_coverage()`
+# @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__check_diff_coverage()`
 # @used-by :mod:`agent_tools.tdd.diff_coverage`
 def verify_worktree_diff_coverage(wt_path: Path, target_branch: str) -> dict[str, Any]:
 	return DiffCoverage.verify_worktree(wt_path, target_branch)

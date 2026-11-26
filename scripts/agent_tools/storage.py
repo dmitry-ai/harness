@@ -61,9 +61,6 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 def journal_data_dir_for(eff: Path) -> Path:
 	return dfh_journal_data_dir_for(eff)
 # @used-by :func:`agent_tools.completion._completion_ops()`
-# @used-by :func:`agent_tools.landing_lease._try_acquire_once()`
-# @used-by :func:`agent_tools.landing_lease._unqueue_owner()`
-# @used-by :func:`agent_tools.landing_lease.release_lease()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.observed_use()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
@@ -78,6 +75,9 @@ def journal_data_dir_for(eff: Path) -> Path:
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
+# @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__try_once()`
+# @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__unqueue()`
+# @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.release()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
 # @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
@@ -119,9 +119,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
-# @used-by :func:`agent_tools.git_ignore._append_exclude_pattern()`
-# @used-by :func:`agent_tools.git_ignore._write_verified_ignore()`
-# @used-by :func:`agent_tools.landing_lease._save_state()`
 # @used-by :func:`agent_tools.native_profiles._facade_ops()`
 # @used-by :func:`agent_tools.research._write_cached_extraction()`
 # @used-by :func:`agent_tools.research.collect()`
@@ -137,6 +134,9 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
+# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__write_verified()`
+# @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__save()`
+# @used-by :meth:`Df.Harness.Git.WorktreeExcludeManager.WorktreeExcludeManager.__append_pattern()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 # @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_files()`

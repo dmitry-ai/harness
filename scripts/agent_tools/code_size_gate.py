@@ -42,7 +42,7 @@ def check_python_size_violations(path: str | Path, source: str, *, baseline_sour
 # @used-by :mod:`agent_tools.code_size_gate`
 def evaluate_pre_tool_use_code_size(name: str, args: dict, payload: dict) -> str | None:
 	return CodeSizePreToolGate().check(name, args, payload)
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_code_size_ratchet()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_code_size_ratchet()`
 # @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
 # @used-by :mod:`agent_tools.code_size_gate`
 def verify_staged_code_size_ratchet(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:

@@ -17,7 +17,6 @@ class RAM:
 		self.__tags: dict[str, list[str]] = {}
 	# 2017-08-10
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L5-L17
-	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_wait_repo()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
 	def clean(self, tag: str) -> None:
 		if tag in self.__tags:
@@ -88,17 +87,10 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.storage.dfh_write_immutable_bytes()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
-	# @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
-	# @used-by :func:`agent_tools.git_ignore._plan_global_git_ignore()`
-	# @used-by :func:`agent_tools.git_ignore.sync_global_git_ignore()`
 	# @used-by :func:`agent_tools.issue_first_gate._find_git_repo_root()`
 	# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
-	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
 	# @used-by :func:`agent_tools.links.validate_file()`
-	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
-	# @used-by :func:`agent_tools.repo_wait._normalize_repo_list()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
-	# @used-by :func:`agent_tools.repo_wait.wait_for_repo()`
 	# @used-by :func:`agent_tools.research._write_cached_extraction()`
 	# @used-by :func:`agent_tools.research.collect()`
 	# @used-by :func:`agent_tools.research.inside()`
@@ -112,11 +104,6 @@ class RAM:
 	# @used-by :func:`agent_tools.text_sources._attempt()`
 	# @used-by :func:`agent_tools.text_workflow._has_linked_ancestor()`
 	# @used-by :func:`agent_tools.text_workflow._target_bytes()`
-	# @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`
-	# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`
-	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
-	# @used-by :func:`agent_tools.worktree_guard._remove_tree_strict()`
-	# @used-by :func:`agent_tools.worktree_guard.remove_worktree_fail_closed()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
 	# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
@@ -137,6 +124,24 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__write_backups_and_planned()`
 	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
+	# @used-by :meth:`Df.Harness.Git.BlobSizeValidator.BlobSizeValidator.validate()`
+	# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__plan()`
+	# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.sync()`
+	# @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__init__()`
+	# @used-by :meth:`Df.Harness.Git.PushValidator.PushValidator.__verify_commit()`
+	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.extract_added_diff_urls()`
+	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.is_issue_tracked()`
+	# @used-by :meth:`Df.Harness.Git.RepoResolver.RepoResolver.resolve()`
+	# @used-by :meth:`Df.Harness.Git.RepoWaiter.RepoWaiter.__init__()`
+	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__map_path_to_repo()`
+	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__resolve_target_repos()`
+	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__workspace_code_repos()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeCleaner.WorktreeCleaner.cleanup()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeCreator.WorktreeCreator.begin()`
+	# @used-by :meth:`Df.Harness.Git.WorktreePathResolver.WorktreePathResolver.__resolve_deleted()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeRemovalGuard.WorktreeRemovalGuard.remove()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.__stage_into_worktree()`
+	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.remove()`
 	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__load_existing_group()`
 	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__load_or_create_group()`
 	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__write_pending_step()`
@@ -195,13 +200,6 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.is_valid_external()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`RAM.get()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._extract_added_diff_urls()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_push_blob_sizes()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_staged_blob_sizes()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_write_invocation()`
-	# @used-by :meth:`agent_tools.git_gate.WorktreeCommitTransaction.commit()`
-	# @used-by :meth:`agent_tools.git_gate.WorktreeCommitTransaction.remove()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.index()`
@@ -254,6 +252,7 @@ class RAM:
 	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_deleted_premise_blocks_rendering_until_dependents_are_resolved()`
 	# @used-by :meth:`test_df_article.SlopDetectionTests.test_project_bans_are_discovered_from_the_project_root()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_path_subsystem_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`

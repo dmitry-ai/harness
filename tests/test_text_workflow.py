@@ -108,6 +108,7 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__code_lines_and_semicolons()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
+	# @used-by :meth:`Df.Harness.Git.IssueActionExtractor.IssueActionExtractor.__decode_text()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.replace_section2()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_php()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_python()`
@@ -129,7 +130,6 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`TextTransactionTests.test_target_indirection_created_after_capture_cannot_redirect_apply()`
 	# @used-by :meth:`TextTransactionTests.test_workspace_and_integrity_verifier_single_pass_invariants()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.has_enumerated_slop_title()`
-	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector.extract_issue_actions()`
 	# @used-by :meth:`test_agent_tools.LinkTests.test_real_http_redirect_anchor_and_404()`
 	# @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 	# @used-by :meth:`test_analysis_workflow.ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`

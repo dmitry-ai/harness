@@ -323,7 +323,7 @@ class ClientTextWorkspace:
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._strip_owned_role_block()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
 	# @used-by :func:`_index()`
-	# @used-by :func:`agent_tools.git_ignore._merge_managed_block()`
+	# @used-by :func:`agent_tools.git_ignore.merge_managed_git_ignore()`
 	# @used-by :func:`agent_tools.grounding_helpers.build_active_corpus_cached()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`gate_paths()`
@@ -333,13 +333,14 @@ class ClientTextWorkspace:
 	# @used-by :meth:`ClientTextWorkspace.gate_requests_for_root()`
 	# @used-by :meth:`ClientTextWorkspace.scope_issues()`
 	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
+	# @used-by :meth:`Df.Harness.Git.CommitArgsParser.CommitArgsParser.__parse_flag_bundle()`
+	# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__merge_block()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
 	# @used-by :meth:`Df.Harness.Upwork.LoomVideoExtractor.LoomVideoExtractor.__parse_vtt_block()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__apply()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__write_stage_receipt()`
-	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._parse_commit_flag_bundle()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_sources_and_fences_preserved_in_configured_order()`
 	# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_arch_audit_gate_priority_manifest_and_lazy_export()`
 	# @used-by :meth:`test_df_qa.TestDfQa.test_dump_and_dumper()`
@@ -853,8 +854,8 @@ def _roots(paths):
 			if (_folder(root) / 'index.json').is_file():
 				roots.add(root)
 	return sorted(roots)
+# @used-by :meth:`Df.Harness.Git.CommitVerifier.CommitVerifier.verify()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.check_commit()`
 def gate_paths(paths, *, response=None):
 	selected = {Path(path).resolve() for path in paths}
 	r = []

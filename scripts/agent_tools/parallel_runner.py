@@ -13,7 +13,7 @@ def discover_test_modules(tests_dir: Path | str, *, pattern: str='test_*.py', mo
 # 2026-11-23
 # "Add parallel fail-fast test runner and worktree-aware TDD support":
 # https://github.com/dmitry-ai/harness/issues/159
-# @used-by :func:`agent_tools.worktree_flow._run_land_tests()`
+# @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__run_tests_suite()`
 # @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_parallel_runner_failfast_kills_slow_siblings()`
 # @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_parallel_runner_module_timeout_terminates_stalled_worker()`
 # @used-by :meth:`test_subprocess_hygiene_and_tree_kill.SubprocessHygieneAndTreeKillTests.test_parallel_runner_kills_grandchild_holding_stdout_on_timeout()`

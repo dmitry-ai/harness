@@ -16,14 +16,14 @@ def evaluate_pre_tool_use_subprocess_hygiene(name: str, args: dict, payload: dic
 # @used-by :mod:`agent_tools.subprocess_hygiene_gate`
 def is_subprocess_hygiene_target(path: str | Path) -> bool:
 	return SubprocessHygieneChecker.is_target(path)
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate._verify_agent_staged()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_code_size_ratchet()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_subprocess_hygiene()`
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_tdd_commit()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_agent_staged()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_code_size_ratchet()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_subprocess_hygiene()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_tdd_commit()`
 # @used-by :mod:`agent_tools.subprocess_hygiene_gate`
 def run_staged_gate(mod_name: str, func_name: str, *args, **kwargs) -> None:
 	SubprocessHygieneStagedGate.run_staged_gate(mod_name, func_name, *args, **kwargs)
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_subprocess_hygiene()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_subprocess_hygiene()`
 # @used-by :mod:`agent_tools.subprocess_hygiene_gate`
 def verify_staged_subprocess_hygiene(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	return SubprocessHygieneStagedGate(repo_root, staged_paths, use_index=use_index).verify()

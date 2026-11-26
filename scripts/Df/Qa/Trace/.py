@@ -41,16 +41,17 @@ class Trace:
 	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_extract_managed_block()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._strip_owned_role_block()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
-	# @used-by :func:`agent_tools.git_ignore._merge_managed_block()`
+	# @used-by :func:`agent_tools.git_ignore.merge_managed_git_ignore()`
 	# @used-by :func:`agent_tools.links._bare_urls()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
-	# @used-by :func:`agent_tools.repo_tags.plan_retro_tags()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`
 	# @used-by :func:`agent_tools.text_sections.content_blocks()`
 	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__scan_brace_end()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
+	# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__merge_block()`
+	# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__plan()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__compute_payload()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
 	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__normalize_heading_levels()`

@@ -254,7 +254,7 @@ class IssueEvidenceWorkspace:
 	# @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_is_live_runtime_data_file()`
 	# @used-by :func:`agent_tools.issue_lifecycle.origin_repo_slug()`
 	# @used-by :func:`agent_tools.issues.parity.similar_project_repo_slugs()`
-	# @used-by :func:`agent_tools.polyglot_land.resolve_repo_verification_spec()`
+	# @used-by :meth:`Df.Harness.Git.VerificationSpecResolver.VerificationSpecResolver.resolve()`
 	@staticmethod
 	def origin_repo_slug(code_repo: Path) -> str | None:
 		return origin_repo_slug(code_repo)

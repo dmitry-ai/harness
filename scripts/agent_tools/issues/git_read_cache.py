@@ -110,7 +110,7 @@ def _parse_porcelain_z_entries(status_out: str) -> list[tuple[str, str]]:
 			parsed.append((status_code, rel_path))
 		idx += 1
 	return parsed
-# @used-by :func:`agent_tools.repo_wait._dirty_files()`
+# @used-by :meth:`Df.Harness.Git.RepoWaiter.RepoWaiter.__dirty_files()`
 def _parse_porcelain_z(status_out: str) -> list[str]:
 	return [rel_path for _, rel_path in _parse_porcelain_z_entries(status_out)]
 # @used-by :meth:`RepoReadCache._key()`
@@ -178,7 +178,7 @@ def _resolve_git_dir(repo: Path) -> Path | None:
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
 class RepoReadCache:
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+	# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.verify()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor.__init__()`
 	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_git_read_cache_detects_issue_url_in_untracked_dotpy()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
@@ -253,7 +253,7 @@ class RepoReadCache:
 	# 2026-11-24
 	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 	# https://github.com/dmitry-ai/harness/issues/196
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+	# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.__ensure_clean()`
 	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_git_read_cache_detects_issue_url_in_untracked_dotpy()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
@@ -270,7 +270,7 @@ class RepoReadCache:
 				if issue_url in _file_urls(u_path, extract_urls_fn):
 					hits.append(u_rel)
 		return hits
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+	# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.verify()`
 	def find_commit_for_issue(self, repo: Path, issue_url: str, extract_urls_fn) -> str:
 		issue_to_sha, _, complete = self._load_log(repo, extract_urls_fn)
 		r = issue_to_sha.get(issue_url, '')

@@ -764,6 +764,7 @@ class GuardedCDP:
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`test_text_browser.dom_fixture()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_link_audit_accepts_wave2c_call_sites_and_guarded_cdp_class_seam()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.guard()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 	def __init__(self, root, spec, *, config=None, http_get=None, cdp_call=None):
@@ -854,6 +855,7 @@ class GuardedCDP:
 			cdp_sess.detach_target(anchor_sid)
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_link_audit_accepts_wave2c_call_sites_and_guarded_cdp_class_seam()`
 	def _broker_remove_tab(self, cdp_sess, anchor_target_id, ext_tab_id, target_id):
 		closed = False
 		if anchor_target_id and None is not ext_tab_id:

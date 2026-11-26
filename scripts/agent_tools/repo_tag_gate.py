@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 from Df.Harness.Gate.RepoTagGate import RepoTagGate
-# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.verify()`
 # @used-by :mod:`agent_tools.repo_tag_gate`
 def finalize_commit_close_check(repo: Path, commit_sha: str, issue_url: str, git_cache) -> dict:
 	return RepoTagGate.finalize_close_check(repo, commit_sha, issue_url, git_cache)

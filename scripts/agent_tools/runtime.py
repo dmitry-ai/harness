@@ -198,8 +198,8 @@ def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, co
 # @used-by :mod:`agent_tools.upwork_project`
 def role_settings(platform, role, seen=()):
 	return dfh_role_settings(platform, role, seen=seen, settings_fn=settings)
-# @used-by :func:`agent_tools.shell_audit._is_sanctioned_addon_command()`
 # @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_sanctioned_code()`
+# @used-by :meth:`Df.Harness.Git.CdpBypassAudit.CdpBypassAudit.__is_sanctioned_addon()`
 # @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_sanctioned_addon_roots_and_cdp_bypass_gate()`
 def sanctioned_addon_code_roots(config=None):
 	return dfh_cached_addon_roots(config, sys.modules[__name__], _expand_path)
@@ -227,7 +227,7 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :func:`agent_tools.platforms.codex._cx_ops()`
 # @used-by :func:`agent_tools.registration.register_project()`
 # @used-by :func:`agent_tools.registration.register_projects()`
-# @used-by :func:`agent_tools.repo_tags._configured_timezone()`
+# @used-by :func:`agent_tools.repo_tags.commit_date_day()`
 # @used-by :func:`agent_tools.text_browser.browser_anchor_status()`
 # @used-by :func:`agent_tools.text_browser.collect_cdp_dom()`
 # @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
@@ -269,6 +269,8 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :func:`resolve_codex_paths()`
 # @used-by :func:`role_settings()`
 # @used-by :func:`using()`
+# @used-by :meth:`Df.Harness.Git.CommitTagger.CommitTagger.__configured_tz()`
+# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__configured_tz()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
 # @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
 # @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`

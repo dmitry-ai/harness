@@ -26,7 +26,7 @@ def is_xref_governed_repo(repo_root: Path, staged_paths: list[str] | tuple[str, 
 # @used-by :mod:`agent_tools.xref_gate`
 def verify_staged_xref(repo_root: Path, staged_paths: list[str], *, use_index: bool=True, strict: bool=False) -> list[str]:
 	return XrefStagedGate(repo_root, staged_paths, use_index=use_index, strict=strict).verify()
-# @used-by :func:`agent_tools.worktree_flow._rebase_and_test()`
+# @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.verify()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
 # @used-by :mod:`agent_tools.xref_gate`
 def verify_worktree_xref_changes(wt_path: Path, target_branch: str, *, strict: bool=False) -> list[str]:

@@ -137,7 +137,7 @@ def dfh_cached_addon_roots(config, runtime_mod, expand_fn) -> list[Path]:
 				cached = _put_derived(dkey, _compute_addon_roots(cfg, expand_fn))
 			r = list(cached)
 	return r
-# @used-by :func:`agent_tools.shell_audit.protected_browser_perimeter()`
+# @used-by :func:`Df.Harness.lib.shell.dfh_protected_browser_perimeter()`
 # @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_cache`
 def dfh_cached_browser_perimeter(config, runtime_mod) -> dict:

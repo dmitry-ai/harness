@@ -123,7 +123,7 @@ def _run_single_item(item: dict[str, Any], defaults: dict[str, Any], spec_dir: P
 	except Exception as exc:
 		r = {'action': item_action, 'error': str(exc), 'ok': False, 'repo': item.get('repo') or defaults['repo']}
 	return r
-# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector.extract_issue_actions()`
+# @used-by :meth:`Df.Harness.Git.IssueActionExtractor.IssueActionExtractor.__decode_text()`
 def extract_actions_from_decoded_obj(obj: dict[str, Any]) -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
 	if obj.get('action') in _BATCH_ACTIONS and isinstance(obj.get('results'), list) and (not _consumed_has_temp(obj)):
