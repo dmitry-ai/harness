@@ -2,20 +2,24 @@
 import hashlib
 import json
 from pathlib import Path
-import re
 import sqlite3
 import sys
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_evaluate_prepared_match()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_hook_and_transcript_callers_delegate_to_df_harness()`
 def _strip_local_file_scheme(text: str) -> str:
-	return re.sub('file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.journal import dfh_strip_local_file_scheme
+	return dfh_strip_local_file_scheme(text)
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
 # @used-by :func:`_evaluate_prepared_match()`
 # @used-by :func:`_find_turn_state()`
+# @used-by :func:`_strip_local_file_scheme()`
 # @used-by :func:`_tracked_workspace()`
 # @used-by :func:`_turns_dir()`
 # @used-by :func:`evaluate_stop_payload()`
@@ -47,18 +51,17 @@ def _is_tracked_workspace(root: Path, *, projects_dirs=None) -> bool:
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# 2026-11-25
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`evaluate_stop_payload()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_hook_and_transcript_callers_delegate_to_df_harness()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 def _turns_dir(root: Path) -> Path:
 	_ensure_scripts_on_path()
-	try:
-		from agent_tools.path_registry import project_paths
-		# 2026-11-25
-		# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-		# https://github.com/dmitry-ai/harness/issues/237
-		return project_paths(root, exact_root=True).turns_dir
-	except Exception:
-		return (root / '_/\ua616/data/turns') if (root / '_/\ua616').is_dir() else (root / '\ua616/data/turns')
+	from Df.Harness.lib.journal import dfh_turns_dir
+	return dfh_turns_dir(root)
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34

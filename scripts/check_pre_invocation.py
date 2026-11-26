@@ -46,19 +46,17 @@ def _is_tracked_and_non_umbrella(root: Path, *, projects_dirs=None) -> tuple[boo
 		canon = root
 	tracked = (canon / '\ua616/project.json').is_file() or (canon / '_/\ua66e').is_dir() or (canon / '\ua66e').is_dir()
 	return (tracked, canon)
+# 2026-11-25
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_resolve_pre_invocation_target()`
 # @used-by :func:`_routed_pre_invocation_root()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_hook_and_transcript_callers_delegate_to_df_harness()`
 def _turns_dir(canon_root: Path) -> Path:
 	_ensure_scripts_on_path()
-	try:
-		from agent_tools.path_registry import project_paths
-		pp = project_paths(canon_root, exact_root=True)
-		# 2026-11-25
-		# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-		# https://github.com/dmitry-ai/harness/issues/237
-		return pp.turns_dir if pp.has_explicit_path('turns_dir') else (pp.data_dir / 'turns')
-	except Exception:
-		return (canon_root / '_/\ua616/data/turns') if (canon_root / '_/\ua616').is_dir() else (canon_root / '\ua616/data/turns')
+	from Df.Harness.lib.journal import dfh_turns_dir
+	return dfh_turns_dir(canon_root, explicit_only=True)
 # @used-by :func:`_format_turn_begin_message()`
 def _scratch_answer_path(canon_root: Path, turn_key: str) -> str:
 	_ensure_scripts_on_path()

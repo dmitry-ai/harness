@@ -5,6 +5,7 @@ from typing import Any
 import re
 # 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 from Df.Core.lib.array.first import df_first, df_last
+from Df.Harness.lib.platform import dfh_timesheet_add_cat
 from ..platforms.trace_common import parse_tool_args
 from .timesheet_common import classify_command, compute_top_gaps, parse_iso_ts, parse_test_output, round_opt
 _BG_LAUNCH_RE = re.compile(r'Tool is running as a background task with task id:\s*(\S+)')
@@ -13,11 +14,11 @@ _COMPLETED_AT_RE = re.compile(r'Completed At:\s*(\S+)')
 _CREATED_AT_RE = re.compile(r'Created At:\s*(\S+)')
 _ERR_RE = re.compile(r'Encountered error in step execution|failed to read file|cannot find the file|Command exited with code [1-9]', re.I)
 _TRUNC_RE = re.compile(r"tool's output was truncated|truncated due to being too long", re.I)
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_record_tool_call()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _add_cat(cats: dict[str, dict[str, Any]], cat: str, wall_s: float) -> None:
-	slot = cats.setdefault(cat, {'count': 0, 'wall_s': 0.0})
-	slot['count'] += 1
-	slot['wall_s'] = round(slot['wall_s'] + max(0.0, wall_s), 3)
+	dfh_timesheet_add_cat(cats, cat, wall_s)
 # @used-by :func:`_build_ag_result()`
 def _ag_timestamps(rows: list[dict[str, Any]], last_user_ts: str | None, last_mod_ts: str | None) -> dict[str, Any]:
 	ts_vals = [t for r in rows if None is not (t := parse_iso_ts(r.get('created_at')))]

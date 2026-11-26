@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
+from Df.Harness.lib.trace import dfh_read_ag_rows
 from .formatting import _split_model_and_effort
 import json
 import sqlite3
@@ -131,7 +132,6 @@ def _find_turn_state_for_conversation(turns_dir: Path, conversation_id: str) -> 
 			r = (candidates[0][2], candidates[0][3])
 	return r
 # @used-by :func:`_extract_codex_transcript_info()`
-# @used-by :func:`_read_ag_rows()`
 def _iter_indexed_jsonl_dicts(path: Path) -> list[tuple[int, dict[str, Any]]]:
 	r: list[tuple[int, dict[str, Any]]] = []
 	try:
@@ -163,13 +163,15 @@ def _parse_antigravity_source_metadata(env: dict[str, str]) -> tuple[str | None,
 	sidx = tool_obj.get('stepIndex')
 	step_idx = sidx if int is type(sidx) and 0 <= sidx else None
 	return (cid, step_idx)
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_extract_ag_transcript_info()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_hook_and_transcript_callers_delegate_to_df_harness()`
 def _read_ag_rows(tp: Path) -> list[Any]:
 	try:
 		from ..platforms.trace_common import read_jsonl_objects
 		r: list[Any] = read_jsonl_objects(tp)
 	except Exception:
-		r = [obj for _, obj in _iter_indexed_jsonl_dicts(tp)]
+		r = dfh_read_ag_rows(tp)
 	return r
 # @used-by :mod:`agent_tools.meta.builders`
 # @used-by :mod:`agent_tools.meta`

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from Df.Harness.lib.cli import dfh_default_workers
 from ..suite_runner import discover_test_modules
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _SUM_KEYS = ('dur_s', 'popen_count', 'popen_s', 'git_count', 'git_s', 'python_count', 'python_s', 'other_proc_count', 'other_proc_s', 'sleep_count', 'sleep_s')
@@ -48,9 +49,11 @@ def _assemble_report(base: Path, file_rows: list[dict[str, Any]], eff_workers: i
 	cp_top = _aggregate_cprofile(file_rows, cp_limit) if 0 < cp_limit else []
 	clean_files = [{k: v for k, v in item.items() if 'cprofile' != k} for item in file_rows]
 	return {'schema_version': 1, 'valid': 0 == n_fail and 0 == n_err, 'tests_dir': base.as_posix(), 'workers': eff_workers, 'cpu_count': os.cpu_count(), 'python_version': platform.python_version(), 'platform': platform.platform(), 'parallel_wall_s': wall_s, 'sum_file_run_s': sum_run, 'sum_file_load_s': sum_load, 'total_files': len(file_rows), 'total_tests': n_tests, 'total_failures': n_fail, 'total_errors': n_err, 'total_skipped': n_skip, 'totals': _aggregate_totals(all_tests), 'top_files': top_files, 'top_tests': all_tests[:max(1, int(top_n))], 'cprofile_top': cp_top, 'files': clean_files}
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`profile_test_suite()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _default_workers() -> int:
-	return min(max(2, (os.cpu_count() or 4) // 2), 6)
+	return dfh_default_workers(6)
 # @used-by :func:`_assemble_report()`
 def _file_summary(item: dict[str, Any], total_run_s: float) -> dict[str, Any]:
 	sums = _aggregate_totals(item.get('tests') or [])

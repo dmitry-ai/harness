@@ -8,6 +8,7 @@ import json
 import os
 import re
 from Df.Core.lib.text.source import df_text_rewrite_pairs
+from Df.Harness.lib.project import dfh_rewrite_value
 from .journal import _raw_state_dir, resolve_journal_dir
 from .path_registry import project_paths
 from .storage import replace_bytes
@@ -60,23 +61,16 @@ def _rewrite_json_file(path: Path, pairs: list[tuple[str, str]], backups: list[t
 		updated = _rewrite_value(data, pairs)
 		replace_bytes(path, (json.dumps(updated, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 # 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
-# @used-by :func:`_rewrite_value()`
 # @used-by :func:`rewrite_project_internal_state()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _rewrite_text(text: str, pairs: list[tuple[str, str]]) -> str:
 	return df_text_rewrite_pairs(text, pairs)
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_rewrite_json_file()`
 # @used-by :func:`rewrite_launcher_handoffs()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _rewrite_value(value, pairs: list[tuple[str, str]]):
-	if isinstance(value, str):
-		r = _rewrite_text(value, pairs)
-	elif isinstance(value, list):
-		r = [_rewrite_value(v, pairs) for v in value]
-	elif isinstance(value, dict):
-		r = {(_rewrite_text(k, pairs) if isinstance(k, str) else k): _rewrite_value(v, pairs) for k, v in value.items()}
-	else:
-		r = value
-	return r
+	return dfh_rewrite_value(value, pairs)
 # 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
 # @used-by :func:`rewrite_project_internal_state()`
 def _update_folder_rule(new_root: Path, new_label: str, backups: list[tuple[Path, bytes | None]] | None=None) -> None:

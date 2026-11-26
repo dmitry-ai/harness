@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import time
+from Df.Harness.lib.cli import dfh_default_workers
 # 2026-11-24
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206
@@ -23,9 +24,11 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _RAN_RE = re.compile(r'(?m)^Ran\s+(\d+)\s+tests?\s+in\s+')
 _SKIP_DIRS = frozenset({'.git', '__pycache__', 'node_modules', 'venv', '.venv', '\ua616', '\ua66e', '\U0001f56e'})
 _SKIPPED_RE = re.compile(r'\bskipped=(\d+)\b')
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`run_test_suite()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _default_workers() -> int:
-	return min(max(2, (os.cpu_count() or 4) // 2), 8)
+	return dfh_default_workers(8)
 # 2026-11-24
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206

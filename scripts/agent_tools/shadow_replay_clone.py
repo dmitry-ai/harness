@@ -4,9 +4,9 @@ from contextlib import contextmanager
 from pathlib import Path
 import json
 import os
-import re
 import shutil
 from Df.Core.lib.text.source import df_text_rewrite_pairs
+from Df.Harness.lib.project import dfh_is_skipped_rel, dfh_rewrite_json_file, dfh_rewrite_value
 from .journal import resolve_journal_dir, state_dir
 from .path_cache import clear_path_cache
 from .path_registry import _path_key, load_registry
@@ -30,16 +30,11 @@ def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
 def _is_evidence_file(rel: Path) -> bool:
 	parts = rel.parts
 	return 3 <= len(parts) and '\ua616' == parts[0] and 'KB' == parts[1] and 'Evidence' == parts[2]
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`clone_project_tree()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _is_skipped_rel(rel: Path) -> bool:
-	parts = rel.parts
-	if any((p.endswith('.lock') for p in parts)):
-		r = True
-	elif 3 <= len(parts) and '\ua616' == parts[0] and 'data' == parts[1] and parts[2] in ('scratch', '.journal'):
-		r = True
-	else:
-		r = False
-	return r
+	return dfh_is_skipped_rel(rel)
 # @used-by :func:`agent_tools.shadow_replay_command.execute_shadow_command()`
 # @used-by :func:`remap_shadow_state()`
 def _path_pairs(raw_pairs: tuple[tuple[Path, Path], ...]) -> list[tuple[str, str]]:
@@ -61,30 +56,20 @@ def _remap_journal_data(old_state: Path, new_state: Path, pairs: list[tuple[str,
 				_copy_file(item, target, hardlink=False)
 				if '.json' == target.suffix.lower() and 'answer-groups' not in target.parts:
 					_rewrite_json_file(target, pairs)
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_remap_journal_data()`
 # @used-by :func:`agent_tools.shadow_replay_command._copy_native_profile()`
 # @used-by :func:`remap_shadow_state()`
 def _rewrite_json_file(path: Path, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()) -> None:
-	if path.is_file():
-		data = json.loads(path.read_text(encoding='utf-8-sig'))
-		updated = _rewrite_value(data, pairs, preserve_keys=preserve_keys)
-		path.write_text(json.dumps(updated, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+	dfh_rewrite_json_file(path, pairs, preserve_keys=preserve_keys)
 # 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
-# @used-by :func:`_rewrite_value()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _rewrite_path_text(text: str, pairs: list[tuple[str, str]]) -> str:
 	return df_text_rewrite_pairs(text, pairs)
-# @used-by :func:`_rewrite_json_file()`
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _rewrite_value(value, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()):
-	if isinstance(value, str):
-		r = _rewrite_path_text(value, pairs)
-	elif isinstance(value, list):
-		r = [_rewrite_value(v, pairs, preserve_keys=preserve_keys) for v in value]
-	elif isinstance(value, dict):
-		r = {(_rewrite_path_text(k, pairs) if isinstance(k, str) else k): (v if k in preserve_keys else _rewrite_value(v, pairs, preserve_keys=preserve_keys)) for k, v in value.items()}
-	else:
-		r = value
-	return r
+	return dfh_rewrite_value(value, pairs, preserve_keys=preserve_keys)
 # @used-by :func:`agent_tools.shadow_replay._execute_replay_pipeline()`
 def build_stop_transcript(native_tx: Path, prepared_body: str, out_dir: Path) -> Path:
 	out_dir.mkdir(parents=True, exist_ok=True)

@@ -25,6 +25,7 @@ def df_match_delim(toks: list[tuple[str, str, int]], start: int, open_ch: str, c
 		i += 1
 	return r
 # Sequentially replace each `(old, new)` pair in `text` case-insensitively.
+# @used-by :func:`Df.Harness.lib.project.dfh_rewrite_value()`
 # @used-by :func:`agent_tools.project_rename_state._rewrite_text()`
 # @used-by :func:`agent_tools.shadow_replay_clone._rewrite_path_text()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_text_source_and_strict_validation_helpers()`

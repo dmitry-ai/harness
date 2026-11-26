@@ -4,19 +4,16 @@
 from __future__ import annotations
 from typing import Any
 import re
+from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
 from .hook_crash_audit import _load_turn_rows
-from .platforms.trace_common import parse_tool_args
 from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 _EXCLUDED_CLI_RE = re.compile(r'\b(?:pytest|unittest|run-tests|test-watchdog|perf-profile-tests|answer-check|answer-prepare|tdd-check|issue-first-check|analysis-check|rules-audit)\b', re.IGNORECASE)
 _HARNESS_CLI_RE = re.compile(r'(?:harness|upwork_project|df_github_issue|validate_step)\.py', re.IGNORECASE)
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_inspect_call_failure()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _cmd_from_call(call: dict[str, Any]) -> str:
-	name = str(call.get('name') or '')
-	r = ''
-	if 'exec' == name or name.endswith(('run_command', 'exec_command')):
-		args = parse_tool_args(call.get('args', call.get('arguments', {})))
-		r = str(args.get('CommandLine') or args.get('cmd') or args.get('command') or '')
-	return r
+	return dfh_cmd_from_call(call)
 # @used-by :func:`_inspect_call_failure()`
 # @used-by :func:`_record_bg_cli_failures()`
 def _is_failed_cli_output(text: str) -> bool:
@@ -25,14 +22,9 @@ def _is_failed_cli_output(text: str) -> bool:
 	rc = out.get('exit_code')
 	return (None is not rc and 0 != rc) or 'fail' == out.get('status') or '"valid": false' in low or '"valid":false' in low or 'valueerror:' in low or 'traceback (most recent call last)' in low
 # @used-by :func:`_earliest_cli_failure_step()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
-	outs: list[str] = []
-	for cand in rows[pos + 1:]:
-		if cand.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
-			break
-		if 'GENERIC' == cand.get('type') and cand.get('content'):
-			outs.append(str(cand.get('content')))
-	return outs
+	return dfh_row_outputs(rows, pos)
 # @used-by :func:`_earliest_cli_failure_step()`
 def _record_bg_cli_failures(rows: list[dict[str, Any]], bg_steps: dict[str, int], hits: list[int]) -> None:
 	for row in rows:

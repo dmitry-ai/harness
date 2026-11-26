@@ -353,9 +353,7 @@ def open_readonly_sqlite(db_path, *, guard=None, query_only=False, row_factory=N
 	finally:
 		conn.close()
 # @used-by :func:`_iter_normalized_tool_calls()`
-# @used-by :func:`agent_tools.cli_command_grounding._cmd_from_tool_call()`
 # @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
-# @used-by :func:`agent_tools.doc5_context._cmd_from_call()`
 # @used-by :func:`agent_tools.metrics.summarize()`
 # @used-by :func:`agent_tools.perf.timesheet_ag._record_tool_call()`
 # @used-by :func:`agent_tools.perf.timesheet_codex._record_codex_call()`
@@ -366,7 +364,6 @@ def open_readonly_sqlite(db_path, *, guard=None, query_only=False, row_factory=N
 # @used-by :func:`agent_tools.platforms.codex._extract_codex_target_subagents()`
 # @used-by :func:`agent_tools.platforms.codex._spawn()`
 # @used-by :func:`agent_tools.platforms.codex.native_review_proof()`
-# @used-by :func:`agent_tools.verification_observability._cmd_from_call()`
 # @used-by :func:`iter_antigravity_subagents()`
 # @used-by :func:`record_normalized_tool_effects()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`

@@ -2,13 +2,14 @@
 from __future__ import annotations
 from collections import Counter
 from typing import Any
+from Df.Harness.lib.platform import dfh_timesheet_add_cat
 from ..platforms.trace_common import parse_tool_args
 from .timesheet_common import classify_command, compute_top_gaps, parse_iso_ts, round_opt
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_record_codex_output()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _add_cat(cats: dict[str, dict[str, Any]], cat: str, wall_s: float) -> None:
-	slot = cats.setdefault(cat, {'count': 0, 'wall_s': 0.0})
-	slot['count'] += 1
-	slot['wall_s'] = round(slot['wall_s'] + max(0.0, wall_s), 3)
+	dfh_timesheet_add_cat(cats, cat, wall_s)
 # @used-by :func:`analyze_codex_rows()`
 def _build_codex_result(rows: list[dict[str, Any]], st: dict[str, Any], top_gaps_limit: int) -> dict[str, Any]:
 	ts_vals = [t for r in rows if None is not (t := parse_iso_ts(r.get('timestamp')))]

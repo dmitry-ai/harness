@@ -2,17 +2,15 @@
 from __future__ import annotations
 from pathlib import Path
 import json
+from Df.Harness.lib.cli import dfh_collect_urls
 from .cli_common import consume_scratch_input, load_operation_input, read_input_json, read_input_text
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_op_collect_browser()`
 # @used-by :func:`_op_collect_http()`
 # @used-by :func:`_op_evidence_query()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _collect_urls(args, *, require_nonempty: bool=True) -> list[str]:
-	legacy_single = getattr(args, 'url', None)
-	raw = [*(getattr(args, 'urls_pos', None) or ()), *(getattr(args, 'url_list', None) or ()), *([legacy_single] if isinstance(legacy_single, str) and legacy_single.strip() else ())]
-	urls = [str(u).strip() for u in raw if isinstance(u, str) and str(u).strip()]
-	if require_nonempty and (not urls):
-		raise ValueError('Provide at least one URL via positional <URL> or --url <URL>')
-	return urls
+	return dfh_collect_urls(args, require_nonempty=require_nonempty)
 # @used-by :func:`_op_prepare_experiment()`
 # @used-by :func:`_op_question_add()`
 # @used-by :func:`_op_record_experiment()`

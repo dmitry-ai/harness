@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import re
+from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
 from .hook_crash_audit import _load_turn_rows
-from .platforms.trace_common import parse_tool_args
 from .statements import analysis_gate_issues
 from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 _CLI_CMD_RE = re.compile(r'''(?:harness|upwork_project|df_github_issue)\.py["']?\s+([a-z][a-z0-9-]+)([^\r\n`\u00bb]*)''', re.IGNORECASE)
@@ -18,23 +18,15 @@ _GUILLEMET_RE = re.compile(r'\u00ab[^\u00bb]*\u00bb')
 _MUTATING_SUBCMDS = frozenset({'build-native', 'close', 'configure', 'create', 'edit', 'init', 'install-global', 'journal-sync', 'reconcile-unprepared-delivery', 'register', 'rename-project', 'render-analysis', 'repo-tag', 'repo-tag-retro', 'save-analysis', 'worktree-cleanup', 'worktree-land'})
 _PLACEHOLDER_RE = re.compile(r'<[^>\r\n]{1,40}>|\{[a-z_][a-z0-9_-]*\}', re.IGNORECASE)
 _TOP_NUM_HEAD_RE = re.compile(r'^#\s+(\d+)\b')
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_record_call_outcome()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _cmd_from_tool_call(call: dict[str, Any]) -> str:
-	name = str(call.get('name') or '')
-	r = ''
-	if 'exec' == name or name.endswith(('run_command', 'exec_command')):
-		args = parse_tool_args(call.get('args', call.get('arguments', {})))
-		r = str(args.get('CommandLine') or args.get('cmd') or args.get('command') or '')
-	return r
+	return dfh_cmd_from_call(call)
 # @used-by :func:`_collect_passing_trace_commands()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _collect_row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
-	outs: list[str] = []
-	for cand in rows[pos + 1:]:
-		if cand.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
-			break
-		if 'GENERIC' == cand.get('type') and cand.get('content'):
-			outs.append(str(cand.get('content')))
-	return outs
+	return dfh_row_outputs(rows, pos)
 # @used-by :func:`_record_call_outcome()`
 # @used-by :func:`_resolve_bg_completions()`
 def _is_passing_output(text: str) -> bool:

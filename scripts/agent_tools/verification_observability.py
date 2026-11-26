@@ -6,21 +6,18 @@ from pathlib import Path
 from typing import Any
 import re
 import shlex
+from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
 from .hook_crash_audit import _load_turn_rows
-from .platforms.trace_common import parse_tool_args
 from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 _SHADOW_CMD_RE = re.compile(r'\bshadow-replay\b', re.IGNORECASE)
 # 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
 _SHADOW_CLI_RE = re.compile(r'(?:^|[;&|\r\n]\s*)(?:[^;&|\r\n]*?\s)?[\'"]?[^\'"\s;&|]*\b(?:harness|upwork_project)\.py[\'"]?\s+shadow-replay(?:\s|$|[;&|])', re.IGNORECASE)
 _FAIL_DISCLOSE_RE = re.compile(r'(?i)(?:valid\s*[:=]\s*false|"valid"\s*:\s*false|exit(?:ed)?\s*(?:with\s+code\s+|status\s+|=)?[1-9]\d*|\bfail(?:ed|ure)?\b|\berror\b|\u0443\u043f\u0430\u043b|\u043f\u0440\u043e\u0432\u0430\u043b|\u043e\u0448\u0438\u0431\u043a|\u043d\u0435\s+\u043f\u0440\u043e\u0448)')
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # @used-by :func:`_inspect_shadow_call()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _cmd_from_call(call: dict[str, Any]) -> str:
-	name = str(call.get('name') or '')
-	r = ''
-	if 'exec' == name or name.endswith(('run_command', 'exec_command')):
-		args = parse_tool_args(call.get('args', call.get('arguments', {})))
-		r = str(args.get('CommandLine') or args.get('cmd') or args.get('command') or '')
-	return r
+	return dfh_cmd_from_call(call)
 # @used-by :func:`_inspect_shadow_call()`
 # @used-by :func:`_resolve_bg_shadow_runs()`
 def _classify_shadow_output(step_idx: int, text: str) -> dict[str, Any]:
@@ -32,14 +29,9 @@ def _classify_shadow_output(step_idx: int, text: str) -> dict[str, Any]:
 	passed = (not failed) and (0 == rc or ('pass' == out.get('status') and None is rc))
 	return {'step': step_idx, 'passed': passed, 'failed': failed, 'exit_code': rc}
 # @used-by :func:`detect_shadow_replay_runs()`
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
-	outs: list[str] = []
-	for cand in rows[pos + 1:]:
-		if cand.get('type') in ('PLANNER_RESPONSE', 'USER_INPUT', 'CHECKPOINT'):
-			break
-		if 'GENERIC' == cand.get('type') and cand.get('content'):
-			outs.append(str(cand.get('content')))
-	return outs
+	return dfh_row_outputs(rows, pos)
 # 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
 # @used-by :func:`_inspect_shadow_call()`
 def _is_shadow_replay_cmd(cmd: str) -> bool:

@@ -1578,8 +1578,8 @@ class ProjectPaths:
 		if not Path(val).is_absolute() and (not _URI_SCHEME_RE.match(val)):
 			val = normalize_path_str(f'{self.root.as_posix()}/{val}')
 		return val
+	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`agent_tools.completion._folder()`
-	# @used-by :func:`check_pre_invocation._turns_dir()`
 	# @used-by :meth:`ProjectPaths.__init__()`
 	# @used-by :meth:`ProjectPaths.journal_dir()`
 	def has_explicit_path(self, name: str) -> bool:
@@ -1693,6 +1693,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_core_text_misc`
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_harness_dedup_s8`
+	# @used-by :mod:`test_df_harness_lib_s10`
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
 	# @used-by :mod:`test_diff_coverage_gate`
@@ -1873,6 +1874,7 @@ class ProjectPaths:
 	@property
 	def agent_dir(self) -> Path:
 		return Path(self.paths_str['agent_dir'])
+	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`agent_tools.analysis.publish_owned()`
 	# @used-by :func:`agent_tools.analysis.save_analysis()`
 	# @used-by :func:`agent_tools.analysis_merge._load_merge_base()`
@@ -1903,7 +1905,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.upwork_project.configure_project()`
 	# @used-by :func:`agent_tools.worker_semaphore.default_slots_dir()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
-	# @used-by :func:`check_pre_invocation._turns_dir()`
 	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
@@ -2014,6 +2015,7 @@ class ProjectPaths:
 	@property
 	def scratch_dir(self) -> Path:
 		return Path(self.paths_str['scratch_dir'])
+	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`agent_tools.completion._folder()`
 	# @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
 	# @used-by :func:`agent_tools.hook_crash_audit._load_violation_receipt()`
@@ -2032,8 +2034,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 	# @used-by :func:`agent_tools.tdd.ratchet._turn_receipt_dirs()`
 	# @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
-	# @used-by :func:`check_pre_invocation._turns_dir()`
-	# @used-by :func:`check_stop_gate._turns_dir()`
 	# @used-by :func:`is_tracked_workspace()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
@@ -2243,6 +2243,7 @@ class ProjectPaths:
 # 2026-11-19
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
+# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 # @used-by :func:`agent_tools.analysis.publish_analysis()`
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
@@ -2383,8 +2384,6 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 # @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
 # @used-by :func:`check_pre_invocation._scratch_answer_path()`
-# @used-by :func:`check_pre_invocation._turns_dir()`
-# @used-by :func:`check_stop_gate._turns_dir()`
 # @used-by :func:`evaluate_similar_project_touches()`
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`paths_report()`
