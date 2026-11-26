@@ -3,7 +3,6 @@ from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 import base64
-import glob
 import json
 from pathlib import Path
 import re
@@ -16,13 +15,20 @@ from .storage import create_bytes, locked, replace_bytes
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# 2026-11-26
+# "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
+# https://github.com/dmitry-ai/harness/issues/307
+from .cleanup_lifecycle import count_project_conversations, effective_project_activity, load_codex_history_rows, resolve_readonly_history
 _ACTIVE_CODEX_GLOBS = ContextVar('upwork_cleanup_codex_globs', default=None)
+_ACTIVE_READONLY_HISTORY = ContextVar('upwork_cleanup_readonly_history', default=None)
 @contextmanager
-def _codex_glob_scope(globs):
+def _codex_glob_scope(globs, readonly_history=None):
 	token = _ACTIVE_CODEX_GLOBS.set(globs or {})
+	ro_token = _ACTIVE_READONLY_HISTORY.set(readonly_history or {})
 	try:
 		yield
 	finally:
+		_ACTIVE_READONLY_HISTORY.reset(ro_token)
 		_ACTIVE_CODEX_GLOBS.reset(token)
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
@@ -79,7 +85,12 @@ def _json(path):
 	if not isinstance(r, dict):
 		raise ValueError(f'Expected a JSON object: {path}')
 	return r
-def _age(root, state, config):
+# 2026-11-26
+# "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
+# https://github.com/dmitry-ai/harness/issues/307
+# @used-by :func:`_age()`
+# @used-by :func:`candidates()`
+def _base_age(root, state, config):
 	if state.get('created_at'):
 		created = datetime.fromisoformat(state['created_at'].replace('Z', '+00:00'))
 		if None is created.tzinfo:
@@ -90,6 +101,9 @@ def _age(root, state, config):
 		birth = getattr(root.stat(), 'st_birthtime', None)
 		r = (max(day, datetime.fromtimestamp(birth, timezone.utc)), 'legacy-directory-birthtime') if None is not birth else (day + timedelta(days=1), 'legacy-request-day-upper-bound')
 	return r
+def _age(root, state, config):
+	created, basis = _base_age(root, state, config)
+	return effective_project_activity(root, state, config, created, basis, path_key)
 def _belongs_cached(raw_path, wanted, prefix, key_cache):
 	key = key_cache.get(raw_path) if isinstance(raw_path, str) else None
 	if None is key:
@@ -109,28 +123,11 @@ def _collect_folder_ancestors(by_id, assignments, project_ids, error_msg):
 			r.add(folder)
 			folder = by_id[folder].get('parentId')
 	return r
+# 2026-11-26
+# "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
+# https://github.com/dmitry-ai/harness/issues/307
 def _count_indexed_conversations(root, ag_projects, homes, catalog, index):
-	wanted = path_key(root)
-	prefix = wanted + '/'
-	ag_rows, codex_rows, key_cache = index
-	if isinstance(ag_projects, dict):
-		r = {}
-		ag_total = 0
-		for iid, items in ag_projects.items():
-			ag_ids = {p['id'] for p in items}
-			rows_i = ag_rows.get(iid, [])
-			cnt = sum((proj_id in ag_ids or any((_belongs_cached(uri, wanted, prefix, key_cache) for uri in uris)) for proj_id, uris in rows_i))
-			r['antigravity:' + iid] = cnt
-			ag_total += cnt
-		if ag_projects:
-			r['antigravity'] = ag_total
-	else:
-		ag_ids = {p['id'] for p in ag_projects}
-		r = {'antigravity': sum((proj_id in ag_ids or any((_belongs_cached(uri, wanted, prefix, key_cache) for uri in uris)) for proj_id, uris in ag_rows))}
-	for profile in homes:
-		cx_ids = {p['bindings'][profile] for p in catalog}
-		r['codex:' + profile] = len({tid for tid, proj_id, cwd in codex_rows[profile] if proj_id in cx_ids or _belongs_cached(cwd, wanted, prefix, key_cache)})
-	return r
+	return count_project_conversations(root, ag_projects, homes, catalog, index, path_key, _belongs_cached)
 def _guard_history_db(database):
 	if not database.is_file() or linked(database):
 		raise ValueError(f'Native history unavailable: {database}')
@@ -146,43 +143,19 @@ def _read_ag_rows(backend_dir, *, allow_missing=False, db_path=None):
 				raise ValueError('Unknown Antigravity workspace_uris format')
 			ag_rows.append((row['project_id'], uris))
 	return ag_rows
+# 2026-11-26
+# "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
+# https://github.com/dmitry-ai/harness/issues/307
 def _load_conversation_index(backend, homes):
+	ro = _ACTIVE_READONLY_HISTORY.get() or {}
 	if isinstance(backend, dict):
-		ag_rows = {}
-		for iid, b_info in backend.items():
-			if isinstance(b_info, tuple):
-				if 3 <= len(b_info):
-					b_dir, allow_missing, db_path = b_info[:3]
-				else:
-					b_dir, allow_missing = b_info
-					db_path = None
-			else:
-				b_dir, allow_missing, db_path = (b_info, False, None)
-			ag_rows[iid] = _read_ag_rows(b_dir, allow_missing=allow_missing, db_path=db_path)
+		merged_ag = {**backend, **(ro.get('ag_backend') or {})}
+		ag_rows = {iid: _read_ag_rows(b_info[0], allow_missing=b_info[1], db_path=b_info[2] if 3 <= len(b_info) else None) if isinstance(b_info, tuple) else _read_ag_rows(b_info, allow_missing=False) for iid, b_info in merged_ag.items()}
 	else:
 		ag_rows = _read_ag_rows(backend, allow_missing=False)
-	codex_globs = _ACTIVE_CODEX_GLOBS.get() or {}
-	codex_rows = {}
-	for profile, home in homes.items():
-		glob_raw = codex_globs.get(profile)
-		if glob_raw:
-			if Path(glob_raw).is_absolute():
-				databases = sorted((Path(p) for p in glob.glob(glob_raw, recursive=True) if Path(p).is_file()))
-			elif None is not home:
-				databases = sorted((Path(p) for p in glob.glob((Path(home) / glob_raw).as_posix(), recursive=True) if Path(p).is_file()))
-			else:
-				databases = []
-		elif None is not home:
-			databases = sorted((p for p in Path(home).glob('state_*.sqlite') if p.is_file()))
-		else:
-			databases = []
-		if not databases:
-			raise ValueError(f'Native Codex history unavailable: {profile}')
-		p_rows = []
-		for database in databases:
-			with open_readonly_sqlite(database, guard=_guard_history_db, query_only=True, row_factory=sqlite3.Row, timeout=5) as conn:
-				p_rows.extend(((row['id'], row['project_id'], row['cwd']) for row in conn.execute('SELECT id, project_id, cwd FROM threads')))
-		codex_rows[profile] = p_rows
+	codex_globs = {**(_ACTIVE_CODEX_GLOBS.get() or {}), **(ro.get('codex_globs') or {})}
+	merged_homes = {**homes, **(ro.get('codex_homes') or {})}
+	codex_rows = load_codex_history_rows(merged_homes, codex_globs, _guard_history_db)
 	return (ag_rows, codex_rows, {})
 def legacy_initialization(root):
 	agents = root / '.agents'
@@ -226,8 +199,12 @@ def candidates(daily, config, now):
 			state = _json(marker) if marker.exists() else legacy_initialization(root)
 			if None is state or True is not state.get('initialized') or not re.fullmatch('~\\d+', state.get('job_id', '')):
 				continue
-			created, basis = _age(root, state, config)
-			values.append({'root': str(root.resolve()), 'job_id': state['job_id'], 'initialization_basis': 'project.json' if marker.exists() else 'legacy-manifests-rule-and-kb', 'created_at': created.isoformat(), 'age_basis': basis, 'old_enough': now - created > timedelta(days=3)})
+			# 2026-11-26
+			# "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
+			# https://github.com/dmitry-ai/harness/issues/307
+			created, _ = _base_age(root, state, config)
+			effective, basis = _age(root, state, config)
+			values.append({'root': str(root.resolve()), 'job_id': state['job_id'], 'initialization_basis': 'project.json' if marker.exists() else 'legacy-manifests-rule-and-kb', 'created_at': created.isoformat(), 'effective_activity_at': effective.isoformat(), 'age_basis': basis, 'old_enough': now - effective > timedelta(days=3)})
 		except (OSError, ValueError, TypeError, KeyError) as exc:
 			issues.append({'root': str(root), 'error': str(exc)})
 	return (values, issues)
@@ -474,11 +451,11 @@ class ProjectCleanupScanner:
 			codex_insts.update(platform_instances(pid, config=self.config, include_disabled=False))
 		self.homes = {iid: Path(inst['home']) if inst.get('home') else None for iid, inst in codex_insts.items() if inst.get('home') or inst['system_paths'].get('state_db_glob')}
 		self.home_globs = {iid: inst['system_paths'].get('state_db_glob') for iid, inst in codex_insts.items() if (inst.get('home') or inst['system_paths'].get('state_db_glob')) and inst['system_paths'].get('state_db_glob')}
-		skipped_disabled = {}
-		for plat_id in platforms_cfg:
-			disabled_ids = [iid for iid, v in platform_instances(plat_id, config=self.config, include_disabled=True).items() if not v['enabled']]
-			if disabled_ids:
-				skipped_disabled[plat_id] = disabled_ids
+		# 2026-11-26
+		# "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
+		# https://github.com/dmitry-ai/harness/issues/307
+		self.readonly_history = resolve_readonly_history(self.config, self.daily, self.ag_stores, self.homes, single_ag_mode=self.single_ag_mode)
+		skipped_disabled = self.readonly_history['skipped_disabled']
 		if None is control:
 			from .platforms.codex import shared_control
 			control = shared_control
@@ -492,6 +469,7 @@ class ProjectCleanupScanner:
 			'cutoff': (self.now - timedelta(days=3)).isoformat(),
 			'archive_preserved': str(self.daily),
 			'active_instances': {'antigravity': list(self.ag_stores), 'codex': list(self.homes)},
+			'history_instances': self.readonly_history['history_instances'],
 			'skipped_disabled_instances': skipped_disabled,
 			'projects': [],
 			'issues': [],
@@ -625,7 +603,7 @@ class ProjectCleanupScanner:
 	def run(self):
 		from .path_registry import store_path
 		lock = store_path('cleanup_lock')
-		with locked(lock) if self.apply else nullcontext(), _codex_glob_scope(self.home_globs):
+		with locked(lock) if self.apply else nullcontext(), _codex_glob_scope(self.home_globs, self.readonly_history):
 			found, issues = candidates(self.daily, self.config, self.now)
 			self.result['discovery'] = {'verified_projects': len(found), 'modern_projects': sum(('project.json' == p['initialization_basis'] for p in found)), 'legacy_projects': sum(('project.json' != p['initialization_basis'] for p in found)), 'excluded_with_conversations': 0, 'unresolved_entries': len(issues)}
 			ready = True
