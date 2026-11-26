@@ -55,6 +55,19 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		expected = native_profiles.shared_native_outputs(HARNESS_ROOT)[codex_bootstrap]
 		self.assertEqual(expected, codex_bootstrap.read_text(encoding='utf-8'))
 		self.assertIn('rules/11-code-formatting.md', expected)
+	# 2026-11-26
+	# "Codify contextual issue-comment placement standard in Harness rules":
+	# https://github.com/dmitry-ai/harness/issues/272
+	def test_issue_comments_guide_and_rules_codify_contextual_placement(self) -> None:
+		rule_text = self._assert_clean_doc(RULE_DOC)
+		self.assertIn('issue-comments.md', rule_text)
+		guide_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'issue-comments.md')
+		for token in ('11-code-formatting.md#code-3', 'mage2pro/core', 'modified block', 'function', 'Dmitrii Fediuk https://github.com/dmitrii-fediuk', 'once per file', 'oldest-first', 'creation date'):
+			self.assertIn(token, guide_text, f'Missing issue-comment rule token {token!r}')
+		exec_rule = self._assert_clean_doc(HARNESS_ROOT / 'rules/08-execution-and-tools.md')
+		self.assertIn('issue-comments.md', exec_rule)
+		gh_skill = self._assert_clean_doc(HARNESS_ROOT / 'skills/df-github-issue/SKILL.md')
+		self.assertIn('issue-comments.md', gh_skill)
 	def test_mage2pro_derived_php_markup_and_other_guides(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		for rel in ('programming/php.md', 'markup/xml.md', 'markup/html.md', 'other/json.md', 'other/less.md'):

@@ -26,9 +26,11 @@ Before creating or editing a file in a supported language, markup language, or s
    - [INI](../references/code-formatting/other/ini.md)  
    - [JSON](../references/code-formatting/other/json.md)  
    - [LESS](../references/code-formatting/other/less.md)  
+1. Cross-language comments:  
+   - [Issue Comments](../references/code-formatting/issue-comments.md)  
 ## CODE-3
 [CODE-1](#code-1) applies across all code and structured files unless a format guide or language syntax requires an exception (e.g., double quotes in JSON or spaces in YAML).  
-Prose Markdown documents (`.md`) follow [DOC-4](04-statement-structure.md#doc-4) rather than zero-blank-line code rules; required GitHub Issue URL references in issue-tracked `code` repositories follow [EXEC-5](08-execution-and-tools.md#exec-5) and are exempt from the no-agent-comments rule in [CODE-1](#code-1).  
+Prose Markdown documents (`.md`) follow [DOC-4](04-statement-structure.md#doc-4) rather than zero-blank-line code rules; required GitHub Issue URL references in issue-tracked `code` repositories follow [EXEC-5](08-execution-and-tools.md#exec-5) and [Issue Comments](../references/code-formatting/issue-comments.md) (author header once per file with creation date; issue comments placed right before the modified block or function/method/class header, never dumped into file headers on partial edits) and are exempt from the no-agent-comments rule in [CODE-1](#code-1).  
 ## CODE-4
 Decompose new and compact production Python code into small single-purpose functions and modules: keep functions at most `20` executable SLOC and McCabe complexity at most `8`, keep files at most `300` executable SLOC, and never join statements with `;` (test limits: `40` SLOC, McCabe `12`, `600` file SLOC).  
 Pre-existing oversized legacy Python files and functions operate under a one-way size ratchet: never increase their executable SLOC or McCabe complexity, and extract new logic into separate compact helpers.  
