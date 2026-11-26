@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add transactional rename-project command with automatic domain promotion":
+# https://github.com/dmitry-ai/harness/issues/267
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
 # https://github.com/dmitry-ai/harness/issues/217
@@ -84,7 +87,7 @@ _PROJECT_SPECS = {
 	'resume': (('--reason', {'required': True}), ('--request-file', {'type': Path, 'help': 'Exact current user message; kept in service state until final journal'})),
 	'review-disposition': (('--review-id', {'required': True}), ('--finding-id', {'required': True}), ('--status', {'choices': ('resolved', 'rejected'), 'required': True}), ('--basis', {'required': True}), ('--evidence', {'action': 'append', 'required': True}), ('--parent', {'required': True})),
 	'review-input': (('--package', {'required': True}),),
-	'save-analysis': (('--candidate', {'required': True}), ('--expected-sha256', {}), ('--merge', {'action': 'store_true', 'help': 'Deep-merge candidate patch into existing Analysis.json or analysis-draft.json'}), ('--partial', {'action': 'store_true', 'help': 'Validate supplied claims and stage merged draft in \ua616/data/analysis-draft.json without committing Analysis.json'})),
+	'save-analysis': (('--candidate', {'required': True}), ('--expected-sha256', {}), ('--merge', {'action': 'store_true', 'help': 'Deep-merge candidate patch into existing Analysis.json or analysis-draft.json'}), ('--partial', {'action': 'store_true', 'help': 'Validate supplied claims and stage merged draft in \ua616/data/analysis-draft.json without committing Analysis.json'}), ('--promote-domain', {'action': 'store_true', 'help': 'Automatically promote a provisional topic folder to the resolved target domain'})),
 	'source-ref': (('file', {}), ('--part', {'action': 'append', 'default': []})),
 	'sync-attachments': (('--media-descriptions', {'type': Path, 'help': 'Optional JSON mapping attachment filename/sha256/video URL to Markdown transcription/analysis'}), ('--no-fetch-videos', {'action': 'store_true', 'help': 'Skip network fetching for external video transcripts'})),
 	'unadopt-requests': (('--conversation', {}), ('--request-id', {'action': 'append', 'default': [], 'help': 'Specific request ID(s) to unadopt'})),
@@ -142,7 +145,7 @@ def add_parsers(sub):
 	standalone = {
 		'git-read': (('project', {'nargs': '?', 'type': Path, 'default': Path(settings()['workspace_root']).resolve()}), ('git_subcommand', {'choices': ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files'), 'nargs': '?', 'default': 'status'}), ('--short', {'action': 'store_true'}), ('--stat', {'action': 'store_true'}), ('--check', {'action': 'store_true'}), ('--arg', {'dest': 'git_args', 'action': 'append', 'default': []})),
 		'metrics': (('traces', {'nargs': '*', 'type': Path}), ('--bindings', {'type': Path, 'help': 'conversation ID -> stage/first_step/last_step intervals'}), ('--project', {'type': Path, 'help': 'Optional exact project: observed cache/search/review metrics'}), ('--conversation', {'help': 'Conversation UUID resolved via runtime.json instances (or audit)'})),
-		'render-analysis': (('input', {'type': Path}), ('--output', {'type': Path})),
+		'render-analysis': (('input', {'type': Path}), ('--output', {'type': Path}), ('--promote-domain', {'action': 'store_true', 'help': 'Automatically promote a provisional topic folder to the resolved target domain'})),
 	}
 	stage_specs = (('stage', {'choices': STAGES}), ('--input', {'action': 'append', 'required': True}), ('--output', {'action': 'append', 'required': True}), ('--note', {}))
 	for command in COMMANDS:

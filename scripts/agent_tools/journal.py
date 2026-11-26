@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add transactional rename-project command with automatic domain promotion":
+# https://github.com/dmitry-ai/harness/issues/267
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Accelerate project_paths and overlay link resolution with fast-path caching":
 # https://github.com/dmitry-ai/harness/issues/174
@@ -131,9 +134,8 @@ def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 			pass
 	return p
 def same_journal_identity(first: str | Path | None, second: str | Path | None) -> bool:
-	if not isinstance(first, (str, Path)) or not isinstance(second, (str, Path)) or not str(first).strip() or not str(second).strip():
-		return False
-	return canonicalize_journal_dir_identity(first) == canonicalize_journal_dir_identity(second)
+	from .project_rename_state import same_journal_identity_with_rename
+	return same_journal_identity_with_rename(first, second, canonicalize_journal_dir_identity)
 def journal_pair_names(directory: Path) -> tuple[str, str]:
 	directory = Path(directory)
 	has_v2 = (directory / V2_PAIR[0]).is_dir() or (directory / V2_PAIR[1]).is_dir()

@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Add transactional rename-project command with automatic domain promotion":
+# https://github.com/dmitry-ai/harness/issues/267
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
@@ -119,7 +122,12 @@ def _op_record_review(args):
 	return consume_scratch_input(args, report_path, payload, flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence))
 def _op_render_analysis(args):
 	from .analysis import publish_analysis
-	return publish_analysis(args.input, args.output)
+	r = publish_analysis(args.input, args.output)
+	if getattr(args, 'promote_domain', False) and 'conflict' != r.get('status'):
+		from .operations import analysis_root
+		from .project_rename import apply_domain_promotion
+		r = apply_domain_promotion(analysis_root(args.input), json.loads(Path(args.input).read_text(encoding='utf-8-sig')), r)
+	return r
 def _op_resume(args):
 	from . import workflow as flow
 	return flow.resume(args.project, args.reason, read_input_text(args.request_file, encoding='utf-8') if args.request_file else None)
@@ -138,6 +146,9 @@ def _op_save_analysis(args):
 	else:
 		from .analysis import save_analysis
 		r = _load_consumed(args, cand, lambda data: save_analysis(args.project, data, args.expected_sha256))
+	if getattr(args, 'promote_domain', False) and (not getattr(args, 'partial', False)):
+		from .project_rename import apply_domain_promotion
+		r = apply_domain_promotion(args.project, json.loads(Path(r['target']).read_text(encoding='utf-8-sig')), r)
 	return r
 def _op_source_ref(args):
 	from .evidence import source_reference
