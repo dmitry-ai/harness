@@ -9,6 +9,8 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 from .runtime import PRIMARY, settings
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
@@ -222,8 +224,8 @@ def sentences(cleaned: str) -> list[str]:
 def detect_language(text: str) -> str:
 	letters = re.findall('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', clean(text))
 	cyrillic = sum((1 for ch in letters if re.match('[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', ch)))
-	r = 'ru' if letters and cyrillic / len(letters) > 0.3 else 'en'
-	return r
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	return 'ru' if letters and cyrillic / len(letters) > 0.3 else 'en'
 # @used-by :func:`agent_tools.article.check_structure()`
 def bold_spans(raw: str):
 	marks = [m.start() for m in re.finditer('\\*\\*', raw)]
@@ -441,7 +443,8 @@ def default_shell():
 	configured = os.environ.get('DF_TEXT_BASH') or os.environ.get('CYGWIN_BASH') or settings().get('client_text', {}).get('bash')
 	if configured:
 		return configured
-	if 'nt' == os.name:
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	if df_is_windows():
 		for candidate in tool_list('bash_candidates'):
 			if Path(candidate).is_file():
 				return candidate

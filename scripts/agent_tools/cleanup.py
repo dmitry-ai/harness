@@ -8,6 +8,8 @@ from pathlib import Path
 import re
 import sqlite3
 from zoneinfo import ZoneInfo
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_first
 from .platforms.trace_common import extract_resource_uri, local_uri_to_path, open_readonly_sqlite
 from .research import json_data
 from .runtime import HARNESS_META, LEGACY_PRIMARY, PRIMARY, extract_platform_homes, platform_active, platform_adapter_name, platform_instances, platform_name, settings
@@ -526,7 +528,8 @@ class ProjectCleanupScanner:
 		ag_flat = self._ag_flat(ag)
 		raw_ag_dbs = [self.backend / 'conversation_summaries.db'] if self.single_ag_mode else [s['conversations_db'] for s in self.ag_stores.values()]
 		ag_dbs = [str(p) for p in sorted(raw_ag_dbs, key=lambda p: (0 if p.is_file() else 1))]
-		ag_meta = {'database': ag_dbs[0] if ag_dbs else None, 'databases': ag_dbs, 'projectIds': [p['id'] for p in ag_flat]}
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		ag_meta = {'database': df_first(ag_dbs), 'databases': ag_dbs, 'projectIds': [p['id'] for p in ag_flat]}
 		proceed = True
 		if cx:
 			entry['codex'] = self.control({'command': 'shared-cleanup-project', 'deferCommit': True, 'sharedId': cx[0]['id'], 'rootPaths': [str(root)], 'bindings': cx[0]['bindings'], 'antigravity': ag_meta})
@@ -566,9 +569,8 @@ class ProjectCleanupScanner:
 	# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
 	# @used-by :meth:`ProjectCleanupScanner._inspect_unresolved()`
 	def _collect_ag_projects(self, root):
-		if self.single_ag_mode:
-			return antigravity_projects(self.directory, root)
-		return {iid: antigravity_projects(store['directory'], root) if store['directory'].is_dir() else [] for iid, store in self.ag_stores.items()}
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		return antigravity_projects(self.directory, root) if self.single_ag_mode else {iid: antigravity_projects(store['directory'], root) if store['directory'].is_dir() else [] for iid, store in self.ag_stores.items()}
 	# @used-by :meth:`ProjectCleanupScanner.run()`
 	def _inspect_candidate(self, item):
 		root = Path(item['root'])

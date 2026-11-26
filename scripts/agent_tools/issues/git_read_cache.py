@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import os
 import subprocess
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 _LOG_MAX_COUNT = 100
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # 2026-11-24
@@ -79,7 +81,8 @@ def _parse_log_index(raw_out: str, extract_urls_fn) -> tuple[dict[str, str], dic
 		if 3 <= len(parts):
 			rec_count += 1
 			sha, body, files_blob = (parts[0].strip(), parts[1], parts[2])
-			urls = list(dict.fromkeys(extract_urls_fn(body)))
+			# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+			urls = dfa_unique_fast(extract_urls_fn(body))
 			for url in urls:
 				issue_to_sha.setdefault(url, sha)
 			for raw_f in files_blob.splitlines():

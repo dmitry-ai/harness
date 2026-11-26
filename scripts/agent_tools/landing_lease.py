@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 import time
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 from .git_gate import GitRepoGate
 from .path_registry import project_paths
 from .storage import locked, replace_bytes
@@ -77,7 +79,8 @@ def _pid_alive_nt(pid: int) -> bool:
 def _pid_is_alive(pid: int) -> bool:
 	if 0 >= int(pid):
 		r = False
-	elif 'nt' == os.name:
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	elif df_is_windows():
 		r = _pid_alive_nt(int(pid))
 	else:
 		try:

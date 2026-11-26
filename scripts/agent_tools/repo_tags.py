@@ -8,6 +8,8 @@ from typing import Iterable
 from zoneinfo import ZoneInfo
 import re
 import subprocess
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_first
 from .git_gate import _NO_WINDOW, run_git_read
 from .issues.repo_locator import origin_repo_slug
 from .worktree_flow import git_config_file
@@ -247,7 +249,8 @@ def pick_preferred_tag(tags: Iterable[str]) -> str | None:
 		r: str | None = date_tags[0]
 	else:
 		sem_tags = sorted((t for t in cleaned if is_valid_repo_tag(t)))
-		r = sem_tags[0] if sem_tags else None
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		r = df_first(sem_tags)
 	return r
 # @used-by :func:`retro_tag_repo()`
 def plan_retro_tags(repo: Path, *, include_task_groups: bool=False, extra_commits: list[str] | tuple[str, ...]=()) -> list[dict]:

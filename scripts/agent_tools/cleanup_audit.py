@@ -4,6 +4,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_first
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
+from Df.Core.lib.text.n.normalize import df_normalize
 from .cli_common import read_input_bytes, verify_scratch_input_path
 from .meta.builders import build_github_issue_metadata
 from .meta.formatting import posix_path
@@ -62,12 +66,13 @@ def _extract_removed_record(entry: dict) -> dict[str, Any]:
 	ag_val = entry.get('antigravity') if isinstance(entry.get('antigravity'), dict) else {}
 	instances, folder_snaps = _collect_instance_rollbacks(ag_val) if ag_val else ({}, {})
 	raw_ids = ag_val.get('removed_projects') or (entry.get('native_projects') or {}).get('antigravity') or ()
-	project_ids = list(dict.fromkeys((str(pid) for pid in raw_ids if pid)))
-	removed_folders = list(dict.fromkeys((str(fid) for fid in (ag_val.get('removed_folders') or ()) if fid)))
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	project_ids = dfa_unique_fast([str(pid) for pid in raw_ids if pid])
+	removed_folders = dfa_unique_fast([str(fid) for fid in (ag_val.get('removed_folders') or ()) if fid])
 	return {
 		'root': entry.get('root'),
 		'job_id': entry.get('job_id'),
-		'project_id': project_ids[0] if project_ids else None,
+		'project_id': df_first(project_ids),
 		'project_ids': project_ids,
 		'instances': instances,
 		'removed_folders': removed_folders,
@@ -142,7 +147,8 @@ def record_cleanup_answer_log(body, *, now=None, log_root=None, config=None, man
 	cfg = config if None is not config else (settings_fn() if None is not settings_fn else settings())
 	directory = resolve_cleanup_log_root(config=cfg, log_root=log_root) / f'{local:%Y/%m}'
 	eff_manifest = Path(manifest_path).resolve() if None is not manifest_path and str(manifest_path).strip() else _find_recent_manifest(directory, now or datetime.now(timezone.utc))
-	clean_body = strip_leading_metadata_header(body.replace('\r\n', '\n'))
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	clean_body = strip_leading_metadata_header(df_normalize(body))
 	meta = build_cleanup_metadata(timestamp=timestamp, project_root=project_root, config=cfg, manifest_path=eff_manifest, env=env)
 	payload = (render_metadata_header(meta) + clean_body).encode('utf-8')
 	target = _create_unique_log_file(directory, local, 'md', payload, linked_fn or (lambda _p: False))

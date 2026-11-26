@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.text.n.normalize import df_normalize
 from .storage import locked, replace_bytes
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
@@ -67,7 +69,8 @@ def sync_block(root, target, key, content, position='after-title', *, check=Fals
 		newline = b'\r\n' if b'\r\n' in previous else b'\n'
 		start = f'<!-- upwork-init:{key}:start -->'.encode()
 		end = f'<!-- upwork-init:{key}:end -->'.encode()
-		body = content.replace('\r\n', '\n').rstrip('\n').encode().replace(b'\n', newline)
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		body = df_normalize(content).rstrip('\n').encode().replace(b'\n', newline)
 		block = start + newline + newline + body + newline + end + newline
 		if previous.count(start) or previous.count(end):
 			if 1 != previous.count(start) or 1 != previous.count(end) or previous.index(start) > previous.index(end):

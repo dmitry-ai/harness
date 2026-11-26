@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_first
 # 2026-11-24
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
@@ -44,7 +46,8 @@ def _collect_log_candidates(bg_log_path: str | None, task_log_paths: list[Path] 
 # @used-by :func:`parse_command_outcome()`
 def _extract_bg_meta(combined: str) -> tuple[str | None, str | None]:
 	tids = extract_bg_task_ids(combined)
-	bg_tid = tids[0] if tids else None
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	bg_tid = df_first(tids)
 	m_log = _BG_TASK_LOG_RE.search(combined)
 	lp = _uri_to_local_path(m_log.group(1)) if m_log else None
 	return (bg_tid, str(lp) if None is not lp else None)
@@ -149,6 +152,7 @@ def extract_bg_task_ids(text: str) -> list[str]:
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._scan_segment()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_first_last_starts_with_and_is_windows_delegation_to_df()`
 # @used-by :meth:`test_pytest_xdist_runner.PytestXdistRunnerTests.test_parse_command_outcome_handles_pytest_xdist_pass_fail_and_exit_code_5()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_outcomes_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_chronological_tdd_state_machine_and_commit_reset()`

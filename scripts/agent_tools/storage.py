@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import tempfile
 import time
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 # 2026-10-30
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
@@ -86,7 +88,8 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
 def create_bytes(path: Path, data: bytes):
-	_stage_atomic_write(Path(path), data, os.rename if 'nt' == os.name else os.link)
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	_stage_atomic_write(Path(path), data, os.rename if df_is_windows() else os.link)
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -248,7 +251,8 @@ def locked(path: Path, timeout: float=15, *, create=True):
 		while True:
 			try:
 				stream.seek(0)
-				if 'nt' == os.name:
+				# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+				if df_is_windows():
 					import msvcrt
 					msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
 				else:
@@ -263,7 +267,8 @@ def locked(path: Path, timeout: float=15, *, create=True):
 			yield
 		finally:
 			stream.seek(0)
-			if 'nt' == os.name:
+			# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+			if df_is_windows():
 				msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
 			else:
 				fcntl.flock(stream.fileno(), fcntl.LOCK_UN)

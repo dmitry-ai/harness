@@ -3,6 +3,8 @@ from pathlib import Path
 import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
@@ -97,7 +99,8 @@ def _infer_project_root(target: Path) -> Path:
 # https://github.com/dmitry-ai/harness/issues/214
 # @used-by :func:`_check_doc_grounding_and_links()`
 def _format_grounding_issues(issues: list[str]) -> str:
-	unique = list(dict.fromkeys(issues))
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	unique = dfa_unique_fast(issues)
 	return unique[0] if 1 == len(unique) else f'{len(unique)} grounding issues: ' + '; '.join(unique)
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":

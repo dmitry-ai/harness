@@ -4,6 +4,8 @@ import argparse
 import json
 from pathlib import Path
 from typing import Any
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.clean.main import df_clean_null
 from ..cli_common import consume_unchanged_files, dump_json
 # 2026-11-26 "Require passing shadow-replay acceptance receipt in df_github_issue close gate": https://github.com/dmitry-ai/harness/issues/291
 from ..git_gate import is_issue_tracked_code_repo, verify_repo_issue_ready_for_close
@@ -96,7 +98,8 @@ class GitHubIssueService:
 				dump_json({'ok': False, 'action': 'edit', 'stage': 'pre_flight_lint', 'repo': repo, 'number': number, 'body_errors': b_errs})
 				return 2
 		container_text = self.workspace.load_saved_issue_container_text(consumable, repo, number, project_root=project_root)
-		payload = {k: v for k, v in (('title', title), ('body', body), ('state', args.state)) if None is not v}
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		payload = df_clean_null(dict((('title', title), ('body', body), ('state', args.state))))
 		# @used-by :meth:`GitHubIssueService._execute_edit()`
 		def _write_edit() -> int:
 			if None is not active_parent:

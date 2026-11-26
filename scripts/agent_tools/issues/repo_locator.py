@@ -8,6 +8,8 @@ import os
 import re
 import tempfile
 import time
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_first
 # 2026-11-24
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
@@ -239,7 +241,8 @@ def find_local_code_repo(repo: str, project_root: str | Path | None=None, source
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_origin_repo_slug_skips_git_subprocess_for_local_repo_without_origin()`
 def origin_repo_slug(code_repo: Path) -> str | None:
 	slugs = _extract_config_slugs(Path(code_repo))
-	r = slugs[0] if slugs else None
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	r = df_first(slugs)
 	# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
 	if None is r and _config_may_have_origin_remote(Path(code_repo)):
 		proc = run_git_read(code_repo, ['remote', 'get-url', 'origin'], check=False)

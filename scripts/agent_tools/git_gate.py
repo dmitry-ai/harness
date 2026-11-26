@@ -7,6 +7,8 @@ import subprocess
 import sys
 import time
 import uuid
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 from .links import validate_file
 from .path_registry import project_paths, tool_list, tool_path
 from .shell_audit import READ_SUBCOMMANDS, ShellCommandInspector, _COMMIT_MESSAGE_ISSUE_URL_RE, _CYGDRIVE_RE, _GITHUB_ISSUE_URL_RE, _ISSUE_LINKED_CODE_SUFFIXES, _VALUE_GLOBAL_OPTS, _iter_shell_git_segments, _parse_commit_subcommand_args, _scan_git_global_opts, _split_shell_segments, _unquote, classify_git_argv, extract_comment_issue_urls, extract_issue_actions_from_outputs, extract_issue_urls, is_code_file, normalize_commit_message, normalize_host_path, parse_issue_url, prohibited_git_write_commands, unflagged_git_read_commands, unpersisted_http_fetch_commands
@@ -747,7 +749,8 @@ class WorktreeCommitTransaction:
 # @used-by :func:`is_agent_git_context()`
 def _ancestor_process_names(pid: int | None=None) -> list[str]:
 	r: list[str] = []
-	if 'nt' == os.name:
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	if df_is_windows():
 		import ctypes
 		from ctypes import wintypes
 		class _PROCESSENTRY32W(ctypes.Structure):
@@ -788,8 +791,8 @@ def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: lis
 		r = True
 	else:
 		ancestors = [str(n).lower() for n in ancestor_names] if None is not ancestor_names else _ancestor_process_names()
-		agent_procs = {p.lower() for p in AGENT_PROCESS_NAMES}
-		r = any((name in agent_procs for name in ancestors))
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		r = any((name in {p.lower() for p in AGENT_PROCESS_NAMES} for name in ancestors))
 	return r
 # 2026-11-02
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
@@ -836,7 +839,8 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 				continue
 		if expired:
 			running = False
-			if check_running and 'nt' == os.name:
+			# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+			if check_running and df_is_windows():
 				# 2026-11-02
 				# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
 				# https://github.com/dmitry-ai/harness/issues/40

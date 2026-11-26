@@ -1690,6 +1690,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_core_base`
 	# @used-by :mod:`test_df_core_text_misc`
 	# @used-by :mod:`test_df_dotpy_bootstrap`
+	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
 	# @used-by :mod:`test_diff_coverage_gate`

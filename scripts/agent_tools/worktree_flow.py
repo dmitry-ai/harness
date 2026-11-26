@@ -4,6 +4,8 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.text.trim import df_trim_text_left
 from .git_gate import GitRepoGate, _NO_WINDOW
 from .git_ignore import ensure_worktree_dir_ignored, prepare_worktrees_base_dir
 from .path_registry import project_paths
@@ -28,13 +30,15 @@ LAND_STAGE_POLICIES: dict[str, str] = {
 # https://github.com/dmitry-ai/harness/issues/165
 _SAFE_TASK_RE = re.compile(r'[^A-Za-z0-9_.-]+')
 # @used-by :func:`_parse_worktree_porcelain()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 def _apply_porcelain_line(cur: dict, line: str) -> None:
 	if line.startswith('worktree '):
 		cur['path'] = Path(line[9:].strip()).resolve().as_posix()
 	elif line.startswith('HEAD '):
 		cur['head'] = line[5:].strip()
 	elif line.startswith('branch '):
-		cur['branch'] = line[7:].strip().removeprefix('refs/heads/')
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		cur['branch'] = str(df_trim_text_left(line[7:].strip(), 'refs/heads/'))
 	elif 'detached' == line:
 		cur['detached'] = True
 # 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359

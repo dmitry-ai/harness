@@ -8,6 +8,8 @@ from .comment_diff import _git_read_text
 from .ratchet import _turn_receipt_dirs
 import json
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_first
 # 2026-11-25
 # "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 # https://github.com/dmitry-ai/harness/issues/239
@@ -195,7 +197,8 @@ def find_matching_mechanical_recipes(repo_root: Path | None, *, message: str | N
 			from ..issues.repo_locator import _extract_config_slugs
 			repo_posix = repo.as_posix()
 			slugs = _extract_config_slugs(repo) if (repo / '.git').exists() else []
-			repo_slug = slugs[0] if slugs else None
+			# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+			repo_slug = df_first(slugs)
 			msg_norm = normalize_commit_message(message) if None is not message else None
 			for rf in r_files:
 				r.extend((it for it in _load_recipe_entries(rf) if _recipe_matches_repo(it, repo_posix, repo_slug, msg_norm)))

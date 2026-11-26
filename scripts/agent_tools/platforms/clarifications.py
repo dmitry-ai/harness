@@ -2,6 +2,8 @@
 from __future__ import annotations
 from typing import Any
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_last
 from .trace_common import parse_tool_args
 _ANSWER_HEADER_RE = re.compile(r'^(A\d+):\s*(.*)$')
 _META_TS_RE = re.compile(r'^(Created|Completed)\s+At:\s*(.+?)\s*$')
@@ -11,6 +13,7 @@ def _extract_question_texts(call: dict) -> list[str]:
 	qs = args.get('questions') if isinstance(args.get('questions'), list) else []
 	return [str(q.get('question') or '').strip() for q in qs if isinstance(q, dict) and str(q.get('question') or '').strip()]
 # @used-by :func:`extract_ask_question_clarifications()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_first_last_starts_with_and_is_windows_delegation_to_df()`
 def _find_generic_output(segment: list[dict], pos: int, call_idx: int) -> dict | None:
 	generics: list[dict] = []
 	for cand in segment[pos + 1:]:
@@ -23,7 +26,8 @@ def _find_generic_output(segment: list[dict], pos: int, call_idx: int) -> dict |
 	if call_idx < len(generics):
 		r = generics[call_idx]
 	else:
-		r = generics[-1] if generics else None
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		r = df_last(generics)
 	return r
 # @used-by :func:`_parse_output_envelope()`
 def _parse_answers(body_lines: list[str]) -> list[dict[str, str]]:
@@ -68,7 +72,8 @@ def _record_ask_call(row: dict, call: dict, out_row: dict | None) -> dict[str, A
 	}
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
 def build_segment_metadata(segment: list[dict], seg_models: list[str] | tuple[str, ...], config_fn) -> dict[str, Any]:
-	raw_model = seg_models[-1] if seg_models else None
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	raw_model = df_last(seg_models)
 	model_name, effort_val = (None, None)
 	if raw_model:
 		cfg = config_fn(raw_model)

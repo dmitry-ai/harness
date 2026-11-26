@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.text.starts_ends import df_starts_with
 from .git_gate import is_issue_tracked_code_repo
 from .github_issue import extract_parent_issue_number
 from .issue_lifecycle import evidence_issue_files, origin_repo_slug
@@ -39,14 +41,14 @@ def _find_git_repo_root(path: Path) -> Path | None:
 
 # @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :func:`resolve_issue_first_target()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_first_last_starts_with_and_is_windows_delegation_to_df()`
 def _is_excluded_meta_rel(rel_posix: str) -> bool:
 	low = rel_posix.replace('\\', '/').casefold()
 	while low.startswith('./'):
 		low = low[2:]
 	low = low.lstrip('/')
-	if not low or '.' == low:
-		return True
-	if any(low.startswith(pref) for pref in _EXCLUDED_META_PREFIXES):
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	if (not low) or '.' == low or df_starts_with(low, list(_EXCLUDED_META_PREFIXES)):
 		return True
 	parts = low.split('/')
 	return any(part in _EXCLUDED_META_PARTS for part in parts[:-1])

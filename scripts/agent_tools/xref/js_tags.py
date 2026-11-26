@@ -3,6 +3,8 @@ from __future__ import annotations
 import posixpath
 from pathlib import Path
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.text.trim import df_trim_text_left, df_trim_text_left_right
 # 2026-11-26
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
@@ -150,6 +152,7 @@ def parse_jsdoc_block(lines: list[str], anchor_line: int, rel_path: str='') -> d
 			r = _parse_jsdoc_lines(lines, start_idx, end_idx, rel_path)
 	return r
 # @used-by :func:`parse_jsdoc_block()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 def _parse_jsdoc_lines(lines: list[str], start_idx: int, end_idx: int, rel_path: str) -> dict:
 	desc, used_by, uses, see, errs = ([], [], [], [], [])
 	has_ov = False
@@ -158,11 +161,12 @@ def _parse_jsdoc_lines(lines: list[str], start_idx: int, end_idx: int, rel_path:
 		st = raw.strip()
 		if st in ('/**', '*/'):
 			continue
-		inner = st.removeprefix('/**').removesuffix('*/').strip()
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		inner = df_trim_text_left_right(st, '/**', '*/').strip()
 		parsed = parse_jsdoc_tag_line(inner, idx + 1)
 		if None is parsed:
 			if inner and '*' != inner:
-				desc.append(inner.removeprefix('*').strip())
+				desc.append(str(df_trim_text_left(inner, '*')).strip())
 		elif 'override' == parsed['tag']:
 			has_ov = True
 		else:

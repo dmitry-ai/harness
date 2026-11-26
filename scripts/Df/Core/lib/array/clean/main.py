@@ -36,7 +36,12 @@ def df_clean_keys(a: dict[Any, Any], *remove: Any) -> dict[Any, Any]:
 # 2023-07-20 Remove only None values, preserving empty strings, False, and 0.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/array/clean/main.php#L119-L125
 # @used-by :func:`Df.Core.lib.array.select.ordered.dfa_select_ordered()`
+# @used-by :func:`agent_tools.diagnostics.problem()`
+# @used-by :func:`agent_tools.meta.blocks._build_journal_trace()`
+# @used-by :func:`agent_tools.meta.blocks._build_turn_trace()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._execute_edit()`
 # @used-by :meth:`test_df_core_array.DfCoreArrayTests.test_assert_clean_and_filter()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 def df_clean_null(r: list[Any] | dict[Any, Any]) -> list[Any] | dict[Any, Any]:
 	return {k: v for k, v in r.items() if None is not v} if isinstance(r, dict) else [v for v in r if None is not v]
 # 2020-02-05 Recursively remove '', None, [], {} (does not remove False unless passed in `k`).

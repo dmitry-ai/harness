@@ -1,8 +1,10 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
-import re
 from typing import Any
+import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.text.n.normalize import df_normalize
 from ..source_grounding import verify_target_locale
 REPO_RE = re.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
 _SLUG_PART_RE = re.compile('^[A-Za-z0-9_.-]+$')
@@ -205,10 +207,12 @@ class IssueMarkdownLinter:
 				self._check_body_blocks(text, r, check_structure_policy=check_structure_policy, parent_number=parent_number, repo=repo, self_number=self_number)
 			r.extend(verify_target_locale(text, target_locale=target_locale, container_text=container_text, is_title=is_title))
 		return r
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 	# @used-by :func:`agent_tools.github_issue.normalize_newlines()`
+	# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 	@staticmethod
 	def normalize_newlines(text: str) -> str:
-		return text.replace('\r\n', '\n').replace('\r', '\n')
+		return df_normalize(text)
 	# @used-by :meth:`IssueMarkdownLinter.parse_parent_arg()`
 	@staticmethod
 	def _parse_parent_str(s: str, repo: str | None, raw_parent) -> int:

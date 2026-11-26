@@ -7,6 +7,8 @@ from .formatting import _format_step_value, _system_display_name, format_duratio
 import json
 import re
 import sys
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.clean.main import df_clean_null
 # 2026-11-24
 # "Decompose metadata.py into modular metadata collection package":
 # https://github.com/dmitry-ai/harness/issues/170
@@ -51,7 +53,8 @@ def _build_journal_trace(jdir: Path | None, steps: list[int], group_file: str | 
 	if None is not jdir and (steps or (not require_steps)):
 		req_paths, res_paths = _journal_step_paths(jdir, steps)
 		pairs = (('Request', req_paths), ('Response', res_paths), ('Group', _resolve_optional_path(group_file, canon_root)))
-		r = {k: v for k, v in pairs if None is not v}
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		r = df_clean_null(dict(pairs))
 	return r
 # @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_blocks_builders_produce_step_paths_labels_and_blocks()`
@@ -82,6 +85,7 @@ def _build_trace_block(*, cid: str | None, subagent_cid: str | None=None, turn_t
 	return r
 # @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
 # @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 def _build_turn_trace(*, turn_index: int | None, turn_id: Any, turn_key: str | None, start_step: int | None, final_step: int | None=None, tool_step: int | None=None, state_path: str | Path | None=None, canon_root: Path | None=None) -> dict[str, Any]:
 	pairs = (
 		('Number', turn_index if isinstance(turn_index, int) and 1 <= turn_index else None),
@@ -92,7 +96,8 @@ def _build_turn_trace(*, turn_index: int | None, turn_id: Any, turn_key: str | N
 		('Tool Step', tool_step),
 		('State', _resolve_optional_path(state_path, canon_root)),
 	)
-	return {k: v for k, v in pairs if None is not v}
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	return df_clean_null(dict(pairs))
 # @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
 # @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_blocks_builders_produce_step_paths_labels_and_blocks()`

@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_first, df_last
 from ..platforms.trace_common import parse_tool_args
 from .timesheet_common import classify_command, compute_top_gaps, parse_iso_ts, parse_test_output, round_opt
 _BG_LAUNCH_RE = re.compile(r'Tool is running as a background task with task id:\s*(\S+)')
@@ -19,8 +21,9 @@ def _add_cat(cats: dict[str, dict[str, Any]], cat: str, wall_s: float) -> None:
 # @used-by :func:`_build_ag_result()`
 def _ag_timestamps(rows: list[dict[str, Any]], last_user_ts: str | None, last_mod_ts: str | None) -> dict[str, Any]:
 	ts_vals = [t for r in rows if None is not (t := parse_iso_ts(r.get('created_at')))]
-	t_start = ts_vals[0] if ts_vals else None
-	t_last = ts_vals[-1] if ts_vals else None
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	t_start = df_first(ts_vals)
+	t_last = df_last(ts_vals)
 	t_mod = parse_iso_ts(last_mod_ts)
 	step_span = t_last - t_start if None is not t_start and None is not t_last else None
 	mod_span = t_mod - t_start if None is not t_start and None is not t_mod else None

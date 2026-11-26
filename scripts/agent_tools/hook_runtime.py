@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import re
 import sys
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.first import df_last
 ABBREVIATIONS = '\\b(?:\\u0433|\\u0433\\u0433|\\u0442\\.\\u0434|\\u0442\\.\\u043f|\\u0441\\u043c|\\u0438\\u043c|\\u0434\\u0440|\\u043f\\u0440|\\u0443\\u043b|\\u0434|\\u043a\\u0432|\\u0440\\u0438\\u0441|\\u0442\\u0430\\u0431\\u043b|\\u0441\\u0442|\\u043f|\\u0447|\\u0440\\u0443\\u0431|\\u0442\\u044b\\u0441|\\u043c\\u043b\\u043d|\\u043c\\u043b\\u0440\\u0434|\\u0430\\u043d\\u0433\\u043b|\\u0440\\u0443\\u0441|\\u043d\\u0430\\u043f\\u0440|\\u043e\\u043a|vs|Mr|Mrs|Ms|Dr|St|Inc|Ltd|Co|Jr|Sr|e\\.g|i\\.e)\\.'
 ABBR_RE = re.compile(ABBREVIATIONS, re.IGNORECASE)
 MULTI_SENT_RE = re.compile('(?:[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9\\u00ab\\u00bb"(),:-]+\\s+){2,}[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9]+[.!?]\\s+[\\u0410-\\u042f\\u0401A-Z][a-z\\u0430-\\u044f\\u0451A-Za-z0-9]')
@@ -64,7 +66,8 @@ def _scan_workflow_line(lineno: int, stripped: str, issues: list[str]) -> None:
 def _slice_after_last_user(rows: list[dict], by_step_index: bool) -> tuple[int | None, list[dict]]:
 	if by_step_index:
 		steps = [row['step_index'] for row in rows if 'USER_INPUT' == row.get('type') and isinstance(row.get('step_index'), int)]
-		last_ref: int | None = steps[-1] if steps else None
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		last_ref: int | None = df_last(steps)
 		seg = [row for row in rows if isinstance(row.get('step_index'), int) and row['step_index'] > last_ref] if None is not last_ref else []
 	else:
 		last_idx = max((idx for idx, row in enumerate(rows) if 'USER_INPUT' == row.get('type')), default=-1)

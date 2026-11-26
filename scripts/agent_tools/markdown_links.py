@@ -2,6 +2,8 @@
 from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.text.trim import df_trim_text_left
 from .links import readable_reference
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
@@ -48,9 +50,11 @@ def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.article.check_link_style()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 def display_address(href):
 	value = urlsplit(readable_reference(href))
-	host = (value.hostname or '').removeprefix('www.')
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	host = str(df_trim_text_left(value.hostname or '', 'www.'))
 	if value.port and value.port != {'http': 80, 'https': 443}.get(value.scheme):
 		host += ':' + str(value.port)
 	r = host + value.path + ('?' + value.query if value.query else '') + ('#' + value.fragment if value.fragment else '')
@@ -155,7 +159,8 @@ def technical_label(label, href):
 		try:
 			value = urlsplit(label if '://' in label else 'https://' + label)
 			target = urlsplit(href)
-			r = bool(value.hostname and target.hostname and (value.hostname.removeprefix('www.').lower() == target.hostname.removeprefix('www.').lower()))
+			# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+			r = bool(value.hostname and target.hostname and (str(df_trim_text_left(value.hostname, 'www.')).lower() == str(df_trim_text_left(target.hostname, 'www.')).lower()))
 		except ValueError:
 			r = False
 	return r

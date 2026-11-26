@@ -2,6 +2,8 @@
 from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urldefrag
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 # 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
 import re
 _TEST_SUMMARY_RES = (
@@ -83,7 +85,8 @@ def audit_active_block(auditor, block, filtered_locals: list[Path], ext_urls: li
 		infos, combined_raw, combined_norm, ev_nums, src_label = auditor._build_active_corpus(filtered_locals, ext_urls, active_primary)
 		audit_block_lines(auditor, block, infos, combined_raw, combined_norm, ev_nums, src_label)
 	else:
-		active_exts = list(dict.fromkeys(ext_urls + auditor.section_ext_urls))
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		active_exts = dfa_unique_fast(ext_urls + auditor.section_ext_urls)
 		repo_entries, labels = _collect_local_repo_ext_entries(auditor, active_exts, norm_fn, num_fn)
 		if repo_entries:
 			infos, combined_raw, combined_norm, ev_nums = _assemble_corpus([], repo_entries)

@@ -1,6 +1,8 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 from ..shell_audit import _split_shell_segments, normalize_host_path
 from .classifier import _CODE_SUFFIX_ALT, classify_code_path, count_repo_test_files, is_test_file
 import re
@@ -192,6 +194,7 @@ def _strip_shell_herestrings(cmd: str) -> str:
 # @used-by :func:`agent_tools.failfast_gate.evaluate_pre_tool_use_test_failfast()`
 # @used-by :func:`agent_tools.tdd.evaluator._update_scope_from_test_cmd()`
 # @used-by :func:`agent_tools.tdd.events.build_command_tdd_event()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 # @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_classify_run_tests_full_and_filtered()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
 # @used-by :meth:`test_pytest_xdist_runner.PytestXdistRunnerTests.test_classify_pytest_xdist_full_suite_and_filtered()`
@@ -217,7 +220,8 @@ def classify_test_command(cmd: str, *, scope_root: Path | None=None) -> dict:
 					targets.extend(_extract_cmd_paths(s))
 		if is_test and (not is_full) and None is not scope_root and 1 >= count_repo_test_files(scope_root):
 			is_full = True
-		r = {'is_full_suite': is_full, 'is_test_cmd': is_test, 'rigged_failure': bool(_RIGGED_FAILURE_RE.search(cmd)), 'target_paths': list(dict.fromkeys(targets))}
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		r = {'is_full_suite': is_full, 'is_test_cmd': is_test, 'rigged_failure': bool(_RIGGED_FAILURE_RE.search(cmd)), 'target_paths': dfa_unique_fast(targets)}
 	return r
 # @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
 # @used-by :func:`agent_tools.tdd.enforcement._eval_pre_run_command()`

@@ -71,8 +71,14 @@ def df_trim_text_a(s: str, trimA: list[str], f: Callable[[str, str], str]) -> st
 	return r
 # Chop `trim` prefix (or first matching prefix in list `trim`) from string or list `s`.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/text/trim.php#L136-L171
+# @used-by :func:`agent_tools.markdown_links.display_address()`
+# @used-by :func:`agent_tools.markdown_links.technical_label()`
+# @used-by :func:`agent_tools.worktree_flow._apply_porcelain_line()`
+# @used-by :func:`agent_tools.xref.java_tags._classify_javadoc_line()`
+# @used-by :func:`agent_tools.xref.js_tags._parse_jsdoc_lines()`
 # @used-by :func:`df_trim_text_left_right()`
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part2()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 def df_trim_text_left(s: str | list[str], trim: str | list[str]) -> str | list[str]:
 	if isinstance(s, list):
 		r: str | list[str] = df_map(df_trim_text_left, s, [trim])
@@ -83,9 +89,12 @@ def df_trim_text_left(s: str | list[str], trim: str | list[str]) -> str | list[s
 	return r
 # 2021-12-12 Chop `left` prefix and `right` suffix from `s`.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/text/trim.php#L173-L181
+# @used-by :func:`agent_tools.xref.java_tags._parse_javadoc_lines()`
+# @used-by :func:`agent_tools.xref.js_tags._parse_jsdoc_lines()`
 # @used-by :func:`df_trim_text()`
 # @used-by :meth:`Df.Core.Text.Marker.Marker.unmark()`
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part2()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 def df_trim_text_left_right(s: str, left: str | list[str], right: str | list[str]) -> str:
 	return str(df_trim_text_right(str(df_trim_text_left(s, left)), right))
 # Chop `trim` suffix (or first matching suffix in list `trim`) from string or list `s`.

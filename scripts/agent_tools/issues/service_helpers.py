@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 import subprocess
 from typing import Any
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 from ..git_gate import is_issue_tracked_code_repo, run_git_read
 from ..storage import iter_embedded_json_objects
 from .linter import IssueMarkdownLinter
@@ -134,7 +136,8 @@ def pending_similar_peer_slugs(workspace: IssueEvidenceWorkspace, code_repo: Pat
 		except (OSError, ValueError):
 			pp_repo = None
 		if None is not pp_repo:
-			peer_slugs = list(dict.fromkeys((slug for peer in pp_repo.similar_projects for slug in similar_project_repo_slugs(peer))))
+			# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+			peer_slugs = dfa_unique_fast([slug for peer in pp_repo.similar_projects for slug in similar_project_repo_slugs(peer)])
 			if peer_slugs:
 				turn_dirs = list(dict.fromkeys([*(tdir for _, tdir in workspace.resolve_issue_targets(source_files, repo, project_root=project_root)), pp_repo.turns_dir]))
 				recorded = _recorded_open_turn_repos(turn_dirs)

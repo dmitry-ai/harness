@@ -8,6 +8,8 @@ import ctypes
 import json
 import os
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 from .hook_crash_audit import _load_turn_rows, _load_violation_receipt
 _ADDONS_SLUG = 'dmitry-ai/antigravity-addons'
 _DISCLOSE_WT_RE = re.compile(r'(?i)(?:worktree|permission\s+denied|failed\s+to\s+delete|блокировк\w*|не\s+удалось\s+удалить)')
@@ -30,7 +32,8 @@ def _win_pid_alive(pid: int) -> bool:
 def _is_pid_alive(pid: int) -> bool:
 	if 0 >= int(pid):
 		r = False
-	elif 'nt' == os.name:
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	elif df_is_windows():
 		r = _win_pid_alive(int(pid))
 	else:
 		try:

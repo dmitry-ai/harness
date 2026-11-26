@@ -3,6 +3,8 @@
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 from typing import override
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.clean.main import df_clean_null
 # @used-by :func:`agent_tools.analysis.analysis_issues()`
 # @used-by :func:`agent_tools.analysis.require_current_contract()`
 # @used-by :func:`agent_tools.claims._calculation_structure()`
@@ -19,6 +21,7 @@ from typing import override
 # @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
 # @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
 # @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.kb_issues()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 def problem(code, field, message, *, claim_id=None, file=None, hint=None, severity='error'):
 	# 2026-11-24
 	# "Prevent context compaction with schema-help CLI and staged analysis merge":
@@ -26,7 +29,8 @@ def problem(code, field, message, *, claim_id=None, file=None, hint=None, severi
 	if None is hint:
 		from .schema_help import claim_error_hint
 		hint = claim_error_hint(code)
-	return {k: v for k, v in dict(code=code, field=field, message=message, claim_id=claim_id, file=str(file) if file else None, hint=hint, severity=severity).items() if None is not v}
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	return df_clean_null(dict(code=code, field=field, message=message, claim_id=claim_id, file=str(file) if file else None, hint=hint, severity=severity))
 class ValidationError(ValueError):
 	# 2026-11-26
 	# "Apply cross-reference annotations across Harness Python and JavaScript":

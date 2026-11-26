@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 import time
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 from .process_tree import kill_process_tree
 DEFAULT_WATCHDOG_TIMEOUT = 300.0
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
@@ -41,7 +43,8 @@ def run_test_watchdog(argv: list[str] | tuple[str, ...], *, timeout: float=DEFAU
 	eff_timeout = max(0.1, float(timeout))
 	started = time.monotonic()
 	kwargs: dict = {'cwd': str(Path(cwd).resolve()) if None is not cwd else None, 'env': env}
-	if 'nt' == os.name:
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	if df_is_windows():
 		kwargs['creationflags'] = _NO_WINDOW
 	else:
 		kwargs['start_new_session'] = True

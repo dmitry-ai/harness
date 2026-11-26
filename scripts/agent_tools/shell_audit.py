@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import urlsplit
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 # 2026-11-14
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
@@ -119,8 +121,8 @@ class ShellCommandInspector:
 		if not (2 <= len(token) and token[0] == token[-1] and (token[0] in ('"', "'"))):
 			r = token
 		else:
-			inner = token[1:-1]
-			r = inner.replace('\\"', '"').replace("\\'", "'").replace('\\\\', '\\')
+			# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+			r = token[1:-1].replace('\\"', '"').replace("\\'", "'").replace('\\\\', '\\')
 		return r
 	# @used-by :func:`classify_git_argv()`
 	# @used-by :meth:`ShellCommandInspector.prohibited_git_write_commands()`
@@ -395,10 +397,12 @@ def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> 
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_latest_commits()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_git_read_cache_detects_issue_url_in_untracked_dotpy()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 # @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 # @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
 def extract_issue_urls(text: str) -> list[str]:
-	return list(dict.fromkeys(_GITHUB_ISSUE_URL_RE.findall(text or '')))
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	return dfa_unique_fast(_GITHUB_ISSUE_URL_RE.findall(text or ''))
 # 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
 # @used-by :func:`agent_tools.gates.cdp_bypass._check_write_content()`
 # @used-by :func:`agent_tools.tdd.exemption.verify_staged_issue_urls()`

@@ -2,6 +2,8 @@
 from __future__ import annotations
 from pathlib import Path
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.text.trim import df_trim_text_left, df_trim_text_left_right
 # 2026-11-26
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
@@ -14,13 +16,15 @@ _LINK_RE = re.compile(r'^\{@link\s+([^}]+)\}(.*)$')
 _LIST_TAG_RE = re.compile(r'^\*?\s*-\s*@(used-by|uses)\s+(.+?)\s*$')
 _SEE_TAG_RE = re.compile(r'^\*?\s*@see\s+(.+?)\s*$')
 # @used-by :func:`parse_javadoc_block()`
+# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 def _parse_javadoc_lines(lines: list[str], start_idx: int, end_idx: int, rel_path: str) -> dict:
 	desc, used_by, uses, see, errs = ([], [], [], [], [])
 	for idx in range(start_idx, end_idx + 1):
 		st = lines[idx].strip()
 		if st in ('/**', '*/'):
 			continue
-		inner = st.removeprefix('/**').removesuffix('*/').strip()
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		inner = df_trim_text_left_right(st, '/**', '*/').strip()
 		_classify_javadoc_line(inner, idx + 1, rel_path, desc, used_by, uses, see, errs)
 	return {'desc_lines': desc, 'end_line': end_idx + 1, 'has_block': True, 'see': see, 'start_line': start_idx + 1, 'syntax_errors': errs, 'used_by': used_by, 'uses': uses}
 # @used-by :func:`_parse_javadoc_lines()`
@@ -37,7 +41,8 @@ def _classify_javadoc_line(inner: str, lineno: int, rel_path: str, desc: list[st
 	elif None is not sm:
 		see.append({'lineno': lineno, 'raw_value': sm.group(1).strip(), 'tag': 'see'})
 	elif inner and '*' != inner:
-		desc.append(inner.removeprefix('*').strip())
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		desc.append(str(df_trim_text_left(inner, '*')).strip())
 # @used-by :func:`_classify_javadoc_line()`
 def _build_link_entry(tag: str, rest: str, lineno: int) -> dict:
 	m = _LINK_RE.match(rest)

@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 import time
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 # 2026-11-24
 # "Add PreToolUse worktree isolation gate for live main checkouts":
 # https://github.com/dmitry-ai/harness/issues/185
@@ -98,7 +100,8 @@ def _is_meta_rel(rel_posix: str) -> bool:
 # @used-by :func:`_governed_repo_for_path()`
 def _resolve_target_path(raw: str, cwd: str | None) -> Path:
 	text = raw.strip()
-	if 'nt' == os.name and 3 <= len(text) and '/' == text[0] and text[1].isalpha() and '/' == text[2]:
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	if df_is_windows() and 3 <= len(text) and '/' == text[0] and text[1].isalpha() and '/' == text[2]:
 		text = f'{text[1]}:{text[2:]}'
 	cand = Path(text)
 	if not cand.is_absolute() and cwd and str(cwd).strip():

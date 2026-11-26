@@ -9,6 +9,8 @@ import os
 import re
 import stat
 import subprocess
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.state import df_is_windows
 from .git_gate import _NO_WINDOW
 _MANAGED_WT_RE = re.compile(r'(?i)(?:\ua616[\\/]data[\\/]worktrees|\.git[\\/]worktrees)(?:[\\/][^\s"\';)}]+)?')
 _PS_PROC_QUERY = 'Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine | ConvertTo-Json -Compress'
@@ -61,7 +63,8 @@ def _parse_process_row(row: dict[str, Any], target_posix: str, target_win: str) 
 # @used-by :func:`find_worktree_lock_holders()`
 def _query_win32_processes() -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
-	if 'nt' == os.name:
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	if df_is_windows():
 		try:
 			proc = subprocess.run(['powershell', '-NoProfile', '-Command', _PS_PROC_QUERY], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15, check=False, creationflags=_NO_WINDOW)
 		except (OSError, subprocess.SubprocessError):

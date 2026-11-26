@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import re
 import tomllib
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 from .configuration import DISCOVERY_KINDS, _frontmatter, load_discovery_manifest, load_project_receipt, receipt_sha256, resolve_manifest_entry
 from .path_registry import project_paths
 from .runtime import PRIMARY, extract_platform_instances, settings
@@ -169,7 +171,8 @@ class SourceDiagnosticsScanner:
 	# @used-by :meth:`SourceDiagnosticsScanner._discover_references()`
 	def _referenced_paths(self, text: str) -> list[str]:
 		values = re.findall('\\]\\(<([^>]+)>\\)', text) + re.findall('^\\s*-\\s+((?:[A-Za-z]:[/\\\\]|/)[^\\r\\n]+)', text, re.M)
-		return list(dict.fromkeys(values))
+		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+		return dfa_unique_fast(values)
 	# @used-by :meth:`SourceDiagnosticsScanner.run()`
 	def _scan_ancestry_scope(self, scope: Path) -> None:
 		# 2026-11-19

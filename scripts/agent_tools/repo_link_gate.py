@@ -7,6 +7,8 @@ from urllib.parse import unquote, urldefrag, urlsplit
 import json
 import os
 import re
+# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 from .git_gate import run_git_read
 from .issues.repo_locator import find_local_code_repo, origin_repo_slug
 from .repo_tags import is_valid_repo_tag
@@ -28,7 +30,8 @@ def _authored_targets(content: str) -> list[str]:
 			quote_depth -= 1
 		elif 0 == quote_depth:
 			_collect_block_targets(block, targets, html)
-	return list(dict.fromkeys(targets + html.links))
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	return dfa_unique_fast(targets + html.links)
 # @used-by :func:`_validate_github_object()`
 def _cat_file_type(repo: Path, ref: str, rel_path: str) -> str | None:
 	spec = f'{ref}:{rel_path}' if rel_path else f'{ref}^{{tree}}'
@@ -207,7 +210,8 @@ def chat_repo_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 			errors.extend(_validate_file_uri(href))
 		elif low.startswith('https://github.com/'):
 			errors.extend(_validate_github_url(href, root))
-	return list(dict.fromkeys(errors))
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	return dfa_unique_fast(errors)
 # @used-by :func:`agent_tools.links.validate_file()`
 # @used-by :func:`check_markdown_slop._check_doc_grounding_and_links()`
 # @used-by :func:`verify_staged_repo_links()`
@@ -224,7 +228,8 @@ def file_repo_link_issues(doc_path: Path, content: str, *, repo_root: Path | Non
 			errors.extend(_validate_github_url(href, search_root))
 		else:
 			errors.extend(_validate_relative_cross_repo(href, doc_p, doc_repo))
-	return list(dict.fromkeys(errors))
+	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
+	return dfa_unique_fast(errors)
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.validate()`
 def hydrate_local_repo_urls(auditor) -> set[str]:
 	local_urls: set[str] = set()
