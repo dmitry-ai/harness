@@ -304,7 +304,7 @@ class RepoReadCache:
 				if cu not in found:
 					found.append(cu)
 		return found
-	# @used-by :func:`agent_tools.repo_tag_gate._has_upstream()`
+	# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.__has_upstream()`
 	# @used-by :meth:`RepoReadCache.verify_commit_pushed()`
 	def upstream_unpushed(self, repo: Path) -> tuple[bool, int]:
 		key = self._key(repo)
@@ -319,7 +319,7 @@ class RepoReadCache:
 				cached = (True, int(raw_cnt) if raw_cnt.isdigit() else 0)
 			self._upstream_cache[key] = cached
 		return cached
-	# @used-by :func:`agent_tools.repo_tag_gate.finalize_commit_close_check()`
+	# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.finalize_close_check()`
 	def verify_commit_pushed(self, repo: Path, commit_sha: str, issue_url: str) -> bool:
 		has_upstream, unpushed = self.upstream_unpushed(repo)
 		if has_upstream and 0 < unpushed:

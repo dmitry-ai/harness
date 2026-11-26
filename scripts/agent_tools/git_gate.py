@@ -43,7 +43,6 @@ class GitRepoGate:
 	# @used-by :func:`_extract_added_diff_urls()`
 	# @used-by :func:`_main_repo_for_worktree()`
 	# @used-by :func:`_normalize_repo_paths()`
-	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
 	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
 	# @used-by :func:`agent_tools.polyglot_land._branch_touched_files()`
 	# @used-by :func:`agent_tools.polyglot_land.dirty_blocking_main_files()`
@@ -78,6 +77,7 @@ class GitRepoGate:
 	# @used-by :func:`verify_push_blob_sizes()`
 	# @used-by :func:`verify_repo_issue_ready_for_close()`
 	# @used-by :func:`verify_staged_blob_sizes()`
+	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
 	# @used-by :meth:`WorktreeCommitTransaction.commit()`
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 	# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
@@ -277,7 +277,6 @@ class GitRepoGate:
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
 	# @used-by :func:`_main_repo_for_worktree()`
-	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
 	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
 	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait.wait_for_repo()`
@@ -286,6 +285,7 @@ class GitRepoGate:
 	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_status()`
+	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
 	# @used-by :meth:`GitRepoGate._tdd_project_root()`
 	# @used-by :meth:`GitRepoGate.ensure_hooks()`
 	# @used-by :meth:`GitRepoGate.is_issue_tracked()`
@@ -889,14 +889,6 @@ def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[
 # https://github.com/dmitry-ai/harness/issues/204
 # @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
 # @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
-# @used-by :func:`agent_tools.repo_link_gate._cat_file_type()`
-# @used-by :func:`agent_tools.repo_link_gate._is_gitignored()`
-# @used-by :func:`agent_tools.repo_link_gate._load_blob_text()`
-# @used-by :func:`agent_tools.repo_link_gate._read_staged_markdown()`
-# @used-by :func:`agent_tools.repo_link_gate._repo_has_tag()`
-# @used-by :func:`agent_tools.repo_tag_gate._has_upstream()`
-# @used-by :func:`agent_tools.repo_tag_gate._read_local_tag_map()`
-# @used-by :func:`agent_tools.repo_tag_gate._read_remote_tags()`
 # @used-by :func:`agent_tools.repo_tags._commit_sha_and_day()`
 # @used-by :func:`agent_tools.repo_tags._read_tag_refs()`
 # @used-by :func:`agent_tools.repo_tags._resolve_commit_sha()`
@@ -908,6 +900,14 @@ def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[
 # @used-by :func:`agent_tools.repo_tags.remote_has_tag()`
 # @used-by :func:`agent_tools.repo_tags.tags_at_commit()`
 # @used-by :func:`agent_tools.repo_tags.validate_tree_path_and_fragment()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__read_staged_markdown()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__cat_file_type()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__load_blob_text()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__repo_has_tag()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.is_gitignored()`
+# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.__has_upstream()`
+# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.__read_local_tag_map()`
+# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.__read_remote_tags()`
 def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], **({'input': input_bytes} if None is not input_bytes else {'stdin': subprocess.DEVNULL}), capture_output=True, env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}, check=check, creationflags=_NO_WINDOW)
 # @used-by unused

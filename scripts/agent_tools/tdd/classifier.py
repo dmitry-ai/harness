@@ -162,13 +162,13 @@ def is_software_code_file(path: str | Path, *, content: str | None=None) -> bool
 		r = suffix in SOFTWARE_CODE_SUFFIXES or name_low in _EXTENSIONLESS_CODE_NAMES or is_hook or ((not suffix) and _has_shebang(p, content=content))
 	return r
 # @used-by :func:`_count_dir_tests()`
-# @used-by :func:`agent_tools.code_size_gate._limits_for_path()`
-# @used-by :func:`agent_tools.subprocess_hygiene_gate.is_subprocess_hygiene_target()`
 # @used-by :func:`agent_tools.tdd.commands._single_test_file_in_args()`
 # @used-by :func:`agent_tools.tdd.commands.shell_test_delete_targets()`
 # @used-by :func:`agent_tools.tdd.substantive._ast_expr_contains_code_literal()`
 # @used-by :func:`agent_tools.tdd.substantive._nonpy_source_text_issues()`
 # @used-by :func:`classify_code_path()`
+# @used-by :meth:`Df.Harness.Gate.CodeSizeChecker.CodeSizeChecker.__limits_for_path()`
+# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneChecker.SubprocessHygieneChecker.is_target()`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def is_test_file(path: str | Path, *, content: str | None=None) -> bool:

@@ -1,59 +1,20 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
-import json
 from pathlib import Path
-from ..hook_runtime import read_last_user_segment
-# 2026-11-23
-# "Extract PreToolUse and completion gates into priority plugin registry":
-# https://github.com/dmitry-ai/harness/issues/167
-NAME = 'REVIEW-1-BULK-SOURCE-GATE'
-PRIORITY = 70
-# 2026-11-24
-# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
-# https://github.com/dmitry-ai/harness/issues/187
-TOOLS = frozenset({'read_file'})
-MAX_UNPERSISTED_SOURCE_READS = 10
-# @used-by :func:`agent_tools.gates.browser_mcp._turn_has_background_mcp_new_page()`
-# @used-by :func:`check()`
+# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+from Df.Harness.Gate.BulkSourceReadGate import BulkSourceReadGate
+MAX_UNPERSISTED_SOURCE_READS = BulkSourceReadGate.MAX_UNPERSISTED_SOURCE_READS
+NAME = BulkSourceReadGate.NAME
+PRIORITY = BulkSourceReadGate.PRIORITY
+TOOLS = BulkSourceReadGate.TOOLS
+# @used-by :mod:`agent_tools.gates.bulk_source_read`
 def _parse_call_args(raw) -> dict:
-	r = raw if isinstance(raw, dict) else {}
-	if isinstance(raw, str):
-		try:
-			parsed = json.loads(raw)
-			r = parsed if isinstance(parsed, dict) else {}
-		except ValueError:
-			r = {}
-	return r
-# 2026-11-24
-# "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
-# https://github.com/dmitry-ai/harness/issues/79
-# @used-by :func:`agent_tools.gates.browser_mcp._turn_has_background_mcp_new_page()`
-# @used-by :func:`check()`
+	return BulkSourceReadGate.parse_call_args(raw)
+# @used-by :mod:`agent_tools.gates.bulk_source_read`
 def _recent_segment_rows(t_path: Path) -> list[dict]:
-	return read_last_user_segment(t_path)[2]
-# @used-by :func:`check()`
-def _update_streak(streak: set[str], cname: str, cargs: dict) -> None:
-	if 'invoke_subagent' == cname:
-		streak.clear()
-	elif cname in ('write_file', 'edit_file'):
-		wpath = (cargs.get('Path') or '').replace('\\', '/').lower()
-		if wpath.endswith('/kb/analysis.md') or '/\ua616/kb/' in wpath:
-			streak.clear()
-	elif 'read_file' == cname:
-		rpath = (cargs.get('Path') or '').replace('\\', '/').lower()
-		if rpath.endswith('/kb/source.md'):
-			streak.add(rpath)
-# @used-by :func:`agent_tools.gates._load_builtin_entry()`
+	return BulkSourceReadGate.recent_segment_rows(t_path)
+# @used-by :meth:`Df.Harness.Gate.PreToolRegistry.PreToolRegistry.__load_builtin_entry()`
+# @used-by :mod:`agent_tools.gates.bulk_source_read`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
-	r = None
-	target = (args.get('Path') or '').replace('\\', '/').lower() if 'read_file' == name else ''
-	t_raw = (payload or {}).get('transcriptPath') or ''
-	if target.endswith('/kb/source.md') and t_raw:
-		streak: set[str] = set()
-		for row in _recent_segment_rows(Path(t_raw)):
-			for call in row.get('tool_calls') or []:
-				if isinstance(call, dict):
-					_update_streak(streak, call.get('name', ''), _parse_call_args(call.get('args')))
-		if target not in streak and len(streak) >= MAX_UNPERSISTED_SOURCE_READS:
-			r = f'REVIEW-1 / KB-3: Already read {len(streak)} source.md files in a row without persisting analysis.md or delegating to af-worker (limit: {MAX_UNPERSISTED_SOURCE_READS}). Persist analysis.md for already-read cases or delegate via invoke_subagent before reading more source.md files.'
-	return r
+	return BulkSourceReadGate().check(name, args, payload)
+__all__ = ['MAX_UNPERSISTED_SOURCE_READS', 'NAME', 'PRIORITY', 'TOOLS', '_parse_call_args', '_recent_segment_rows', 'check']

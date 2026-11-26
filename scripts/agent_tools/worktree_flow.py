@@ -294,15 +294,15 @@ def _safe_task_id(task_id: str) -> str:
 	return clean[:48]
 # @used-by :func:`agent_tools.issues.repo_locator._config_may_have_origin_remote()`
 # @used-by :func:`agent_tools.issues.repo_locator._extract_config_slugs()`
-# @used-by :func:`agent_tools.repo_tag_gate._resolve_origin_push_target()`
 # @used-by :func:`agent_tools.repo_tags.has_origin_remote()`
+# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.__resolve_origin_push_target()`
 def git_config_file(code_repo: Path) -> Path:
 	resolved = Path(code_repo).resolve()
 	dot_git = resolved / '.git'
 	return (GitRepoGate(resolved).main_repo() / '.git/config') if dot_git.is_file() else (dot_git / 'config')
-# @used-by :func:`agent_tools.gates.worktree_isolation.check()`
 # @used-by :func:`prioritized_worktree_candidates()`
 # @used-by :func:`worktree_land()`
+# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.check()`
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
 def is_linked_worktree(path: Path | str) -> bool:
 	return (Path(path).resolve() / '.git').is_file()

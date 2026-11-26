@@ -117,7 +117,7 @@ def find_worktree_lock_holders(wt_path: Path, *, process_rows: list[dict[str, An
 			seen.add(item['pid'])
 			found.append(item)
 	return found
-# @used-by :func:`agent_tools.gates.git_write.check()`
+# @used-by :meth:`Df.Harness.Gate.GitWriteGate.GitWriteGate.check()`
 # @used-by :mod:`agent_tools.worktree_guard`
 def prohibited_worktree_remove_commands(command_line: str) -> list[str]:
 	r: list[str] = []
@@ -127,7 +127,7 @@ def prohibited_worktree_remove_commands(command_line: str) -> list[str]:
 			r.append('EXEC-5: Direct `git worktree remove` is prohibited; use `harness.py worktree-land` or `harness.py worktree-cleanup` so locked worktrees fail closed with lock-holder diagnostics.')
 			break
 	return r
-# @used-by :func:`agent_tools.gates.worktree_isolation.check()`
+# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.check()`
 # @used-by :mod:`agent_tools.worktree_guard`
 def prohibited_worktree_shell_deletions(command_line: str) -> list[str]:
 	r: list[str] = []

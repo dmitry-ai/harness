@@ -88,11 +88,8 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.article.check_structure()`
 	# @used-by :func:`agent_tools.claims._quantity_matches()`
 	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
-	# @used-by :func:`agent_tools.code_size_gate._code_lines_and_semicolons()`
-	# @used-by :func:`agent_tools.code_style_gate._scan_tokens()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_fact_tuples()`
 	# @used-by :func:`agent_tools.grounding_domains.ticket_message_issues()`
-	# @used-by :func:`agent_tools.issue_comment_gate._trailing_comment_urls()`
 	# @used-by :func:`agent_tools.knowledge._replace_section2_in_project_md()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
@@ -113,6 +110,9 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.text_core.sentences()`
 	# @used-by :func:`agent_tools.text_sections.content_blocks()`
 	# @used-by :func:`agent_tools.upwork_data.discover_pdf_ligature_repairs()`
+	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__code_lines_and_semicolons()`
+	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
 	# @used-by :meth:`TextClaimRevisionTests.test_changed_primary_bytes_invalidate_an_existing_semantic_check()`
 	# @used-by :meth:`TextMapTests.test_limited_claim_rejects_lazy_conditional_qualification()`
 	# @used-by :meth:`TextMapTests.test_standalone_proposal_map_needs_no_five_analysis_stages()`

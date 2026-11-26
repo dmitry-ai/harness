@@ -1614,9 +1614,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.polyglot_land._expand_token()`
 	# @used-by :func:`agent_tools.project_drift.analysis_card_sync_issues()`
 	# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
-	# @used-by :func:`agent_tools.repo_link_gate._enclosing_github_repo()`
-	# @used-by :func:`agent_tools.repo_link_gate._validate_file_uri()`
-	# @used-by :func:`agent_tools.repo_link_gate._validate_relative_cross_repo()`
 	# @used-by :func:`agent_tools.runtime._expand_path()`
 	# @used-by :func:`agent_tools.runtime_cache._file_stat_key()`
 	# @used-by :func:`agent_tools.shadow_replay._ensure_scripts_path()`
@@ -1639,6 +1636,9 @@ class ProjectPaths:
 	# @used-by :func:`normalize_path_str()`
 	# @used-by :func:`paths_report()`
 	# @used-by :func:`relocated_harness_code_dirs()`
+	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_file_uri()`
+	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_relative_cross_repo()`
+	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
 	# @used-by :meth:`PathRegistry.__init__()`
 	# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._prune_delivered_checkpoint_recovery()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
@@ -2028,7 +2028,6 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`agent_tools.completion._folder()`
 	# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
-	# @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
 	# @used-by :func:`agent_tools.hook_crash_audit._load_violation_receipt()`
 	# @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
 	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
@@ -2046,6 +2045,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.tdd.ratchet._turn_receipt_dirs()`
 	# @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
 	# @used-by :func:`is_tracked_workspace()`
+	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
 	# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
@@ -2112,7 +2112,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.claims._manifest_primary()`
 	# @used-by :func:`agent_tools.completion._delegation_status()`
 	# @used-by :func:`agent_tools.completion.begin()`
-	# @used-by :func:`agent_tools.gates.external_write._match_upwork_root()`
 	# @used-by :func:`agent_tools.intake._project()`
 	# @used-by :func:`agent_tools.intake.commit_capture()`
 	# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
@@ -2130,6 +2129,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 	# @used-by :func:`is_tracked_workspace()`
+	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 	@property
@@ -2290,8 +2290,6 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
 # @used-by :func:`agent_tools.experiments.result_issues()`
-# @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
-# @used-by :func:`agent_tools.gates.external_write._match_upwork_root()`
 # @used-by :func:`agent_tools.git_ignore.prepare_worktrees_base_dir()`
 # @used-by :func:`agent_tools.hook_crash_audit._load_violation_receipt()`
 # @used-by :func:`agent_tools.intake._index()`
@@ -2411,6 +2409,8 @@ class ProjectPaths:
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.read_review_input()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
+# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
+# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._verify_saved_artifacts()`

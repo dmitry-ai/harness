@@ -23,8 +23,8 @@ def _is_service_write_path(raw_path: str) -> bool:
 # 2026-11-26
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
-# @used-by :func:`agent_tools.gates.tdd.check()`
 # @used-by :func:`agent_tools.tdd.enforcement.evaluate_pre_tool_use_tdd()`
+# @used-by :meth:`Df.Harness.Gate.TddPreToolGate.TddPreToolGate.check()`
 # @used-by :mod:`agent_tools.tdd.service_exempt`
 def is_service_finalization_call(name: str, args: dict[str, Any], payload: dict[str, Any] | None=None) -> bool:
 	if name in ('write_file', 'edit_file'):

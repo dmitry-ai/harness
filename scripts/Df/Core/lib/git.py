@@ -9,6 +9,9 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # @used-by :func:`agent_tools.python_integrity._git_read_text()`
 # @used-by :func:`agent_tools.tdd.comment_diff._git_read_text()`
 # @used-by :func:`agent_tools.tdd.enforcement._git_show_text()`
+# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_worktree()`
+# @used-by :meth:`Df.Harness.Gate.XrefWorktreeGate.XrefWorktreeGate.__git_changed_paths()`
+# @used-by :meth:`Df.Harness.Gate.XrefWorktreeGate.XrefWorktreeGate.verify()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_fs_and_git_helpers()`
 def df_git_read_text(repo: str | Path, *args: str, timeout: int=30) -> str | None:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
@@ -16,11 +19,12 @@ def df_git_read_text(repo: str | Path, *args: str, timeout: int=30) -> str | Non
 	return proc.stdout if 0 == proc.returncode else None
 # Locate the nearest enclosing Git repository root containing `.git`, or None.
 # @used-by :func:`agent_tools.code_size_gate._find_git_root()`
-# @used-by :func:`agent_tools.gates.worktree_isolation._find_git_repo_root()`
-# @used-by :func:`agent_tools.issue_comment_gate._find_git_root()`
 # @used-by :func:`agent_tools.repo_tags._find_git_root()`
 # @used-by :func:`agent_tools.tdd.classifier._find_git_ancestor()`
-# @used-by :func:`agent_tools.xref_gate._find_git_root()`
+# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.resolve_python_target()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.resolve_target()`
+# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__governed_repo_for_path()`
+# @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.resolve_target()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_fs_and_git_helpers()`
 def df_git_root(path: str | Path) -> Path | None:
 	p = Path(path)

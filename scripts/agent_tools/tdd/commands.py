@@ -108,8 +108,8 @@ def _iter_write_matches(seg: str, patterns: tuple[re.Pattern[str], ...]=_SHELL_W
 # @used-by :func:`_match_go_or_cargo()`
 # @used-by :func:`_match_python_unittest()`
 # @used-by :func:`_match_runner_specs()`
-# @used-by :func:`agent_tools.failfast_gate.missing_failfast_flag()`
-# @used-by :func:`agent_tools.failfast_gate.missing_timeout_guard()`
+# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_failfast_flag()`
+# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_timeout_guard()`
 def _mask_quoted(seg: str) -> str:
 	return _MASK_QUOTED_RE.sub(lambda m: ' ' * len(m.group(0)), seg)
 # @used-by :func:`_classify_segment()`
@@ -191,9 +191,9 @@ def _strip_shell_herestrings(cmd: str) -> str:
 # 2026-11-24
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
-# @used-by :func:`agent_tools.failfast_gate.evaluate_pre_tool_use_test_failfast()`
 # @used-by :func:`agent_tools.tdd.evaluator._update_scope_from_test_cmd()`
 # @used-by :func:`agent_tools.tdd.events.build_command_tdd_event()`
+# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.evaluate()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 # @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_classify_run_tests_full_and_filtered()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
@@ -279,8 +279,8 @@ def shell_write_targets(cmd: str, *, cwd: Path | None=None, classifications: tup
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
-# @used-by :func:`agent_tools.failfast_gate.missing_failfast_flag()`
 # @used-by :func:`classify_test_command()`
+# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_failfast_flag()`
 def unwrap_watchdog_prefix(seg: str) -> str:
 	m = _HARNESS_WATCHDOG_PREFIX_RE.match(seg or '')
 	return seg[m.end():] if m else (seg or '')

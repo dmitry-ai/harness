@@ -997,8 +997,8 @@ def default_user_locale(config=None) -> str | None:
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 # @used-by :func:`agent_tools.addon_observability._touches_antigravity_addons()`
-# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_sanctioned_code()`
 # @used-by :func:`agent_tools.shell_audit._is_sanctioned_addon_command()`
+# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_sanctioned_code()`
 # @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_sanctioned_addon_roots_and_cdp_bypass_gate()`
 def sanctioned_addon_code_roots(config=None):
 	import sys

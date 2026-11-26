@@ -216,8 +216,8 @@ def clear_repo_locator_cache() -> None:
 	_GLOBAL_INDEX_CACHE['expires_at'] = 0.0
 	_GLOBAL_INDEX_CACHE['key'] = None
 	_GLOBAL_INDEX_CACHE['slug_map'] = {}
-# @used-by :func:`agent_tools.repo_link_gate._validate_github_url()`
-# @used-by :func:`agent_tools.repo_link_gate.resolve_local_github_blob()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.resolve_blob()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.validate_github_url()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.find_local_code_repo()`
 # @used-by :meth:`test_repo_locator_perf.RepoLocatorPerformanceTests.test_find_local_code_repo_discovers_direct_similar_project_peer_locally()`
 # @used-by :meth:`test_repo_locator_perf.RepoLocatorPerformanceTests.test_find_local_code_repo_isolates_temp_project_from_host_search_roots()`
@@ -236,8 +236,8 @@ def find_local_code_repo(repo: str, project_root: str | Path | None=None, source
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
 # @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
-# @used-by :func:`agent_tools.repo_link_gate._enclosing_github_repo()`
 # @used-by :func:`agent_tools.repo_tags.build_github_blob_url()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.origin_repo_slug()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_origin_repo_slug_skips_git_subprocess_for_local_repo_without_origin()`
 def origin_repo_slug(code_repo: Path) -> str | None:

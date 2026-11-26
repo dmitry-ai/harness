@@ -469,7 +469,7 @@ def extract_antigravity_issue_first_events(transcript_path: Path, *, cwd: Path |
 	return (events, requests)
 
 
-# @used-by :func:`agent_tools.gates.issue_first.check()`
+# @used-by :meth:`Df.Harness.Gate.IssueFirstPreToolGate.IssueFirstPreToolGate.check()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`

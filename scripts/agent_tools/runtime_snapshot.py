@@ -269,8 +269,8 @@ def finalize_native_install(result: dict, primary: Path, *, check: bool) -> dict
 			result['valid'] = False
 			result['issues'].append({'file': str(primary), 'message': f"Runtime snapshot promotion failed: {snap.get('error', 'unknown error')}"})
 	return result
-# @used-by :func:`agent_tools.gates.worktree_isolation._evaluate_main_checkout()`
 # @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
+# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__evaluate_main_checkout()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def is_harness_code_repo(repo: str | Path) -> bool:
 	p = Path(repo).resolve()

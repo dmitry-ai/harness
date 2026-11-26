@@ -111,7 +111,7 @@ def _validate_java_file_uses(finfo: dict, repo_index: dict, errs: list[str]) -> 
 			if not ok:
 				ln, rval = (item['lineno'], item['raw_value'])
 				errs.append(f'XREF: {rel}:{ln} unresolved - @uses target {rval}')
-# @used-by :func:`agent_tools.xref_gate.check_file_xref_violations()`
+# @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.check()`
 # @used-by :mod:`agent_tools.xref`
 def check_java_file_local(rel_posix: str, source: str, *, baseline_source: str | None=None, strict_existing: bool=False) -> list[str]:
 	finfo = index_java_file(rel_posix, source)

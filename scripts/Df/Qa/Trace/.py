@@ -40,8 +40,6 @@ class Trace:
 	# @used-by :func:`agent_tools.completion._build_compaction_file_index()`
 	# @used-by :func:`agent_tools.configuration.extract_managed_block()`
 	# @used-by :func:`agent_tools.git_ignore._merge_managed_block()`
-	# @used-by :func:`agent_tools.issue_comment_gate._scan_brace_end()`
-	# @used-by :func:`agent_tools.issue_comment_gate._trailing_comment_urls()`
 	# @used-by :func:`agent_tools.links._bare_urls()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
@@ -55,6 +53,8 @@ class Trace:
 	# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_atom()`
 	# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_step()`
 	# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_step()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__scan_brace_end()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
 	# @used-by :meth:`Trace.__len__()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._clause_has_triple_enumeration()`

@@ -281,7 +281,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 	# @used-by :func:`agent_tools.cleanup_lifecycle._journal_pair_activity()`
 	# @used-by :func:`agent_tools.cleanup_lifecycle._launcher_turn_dirs()`
-	# @used-by :func:`agent_tools.code_size_gate._code_lines_and_semicolons()`
 	# @used-by :func:`agent_tools.completion._build_compaction_file_index()`
 	# @used-by :func:`agent_tools.completion._similar_projects_metadata()`
 	# @used-by :func:`agent_tools.completion.similar_project_exempt()`
@@ -293,10 +292,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.env_isolation_contracts._extract_worktree_land_gates()`
 	# @used-by :func:`agent_tools.evidence_loader._add_anchor()`
 	# @used-by :func:`agent_tools.experiments.requirement_issues()`
-	# @used-by :func:`agent_tools.failfast_gate._active_turn_run_command_tasks()`
-	# @used-by :func:`agent_tools.gates.answer_checks.run_answer_gates()`
-	# @used-by :func:`agent_tools.gates.bulk_source_read._update_streak()`
-	# @used-by :func:`agent_tools.gates.worktree_isolation._count_active_open_turns()`
 	# @used-by :func:`agent_tools.git_gate._ancestor_process_names()`
 	# @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_ticket_metadata()`
@@ -304,8 +299,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.intake._inventory()`
 	# @used-by :func:`agent_tools.intake._validate_new()`
 	# @used-by :func:`agent_tools.intake._validate_receipt()`
-	# @used-by :func:`agent_tools.issue_comment_gate._diff_changes()`
-	# @used-by :func:`agent_tools.issue_comment_gate._scan_record_code()`
 	# @used-by :func:`agent_tools.issue_first_gate.evaluate_issue_first_events()`
 	# @used-by :func:`agent_tools.issue_first_inherit._extract_turn_gh_nums()`
 	# @used-by :func:`agent_tools.issues.parity._evaluate_similar_peer_item()`
@@ -336,11 +329,7 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.platforms.trace_common.collect_subagent_bfs()`
 	# @used-by :func:`agent_tools.platforms.trace_common.summarize_turn_activity()`
 	# @used-by :func:`agent_tools.project_rename_verify._verify_journal_regression()`
-	# @used-by :func:`agent_tools.python_integrity._collect_defined_globals()`
-	# @used-by :func:`agent_tools.python_integrity._collect_undefined_globals()`
 	# @used-by :func:`agent_tools.red_flags.red_flag_issues()`
-	# @used-by :func:`agent_tools.repo_link_gate.hydrate_local_repo_urls()`
-	# @used-by :func:`agent_tools.repo_tag_gate._parse_ls_remote_tags()`
 	# @used-by :func:`agent_tools.repo_tags._build_retro_entry()`
 	# @used-by :func:`agent_tools.research._extract_sitemap()`
 	# @used-by :func:`agent_tools.research._grep_section_windows()`
@@ -354,7 +343,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.schema_help._check_one_assertion()`
 	# @used-by :func:`agent_tools.stop_subagent_check._apply_call()`
 	# @used-by :func:`agent_tools.stop_subagent_check._process_manage_subagents()`
-	# @used-by :func:`agent_tools.subprocess_hygiene_gate._collect_subprocess_bindings()`
 	# @used-by :func:`agent_tools.suite_runner._run_module_worker()`
 	# @used-by :func:`agent_tools.tdd.commands.shell_test_delete_targets()`
 	# @used-by :func:`agent_tools.tdd.commands.shell_write_targets()`
@@ -389,9 +377,21 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.xref.python_model._walk_class()`
 	# @used-by :func:`agent_tools.xref.python_model.discover_python_files()`
 	# @used-by :func:`agent_tools.xref.python_overrides._check_repo_ancestors()`
-	# @used-by :func:`agent_tools.xref_gate._staged_overrides()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.arch_index_paths()`
+	# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.run()`
+	# @used-by :meth:`Df.Harness.Gate.BulkSourceReadGate.BulkSourceReadGate.__update_streak()`
+	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__code_lines_and_semicolons()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__diff_changes()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__scan_record_code()`
+	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__collect_defined_globals()`
+	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__collect_undefined_globals()`
+	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.hydrate_local_urls()`
+	# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.__parse_ls_remote_tags()`
+	# @used-by :meth:`Df.Harness.Gate.ScheduleGate.ScheduleGate.__record_output_task_ids()`
+	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneChecker.SubprocessHygieneChecker.__collect_subprocess_bindings()`
+	# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__count_active_open_turns()`
+	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.__staged_overrides()`
 	# @used-by :meth:`ResearchQuestionRegistry.contract_issues()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_dependencies_and_caps()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_structure()`
@@ -1043,10 +1043,6 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.claims.grounded_numbers_for_claim()`
 	# @used-by :func:`agent_tools.claims.source_numeric_tokens()`
 	# @used-by :func:`agent_tools.cleanup_lifecycle.count_project_conversations()`
-	# @used-by :func:`agent_tools.code_size_gate._add_override_decorator_lines()`
-	# @used-by :func:`agent_tools.code_size_gate._collect_excluded_lines()`
-	# @used-by :func:`agent_tools.code_size_gate._function_metrics()`
-	# @used-by :func:`agent_tools.code_style_gate._scan_tokens()`
 	# @used-by :func:`agent_tools.completion._instruction_snapshot()`
 	# @used-by :func:`agent_tools.configuration._publish()`
 	# @used-by :func:`agent_tools.configuration.build_native()`
@@ -1079,7 +1075,6 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.platforms.trace_common.summarize_turn_activity()`
 	# @used-by :func:`agent_tools.project_labels.update_state_label()`
 	# @used-by :func:`agent_tools.proposal.render()`
-	# @used-by :func:`agent_tools.python_integrity._collect_defined_globals()`
 	# @used-by :func:`agent_tools.registration._attempt()`
 	# @used-by :func:`agent_tools.registration.save_registration()`
 	# @used-by :func:`agent_tools.research._summarize_observation_bundle()`
@@ -1122,6 +1117,11 @@ class WorkflowStateEngine:
 	# @used-by :func:`update()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__staged_code_entries()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.load_merged_index()`
+	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__add_override_decorator_lines()`
+	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__collect_excluded_lines()`
+	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__function_metrics()`
+	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
+	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__collect_defined_globals()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_claim()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_finish()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_handoff()`

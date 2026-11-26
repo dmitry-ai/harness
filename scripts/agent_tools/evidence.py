@@ -22,8 +22,8 @@ def pointer(*parts):
 # @used-by :func:`agent_tools.evidence_loader.load_observation_content()`
 # @used-by :func:`agent_tools.experiments._select_raw()`
 # @used-by :func:`agent_tools.links.validate_file()`
-# @used-by :func:`agent_tools.repo_link_gate._validate_doc_or_json_anchor()`
 # @used-by :func:`saved_source()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
 def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 	if decode_uri:

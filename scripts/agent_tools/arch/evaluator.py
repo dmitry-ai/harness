@@ -13,7 +13,7 @@ from Df.Harness.Arch.Evaluator import Evaluator
 # @used-by :mod:`agent_tools.arch`
 def check_runner_architecture(runner) -> None:
 	Evaluator.check_runner(runner)
-# @used-by :func:`agent_tools.gates.answer_checks._architecture_messages()`
+# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__architecture_messages()`
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_answer_and_stop_gates_enforce_significant_response_receipt_and_open_findings()`
 # @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_evaluator_checks_response_receipts_and_runner()`
 # @used-by :mod:`agent_tools.arch.evaluator`

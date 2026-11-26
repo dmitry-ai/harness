@@ -192,7 +192,7 @@ def _linked_worktree_main_repo(anchor_dir: Path) -> Path | None:
 # https://github.com/dmitry-ai/harness/issues/188
 # @used-by :func:`agent_tools.git_ignore._is_canonical_primary()`
 # @used-by :func:`agent_tools.native_profiles.shared_native_outputs()`
-# @used-by :func:`agent_tools.rules_manifest.resolve_rules_primary()`
+# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.resolve_primary()`
 # @used-by :meth:`agent_tools.path_registry.PathRegistry.__init__()`
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo()`
 # @used-by :mod:`agent_tools.path_registry`

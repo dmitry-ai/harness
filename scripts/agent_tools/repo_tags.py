@@ -212,9 +212,9 @@ def is_valid_date_tag(tag: str) -> bool:
 		except ValueError:
 			r = False
 	return r
-# @used-by :func:`agent_tools.repo_link_gate._validate_github_url()`
-# @used-by :func:`agent_tools.repo_link_gate.resolve_local_github_blob()`
 # @used-by :func:`pick_preferred_tag()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.resolve_blob()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.validate_github_url()`
 # @used-by :meth:`test_repo_tags.RepoTagsTests.test_date_tag_and_repo_tag_validation()`
 def is_valid_repo_tag(tag: str) -> bool:
 	clean = (tag or '').strip()
@@ -237,8 +237,8 @@ def next_date_tag(existing_tags: Iterable[str], day: str) -> str:
 				max_num = num
 	return clean_day if 0 == max_num else f'{clean_day}--{max_num + 1}'
 # @used-by :func:`_build_retro_entry()`
-# @used-by :func:`agent_tools.repo_tag_gate.verify_closing_commit_tag()`
 # @used-by :func:`ensure_commit_tag()`
+# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.verify()`
 def pick_preferred_tag(tags: Iterable[str]) -> str | None:
 	cleaned = [t.strip() for t in tags if t and t.strip()]
 	date_tags = sorted((t for t in cleaned if is_valid_date_tag(t)))

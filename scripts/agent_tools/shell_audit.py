@@ -54,7 +54,7 @@ from .runtime_cache import run_shell_violation_scan
 # 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
-# @used-by :func:`agent_tools.gates.cdp_bypass._check_read_perimeter()`
+# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.__check_read_perimeter()`
 # @used-by :meth:`ShellCommandInspector.prohibited_cdp_bypass_commands()`
 # @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_runtime_settings_cache_invalidates_on_file_or_env_change_and_isolates_mutations()`
 def protected_browser_perimeter(config=None) -> dict:
@@ -354,13 +354,13 @@ def _parse_commit_subcommand_args(argv: list[str] | tuple[str, ...]) -> tuple[li
 # @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 def _scan_git_global_opts(argv: list[str] | tuple[str, ...], *, base_dir: Path | None=None) -> tuple[int | None, bool, Path | None]:
 	return _INSPECTOR.scan_git_global_opts(argv, base_dir=base_dir)
-# @used-by :func:`agent_tools.failfast_gate.evaluate_pre_tool_use_test_failfast()`
 # @used-by :func:`agent_tools.issue_first_bg.is_df_issue_command_text()`
 # @used-by :func:`agent_tools.tdd.commands._collect_write_matches()`
 # @used-by :func:`agent_tools.tdd.commands.classify_test_command()`
 # @used-by :func:`agent_tools.tdd.commands.shell_test_delete_targets()`
 # @used-by :func:`agent_tools.tdd.evaluator._collect_failfast_warnings()`
 # @used-by :func:`agent_tools.tdd.service_exempt._is_service_command()`
+# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.__normalize_test_cmd()`
 def _split_shell_segments(cmd: str) -> list[str]:
 	return _INSPECTOR._split_segments(cmd)
 # @used-by unused
@@ -405,8 +405,8 @@ def extract_issue_urls(text: str) -> list[str]:
 	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 	return dfa_unique_fast(_GITHUB_ISSUE_URL_RE.findall(text or ''))
 # 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
-# @used-by :func:`agent_tools.gates.cdp_bypass._check_write_content()`
 # @used-by :func:`agent_tools.tdd.exemption.verify_staged_issue_urls()`
+# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.__check_write_content()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 def is_code_file(rel_path: str | Path) -> bool:
@@ -418,7 +418,6 @@ def is_code_file(rel_path: str | Path) -> bool:
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 def normalize_commit_message(message: str | None) -> str:
 	return '\n'.join((line for line in (message or '').splitlines() if not line.startswith('#'))).strip()
-# @used-by :func:`agent_tools.code_size_gate._resolve_python_target()`
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 # @used-by :func:`agent_tools.git_gate.run_git_read()`
@@ -428,7 +427,6 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :func:`agent_tools.git_ignore.prepare_worktrees_base_dir()`
 # @used-by :func:`agent_tools.git_ignore.resolve_global_git_ignore_path()`
 # @used-by :func:`agent_tools.git_ignore.resolve_managed_git_ignore_target()`
-# @used-by :func:`agent_tools.issue_comment_gate._resolve_comment_target()`
 # @used-by :func:`agent_tools.issue_first_gate.build_code_write_issue_first_event()`
 # @used-by :func:`agent_tools.issue_first_gate.evaluate_pre_tool_use_issue_first()`
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
@@ -442,10 +440,12 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :func:`agent_tools.tdd.events._is_git_commit_command()`
 # @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
 # @used-by :func:`agent_tools.tdd.mechanical._resolve_repo_binding()`
-# @used-by :func:`agent_tools.xref_gate._resolve_xref_target()`
 # @used-by :func:`git_shim._normalize_arg_token()`
 # @used-by :func:`git_shim.resolve_system_git()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__resolve_pre_tool_target()`
+# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.resolve_python_target()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.resolve_target()`
+# @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.resolve_target()`
 # @used-by :meth:`ShellCommandInspector.scan_git_global_opts()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.__init__()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.assert_toplevel()`
@@ -482,11 +482,11 @@ def parse_issue_url(url: str) -> tuple[str, int] | None:
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
-# @used-by :func:`agent_tools.gates.cdp_bypass.check()`
+# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.check()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_m4_cdp_bypass_gate_and_m5_browser_mcp_gate()`
 def prohibited_cdp_bypass_commands(text: str, *, config=None) -> list[str]:
 	return _INSPECTOR.prohibited_cdp_bypass_commands(text, config=config)
-# @used-by :func:`agent_tools.gates.git_write.check()`
+# @used-by :meth:`Df.Harness.Gate.GitWriteGate.GitWriteGate.check()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
 def prohibited_git_write_commands(text: str) -> list[str]:
 	return _INSPECTOR.prohibited_git_write_commands(text)

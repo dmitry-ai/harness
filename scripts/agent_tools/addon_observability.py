@@ -123,8 +123,8 @@ def detect_suppressed_worktree_errors(native: dict[str, Any] | None, turn: dict[
 				step_idx = row['step_index'] if isinstance(row.get('step_index'), int) else pos
 				r.append({'error': m.group(0).strip(), 'step': step_idx})
 	return r
-# @used-by :func:`agent_tools.gates.answer_checks._addon_observability_messages()`
 # @used-by :func:`check_runner_addon_observability()`
+# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__addon_observability_messages()`
 # @used-by :mod:`agent_tools.addon_observability`
 def evaluate_addon_observability(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
 	wt_chk = evaluate_worktree_removal_audit(root, native, turn, value, response)

@@ -20,10 +20,15 @@ def df_path_inside(child: str | Path, parent: str | Path) -> bool:
 def df_path_posix(path: str | Path) -> str:
 	return path.as_posix() if isinstance(path, Path) else str(path).replace('\\', '/')
 # Return effective lowercase file suffix, treating dotfiles such as `.py` as their own suffix.
-# @used-by :func:`agent_tools.issue_comment_gate._path_suffix()`
 # @used-by :func:`agent_tools.issues.git_read_cache._effective_suffix()`
 # @used-by :func:`agent_tools.tdd.comment_diff.detect_comment_language()`
 # @used-by :func:`agent_tools.xref_gate._path_suffix()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.check()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.resolve_target()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentStagedGate.IssueCommentStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.__iter_repo_source_files()`
+# @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.lang_for_rel()`
+# @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.resolve_target()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_fs_and_git_helpers()`
 def df_path_suffix(path: str | Path) -> str:
 	p = Path(path)

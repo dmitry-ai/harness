@@ -28,12 +28,12 @@ def _active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[
 	return r
 # @used-by :func:`_eval_pre_code_write()`
 # @used-by :func:`_eval_pre_test_write()`
-# @used-by :func:`agent_tools.code_size_gate.evaluate_pre_tool_use_code_size()`
-# @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
-# @used-by :func:`agent_tools.issue_comment_gate.evaluate_pre_tool_use_issue_comment()`
-# @used-by :func:`agent_tools.subprocess_hygiene_gate.evaluate_pre_tool_use_subprocess_hygiene()`
-# @used-by :func:`agent_tools.xref_gate.evaluate_pre_tool_use_xref()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.evaluate_pre_tool_use()`
+# @used-by :meth:`Df.Harness.Gate.CodeSizePreToolGate.CodeSizePreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.CodeStylePreToolGate.CodeStylePreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentPreToolGate.IssueCommentPreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.SubprocessHygienePreToolGate.SubprocessHygienePreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.XrefPreToolGate.XrefPreToolGate.check()`
 def _compute_edited_content(name: str, args: dict, target_path: Path) -> tuple[str | None, str | None, list[str], set[int]]:
 	old_disk = target_path.read_text(encoding='utf-8', errors='replace') if target_path.is_file() else None
 	new_text = _resolve_new_text(name, args, old_disk)
@@ -198,18 +198,18 @@ def _git_head_sha(repo_root: Path) -> str | None:
 # @used-by :func:`_eval_shell_test_deletes()`
 # @used-by :func:`_eval_test_ratchet_and_fitting()`
 # @used-by :func:`_staged_entry_texts()`
-# @used-by :func:`agent_tools.code_size_gate.evaluate_pre_tool_use_code_size()`
-# @used-by :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
-# @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
-# @used-by :func:`agent_tools.code_style_gate.verify_staged_code_style_ratchet()`
-# @used-by :func:`agent_tools.issue_comment_gate.evaluate_pre_tool_use_issue_comment()`
-# @used-by :func:`agent_tools.issue_comment_gate.verify_staged_issue_comment_placement()`
-# @used-by :func:`agent_tools.python_integrity.verify_touched_python_files()`
-# @used-by :func:`agent_tools.subprocess_hygiene_gate.evaluate_pre_tool_use_subprocess_hygiene()`
-# @used-by :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
-# @used-by :func:`agent_tools.xref_gate.evaluate_pre_tool_use_xref()`
-# @used-by :func:`agent_tools.xref_gate.verify_staged_xref()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__staged_code_entries()`
+# @used-by :meth:`Df.Harness.Gate.CodeSizePreToolGate.CodeSizePreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.CodeSizeStagedGate.CodeSizeStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.CodeStylePreToolGate.CodeStylePreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.CodeStyleStagedGate.CodeStyleStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentPreToolGate.IssueCommentPreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentStagedGate.IssueCommentStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_touched()`
+# @used-by :meth:`Df.Harness.Gate.SubprocessHygienePreToolGate.SubprocessHygienePreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneStagedGate.SubprocessHygieneStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.XrefPreToolGate.XrefPreToolGate.check()`
+# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.verify()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
 def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 	sha = _git_head_sha(repo_root)
@@ -224,13 +224,13 @@ def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 		r = _HEAD_TEXT_CACHE[key]
 	return r
 # @used-by :func:`_staged_entry_texts()`
-# @used-by :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
-# @used-by :func:`agent_tools.code_style_gate.verify_staged_code_style_ratchet()`
-# @used-by :func:`agent_tools.issue_comment_gate.verify_staged_issue_comment_placement()`
-# @used-by :func:`agent_tools.rules_audit._read_staged_overrides()`
-# @used-by :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
-# @used-by :func:`agent_tools.xref_gate._staged_overrides()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__staged_code_entries()`
+# @used-by :meth:`Df.Harness.Gate.CodeSizeStagedGate.CodeSizeStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.CodeStyleStagedGate.CodeStyleStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentStagedGate.IssueCommentStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.RulesAuditor.RulesAuditor.__read_staged_overrides()`
+# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneStagedGate.SubprocessHygieneStagedGate.verify()`
+# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.__staged_overrides()`
 def _git_index_text(repo_root: Path, rel_posix: str) -> str | None:
 	return _git_show_text(repo_root, f':{rel_posix}')
 # 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
@@ -324,8 +324,8 @@ def _verify_staged_test_file(repo: Path, rel: str, fpath: Path, head_text: str |
 # 2026-11-24
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
-# @used-by :func:`agent_tools.gates.tdd.check()`
 # @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
+# @used-by :meth:`Df.Harness.Gate.TddPreToolGate.TddPreToolGate.check()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_pre_tool_use_allows_comment_only_edit_and_denies_code_edit()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`

@@ -65,7 +65,6 @@ class RAM:
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.evidence.local_file()`
 	# @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
-	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
 	# @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 	# @used-by :func:`agent_tools.git_ignore._plan_global_git_ignore()`
 	# @used-by :func:`agent_tools.git_ignore.sync_global_git_ignore()`
@@ -115,7 +114,6 @@ class RAM:
 	# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
 	# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
 	# @used-by :func:`agent_tools.registration._read()`
-	# @used-by :func:`agent_tools.repo_link_gate._enclosing_github_repo()`
 	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait._normalize_repo_list()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
@@ -170,6 +168,8 @@ class RAM:
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
 	# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__find_git_root()`
+	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
+	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
 	# @used-by :meth:`RAM.get()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._extract_added_diff_urls()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`

@@ -27,7 +27,7 @@ def _consume_link(tokens, start: int, label_types: tuple[str, ...]) -> tuple[str
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
 # @used-by :func:`agent_tools.links.decode_file_uri()`
-# @used-by :func:`agent_tools.repo_link_gate._validate_file_uri()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_file_uri()`
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	raw = urldefrag((reference or '').strip())[0]
 	parsed = urlsplit(raw)
@@ -127,9 +127,9 @@ def numeric_text(text):
 # @used-by :func:`agent_tools.links.parse_markdown_headings()`
 # @used-by :func:`agent_tools.links.readable_link_issues()`
 # @used-by :func:`agent_tools.links.references()`
-# @used-by :func:`agent_tools.repo_link_gate._authored_targets()`
 # @used-by :func:`agent_tools.source_grounding.markdown_parser()`
 # @used-by :func:`numeric_text()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__authored_targets()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def parser(*, preserve_links: bool=False, allow_file_links: bool=False, html: bool=True):
 	try:

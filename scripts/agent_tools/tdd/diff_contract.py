@@ -49,7 +49,7 @@ def _parse_batch_blobs(raw: bytes, specs: list[str]) -> dict[str, str | None]:
 			out[spec] = None
 	return out
 # 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
-# @used-by :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
+# @used-by :meth:`Df.Harness.Gate.StagedGates.StagedGates.verify()`
 # @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_detect_mixed_commit_warning_threshold_and_exports()`
 # @used-by :mod:`agent_tools.tdd.diff_contract`
 # @used-by :mod:`agent_tools.tdd.diff_executability`

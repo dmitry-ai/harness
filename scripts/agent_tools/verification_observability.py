@@ -118,8 +118,8 @@ def check_runner_verification_observability(runner) -> None:
 	runner.value['verification_observability_check'] = chk
 	if not chk['verified']:
 		runner._fail_gate('verification_observability', chk['detail'])
-# @used-by :func:`agent_tools.gates.answer_checks._verification_obs_messages()`
 # @used-by :func:`check_runner_verification_observability()`
+# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__verification_obs_messages()`
 # @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_detect_shadow_replay_ignores_cli_arguments_and_matches_real_invocations()`
 # @used-by :mod:`agent_tools.verification_observability`
 def evaluate_verification_observability(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:

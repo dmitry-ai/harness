@@ -135,16 +135,10 @@ class Regex(O):
 	# @used-by :func:`agent_tools.configuration._frontmatter()`
 	# @used-by :func:`agent_tools.configuration._root_options()`
 	# @used-by :func:`agent_tools.context._is_excluded()`
-	# @used-by :func:`agent_tools.failfast_gate.missing_timeout_guard()`
-	# @used-by :func:`agent_tools.gates.send_message_gate._is_duplicate_verdict_payload()`
 	# @used-by :func:`agent_tools.grounding_domains._collect_json_fact_tuples()`
 	# @used-by :func:`agent_tools.hook_runtime._scan_hook_line()`
 	# @used-by :func:`agent_tools.hook_runtime._scan_workflow_line()`
 	# @used-by :func:`agent_tools.hook_runtime._update_fence()`
-	# @used-by :func:`agent_tools.issue_comment_gate._check_header_placement()`
-	# @used-by :func:`agent_tools.issue_comment_gate._is_line_comment_prefix()`
-	# @used-by :func:`agent_tools.issue_comment_gate._scan_record_code()`
-	# @used-by :func:`agent_tools.issue_comment_gate._xml_span()`
 	# @used-by :func:`agent_tools.issue_first_bg._has_direct_issue_seg()`
 	# @used-by :func:`agent_tools.issues.parity._next_skip_depth()`
 	# @used-by :func:`agent_tools.issues.parity.extract_implemented_m_roots()`
@@ -167,12 +161,8 @@ class Regex(O):
 	# @used-by :func:`agent_tools.platforms.trace_common.local_uri_to_path()`
 	# @used-by :func:`agent_tools.problem_tracks.extract_problem_blocks()`
 	# @used-by :func:`agent_tools.project_rename._target_name_and_root()`
-	# @used-by :func:`agent_tools.repo_link_gate._validate_relative_cross_repo()`
 	# @used-by :func:`agent_tools.research._summarize_json_collections()`
 	# @used-by :func:`agent_tools.response_grounding._discourse_topic_key()`
-	# @used-by :func:`agent_tools.rules_audit_checks._is_blind_reference_line()`
-	# @used-by :func:`agent_tools.rules_audit_checks._strip_frontmatter()`
-	# @used-by :func:`agent_tools.rules_manifest.parse_rule_frontmatter()`
 	# @used-by :func:`agent_tools.scatter_banner._fenced_banner_at_start()`
 	# @used-by :func:`agent_tools.scatter_banner._parse_standalone_recommendations()`
 	# @used-by :func:`agent_tools.shell_audit.extract_comment_issue_urls()`
@@ -225,6 +215,16 @@ class Regex(O):
 	# @used-by :func:`agent_tools.xref.python_tags.parse_tag_line()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
+	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_timeout_guard()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__check_header_placement()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__is_line_comment_prefix()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__scan_record_code()`
+	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__xml_span()`
+	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_relative_cross_repo()`
+	# @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.__is_blind_reference_line()`
+	# @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.__strip_frontmatter()`
+	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.parse_frontmatter()`
+	# @used-by :meth:`Df.Harness.Gate.SendMessageGate.SendMessageGate.__is_duplicate_verdict_payload()`
 	# @used-by :meth:`Regex.matchInt()`
 	# @used-by :meth:`Regex.test()`
 	# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector._tokenize()`

@@ -63,8 +63,8 @@ def check_runner_scope_deferral(runner, lifecycle_chk: dict[str, Any]) -> None:
 # 2026-11-26
 # "Surface ask_question clarifications in journal headers and require deferral disclosure":
 # https://github.com/dmitry-ai/harness/issues/376
-# @used-by :func:`agent_tools.gates.answer_checks._scope_deferral_messages()`
 # @used-by :func:`check_runner_scope_deferral()`
+# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__scope_deferral_messages()`
 # @used-by :meth:`test_journal_clarifications_and_disclosure.JournalClarificationsAndDisclosureTests.test_deferral_disclosure_gate_rejects_silent_response_and_accepts_disclosed_rationale()`
 def evaluate_scope_deferral(turn: dict[str, Any] | None, turn_state: dict[str, Any] | None, lifecycle_chk: dict[str, Any] | None, response: str | None=None, *, blocked_report: bool=False) -> dict[str, Any]:
 	deferred = [d for d in ((lifecycle_chk or {}).get('deferred_children') or ()) if isinstance(d, dict)]

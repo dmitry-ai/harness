@@ -193,7 +193,7 @@ def _resolve_transcript_file(transcript_path: str) -> Path | None:
 # 2026-11-24
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
-# @used-by :func:`agent_tools.failfast_gate._schedule_block_reason()`
+# @used-by :meth:`Df.Harness.Gate.ScheduleGate.ScheduleGate.__schedule_block_reason()`
 def evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: dict) -> str | None:
 	t_path = _resolve_transcript_file(transcript_path)
 	r: str | None = None

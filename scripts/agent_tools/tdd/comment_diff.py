@@ -250,7 +250,7 @@ def classify_comment_or_whitespace_diff(path: str | Path, old_text: str | None, 
 # "Add comment-only diff lexer exemption for top 20 repository languages":
 # https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
-# @used-by :func:`agent_tools.issue_comment_gate._check_diff_issue_lines()`
+# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__check_diff_issue_lines()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_all_software_code_suffixes_and_basenames_have_lexers()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_comment_only_diffs_accepted_for_all_20_languages()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_non_comment_and_edge_cases_fail_closed()`

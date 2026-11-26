@@ -155,10 +155,10 @@ class HTMLReferences(HTMLParser):
 	# "Apply cross-reference annotations across Harness Python and JavaScript":
 	# https://github.com/dmitry-ai/harness/issues/305
 	# @used-by :func:`agent_tools.completion._authored_nonquote_hrefs()`
-	# @used-by :func:`agent_tools.repo_link_gate._authored_targets()`
 	# @used-by :func:`check_network()`
 	# @used-by :func:`readable_link_issues()`
 	# @used-by :func:`references()`
+	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__authored_targets()`
 	# @see :meth:`html.parser.HTMLParser.__init__()`
 	@override
 	def __init__(self, *, authored_only=False):
@@ -211,8 +211,8 @@ def _bare_urls(text: str):
 			while url.endswith(right) and url.count(right) > url.count(left):
 				url = url[:-1]
 		yield url
-# @used-by :func:`agent_tools.repo_link_gate._collect_block_targets()`
 # @used-by :func:`readable_link_issues()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__collect_block_targets()`
 # @used-by :meth:`HTMLReferences.handle_data()`
 def _document_urls(text: str):
 	yield from _bare_urls(text)
@@ -220,12 +220,12 @@ def _document_urls(text: str):
 		yield match.group().rstrip('.,;!?)')
 # @used-by :func:`agent_tools.cli.main()`
 # @used-by :func:`agent_tools.completion._response_link_issues()`
-# @used-by :func:`agent_tools.repo_link_gate._validate_doc_or_json_anchor()`
 # @used-by :func:`agent_tools.research.extract_markdown()`
 # @used-by :func:`agent_tools.text_sources.check_links()`
 # @used-by :func:`agent_tools.text_sources.source_urls()`
 # @used-by :func:`validate_content()`
 # @used-by :func:`validate_file()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_code_samples_are_not_document_links()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_markdown_reference_links_balanced_parentheses_and_html()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_readable_source_survives_a_renderer_that_encodes_its_href()`
@@ -353,9 +353,9 @@ def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
 # @used-by :func:`agent_tools.completion._response_link_issues()`
-# @used-by :func:`agent_tools.repo_link_gate._validate_doc_or_json_anchor()`
 # @used-by :func:`validate_content()`
 # @used-by :func:`validate_file()`
+# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
 def heading_anchors(content: str) -> set[str]:
 	return parse_markdown_headings(content)[1]
 # 2026-10-11
@@ -366,7 +366,7 @@ def heading_anchors(content: str) -> set[str]:
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.cli.main()`
 # @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
-# @used-by :func:`agent_tools.rules_audit_checks.check_links_and_blind_references()`
+# @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.check_links_and_blind_references()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.check_commit()`
 # @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.kb_issues()`
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_stage4_docs_document_arch_audit_gate_and_lint_cleanly()`

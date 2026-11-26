@@ -1,18 +1,10 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
-# 2026-11-23
-# "Extract PreToolUse and completion gates into priority plugin registry":
-# https://github.com/dmitry-ai/harness/issues/167
-NAME = 'EXEC-4-SCHEDULE-GATE'
-PRIORITY = 95
-# 2026-11-24
-# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
-# https://github.com/dmitry-ai/harness/issues/187
-TOOLS = frozenset({'schedule'})
-# @used-by :func:`agent_tools.gates._load_builtin_entry()`
+# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+from Df.Harness.Gate.ScheduleGate import ScheduleGate
+NAME = ScheduleGate.NAME
+PRIORITY = ScheduleGate.PRIORITY
+TOOLS = ScheduleGate.TOOLS
+# @used-by :meth:`Df.Harness.Gate.PreToolRegistry.PreToolRegistry.__load_builtin_entry()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
-	# 2026-11-24
-	# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
-	# https://github.com/dmitry-ai/harness/issues/187
-	from ..failfast_gate import evaluate_pre_tool_use_schedule
-	return evaluate_pre_tool_use_schedule(name, args, payload or {})
+	return ScheduleGate().check(name, args, payload)
