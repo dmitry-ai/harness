@@ -19,6 +19,9 @@ _BANNER = (
 	+ '*' * 63 + '\n'
 	+ '```'
 )
+# @used-by :func:`_four_track_en()`
+# @used-by :meth:`DfAnalysisCompanionTracksTests.test_four_blocks_missing_or_merged_companion_track_rejected()`
+# @used-by :meth:`DfAnalysisCompanionTracksTests.test_single_problem_block_rejected_when_companion_tracks_missing()`
 def _block_en(header: str, tag: str, issue_url: str | None, desc: str, src_link: str, m1_body: str='') -> str:
 	iss = 'null' if None is issue_url else f'"{issue_url}"'
 	m1_text = m1_body if m1_body else '- Essence: Enforce a deterministic invariant inside the owning module.  \n'
@@ -59,6 +62,8 @@ def _block_en(header: str, tag: str, issue_url: str | None, desc: str, src_link:
 		'- Arguments against: Fails silently under pressure.  \n'
 		'- Score: 20% for systemic elimination.  \n'
 	)
+# @used-by :func:`_four_track_ru()`
+# @used-by :meth:`DfAnalysisCompanionTracksTests.test_bundled_companion_topics_inside_single_block_still_rejected()`
 def _block_ru(header: str, tag: str, issue_url: str | None, desc: str, src_link: str, m1_body: str='') -> str:
 	iss = 'null' if None is issue_url else f'"{issue_url}"'
 	m1_text = m1_body if m1_body else '- Суть: Закрыть дефект системной проверкой в базовом модуле.  \n'
@@ -99,6 +104,8 @@ def _block_ru(header: str, tag: str, issue_url: str | None, desc: str, src_link:
 		'- Доводы против: Не защищает от повторения ошибки.  \n'
 		'- Оценка эксперта: 20% по критерию системной надёжности.  \n'
 	)
+# @used-by :meth:`DfAnalysisCompanionTracksTests.test_four_separate_problem_analyses_validated_independently_ru_and_en()`
+# @used-by :meth:`test_doc5_context_trigger.Doc5ContextTriggerTests.test_active_turn_cli_failure_plus_new_parent_issue_forces_doc5_four_tracks()`
 def _four_track_en(src_link: str, *, m1_primary: str='') -> str:
 	parts = [
 		_block_en('Analysis 1: Hook timeout failure', '1', 'https://github.com/dmitry-ai/harness/issues/245', 'PreToolUse timed out with verbatim error: `exit status 1, stderr: `. ', src_link, m1_body=m1_primary),
@@ -107,6 +114,8 @@ def _four_track_en(src_link: str, *, m1_primary: str='') -> str:
 		_block_en('Analysis 4: Journal and reporting integrity', '4', 'https://github.com/dmitry-ai/harness/issues/248', 'Agent output bypassed Journal `ꙮ` (`FILE-3`) after `Stop hook blocked termination` fell open.', src_link),
 	]
 	return '\n---\n\n'.join(parts)
+# @used-by :meth:`DfAnalysisCompanionTracksTests.test_four_separate_problem_analyses_validated_independently_ru_and_en()`
+# @used-by :meth:`DfAnalysisCompanionTracksTests.test_scatter_banner_enforced_in_earlier_problem_blocks()`
 def _four_track_ru(src_link: str, *, m1_primary: str='') -> str:
 	parts = [
 		_block_ru('Разбор задачи §1: падение хука при выполнении хода', '1', 'https://github.com/dmitry-ai/harness/issues/245', 'Хук завершился с дословной ошибкой: «JSON hook failed: exit status 1».', src_link, m1_body=m1_primary),
@@ -119,6 +128,7 @@ def _four_track_ru(src_link: str, *, m1_primary: str='') -> str:
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
 class DfAnalysisCompanionTracksTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_bundled_companion_topics_inside_single_block_still_rejected(self) -> None:
 		bundled = _block_ru(
 			'Разбор проблемы целиком',
@@ -129,6 +139,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 		)
 		errs = df_analysis.validate_df_analysis(bundled, mode='auto')
 		self.assertTrue(any('4 separate' in e for e in errs), errs)
+	# @used-by :mod:`unittest`
 	def test_four_blocks_missing_or_merged_companion_track_rejected(self) -> None:
 		src = 'https://example.com/log#line1'
 		missing_test = '\n---\n\n'.join([
@@ -147,6 +158,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 		])
 		errs_merged = df_analysis.validate_df_analysis(merged_two, mode='auto')
 		self.assertTrue(any('distinct' in e.lower() or 'separate' in e.lower() for e in errs_merged), errs_merged)
+	# @used-by :mod:`unittest`
 	def test_four_separate_problem_analyses_validated_independently_ru_and_en(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve()
@@ -170,6 +182,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 			proc = subprocess.run([sys.executable, cli, 'analysis-check', str(proj), '--response-file', str(ok_f), '--mode', 'problem'], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=False, timeout=30)
 			self.assertEqual(0, proc.returncode, proc.stderr or proc.stdout)
 			self.assertTrue(json.loads(proc.stdout)['valid'])
+	# @used-by :mod:`unittest`
 	def test_general_mode_and_non_problem_responses_unaffected(self) -> None:
 		self.assertEqual([], df_analysis.validate_df_analysis('Задача выполнена успешно.  \n', requests=[{'text': 'Fix typo'}], mode='auto'))
 		general = (
@@ -177,6 +190,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 			'## H-2. Lock wait\n- Essence: see [doc](https://example.com/b#s).  \n- Arguments for: spikes under load.  \n- Arguments against: single run lags.  \n- Plausibility: 55%.  \n'
 		)
 		self.assertEqual([], df_analysis.validate_df_analysis(general, requests=[{'text': '/df-analysis Compare options'}], mode='auto'))
+	# @used-by :mod:`unittest`
 	def test_scatter_banner_enforced_in_earlier_problem_blocks(self) -> None:
 		src = 'https://example.com/log#s'
 		scatter_m1 = '- Суть: Перенести временные файлы в `%LOCALAPPDATA%/harness/tmp`.  \n'
@@ -185,6 +199,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 		self.assertTrue(any('FILE-6' in e for e in errs), errs)
 		good_doc = _four_track_ru(src, m1_primary=f'{_BANNER}\n\n{scatter_m1}')
 		self.assertEqual([], df_analysis.validate_df_analysis(good_doc, mode='auto'))
+	# @used-by :mod:`unittest`
 	def test_single_problem_block_rejected_when_companion_tracks_missing(self) -> None:
 		single = _block_en('Analysis 1: Hook timeout failure', '1', 'https://github.com/dmitry-ai/harness/issues/245', 'PreToolUse failed with verbatim `exit status 1`.', 'https://example.com/log#s')
 		errs = df_analysis.validate_df_analysis(single, mode='auto')
@@ -192,6 +207,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 		self.assertTrue(any('culprit' in e.lower() for e in errs), errs)
 		self.assertTrue(any('test' in e.lower() for e in errs), errs)
 		self.assertTrue(any('journal' in e.lower() for e in errs), errs)
+	# @used-by :mod:`unittest`
 	def test_skill_rules_and_docs_codify_mandatory_separate_companion_tracks(self) -> None:
 		skills = native_profiles._skills(WT_ROOT)
 		skill_path = skills['df-analysis'][0]

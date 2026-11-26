@@ -1,5 +1,6 @@
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
+from typing import override
 import argparse
 import json
 from unittest.mock import patch
@@ -15,6 +16,14 @@ from agent_tools.research import json_data
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class TextReviewTests(TextWorkspaceCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.fixture()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_full_native_review_fixture_requires_and_preserves_source_assessments()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_text_workflow.TextWorkspaceCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.registry()
@@ -22,10 +31,24 @@ class TextReviewTests(TextWorkspaceCase):
 		self.candidate = '1. The captured page contains Alternative.\n'
 		self.checked = text_workflow.check(self.project, self.op['id'], self.candidate, self.manifest(self.candidate))
 		self.parent = str(uuid.uuid4())
+	# @used-by :meth:`TextReviewTests.test_independent_routine_verdict_apply_and_exact_journal()`
+	# @used-by :meth:`TextReviewTests.test_map_change_does_not_inherit_an_old_check_approval()`
+	# @used-by :meth:`TextReviewTests.test_parent_cannot_authorize_its_own_text()`
+	# @used-by :meth:`TextReviewTests.test_same_rejected_subject_cannot_be_reset_by_a_new_operation_path()`
+	# @used-by :meth:`TextReviewTests.test_significant_subject_needs_two_distinct_reviewers()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_full_native_review_fixture_requires_and_preserves_source_assessments()`
 	def package(self, **spec):
 		return text_review.prepare(self.project, self.checked['check'], self.parent, spec)
+	# @used-by :meth:`TextReviewTests.record_fixture()`
+	# @used-by :meth:`TextReviewTests.test_parent_cannot_authorize_its_own_text()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_full_native_review_fixture_requires_and_preserves_source_assessments()`
 	def report(self, package, *, result='approved', findings=None):
 		return {'schema_version': 2, 'package': package['package'], 'package_sha256': package['package_sha256'], 'scope': list(text_review.SCOPES), 'result': result, 'findings': findings or [], 'claim_reviews': [{'claim_id': claim['claim_id'], 'observed': 'The saved capture contains Alternative.', 'inferred': 'Only literal presence at this captured URL is stated.', 'method': 'Read the exact saved response bytes.', 'alternatives': 'The live page may subsequently change.', 'limits': 'One captured page at one time.', 'falsification': 'Absence of this literal text would falsify the statement.', 'raw_vs_criteria': 'Literal presence is compared to literal presence, without inferring execution.', 'test_alignment': {'target_claim': claim['essence'], 'tested_claim': 'The captured page contains Alternative.', 'relationship': 'direct', 'rationale': 'The literal excerpt is present in the primary response.', 'counterexample': 'A later changed live page would not falsify this historical capture.'}, 'text_checks': {key: 'Saved literal capture supports this one-page assertion; no causal, numerical or owner claims.' for key in text_review.TEXT_CHECKS}, 'outcome': 'supported'} for claim in package['claims']]}
+	# @used-by :meth:`TextReviewTests.test_independent_routine_verdict_apply_and_exact_journal()`
+	# @used-by :meth:`TextReviewTests.test_map_change_does_not_inherit_an_old_check_approval()`
+	# @used-by :meth:`TextReviewTests.test_same_rejected_subject_cannot_be_reset_by_a_new_operation_path()`
+	# @used-by :meth:`TextReviewTests.test_significant_subject_needs_two_distinct_reviewers()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_full_native_review_fixture_requires_and_preserves_source_assessments()`
 	def record_fixture(self, package, reviewer=None, **kwargs):
 		reviewer = reviewer or str(uuid.uuid4())
 		report = self.report(package, **kwargs)
@@ -35,8 +58,13 @@ class TextReviewTests(TextWorkspaceCase):
 		with patch('agent_tools.metrics.verify_native_proof', return_value=native):
 			r = text_review.record(self.project, final.encode(), parent_id=self.parent, reviewer_id=reviewer, native_evidence=path.relative_to(self.project).as_posix())
 		return r
+	# @used-by :meth:`TextReviewTests.test_independent_routine_verdict_apply_and_exact_journal()`
+	# @used-by :meth:`TextReviewTests.test_map_change_does_not_inherit_an_old_check_approval()`
+	# @used-by :meth:`TextReviewTests.test_same_rejected_subject_cannot_be_reset_by_a_new_operation_path()`
+	# @used-by :meth:`TextReviewTests.test_significant_subject_needs_two_distinct_reviewers()`
 	def verified(self):
 		return patch('agent_tools.metrics.verify_native_proof', side_effect=lambda root, native, package=None: native)
+	# @used-by :mod:`unittest`
 	def test_independent_routine_verdict_apply_and_exact_journal(self):
 		package = self.package()
 		self.record_fixture(package)
@@ -49,12 +77,14 @@ class TextReviewTests(TextWorkspaceCase):
 		self.assertEqual(result['journal_steps'], [1])
 		self.assertEqual((self.project / 'journal/req/1.md').read_bytes(), self.op['requests'][0].encode())
 		self.assertFalse((self.project / 'ꘖ/project.json').exists())
+	# @used-by :mod:`unittest`
 	def test_parent_cannot_authorize_its_own_text(self):
 		package = self.package()
 		report = self.report(package)
 		report['review_kind'] = 'self_review'
 		with self.assertRaisesRegex(ValueError, 'independent'):
 			text_review.record(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent, native_evidence=None)
+	# @used-by :mod:`unittest`
 	def test_significant_subject_needs_two_distinct_reviewers(self):
 		package = self.package(task_flags=['new_causal_analysis'])
 		first = self.record_fixture(package)
@@ -66,6 +96,7 @@ class TextReviewTests(TextWorkspaceCase):
 		self.record_fixture(package)
 		with self.verified():
 			self.assertEqual(text_workflow.apply(self.project, self.checked['check'])['status'], 'applied')
+	# @used-by :mod:`unittest`
 	def test_map_change_does_not_inherit_an_old_check_approval(self):
 		self.record_fixture(self.package())
 		manifest = self.manifest(self.candidate)
@@ -73,6 +104,7 @@ class TextReviewTests(TextWorkspaceCase):
 		changed = text_workflow.check(self.project, self.op['id'], self.candidate, manifest)
 		with self.verified(), self.assertRaisesRegex(ValueError, 'approval'):
 			text_workflow.apply(self.project, changed['check'])
+	# @used-by :mod:`unittest`
 	def test_same_rejected_subject_cannot_be_reset_by_a_new_operation_path(self):
 		initial = self.package()
 		finding = {'id': 'scope-finding', 'severity': 'significant', 'status': 'open', 'description': 'The sample boundary requires independent confirmation.', 'claim_ids': ['text-1']}
@@ -91,6 +123,7 @@ class TextReviewTests(TextWorkspaceCase):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class TextBoundaryTests(TextWorkspaceCase):
+	# @used-by :mod:`unittest`
 	def test_dom_cli_dispatch_keeps_the_explicit_authorized_session(self):
 		from agent_tools import operations
 		parser = argparse.ArgumentParser()
@@ -100,12 +133,14 @@ class TextBoundaryTests(TextWorkspaceCase):
 			self.assertEqual(operations.execute(args), {'fixture': True})
 		self.assertEqual(capture.call_args.kwargs['session_id'], 'authorized-fixture')
 		self.assertNotIn('port', capture.call_args.kwargs)
+	# @used-by :mod:`unittest`
 	def test_application_hashing_is_distinct_from_service_fingerprints(self):
 		from agent_tools.proposal import lint_text
 		valid = lint_text('1. The tag hashes the email address with SHA-256.\n')
 		self.assertNotIn('APP-HASH', {finding.rule for finding in valid})
 		invalid = lint_text('1. The response body has SHA-256 `1234`.\n')
 		self.assertIn('APP-HASH', {finding.rule for finding in invalid})
+	# @used-by :mod:`unittest`
 	def test_matching_request_blocks_direct_write_but_unrelated_journal_is_allowed(self):
 		target, op = self.start()
 		target.write_text('Direct unreviewed overwrite.\n', encoding='utf-8')
@@ -114,11 +149,13 @@ class TextBoundaryTests(TextWorkspaceCase):
 		with self.assertRaisesRegex(ValueError, 'without a current apply receipt'):
 			journal.record_step(chat, op['requests'][0], 'Updated the proposal.\n')
 		self.assertEqual(target.read_text(), 'Direct unreviewed overwrite.\n')
+	# @used-by :mod:`unittest`
 	def test_missing_map_is_an_invalid_result_instead_of_a_crash(self):
 		_, op = self.start()
 		result = text_workflow.check(self.project, op['id'], '1. A substantive new claim.\n')
 		self.assertFalse(result['valid'])
 		self.assertIn('text.map', codes(result))
+	# @used-by :mod:`unittest`
 	def test_links_only_allows_url_presentation_but_preserves_crlf_and_anchor_words(self):
 		original = '1. Read https://example.org/a\r\n'
 		target, op = self.start(original, changes='links')
@@ -128,6 +165,7 @@ class TextBoundaryTests(TextWorkspaceCase):
 		self.assertIn('text.scope', codes(text_workflow.scope_issues(op, base, allowed.replace('\r\n', '\n'))))
 		self.assertIn('text.scope', codes(text_workflow.scope_issues(op, base, '1. Read [unrelated label](https://example.org/a)\r\n')))
 		self.assertEqual(text_workflow.scope_issues(op, b'1. Read https://example.org/a.\r\n', '1. Read [**example.org**/a](https://example.org/a).\r\n'), [])
+	# @used-by :mod:`unittest`
 	def test_section_scope_covers_group_headers_and_protects_part_title(self):
 		source = '# I. Analysis\n## 1\n<a name="§I.1"></a>\n### 1.1\n<a name="§I.1.1"></a>\nFact.\n# II. Recommendations\n## 1\n<a name="§II.1"></a>\nAct.\n'
 		op = {'kind': 'article', 'mode': 'edit', 'changes': 'prose', 'allow_sections': ['II.1']}
@@ -135,13 +173,16 @@ class TextBoundaryTests(TextWorkspaceCase):
 		op['allow_sections'] = ['I.1']
 		self.assertEqual(text_workflow.scope_issues(op, source.encode(), source.replace('Fact.', 'Another fact.')), [])
 		self.assertIn('text.outside_scope', codes(text_workflow.scope_issues(op, source.encode(), source.replace('Act.', 'Another action.'))))
+	# @used-by :mod:`unittest`
 	def test_renumber_scope_accepts_external_spacing_without_rebinding_its_number(self):
 		base = '1. Read 11 CCR § 7025.\n2. See §1.\n'
 		op = {'kind': 'proposal', 'mode': 'edit', 'changes': 'renumber', 'allow_sections': []}
 		self.assertEqual(text_workflow.scope_issues(op, base.encode(), base.replace('§ 7025', '§7025')), [])
 		self.assertIn('text.scope', codes(text_workflow.scope_issues(op, base.encode(), base.replace('§ 7025', '§7026'))))
+	# @used-by :mod:`unittest`
 	def test_network_source_checks_distinguish_missing_anchor_and_skip_inline_code(self):
 		seen = []
+		# @used-by :meth:`TextBoundaryTests.test_network_source_checks_distinguish_missing_anchor_and_skip_inline_code()`
 		def fetch(url, timeout):
 			seen.append(url)
 			r = Page(url, 200, 'text/html', '<h2 id="real">Real section</h2>')
@@ -149,6 +190,7 @@ class TextBoundaryTests(TextWorkspaceCase):
 		self.assertEqual(text_sources.check_links('Read [docs](https://example.org/#real).\n`https://not-a-source.invalid`', fetcher=fetch), [])
 		self.assertNotIn('https://not-a-source.invalid', seen)
 		self.assertTrue(text_sources.check_links('https://example.org/#invented', fetcher=fetch))
+	# @used-by :mod:`unittest`
 	def test_cli_proposal_profile_and_fields_have_real_exit_status(self):
 		proposal = self.project_file('candidate.md', '1. The website contains a form.\n')
 		self.assertEqual(self.cli('df_proposal', 'lint', proposal).returncode, 0)

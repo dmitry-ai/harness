@@ -10,6 +10,7 @@ from .diagnostics import problem
 SEQUENCE_RECOVERY_FILE = 'sequence-recovery.json'
 _OTHER_JOB_RE = re.compile('~(\\d{10,})')
 _TURN_AUX_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
+# @used-by :func:`validate_finalize_journal()`
 def _check_reconciliation_failures(root: Path, cids: set[str]) -> None:
 	by_key, _ = _turn_index_for_project(root)
 	for st in by_key.values():
@@ -18,6 +19,8 @@ def _check_reconciliation_failures(root: Path, cids: set[str]) -> None:
 		if (not cids or cid in cids) and isinstance(rec, dict) and False is rec.get('valid'):
 			err_text = rec.get('error') or 'unknown'
 			raise ValueError(f'Unresolved native_reconciliation error before finalizing: {err_text}')
+# @used-by :func:`_eligible_active_turn_keys()`
+# @used-by :func:`collect_conversation_journal_steps()`
 def _committed_turn_steps(st_obj: dict) -> list[int]:
 	r: list[int] = []
 	for slot in ('prepared', 'journal_record', 'delivery'):
@@ -25,6 +28,7 @@ def _committed_turn_steps(st_obj: dict) -> list[int]:
 		if isinstance(rec, dict) and isinstance(rec.get('journal_steps'), list):
 			r.extend((s for s in rec['journal_steps'] if int is type(s) and 1 <= s))
 	return r
+# @used-by :func:`collect_conversation_journal_steps()`
 def _eligible_active_turn_keys(cid_turns: list[tuple[str, dict]]) -> tuple[set[str], set[int]]:
 	max_start = max((st['native_start_step'] for _, st in cid_turns if isinstance(st.get('native_start_step'), int)), default=-1)
 	keys: set[str] = set()
@@ -37,6 +41,7 @@ def _eligible_active_turn_keys(cid_turns: list[tuple[str, dict]]) -> tuple[set[s
 			if isinstance(st.get('reserved_journal_steps'), list):
 				steps.update((s for s in st['reserved_journal_steps'] if int is type(s) and 1 <= s))
 	return (keys, steps)
+# @used-by :func:`collect_conversation_journal_steps()`
 def _group_steps_for_cid(jdir: Path, cid: str, iter_groups_fn) -> set[int]:
 	steps: set[int] = set()
 	req_prefix, turn_prefix = (cid + '-', f'ag-{cid}-')
@@ -46,6 +51,9 @@ def _group_steps_for_cid(jdir: Path, cid: str, iter_groups_fn) -> set[int]:
 		if any((isinstance(rid, str) and rid.lower().startswith(req_prefix) for rid in rids)) or t_name.startswith(turn_prefix):
 			steps.update((st for st in (group.get('steps') or ()) if int is type(st) and 1 <= st))
 	return steps
+# @used-by :func:`_turn_index_for_project()`
+# @used-by :func:`collect_conversation_journal_steps()`
+# @used-by :func:`collect_handed_off_conversations()`
 def _iter_turn_states(turns_dir: Path, read_fn) -> list[tuple[Path, dict]]:
 	r: list[tuple[Path, dict]] = []
 	if turns_dir.is_dir():
@@ -58,6 +66,9 @@ def _iter_turn_states(turns_dir: Path, read_fn) -> list[tuple[Path, dict]]:
 				except (OSError, ValueError):
 					pass
 	return r
+# @used-by :func:`_turn_index_for_project()`
+# @used-by :func:`acknowledged_sequence_gaps()`
+# @used-by :func:`prune_terminal_conflict_reservations()`
 def _load_json_dict(path: Path) -> dict | None:
 	r = None
 	if path.is_file():
@@ -68,6 +79,7 @@ def _load_json_dict(path: Path) -> dict | None:
 		except (OSError, ValueError):
 			r = None
 	return r
+# @used-by :func:`turn_matches_handoff()`
 def _mentioned_other_job(reqs: list[dict], job_str: str) -> bool:
 	target_num = str(job_str or '').lstrip('~').strip()
 	r = False
@@ -79,9 +91,11 @@ def _mentioned_other_job(reqs: list[dict], job_str: str) -> bool:
 				break
 	return r
 # 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
+# @used-by unused
 def _reservation_orphan_reason(r_key: str, entry: dict, max_existing: int, committed_rids: set[str], by_key: dict[str, dict], max_start_by_cid: dict[str, int], *, require_empty: bool) -> str | None:
 	from .journal_liveness import classify_reservation_entry
 	return classify_reservation_entry(r_key, entry, max_existing, committed_rids, by_key, max_start_by_cid, require_empty=require_empty, turn_reason_fn=_turn_state_orphan_reason)[0]
+# @used-by :func:`prune_overlapping_reservations()`
 def _subtract_entry_overlap(entry: dict, req_set: set[str], committed_steps: set[int]) -> tuple[dict | None, bool]:
 	e_reqs = list(entry.get('request_ids') or ())
 	e_steps = list(entry.get('steps') or ())
@@ -97,6 +111,8 @@ def _subtract_entry_overlap(entry: dict, req_set: set[str], committed_steps: set
 		drop = (not kept_steps) or (bool(e_reqs) and not kept_reqs)
 		r = (None if drop else {**entry, 'request_ids': kept_reqs, 'steps': kept_steps}, changed)
 	return r
+# @used-by :func:`_check_reconciliation_failures()`
+# @used-by :func:`classify_reservations()`
 def _turn_index_for_project(project_root: Path | None) -> tuple[dict[str, dict], dict[str, int]]:
 	by_key: dict[str, dict] = {}
 	max_start: dict[str, int] = {}
@@ -110,6 +126,8 @@ def _turn_index_for_project(project_root: Path | None) -> tuple[dict[str, dict],
 			if cid and isinstance(start, int):
 				max_start[cid] = max(start, max_start.get(cid, -1))
 	return (by_key, max_start)
+# @used-by :func:`_reservation_orphan_reason()`
+# @used-by :func:`classify_reservations()`
 def _turn_state_orphan_reason(r_key: str, st: dict, cid: str, max_start_by_cid: dict[str, int]) -> str | None:
 	rec = st.get('native_reconciliation')
 	start = st.get('native_start_step')
@@ -123,12 +141,14 @@ def _turn_state_orphan_reason(r_key: str, st: dict, cid: str, max_start_by_cid: 
 	else:
 		r = None
 	return r
+# @used-by :func:`missing_contiguous_steps()`
 def acknowledged_sequence_gaps(jdir: Path) -> set[int]:
 	data = _load_json_dict(journal.state_dir(Path(jdir).resolve()) / SEQUENCE_RECOVERY_FILE)
 	r: set[int] = set()
 	if isinstance(data, dict) and str(data.get('reason') or data.get('note') or '').strip():
 		r = {s for s in (data.get('acknowledged_gaps') or ()) if int is type(s) and 1 <= s}
 	return r
+# @used-by :func:`finalize_project_check()`
 def check_project_journal_problems(pp) -> list[dict]:
 	r: list[dict] = []
 	jdir = pp.journal_dir
@@ -142,6 +162,7 @@ def check_project_journal_problems(pp) -> list[dict]:
 		for msg in orphaned_reservation_issues(jdir, project_root=pp.root):
 			r.append(problem('journal.orphaned_reservation', pp.rel_to_root(res_file), msg, file=res_file))
 	return r
+# @used-by :func:`agent_tools.completion.conversation_journal_steps()`
 def collect_conversation_journal_steps(t_dir: Path, jdir: Path, cid: str, *, iter_groups_fn, iter_res_fn, read_fn, same_j_fn) -> list[int]:
 	steps = _group_steps_for_cid(jdir, cid, iter_groups_fn)
 	cid_turns: list[tuple[str, dict]] = []
@@ -155,6 +176,7 @@ def collect_conversation_journal_steps(t_dir: Path, jdir: Path, cid: str, *, ite
 		if str(entry.get('conversation_id') or '').strip().lower() == cid and (r_key in eligible_keys or not cid_turns):
 			steps.update((s for s in (entry.get('steps') or ()) if int is type(s) and 1 <= s))
 	return sorted(steps)
+# @used-by :func:`agent_tools.completion.handoff_launcher_turn()`
 def collect_handed_off_conversations(turns_dir: Path, target_p: Path, *, read_fn, same_root_fn) -> set[str]:
 	r: set[str] = set()
 	for _, st in _iter_turn_states(turns_dir, read_fn):
@@ -164,12 +186,15 @@ def collect_handed_off_conversations(turns_dir: Path, target_p: Path, *, read_fn
 			if cid and same_root_fn(dest.get('project_root'), target_p):
 				r.add(cid)
 	return r
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
 def finalize_project_check(pp, issues: list[dict], default_file: Path) -> dict:
 	issues.extend(check_project_journal_problems(pp))
 	for issue in issues:
 		if not issue.get('file'):
 			issue['file'] = str(default_file)
 	return {'valid': not issues, 'issues': issues, 'semantic_truth_verified': False}
+# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
+# @used-by :func:`validate_step_cli()`
 def journal_validation_errors(jdir: Path, *, project_root: Path | None=None, strict_sequence: bool=False) -> list[str]:
 	eff = Path(jdir).resolve()
 	r: list[str] = []
@@ -181,6 +206,9 @@ def journal_validation_errors(jdir: Path, *, project_root: Path | None=None, str
 		inferred = project_root if None is not project_root else (eff.parent if (eff.parent / '\ua616/data/turns').is_dir() else None)
 		r.extend(orphaned_reservation_issues(eff, project_root=inferred))
 	return r
+# @used-by :func:`check_project_journal_problems()`
+# @used-by :func:`journal_validation_errors()`
+# @used-by :func:`validate_finalize_journal()`
 def missing_contiguous_steps(jdir: Path, ids: set[int]) -> list[int]:
 	r: list[int] = []
 	if ids:
@@ -189,6 +217,7 @@ def missing_contiguous_steps(jdir: Path, ids: set[int]) -> list[int]:
 	return r
 # 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
 # @used-by :func:`orphaned_reservation_issues()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
 def classify_reservations(jdir: Path, *, project_root: Path | None=None, conversation_ids: set[str] | None=None, require_empty_for_cids: bool=False) -> dict[str, list]:
 	from .journal_liveness import classify_reservation_entry
 	eff = Path(jdir).resolve()
@@ -208,10 +237,14 @@ def classify_reservations(jdir: Path, *, project_root: Path | None=None, convers
 			elif None is not live:
 				active_parallel.append(live)
 	return {'orphaned': orphaned, 'active_parallel': active_parallel}
+# @used-by :func:`check_project_journal_problems()`
+# @used-by :func:`journal_validation_errors()`
+# @used-by :func:`validate_finalize_journal()`
 def orphaned_reservation_issues(jdir: Path, *, project_root: Path | None=None, conversation_ids: set[str] | None=None, require_empty_for_cids: bool=False) -> list[str]:
 	return classify_reservations(jdir, project_root=project_root, conversation_ids=conversation_ids, require_empty_for_cids=require_empty_for_cids)['orphaned']
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 # @used-by :func:`agent_tools.completion._conflict()`
+# @used-by :mod:`agent_tools.journal_sync_all`
 def finalize_conflict_turn(root_p: Path, path: Path, value: dict, turn: dict, *, dir_fn, persist_fn) -> None:
 	value.pop('reserved_journal_steps', None)
 	persist_fn(path, value)
@@ -230,6 +263,7 @@ def _is_terminal_conflict(st: dict | None, entry: dict, max_existing: int) -> bo
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 # @used-by :func:`agent_tools.journal_sync_all.reconcile_foreign_open_reservations()`
 # @used-by :func:`agent_tools.journal_sync_all.sync_all_open()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_conflict_recording_and_reconciliation_prune_terminal_reservations()`
 def prune_terminal_conflict_reservations(root: Path, jdir: Path, *, folder_fn, read_fn) -> list[str]:
 	pruned: list[str] = []
 	turns_dir = folder_fn(root)
@@ -241,6 +275,8 @@ def prune_terminal_conflict_reservations(root: Path, jdir: Path, *, folder_fn, r
 			if journal.release_turn_steps(jdir, turn_key, request_ids=list(entry.get('request_ids') or ())):
 				pruned.append(turn_key)
 	return pruned
+# @used-by :func:`agent_tools.journal.record_answer()`
+# @used-by :func:`agent_tools.journal.release_turn_steps()`
 def prune_overlapping_reservations(reservations: dict[str, dict], turn_key: str | None, req_set: set[str], committed_steps: set[int]) -> bool:
 	changed = False
 	if turn_key and turn_key in reservations:
@@ -256,6 +292,7 @@ def prune_overlapping_reservations(reservations: dict[str, dict], turn_key: str 
 				else:
 					reservations[r_key] = updated
 	return changed
+# @used-by :func:`agent_tools.completion.begin()`
 def sync_begin_turn_state(root: Path, value: dict, native: dict, turn: dict, native_reconciliation: dict | None, *, dir_fn, recorded_fn, reserve_fn) -> None:
 	if 'open' == value.get('status') and (not recorded_fn(value)) and (not turn.get('completed')):
 		req_ids = [req['id'] for req in (turn.get('requests') or ()) if isinstance(req, dict) and req.get('id')]
@@ -268,6 +305,7 @@ def sync_begin_turn_state(root: Path, value: dict, native: dict, turn: dict, nat
 			value['native_reconciliation'] = native_reconciliation
 		elif True is native_reconciliation.get('valid'):
 			value.pop('native_reconciliation', None)
+# @used-by :func:`agent_tools.completion.handoff_launcher_turn()`
 def turn_matches_handoff(st: dict, st_cid: str, job_str: str | None, prior_cids: set[str], explicit_fn) -> bool:
 	reqs = [x for x in (st.get('requests') or ()) if isinstance(x, dict)]
 	if None is job_str:
@@ -277,6 +315,7 @@ def turn_matches_handoff(st: dict, st_cid: str, job_str: str | None, prior_cids:
 	else:
 		r = bool(st_cid and st_cid in prior_cids and (not _mentioned_other_job(reqs, job_str)))
 	return r
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
 def validate_finalize_journal(root: Path, jdir: Path, state: dict) -> set[int]:
 	ids = journal.get_existing_step_ids(jdir)
 	if not ids or any((journal.step_errors(jdir, ident) for ident in ids)):
@@ -291,6 +330,7 @@ def validate_finalize_journal(root: Path, jdir: Path, state: dict) -> set[int]:
 		raise ValueError('; '.join(orphans))
 	_check_reconciliation_failures(root, cids)
 	return ids
+# @used-by :func:`agent_tools.cli.main()`
 def validate_step_cli(args) -> str:
 	steps = sorted(journal.get_existing_step_ids(args.dir)) if args.all else [args.step]
 	if not steps:

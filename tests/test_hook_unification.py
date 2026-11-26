@@ -12,6 +12,7 @@ from agent_tools import workflow
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
 class HookUnificationTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_doc4_scanner_supports_hook_and_workflow_modes(self):
 		from agent_tools import hook_runtime
 		hook_doc = '---\ntitle: Demo\n---\nFirst sentence here. Second sentence on same line.\nNext run-on line\n'
@@ -23,6 +24,7 @@ class HookUnificationTests(unittest.TestCase):
 		wf_issues = hook_runtime.scan_doc4_sentence_issues(wf_doc, mode='workflow')
 		self.assertEqual(wf_issues, workflow.doc4_sentence_issues(wf_doc))
 		self.assertEqual(2, len(wf_issues))
+	# @used-by :mod:`unittest`
 	def test_iter_turn_state_files_skips_aux_files(self):
 		from agent_tools import hook_runtime
 		with tempfile.TemporaryDirectory() as tmp:
@@ -33,6 +35,7 @@ class HookUnificationTests(unittest.TestCase):
 			(tdir / 'broken.json').write_text('{bad', encoding='utf-8')
 			loaded = hook_runtime.iter_turn_state_files(tdir)
 			self.assertEqual([('turn1.json', 1)], [(p.name, d['id']) for p, d in loaded])
+	# @used-by :mod:`unittest`
 	def test_read_last_user_segment_positional_and_by_step(self):
 		from agent_tools import hook_runtime
 		with tempfile.TemporaryDirectory() as tmp:
@@ -50,6 +53,7 @@ class HookUnificationTests(unittest.TestCase):
 			_, last_step, seg_step = hook_runtime.read_last_user_segment(tfile, by_step_index=True)
 			self.assertEqual(3, last_step)
 			self.assertEqual([4], [r['step_index'] for r in seg_step])
+	# @used-by :mod:`unittest`
 	def test_run_json_hook_dispatches_and_fails_open(self):
 		from agent_tools import hook_runtime
 		out_ok = io.StringIO()
@@ -57,6 +61,7 @@ class HookUnificationTests(unittest.TestCase):
 		self.assertEqual({'decision': 'deny', 'reason': 'blocked'}, res_ok)
 		self.assertEqual({'decision': 'deny', 'reason': 'blocked'}, json.loads(out_ok.getvalue()))
 		out_err = io.StringIO()
+		# @used-by :meth:`HookUnificationTests.test_run_json_hook_dispatches_and_fails_open()`
 		def boom(_payload):
 			raise RuntimeError('transient')
 		res_err = hook_runtime.run_json_hook(boom, stdin=io.StringIO('{"k":"x"}'), stdout=out_err)

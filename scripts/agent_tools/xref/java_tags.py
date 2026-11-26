@@ -6,7 +6,10 @@ import re
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
 _BARE_BLOCK_RE = re.compile(r'^\*?\s*@(used-by|uses)\b')
-_EXT_RUNNERS = frozenset({'build.ps1', 'CLI', 'IntelliJ', 'JUnit', 'JVM', 'META-INF/plugin.xml', 'non-instantiable'})
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
+_EXT_RUNNERS = frozenset({'build.ps1', 'CLI', 'IntelliJ', 'JUnit', 'JVM', 'META-INF/plugin.xml', 'non-instantiable', 'unused'})
 _LINK_RE = re.compile(r'^\{@link\s+([^}]+)\}(.*)$')
 _LIST_TAG_RE = re.compile(r'^\*?\s*-\s*@(used-by|uses)\s+(.+?)\s*$')
 _SEE_TAG_RE = re.compile(r'^\*?\s*@see\s+(.+?)\s*$')
@@ -114,6 +117,7 @@ def is_valid_java_external(raw_value: str, repo_root: Path) -> bool:
 	else:
 		r = False
 	return r
+# @used-by :func:`agent_tools.xref.java_graph._add_see_override_edges()`
 # @used-by :func:`agent_tools.xref.java_sync._check_java_def()`
 # @used-by :func:`agent_tools.xref.java_sync._sync_java_def_edit()`
 # @used-by :func:`agent_tools.xref.java_sync.check_java_file_local()`
@@ -130,6 +134,7 @@ def parse_javadoc_block(lines: list[str], anchor_line: int, rel_path: str='') ->
 	return r
 _JAVA_LANG_TYPES = frozenset({'AutoCloseable', 'Comparable', 'Iterable', 'Object', 'Runnable', 'Thread', 'Throwable'})
 # @used-by :func:`agent_tools.xref.java_graph._add_java_uses_edges()`
+# @used-by :func:`agent_tools.xref.java_graph._add_see_override_edges()`
 # @used-by :func:`agent_tools.xref.java_sync._collect_actual_java_used_by()`
 # @used-by :func:`agent_tools.xref.java_sync._validate_java_file_uses()`
 def resolve_java_target(raw_target: str, current_finfo: dict, repo_index: dict) -> tuple[bool, str | None]:

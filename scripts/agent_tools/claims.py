@@ -24,6 +24,9 @@ ID = re.compile('^[A-Z][A-Z0-9-]*$')
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
 class ClaimGraphValidator:
+	# @used-by :func:`contract_issues()`
+	# @used-by :func:`evidence_contract_issues()`
+	# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
 	def __init__(self, value, *, root=None):
 		self.value = value
 		self.root = root
@@ -39,8 +42,19 @@ class ClaimGraphValidator:
 		self.direct_obs_metas = {}
 		self.inherited_memo = {}
 		self.http_dns_error_cached = None
+	# @used-by :meth:`ClaimGraphValidator._check_claim_arguments()`
+	# @used-by :meth:`ClaimGraphValidator._check_claim_dependencies_and_caps()`
+	# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+	# @used-by :meth:`ClaimGraphValidator._check_counterevidence_cap()`
+	# @used-by :meth:`ClaimGraphValidator._check_cycles()`
+	# @used-by :meth:`ClaimGraphValidator._check_primary_evidence_list()`
+	# @used-by :meth:`ClaimGraphValidator._load_direct_evidence()`
+	# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
+	# @used-by :meth:`ClaimGraphValidator._verify_scope_coverage()`
+	# @used-by :meth:`ClaimGraphValidator.structural_issues()`
 	def _add(self, code, field, message, claim=None):
 		self.issues.append(problem(code, field, message, claim_id=claim.get('id') if claim else None))
+	# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
 	def _check_claim_arguments(self, field, claim, evidence):
 		dep_ids = {x.get('claim_id') for x in _dependencies(claim) if isinstance(x, dict) and _text(x.get('claim_id'))}
 		own_evidence = {x.get('id') for x in (evidence if isinstance(evidence, list) else []) if isinstance(x, dict) and _text(x.get('id'))}
@@ -57,6 +71,7 @@ class ClaimGraphValidator:
 					self._add('argument.dependency', field + f'/{side}/{number}', 'A claim argument must name a versioned derived_from dependency', claim)
 				if (arg.get('claim_id') or arg.get('evidence_id')) and any((k in arg for k in ('source', 'source_id', 'quote', 'observation'))):
 					self._add('argument.competing_reference', field + f'/{side}/{number}', 'Resolve the referenced claim/evidence instead of supplying competing source prose', claim)
+	# @used-by :meth:`ClaimGraphValidator.structural_issues()`
 	def _check_claim_dependencies_and_caps(self):
 		for _, (field, section, claim) in self.seen.items():
 			dep_ids = set()
@@ -81,6 +96,7 @@ class ClaimGraphValidator:
 			for ref in impact.get('evidence_claim_ids', []) if isinstance(impact, dict) and isinstance(impact.get('evidence_claim_ids'), list) else []:
 				if not _text(ref) or ref not in dep_ids:
 					self._add('claim.impact_reference', field + '/impact', 'Impact evidence must be a versioned derived_from dependency: ' + str(ref), claim)
+	# @used-by :meth:`ClaimGraphValidator.structural_issues()`
 	def _check_claim_structure(self, field, section, claim):
 		ident = claim.get('id')
 		if not _text(ident) or not ID.fullmatch(ident) or ident in self.seen:
@@ -170,6 +186,8 @@ class ClaimGraphValidator:
 		if None is not comparison or ('verified' == claim.get('verification_status') and {'modification', 'comparison'}.intersection(properties if isinstance(properties, list) else [])):
 			self.issues.extend(_comparison_structure(comparison, field + '/comparison', claim, evidence))
 		self._check_claim_arguments(field, claim, evidence)
+	# @used-by :meth:`ClaimGraphValidator._check_claim_dependencies_and_caps()`
+	# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
 	def _check_counterevidence_cap(self, field, section, claim):
 		against = claim.get('against')
 		prob = claim.get('probability_percent')
@@ -194,8 +212,10 @@ class ClaimGraphValidator:
 						break
 				if not has_counter_obs:
 					self._add('claim.counterevidence', field + '/probability_percent', 'An unverified causal or misconception hypothesis above 75% requires genuine observation/experiment counter-evidence in against (citing only client intake or reusing for-premises does not lift the 75% cap)', claim)
+	# @used-by :meth:`ClaimGraphValidator.structural_issues()`
 	def _check_cycles(self):
 		visited, active = (set(), set())
+		# @used-by :meth:`ClaimGraphValidator._check_cycles()`
 		def visit(ident):
 			if ident in active:
 				self._add('claim.cycle', self.seen[ident][0] + '/derived_from', 'Claim dependencies contain a cycle', self.seen[ident][2])
@@ -208,6 +228,7 @@ class ClaimGraphValidator:
 				visited.add(ident)
 		for ident in self.seen:
 			visit(ident)
+	# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
 	def _check_primary_evidence_list(self, field, claim, evidence):
 		for number, ref in enumerate(evidence):
 			ef = field + f'/evidence/{number}'
@@ -239,6 +260,7 @@ class ClaimGraphValidator:
 				self._add('primary.experiment', ef, 'Experiment and exact artifact_id are required', claim)
 			if _enum(ref.get('kind'), {'intake', 'attachment'}) and (not _text(ref.get('manifest'))):
 				self._add('primary.manifest', ef, 'Bind intake/attachment bytes to the saved project snapshot or intake manifest', claim)
+	# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
 	def _has_http_dns_error(self):
 		if None is self.http_dns_error_cached:
 			found = False
@@ -255,6 +277,7 @@ class ClaimGraphValidator:
 							pass
 			self.http_dns_error_cached = found
 		return bool(self.http_dns_error_cached)
+	# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
 	def _inherited(self, ident, active=None):
 		active = set() if None is active else active
 		if ident in self.inherited_memo:
@@ -276,6 +299,7 @@ class ClaimGraphValidator:
 			if not active:
 				self.inherited_memo[ident] = r
 		return r
+	# @used-by :meth:`ClaimGraphValidator.evidence_issues()`
 	def _load_direct_evidence(self):
 		for field, _, claim in self.locations:
 			ident = claim.get('id')
@@ -298,6 +322,7 @@ class ClaimGraphValidator:
 							self.direct_obs_metas[ident].append(saved['meta'])
 				except (OSError, ValueError, KeyError, IndexError, TypeError, UnicodeError, ImportError) as exc:
 					self._add('primary.unconfirmed', field + f'/evidence/{number}', str(exc), claim)
+	# @used-by :meth:`ClaimGraphValidator.evidence_issues()`
 	def _verify_claim_evidence(self, field, claim):
 		ident = claim['id']
 		caps, obs_urls, obs_metas = self._inherited(ident)
@@ -330,6 +355,7 @@ class ClaimGraphValidator:
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
 	def _verify_scope_coverage(self, field, claim, obs_urls):
 		observed_paths = {urlsplit(urldefrag(u)[0]).path.rstrip('/') or '/' for u in obs_urls if u}
 		sample_items = (claim.get('scope') or {}).get('sample') or []
@@ -344,6 +370,8 @@ class ClaimGraphValidator:
 		non_sitemap_observed = {p for p in observed_paths if not p.lower().endswith(('sitemap.xml', 'robots.txt'))}
 		if 1 >= len(non_sitemap_observed) and re.search('(?i)(?:\\u043d\\u0430\\s+(?:\\u0432\\u0441\\u0451\\u043c\\s+)?\\u0441\\u0430\\u0439\\u0442\\u0435|\\u043f\\u043e\\u043b\\u043d\\u043e\\u0441\\u0442\\u044c\\u044e\\s+\\u043e\\u0442\\u0441\\u0443\\u0442\\u0441\\u0442\\u0432\\u0443|\\u043e\\u0442\\u0441\\u0443\\u0442\\u0441\\u0442\\u0432\\u0443\\u044e\\u0442\\s+\\u0441\\u0445\\u0435\\u043c\\u044b\\s+`?(?:Product|Offer|Article)|absent\\s+across\\s+the\\s+entire\\s+site|no\\s+(?:Product|Offer|Article)\\s+schema\\s+on\\s+the\\s+site)', str(claim.get('essence', ''))):
 			self._add('claim.scope_extrapolation', field + '/scope', 'Homepage/single-page/sitemap observations alone cannot verify site-wide absence of Product/Offer/Article structured data; observe representative product/article pages or keep status limited', claim)
+	# @used-by :func:`evidence_contract_issues()`
+	# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
 	def evidence_issues(self, *, skip_structural=False):
 		structural = [] if skip_structural or not self.is_v3 else self.structural_issues()
 		if not self.is_v3 or structural:
@@ -361,6 +389,9 @@ class ClaimGraphValidator:
 					self._verify_claim_evidence(field, claim)
 			r = list(self.issues)
 		return r
+	# @used-by :func:`contract_issues()`
+	# @used-by :meth:`ClaimGraphValidator.evidence_issues()`
+	# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
 	def structural_issues(self):
 		self.issues, self.seen, self.evidence_ids = ([], {}, set())
 		if self.is_v3:
@@ -378,6 +409,9 @@ class ClaimGraphValidator:
 # 2026-11-06
 # "Implement structured fact-tuple ledger (facts.json) and symbolic AST arithmetic grounding":
 # https://github.com/dmitry-ai/harness/issues/46
+# @used-by :func:`_check_calculation()`
+# @used-by :func:`extract_verified_inline_calc_numbers()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
 def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None = None) -> tuple[Decimal | None, set[str]]:
 	if not isinstance(expr, str) or not expr.strip() or len(expr) > 400:
 		return (None, set())
@@ -403,6 +437,7 @@ def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None = None) -
 		return (None, set())
 	literal_tokens: set[str] = set()
 	env_map = env or {}
+	# @used-by :func:`evaluate_safe_arithmetic()`
 	def _eval(node) -> Decimal:
 		if isinstance(node, ast.Expression):
 			return _eval(node.body)
@@ -471,6 +506,7 @@ _INLINE_EQ_RE = re.compile(
 	'\\s*(=|\\u2248|~=|\\u2245)\\s*'
 	f'({_NUM_EXPR_TOK})(\\s*%)?'
 )
+# @used-by :func:`grounded_numbers_for_claim()`
 def _claim_numeric_corpus(claim):
 	texts = []
 	for key in ('essence', 'assessment_basis', 'discriminating_check', 'validation', 'criterion'):
@@ -496,6 +532,7 @@ def _claim_numeric_corpus(claim):
 				texts.append(str(arg.get('argument', '')))
 				texts.append(str(arg.get('quote', '')))
 	return '\n'.join(texts)
+# @used-by :func:`extract_verified_inline_calc_numbers()`
 def _decimal_matches_stated(computed: Decimal, stated_raw: str, is_approx: bool = False, is_percent_suffix: bool = False) -> bool:
 	clean_stated = re.sub('(?<=\\d)[ \\u00a0\\u202f](?=\\d{3}(?!\\d))', '', stated_raw.strip())
 	clean_stated = re.sub('(?<=\\d),(?=\\d{3}(?!\\d))', '', clean_stated).replace(',', '.')
@@ -517,6 +554,10 @@ def _decimal_matches_stated(computed: Decimal, stated_raw: str, is_approx: bool 
 		if is_approx and abs(cand - stated_dec) <= q:
 			return True
 	return False
+# @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
+# @used-by :func:`grounded_numbers_for_claim()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
 def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> tuple[set[str], list[str]]:
 	if not isinstance(text, str) or not text:
 		return (set(), [])
@@ -557,6 +598,10 @@ def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> 
 				expected_str = str(val.normalize())
 			errors.append(f'derived_calc mismatch: "{lhs.strip()} = {rhs_raw}" evaluates to {expected_str}, not {rhs_raw}')
 	return (verified, errors)
+# @used-by :func:`agent_tools.text_claims.subset()`
+# @used-by :func:`all_claims()`
+# @used-by :meth:`ClaimGraphValidator.__init__()`
+# @used-by :meth:`agent_tools.review.ReviewClassifier.classify()`
 def claim_locations(value):
 	if not isinstance(value, dict):
 		return
@@ -567,17 +612,64 @@ def claim_locations(value):
 		for number, claim in enumerate(value.get(section, []) if isinstance(value.get(section), list) else []):
 			if isinstance(claim, dict):
 				yield (f'/{section}/{number}', section, claim)
+# @used-by :func:`agent_tools.text_claims.evidence_inputs()`
+# @used-by :func:`agent_tools.text_claims.subset()`
+# @used-by :func:`claim_index()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_claim_index_includes_facts_and_all_five_stages()`
 def all_claims(value):
 	return [claim for _, _, claim in claim_locations(value)]
+# @used-by :func:`agent_tools.review.build_blind_verification_predicates()`
+# @used-by :func:`agent_tools.review.compute_claim_merkle_delta()`
+# @used-by :func:`agent_tools.review.read_package()`
+# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
+# @used-by :func:`agent_tools.text_claims.save_registry()`
+# @used-by :func:`agent_tools.text_claims.subset()`
+# @used-by :func:`agent_tools.text_claims.validate_map()`
+# @used-by :meth:`ClaimGraphValidator.__init__()`
+# @used-by :meth:`agent_tools.review.ReviewClassifier.classify()`
+# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approved_claim_digests()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
+# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_claim_index_includes_facts_and_all_five_stages()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.test_primary_revision_marks_all_transitive_dependents_stale_and_archives_old_bytes()`
 def claim_index(value):
 	return {claim['id']: claim for claim in all_claims(value) if _text(claim.get('id'))}
+# @used-by :func:`agent_tools.review.read_package()`
+# @used-by :func:`agent_tools.text_claims.save_registry()`
+# @used-by :func:`agent_tools.text_claims.validate_map()`
+# @used-by :func:`test_evidence_contract.v3_analysis()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_dependencies_and_caps()`
+# @used-by :meth:`agent_tools.review.ReviewClassifier._check_omitted_stage_claims()`
+# @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
+# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
+# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.price_analysis()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.signed_price_analysis()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_currency_cannot_be_borrowed_from_another_quantity()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_dependency_change_and_cycle_are_reported()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_html_markup_cannot_hide_a_sign_between_spans()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_json_amount_currency_pair_is_an_exact_quantity_locator()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_misconception_hypothesis_requires_alternatives_and_discriminating_check()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.dependent_registry()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.test_a_self_authored_note_is_not_a_native_reassessment_of_changed_evidence()`
 def claim_digest(claim):
 	return hashlib.sha256(json.dumps(claim, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
 # 2026-11-13
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
+# @used-by :func:`agent_tools.review._claim_evidence_pairs()`
+# @used-by :func:`agent_tools.text_claims.primary_numbers()`
+# @used-by :func:`agent_tools.text_claims.subset()`
+# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
 def collect_claim_closure(seed_ids, index, *, include_addresses=False, unknown_prefix=None):
 	r, seen = ([], set())
+	# @used-by :func:`collect_claim_closure()`
 	def visit(ident):
 		if None is not unknown_prefix and ident not in index:
 			raise ValueError(unknown_prefix + str(ident))
@@ -598,19 +690,58 @@ def collect_claim_closure(seed_ids, index, *, include_addresses=False, unknown_p
 		if None is not unknown_prefix or _text(seed):
 			visit(seed)
 	return r
+# @used-by :func:`_calculation_structure()`
+# @used-by :func:`_check_comparison()`
+# @used-by :func:`_comparison_structure()`
+# @used-by :func:`_manifest_primary()`
+# @used-by :func:`_strings()`
+# @used-by :func:`claim_index()`
+# @used-by :func:`collect_claim_closure()`
+# @used-by :func:`grounded_numbers_for_claim()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_arguments()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_dependencies_and_caps()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+# @used-by :meth:`ClaimGraphValidator._check_counterevidence_cap()`
+# @used-by :meth:`ClaimGraphValidator._check_cycles()`
+# @used-by :meth:`ClaimGraphValidator._check_primary_evidence_list()`
+# @used-by :meth:`ClaimGraphValidator._load_direct_evidence()`
+# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
+# @used-by :meth:`ClaimGraphValidator.evidence_issues()`
 def _text(value):
 	return isinstance(value, str) and bool(value.strip())
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
 def _strings(value, *, nonempty=False):
 	return isinstance(value, list) and (bool(value) or not nonempty) and all((_text(x) for x in value))
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+# @used-by :meth:`ClaimGraphValidator._check_primary_evidence_list()`
 def _hash(value):
 	return isinstance(value, str) and None is not HASH.fullmatch(value)
+# @used-by :func:`_comparison_structure()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+# @used-by :meth:`ClaimGraphValidator._check_primary_evidence_list()`
 def _enum(value, allowed):
 	return isinstance(value, str) and value in allowed
+# @used-by :func:`_check_calculation()`
+# @used-by :func:`_check_comparison()`
+# @used-by :func:`_comparison_structure()`
+# @used-by :func:`collect_claim_closure()`
+# @used-by :func:`grounded_numbers_for_claim()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_arguments()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_dependencies_and_caps()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+# @used-by :meth:`ClaimGraphValidator._check_cycles()`
+# @used-by :meth:`ClaimGraphValidator._inherited()`
+# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
 def _dependencies(claim):
 	return claim.get('derived_from', []) if isinstance(claim.get('derived_from'), list) else []
 # 2026-11-13
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
+# @used-by :func:`grounded_numbers_for_claim()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_alignment_and_outcome()`
+# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_multi_segment_quote_and_thousand_grouped_numeric_tokens()`
+# @used-by :mod:`agent_tools.source_grounding`
 def source_numeric_tokens(raw_text: str) -> set[str]:
 	r: set[str] = set()
 	for sp_tok in re.findall('\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+(?:[.,]\\d+)?', raw_text or ''):
@@ -630,6 +761,15 @@ def source_numeric_tokens(raw_text: str) -> set[str]:
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
+# @used-by :func:`agent_tools.text_claims.validate_map()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
+# @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_alignment_and_outcome()`
+# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_tier2_sole_evidence()`
+# @used-by :meth:`test_source_admission.LinkPresentationTests.test_numeric_prose_in_a_link_label_still_needs_grounding()`
+# @used-by :meth:`test_source_admission.LinkPresentationTests.test_original_numeric_anchor_is_not_a_quantitative_claim()`
+# @used-by :meth:`test_source_admission.LinkPresentationTests.test_reference_links_and_balanced_parentheses_keep_the_same_behavior()`
 def standalone_numbers(text):
 	if not isinstance(text, str) or not text:
 		r = set()
@@ -648,6 +788,7 @@ def standalone_numbers(text):
 		tokens = re.findall('(?<![A-Za-z0-9_./~+-])\\d+(?:[.,]\\d+)*(?![A-Za-z0-9_./~+-])', cleaned)
 		r = {t.replace(',', '.') for t in tokens}
 	return r
+# @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
 def grounded_numbers_for_claim(claim, index=None, visited=None, _memo=None):
 	visited = set() if None is visited else visited
 	memo = {} if None is _memo else _memo
@@ -674,8 +815,16 @@ def grounded_numbers_for_claim(claim, index=None, visited=None, _memo=None):
 			memo[ident] = set(numbers)
 		r = numbers
 	return r
+# @used-by :func:`agent_tools.analysis.analysis_issues()`
+# @used-by :func:`agent_tools.text_claims.save_registry()`
+# @used-by :func:`agent_tools.text_claims.validate_map()`
+# @used-by :func:`agent_tools.text_sources.check_claim_sources()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_malformed_typed_metadata_returns_diagnostics()`
+# @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_validators_emit_actionable_hints()`
 def contract_issues(value):
 	return ClaimGraphValidator(value).structural_issues()
+# @used-by :func:`_check_calculation()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
 def _calculation_structure(value, field, claim):
 	message = None
 	op = value.get('operation') if isinstance(value, dict) else None
@@ -708,6 +857,8 @@ def _calculation_structure(value, field, claim):
 # 2026-11-02
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# @used-by :func:`_check_comparison()`
+# @used-by :meth:`ClaimGraphValidator._check_claim_structure()`
 def _comparison_structure(value, field, claim, evidence):
 	message = None
 	own_ev_ids = {ref.get('id') for ref in (evidence if isinstance(evidence, list) else []) if isinstance(ref, dict) and _text(ref.get('id'))}
@@ -722,6 +873,7 @@ def _comparison_structure(value, field, claim, evidence):
 		message = 'Relational comparison operands must reference primary evidence IDs present on the claim or its derived_from dependencies'
 	r = [problem('claim.relational_arity', field, message, claim_id=claim.get('id'))] if message else []
 	return r
+# @used-by :func:`_verify_quote()`
 def _with_locator(source, locator):
 	base, fragment = urldefrag(source)
 	if locator['type'] not in {'anchor', 'json_pointer'}:
@@ -733,10 +885,14 @@ def _with_locator(source, locator):
 			raise ValueError('Source fragment and explicit locator disagree')
 		r = base + '#' + locator['value']
 	return r
+# @used-by :func:`_primary_capabilities()`
+# @used-by :func:`agent_tools.text_sources._evaluate()`
 def _verify_quote(root, ref, *, observation=None):
 	from .evidence import verify_saved_quote
 	locator = ref['locator']
 	return verify_saved_quote(root, _with_locator(ref['source'], locator), ref['quote'], mode=ref.get('quote_match', 'exact'), expected_hash=ref['source_sha256'], require_hash=True, observation=observation, documentation=bool(ref.get('documentation')), exception=ref.get('anchor_exception', {}), locator=locator, require_bound_observation=True, hash_error='Primary source bytes changed from source_sha256', absent_error='Exact quote is absent from the located primary source')
+# @used-by :func:`_primary_capabilities()`
+# @used-by :func:`agent_tools.text_sources._evaluate()`
 def _manifest_primary(root, ref):
 	from .evidence import local_file
 	# 2026-11-19
@@ -799,6 +955,7 @@ def _manifest_primary(root, ref):
 				raise ValueError('Intake primaries are the captured source.json or exact user request; site hypotheses and agent notes require their own primary origins')
 			return {'client_report', 'content'}
 	raise ValueError('Source bytes are absent from the declared intake/attachment manifest')
+# @used-by :meth:`ClaimGraphValidator._load_direct_evidence()`
 def _primary_capabilities(root, ref):
 	if 'observation' == ref['kind']:
 		from .research import load_observation
@@ -822,11 +979,16 @@ def _primary_capabilities(root, ref):
 		saved = _verify_quote(root, ref)
 		r = (set(experiment.get('capabilities', [])), saved)
 	return r
+# @used-by :func:`agent_tools.evidence.evidence_issues()`
+# @used-by :func:`agent_tools.text_claims.save_registry()`
+# @used-by :func:`agent_tools.text_claims.validate_map()`
+# @used-by :func:`agent_tools.text_sources.check_claim_sources()`
 def evidence_contract_issues(root, value, *, skip_structural=False):
 	return ClaimGraphValidator(value, root=root).evidence_issues(skip_structural=skip_structural)
 # 2026-11-02
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
 def _check_comparison(claim, index, refs):
 	comp = claim.get('comparison')
 	if _comparison_structure(comp, '/', claim, claim.get('evidence')):
@@ -850,6 +1012,8 @@ def _check_comparison(claim, index, refs):
 		raise ValueError('Claimed modification/difference between operand_a and operand_b is refuted: primary source hashes and quotes are identical')
 	if comp['relation'] in {'equal', 'identical_to'} and (not hash_equal) and (not quote_equal):
 		raise ValueError('Claimed identity between operand_a and operand_b is refuted: primary source hashes and quotes differ')
+# @used-by :meth:`ClaimGraphValidator._verify_claim_evidence()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
 def _check_calculation(claim, index, refs):
 	value = claim['calculation']
 	if _calculation_structure(value, '/', claim):
@@ -886,6 +1050,7 @@ def _check_calculation(claim, index, refs):
 	if not actual.is_finite() or actual != expected:
 		label = 'Percentage change' if 'percent_change' == op else 'Calculation result'
 		raise ValueError(f"{label} is {expected}, not {value['result']}; formula includes the declared denominator and rounding")
+# @used-by :func:`_check_calculation()`
 def _quantity_matches(reference, decimal_value, unit, source_context=None):
 	if 'json_pointer' == reference.get('locator', {}).get('type'):
 		try:
@@ -906,6 +1071,7 @@ def _quantity_matches(reference, decimal_value, unit, source_context=None):
 					return False
 	if re.search('<\\s*/?\\s*[A-Za-z][^>]*>', reference['quote']):
 		raise ValueError('Raw markup excerpts are ambiguous numeric provenance; use a complete signed quantity in parsed source text or a structured JSON value/unit object')
+	# @used-by :func:`_quantity_matches()`
 	def normalized(text):
 		return ' '.join(text.replace(',', '.').replace('−', '-').split())
 	quote = normalized(reference['quote'])
@@ -916,6 +1082,7 @@ def _quantity_matches(reference, decimal_value, unit, source_context=None):
 	unit_tokens = {'EUR': ('EUR', '€'), 'GBP': ('GBP', '£'), 'USD': ('USD', 'US$'), 'CAD': ('CAD', 'CA$', 'C$'), 'AUD': ('AUD', 'AU$', 'A$'), 'JPY': ('JPY', 'JP¥'), 'CNY': ('CNY', 'CN¥', 'RMB'), 'percent': ('percent', '%')}.get(unit, (unit,))
 	expected = Decimal(decimal_value)
 	tokens = list(re.finditer('(?<![\\d.])[0-9]+(?:\\.[0-9]+)?(?![\\d.])', text))
+	# @used-by :func:`_quantity_matches()`
 	def sign_before(start):
 		marks = re.search('([+-](?:\\s*[+-])*)\\s*$', text[:start])
 		if marks:
@@ -928,6 +1095,7 @@ def _quantity_matches(reference, decimal_value, unit, source_context=None):
 			else:
 				r = ('', start)
 		return r
+	# @used-by :func:`_quantity_matches()`
 	def quantity(number):
 		candidates = []
 		for token in unit_tokens:

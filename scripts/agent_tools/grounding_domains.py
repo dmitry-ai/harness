@@ -16,6 +16,7 @@ PLAN_RE = re.compile('\\b(?:M[1-9]|Plan\\s+(?:XS|S|M|L|XL|XXL))\\b', re.I)
 TECHNICAL_SPAN_RE = re.compile('^(?:/dev/[A-Za-z0-9/_-]+|[a-z][a-z0-9_]{3,}:\\d{3,}|[A-Za-z][A-Za-z0-9_.-]+\\s+\\d+\\.\\d+(?:\\.\\d+)*(?:-[A-Za-z0-9._-]+)?|#?31\\d{6,8}|[0-9]{5}[0-9A-Z]|order_id/\\d+)$')
 TICKET_ID_RE = re.compile('\\b(\\d{6,10})\\b')
 TIER2_NUMERIC_DOMAIN_RE = re.compile('(?i)\\b(?:mem_total|vcpu|cpus|swap_total|swap|\\u0441\\u0432\\u043e\\u043f|worker\\w*|\\u0432\\u043e\\u0440\\u043a\\u0435\\u0440\\w*|load\\s+average|ram|\\u043e\\u0437\\u0443|\\u044f\\u0434(?:\\u0435\\u0440|\\u0440\\u0430)|plan\\s+(?:xs|s|m|l|xl|xxl)|m[1-9]|gb|gib|\\u0433\\u0431|mb|mib|\\u043c\\u0431)\\b')
+# @used-by :func:`fact_tuple_contradictions()`
 def _check_load_average_tuples(sline: str, all_tuples: list[dict]) -> list[str]:
 	r: list[str] = []
 	la_tuples = [t for t in all_tuples if 'load_average_1m' == t.get('attribute') and isinstance(t.get('value'), (int, float))]
@@ -27,6 +28,7 @@ def _check_load_average_tuples(sline: str, all_tuples: list[dict]) -> list[str]:
 			if re.search('(?:\\u043f\\u0435\\u0440\\u0435\\u0433\\u0440\\u0443\\u0437\\w*|overload\\w*|saturat\\w*|\\u043f\\u0440\\u0435\\u0432\\u044b\\u0448\\u0430\\u0435\\u0442\\s+\\u0435\\u043c\\u043a\\u043e\\u0441\\u0442|exceeds\\s+capacity)', sline, re.I) and (not re.search('(?:\\u043d\\u0435\\u0442\\s+\\u043f\\u0435\\u0440\\u0435\\u0433\\u0440\\u0443\\u0437|\\u043d\\u0435\\s+\\u043f\\u0435\\u0440\\u0435\\u0433\\u0440\\u0443\\u0437|not\\s+overload|below|\\u043c\\u0435\\u043d\\u044c\\u0448\\u0435)', sline, re.I)):
 				r.append(f'DOC-1 / VERIFY-3: Unnormalized load average claim ({la_val} on {int(cpu_val)} CPUs = {round(la_val / cpu_val * 100, 1)}% utilization < 100%, below the core count) in {cpu_tuples[0]["source_locator"]}')
 	return r
+# @used-by :func:`fact_tuple_contradictions()`
 def _check_mem_tuples(sline: str, infos: list[dict], all_tuples: list[dict]) -> list[str]:
 	r: list[str] = []
 	mem_tuples = [t for t in all_tuples if 'mem_total' == t.get('attribute') and isinstance(t.get('value'), (int, float)) and 1024 <= t['value']]
@@ -46,6 +48,7 @@ def _check_mem_tuples(sline: str, infos: list[dict], all_tuples: list[dict]) -> 
 				mt0 = mem_tuples[0]
 				r.append(f'DOC-1 / VERIFY-1: Fact-tuple contradiction for mem_total={mt0["value"]} MB in {mt0["source_locator"]}: prose characterizes permanent mem_total RAM as "burst" without primary source support')
 	return r
+# @used-by :func:`fact_tuple_contradictions()`
 def _check_null_cpu_tuples(sline: str, all_tuples: list[dict]) -> list[str]:
 	r: list[str] = []
 	null_cpu_entities = {str(t['entity']).lower(): t for t in all_tuples if t.get('attribute') in {'vcpu', 'cpus', 'cores'} and None is t.get('value') and t.get('entity')}
@@ -56,6 +59,7 @@ def _check_null_cpu_tuples(sline: str, all_tuples: list[dict]) -> list[str]:
 			if m_cpu and (not re.search('\\b(?:null|\\u043d\\u0435\\s+\\u0443\\u043a\\u0430\\u0437\\u0430\\u043d|unspecified|unknown)\\b', sline, re.I)):
 				r.append(f'DOC-1 / VERIFY-1: Fact-tuple contradiction for {ent} ({tup["attribute"]}=null in {tup["source_locator"]}): prose asserts {m_cpu.group(0)} for a null attribute')
 	return r
+# @used-by :func:`fact_tuple_contradictions()`
 def _check_swap_tuples(sline: str, infos: list[dict], all_tuples: list[dict]) -> list[str]:
 	r: list[str] = []
 	if re.search('(?i)(?:\\b\\u0443\\u0445\\u043e\\u0434\\w*\\s+(?:\\u0441\\u0435\\u0440\\u0432\\u0435\\u0440\\u0430\\s+)?\\u0432\\s+(?:swap|\\u0441\\u0432\\u043e\\u043f)|\\u0444\\u0438\\u043a\\u0441\\u0438\\u0440\\u043e\\u0432\\u0430\\u043b\\w*[^\\n]{0,40}\\b(?:swap|\\u0441\\u0432\\u043e\\u043f)|\\bswapping\\b)', sline) and (not re.search('(?i)(?:\\b\\u0431\\u0435\\u0437\\s+(?:swap|\\u0441\\u0432\\u043e\\u043f)|\\bno\\s+swap|\\bswap[_ ]total\\s*[:=]\\s*0|\\b\\u043d\\u0435\\s+\\u0443\\u0445\\u043e\\u0434|\\b\\u043e\\u0442\\u0441\\u0443\\u0442\\u0441\\u0442\\u0432\\w*\\s+(?:swap|\\u0441\\u0432\\u043e\\u043f))', sline)):
@@ -68,6 +72,7 @@ def _check_swap_tuples(sline: str, infos: list[dict], all_tuples: list[dict]) ->
 			src_name = tier0_infos[0]['path'].name
 			r.append(f'DOC-1 / VERIFY-1: Fact-tuple contradiction in {src_name}: prose asserts server swap activity ("swap"), which is absent from the Tier 0 primary source')
 	return r
+# @used-by :func:`extract_fact_tuples()`
 def _collect_json_fact_tuples(obj, default_entity: str, source_loc: str, out: list[dict]) -> None:
 	if isinstance(obj, list):
 		for idx, item in enumerate(obj):
@@ -97,6 +102,11 @@ def _collect_json_fact_tuples(obj, default_entity: str, source_loc: str, out: li
 				unit = 'MB' if kl in {'mem_total', 'swap_total'} else ('GB' if kl in {'ram_gb', 'disk_gb'} else None)
 				for ent in entities:
 					out.append({'entity': ent, 'attribute': kl, 'value': v, 'unit': unit, 'source_locator': source_loc})
+# @used-by :func:`extract_fact_tuples()`
+# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.discover_entities()`
+# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.ensure_entry()`
+# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.load_source_info()`
+# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_auditor_and_domain_rules_deduplicate_ledger_tuples()`
 def extract_domain_entities(text: str, *, include_substring_metrics: bool=False) -> dict[str, list[str]]:
 	raw = text or ''
 	plans = sorted({m.group(0).strip() for m in PLAN_RE.finditer(raw)})
@@ -106,6 +116,9 @@ def extract_domain_entities(text: str, *, include_substring_metrics: bool=False)
 		raw_lower = raw.lower()
 		metric_set |= {mt for mt in METRIC_LITERAL_SET if mt in raw_lower}
 	return {'metrics': sorted(metric_set), 'plans': plans, 'plans_norm': plans_norm, 'tickets': sorted(set(TICKET_ID_RE.findall(raw)))}
+# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.ensure_entry()`
+# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.hydrate_standalone()`
+# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.load_source_info()`
 def extract_fact_tuples(path: Path, raw_text: str | None=None, *, root: Path | None=None) -> list[dict]:
 	r: list[dict] = []
 	loaded_text = raw_text
@@ -147,6 +160,7 @@ def extract_fact_tuples(path: Path, raw_text: str | None=None, *, root: Path | N
 		for m_la in re.finditer('(?i)load\\s+average\\s*[:=]\\s*(\\d+(?:\\.\\d+)?)', loaded_text):
 			r.append({'entity': default_entity, 'attribute': 'load_average_1m', 'value': float(m_la.group(1)), 'unit': 'load', 'source_locator': loc})
 	return r
+# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex._build_hydrated_info()`
 def extract_ticket_metadata(path: Path, raw: str) -> tuple[bool, set[int], str | None]:
 	msg_nums: set[int] = set()
 	is_ticket_source = False
@@ -159,6 +173,7 @@ def extract_ticket_metadata(path: Path, raw: str) -> tuple[bool, set[int], str |
 			is_ticket_source = True
 	ticket_id = path.parent.parent.name if 'kb' == path.parent.name.lower() and re.fullmatch('\\d{6,10}', path.parent.parent.name) else None
 	return (is_ticket_source, msg_nums, ticket_id)
+# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
 def fact_tuple_contradictions(sline: str, infos: list[dict], ledger_tuples: list[dict] | None=None) -> list[str]:
 	r: list[str] = []
 	if sline and (not META_REFUTATION_RE.search(sline)):
@@ -175,6 +190,7 @@ def fact_tuple_contradictions(sline: str, infos: list[dict], ledger_tuples: list
 		r.extend(_check_swap_tuples(sline, infos, all_tuples))
 		r.extend(_check_load_average_tuples(sline, all_tuples))
 	return r
+# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
 def order_url_issues(sline: str, ev_nums: set[str], combined_raw: str, src_label: str) -> list[str]:
 	r: list[str] = []
 	for m_oid in ORDER_URL_RE.finditer(sline):
@@ -182,6 +198,7 @@ def order_url_issues(sline: str, ev_nums: set[str], combined_raw: str, src_label
 		if oid_val not in ev_nums and oid_val not in combined_raw:
 			r.append(f'VERIFY-1 / DOC-1: Order URL identifier (order_id/{oid_val}) attributed to {src_label} is absent from the primary source')
 	return r
+# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
 def ticket_author_issues(sline: str, combined_norm: str, src_label: str) -> list[str]:
 	r: list[str] = []
 	for m_auth in re.finditer('[\\u0410-\\u042f\\u0401][\\u0430-\\u044f\\u0451]+(?:\\s+[\\u0410-\\u042f\\u0401][\\u0430-\\u044f\\u0451]+)+\\s*\\(`([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)+)`\\)', sline):
@@ -189,6 +206,7 @@ def ticket_author_issues(sline: str, combined_norm: str, src_label: str) -> list
 		if author_name.lower() not in combined_norm:
 			r.append(f'VERIFY-1 / LINK-1: Cited person "{author_name}" is absent from {src_label}')
 	return r
+# @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
 def ticket_message_issues(sline: str, valid_msg_nums: set[int], bound_ticket_ids: set[str]) -> list[str]:
 	r: list[str] = []
 	for m_msg in re.finditer('(?:\\u0441\\u043e\\u043e\\u0431\\u0449\\u0435\\u043d\\u0438[\\u0435\\u044f\\u0438\\u0439\\u044f\\u0445\\u043c]+\\s*(?:\\u2116|#)?\\s*(\\d+)(?:\\s*(?:\\u0438|,|-)\\s*(?:\\u2116|#)?\\s*(\\d+))?|\\bMessage\\s*#?(\\d+)\\b)', sline, re.I):

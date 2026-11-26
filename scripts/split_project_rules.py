@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import sys
+# @used-by :func:`split_rules()`
 def slugify(title: str) -> str:
 	slug = title.lower()
 	slug = re.sub('[^a-z0-9\\u0430-\\u044f\\u0451\\s-]', '', slug)
@@ -16,6 +17,7 @@ def slugify(title: str) -> str:
 # 2026-10-26
 # "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 # https://github.com/dmitry-ai/harness/issues/17
+# @used-by :func:`main()`
 def split_rules(rules_dir: Path, max_bytes: int=4000) -> bool:
 	r = False
 	map_file = rules_dir / '90-project.md'
@@ -78,6 +80,7 @@ def split_rules(rules_dir: Path, max_bytes: int=4000) -> bool:
 				print(f"Updated 90-project.md: new size {len(new_map_content.encode('utf-8'))} bytes.")
 				r = True
 	return r
+# @used-by :mod:`split_project_rules`
 def main():
 	if len(sys.argv) < 2:
 		rules_dir = Path.cwd() / '.agents' / 'rules'

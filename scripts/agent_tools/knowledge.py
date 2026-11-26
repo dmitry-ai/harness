@@ -15,6 +15,9 @@ from .analysis import SECTIONS, TITLES, validate_analysis, render_analysis, publ
 # "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
 # https://github.com/dmitry-ai/harness/issues/74
 class AttachmentInventory:
+	# @used-by :func:`sync_source_folder_attachments()`
+	# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	def __init__(self, project_root: Path | str):
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -25,6 +28,8 @@ class AttachmentInventory:
 		self.kb_dir = self.pp.kb_dir
 		self.att_root = self.pp.evidence_dir / 'Attachments'
 		self.source_dir = self.pp.source_dir
+	# @used-by :meth:`AttachmentInventory.scan()`
+	# @used-by :meth:`AttachmentInventory.sync()`
 	def _evidence_entries(self, asset_evidence: list[dict] | None=None) -> list[tuple[Path, str | None]]:
 		r: list[tuple[Path, str | None]] = []
 		for item in asset_evidence or []:
@@ -38,6 +43,7 @@ class AttachmentInventory:
 						if f.is_file():
 							r.append((f, sha_dir.name))
 		return r
+	# @used-by :meth:`AttachmentInventory.sync()`
 	def _register_bytes(self, filename: str, payload: bytes, expected_sha: str | None, seen_digests: set[str], assets: list[dict]) -> None:
 		from .upwork_extract import attachment_path
 		digest = hashlib.sha256(payload).hexdigest()
@@ -64,8 +70,12 @@ class AttachmentInventory:
 		if digest not in seen_digests:
 			seen_digests.add(digest)
 			assets.append({'file': target.relative_to(self.kb_dir).as_posix(), 'sha256': digest, 'filename': target.name, 'source_file': src_target.relative_to(self.root).as_posix()})
+	# @used-by :meth:`AttachmentInventory.scan()`
+	# @used-by :meth:`AttachmentInventory.sync()`
 	def _source_entries(self) -> list[Path]:
 		return [f for f in sorted(self.source_dir.iterdir()) if f.is_file()] if self.source_dir.is_dir() else []
+	# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	def scan(self, asset_evidence: list[dict] | None=None) -> dict:
 		attachments: list[dict] = []
 		seen_sha: set[str] = set()
@@ -85,6 +95,8 @@ class AttachmentInventory:
 				seen_sha.add(sha)
 				attachments.append({'filename': f.name, 'sha256': sha, 'evidence_path': f})
 		return {'attachments': attachments, 'missing_evidence': missing_evidence, 'source_by_sha': source_by_sha}
+	# @used-by :func:`sync_source_folder_attachments()`
+	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	def sync(self, saved_attachments: list[dict] | None=None, asset_evidence: list[dict] | None=None) -> list[dict]:
 		r: list[dict] = []
 		seen_digests: set[str] = set()
@@ -103,6 +115,9 @@ class AttachmentInventory:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.analysis.analysis_issues()`
+# @used-by :func:`sync_initial_website()`
+# @used-by :func:`sync_website_card()`
 def website_issues(value):
 	from urllib.parse import urlsplit
 	from .diagnostics import problem
@@ -140,6 +155,15 @@ def website_issues(value):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.analysis.publish_analysis()`
+# @used-by :func:`agent_tools.project_drift.analysis_card_sync_issues()`
+# @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._init_review_ready_project()`
+# @used-by :func:`test_contract_invariants._init_tracked_project()`
+# @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._write_minimal_v3_project()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.valid_review_analysis()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
+# @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
 def sync_website_card(root, value, *, selections=None, check=False):
 	from .analysis import digest
 	from .path_registry import project_paths
@@ -183,6 +207,7 @@ def sync_website_card(root, value, *, selections=None, check=False):
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 def sync_initial_website(root, snapshot, hypothesis=None):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -218,11 +243,23 @@ def sync_initial_website(root, snapshot, hypothesis=None):
 		content = f"## Client and Project Website\n\n**Target project website:** {address}.  \nHypothesis score: {hypothesis['probability_percent']}%.  \n[Basis: {hypothesis['id']}](<{manual_rel}#13-website>).  \n"
 		source = manual_proj
 	return sync_block(root, overview_md, 'websites', content, source=source)
+# @used-by :func:`_load_media_descriptions()`
+# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`build_project_extra_sources()`
+# @used-by :func:`populate_agent_kb()`
+# @used-by :func:`sync_website_card()`
 def json_bytes(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 # 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`populate_agent_kb()`
 def create_once(path: Path, content: str):
 	path.parent.mkdir(parents=True, exist_ok=True)
 	if not path.exists():
@@ -241,11 +278,15 @@ def create_once(path: Path, content: str):
 # 2026-11-14
 # "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
 # https://github.com/dmitry-ai/harness/issues/74
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`build_project_extra_sources()`
+# @used-by :func:`sync_project_attachments_and_kb()`
 def sync_source_folder_attachments(project_root: Path, saved_attachments: list[dict] | None=None, asset_evidence: list[dict] | None=None) -> list[dict]:
 	return AttachmentInventory(project_root).sync(saved_attachments, asset_evidence)
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`build_project_extra_sources()`
 def _load_media_descriptions(project_root: Path, overrides: dict | None=None) -> dict[str, str]:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -272,6 +313,9 @@ def _load_media_descriptions(project_root: Path, overrides: dict | None=None) ->
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`populate_agent_kb()`
+# @used-by :func:`sync_project_attachments_and_kb()`
 def build_project_extra_sources(project_root: Path, data: dict, assets: list[dict] | None=None, *, fetch_videos: bool=True) -> list[dict]:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -336,6 +380,8 @@ def build_project_extra_sources(project_root: Path, data: dict, assets: list[dic
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`populate_agent_kb()`
+# @used-by :func:`sync_project_attachments_and_kb()`
 def _render_projects_md(data: dict, url: str, source_link: str, extra_sources: list[dict], project_root: Path | None=None) -> str:
 	fence = markdown_fence(data.get('description', ''), '`')
 	projects = ['# Projects', '', '## F-PROJECT-1', f'[Current job post]({url}).', fence + 'markdown', data.get('title', ''), data.get('description', ''), fence, f'[Source text]({source_link}#/description).', '']
@@ -362,6 +408,8 @@ def _render_projects_md(data: dict, url: str, source_link: str, extra_sources: l
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`populate_agent_kb()`
+# @used-by :func:`sync_project_attachments_and_kb()`
 def _render_evidence_md(asset_evidence: list[dict], extra_sources: list[dict], project_root: Path | None=None) -> str | None:
 	if not asset_evidence and (not extra_sources):
 		r = None
@@ -403,6 +451,7 @@ def _render_evidence_md(asset_evidence: list[dict], extra_sources: list[dict], p
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 def populate_agent_kb(project_root: Path, data: dict):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -458,6 +507,7 @@ def populate_agent_kb(project_root: Path, data: dict):
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`sync_project_attachments_and_kb()`
 def _replace_section2_in_project_md(existing_md: str, data: dict, extra_sources: list[dict]) -> str:
 	fresh_md = format_kb_project_md({**data, 'extra_sources': extra_sources})
 	m_fresh = re.search('(?m)^# 2\\. (?:Current Client Project|\\u0422\\u0435\\u043a\\u0443\\u0449\\u0438\\u0439 \\u043f\\u0440\\u043e\\u0435\\u043a\\u0442 \\u043a\\u043b\\u0438\\u0435\\u043d\\u0442\\u0430)\\n(.*?)(?=^# 3\\. (?:Past Client Projects|\\u041f\\u0440\\u043e\\u0448\\u043b\\u044b\\u0435 \\u043f\\u0440\\u043e\\u0435\\u043a\\u0442\\u044b \\u043a\\u043b\\u0438\\u0435\\u043d\\u0442\\u0430)\\n|\\Z)', fresh_md, re.S)
@@ -474,6 +524,8 @@ def _replace_section2_in_project_md(existing_md: str, data: dict, extra_sources:
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.cli_domains._op_sync_attachments()`
+# @used-by :meth:`test_onboarding.AttachmentTests.test_docx_and_text_attachments_saved_in_source_and_both_kbs()`
 def sync_project_attachments_and_kb(project_root: Path, media_descriptions: dict | None=None, *, fetch_videos: bool=True) -> dict:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -512,6 +564,12 @@ def sync_project_attachments_and_kb(project_root: Path, media_descriptions: dict
 # 2026-11-04
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
+# @used-by :func:`agent_tools.completion._factual_kb_note_issues()`
+# @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_analytical_heading()`
+# @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_clean()`
+# @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_hypothesis_id()`
+# @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_pro_con()`
+# @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_root_cause()`
 def validate_kb_factual_note(path: Path | str, text: str) -> list[str]:
 	issues = []
 	p = Path(path)

@@ -21,6 +21,7 @@ TEST_FUNC_SLOC_LIMIT = 40
 TEST_MCCABE_LIMIT = 12
 _TRIVIAL_TOKENS = frozenset({tokenize.NL, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT, tokenize.COMMENT, tokenize.ENDMARKER, tokenize.ENCODING})
 _BRANCH_NODES = (ast.If, ast.IfExp, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler)
+# @used-by :func:`check_python_size_violations()`
 def _check_file_and_semis(rel_label: str, cur: dict, base: dict | None, file_lim: int) -> list[str]:
 	errs: list[str] = []
 	base_sloc = base['file_sloc'] if base else 0
@@ -32,6 +33,7 @@ def _check_file_and_semis(rel_label: str, cur: dict, base: dict | None, file_lim
 	if len(cur['semicolon_lines']) > base_semi:
 		errs.append(f'CODE-4: Anti-gaming semicolon multi-statement line(s) detected in {rel_label} at line(s) {cur["semicolon_lines"][:5]}; write one statement per line')
 	return errs
+# @used-by :func:`check_python_size_violations()`
 def _check_function_limits(rel_label: str, cur_funcs: dict, base_funcs: dict, func_lim: int, mccabe_lim: int) -> list[str]:
 	errs: list[str] = []
 	for qname, info in cur_funcs.items():
@@ -45,6 +47,7 @@ def _check_function_limits(rel_label: str, cur_funcs: dict, base_funcs: dict, fu
 			kind = 'legacy ratchet' if eff_mc > mccabe_lim else 'limit'
 			errs.append(f'CODE-4: Function {rel_label}:{qname} has McCabe complexity {info["mccabe"]}, exceeding {kind} ({eff_mc}); simplify branching')
 	return errs
+# @used-by :func:`analyze_python_source()`
 def _code_lines_and_semicolons(source: str) -> tuple[set[int], list[int]]:
 	code_lines: set[int] = set()
 	per_line: dict[int, list[tuple[int, str]]] = {}
@@ -61,12 +64,15 @@ def _code_lines_and_semicolons(source: str) -> tuple[set[int], list[int]]:
 # 2026-11-26
 # "Codify navigable cross-reference standards and override SLOC exemption":
 # https://github.com/dmitry-ai/harness/issues/286
+# @used-by :func:`_collect_excluded_lines()`
 def _add_override_decorator_lines(node: ast.AST, excluded: set[int]) -> None:
 	for dec in getattr(node, 'decorator_list', ()):
 		if (isinstance(dec, ast.Name) and 'override' == dec.id) or (isinstance(dec, ast.Attribute) and 'override' == dec.attr and isinstance(dec.value, ast.Name) and 'typing' == dec.value.id):
 			excluded.update(range(dec.lineno, (getattr(dec, 'end_lineno', None) or dec.lineno) + 1))
+# @used-by :func:`_collect_excluded_lines()`
 def _is_override_import(node: ast.AST) -> bool:
 	return isinstance(node, ast.ImportFrom) and 'typing' == node.module and 1 == len(node.names) and 'override' == node.names[0].name and None is node.names[0].asname
+# @used-by :func:`analyze_python_source()`
 def _collect_excluded_lines(tree: ast.AST) -> set[int]:
 	excluded: set[int] = set()
 	for node in ast.walk(tree):
@@ -81,6 +87,7 @@ def _collect_excluded_lines(tree: ast.AST) -> set[int]:
 			if end_ln > node.lineno and _is_constant_expr(node):
 				excluded.update(range(node.lineno + 1, end_ln + 1))
 	return excluded
+# @used-by :func:`_function_metrics()`
 def _count_mccabe_in_node(node: ast.AST) -> int:
 	count = 1 if isinstance(node, _BRANCH_NODES) else 0
 	if isinstance(node, ast.comprehension):
@@ -93,6 +100,7 @@ def _count_mccabe_in_node(node: ast.AST) -> int:
 		if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
 			count += _count_mccabe_in_node(child)
 	return count
+# @used-by :func:`_resolve_python_target()`
 def _find_git_root(path: Path) -> Path | None:
 	start = path if path.is_dir() else path.parent
 	r = None
@@ -101,6 +109,7 @@ def _find_git_root(path: Path) -> Path | None:
 			r = anc
 			break
 	return r
+# @used-by :func:`_unique_fn_map()`
 def _function_metrics(fn_node: ast.AST, effective_lines: set[int]) -> dict:
 	start = fn_node.lineno
 	end = getattr(fn_node, 'end_lineno', None) or start
@@ -113,6 +122,7 @@ def _function_metrics(fn_node: ast.AST, effective_lines: set[int]) -> dict:
 	own_lines = [ln for ln in effective_lines if start <= ln <= end and ln not in nested_lines]
 	complexity = 1 + sum((_count_mccabe_in_node(stmt) for stmt in getattr(fn_node, 'body', ())))
 	return {'sloc': len(own_lines), 'mccabe': complexity, 'lineno': start}
+# @used-by :func:`_collect_excluded_lines()`
 def _is_constant_expr(node: ast.AST) -> bool:
 	if isinstance(node, ast.Constant):
 		r = True
@@ -128,6 +138,7 @@ def _is_constant_expr(node: ast.AST) -> bool:
 # 2026-11-24
 # "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
 # https://github.com/dmitry-ai/harness/issues/186
+# @used-by :func:`evaluate_pre_tool_use_code_size()`
 def _is_legacy_oversized_baseline(path: str | Path, baseline_source: str | None) -> bool:
 	r = False
 	if None is not baseline_source:
@@ -136,6 +147,8 @@ def _is_legacy_oversized_baseline(path: str | Path, baseline_source: str | None)
 			file_lim, func_lim, mccabe_lim = _limits_for_path(path)
 			r = base['file_sloc'] > file_lim or any((f['sloc'] > func_lim or f['mccabe'] > mccabe_lim for f in base['functions'].values()))
 	return r
+# @used-by :func:`agent_tools.code_style_gate._unique_return_map()`
+# @used-by :func:`analyze_python_source()`
 def _iter_functions(node: ast.AST, prefix: str='') -> list[tuple[str, ast.AST]]:
 	out: list[tuple[str, ast.AST]] = []
 	for child in ast.iter_child_nodes(node):
@@ -147,8 +160,13 @@ def _iter_functions(node: ast.AST, prefix: str='') -> list[tuple[str, ast.AST]]:
 			cname = f'{prefix}.{child.name}' if prefix else child.name
 			out.extend(_iter_functions(child, cname))
 	return out
+# @used-by :func:`_is_legacy_oversized_baseline()`
+# @used-by :func:`check_python_size_violations()`
 def _limits_for_path(path: str | Path) -> tuple[int, int, int]:
 	return (TEST_FILE_SLOC_LIMIT, TEST_FUNC_SLOC_LIMIT, TEST_MCCABE_LIMIT) if is_test_file(path) else (PROD_FILE_SLOC_LIMIT, PROD_FUNC_SLOC_LIMIT, PROD_MCCABE_LIMIT)
+# @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
+# @used-by :func:`agent_tools.subprocess_hygiene_gate.evaluate_pre_tool_use_subprocess_hygiene()`
+# @used-by :func:`evaluate_pre_tool_use_code_size()`
 def _resolve_python_target(args: dict, payload: dict) -> tuple[Path, Path, str] | None:
 	r = None
 	raw_p = str(args.get('Path') or '').strip()
@@ -163,6 +181,7 @@ def _resolve_python_target(args: dict, payload: dict) -> tuple[Path, Path, str] 
 			if not rel.casefold().startswith(('\ua616/', '\ua66e/', '.git/')):
 				r = (repo_root, target, rel)
 	return r
+# @used-by :func:`analyze_python_source()`
 def _unique_fn_map(pairs: list[tuple[str, ast.AST]], effective_lines: set[int]) -> dict[str, dict]:
 	seen: dict[str, int] = {}
 	result: dict[str, dict] = {}
@@ -172,6 +191,10 @@ def _unique_fn_map(pairs: list[tuple[str, ast.AST]], effective_lines: set[int]) 
 		key = qname if 1 == idx else f'{qname}#{idx}'
 		result[key] = _function_metrics(node, effective_lines)
 	return result
+# @used-by :func:`_is_legacy_oversized_baseline()`
+# @used-by :func:`check_python_size_violations()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_comments_docstrings_and_declarative_tables_excluded_from_sloc()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_override_decorator_and_typing_import_excluded_from_sloc()`
 def analyze_python_source(source: str) -> dict:
 	try:
 		tree = ast.parse(source or '')
@@ -183,6 +206,16 @@ def analyze_python_source(source: str) -> dict:
 		funcs = _unique_fn_map(_iter_functions(tree), effective)
 		r = {'file_sloc': len(effective), 'functions': funcs, 'semicolon_lines': semis, 'syntax_error': None}
 	return r
+# @used-by :func:`agent_tools.python_integrity.verify_touched_python_files()`
+# @used-by :func:`agent_tools.python_integrity.verify_worktree_python_changes()`
+# @used-by :func:`evaluate_pre_tool_use_code_size()`
+# @used-by :func:`verify_staged_code_size_ratchet()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_comments_docstrings_and_declarative_tables_excluded_from_sloc()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_legacy_ratchet_allows_holding_or_shrinking_blocks_growth()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_mccabe_complexity_and_semicolon_anti_gaming()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_new_file_and_function_limits_and_test_soft_limits()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_override_decorator_and_typing_import_excluded_from_sloc()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_check_python_size_violations_rejects_syntax_error()`
 def check_python_size_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	cur = analyze_python_source(source)
 	# 2026-11-24
@@ -199,6 +232,8 @@ def check_python_size_violations(path: str | Path, source: str, *, baseline_sour
 		errs.extend(_check_function_limits(rel_label, cur['functions'], base['functions'] if base else {}, func_lim, mccabe_lim))
 		r = errs
 	return r
+# @used-by :func:`agent_tools.gates.code_size.check()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_legacy_oversized_edit_deferred_in_pre_tool_use_while_write_file_enforced()`
 def evaluate_pre_tool_use_code_size(name: str, args: dict, payload: dict) -> str | None:
 	r = None
 	if name in ('write_file', 'edit_file'):
@@ -217,6 +252,8 @@ def evaluate_pre_tool_use_code_size(name: str, args: dict, payload: dict) -> str
 						errs.extend(check_python_integrity(rel, new_text))
 					r = '; '.join(errs[:3]) if errs else None
 	return r
+# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_code_size_ratchet()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
 def verify_staged_code_size_ratchet(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	repo = Path(repo_root).resolve()
 	violations: list[str] = []

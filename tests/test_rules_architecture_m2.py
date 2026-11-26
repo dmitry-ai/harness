@@ -16,6 +16,7 @@ _HTML_COMMENT_RE = re.compile(r'<!--[\s\S]*?-->')
 # "Refactor shared rules into compact three-layer M-2 architecture":
 # https://github.com/dmitry-ai/harness/issues/242
 class RulesArchitectureM2Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_always_on_budget_and_three_layer_partition(self) -> None:
 		doc = upwork_project.doctor(primary=WT_ROOT)
 		self.assertEqual(['00-scope.md', '01-file-boundaries.md', '02-link-standards.md', '03-language-lexicon.md', '04-statement-structure.md', '05-verification-audit.md', '08-execution-and-tools.md'], doc['always_on_rules'])
@@ -27,6 +28,7 @@ class RulesArchitectureM2Tests(unittest.TestCase):
 			self.assertLessEqual(doc['per_file_bytes'][name], 4500, f'always_on rule {name} exceeds 4,500 bytes')
 		for name in doc['model_decision_rules']:
 			self.assertLessEqual(doc['per_file_bytes'][name], 6000, f'model_decision rule {name} exceeds 6,000 bytes')
+	# @used-by :mod:`unittest`
 	def test_codex_adapter_and_bootstrap_match_three_layer_rules(self) -> None:
 		codex_doc = (WT_ROOT / 'platforms/codex.md').read_text(encoding='utf-8')
 		self.assertIn('answer-<turn_key>.md', codex_doc)
@@ -37,6 +39,7 @@ class RulesArchitectureM2Tests(unittest.TestCase):
 		self.assertIn('On-demand shared rules (trigger: model_decision', expected)
 		self.assertNotIn('09-initial-analysis.md', expected)
 		self.assertNotIn('10-client-text.md', expected)
+	# @used-by :mod:`unittest`
 	def test_rules_have_zero_html_comments_valid_links_and_legacy_reference(self) -> None:
 		legacy_ref = WT_ROOT / 'references/legacy-v1-compatibility.md'
 		self.assertTrue(legacy_ref.is_file(), 'Missing references/legacy-v1-compatibility.md')
@@ -49,6 +52,7 @@ class RulesArchitectureM2Tests(unittest.TestCase):
 			self.assertEqual([], check_markdown_slop.markdown_slop_issues(text), f'DOC-4 errors in {path.name}')
 			stripped = _FENCE_RE.sub('', text)
 			self.assertIsNone(_HTML_COMMENT_RE.search(stripped), f'HTML comment found in {path.name}')
+	# @used-by :mod:`unittest`
 	def test_skills_retain_migrated_init_pub_and_shadow_replay_clauses(self) -> None:
 		upwork_skill = (WT_ROOT / 'skills/upwork-init/SKILL.md').read_text(encoding='utf-8')
 		for token in ('shadow-replay', 'sitemap.xml', 'draft.prev.md', 'RF-CLIENT-INTERMEDIARY', 'RF-WEBSITE-UNIDENTIFIED'):

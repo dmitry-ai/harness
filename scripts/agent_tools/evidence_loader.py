@@ -13,16 +13,21 @@ _MD_CTYPES = ('text/markdown', 'text/x-markdown')
 # https://github.com/dmitry-ai/harness/issues/227
 _OBS_HTML_CACHE: OrderedDict[tuple, dict] = OrderedDict()
 _OBS_HTML_CACHE_LIMIT = 64
+# @used-by :func:`_collect_ext_metadata()`
+# @used-by :func:`_extract_bundle_html()`
+# @used-by :func:`_extract_bundle_markdown()`
 def _add_anchor(anchors: set[str], value: str) -> None:
 	if value:
 		anchors.add(value)
 		if value.startswith('user-content-') and 13 < len(value):
 			anchors.add(value[13:])
+# @used-by :func:`_collect_ext_metadata()`
 def _first_h1(headings) -> str:
 	r = ''
 	if isinstance(headings, list):
 		r = next((h.get('text', '').strip() for h in headings if isinstance(h, dict) and 1 == h.get('level') and h.get('text')), '')
 	return r
+# @used-by :func:`_inspect_ext_file()`
 def _collect_ext_metadata(ext: dict, state: dict) -> None:
 	title = (ext.get('title') or '').strip() or _first_h1(ext.get('headings'))
 	if title:
@@ -33,6 +38,7 @@ def _collect_ext_metadata(ext: dict, state: dict) -> None:
 			_add_anchor(state['anchors'], str(raw_a) if raw_a else '')
 	if isinstance(ext.get('text'), str) and ext['text'].strip():
 		state['texts'].append(ext['text'])
+# @used-by :func:`_inspect_resp_bin()`
 def _extract_bundle_html(raw_text: str, data: dict, urls_here: list[str], host: str, state: dict) -> None:
 	if ((not state['has_ext']) or state['recheck']) and classify_html_challenge(raw_text, status=data.get('status')):
 		state['shell_reason'] = 'unextracted HTML JS challenge or empty shell'
@@ -49,6 +55,7 @@ def _extract_bundle_html(raw_text: str, data: dict, urls_here: list[str], host: 
 		if gh_lines:
 			state['texts'].append('\n'.join(gh_lines))
 			state['anchors'].update((f'LC{ln}' for ln in range(1, len(gh_lines) + 1)))
+# @used-by :func:`_inspect_resp_bin()`
 def _extract_bundle_markdown(raw_text: str, state: dict) -> None:
 	md_info = extract_markdown(raw_text)
 	if 0 == md_info.get('word_count', 0):
@@ -60,6 +67,7 @@ def _extract_bundle_markdown(raw_text: str, state: dict) -> None:
 		_add_anchor(state['anchors'], str(anchor))
 	if md_info.get('text'):
 		state['texts'].append(md_info['text'])
+# @used-by :func:`_scan_ext_files()`
 def _inspect_ext_file(ext: dict, cur_ext_ver, has_resp_bin: bool, state: dict) -> None:
 	if ext.get('extractor_version') != cur_ext_ver and has_resp_bin:
 		state['recheck'] = True
@@ -68,6 +76,7 @@ def _inspect_ext_file(ext: dict, cur_ext_ver, has_resp_bin: bool, state: dict) -
 	elif 'headings' in ext and None is ext.get('sitemap') and (0 == ext.get('word_count', 0)):
 		state['shell_reason'] = 'word_count=0 (empty HTML shell)'
 	_collect_ext_metadata(ext, state)
+# @used-by :func:`load_observation_bundle()`
 def _inspect_resp_bin(resp_bin: Path, data: dict, urls_here: list[str], host: str, max_bytes: int, valid_status: bool, state: dict) -> None:
 	try:
 		if resp_bin.stat().st_size <= max_bytes:
@@ -85,6 +94,7 @@ def _inspect_resp_bin(resp_bin: Path, data: dict, urls_here: list[str], host: st
 				state['json_payload'] = json.loads(raw_text)
 	except (OSError, ValueError):
 		pass
+# @used-by :func:`load_observation_bundle()`
 def _scan_ext_files(ext_files: list[Path], has_resp_bin: bool, state: dict) -> None:
 	cur_ext_ver = extractor_version()
 	for ext_file in ext_files:
@@ -94,9 +104,11 @@ def _scan_ext_files(ext_files: list[Path], has_resp_bin: bool, state: dict) -> N
 				_inspect_ext_file(ext, cur_ext_ver, has_resp_bin, state)
 		except (OSError, ValueError):
 			continue
+# @used-by :func:`_load_saved_extracted_html()`
 def _has_full_sections(ext: dict) -> bool:
 	secs = ext.get('sections')
 	return isinstance(ext.get('anchor_content'), dict) and isinstance(secs, list) and all((isinstance(s, dict) and 'content' in s for s in secs))
+# @used-by :func:`_resolve_html_data()`
 def _load_saved_extracted_html(obs_dir: Path, meta: dict, *, need_sections: bool) -> dict | None:
 	r = None
 	ext_path = obs_dir / 'extracted-html.json'
@@ -109,6 +121,7 @@ def _load_saved_extracted_html(obs_dir: Path, meta: dict, *, need_sections: bool
 		except (OSError, ValueError):
 			r = None
 	return r
+# @used-by :func:`_resolve_html_data()`
 def _obs_stat(path: Path) -> tuple[int, int]:
 	try:
 		st = os.stat(path)
@@ -116,6 +129,7 @@ def _obs_stat(path: Path) -> tuple[int, int]:
 	except OSError:
 		r = (0, 0)
 	return r
+# @used-by :func:`_resolve_html_data()`
 def _put_obs_cache(key: tuple, data: dict) -> dict:
 	_OBS_HTML_CACHE[key] = data
 	_OBS_HTML_CACHE.move_to_end(key)
@@ -125,6 +139,8 @@ def _put_obs_cache(key: tuple, data: dict) -> dict:
 # 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
+# @used-by :func:`load_observation_content()`
+# @used-by :func:`probe_observation_status()`
 def _resolve_html_data(obs_dir: Path, body: bytes | None, meta: dict, *, need_sections: bool) -> dict:
 	base_key = (os.path.normcase(str(obs_dir.resolve())), meta.get('body_sha256'), meta.get('content_type'), meta.get('charset') or 'utf-8', meta.get('status'), extractor_version(), _obs_stat(obs_dir / 'extracted-html.json'), _obs_stat(obs_dir / 'response.bin'))
 	hit = _OBS_HTML_CACHE.get((base_key, True)) or (None if need_sections else _OBS_HTML_CACHE.get((base_key, False)))
@@ -139,14 +155,19 @@ def _resolve_html_data(obs_dir: Path, body: bytes | None, meta: dict, *, need_se
 			parsed = extract_bytes(raw, meta['content_type'], 'html', meta.get('charset') or 'utf-8', status=meta.get('status'))
 			r = _put_obs_cache((base_key, True), parsed)
 	return r
+# @used-by :func:`agent_tools.runtime_cache.clear_runtime_cache()`
 def clear_observation_cache() -> None:
 	_OBS_HTML_CACHE.clear()
+# @used-by :func:`load_observation_bundle()`
+# @used-by :func:`probe_observation_status()`
+# @used-by :func:`resolve_http_observation()`
 def is_valid_observation_status(meta: dict) -> bool:
 	r = (not meta.get('error')) and ('dom' == meta.get('kind') or 200 <= (meta.get('status') or 0) < 300)
 	return r
 # 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`
 def load_analysis_card_validation(root, path: Path, prevalidated, *, analysis_issues_fn, evidence_issues_fn) -> tuple[dict | None, list, list]:
 	if None is not prevalidated:
 		r = (prevalidated, [], [])
@@ -159,6 +180,9 @@ def load_analysis_card_validation(root, path: Path, prevalidated, *, analysis_is
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_observation_bundle()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_full_probe_and_bundle_modes()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_rejects_empty_shell_bundle()`
 def load_observation_bundle(jfile: Path, data: dict, *, max_bytes: int) -> dict:
 	urls_here = [u for u in (data.get('url'), data.get('final_url')) if isinstance(u, str) and u.startswith(('http://', 'https://'))]
 	host = (urlsplit(urls_here[0]).hostname or '').lower() if urls_here else ''
@@ -174,6 +198,8 @@ def load_observation_bundle(jfile: Path, data: dict, *, max_bytes: int) -> dict:
 	reason = state['shell_reason'] or f"error={data.get('error')} status={data.get('status')}"
 	r = {'urls': urls_here, 'host': host, 'valid': ok, 'reason': None if ok else reason, 'titles': state['titles'], 'anchors': state['anchors'], 'has_html_anchors': state['has_html_anchors'], 'texts': state['texts'], 'json_payload': state['json_payload']}
 	return r
+# @used-by :func:`agent_tools.evidence.saved_source()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_full_probe_and_bundle_modes()`
 def load_observation_content(root, observation_ref: str, meta: dict, *, fragment: str='', need_sections: bool=True) -> dict:
 	from .evidence import local_file, resolve_pointer
 	obs_dir = local_file(root, observation_ref).parent
@@ -197,6 +223,9 @@ def load_observation_content(root, observation_ref: str, meta: dict, *, fragment
 	else:
 		r = {'kind': 'text', 'text': raw_str, 'fragment': frag, 'meta': meta}
 	return r
+# @used-by :func:`agent_tools.text_sources.probe_links()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_full_probe_and_bundle_modes()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
 def probe_observation_status(root, meta: dict, base_url: str, fragment: str='') -> str:
 	ct_low = (meta.get('content_type') or '').split(';', 1)[0].strip().lower()
 	if not is_valid_observation_status(meta):
@@ -220,6 +249,8 @@ def probe_observation_status(root, meta: dict, base_url: str, fragment: str='') 
 		else:
 			r = 'http-ok'
 	return r
+# @used-by :func:`agent_tools.evidence.saved_source()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_full_probe_and_bundle_modes()`
 def resolve_http_observation(root, base_url: str, observation: str | None=None) -> tuple[str, dict]:
 	if not observation:
 		from .path_registry import project_paths

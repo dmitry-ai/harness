@@ -6,6 +6,7 @@ import hashlib
 from . import admission, journal
 from .metadata import build_journal_metadata, prepend_metadata_header, strip_leading_metadata_header
 from .storage import locked
+# @used-by :func:`_record_emergency_files()`
 def _build_emergency_response(root: Path, native: dict[str, Any], turn: dict[str, Any], raw_text: str, reason: str, *, jdir: Path, steps: list[int], turn_key: str, state_path: Path, group_file: Path, conv_steps: list[int]) -> str:
 	meta = build_journal_metadata(root, native, turn, journal_dir=jdir, steps=steps, turn_key=turn_key, turn_state_path=state_path, group_file=group_file, conversation_steps=conv_steps)
 	j_sec = meta.setdefault('Journal', {})
@@ -13,6 +14,7 @@ def _build_emergency_response(root: Path, native: dict[str, Any], turn: dict[str
 	j_sec['Preparation Verified'] = False
 	j_sec['FILE-3 Warning'] = reason
 	return prepend_metadata_header(raw_text, meta)
+# @used-by :func:`maybe_emergency_capture_journal()`
 def _find_target_turn(native: dict[str, Any], last_user_step: int) -> dict[str, Any] | None:
 	r = None
 	owned = [item for item in reversed(native.get('turns') or ()) if item.get('owned')]
@@ -23,6 +25,7 @@ def _find_target_turn(native: dict[str, Any], last_user_step: int) -> dict[str, 
 	if None is r and owned:
 		r = owned[0]
 	return r
+# @used-by :func:`_record_emergency_locked()`
 def _persist_emergency_state(completion_mod, path: Path, value: dict[str, Any], recorded: dict[str, Any], *, reason: str, jdir: Path, request_ids: list[str]) -> dict[str, Any]:
 	value['prepared'] = None
 	value['journal_record'] = recorded
@@ -34,6 +37,7 @@ def _persist_emergency_state(completion_mod, path: Path, value: dict[str, Any], 
 	completion_mod._persist(path, value)
 	journal.release_turn_steps(jdir, value['key'], request_ids=request_ids)
 	return {'captured': True, 'turn_key': value['key'], 'journal_steps': list(recorded['journal_steps'])}
+# @used-by :func:`_record_emergency_locked()`
 def _record_emergency_files(root: Path, native: dict[str, Any], turn: dict[str, Any], raw_text: str, reason: str, *, jdir: Path, turn_key: str, state_path: Path, completion_mod) -> tuple[dict[str, Any], list[str]] | None:
 	r = None
 	token, request_ids = completion_mod._group(root, native, turn, raw_text, jdir)
@@ -51,6 +55,7 @@ def _record_emergency_files(root: Path, native: dict[str, Any], turn: dict[str, 
 		rec = {'journal_steps': steps, 'response_sha256': hashlib.sha256(eff_resp.encode('utf-8')).hexdigest(), 'body_sha256': body_sha, 'response_file': str(journal.step_file(res_dir, steps[0], directory=jdir)), 'group_file': str(group_file), 'group_sha256': hashlib.sha256(group_file.read_bytes()).hexdigest(), 'recorded_at': completion_mod._now(), 'reused_complete_journal_group': False, 'admission': cap.reference}
 		r = (rec, request_ids)
 	return r
+# @used-by :func:`maybe_emergency_capture_journal()`
 def _record_emergency_locked(root: Path, native: dict[str, Any], turn: dict[str, Any], raw_text: str, reason: str, completion_mod) -> dict[str, Any] | None:
 	r = None
 	path, value = completion_mod._state(root, native, turn, recovered=True, allow_extended=True)
@@ -64,6 +69,8 @@ def _record_emergency_locked(root: Path, native: dict[str, Any], turn: dict[str,
 # 2026-11-26
 # "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
 # https://github.com/dmitry-ai/harness/issues/255
+# @used-by :func:`agent_tools.stop_hook_guard._evaluate_continuation_reentry()`
+# @used-by :mod:`agent_tools.stop_emergency_capture`
 def maybe_emergency_capture_journal(root_or_data: Path, session_id: str, last_user_step: int, matched_state: dict | None, decision: dict, emergency_ctx: dict[str, Any] | None) -> dict[str, Any] | None:
 	r: dict[str, Any] | None = None
 	raw_text = str((emergency_ctx or {}).get('last_planner_text') or '')

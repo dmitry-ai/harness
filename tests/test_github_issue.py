@@ -18,9 +18,11 @@ from agent_tools.repo_tags import ensure_commit_tag
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class TestGitHubIssueTool(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_clean_markdown_passes(self):
 		clean = '## 1. Root Cause\nIn `Magento\\PageCache\\Model\\Cache\\Warmer` (`vendor/magento/module-page-cache/Model/Cache/Warmer.php`, lines 122–125 — see §6.1):\n```php\n$identifier = $this->cookieManager->getCookie(\'affiliate_identifier\') ?: null;\nif ($identifier && $this->customerSession->getId()) {\n    $this->accountService->ensureCustomerRelation((string)$identifier, `0`);\n}\n```\n```xml\n    <type name="Magento\\Framework\\Data\\Form\\FormKey">\n        <arguments>\n            <argument name="session" xsi:type="object">Magento\\Framework\\Session\\Generic\\Proxy</argument>\n        </arguments>\n    </type>\n```\nPaginated URLs like `/water-pipes.html?p=2` work across «Customers» in `0.131–0.325` seconds.\n'
 		self.assertEqual(lint_issue_markdown(clean), [])
+	# @used-by :mod:`unittest`
 	def test_detects_all_seven_powershell_corruption_classes(self):
 		errs_a = lint_issue_markdown('### Problem\nOut of Stock (\\')
 		codes_a = {e['code'] for e in errs_a}
@@ -52,6 +54,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 		self.assertIn('UTF8_BOM', {e['code'] for e in errs_f})
 		errs_g = lint_issue_markdown('### Problem\n```xml\n<type name=Magento\\Framework\\Data\\Form\\FormKey>\n<argument name=session xsi:type=object>Proxy</argument>\n</type>\n```')
 		self.assertIn('UNQUOTED_XML_ATTR', {e['code'] for e in errs_g})
+	# @used-by :mod:`unittest`
 	def test_create_and_consume_input_with_readback_verification(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			body_path = Path(tmp) / 'body.md'
@@ -64,6 +67,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 			# 2026-11-03
 			# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 			# https://github.com/dmitry-ai/harness/issues/41
+			# @used-by :meth:`TestGitHubIssueTool.test_create_and_consume_input_with_readback_verification()`
 			def fake_run(cmd, *, input=None, capture_output=True, check=False, creationflags=None):
 				self.assertEqual(creationflags, getattr(subprocess, 'CREATE_NO_WINDOW', 0))
 				class DummyProc:
@@ -99,6 +103,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 	# 2026-10-31
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
+	# @used-by :mod:`unittest`
 	def test_close_requires_committed_issue_url_in_local_code_repo(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'proj'
@@ -109,6 +114,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
 			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
 			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/smokeday-com/m.git'], cwd=code_repo, check=True, capture_output=True)
+			# @used-by :meth:`TestGitHubIssueTool.test_close_requires_committed_issue_url_in_local_code_repo()`
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				return {'number': 46, 'title': 'T', 'body': 'B', 'state': 'closed', 'state_reason': 'completed', 'html_url': 'https://github.com/smokeday-com/m/issues/46'}
 			old_cwd = Path.cwd()
@@ -131,6 +137,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 	# 2026-11-02
 	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 	# https://github.com/dmitry-ai/harness/issues/37
+	# @used-by :mod:`unittest`
 	def test_universal_locale_gate_blocks_cyrillic_and_greek_prose_while_allowing_fenced_logs(self):
 		ru_title = lint_issue_markdown('Аудит кейсов Upwork — обнаружена проблема в Warmer.php', is_title=True)
 		self.assertIn('LOCALE_MISMATCH', {e['code'] for e in ru_title})
@@ -149,6 +156,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 	# 2026-11-02
 	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 	# https://github.com/dmitry-ai/harness/issues/37
+	# @used-by :mod:`unittest`
 	def test_idempotent_comment_gate_blocks_duplicate_comment_without_comment_id(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'proj'
@@ -166,6 +174,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 			body_path = proj / '_/ꘖ/data/scratch/comment.md'
 			body_path.parent.mkdir(parents=True)
 			body_path.write_text('## Historical Context\nUpdated comment in English with `code`.\n', encoding='utf-8')
+			# @used-by :meth:`TestGitHubIssueTool.test_idempotent_comment_gate_blocks_duplicate_comment_without_comment_id()`
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				return {'id': 4345628095, 'body': body_path.read_text(encoding='utf-8'), 'html_url': 'https://github.com/smokeday-com/m/issues/37#issuecomment-4345628095'}
 			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
@@ -179,6 +188,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 	# 2026-11-18
 	# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
 	# https://github.com/dmitry-ai/harness/issues/87
+	# @used-by :mod:`unittest`
 	def test_enumerated_slop_titles_rejected_and_clean_titles_accepted(self):
 		slop_titles = (
 			'Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses',
@@ -231,6 +241,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 	# 2026-11-18
 	# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
 	# https://github.com/dmitry-ai/harness/issues/87
+	# @used-by :mod:`unittest`
 	def test_parent_child_issue_linking_bundled_subtasks_and_parent_closure(self):
 		import check_rules_and_server_gate as gate_hook
 		from agent_tools.git_gate import verify_repo_issue_ready_for_close
@@ -270,6 +281,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 				verify_repo_issue_ready_for_close(code_repo, 'smokeday-com/m', 4, project_root=proj)
 			next_num = [40]
 			issues_db = {40: {'number': 40, 'id': 4000, 'title': 'Root problem in parser', 'body': parent_diag_body, 'state': 'open', 'state_reason': None, 'html_url': url40}}
+			# @used-by :meth:`TestGitHubIssueTool.test_parent_child_issue_linking_bundled_subtasks_and_parent_closure()`
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				if 'POST' == method and endpoint.endswith('/issues'):
 					next_num[0] += 1
@@ -345,11 +357,13 @@ class TestGitHubIssueTool(unittest.TestCase):
 	# 2026-11-22
 	# "Isolate transfer-repo unit test from live df-servers repository evidence":
 	# https://github.com/dmitry-ai/harness/issues/127
+	# @used-by :mod:`unittest`
 	def test_transfer_repo_verifies_readback_and_persists_evidence(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'proj'
 			(proj / '\ua616').mkdir(parents=True)
 			calls = []
+			# @used-by :meth:`TestGitHubIssueTool.test_transfer_repo_verifies_readback_and_persists_evidence()`
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				calls.append((method, endpoint, payload))
 				if 'POST' == method and 'repos/example-owner/demo-srv/transfer' == endpoint:
@@ -371,6 +385,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 	# 2026-11-23
 	# "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
 	# https://github.com/dmitry-ai/harness/issues/150
+	# @used-by :mod:`unittest`
 	def test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out(self):
 		import io
 		from agent_tools import metadata
@@ -383,6 +398,7 @@ class TestGitHubIssueTool(unittest.TestCase):
 			issues_db = {}
 			next_num = [10]
 			calls = []
+			# @used-by :meth:`TestGitHubIssueTool.test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out()`
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				calls.append((method, endpoint))
 				if 'POST' == method and endpoint.endswith('/issues'):

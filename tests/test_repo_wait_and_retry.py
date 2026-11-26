@@ -20,6 +20,8 @@ from agent_tools.cli_registry import registered_commands
 from agent_tools.landing_lease import acquire_lease, release_lease
 from agent_tools.upwork_project import main as cli_main
 import check_markdown_slop
+# @used-by :meth:`RepoWaitAndRetryTests.test_wait_repo_cli_and_registry_expose_wait_repo()`
+# @used-by :meth:`RepoWaitAndRetryTests.test_wait_repo_reacts_to_lease_release_dead_pid_and_clean_tree()`
 def _init_repo(base: Path) -> Path:
 	repo = base / 'repo'
 	repo.mkdir(parents=True)
@@ -34,6 +36,7 @@ def _init_repo(base: Path) -> Path:
 # "Add deterministic reactive wait primitive for transient repository and journal contention":
 # https://github.com/dmitry-ai/harness/issues/199
 class RepoWaitAndRetryTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_answer_prepare_cli_reports_retryable_false_fast_and_true_on_transient_timeout(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -58,11 +61,13 @@ class RepoWaitAndRetryTests(unittest.TestCase):
 			self.assertEqual(1, rc_trans)
 			self.assertFalse(data_trans['valid'])
 			self.assertIs(True, data_trans['retryable'])
+	# @used-by :mod:`unittest`
 	def test_answer_prepare_wait_timeout_retries_transient_lock_and_recovers(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
 			proj.mkdir(parents=True)
 			calls = {'n': 0}
+			# @used-by :meth:`RepoWaitAndRetryTests.test_answer_prepare_wait_timeout_retries_transient_lock_and_recovers()`
 			def flaky_prepare(*_args, **_kwargs):
 				calls['n'] += 1
 				if 3 > calls['n']:
@@ -74,6 +79,7 @@ class RepoWaitAndRetryTests(unittest.TestCase):
 			self.assertIs(False, res['retryable'])
 			self.assertEqual(3, calls['n'])
 			self.assertGreaterEqual(res['waited_seconds'], 0.05)
+	# @used-by :mod:`unittest`
 	def test_exec4_documents_wait_repo_wait_timeout_and_no_premature_user_escalation(self) -> None:
 		rule_doc = WT_ROOT / 'rules/08-execution-and-tools.md'
 		text = rule_doc.read_text(encoding='utf-8')
@@ -81,6 +87,7 @@ class RepoWaitAndRetryTests(unittest.TestCase):
 		self.assertEqual([], check_markdown_slop.markdown_slop_issues(text))
 		for token in ('wait-repo', '--wait-timeout', 'land-acquire --wait'):
 			self.assertIn(token, text)
+	# @used-by :mod:`unittest`
 	def test_wait_repo_cli_and_registry_expose_wait_repo(self) -> None:
 		self.assertIn('wait-repo', registered_commands())
 		with tempfile.TemporaryDirectory() as tmp:
@@ -99,6 +106,7 @@ class RepoWaitAndRetryTests(unittest.TestCase):
 			self.assertTrue(fail_out['timed_out'])
 			self.assertTrue(fail_out['retryable'])
 			self.assertEqual(['dirty.py'], fail_out['dirty_files'])
+	# @used-by :mod:`unittest`
 	def test_wait_repo_reacts_to_lease_release_dead_pid_and_clean_tree(self) -> None:
 		from agent_tools.repo_wait import wait_for_repo
 		with tempfile.TemporaryDirectory() as tmp:
@@ -111,6 +119,7 @@ class RepoWaitAndRetryTests(unittest.TestCase):
 			self.assertTrue(dead_res['lease_free'])
 			acquire_lease(repo, 'live-holder', leases_dir=leases)
 			(repo / 'wip.py').write_text('Z = 3\n', encoding='utf-8')
+			# @used-by :meth:`RepoWaitAndRetryTests.test_wait_repo_reacts_to_lease_release_dead_pid_and_clean_tree()`
 			def release_soon() -> None:
 				time.sleep(0.2)
 				(repo / 'wip.py').unlink()

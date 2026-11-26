@@ -15,6 +15,14 @@ from .storage import create_bytes, data_dir_for, locked, replace_bytes
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
 DISCOVERY_KINDS = ('rules', 'skills', 'agents')
+# @used-by :func:`_native_config()`
+# @used-by :func:`_publish()`
+# @used-by :func:`build_native()`
+# @used-by :func:`replace_managed_block()`
+# @used-by :func:`store_content_backup()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_guidance_uses_current_canonical_loader_without_copying_rule_bodies()`
+# @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
+# @used-by :meth:`test_portability.ProjectionTests.test_verified_legacy_migrates_but_manual_configuration_and_fallback_survive()`
 def _digest(data):
 	return hashlib.sha256(data).hexdigest()
 # 2026-10-15
@@ -32,6 +40,8 @@ def _digest(data):
 # 2026-11-14
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
+# @used-by :func:`build_native()`
+# @used-by :func:`configure_codex_project()`
 def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), preflight=False):
 	root = Path(root).resolve()
 	if not outputs and (not any((Path(path).exists() for path in retire))):
@@ -122,6 +132,7 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 						manifest.unlink()
 				r = {'valid': True, 'issues': [], 'written': [] if preflight else [str(p) for p in planned], 'outputs': [str(p) for p in outputs], 'removed': [] if preflight else [str(p) for p in removed]}
 	return r
+# @used-by :func:`_root_options()`
 def _toml_statements(text):
 	start = index = depth = 0
 	quote, comment = (None, False)
@@ -167,8 +178,12 @@ def _toml_statements(text):
 # https://github.com/dmitry-ai/harness/issues/7
 START = '<!-- upwork-init:instructions:start -->'
 END = '<!-- upwork-init:instructions:end -->'
+# @used-by unused
 def _managed_block(value):
 	return extract_managed_block(value)
+# @used-by :func:`_native_config()`
+# @used-by :meth:`test_portability.ProjectionTests.test_multiline_toml_values_do_not_damage_unrelated_settings()`
+# @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
 def _root_options(text, instructions=None, *, legacy_bytes=None, expected_block=None):
 	data = tomllib.loads(text) if text.strip() else {}
 	block = START + '\n' + instructions.strip() + '\n' + END if instructions else ''
@@ -196,6 +211,8 @@ def _root_options(text, instructions=None, *, legacy_bytes=None, expected_block=
 	text = ''.join((key + ' = ' + value + '\n' for key, value in values.items() if key not in found and None is not value)) + text
 	tomllib.loads(text)
 	return text
+# @used-by :func:`build_native()`
+# @used-by :func:`configure_codex_project()`
 def _native_config(root, instructions=None):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -216,6 +233,14 @@ def _native_config(root, instructions=None):
 # 2026-11-25
 # "Refactor shared rules into compact three-layer M-2 architecture":
 # https://github.com/dmitry-ai/harness/issues/242
+# @used-by :func:`agent_tools.native_profiles._legacy_role()`
+# @used-by :func:`agent_tools.native_profiles._profile_agents()`
+# @used-by :func:`agent_tools.native_profiles.shared_native_outputs()`
+# @used-by :func:`build_native()`
+# @used-by :func:`configure_codex_project()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.legacy_codex()`
+# @used-by :meth:`test_rules_progressive_disclosure.RulesProgressiveDisclosureTests.test_loader_omits_on_demand_header_when_all_rules_are_always_on()`
+# @used-by :meth:`test_rules_progressive_disclosure.RulesProgressiveDisclosureTests.test_loader_separates_always_on_and_catalogs_model_decision_with_description()`
 def _loader(primary, local=(), *, restore_global=True, display_root=None):
 	from .rules_manifest import render_codex_loader
 	return render_codex_loader(primary, local, restore_global=restore_global, display_root=display_root)
@@ -225,6 +250,9 @@ def _loader(primary, local=(), *, restore_global=True, display_root=None):
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
+# @used-by :meth:`test_portability.ProjectionTests.test_global_instructions_are_read_safely_and_local_override_keeps_its_priority()`
 def global_codex_instructions():
 	codex_cfg = settings()['platforms'].get('codex') or {}
 	all_insts = extract_platform_instances(codex_cfg, platform='codex', include_disabled=True)
@@ -251,6 +279,10 @@ def global_codex_instructions():
 		raise ValueError('Global profile instructions differ; select the actual --codex-profile instead of combining accounts')
 	r = {'developer_instructions': values[0], 'profile': names[0] if 1 == len(names) else 'identical across configured profiles'}
 	return r
+# @used-by :func:`agent_tools.completion._instruction_snapshot()`
+# @used-by :func:`build_native()`
+# @used-by :func:`configure_codex_project()`
+# @used-by :meth:`test_portability.ProjectionTests.test_extra_rule_sources_are_projected_and_unsupported_selectors_reported()`
 def _project_rule_paths(root, primary):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -284,6 +316,8 @@ def _project_rule_paths(root, primary):
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# @used-by :func:`build_native()`
+# @used-by :func:`configure_codex_project()`
 def _primary_settings(primary):
 	p = Path(primary).resolve()
 	rt = p / 'runtime.json'
@@ -293,6 +327,9 @@ def _primary_settings(primary):
 # 2026-10-16
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
+# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`test_portability.ProjectionTests.test_project_rules_feed_both_systems_and_detect_stale_codex_projection()`
 def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, check=False):
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
@@ -334,6 +371,9 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# @used-by :func:`agent_tools.native_profiles._legacy_skill()`
+# @used-by :func:`agent_tools.native_profiles._skills()`
+# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._populate_source_metadata()`
 def _frontmatter(path):
 	text = path.read_text(encoding='utf-8-sig')
 	match = re.match('^---\\r?\\n(.*?)\\r?\\n---\\r?\\n', text, re.S)
@@ -348,6 +388,18 @@ def _frontmatter(path):
 # 2026-10-16
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.build()`
+# @used-by :meth:`test_df_article.LexiconAndProjectionTests.test_build_native_uses_shared_skills_without_project_wrappers()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
+# @used-by :meth:`test_portability.ProjectionTests.test_check_does_not_create_an_uninstalled_workspace()`
+# @used-by :meth:`test_portability.ProjectionTests.test_dangling_personal_guidance_links_are_preserved_before_shared_publication()`
+# @used-by :meth:`test_portability.ProjectionTests.test_first_install_preserves_an_unowned_antigravity_worker()`
+# @used-by :meth:`test_portability.ProjectionTests.test_generation_is_idempotent_detects_source_changes_and_preserves_manual_edits()`
+# @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
+# @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
+# @used-by :meth:`test_portability.ProjectionTests.test_unowned_legacy_prevents_partial_migration()`
+# @used-by :meth:`test_portability.ProjectionTests.test_verified_legacy_migrates_but_manual_configuration_and_fallback_survive()`
 def build_native(root=None, *, primary=PRIMARY, check=False):
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
@@ -420,6 +472,12 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 # 2026-11-14
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
+# @used-by :func:`_managed_block()`
+# @used-by :func:`_publish()`
+# @used-by :func:`build_native()`
+# @used-by :func:`configure_codex_project()`
+# @used-by :func:`replace_managed_block()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def extract_managed_block(value, start_marker=START, end_marker=END, *, error_message='Malformed managed developer instructions; configuration preserved'):
 	if start_marker not in value and end_marker not in value:
 		r = ''
@@ -428,19 +486,34 @@ def extract_managed_block(value, start_marker=START, end_marker=END, *, error_me
 	else:
 		r = value[value.index(start_marker):value.index(end_marker) + len(end_marker)]
 	return r
+# @used-by :func:`_publish()`
+# @used-by :mod:`agent_tools.native_profiles`
 def has_linked_ancestor(path, *, include_self=True):
 	resolved = Path(os.path.abspath(path))
 	candidates = (resolved, *resolved.parents) if include_self else resolved.parents
 	return next((item for item in candidates if is_linked_path(item)), None)
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`has_linked_ancestor()`
+# @used-by :mod:`agent_tools.native_profiles`
 def is_linked_path(path):
 	candidate = Path(path)
 	return candidate.is_symlink() or bool(getattr(candidate, 'is_junction', lambda: False)())
+# @used-by :func:`_project_rule_paths()`
+# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
+# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_discovery_manifests()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def load_discovery_manifest(path, *, missing_ok=True, entries_error='Manifest needs an entries list', check_inherits=False):
 	target = Path(path)
 	data = json.loads(target.read_text(encoding='utf-8-sig')) if target.exists() or (not missing_ok) else {}
 	if not isinstance(data, dict) or not isinstance(data.get('entries', []), list) or (check_inherits and (not isinstance(data.get('inherits', []), list))):
 		raise ValueError(entries_error)
 	return data
+# @used-by :func:`_native_config()`
+# @used-by :func:`_publish()`
+# @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
+# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._verify_projection_receipt()`
 def load_project_receipt(target, *, by_path=False, error_message='Project native ownership receipt must be an object; preserved'):
 	path = Path(target) if by_path else data_dir_for(target) / 'native-config.json'
 	raw = path.read_bytes() if path.exists() else None
@@ -448,13 +521,24 @@ def load_project_receipt(target, *, by_path=False, error_message='Project native
 	if not isinstance(data, dict):
 		raise ValueError(error_message)
 	return (path, raw, data)
+# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def project_discovery_entries(primary, kind, *, require_dir=False):
 	shared = Path(primary) / kind
 	if require_dir and (not shared.is_dir()):
 		raise FileNotFoundError(shared)
 	return [{'path': shared.as_posix()}, *([{'path': 'rules'}] if 'rules' == kind else [])]
+# @used-by :func:`_native_config()`
+# @used-by :func:`_publish()`
+# @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
+# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._verify_projection_receipt()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def receipt_sha256(entry):
 	return entry.get('sha256') if isinstance(entry, dict) else entry
+# @used-by :func:`_root_options()`
+# @used-by :func:`agent_tools.native_profiles._profile_agents()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def replace_managed_block(value, block, *, start_marker=START, end_marker=END, expected_sha256=None, malformed_message='Malformed managed developer instructions; configuration preserved', edited_message='Managed developer instructions were manually edited; configuration preserved'):
 	old_block = extract_managed_block(value, start_marker, end_marker, error_message=malformed_message)
 	if not old_block:
@@ -465,12 +549,19 @@ def replace_managed_block(value, block, *, start_marker=START, end_marker=END, e
 		index = value.index(start_marker)
 		r = value[:index] + block + value[index + len(old_block):]
 	return r
+# @used-by :func:`_project_rule_paths()`
+# @used-by :func:`agent_tools.native_profiles._manifest()`
+# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_manifest_entry()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def resolve_manifest_entry(agents_dir, entry):
 	if not isinstance(entry, dict) or not isinstance(entry.get('path'), str):
 		r = (None, False)
 	else:
 		r = ((Path(agents_dir) / Path(entry['path']).expanduser()).resolve(), bool(set(entry) - {'path'}))
 	return r
+# @used-by :func:`_publish()`
+# @used-by :func:`agent_tools.native_profiles._backup()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def store_content_backup(backup_root, path, payload, *, error_message=None):
 	digest = _digest(payload)
 	backup = Path(backup_root) / _digest(str(path).encode('utf-8')) / (digest + '.bin')

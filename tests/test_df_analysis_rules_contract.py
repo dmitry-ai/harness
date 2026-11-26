@@ -14,6 +14,7 @@ import check_markdown_slop
 # "Create /df-analysis skill and codify mandatory analytical rules":
 # https://github.com/dmitry-ai/harness/issues/182
 class DfAnalysisRulesAndSkillContractTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cli_help_exposes_problem_metadata_and_analysis_check(self) -> None:
 		harness_cli = str(SCRIPT_DIR / 'harness.py')
 		p_root = subprocess.run([sys.executable, harness_cli, '--help'], capture_output=True, text=True, encoding='utf-8', check=True)
@@ -26,6 +27,7 @@ class DfAnalysisRulesAndSkillContractTests(unittest.TestCase):
 		p_chk = subprocess.run([sys.executable, harness_cli, 'analysis-check', '--help'], capture_output=True, text=True, encoding='utf-8', check=True)
 		self.assertIn('--response-file', p_chk.stdout)
 		self.assertIn('--mode', p_chk.stdout)
+	# @used-by :mod:`unittest`
 	def test_df_analysis_skill_discovered_by_native_profiles_and_lints_cleanly(self) -> None:
 		skills = native_profiles._skills(WT_ROOT)
 		self.assertIn('df-analysis', skills)
@@ -37,6 +39,7 @@ class DfAnalysisRulesAndSkillContractTests(unittest.TestCase):
 		self.assertEqual([], check_markdown_slop.markdown_slop_issues(skill_text))
 		for token in ('no single unambiguous solution', 'problem-metadata', 'analysis-check', '# 0', '# 1', '# 2', '# 3', '# 4', 'Issue', 'verbatim', 'Harness'):
 			self.assertIn(token, skill_text, f'Missing token {token!r} in skills/df-analysis/SKILL.md')
+	# @used-by :mod:`unittest`
 	def test_rules_adapters_and_docs_codify_df_analysis_and_pass_lint(self) -> None:
 		stmt_rule = WT_ROOT / 'rules/04-statement-structure.md'
 		link_rule = WT_ROOT / 'rules/02-link-standards.md'

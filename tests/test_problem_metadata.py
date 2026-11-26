@@ -17,6 +17,7 @@ from agent_tools import metadata
 # "Add structured problem metadata builder and CLI command":
 # https://github.com/dmitry-ai/harness/issues/180
 class ProblemMetadataTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_build_problem_metadata_rejects_missing_or_invalid_issue_url(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'demo'
@@ -28,6 +29,7 @@ class ProblemMetadataTests(unittest.TestCase):
 					metadata.build_problem_metadata(issue_url='not-a-github-url', project_root=proj, env={})
 				with self.assertRaises(ValueError):
 					metadata.build_problem_metadata(issue_url='https://example.com/issues/1', project_root=proj, env={})
+	# @used-by :mod:`unittest`
 	def test_build_problem_metadata_with_issue_url_and_distinct_source_project(self) -> None:
 		tz_plus3 = timezone(timedelta(hours=3))
 		now_dt = datetime(2026, 11, 24, 1, 30, 0, tzinfo=timezone.utc)
@@ -59,6 +61,7 @@ class ProblemMetadataTests(unittest.TestCase):
 			self.assertEqual(meta['Project'], {'Name': 'client-proj', 'Path': proj.as_posix()})
 			self.assertEqual(meta['Source Project'], {'Name': 'harness-root', 'Path': src_proj.as_posix()})
 			self.assertNotIn('Source Project', same_src)
+	# @used-by :mod:`unittest`
 	def test_build_problem_metadata_allow_no_issue_keeps_mandatory_issue_key(self) -> None:
 		tz_plus3 = timezone(timedelta(hours=3))
 		now_dt = datetime(2026, 11, 24, 1, 30, 0, tzinfo=timezone.utc)
@@ -70,6 +73,7 @@ class ProblemMetadataTests(unittest.TestCase):
 			self.assertIn('Issue', meta)
 			self.assertIsNone(meta['Issue'])
 			self.assertEqual(meta['Project']['Name'], 'local-only')
+	# @used-by :mod:`unittest`
 	def test_cli_problem_metadata_outputs_json_and_markdown_and_enforces_issue_key(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'cli-proj'

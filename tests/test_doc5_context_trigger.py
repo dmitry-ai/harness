@@ -14,7 +14,8 @@ TESTS = WT_ROOT / 'tests'
 for p in (SCRIPTS, TESTS):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
-# @used-by :meth:`Doc5ContextTriggerTests.test_active_turn_cli_failure_plus_new_parent_issue_forces_doc5_four_tracks()`, :meth:`Doc5ContextTriggerTests.test_planned_child_issue_turn_with_tdd_red_failure_does_not_force_doc5()`
+# @used-by :meth:`Doc5ContextTriggerTests.test_active_turn_cli_failure_plus_new_parent_issue_forces_doc5_four_tracks()`
+# @used-by :meth:`Doc5ContextTriggerTests.test_planned_child_issue_turn_with_tdd_red_failure_does_not_force_doc5()`
 def _seed_bug_turn(base: Path, rows: list[dict], *, issue_actions: list[dict]) -> tuple[Path, str, dict]:
 	proj = base / 'proj'
 	(proj / '\ua616/data/turns').mkdir(parents=True)

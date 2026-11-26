@@ -41,6 +41,10 @@ _instance = ContextVar('upwork_instance', default=None)
 # 2026-11-19
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
+# @used-by :func:`_exists_flag()`
+# @used-by :func:`_resolve_glob_paths()`
+# @used-by :func:`default_system_paths()`
+# @used-by :func:`sanctioned_addon_code_roots()`
 def _expand_path(value):
 	text = str(value)
 	if '${' in text or re.search('%[A-Za-z_][A-Za-z0-9_]*%', text):
@@ -49,6 +53,7 @@ def _expand_path(value):
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# @used-by :func:`settings()`
 def _validate_runtime(value):
 	if 2 != value.get('version') or not value.get('workspace_root') or (not isinstance(value.get('platforms'), dict)) or (not value['platforms']):
 		raise ValueError('runtime.json needs version 2, workspace_root and platforms')
@@ -97,12 +102,102 @@ def _validate_runtime(value):
 # 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
+# @used-by :func:`_resolve_platform_cfg()`
+# @used-by :func:`agent_tools.cleanup.record_cleanup_answer()`
+# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
+# @used-by :func:`agent_tools.cleanup_audit.resolve_cleanup_log_root()`
+# @used-by :func:`agent_tools.completion._instruction_snapshot()`
+# @used-by :func:`agent_tools.configuration._primary_settings()`
+# @used-by :func:`agent_tools.configuration.global_codex_instructions()`
+# @used-by :func:`agent_tools.meta.identity._resolve_ag_paths_safe()`
+# @used-by :func:`agent_tools.native_profiles._configuration()`
+# @used-by :func:`agent_tools.operations.add_parsers()`
+# @used-by :func:`agent_tools.path_registry._is_registered_single_project()`
+# @used-by :func:`agent_tools.platforms.adapter()`
+# @used-by :func:`agent_tools.platforms.antigravity._antigravity_paths()`
+# @used-by :func:`agent_tools.platforms.antigravity._default_folders_json()`
+# @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+# @used-by :func:`agent_tools.registration.register_projects()`
+# @used-by :func:`agent_tools.repo_tags._configured_timezone()`
+# @used-by :func:`agent_tools.text_browser.browser_anchor_status()`
+# @used-by :func:`agent_tools.text_browser.collect_cdp_dom()`
+# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
+# @used-by :func:`agent_tools.text_browser.preflight()`
+# @used-by :func:`agent_tools.text_browser.resolve_cdp_port()`
+# @used-by :func:`agent_tools.text_browser.resolve_headless_shell()`
+# @used-by :func:`agent_tools.text_core.default_shell()`
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
+# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :func:`agent_tools.upwork_project.instances_report()`
+# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :func:`all_instances()`
+# @used-by :func:`check_pre_invocation._resolve_ag_paths()`
+# @used-by :func:`check_stop_gate._resolve_stop_paths()`
+# @used-by :func:`default_user_locale()`
+# @used-by :func:`enabled_platforms()`
+# @used-by :func:`find_conversation_instance()`
+# @used-by :func:`instance_entry()`
+# @used-by :func:`platform_active()`
+# @used-by :func:`platform_adapter_name()`
+# @used-by :func:`platform_key_for_adapter()`
+# @used-by :func:`platform_name()`
+# @used-by :func:`platform_settings()`
+# @used-by :func:`profile_name()`
+# @used-by :func:`registration_profile_name()`
+# @used-by :func:`request_day()`
+# @used-by :func:`resolve_antigravity_paths()`
+# @used-by :func:`resolve_codex_home()`
+# @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
+# @used-by :meth:`agent_tools.text_browser.CDPSession.__init__()`
+# @used-by :meth:`agent_tools.text_browser.GuardedCDP.__init__()`
+# @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.__init__()`
+# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner.__init__()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
+# @used-by :meth:`test_cleanup.CleanupTests.setUp()`
+# @used-by :meth:`test_cleanup_audit.CleanupAuditTests.setUp()`
+# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests.setUp()`
+# @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests.setUp()`
+# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests._make_primary()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.setUp()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_runtime_validation_rejects_invalid_instances_and_dual_homes()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.setUp()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
+# @used-by :meth:`test_portability.ProjectionTests.test_global_instructions_are_read_safely_and_local_override_keeps_its_priority()`
+# @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
+# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_project_cleanup_integration()`
+# @used-by :meth:`test_registration_portability.RegistrationProfileTests.setUp()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.setUp()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_runtime_settings_cache_invalidates_on_file_or_env_change_and_isolates_mutations()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
+# @used-by :mod:`agent_tools.intake`
+# @used-by :mod:`agent_tools.platforms.antigravity`
+# @used-by :mod:`agent_tools.runtime`
+# @used-by :mod:`agent_tools.upwork_project`
 def settings(path=None):
 	from .runtime_cache import load_cached_settings
 	runtime_file = Path(path) if None is not path else default_runtime_file(PRIMARY, _CODE_ANCHOR, DEFAULT_REGISTRY_FILE)
 	return load_cached_settings(runtime_file, _validate_runtime)
 _UNPATCHED_SETTINGS = settings
 from .runtime_cache import skip_shell_violations
+# @used-by :func:`agent_tools.cleanup_lifecycle._disabled_ag_history()`
+# @used-by :func:`agent_tools.cleanup_lifecycle._disabled_codex_history()`
+# @used-by :func:`agent_tools.completion._instruction_snapshot()`
+# @used-by :func:`agent_tools.completion._sync_antigravity_conversation_title()`
+# @used-by :func:`agent_tools.journal_liveness.is_conversation_running_live()`
+# @used-by :func:`agent_tools.journal_sync_all._is_native_idle_for_sync()`
+# @used-by :func:`agent_tools.platforms.adapter()`
+# @used-by :func:`all_instances()`
+# @used-by :func:`default_system_paths()`
+# @used-by :func:`extract_platform_instances()`
+# @used-by :func:`find_conversation_instance()`
+# @used-by :func:`platform_key_for_adapter()`
+# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 def platform_adapter_name(platform, plat_cfg=None, *, config=None):
 	if None is plat_cfg:
 		plat_cfg = (config or settings()).get('platforms', {}).get(platform) or {}
@@ -110,12 +205,15 @@ def platform_adapter_name(platform, plat_cfg=None, *, config=None):
 # 2026-11-18
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# @used-by :func:`_exists_flag()`
+# @used-by :func:`default_system_paths()`
 def _has_glob_wildcard(value):
 	text = str(value or '')
 	return '*' in text or '?' in text
 # 2026-11-18
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# @used-by :func:`_codex_home_conversation_trace()`
 def _resolve_glob_paths(raw_glob, base_dir=None):
 	text = _expand_path(raw_glob) if isinstance(raw_glob, str) and raw_glob.strip() else ''
 	if not text:
@@ -129,6 +227,15 @@ def _resolve_glob_paths(raw_glob, base_dir=None):
 # 2026-11-18
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# @used-by :func:`_resolve_platform_cfg()`
+# @used-by :func:`agent_tools.platforms.antigravity._default_folders_json()`
+# @used-by :func:`platform_name()`
+# @used-by :func:`profile_name()`
+# @used-by :func:`registration_profile_name()`
+# @used-by :func:`resolve_antigravity_paths()`
+# @used-by :func:`resolve_codex_home()`
+# @used-by :func:`resolve_codex_paths()`
+# @used-by :mod:`agent_tools.platforms.antigravity`
 def platform_key_for_adapter(adapter_name, config=None):
 	cfg_all = config or settings()
 	plats = cfg_all.get('platforms') or {}
@@ -140,6 +247,8 @@ def platform_key_for_adapter(adapter_name, config=None):
 		return None
 	enabled = [name for name in matches if bool(plats[name].get('enabled', True))]
 	return enabled[0] if enabled else matches[0]
+# @used-by :func:`extract_platform_instances()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
 def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 	plat_cfg = plat_cfg if isinstance(plat_cfg, dict) else {}
 	adapter_kind = platform_adapter_name(platform, plat_cfg)
@@ -156,6 +265,19 @@ def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 	raw_udd = explicit.get('user_data_dir') if 'user_data_dir' in explicit else inst_cfg.get('user_data_dir')
 	udd_exp = _expand_path(raw_udd) if isinstance(raw_udd, str) and raw_udd.strip() and (not _has_glob_wildcard(raw_udd)) else None
 	return derive_platform_system_paths(adapter_kind, explicit, home=home_exp, user_data_dir=udd_exp, plat_cfg=plat_cfg)
+# @used-by :func:`agent_tools.configuration.global_codex_instructions()`
+# @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
+# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
+# @used-by :func:`all_instances()`
+# @used-by :func:`extract_platform_homes()`
+# @used-by :func:`find_conversation_instance()`
+# @used-by :func:`platform_active()`
+# @used-by :func:`platform_instances()`
+# @used-by :func:`profile_name()`
+# @used-by :func:`registration_profile_name()`
+# @used-by :func:`resolve_antigravity_paths()`
+# @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_codex_profiles()`
 def extract_platform_instances(plat_cfg, *, platform='', include_disabled=False):
 	if not isinstance(plat_cfg, dict):
 		return {}
@@ -199,8 +321,23 @@ def extract_platform_instances(plat_cfg, *, platform='', include_disabled=False)
 		})
 		out[inst_id] = entry
 	return out
+# @used-by :func:`agent_tools.platforms.codex.native_tool_trace()`
+# @used-by :func:`agent_tools.platforms.codex.verify_native_proof()`
+# @used-by :func:`agent_tools.text_browser._profile()`
+# @used-by :func:`platform_homes()`
+# @used-by :func:`profile_name()`
+# @used-by :func:`registration_profile_name()`
+# @used-by :func:`resolve_codex_home()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
 def extract_platform_homes(plat_cfg, *, platform='', include_disabled=False):
 	return {name: item['home'] for name, item in extract_platform_instances(plat_cfg, platform=platform, include_disabled=include_disabled).items() if item.get('home')}
+# @used-by :func:`all_instances()`
+# @used-by :func:`find_conversation_instance()`
+# @used-by :func:`instance_entry()`
+# @used-by :func:`platform_active()`
+# @used-by :func:`platform_enabled()`
+# @used-by :func:`platform_homes()`
+# @used-by :func:`platform_instances()`
 def _resolve_platform_cfg(platform, *, config=None):
 	cfg_all = config or settings()
 	plats = cfg_all.get('platforms') or {}
@@ -210,6 +347,8 @@ def _resolve_platform_cfg(platform, *, config=None):
 	if key and key in plats:
 		return (key, plats[key])
 	return (platform, None)
+# @used-by :func:`all_instances()`
+# @used-by :func:`platform_active()`
 def platform_enabled(platform, *, config=None):
 	_, cfg = _resolve_platform_cfg(platform, config=config)
 	if not isinstance(cfg, dict):
@@ -218,16 +357,51 @@ def platform_enabled(platform, *, config=None):
 	if not isinstance(val, bool):
 		raise ValueError(f'runtime.json platforms.{platform}.enabled must be a boolean')
 	return val
+# @used-by :func:`agent_tools.cleanup_lifecycle._disabled_ag_history()`
+# @used-by :func:`agent_tools.cleanup_lifecycle._disabled_codex_history()`
+# @used-by :func:`agent_tools.cleanup_lifecycle.resolve_readonly_history()`
+# @used-by :func:`agent_tools.meta.identity._antigravity_project_dirs()`
+# @used-by :func:`agent_tools.path_registry._is_registered_single_project()`
+# @used-by :func:`agent_tools.platforms.antigravity._default_folders_json()`
+# @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+# @used-by :func:`agent_tools.platforms.antigravity.register()`
+# @used-by :func:`agent_tools.project_rename._antigravity_dirs_map()`
+# @used-by :func:`check_pre_invocation._resolve_ag_paths()`
+# @used-by :func:`check_stop_gate._resolve_stop_paths()`
+# @used-by :func:`instance_entry()`
+# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
+# @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
+# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
+# @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 def platform_instances(platform, *, config=None, include_disabled=False):
 	resolved_id, cfg = _resolve_platform_cfg(platform, config=config)
 	if None is cfg:
 		raise ValueError(f'Unknown Upwork platform: {platform}')
 	return extract_platform_instances(cfg, platform=resolved_id, include_disabled=include_disabled)
+# @used-by :func:`agent_tools.upwork_project.main()`
 def platform_homes(platform, *, config=None, include_disabled=False):
 	resolved_id, cfg = _resolve_platform_cfg(platform, config=config)
 	if None is cfg:
 		raise ValueError(f'Unknown Upwork platform: {platform}')
 	return extract_platform_homes(cfg, platform=resolved_id, include_disabled=include_disabled)
+# @used-by :func:`agent_tools.registration.register_projects()`
+# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
+# @used-by :func:`all_instances()`
+# @used-by :func:`enabled_platforms()`
+# @used-by :func:`platform_name()`
+# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
 def platform_active(platform, *, config=None):
 	cfg_all = config or settings()
 	resolved_id, plat_cfg = _resolve_platform_cfg(platform, config=cfg_all)
@@ -237,9 +411,20 @@ def platform_active(platform, *, config=None):
 	if declared:
 		return any((item['enabled'] for item in declared.values()))
 	return True
+# @used-by :func:`platform_name()`
 def enabled_platforms(*, config=None):
 	cfg_all = config or settings()
 	return [name for name in cfg_all['platforms'] if platform_active(name, config=cfg_all)]
+# @used-by :func:`agent_tools.metrics._resolve_target()`
+# @used-by :func:`agent_tools.metrics.summarize_instance()`
+# @used-by :func:`agent_tools.upwork_project.instances_report()`
+# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :func:`instance_paths()`
+# @used-by :func:`platform_name()`
+# @used-by :func:`resolve_antigravity_paths()`
+# @used-by :func:`resolve_codex_home()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 def instance_entry(instance_id, *, platform=None, config=None, include_disabled=True):
 	cfg_all = config or settings()
 	matches = []
@@ -260,13 +445,20 @@ def instance_entry(instance_id, *, platform=None, config=None, include_disabled=
 	if 1 < len(matches):
 		raise ValueError(f'Instance {instance_id!r} exists in multiple platforms; specify --platform')
 	return matches[0]
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
 def instance_paths(instance_id, *, platform=None, config=None, include_disabled=True):
 	return instance_entry(instance_id, platform=platform, config=config, include_disabled=include_disabled)['system_paths']
+# @used-by :func:`all_instances()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
 def _exists_flag(path_str):
 	text = _expand_path(path_str) if isinstance(path_str, str) else str(path_str)
 	if _has_glob_wildcard(text):
 		return any((Path(match).exists() for match in glob.glob(text, recursive=True)))
 	return Path(text).exists()
+# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :func:`agent_tools.upwork_project.instances_report()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
 def all_instances(*, config=None, platform=None, include_disabled=True, check_exists=False):
 	cfg_all = config or settings()
 	if platform:
@@ -317,6 +509,8 @@ def all_instances(*, config=None, platform=None, include_disabled=True, check_ex
 		envs[plat_id] = env_entry
 	handoff_targets = [{'id': iid, 'platform': plat_id, 'label': inst['label'], 'home': inst['home'], 'system_paths': inst['system_paths']} for plat_id, env in envs.items() for iid, inst in env['instances'].items() if inst['enabled']]
 	return {'environments': envs, 'instances': flat, 'enabled_environments': [p for p, e in envs.items() if e['active']], 'available_handoff_targets': handoff_targets}
+# @used-by :func:`find_conversation_instance()`
+# @used-by :func:`resolve_antigravity_paths()`
 def _antigravity_backend_has_conversation(backend_dir, conversation_id, *, system_paths=None):
 	backend = Path(backend_dir) if backend_dir else None
 	if not re.fullmatch('[a-f0-9-]{36}', str(conversation_id or '')):
@@ -338,6 +532,10 @@ def _antigravity_backend_has_conversation(backend_dir, conversation_id, *, syste
 		except sqlite3.Error:
 			return False
 	return False
+# @used-by :func:`agent_tools.meta.builders._collect_codex_issue_ctx()`
+# @used-by :func:`find_conversation_instance()`
+# @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
 def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=None):
 	home = Path(home_dir) if home_dir else None
 	if not re.fullmatch('[a-f0-9-]{36}', str(conversation_id or '')):
@@ -365,6 +563,15 @@ def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=No
 		if matches:
 			return str(matches[0])
 	return None
+# @used-by :func:`agent_tools.metrics._resolve_target()`
+# @used-by :func:`agent_tools.metrics.summarize_instance()`
+# @used-by :func:`agent_tools.perf.timesheet_common._lookup_conversation_trace()`
+# @used-by :func:`agent_tools.upwork_project.instances_report()`
+# @used-by :func:`resolve_antigravity_paths()`
+# @used-by :func:`resolve_codex_home()`
+# @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
 def find_conversation_instance(conversation_id, *, platform=None, config=None, include_disabled=True):
 	cfg_all = config or settings()
 	if platform:
@@ -399,6 +606,15 @@ def find_conversation_instance(conversation_id, *, platform=None, config=None, i
 					if trace:
 						found.append({'id': iid, 'platform': plat_id, 'enabled': item['enabled'], 'backend_dir': str(Path(home_str)) if home_str else None, 'trace_file': trace, 'system_paths': sp})
 	return found
+# @used-by :func:`agent_tools.journal_sync_all._resolve_ag_summary_db()`
+# @used-by :func:`agent_tools.meta.identity._resolve_ag_paths_safe()`
+# @used-by :func:`agent_tools.platforms.antigravity._antigravity_paths()`
+# @used-by :func:`agent_tools.shadow_replay._resolve_native_paths()`
+# @used-by :func:`check_pre_invocation._resolve_ag_paths()`
+# @used-by :func:`check_stop_gate._resolve_stop_paths()`
+# @used-by :func:`resolve_antigravity_backend()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=None, config=None):
 	cfg_all = config
 	if None is cfg_all:
@@ -493,10 +709,12 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 		'folders_json': Path(sp['folders_json']) if sp.get('folders_json') else None,
 		'system_paths': sp,
 	}
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
 def resolve_antigravity_backend(backend=None, *, instance=None, conversation_id=None, config=None):
 	if None is not backend:
 		return Path(backend)
 	return resolve_antigravity_paths(backend=None, instance=instance, conversation_id=conversation_id, config=config)['backend_dir']
+# @used-by :func:`resolve_codex_paths()`
 def resolve_codex_home(backend=None, *, instance=None, conversation_id=None, config=None, codex_cfg=None):
 	if None is not backend:
 		return Path(backend).resolve()
@@ -532,6 +750,10 @@ def resolve_codex_home(backend=None, *, instance=None, conversation_id=None, con
 	if name not in homes:
 		raise ValueError('Unknown Codex profile')
 	return Path(homes[name]).resolve()
+# @used-by :func:`agent_tools.meta.identity._resolve_codex_paths_safe()`
+# @used-by :func:`agent_tools.platforms.codex._paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
 def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, config=None, codex_cfg=None):
 	cfg_all = config
 	if None is cfg_all:
@@ -586,6 +808,21 @@ def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, co
 		'config_toml': Path(sp['config_toml']) if sp.get('config_toml') else (home_p / 'config.toml' if home_p else None),
 		'system_paths': sp,
 	}
+# @used-by :func:`agent_tools.completion._native()`
+# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :func:`agent_tools.completion.issue_first_check_turn()`
+# @used-by :func:`agent_tools.completion.tdd_check_turn()`
+# @used-by :func:`agent_tools.platforms.adapter()`
+# @used-by :func:`agent_tools.registration.register_project()`
+# @used-by :func:`agent_tools.registration.register_projects()`
+# @used-by :func:`agent_tools.registration.save_registration()`
+# @used-by :func:`agent_tools.review.input_receipt()`
+# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`platform_settings()`
+# @used-by :func:`using()`
+# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 def platform_name(value=None, *, config=None):
 	cfg_all = config or settings()
 	plats = cfg_all['platforms']
@@ -611,6 +848,11 @@ def platform_name(value=None, *, config=None):
 		name = resolved_key
 	r = name
 	return r
+# @used-by :func:`agent_tools.configuration.global_codex_instructions()`
+# @used-by :func:`agent_tools.workflow._target_complete()`
+# @used-by :func:`registration_profile_name()`
+# @used-by :func:`resolve_codex_home()`
+# @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_registration_only_fallback_does_not_relax_native_evidence_profile()`
 def profile_name(value=None, *, config=None, include_disabled=True):
 	cfg_all = config or settings()
 	cx_plat = platform_key_for_adapter('codex', cfg_all)
@@ -634,6 +876,13 @@ def profile_name(value=None, *, config=None, include_disabled=True):
 			raise ValueError(f'Select --codex-profile {choices} or use a recognized CODEX_HOME')
 		r = matches[0]
 	return r
+# @used-by :func:`agent_tools.platforms.codex.register()`
+# @used-by :func:`agent_tools.workflow._target_complete()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
+# @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_explicit_unknown_profile_or_unrecognized_home_never_uses_fallback()`
+# @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_registration_only_fallback_does_not_relax_native_evidence_profile()`
 def registration_profile_name(value=None, *, config=None):
 	cfg_all = config or settings()
 	cx_plat = platform_key_for_adapter('codex', cfg_all)
@@ -661,8 +910,24 @@ def registration_profile_name(value=None, *, config=None):
 		raise ValueError(f'Codex registration profile {name} is disabled in runtime.json')
 	r = name
 	return r
+# @used-by :func:`agent_tools.meta.identity._resolve_codex_paths_safe()`
+# @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
+# @used-by :func:`agent_tools.platforms.codex._paths()`
+# @used-by :func:`agent_tools.platforms.codex.native_tool_trace()`
+# @used-by :func:`agent_tools.platforms.codex.shared_control()`
+# @used-by :func:`agent_tools.platforms.codex.verify_native_proof()`
+# @used-by :func:`agent_tools.text_browser.resolve_cdp_port()`
+# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`role_settings()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.selected()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.selected()`
+# @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
 def platform_settings(name=None):
 	return deepcopy(settings()['platforms'][platform_name(name)])
+# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
 def role_settings(platform, role, seen=()):
 	if role in seen:
 		raise ValueError('Cyclic model role inheritance')
@@ -679,6 +944,14 @@ def role_settings(platform, role, seen=()):
 			raise ValueError(f'Missing model/effort for {platform}/{role}')
 		r = value
 	return r
+# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_legacy_discovery_failure_with_conversations_is_preserved_without_an_issue()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_preview_is_read_only_and_apply_cleans_both_platforms_preserving_entire_archive()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.selected()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.selected()`
+# @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_registration_only_fallback_does_not_relax_native_evidence_profile()`
 @contextmanager
 def using(platform=None, profile=None, instance=None):
 	first, second, third = (_platform.set(platform_name(platform)), _profile.set(profile), _instance.set(instance))
@@ -688,6 +961,12 @@ def using(platform=None, profile=None, instance=None):
 		_platform.reset(first)
 		_profile.reset(second)
 		_instance.reset(third)
+# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+# @used-by :func:`agent_tools.platforms.codex.register()`
+# @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
+# @used-by :func:`agent_tools.registration._expected()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 def request_day(value=None):
 	from datetime import date, datetime
 	from zoneinfo import ZoneInfo
@@ -696,6 +975,9 @@ def request_day(value=None):
 # 2026-11-23
 # "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
 # https://github.com/dmitry-ai/harness/issues/131
+# @used-by :func:`agent_tools.completion._intermediate_or_language_issues()`
+# @used-by :func:`check_pre_invocation._format_turn_begin_message()`
+# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests()`
 def default_user_locale(config=None) -> str | None:
 	cfg_all = config
 	if None is cfg_all:
@@ -711,6 +993,10 @@ def default_user_locale(config=None) -> str | None:
 # 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
+# @used-by :func:`agent_tools.addon_observability._touches_antigravity_addons()`
+# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_sanctioned_code()`
+# @used-by :func:`agent_tools.shell_audit._is_sanctioned_addon_command()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_sanctioned_addon_roots_and_cdp_bypass_gate()`
 def sanctioned_addon_code_roots(config=None):
 	import sys
 	from .runtime_cache import cached_addon_roots

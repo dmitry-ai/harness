@@ -13,6 +13,7 @@ _SENSITIVE_READ_RE = re.compile(r'(?:/devtoolsactiveport|/(?:local state|cookies
 # 2026-11-24
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
+# @used-by :func:`check()`
 def _check_read_perimeter(raw_p: str) -> str | None:
 	r = None
 	norm_p = raw_p.replace('\\', '/').casefold() if raw_p else ''
@@ -28,6 +29,7 @@ def _check_read_perimeter(raw_p: str) -> str | None:
 # 2026-11-24
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
+# @used-by :func:`check()`
 def _check_write_content(raw_p: str, content: object) -> str | None:
 	r = None
 	if raw_p and isinstance(content, str) and content and _CDP_CONTENT_HINT_RE.search(content):
@@ -35,6 +37,8 @@ def _check_write_content(raw_p: str, content: object) -> str | None:
 		if is_code_file(raw_p) and _CDP_PROTOCOL_RE.search(content) and (not _is_inside_sanctioned_code(raw_p)):
 			r = 'EXEC-1 / EXEC-3 / M-4: Writing external scripts that directly access loopback CDP endpoints outside sanctioned Harness code is prohibited; use harness.py or df_text.py.'
 	return r
+# @used-by :func:`_check_read_perimeter()`
+# @used-by :func:`_is_inside_sanctioned_code()`
 def _is_inside_harness_code(raw_path: str) -> bool:
 	r = False
 	if raw_path:
@@ -56,6 +60,7 @@ def _is_inside_harness_code(raw_path: str) -> bool:
 		except OSError:
 			r = False
 	return r
+# @used-by :func:`_check_write_content()`
 def _is_inside_sanctioned_code(raw_path: str) -> bool:
 	r = _is_inside_harness_code(raw_path)
 	if (not r) and raw_path:
@@ -72,6 +77,8 @@ def _is_inside_sanctioned_code(raw_path: str) -> bool:
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
+# @used-by :func:`agent_tools.gates._load_builtin_entry()`
+# @used-by :meth:`test_hook_lazy_imports.HookLazyImportsTests.test_cdp_bypass_py_edit_and_read_skip_git_gate_and_still_blocks_loopback()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	r = None
 	if 'run_command' == name:

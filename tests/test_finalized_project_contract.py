@@ -21,12 +21,18 @@ for p in (SCRIPTS, TESTS):
 HARNESS_PY = SCRIPTS / 'harness.py'
 _SEVEN_STAGES = ('capture', 'identity_init', 'research', 'analysis', 'review', 'kb_review', 'finalize')
 # @used-by :func:`_run_harness()`
+# @used-by :func:`seed_finalized_upwork_project()`
+# @used-by :meth:`FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
+# @used-by :meth:`FinalizedProjectContractTests.test_rename_rolls_back_finalized_fixture_on_review_authorize_regression()`
+# @used-by :meth:`FinalizedProjectContractTests.test_render_analysis_promote_domain_preserves_finalized_invariants()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
-# @used-by :meth:`FinalizedProjectContractTests.test_render_analysis_promote_domain_preserves_finalized_invariants()`, :meth:`FinalizedProjectContractTests.test_shadow_replay_exec_rename_domain_passes_on_finalized_fixture_with_zero_mutation()`
+# @used-by :meth:`FinalizedProjectContractTests.test_render_analysis_promote_domain_preserves_finalized_invariants()`
+# @used-by :meth:`FinalizedProjectContractTests.test_shadow_replay_exec_rename_domain_passes_on_finalized_fixture_with_zero_mutation()`
 def _run_harness(base: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run([sys.executable, str(HARNESS_PY), *args], cwd=str(base), env=_iso_env(base / 'home'), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=90, check=False)
-# @used-by :meth:`FinalizedProjectContractTests.test_rename_rolls_back_finalized_fixture_on_review_authorize_regression()`, :meth:`FinalizedProjectContractTests.test_shadow_replay_exec_rename_domain_passes_on_finalized_fixture_with_zero_mutation()`
+# @used-by :meth:`FinalizedProjectContractTests.test_rename_rolls_back_finalized_fixture_on_review_authorize_regression()`
+# @used-by :meth:`FinalizedProjectContractTests.test_shadow_replay_exec_rename_domain_passes_on_finalized_fixture_with_zero_mutation()`
 def _snapshot_tree(root: Path) -> dict[str, str]:
 	return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file() and (not p.name.endswith('.lock'))}
 # @used-by :func:`_seed_pre_review()`
@@ -85,7 +91,11 @@ def _complete_review_and_finalize(proj: Path, backend: Path, req1: str, parent_r
 	workflow.complete_stage(proj, 'finalize', ['\ua616/KB/Analysis.json'], [reply_rel])
 	child_tx = backend / 'brain' / CHILD_CID / '.system_generated/logs/transcript_full.jsonl'
 	return [json.loads(ln) for ln in child_tx.read_text(encoding='utf-8').splitlines() if ln.strip()]
-# @used-by :class:`FinalizedProjectContractTests`
+# @used-by :meth:`FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
+# @used-by :meth:`FinalizedProjectContractTests.test_rename_rolls_back_finalized_fixture_on_review_authorize_regression()`
+# @used-by :meth:`FinalizedProjectContractTests.test_render_analysis_promote_domain_preserves_finalized_invariants()`
+# @used-by :meth:`FinalizedProjectContractTests.test_shadow_replay_exec_rename_domain_passes_on_finalized_fixture_with_zero_mutation()`
+# @used-by :mod:`test_finalized_project_contract`
 def seed_finalized_upwork_project(base: Path, *, topic: str='Magento & GA4', job_id: str='~022124567641351805598', with_reg: bool=True, domain_in_analysis: str | None=None) -> dict:
 	from agent_tools import upwork_project as up
 	from test_onboarding import source
@@ -175,6 +185,7 @@ class FinalizedProjectContractTests(unittest.TestCase):
 			fx = seed_finalized_upwork_project(base)
 			proj, launcher = (fx['project'], fx['launcher'])
 			proj_before, launcher_before, ag_before = (_snapshot_tree(proj), _snapshot_tree(launcher), _snapshot_tree(base / 'ag'))
+			# @used-by :meth:`FinalizedProjectContractTests.test_rename_rolls_back_finalized_fixture_on_review_authorize_regression()`
 			def _fake_auth(root, _state, **_kw):
 				if 'blueskypeptide.com' in Path(root).name:
 					raise ValueError('simulated post-rename review regression')

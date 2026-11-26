@@ -18,7 +18,8 @@ def _cmd_from_call(call: dict[str, Any]) -> str:
 		args = parse_tool_args(call.get('args', call.get('arguments', {})))
 		r = str(args.get('CommandLine') or args.get('cmd') or args.get('command') or '')
 	return r
-# @used-by :func:`_inspect_shadow_call()`, :func:`_resolve_bg_shadow_runs()`
+# @used-by :func:`_inspect_shadow_call()`
+# @used-by :func:`_resolve_bg_shadow_runs()`
 def _classify_shadow_output(step_idx: int, text: str) -> dict[str, Any]:
 	out = parse_command_outcome(text)
 	low = (text or '').lower()
@@ -78,6 +79,7 @@ def _response_discloses_shadow_failure(response: str | None) -> bool:
 	raw = str(response or '')
 	return bool(_SHADOW_CMD_RE.search(raw)) and bool(_FAIL_DISCLOSE_RE.search(raw))
 # @used-by :func:`evaluate_verification_observability()`
+# @used-by :mod:`agent_tools.verification_observability`
 def detect_shadow_replay_runs(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
 	rows = _load_turn_rows(native, turn)
 	bg_steps: dict[str, int] = {}
@@ -93,13 +95,16 @@ def detect_shadow_replay_runs(native: dict[str, Any] | None, turn: dict[str, Any
 			_inspect_shadow_call(call, outs[idx] if idx < len(outs) else joined, step_idx, bg_steps, runs)
 	_resolve_bg_shadow_runs(rows, bg_steps, runs)
 	return runs
-# @used-by :func:`agent_tools.blocked_report.evaluate_runner_code_hygiene()`
+# @used-by :func:`agent_tools.blocked_report._run_runner_audits()`
+# @used-by :mod:`agent_tools.verification_observability`
 def check_runner_verification_observability(runner) -> None:
 	chk = evaluate_verification_observability(runner.root, runner.native, runner.turn, runner.value, runner.response)
 	runner.value['verification_observability_check'] = chk
 	if not chk['verified']:
 		runner._fail_gate('verification_observability', chk['detail'])
-# @used-by :func:`check_runner_verification_observability()`, :func:`agent_tools.gates.answer_checks.run_answer_gates()`
+# @used-by :func:`agent_tools.gates.answer_checks._verification_obs_messages()`
+# @used-by :func:`check_runner_verification_observability()`
+# @used-by :mod:`agent_tools.verification_observability`
 def evaluate_verification_observability(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
 	unresolved = _latest_unresolved_failure(detect_shadow_replay_runs(native, turn))
 	if None is unresolved:

@@ -35,7 +35,8 @@ def _collect_row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
 		if 'GENERIC' == cand.get('type') and cand.get('content'):
 			outs.append(str(cand.get('content')))
 	return outs
-# @used-by :func:`_record_call_outcome()`, :func:`_resolve_bg_completions()`
+# @used-by :func:`_record_call_outcome()`
+# @used-by :func:`_resolve_bg_completions()`
 def _is_passing_output(text: str) -> bool:
 	out = parse_command_outcome(text)
 	low = (text or '').lower()
@@ -104,11 +105,13 @@ def _extract_recommended_commands(response: str) -> list[tuple[str, str, str | N
 				found.append((subcmd, snippet[:120], m_dom.group(1).lower() if None is not m_dom else None))
 	return found
 # 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
-# @used-by :func:`agent_tools.response_grounding.ResponseEvidenceAuditor.validate()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.validate()`
+# @used-by :mod:`agent_tools.cli_command_grounding`
 def response_turn_gate_issues(root: Path, response: str, *, requests: list | tuple=(), turn: dict[str, Any] | None=None, native: dict[str, Any] | None=None) -> list[str]:
 	turn_ctx = {'root': root, 'turn': turn, 'native': native}
 	return [*analysis_gate_issues(response, requests=requests, turn_context=turn_ctx), *unverified_cli_command_issues(response, turn=turn, native=native)]
 # @used-by :func:`response_turn_gate_issues()`
+# @used-by :mod:`agent_tools.cli_command_grounding`
 def unverified_cli_command_issues(response: str, *, turn: dict[str, Any] | None=None, native: dict[str, Any] | None=None) -> list[str]:
 	errs: list[str] = []
 	if None is not turn and 'standalone' != turn.get('turn_id') and (not _DISCLAIMER_RE.search(response or '')):

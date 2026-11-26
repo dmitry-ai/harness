@@ -13,6 +13,7 @@ import uuid
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
+# @used-by :meth:`MetadataDecompositionTests.test_builders_honor_facade_monkeypatch_seam_and_match_metadata_parity()`
 def _make_ag_fixture(base: Path) -> dict:
 	proj = base / 'demo_proj'
 	(proj / '\ua66e').mkdir(parents=True)
@@ -41,6 +42,7 @@ def _make_ag_fixture(base: Path) -> dict:
 # "Decompose metadata.py into modular metadata collection package":
 # https://github.com/dmitry-ai/harness/issues/170
 class MetadataDecompositionTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_blocks_builders_produce_step_paths_labels_and_blocks(self) -> None:
 		from agent_tools.meta import blocks
 		tz_plus3 = timezone(timedelta(hours=3))
@@ -60,6 +62,7 @@ class MetadataDecompositionTests(unittest.TestCase):
 		self.assertEqual(blocks._build_agent_block('codex', None, None, 'high'), {'System': 'Codex', 'Effort': 'high'})
 		t_blk = blocks._build_time_block(datetime(2026, 11, 23, 14, 0, 0, tzinfo=timezone.utc), datetime(2026, 11, 23, 14, 5, 30, tzinfo=timezone.utc), tz_plus3)
 		self.assertEqual(t_blk, {'Request': '2026-11-23 17:00:00 UTC+3', 'Response': '2026-11-23 17:05:30 UTC+3', 'Duration': '00:05:30'})
+	# @used-by :mod:`unittest`
 	def test_builders_honor_facade_monkeypatch_seam_and_match_metadata_parity(self) -> None:
 		from agent_tools import metadata
 		from agent_tools.meta import builders
@@ -81,6 +84,7 @@ class MetadataDecompositionTests(unittest.TestCase):
 			self.assertEqual(m_i, b_i)
 			self.assertEqual(b_i['Agent']['Model'], 'gemini-4-neon')
 			self.assertEqual(b_i['Trace']['Turn']['Tool Step'], 9)
+	# @used-by :mod:`unittest`
 	def test_formatting_submodule_handles_paths_timestamps_steps_and_models(self) -> None:
 		from agent_tools.meta import formatting
 		tz_plus3 = timezone(timedelta(hours=3))
@@ -102,6 +106,7 @@ class MetadataDecompositionTests(unittest.TestCase):
 		self.assertIsNone(formatting._system_display_name(''))
 		self.assertEqual(formatting._split_model_and_effort('gemini-4-neon-xhigh'), ('gemini-4-neon', 'xhigh'))
 		self.assertEqual(formatting._split_model_and_effort('gpt-6.1-sol', 'max'), ('gpt-6.1-sol', 'max'))
+	# @used-by :mod:`unittest`
 	def test_headers_submodule_roundtrips_and_ignores_non_harness_json(self) -> None:
 		from agent_tools.meta import headers
 		sample = {'Time': '2026-11-23 20:00:00 UTC+3', 'Issue': 'https://github.com/dmitry-ai/harness/issues/170', 'Project': {'Name': 'Harness', 'Path': 'C:/work/harness'}}
@@ -120,6 +125,7 @@ class MetadataDecompositionTests(unittest.TestCase):
 		self.assertEqual(replaced.count('```json'), 1)
 		ordinary = '```json\n{"foo": "bar"}\n```\n\nText.\n'
 		self.assertEqual(headers.extract_leading_metadata_header(ordinary), (None, ordinary))
+	# @used-by :mod:`unittest`
 	def test_identity_submodule_resolves_registry_project_json_and_fallback(self) -> None:
 		from agent_tools.meta import identity
 		with tempfile.TemporaryDirectory() as tmp:
@@ -140,6 +146,7 @@ class MetadataDecompositionTests(unittest.TestCase):
 			proj_bare = base / 'bare_proj'
 			proj_bare.mkdir()
 			self.assertEqual(identity.resolve_project_identity(proj_bare), {'Name': 'bare_proj', 'Path': proj_bare.as_posix()})
+	# @used-by :mod:`unittest`
 	def test_metadata_facade_exports_match_meta_package_symbols(self) -> None:
 		from agent_tools import meta, metadata
 		expected = (
@@ -158,6 +165,7 @@ class MetadataDecompositionTests(unittest.TestCase):
 			self.assertTrue(hasattr(metadata, sym), f'Missing facade export: {sym}')
 			self.assertTrue(hasattr(meta, sym), f'Missing package export: {sym}')
 			self.assertIs(getattr(metadata, sym), getattr(meta, sym), f'Symbol mismatch for {sym}')
+	# @used-by :mod:`unittest`
 	def test_transcripts_submodule_parses_antigravity_codex_and_turn_state(self) -> None:
 		from agent_tools.meta import transcripts
 		with tempfile.TemporaryDirectory() as tmp:

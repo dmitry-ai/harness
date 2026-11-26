@@ -14,6 +14,7 @@ import tempfile
 _BUILTIN_NAMES = frozenset(dir(builtins)) | frozenset({'__all__', '__annotations__', '__builtins__', '__cached__', '__class__', '__doc__', '__file__', '__loader__', '__module__', '__name__', '__package__', '__path__', '__qualname__', '__spec__', '__warningregistry__'})
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _SKIP_PARTS = frozenset({'.git', '__pycache__', 'node_modules', '\ua616', '\ua66e'})
+# @used-by :func:`check_python_integrity()`
 def _collect_defined_globals(tree: ast.AST, top_table: symtable.SymbolTable) -> set[str]:
 	defined = set(_BUILTIN_NAMES)
 	for sym in top_table.get_symbols():
@@ -27,18 +28,23 @@ def _collect_defined_globals(tree: ast.AST, top_table: symtable.SymbolTable) -> 
 			if '*' != alias.name:
 				defined.add(alias.asname or alias.name.split('.')[0])
 	return defined
+# @used-by :func:`check_python_integrity()`
 def _collect_undefined_globals(table: symtable.SymbolTable, defined: set[str], out: set[str]) -> None:
 	for sym in table.get_symbols():
 		if sym.is_referenced() and sym.is_global() and (not sym.is_local()) and (sym.get_name() not in defined):
 			out.add(sym.get_name())
 	for child in table.get_children():
 		_collect_undefined_globals(child, defined, out)
+# @used-by :func:`verify_worktree_python_changes()`
 def _git_read_text(repo: Path, *args: str) -> str | None:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=30, check=False, creationflags=_NO_WINDOW)
 	return proc.stdout if 0 == proc.returncode else None
+# @used-by :func:`check_python_integrity()`
 def _has_wildcard_import(tree: ast.AST) -> bool:
 	return any((isinstance(node, ast.ImportFrom) and any(('*' == a.name for a in node.names)) for node in _iter_module_level_imports(tree)))
+# @used-by :func:`_collect_defined_globals()`
+# @used-by :func:`_has_wildcard_import()`
 def _iter_module_level_imports(node: ast.AST) -> list[ast.Import | ast.ImportFrom]:
 	out: list[ast.Import | ast.ImportFrom] = []
 	for child in ast.iter_child_nodes(node):
@@ -47,6 +53,7 @@ def _iter_module_level_imports(node: ast.AST) -> list[ast.Import | ast.ImportFro
 		elif isinstance(child, (ast.If, ast.Try, ast.With, ast.AsyncWith)) or (hasattr(ast, 'TryStar') and isinstance(child, ast.TryStar)):
 			out.extend(_iter_module_level_imports(child))
 	return out
+# @used-by :func:`verify_python_file_integrity()`
 def _py_compile_error(path: Path, rel_label: str) -> str | None:
 	r = None
 	with tempfile.TemporaryDirectory() as td:
@@ -56,6 +63,12 @@ def _py_compile_error(path: Path, rel_label: str) -> str | None:
 		except (py_compile.PyCompileError, SyntaxError, ValueError, OSError) as exc:
 			r = f'CODE-4: Python py_compile error in {rel_label}: {exc}'
 	return r
+# @used-by :func:`agent_tools.code_size_gate.evaluate_pre_tool_use_code_size()`
+# @used-by :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
+# @used-by :func:`verify_directory_python_integrity()`
+# @used-by :func:`verify_python_file_integrity()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_python_integrity_catches_syntax_and_undefined_globals_zero_fp_on_harness()`
+# @used-by :mod:`agent_tools.python_integrity`
 def check_python_integrity(path: str | Path, source: str) -> list[str]:
 	rel_label = Path(path).as_posix()
 	text = source or ''
@@ -74,6 +87,8 @@ def check_python_integrity(path: str | Path, source: str) -> list[str]:
 			if undef:
 				errs.append(f'CODE-4: Undefined global symbol(s) in {rel_label}: {", ".join(sorted(undef)[:8])}')
 	return errs
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_python_integrity_catches_syntax_and_undefined_globals_zero_fp_on_harness()`
+# @used-by :mod:`agent_tools.python_integrity`
 def verify_directory_python_integrity(root_dir: Path) -> list[str]:
 	base = Path(root_dir).resolve()
 	errs: list[str] = []
@@ -84,6 +99,9 @@ def verify_directory_python_integrity(root_dir: Path) -> list[str]:
 		rel = Path(*rel_parts).as_posix()
 		errs.extend(check_python_integrity(rel, pyf.read_text(encoding='utf-8', errors='replace')))
 	return errs
+# @used-by :func:`verify_touched_python_files()`
+# @used-by :func:`verify_worktree_python_changes()`
+# @used-by :mod:`agent_tools.python_integrity`
 def verify_python_file_integrity(path: Path, *, rel_label: str | None=None) -> list[str]:
 	fpath = Path(path).resolve()
 	label = rel_label if None is not rel_label else fpath.as_posix()
@@ -93,6 +111,9 @@ def verify_python_file_integrity(path: Path, *, rel_label: str | None=None) -> l
 	else:
 		r = check_python_integrity(label, fpath.read_text(encoding='utf-8', errors='replace'))
 	return r
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_snapshot_promotion_and_auditor_reject_undefined_global()`
+# @used-by :mod:`agent_tools.python_integrity`
 def verify_touched_python_files(repo_root: Path, rel_paths: list[str] | set[str]) -> list[str]:
 	from .code_size_gate import check_python_size_violations
 	from .tdd_gate import _git_head_text
@@ -106,6 +127,8 @@ def verify_touched_python_files(repo_root: Path, rel_paths: list[str] | set[str]
 			errs.extend(verify_python_file_integrity(fpath, rel_label=rel))
 			errs.extend(check_python_size_violations(rel, fpath.read_text(encoding='utf-8', errors='replace'), baseline_source=_git_head_text(repo, rel)))
 	return errs
+# @used-by :func:`agent_tools.worktree_flow._rebase_and_test()`
+# @used-by :mod:`agent_tools.python_integrity`
 def verify_worktree_python_changes(wt_path: Path, target_branch: str) -> list[str]:
 	from .code_size_gate import check_python_size_violations
 	wt = Path(wt_path).resolve()

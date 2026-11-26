@@ -1,6 +1,7 @@
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import closing, redirect_stdout
 from copy import deepcopy
+from typing import override
 import io
 import json
 import os
@@ -20,6 +21,12 @@ from agent_tools.platforms import adapter, antigravity, codex
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
 class RuntimeInstancesTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.primary = self.root / 'harness/code'
@@ -57,15 +64,40 @@ class RuntimeInstancesTests(TemporaryCase):
 			'C2': {'enabled': False, 'default_registration': True, 'label': 'C2', 'disabled_reason': 'Subscription lapsed', 'home': str(self.cx_homes['C2'])},
 		}
 		self.write_file(self.primary / 'runtime.json', json.dumps(self.config))
+	# @used-by :meth:`RuntimeInstancesTests.setUp()`
+	# @used-by :meth:`RuntimeInstancesTests.test_all_disabled_and_claude_code_only_environment_without_antigravity_or_codex()`
+	# @used-by :meth:`RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cli_instances_and_metrics_commands()`
+	# @used-by :meth:`RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
+	# @used-by :meth:`RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
+	# @used-by :meth:`RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
+	# @used-by :meth:`RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
+	# @used-by :meth:`RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
+	# @used-by :meth:`RuntimeInstancesTests.test_runtime_validation_rejects_invalid_instances_and_dual_homes()`
 	def write_file(self, path, text):
 		path.parent.mkdir(parents=True, exist_ok=True)
 		path.write_text(text, encoding='utf-8')
 		return path
+	# @used-by :meth:`RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances()`
+	# @used-by :meth:`RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
+	# @used-by :meth:`RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
+	# @used-by :meth:`RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
+	# @used-by :meth:`RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
+	# @used-by :meth:`RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
+	# @used-by :meth:`RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
 	def sql(self, path, statement, params=()):
 		path.parent.mkdir(parents=True, exist_ok=True)
 		with closing(sqlite3.connect(path)) as conn:
 			conn.execute(statement, params)
 			conn.commit()
+	# @used-by :mod:`unittest`
 	def test_live_runtime_declares_environments_instances_enabled_states_and_system_paths(self):
 		live = runtime.settings()
 		self.assertEqual(set(live['platforms']), {'antigravity', 'codex'})
@@ -80,6 +112,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		c2_paths = runtime.instance_paths('C2', config=live)
 		self.assertEqual(c2_paths['sessions_dir'], 'C:/Users/dfedi/AppData/Roaming/Codex-Profile2/sessions')
 		self.assertEqual(c2_paths['config_toml'], 'C:/Users/dfedi/AppData/Roaming/Codex-Profile2/config.toml')
+	# @used-by :mod:`unittest`
 	def test_runtime_validation_rejects_invalid_instances_and_dual_homes(self):
 		bad = deepcopy(self.config)
 		bad['platforms']['antigravity']['enabled'] = 'yes'
@@ -101,6 +134,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		p4 = self.write_file(self.root / 'bad4.json', json.dumps(bad4))
 		with self.assertRaisesRegex(ValueError, 'cannot define both'):
 			runtime.settings(p4)
+	# @used-by :mod:`unittest`
 	def test_platform_enabled_false_disables_all_instances_of_environment(self):
 		cfg = deepcopy(self.config)
 		cfg['platforms']['codex']['enabled'] = False
@@ -110,6 +144,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		self.assertFalse(runtime.instance_entry('C2', config=cfg)['enabled'])
 		with self.assertRaisesRegex(ValueError, 'no enabled instances'):
 			runtime.registration_profile_name(config=cfg)
+	# @used-by :mod:`unittest`
 	def test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics(self):
 		project = Path(up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.daily, extracted_data=source(), register_native=False)['project_dir'])
 		with patch.object(registration, 'settings', return_value=self.config), patch.object(runtime, 'settings', return_value=self.config):
@@ -132,6 +167,7 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.assertEqual(instr['developer_instructions'], '')
 		diag = text_diagnostics.diagnose_sources(project, platform='codex', config=self.config, primary=self.primary)
 		self.assertFalse(any((s.get('configured_profile') for s in diag['sources'])))
+	# @used-by :mod:`unittest`
 	def test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances(self):
 		self.config['platforms']['antigravity']['instances']['A7']['enabled'] = True
 		self.write_file(self.primary / 'runtime.json', json.dumps(self.config))
@@ -162,6 +198,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		for iid in ('A0', 'A6', 'A7'):
 			self.assertFalse(Path(reg_empty['instances'][iid]['project_file']).exists())
 			self.assertTrue(Path(reg_kept['instances'][iid]['project_file']).exists())
+	# @used-by :mod:`unittest`
 	def test_single_enabled_codex_instance_works_with_shared_catalog_superset(self):
 		self.config['platforms']['codex']['instances']['C2']['enabled'] = True
 		self.sql(self.cx_homes['C2'] / 'state_5.sqlite', 'CREATE TABLE threads (id TEXT, project_id TEXT, cwd TEXT, archived INTEGER)')
@@ -170,6 +207,7 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.assertTrue(runtime.platform_active('codex'))
 		catalog = {'projects': {}, 'profiles': {'C1': {'bindings': {}}, 'C2': {'bindings': {}}}}
 		self.assertEqual(cleanup.catalog_projects(catalog, self.daily / '2026/10/10/1 - Any', {'C2': self.cx_homes['C2']}), [])
+	# @used-by :mod:`unittest`
 	def test_future_environment_claude_code_is_supported_without_roles_or_adapters(self):
 		cc_home = self.root / 'claude/home'
 		(cc_home / 'projects').mkdir(parents=True)
@@ -207,6 +245,7 @@ class RuntimeInstancesTests(TemporaryCase):
 				self.assertIn('CC1', doc['instances'])
 			with self.assertRaisesRegex(ValueError, 'No native adapter implemented'):
 				adapter('claude_code')
+	# @used-by :mod:`unittest`
 	def test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces(self):
 		cid_a6 = str(uuid.uuid4())
 		cid_c1 = str(uuid.uuid4())
@@ -238,6 +277,7 @@ class RuntimeInstancesTests(TemporaryCase):
 			with self.assertRaisesRegex(ValueError, 'pass --instance'):
 				runtime.resolve_antigravity_backend(conversation_id=cid_a6, config=self.config)
 			self.assertEqual(Path(runtime.resolve_antigravity_backend(instance='A6', conversation_id=cid_a6, config=self.config)).resolve(), a6_backend.resolve())
+	# @used-by :mod:`unittest`
 	def test_cli_instances_and_metrics_commands(self):
 		cid = str(uuid.uuid4())
 		a6_log = self.ag_homes['A6'] / '.gemini/antigravity/brain' / cid / '.system_generated/logs/transcript_full.jsonl'
@@ -266,6 +306,7 @@ class RuntimeInstancesTests(TemporaryCase):
 	# 2026-11-23
 	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
 	# https://github.com/dmitry-ai/harness/issues/133
+	# @used-by :mod:`unittest`
 	def test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit(self):
 		project = Path(up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.daily, extracted_data=source(), register_native=False)['project_dir'])
 		self.write_file(self.cx_homes['C2'] / 'config.toml', 'developer_instructions = "Global C2 rules"\n')
@@ -293,6 +334,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		with patch.dict(os.environ, {'CODEX_HOME': str(self.root / 'unknown')}, clear=True), patch.object(runtime, 'settings', return_value=self.config):
 			with self.assertRaisesRegex(ValueError, 'recognized CODEX_HOME'):
 				codex.native_executor_metadata(project, cid_c1)
+	# @used-by :mod:`unittest`
 	def test_all_disabled_and_claude_code_only_environment_without_antigravity_or_codex(self):
 		disabled_cfg = deepcopy(self.config)
 		for plat in disabled_cfg['platforms'].values():
@@ -340,6 +382,7 @@ class RuntimeInstancesTests(TemporaryCase):
 			cln = cleanup.cleanup_projects(apply=False, daily_root=self.daily, config=cc_only)
 			self.assertTrue(cln['complete'], cln)
 			self.assertEqual(cln['active_instances'], {'antigravity': [], 'codex': []})
+	# @used-by :mod:`unittest`
 	def test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths(self):
 		project = Path(up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.daily, extracted_data=source(), register_native=False)['project_dir'])
 		parent_id = str(uuid.uuid4())
@@ -445,6 +488,7 @@ class RuntimeInstancesTests(TemporaryCase):
 	# 2026-11-23
 	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
 	# https://github.com/dmitry-ai/harness/issues/133
+	# @used-by :mod:`unittest`
 	def test_codex_custom_system_paths_trace_requests_metadata_and_answers(self):
 		c9_home = self.root / 'custom_cx_home'
 		custom_state = self.root / 'custom_cx_state'
@@ -497,6 +541,7 @@ class RuntimeInstancesTests(TemporaryCase):
 	# 2026-11-20
 	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 	# https://github.com/dmitry-ai/harness/issues/105
+	# @used-by :mod:`unittest`
 	def test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility(self):
 		custom_home = self.root / 'cleanup_ag_home'
 		custom_backend = self.root / 'cleanup_ag_backend'
@@ -533,6 +578,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		with patch.object(antigravity, 'settings', return_value=cfg), patch.object(antigravity, 'platform_instances', side_effect=lambda p, **kw: runtime.platform_instances(p, config=cfg, **kw)), patch.object(antigravity, 'platform_settings', return_value=cfg['platforms']['antigravity']), patch.object(antigravity, 'ANTIGRAVITY_FOLDERS_JSON', None):
 			antigravity.register(pruned_proj, 'PrunedCustom', '2026-10-10')
 		calls = []
+		# @used-by :meth:`RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
 		def fake_control(req):
 			calls.append(req)
 			if 'shared-catalog' == req['command']:
@@ -576,6 +622,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		diag = text_diagnostics.diagnose_sources(cc_proj, config=cc_cfg, primary=cc_primary)
 		self.assertTrue(diag['valid'], diag)
 		self.assertEqual(diag['conflicts'], [])
+	# @used-by :mod:`unittest`
 	def test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6(self):
 		a8_home = self.root / 'ag/A8'
 		(a8_home / '.gemini/config/projects').mkdir(parents=True)
@@ -597,6 +644,7 @@ class RuntimeInstancesTests(TemporaryCase):
 		with patch.object(antigravity, 'settings', return_value=cfg), patch.object(antigravity, 'platform_instances', side_effect=lambda p, **kw: runtime.platform_instances(p, config=cfg, **kw)), patch.object(antigravity, 'platform_settings', return_value=cfg['platforms']['antigravity']), patch.object(antigravity, 'ANTIGRAVITY_FOLDERS_JSON', None):
 			antigravity.register(old_proj, 'PerInstanceFolders', '2026-10-10')
 		calls = []
+		# @used-by :meth:`RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
 		def fake_control(req):
 			calls.append(req)
 			if 'shared-catalog' == req['command']:
@@ -617,6 +665,7 @@ class RuntimeInstancesTests(TemporaryCase):
 	# 2026-11-18
 	# "Fix runtime instance path derivation and store validation":
 	# https://github.com/dmitry-ai/harness/issues/89
+	# @used-by :mod:`unittest`
 	def test_default_system_paths_overrides_and_nested_codex_globs(self):
 		inst_ag = {
 			'enabled': True,
@@ -647,6 +696,7 @@ class RuntimeInstancesTests(TemporaryCase):
 	# 2026-11-18
 	# "Fix runtime instance path derivation and store validation":
 	# https://github.com/dmitry-ai/harness/issues/89
+	# @used-by :mod:`unittest`
 	def test_dynamic_folders_json_and_cleanup_without_homes(self):
 		custom_cfg_dir = self.root / 'custom_ag/cfg'
 		custom_proj_dir = custom_cfg_dir / 'projects'
@@ -722,6 +772,7 @@ class RuntimeInstancesTests(TemporaryCase):
 	# 2026-11-18
 	# "Fix runtime instance path derivation and store validation":
 	# https://github.com/dmitry-ai/harness/issues/89
+	# @used-by :mod:`unittest`
 	def test_custom_adapter_platform_keys_and_instruction_snapshot(self):
 		cfg = deepcopy(self.config)
 		cfg['platforms'] = {
@@ -757,6 +808,7 @@ class RuntimeInstancesTests(TemporaryCase):
 	# 2026-11-18
 	# "Fix runtime instance path derivation and store validation":
 	# https://github.com/dmitry-ai/harness/issues/89
+	# @used-by :mod:`unittest`
 	def test_claude_code_only_real_cli_subprocesses(self):
 		cc_primary = self.root / 'cc_cli_harness/code'
 		(cc_primary / 'rules').mkdir(parents=True)

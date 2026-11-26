@@ -20,10 +20,12 @@ HARNESS_PY = SCRIPTS / 'harness.py'
 # @used-by :func:`_run_harness()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
-# @used-by :meth:`ShadowReplayCommandTests.test_shadow_replay_exec_rename_domain_isolated_and_writes_receipt()`, :meth:`ShadowReplayCommandTests.test_shadow_replay_generic_command_and_failure_receipt()`
+# @used-by :meth:`ShadowReplayCommandTests.test_shadow_replay_exec_rename_domain_isolated_and_writes_receipt()`
+# @used-by :meth:`ShadowReplayCommandTests.test_shadow_replay_generic_command_and_failure_receipt()`
 def _run_harness(base: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run([sys.executable, str(HARNESS_PY), *args], cwd=str(base), env=_iso_env(base / 'home'), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=90, check=False)
-# @used-by :meth:`ShadowReplayCommandTests.test_shadow_replay_exec_rename_domain_isolated_and_writes_receipt()`, :meth:`ShadowReplayCommandTests.test_shadow_replay_generic_command_and_failure_receipt()`
+# @used-by :meth:`ShadowReplayCommandTests.test_shadow_replay_exec_rename_domain_isolated_and_writes_receipt()`
+# @used-by :meth:`ShadowReplayCommandTests.test_shadow_replay_generic_command_and_failure_receipt()`
 def _snapshot_tree(root: Path) -> dict[str, str]:
 	return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file()}
 # @used-by :mod:`unittest`

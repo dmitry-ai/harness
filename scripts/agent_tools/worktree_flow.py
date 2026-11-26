@@ -12,6 +12,7 @@ from .path_registry import project_paths
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
 # https://github.com/dmitry-ai/harness/issues/165
 _SAFE_TASK_RE = re.compile(r'[^A-Za-z0-9_.-]+')
+# @used-by :func:`_parse_worktree_porcelain()`
 def _apply_porcelain_line(cur: dict, line: str) -> None:
 	if line.startswith('worktree '):
 		cur['path'] = Path(line[9:].strip()).resolve().as_posix()
@@ -21,12 +22,17 @@ def _apply_porcelain_line(cur: dict, line: str) -> None:
 		cur['branch'] = line[7:].strip().removeprefix('refs/heads/')
 	elif 'detached' == line:
 		cur['detached'] = True
+# @used-by :func:`worktree_begin()`
+# @used-by :func:`worktree_cleanup()`
+# @used-by :func:`worktree_land()`
+# @used-by :func:`worktree_status()`
 def _current_branch(repo: Path) -> str:
 	proc = GitRepoGate(repo).run_read(['rev-parse', '--abbrev-ref', 'HEAD'], check=False)
 	return proc.stdout.decode('utf-8', errors='replace').strip() if 0 == proc.returncode else ''
 # 2026-11-24
 # "Remove landed worktrees by default and flag stale worktrees in worktree-status":
 # https://github.com/dmitry-ai/harness/issues/203
+# @used-by :func:`worktree_status()`
 def _enrich_worktree_entry(main_repo: Path, main_posix: str, base_ref: str, entry: dict) -> None:
 	wp = Path(entry['path'])
 	is_main = wp.resolve().as_posix() == main_posix
@@ -40,19 +46,32 @@ def _enrich_worktree_entry(main_repo: Path, main_posix: str, base_ref: str, entr
 		else:
 			ahead, behind = _rev_distance(main_repo, base_ref, str(entry.get('head') or ''))
 			entry.update(ahead=ahead, behind=behind, stale=(not entry['dirty']) and 0 == ahead and 0 < behind)
+# @used-by :func:`_land_under_lease()`
+# @used-by :func:`_merge_and_finalize()`
+# @used-by :func:`_push_and_finish_land()`
+# @used-by :func:`_rebase_and_test()`
+# @used-by :func:`_run_land_checks()`
+# @used-by :func:`worktree_land()`
 def _fail_land(main_repo: Path, wt_path: Path, branch: str, stage: str, error: str, *, test_runs: int=0, test_result: dict | None=None) -> dict:
 	return {'valid': False, 'landed': False, 'stage': stage, 'error': error, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'test_runs': test_runs, 'test_result': test_result}
+# @used-by :func:`_merge_and_finalize()`
+# @used-by :func:`_push_and_finish_land()`
+# @used-by :func:`_rebase_and_test()`
+# @used-by :func:`worktree_begin()`
+# @used-by :func:`worktree_cleanup()`
 def _git_exec(repo: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '-C', str(Path(repo).resolve()), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', check=False, creationflags=_NO_WINDOW)
 # 2026-11-24
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
+# @used-by :func:`_post_merge_checks()`
 def _maybe_promote_snapshot(main_repo: Path, *, promote_snapshot: bool | None, snapshot_store: Path | None) -> dict | None:
 	from .runtime_snapshot import is_harness_code_repo, promote_runtime_snapshot
 	should = promote_snapshot if None is not promote_snapshot else is_harness_code_repo(main_repo)
 	return promote_runtime_snapshot(main_repo, store_dir=snapshot_store) if should else None
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# @used-by :func:`_land_under_lease()`
 def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool=True, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	ff = _git_exec(main_repo, 'merge', '--ff-only', branch)
 	if 0 != ff.returncode:
@@ -80,6 +99,7 @@ def _post_merge_checks(main_repo: Path, *, run_tests: bool, promote_snapshot: bo
 		r = (snap, None, None)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
+# @used-by :func:`_merge_and_finalize()`
 def _push_and_finish_land(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, snap: dict | None, tag: bool=False) -> dict:
 	p_err = ''
 	if push:
@@ -99,9 +119,11 @@ def _push_and_finish_land(main_repo: Path, wt_path: Path, branch: str, target_br
 			r.update(stage='worktree_cleanup', error=str(cleanup.get('error') or 'Worktree cleanup failed'), cleanup=cleanup)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
+# @used-by :func:`_push_and_finish_land()`
 def _apply_land_tag(main_repo: Path, head: str, *, push: bool) -> str:
 	from .repo_tags import ensure_commit_tag
 	return ensure_commit_tag(main_repo, commit=head, push=push)['tag']
+# @used-by :func:`worktree_status()`
 def _parse_worktree_porcelain(text: str) -> list[dict]:
 	entries: list[dict] = []
 	cur: dict = {}
@@ -132,6 +154,7 @@ def _run_land_checks(main_repo: Path, wt_path: Path, branch: str, target_branch:
 			joined = ', '.join(cov.get('uncovered', ())[:8])
 			err = _fail_land(main_repo, wt_path, branch, 'diff_coverage', f'Uncovered newly added production functions: {joined}', test_runs=test_runs, test_result=test_res)
 	return (err, test_runs, test_res)
+# @used-by :func:`_land_under_lease()`
 def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
 	from .python_integrity import verify_worktree_python_changes
 	reb = _git_exec(wt_path, 'rebase', target_branch)
@@ -149,6 +172,7 @@ def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch:
 			# 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
 			r = _run_land_checks(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
 	return r
+# @used-by :func:`resolve_touched_repo_file()`
 def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
 	r = None
 	parts = path.parts
@@ -162,6 +186,7 @@ def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str
 					break
 			break
 	return r
+# @used-by :func:`_enrich_worktree_entry()`
 def _rev_distance(main_repo: Path, base_ref: str, head_sha: str) -> tuple[int, int]:
 	r = (0, 0)
 	if head_sha:
@@ -171,6 +196,7 @@ def _rev_distance(main_repo: Path, base_ref: str, head_sha: str) -> tuple[int, i
 			r = (int(parts[1]), int(parts[0]))
 	return r
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# @used-by :func:`_run_land_checks()`
 def _run_land_tests(main_repo: Path, wt_path: Path, *, run_tests: bool, workers: int | None) -> tuple[bool, int, dict | None]:
 	tests_dir = wt_path / 'tests'
 	if not run_tests:
@@ -184,17 +210,26 @@ def _run_land_tests(main_repo: Path, wt_path: Path, *, run_tests: bool, workers:
 		ok, res = run_polyglot_land_tests(main_repo, wt_path)
 		r = (ok, 1 if None is not res else 0, res)
 	return r
+# @used-by :func:`worktree_begin()`
 def _safe_task_id(task_id: str) -> str:
 	clean = _SAFE_TASK_RE.sub('-', str(task_id or '').strip()).strip('-.')
 	if not clean:
 		raise ValueError('A non-empty task identifier is required')
 	return clean[:48]
+# @used-by :func:`agent_tools.issues.repo_locator._extract_config_slugs()`
+# @used-by :func:`agent_tools.repo_tag_gate._resolve_origin_push_target()`
+# @used-by :func:`agent_tools.repo_tags.has_origin_remote()`
 def git_config_file(code_repo: Path) -> Path:
 	resolved = Path(code_repo).resolve()
 	dot_git = resolved / '.git'
 	return (GitRepoGate(resolved).main_repo() / '.git/config') if dot_git.is_file() else (dot_git / 'config')
+# @used-by :func:`agent_tools.gates.worktree_isolation.check()`
+# @used-by :func:`prioritized_worktree_candidates()`
+# @used-by :func:`worktree_land()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
 def is_linked_worktree(path: Path | str) -> bool:
 	return (Path(path).resolve() / '.git').is_file()
+# @used-by :func:`agent_tools.issues.repo_locator._initial_repo_candidates()`
 def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path | None=None) -> list[Path]:
 	cands: list[Path] = []
 	if None is not repo_root and str(repo_root).strip():
@@ -205,6 +240,8 @@ def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path
 			cands.append(anc)
 			break
 	return cands
+# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_touched_repos()`
 def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
 	r = None
 	for anc in (path, *path.parents):
@@ -217,6 +254,30 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 				r = (anc, rel)
 			break
 	return r if None is not r else _resolve_deleted_worktree_file(path, is_tracked_fn)
+# @used-by :func:`agent_tools.cli_registry._exec_worktree_begin()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
+# @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_worktree_land_with_tag_tags_and_pushes_landed_commit()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_worktree_land_promotes_runtime_snapshot_after_merge()`
+# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
+# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_two_parallel_worktrees_commit_and_land_with_single_test_run()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_worktree_land_aborts_when_tests_fail()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_worktree_scoped_issue_first_ignores_dirty_main_checkout()`
+# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_begin_adds_info_exclude_without_touching_gitignore_and_blocks_160000()`
+# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_begin_detects_previously_tracked_160000_gitlinks()`
+# @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_harness_main_blocks_write_and_edit_while_linked_worktree_allows()`
+# @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_non_harness_repo_allows_single_turn_and_blocks_concurrent_open_turns()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_cli_worktree_land_default_removes_and_keep_preserves()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
 def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', worktrees_dir: Path | str | None=None) -> dict:
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	safe_id = _safe_task_id(task_id)
@@ -233,6 +294,22 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 	head = GitRepoGate(wt_path).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
 	return {'valid': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': _current_branch(wt_path) or branch, 'base_ref': base_ref, 'head': head, 'enclosing_ignore': ignore_info}
 # 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
+# @used-by :func:`_push_and_finish_land()`
+# @used-by :func:`agent_tools.cli_registry._exec_worktree_cleanup()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
+# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
+# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_worktree_land_aborts_when_tests_fail()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_worktree_scoped_issue_first_ignores_dirty_main_checkout()`
+# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_begin_adds_info_exclude_without_touching_gitignore_and_blocks_160000()`
+# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_begin_detects_previously_tracked_160000_gitlinks()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_cli_worktree_land_default_removes_and_keep_preserves()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
 def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False) -> dict:
 	from .worktree_guard import remove_worktree_fail_closed
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
@@ -246,6 +323,7 @@ def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False)
 	return {'valid': outcome['ok'], 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'branch_deleted': branch_deleted, 'error': outcome['error'], 'removal_errors': outcome['removal_errors'], 'locking_processes': outcome['locking_processes']}
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# @used-by :func:`worktree_land()`
 def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	from .polyglot_land import dirty_blocking_main_files
 	if GitRepoGate(wt_path).git('status', '--porcelain').strip():
@@ -257,6 +335,18 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, run_tests=run_tests, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
+# @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
+# @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_worktree_land_with_tag_tags_and_pushes_landed_commit()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_worktree_land_promotes_runtime_snapshot_after_merge()`
+# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_two_parallel_worktrees_commit_and_land_with_single_test_run()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_worktree_land_aborts_when_tests_fail()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
 def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):
@@ -274,6 +364,9 @@ def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests:
 		finally:
 			release_lease(main_repo, owner=lease['owner'], leases_dir=leases_dir)
 	return r
+# @used-by :func:`agent_tools.cli_registry._exec_worktree_status()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
+# @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
 def worktree_status(repo: Path | str) -> dict:
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	base_ref = _current_branch(main_repo) or 'HEAD'

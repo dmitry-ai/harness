@@ -22,6 +22,8 @@ import check_rules_and_server_gate as gate
 # 2026-11-24
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_blocks_tests_production_docs_and_shell_writes_before_parent_issue()`
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_full_issue_first_then_tdd_red_green_child_and_parent_close_reset_in_live_hook()`
 def _run_hook(payload: dict) -> dict:
 	buf = io.StringIO()
 	with patch.object(sys, 'stdin', io.StringIO(json.dumps(payload, ensure_ascii=False))), redirect_stdout(buf):
@@ -29,6 +31,9 @@ def _run_hook(payload: dict) -> dict:
 	return json.loads(buf.getvalue())
 
 
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_blocks_tests_production_docs_and_shell_writes_before_parent_issue()`
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_cli_subprocess_smoke()`
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_full_issue_first_then_tdd_red_green_child_and_parent_close_reset_in_live_hook()`
 def _init_github_project(base: Path, slug: str = 'acme/demo') -> tuple[Path, Path]:
 	proj = base / 'proj'
 	(proj / '_/ꘖ/data/scratch').mkdir(parents=True, exist_ok=True)
@@ -44,6 +49,9 @@ def _init_github_project(base: Path, slug: str = 'acme/demo') -> tuple[Path, Pat
 	return (proj, code)
 
 
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_blocks_tests_production_docs_and_shell_writes_before_parent_issue()`
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_cli_subprocess_smoke()`
+# @used-by :meth:`IssueFirstPreToolUseGateTests.test_full_issue_first_then_tdd_red_green_child_and_parent_close_reset_in_live_hook()`
 def _write_tx(path: Path, rows: list[dict]) -> Path:
 	path.write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in rows), encoding='utf-8')
 	return path
@@ -53,6 +61,7 @@ def _write_tx(path: Path, rows: list[dict]) -> Path:
 # "Enforce live PreToolUse Issue-First gate before TDD in check_rules_and_server_gate.py":
 # https://github.com/dmitry-ai/harness/issues/145
 class IssueFirstPreToolUseGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_blocks_tests_production_docs_and_shell_writes_before_parent_issue(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -132,6 +141,7 @@ class IssueFirstPreToolUseGateTests(unittest.TestCase):
 				)
 			)
 
+	# @used-by :mod:`unittest`
 	def test_full_issue_first_then_tdd_red_green_child_and_parent_close_reset_in_live_hook(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -225,6 +235,7 @@ class IssueFirstPreToolUseGateTests(unittest.TestCase):
 	# 2026-11-24
 	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 	# https://github.com/dmitry-ai/harness/issues/175
+	# @used-by :mod:`unittest`
 	def test_cli_subprocess_smoke(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

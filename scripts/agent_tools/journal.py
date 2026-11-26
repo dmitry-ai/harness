@@ -31,23 +31,63 @@ _LEGACY_ANALYSIS_NAMES = ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_raw_state_dir()`
+# @used-by :func:`answer_groups()`
+# @used-by :func:`find_orphan_or_overwritten_steps()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`record_step()`
+# @used-by :func:`recover_step()`
+# @used-by :func:`verify_answer()`
 def digest(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()
 # 2026-11-21
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
+# @used-by :func:`_collect_side_sources()`
+# @used-by :func:`_discover_upgrade_units()`
+# @used-by :func:`agent_tools.article.detect_kind()`
+# @used-by :func:`agent_tools.text_core.check_response()`
+# @used-by :func:`detect_journal_version()`
+# @used-by :func:`find_step_file()`
+# @used-by :func:`iter_side_step_files()`
+# @used-by :func:`parse_step_file_path()`
+# @used-by :func:`upgrade_journal()`
 def is_bucket_dir_name(name: str) -> bool:
 	return bool(_BUCKET_DIR_RE.fullmatch(str(name or '')))
+# @used-by :func:`journal_bucket_name()`
 def journal_bucket_bounds(step: int, bucket_size: int=JOURNAL_BUCKET_SIZE) -> tuple[int, int]:
 	if int is not type(step) or 1 > step:
 		raise ValueError('Step must be a positive integer')
 	start = ((step - 1) // bucket_size) * bucket_size + 1
 	return (start, start + bucket_size - 1)
+# @used-by :func:`_rewrite_journal_readme()`
+# @used-by :func:`detect_journal_version()`
+# @used-by :func:`find_step_file()`
+# @used-by :func:`iter_side_step_files()`
+# @used-by :func:`step_file()`
+# @used-by :func:`test_journal_integrity._write_step_pair()`
+# @used-by :func:`upgrade_journal()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
 def journal_bucket_name(step: int, bucket_size: int=JOURNAL_BUCKET_SIZE) -> str:
 	start, end = journal_bucket_bounds(step, bucket_size)
 	return f'{start}{JOURNAL_RANGE_SEP}{end}'
+# @used-by :func:`_collect_side_sources()`
+# @used-by :func:`detect_journal_version()`
+# @used-by :func:`iter_side_step_files()`
 def _is_step_md(path: Path) -> bool:
 	return path.is_file() and '.md' == path.suffix.lower() and path.stem.isascii() and path.stem.isdigit() and 1 <= int(path.stem)
+# @used-by :func:`agent_tools.cleanup_lifecycle._journal_pair_activity()`
+# @used-by :func:`agent_tools.text_core.check_response()`
+# @used-by :func:`find_orphan_or_overwritten_steps()`
+# @used-by :func:`get_existing_step_ids()`
+# @used-by :func:`journal_pair_names()`
+# @used-by :func:`upgrade_journal()`
+# @used-by :meth:`test_readable_links.ReadableProjectTests.test_record_answer_blocks_encoded_authored_links_before_any_journal_mutation()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_concurrent_native_reconciliation_creates_one_pair()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_foreground_integrity_check_preserves_a_deleted_completed_journal_file()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_matching_native_request_ids_reuse_an_existing_record_answer_group()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_native_sync_recovers_a_completely_skipped_prepare_once()`
 def iter_side_step_files(side_dir: Path) -> list[tuple[int, Path]]:
 	side_p = Path(side_dir)
 	if not side_p.is_dir():
@@ -66,6 +106,10 @@ def iter_side_step_files(side_dir: Path) -> list[tuple[int, Path]]:
 					if st not in found or child.name == journal_bucket_name(st):
 						found[st] = sub_f
 	return sorted(found.items(), key=lambda item: item[0])
+# @used-by :func:`resolve_migrated_step_file()`
+# @used-by :func:`step_file()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict()`
 def find_step_file(side_dir: Path, step: int) -> Path | None:
 	if int is not type(step) or 1 > step:
 		return None
@@ -88,6 +132,12 @@ def find_step_file(side_dir: Path, step: int) -> Path | None:
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :func:`agent_tools.meta.builders._apply_issue_state_details()`
+# @used-by :func:`resolve_journal_dir()`
+# @used-by :func:`resolve_migrated_step_file()`
+# @used-by :func:`same_journal_identity()`
+# @used-by :func:`state_dir()`
 def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 	p = Path(journal_path).resolve()
 	if p.is_dir():
@@ -123,12 +173,26 @@ def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
+# @used-by :func:`agent_tools.admission._same_binding()`
+# @used-by :func:`agent_tools.completion._same_turn_artifact_path()`
+# @used-by :func:`agent_tools.completion._state()`
+# @used-by :func:`agent_tools.completion.conversation_journal_steps()`
+# @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
+# @used-by :func:`answer_groups()`
+# @used-by :func:`get_existing_step_ids()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`recover_step()`
+# @used-by :func:`verify_answer()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def same_journal_identity(first: str | Path | None, second: str | Path | None) -> bool:
 	from .project_rename_state import same_journal_identity_with_rename
 	return same_journal_identity_with_rename(first, second, canonicalize_journal_dir_identity)
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`detect_journal_version()`
+# @used-by :func:`journal_pair_dirs()`
 def journal_pair_names(directory: Path) -> tuple[str, str]:
 	directory = Path(directory)
 	has_v2 = (directory / V2_PAIR[0]).is_dir() or (directory / V2_PAIR[1]).is_dir()
@@ -159,6 +223,11 @@ def journal_pair_names(directory: Path) -> tuple[str, str]:
 # 2026-11-21
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
+# @used-by :func:`_unit_needs_upgrade()`
+# @used-by :func:`ensure_project_journal_upgraded()`
+# @used-by :func:`step_file()`
+# @used-by :func:`upgrade_journal()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
 def detect_journal_version(directory: Path) -> int:
 	d = Path(directory)
 	pair = journal_pair_names(d)
@@ -179,6 +248,30 @@ def detect_journal_version(directory: Path) -> int:
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`_publish()`
+# @used-by :func:`agent_tools.cleanup_lifecycle._journal_pair_activity()`
+# @used-by :func:`agent_tools.completion._group()`
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
+# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
+# @used-by :func:`agent_tools.text_core.check_response()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`answer_groups()`
+# @used-by :func:`find_orphan_or_overwritten_steps()`
+# @used-by :func:`get_existing_step_ids()`
+# @used-by :func:`matching_group_response()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`record_step()`
+# @used-by :func:`resolve_migrated_step_file()`
+# @used-by :func:`step_errors()`
+# @used-by :func:`verify_answer()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 	d = Path(directory)
 	req_name, res_name = journal_pair_names(d)
@@ -186,6 +279,23 @@ def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 # 2026-11-21
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
+# @used-by :func:`_publish()`
+# @used-by :func:`agent_tools.completion._group()`
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
+# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
+# @used-by :func:`answer_groups()`
+# @used-by :func:`matching_group_response()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`step_errors()`
+# @used-by :func:`verify_answer()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_codex_prepare_reprepare_and_unprepared_recovery_prepend_metadata()`
+# @used-by :meth:`test_turn_completion.CompletionCase.saved()`
 def step_file(side_dir: Path, step: int, *, directory: Path | None=None) -> Path:
 	side_p = Path(side_dir)
 	found = find_step_file(side_p, step)
@@ -195,6 +305,8 @@ def step_file(side_dir: Path, step: int, *, directory: Path | None=None) -> Path
 	if 3 <= detect_journal_version(eff_dir):
 		return side_p / journal_bucket_name(step) / f'{step}.md'
 	return side_p / f'{step}.md'
+# @used-by :func:`agent_tools.completion._same_turn_artifact_path()`
+# @used-by :func:`resolve_migrated_step_file()`
 def parse_step_file_path(path: str | Path) -> tuple[Path, str, int] | None:
 	p = Path(path)
 	if '.md' != p.suffix.lower() or (not p.stem.isascii()) or (not p.stem.isdigit()):
@@ -208,6 +320,14 @@ def parse_step_file_path(path: str | Path) -> tuple[Path, str, int] | None:
 	if is_bucket_dir_name(parent.name) and parent.parent.name in (*V1_PAIR, *V2_PAIR):
 		return (parent.parent.parent, parent.parent.name, step)
 	return None
+# @used-by :func:`agent_tools.completion._matches_recorded_response()`
+# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`agent_tools.links.validate_file()`
+# @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
+# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._resolve_effective_response()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._resolve_receipt_artifact()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def resolve_migrated_step_file(path: str | Path) -> Path:
 	p = Path(path)
 	if p.is_file():
@@ -232,6 +352,9 @@ def resolve_migrated_step_file(path: str | Path) -> Path:
 # 2026-11-21
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
+# @used-by :func:`_migrate_journal_state_dir()`
+# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
+# @used-by :func:`state_dir()`
 def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 	identity = str(eff.resolve()).casefold()
 	# 2026-11-24
@@ -245,12 +368,75 @@ def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`_publish()`
+# @used-by :func:`_read_turn_reservations()`
+# @used-by :func:`_write_turn_reservations()`
+# @used-by :func:`agent_tools.completion._group()`
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.journal_integrity.acknowledged_sequence_gaps()`
+# @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
+# @used-by :func:`agent_tools.meta.builders._resolve_issue_group_file()`
+# @used-by :func:`agent_tools.reconcile_helpers._trim_narrowed_reservation()`
+# @used-by :func:`agent_tools.shadow_replay._stage_shadow_copies()`
+# @used-by :func:`agent_tools.shadow_replay_clone.remap_shadow_state()`
+# @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
+# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
+# @used-by :func:`find_orphan_or_overwritten_steps()`
+# @used-by :func:`get_existing_step_ids()`
+# @used-by :func:`iter_answer_group_records()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`record_step()`
+# @used-by :func:`recover_step()`
+# @used-by :func:`release_turn_steps()`
+# @used-by :func:`reserve_turn_steps()`
+# @used-by :func:`step_errors()`
+# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
+# @used-by :func:`test_project_rename._seed_project_artifacts()`
+# @used-by :func:`verify_answer()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_process_crash_releases_lock_and_reservation_is_recoverable()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_recovery_does_not_overwrite_conflict()`
+# @used-by :meth:`test_agent_tools.UpworkProjectTests.test_agent_data_dir_prefers_vai_directory()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_validate_step_strict_sequence_and_check_project_detect_gaps_and_orphans()`
+# @used-by :meth:`test_onboarding.IsolationTests.test_pending_journal_cannot_be_recovered_into_another()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_data_dir_for_supports_exact_root_and_state_dir_skips_host_scan()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adopt_requests_isolates_foreign_answer_group_mismatch()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_complete_group_metadata_tamper_does_not_pass_historical_identity()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange()`
 def state_dir(directory: Path) -> Path:
 	eff = canonicalize_journal_dir_identity(directory)
 	return _raw_state_dir(eff)
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
+# @used-by :func:`agent_tools.journal_integrity.classify_reservations()`
+# @used-by :func:`agent_tools.journal_integrity.journal_validation_errors()`
+# @used-by :func:`agent_tools.journal_integrity.prune_terminal_conflict_reservations()`
+# @used-by :func:`agent_tools.journal_integrity.validate_finalize_journal()`
+# @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
+# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
+# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`record_step()`
+# @used-by :func:`reserve_turn_steps()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
 def get_existing_step_ids(directory: Path) -> set[int]:
 	directory = Path(directory)
 	# 2026-11-20
@@ -275,6 +461,12 @@ def get_existing_step_ids(directory: Path) -> set[int]:
 # 2026-11-22
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
+# @used-by :func:`agent_tools.reconcile_helpers._trim_narrowed_reservation()`
+# @used-by :func:`iter_turn_reservations()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`release_turn_steps()`
+# @used-by :func:`reserve_turn_steps()`
+# @used-by :func:`reserved_step_ids()`
 def _read_turn_reservations(directory: Path) -> dict[str, dict]:
 	res_file = state_dir(Path(directory).resolve()) / TURN_RESERVATIONS_FILE
 	if not res_file.is_file():
@@ -295,6 +487,10 @@ def _read_turn_reservations(directory: Path) -> dict[str, dict]:
 		rids = [str(rid) for rid in (entry.get('request_ids') or ()) if isinstance(rid, str) and rid]
 		out[key] = {'conversation_id': str(entry.get('conversation_id') or ''), 'request_ids': rids, 'steps': steps}
 	return out
+# @used-by :func:`agent_tools.reconcile_helpers._trim_narrowed_reservation()`
+# @used-by :func:`record_answer()`
+# @used-by :func:`release_turn_steps()`
+# @used-by :func:`reserve_turn_steps()`
 def _write_turn_reservations(directory: Path, reservations: dict[str, dict]) -> None:
 	eff = Path(directory).resolve()
 	res_file = state_dir(eff) / TURN_RESERVATIONS_FILE
@@ -310,8 +506,21 @@ def _write_turn_reservations(directory: Path, reservations: dict[str, dict]) -> 
 			pass
 	res_file.parent.mkdir(parents=True, exist_ok=True)
 	replace_bytes(res_file, payload)
+# @used-by :func:`agent_tools.completion.conversation_journal_steps()`
+# @used-by :func:`agent_tools.journal_integrity.classify_reservations()`
+# @used-by :func:`agent_tools.journal_integrity.prune_terminal_conflict_reservations()`
+# @used-by :func:`agent_tools.journal_sync_all._collect_all_open_candidates()`
+# @used-by :func:`agent_tools.journal_sync_all.reconcile_foreign_open_reservations()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_conflict_recording_and_reconciliation_prune_terminal_reservations()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
+# @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict()`
+# @used-by :meth:`test_stop_emergency_capture_and_foreign_sync.StopEmergencyCaptureAndForeignSyncTests.test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running()`
+# @used-by :meth:`test_stop_emergency_capture_and_foreign_sync.StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
 def iter_turn_reservations(directory: Path) -> dict[str, dict]:
 	return _read_turn_reservations(directory)
+# @used-by :func:`record_answer()`
+# @used-by :func:`record_step()`
 def reserved_step_ids(directory: Path, *, exclude_turn: str | None=None) -> set[int]:
 	r: set[int] = set()
 	for key, entry in _read_turn_reservations(directory).items():
@@ -319,6 +528,15 @@ def reserved_step_ids(directory: Path, *, exclude_turn: str | None=None) -> set[
 			continue
 		r.update((st for st in (entry.get('steps') or ()) if int is type(st) and 1 <= st))
 	return r
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.completion.begin()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_conflict_recording_and_reconciliation_prune_terminal_reservations()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_validate_step_strict_sequence_and_check_project_detect_gaps_and_orphans()`
 def reserve_turn_steps(directory: Path, turn_key: str, conversation_id: str, request_ids: list[str]) -> list[int]:
 	if not isinstance(turn_key, str) or not turn_key.strip() or not isinstance(request_ids, list) or (not request_ids) or any((not isinstance(x, str) or not x for x in request_ids)):
 		raise ValueError('Stable turn key and nonempty exact request ID list required for step reservation')
@@ -359,6 +577,12 @@ def reserve_turn_steps(directory: Path, turn_key: str, conversation_id: str, req
 				reservations[turn_key] = new_entry
 				_write_turn_reservations(eff, reservations)
 		return assigned
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.completion.handoff_launcher_turn()`
+# @used-by :func:`agent_tools.journal_integrity.finalize_conflict_turn()`
+# @used-by :func:`agent_tools.journal_integrity.prune_terminal_conflict_reservations()`
+# @used-by :func:`agent_tools.stop_emergency_capture._persist_emergency_state()`
+# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._reconcile_turn()`
 def release_turn_steps(directory: Path, turn_key: str, *, request_ids: list[str] | None=None) -> bool:
 	eff = Path(directory).resolve()
 	journal_state = state_dir(eff)
@@ -375,6 +599,9 @@ def release_turn_steps(directory: Path, turn_key: str, *, request_ids: list[str]
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# @used-by :func:`record_answer()`
+# @used-by :func:`record_step()`
+# @used-by :func:`recover_step()`
 def _payload(request: str, response: str):
 	for label, text in [('request', request), ('response', response)]:
 		if not isinstance(text, str) or not text.strip():
@@ -388,6 +615,9 @@ def _payload(request: str, response: str):
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# @used-by :func:`record_answer()`
+# @used-by :func:`record_step()`
+# @used-by :func:`recover_step()`
 def _publish(directory: Path, step: int, state: dict, *, recovering=False):
 	# 2026-11-20
 	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
@@ -413,6 +643,21 @@ def _publish(directory: Path, step: int, state: dict, *, recovering=False):
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_empty_payload_has_no_side_effect()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_existing_same_request_is_not_ownership()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_explicit_occupied_slot_and_overwrite_rejected()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_process_crash_releases_lock_and_reservation_is_recoverable()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_recovery_does_not_overwrite_conflict()`
+# @used-by :meth:`test_agent_tools.UpworkProjectTests.test_agent_data_dir_prefers_vai_directory()`
+# @used-by :meth:`test_onboarding.IsolationTests.test_pending_journal_cannot_be_recovered_into_another()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_exact_quotes_code_and_source_copies_are_not_rewritten_or_rejected()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
+# @used-by :meth:`test_text_integration.TextBoundaryTests.test_matching_request_blocks_direct_write_but_unrelated_journal_is_allowed()`
 def record_step(journal_dir: Path, req_content: str, res_content: str, target_step: int | None=None, allow_overwrite: bool=False) -> int:
 	_payload(req_content, res_content)
 	if allow_overwrite:
@@ -452,6 +697,11 @@ def record_step(journal_dir: Path, req_content: str, res_content: str, target_st
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_process_crash_releases_lock_and_reservation_is_recoverable()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_recovery_does_not_overwrite_conflict()`
+# @used-by :meth:`test_onboarding.IsolationTests.test_pending_journal_cannot_be_recovered_into_another()`
 def recover_step(directory: Path, step: int, token: str):
 	if step < 1:
 		raise ValueError('Step must be positive')
@@ -476,6 +726,25 @@ def recover_step(directory: Path, step: int, token: str):
 # 2026-11-13
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
+# @used-by :func:`agent_tools.completion._directory()`
+# @used-by :func:`agent_tools.meta.builders._apply_issue_state_details()`
+# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
+# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
+# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
+# @used-by :func:`agent_tools.shadow_replay._stage_shadow_copies()`
+# @used-by :func:`agent_tools.shadow_replay_clone.remap_shadow_state()`
+# @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
+# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
+# @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 def resolve_journal_dir(root: Path, selected=None) -> Path:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -498,6 +767,18 @@ def resolve_journal_dir(root: Path, selected=None) -> Path:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :func:`agent_tools.journal_integrity.validate_finalize_journal()`
+# @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
+# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
+# @used-by :func:`validate_step()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_process_crash_releases_lock_and_reservation_is_recoverable()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_recovery_does_not_overwrite_conflict()`
 def step_errors(directory: Path, step: int) -> list[str]:
 	directory = Path(directory)
 	if type(step) is not int or step < 1:
@@ -518,6 +799,7 @@ def step_errors(directory: Path, step: int) -> list[str]:
 			errors.append(f'Incomplete reservation: {receipt}')
 		r = errors
 	return r
+# @used-by unused
 def validate_step(journal_dir, step_num) -> bool:
 	errors = step_errors(Path(journal_dir), step_num)
 	for error in errors:
@@ -527,6 +809,8 @@ def validate_step(journal_dir, step_num) -> bool:
 # 2026-11-03
 # "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 # https://github.com/dmitry-ai/harness/issues/41
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 def verify_answer(directory, requests, response, turn, request_ids=None):
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn):
 		raise ValueError('Stable answer-group identity required')
@@ -557,6 +841,17 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
+# @used-by :func:`agent_tools.text_workflow.record_answer()`
+# @used-by :func:`test_project_rename._seed_project_artifacts()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_matching_native_request_ids_reuse_an_existing_record_answer_group()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_old_exact_native_turn_receipts_are_not_duplicated()`
 def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, admission_roots=None, allow_reprepare=False, reserved_turn_key=None):
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn) or not isinstance(requests, list) or (not requests):
 		raise ValueError('Stable turn ID and nonempty exact request list required')
@@ -677,6 +972,10 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adopt_requests_isolates_foreign_answer_group_mismatch()`
 def answer_groups(directory, *, request_ids=None):
 	directory = Path(directory).resolve()
 	req_dir, res_dir = journal_pair_dirs(directory)
@@ -704,6 +1003,10 @@ def answer_groups(directory, *, request_ids=None):
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`agent_tools.journal_integrity.classify_reservations()`
+# @used-by :func:`reserve_turn_steps()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
+# @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 def completed_request_group_index(directory: Path) -> dict[str, tuple[dict, int]]:
 	r: dict[str, tuple[dict, int]] = {}
 	for _, group in iter_answer_group_records(directory, ignore_errors=True):
@@ -711,6 +1014,7 @@ def completed_request_group_index(directory: Path) -> dict[str, tuple[dict, int]
 			for rid, st in zip(group['request_ids'], group.get('steps') or ()):
 				r[rid] = (group, st)
 	return r
+# @used-by :mod:`agent_tools.completion`
 def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], response: str, native_ids: list[str]):
 	directory = Path(directory).resolve()
 	n = len(requests or [])
@@ -762,6 +1066,13 @@ def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], respo
 			c_steps, o_turn = overwritten_conflict
 			raise ValueError(f'Journal step(s) {c_steps} match this native turn but are claimed by another answer group ({o_turn}); preserve the conflict')
 	return r
+# @used-by :func:`agent_tools.completion._group()`
+# @used-by :func:`agent_tools.completion.conversation_journal_steps()`
+# @used-by :func:`answer_groups()`
+# @used-by :func:`completed_request_group_index()`
+# @used-by :func:`find_orphan_or_overwritten_steps()`
+# @used-by :func:`get_existing_step_ids()`
+# @used-by :func:`matching_group_response()`
 def iter_answer_group_records(directory: Path, *, ignore_errors: bool=False) -> list[tuple[Path, dict]]:
 	groups_dir = state_dir(Path(directory).resolve()) / 'answer-groups'
 	r: list[tuple[Path, dict]] = []
@@ -779,6 +1090,8 @@ def iter_answer_group_records(directory: Path, *, ignore_errors: bool=False) -> 
 				raise ValueError('Completion metadata must be a JSON object: ' + str(path))
 			r.append((path, val))
 	return r
+# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._resolve_effective_response()`
+# @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 def matching_group_response(directory: Path, req_ids: list[str], response: str) -> str | None:
 	directory = Path(directory).resolve()
 	_, res_dir = journal_pair_dirs(directory)
@@ -794,22 +1107,31 @@ def matching_group_response(directory: Path, req_ids: list[str], response: str) 
 				r = res_text
 			break
 	return r
+# @used-by :func:`find_orphan_or_overwritten_steps()`
+# @used-by :func:`norm_journal_response_text()`
+# @used-by :mod:`agent_tools.completion`
 def norm_journal_text(text: str) -> str:
 	return strip_local_file_scheme((text or '').replace('\r\n', '\n'))
 # 2026-11-23
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
+# @used-by :func:`find_orphan_or_overwritten_steps()`
+# @used-by :func:`matching_group_response()`
+# @used-by :mod:`agent_tools.completion`
 def norm_journal_response_text(text: str) -> str:
 	from .metadata import strip_leading_metadata_header
 	return norm_journal_text(strip_leading_metadata_header(text or ''))
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`norm_journal_text()`
+# @used-by :mod:`agent_tools.completion`
 def strip_local_file_scheme(text: str) -> str:
 	return re.sub('file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')
 # 2026-11-21
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
+# @used-by :func:`upgrade_journal()`
 def _assert_not_linked_tree(path: Path) -> None:
 	for cur in (path, *path.parents):
 		try:
@@ -819,6 +1141,7 @@ def _assert_not_linked_tree(path: Path) -> None:
 			pass
 		if cur.parent == cur:
 			break
+# @used-by :func:`upgrade_journal()`
 def _discover_upgrade_units(j_root: Path) -> list[tuple[Path, Path]]:
 	has_direct = any(((j_root / n).is_dir() for n in (*V1_PAIR, *V2_PAIR)))
 	subjournals: list[Path] = []
@@ -831,6 +1154,7 @@ def _discover_upgrade_units(j_root: Path) -> list[tuple[Path, Path]]:
 	if subjournals and (not has_direct):
 		return [(sub, sub) for sub in subjournals]
 	return [(j_root, j_root)]
+# @used-by :func:`upgrade_journal()`
 def _collect_side_sources(src_jdir: Path, side_names: tuple[str, ...]) -> list[tuple[int, Path]]:
 	entries: list[tuple[int, Path]] = []
 	by_step: dict[int, Path] = {}
@@ -854,14 +1178,17 @@ def _collect_side_sources(src_jdir: Path, side_names: tuple[str, ...]) -> list[t
 						by_step.setdefault(st, bf)
 						entries.append((st, bf))
 	return entries
+# @used-by :func:`upgrade_journal()`
 def _rewrite_journal_readme(readme_path: Path) -> bool:
 	if not readme_path.is_file():
 		return False
 	orig = readme_path.read_text(encoding='utf-8')
 	updated = orig.replace('{req,res}', '{\u227b,\u227a}')
+	# @used-by :func:`_rewrite_journal_readme()`
 	def _rep_req(m: re.Match) -> str:
 		st = int(m.group(1))
 		return f'(\u227b/{journal_bucket_name(st)}/{st}.md)'
+	# @used-by :func:`_rewrite_journal_readme()`
 	def _rep_res(m: re.Match) -> str:
 		st = int(m.group(1))
 		return f'(\u227a/{journal_bucket_name(st)}/{st}.md)'
@@ -871,6 +1198,7 @@ def _rewrite_journal_readme(readme_path: Path) -> bool:
 		replace_bytes(readme_path, updated.encode('utf-8'))
 		return True
 	return False
+# @used-by :func:`upgrade_journal()`
 def _migrate_journal_state_dir(src_jdir: Path, dst_jdir: Path, data_root: Path) -> bool:
 	if src_jdir.resolve() == dst_jdir.resolve():
 		return False
@@ -905,6 +1233,7 @@ def _migrate_journal_state_dir(src_jdir: Path, dst_jdir: Path, data_root: Path) 
 	if not any(old_sdir.iterdir()):
 		old_sdir.rmdir()
 	return moved
+# @used-by :func:`upgrade_journal()`
 def _sync_overlay_journal_slot(project_root: Path, dst_jdir: Path) -> bool:
 	from .path_registry import clear_registry_cache, discover_overlay_file, project_paths
 	ov_file = discover_overlay_file(project_root)
@@ -927,6 +1256,7 @@ def _sync_overlay_journal_slot(project_root: Path, dst_jdir: Path) -> bool:
 	replace_bytes(ov_file, (json.dumps(raw_obj, ensure_ascii=False, indent=indent) + trailing).encode('utf-8'))
 	clear_registry_cache()
 	return True
+# @used-by :func:`upgrade_journal()`
 def _unit_needs_upgrade(src_jdir: Path, dst_jdir: Path) -> bool:
 	if src_jdir.resolve() != dst_jdir.resolve():
 		return True
@@ -943,6 +1273,9 @@ def _unit_needs_upgrade(src_jdir: Path, dst_jdir: Path) -> bool:
 # 2026-11-21
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`ensure_project_journal_upgraded()`
+# @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
 def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None=None, dry_run: bool=False) -> dict:
 	from .path_registry import clear_registry_cache, discover_overlay_file, project_paths
 	j_root = Path(journal_root).resolve()
@@ -967,6 +1300,7 @@ def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None
 		step_cnt = len({st for s_name in V2_PAIR for st, _ in iter_side_step_files(primary_dst / s_name)})
 		return {'valid': True, 'upgraded': False, 'exists': True, 'journal_dir': str(primary_dst), 'from_version': 3, 'to_version': 3, 'moved_files': 0, 'buckets': b_names, 'verified_steps': step_cnt}
 	data_root = project_paths(proj_root, exact_root=True).data_dir if None is not proj_root else data_dir_for(j_root)
+	# @used-by :func:`upgrade_journal()`
 	def _execute() -> dict:
 		units = _discover_upgrade_units(j_root)
 		from_versions = [detect_journal_version(src_u) for src_u, _ in units]
@@ -1030,6 +1364,15 @@ def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None
 		return _execute()
 	with locked(data_root / 'journal-upgrade.lock'):
 		return _execute()
+# @used-by :func:`agent_tools.completion.begin()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_locked()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`agent_tools.completion.TurnJournalReconciler.run()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.resume()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 def ensure_project_journal_upgraded(root: str | Path, *, selected: str | Path | None=None) -> dict:
 	from .path_registry import project_paths
 	pp = project_paths(Path(root).resolve(), exact_root=True)

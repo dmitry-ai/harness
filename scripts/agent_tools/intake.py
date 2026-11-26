@@ -23,18 +23,42 @@ DAILY = Path(settings()['workspace_root']) / settings()['daily_root']
 CAPTURE_NAME = re.compile('^(0[12][A-Za-z0-9]+)-([A-Za-z0-9-]{8,})$')
 WEB_SUFFIXES = {'.html', '.htm', '.json', '.xml', '.mjs', '.js', '.css', '.txt', '.png', '.jpg', '.jpeg', '.webp'}
 INDEX_MARKER = '<!-- upwork-intake:generated v1 -->\n'
+# @used-by :func:`commit_capture()`
 def _bytes(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+# @used-by :func:`_receipt()`
+# @used-by :func:`_remaining()`
+# @used-by :func:`_retired()`
+# @used-by :func:`_snapshot()`
+# @used-by :func:`_validate_new()`
+# @used-by :func:`_validate_receipt()`
+# @used-by :func:`commit_capture()`
 def _hash(payload):
 	return hashlib.sha256(payload).hexdigest()
+# @used-by :func:`_plain()`
+# @used-by :func:`_receipt()`
 def _linked(path):
 	return path.is_symlink() or (hasattr(path, 'is_junction') and path.is_junction())
+# @used-by :func:`_inventory()`
+# @used-by :func:`_read()`
+# @used-by :func:`_validate_new()`
+# @used-by :func:`_within()`
+# @used-by :func:`commit_capture()`
+# @used-by :func:`drain_incoming()`
 def _plain(path):
 	path = Path(os.path.abspath(path))
 	if any((_linked(p) for p in (path, *path.parents))):
 		raise ValueError(f'Linked path is preserved: {path}')
 	r = path
 	return r
+# @used-by :func:`_index()`
+# @used-by :func:`_project()`
+# @used-by :func:`_receipt()`
+# @used-by :func:`_restore()`
+# @used-by :func:`_retired()`
+# @used-by :func:`_snapshot()`
+# @used-by :func:`_validate_receipt()`
+# @used-by :func:`commit_capture()`
 def _within(root, relative):
 	relative = Path(str(relative).replace('\\', '/'))
 	if relative.is_absolute() or '..' in relative.parts or (not relative.parts):
@@ -44,6 +68,13 @@ def _within(root, relative):
 		raise ValueError('Evidence path escapes its owner')
 	r = target
 	return r
+# @used-by :func:`_index()`
+# @used-by :func:`_inventory()`
+# @used-by :func:`_project()`
+# @used-by :func:`_receipt()`
+# @used-by :func:`_snapshot()`
+# @used-by :func:`_validate_receipt()`
+# @used-by :func:`commit_capture()`
 def _read(path):
 	path = _plain(path)
 	before = path.stat()
@@ -53,6 +84,8 @@ def _read(path):
 		raise ValueError(f'Concurrent file change; staging is preserved: {path}')
 	r = payload
 	return r
+# @used-by :func:`_remaining()`
+# @used-by :func:`commit_capture()`
 def _inventory(capture):
 	result, dirs = ({}, set())
 	if capture.exists():
@@ -68,6 +101,7 @@ def _inventory(capture):
 				result[path.relative_to(capture).as_posix()] = _read(path)
 	r = (result, dirs)
 	return r
+# @used-by :func:`commit_capture()`
 def _project(capture, daily):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -88,6 +122,8 @@ def _project(capture, daily):
 		raise ValueError('Project initialization is incomplete; staging is preserved')
 	r = (project, state)
 	return r
+# @used-by :func:`_receipt()`
+# @used-by :func:`_validate_receipt()`
 def _snapshot(project, state, source):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -116,6 +152,7 @@ def _snapshot(project, state, source):
 			raise ValueError('A permanent attachment is missing or changed; staging is preserved')
 	r = {'file': snapshot.relative_to(project).as_posix(), 'sha256': _hash(payload), 'transform': 'Drop transport saved_attachments/cookies; add verified project asset_evidence.'}
 	return r
+# @used-by :func:`_receipt()`
 def _validate_new(capture, source, files, dirs):
 	if not isinstance(source, dict) or source.get('job_id') != '~' + CAPTURE_NAME.fullmatch(capture.name)[1]:
 		raise ValueError('Capture directory and source job IDs differ')
@@ -137,6 +174,7 @@ def _validate_new(capture, source, files, dirs):
 			raise ValueError(f'Unknown/manual file is preserved: {name}')
 	if dirs - {'attachments'}:
 		raise ValueError('Unknown/manual staging directories are preserved')
+# @used-by :func:`commit_capture()`
 def _receipt(project, capture, state, files, dirs):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -166,6 +204,8 @@ def _receipt(project, capture, state, files, dirs):
 		entries.append({'original_relative_provenance': name, 'sha256': digest, 'bytes': len(payload), 'durable_file': known[digest], 'transform': 'identity'})
 	r = {'version': 1, 'capture_id': capture.name, 'job_id': source['job_id'], 'status': 'prepared', 'original_directory_provenance': str(capture), 'original_paths_are_provenance_only': True, 'snapshot': snapshot, 'entries': entries}
 	return r
+# @used-by :func:`agent_tools.claims._manifest_primary()`
+# @used-by :func:`commit_capture()`
 def _validate_receipt(receipt, capture, project, state):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -187,10 +227,15 @@ def _validate_receipt(receipt, capture, project, state):
 	source = json.loads(_read(_within(project, original['durable_file'])).decode('utf-8-sig'))
 	if _snapshot(project, state, source) != receipt['snapshot']:
 		raise ValueError('The permanent snapshot changed during intake; staging is preserved')
+# @used-by :func:`_remaining()`
+# @used-by :func:`_restore()`
+# @used-by :func:`commit_capture()`
+# @used-by :meth:`test_intake.IntakeTests.test_concurrent_replacement_during_retirement_keeps_both_versions()`
 def _retired(capture, name):
 	original = _within(capture, name)
 	r = original.with_name('.intake-retired-' + _hash(name.encode('utf-8'))[:24])
 	return r
+# @used-by :func:`commit_capture()`
 def _remaining(receipt, capture):
 	files, dirs = _inventory(capture)
 	allowed_dirs = {parent.as_posix() for e in receipt['entries'] for parent in Path(e['original_relative_provenance']).parents if parent != Path('.')}
@@ -211,12 +256,15 @@ def _remaining(receipt, capture):
 		raise ValueError('New/manual staging files appeared; staging is preserved')
 	r = expected
 	return r
+# @used-by :func:`commit_capture()`
 def _restore(receipt, capture):
 	for entry in receipt['entries']:
 		original = _within(capture, entry['original_relative_provenance'])
 		retired = _retired(capture, entry['original_relative_provenance'])
 		if retired.exists() and (not original.exists()):
 			os.rename(retired, original)
+# @used-by :func:`commit_capture()`
+# @used-by :meth:`test_intake.IntakeTests.test_concurrent_edit_after_copy_is_preserved_and_not_silently_replanned()`
 def _index(project):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -249,6 +297,9 @@ def _index(project):
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`drain_incoming()`
+# @used-by :meth:`test_intake.IntakeTests.commit()`
 def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=False):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -332,6 +383,7 @@ def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=F
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.upwork_project.run()`
 def drain_incoming(capture=None, *, incoming_root=INCOMING, daily_root=DAILY, apply=False):
 	incoming = _plain(incoming_root)
 	paths = [Path(capture)] if None is not capture else sorted(incoming.iterdir()) if incoming.exists() else []

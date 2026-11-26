@@ -21,15 +21,57 @@ from .text_sections import content_blocks as blocks
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.text_sources._attempt()`
+# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :func:`agent_tools.text_sources.probe_links()`
+# @used-by :func:`agent_tools.text_sources.read_source_check()`
+# @used-by :func:`agent_tools.text_sources.save_source_check()`
+# @used-by :func:`agent_tools.text_sources.source_integrity()`
+# @used-by :func:`agent_tools.text_workflow._hash_or_none()`
+# @used-by :func:`agent_tools.text_workflow.record_answer()`
+# @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
+# @used-by :func:`evidence_inputs()`
+# @used-by :func:`save_registry()`
+# @used-by :func:`validate_map()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.operation()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier._add_artifact()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.reconciled_integrity()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.check_and_review()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.reconcile_manual_baseline()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unrelated_registry_revision_and_target_do_not_invalidate_selected_history()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_full_native_review_fixture_requires_and_preserves_source_assessments()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_real_http_failure_and_redirect_are_saved_once_per_base_url()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
+# @used-by :meth:`test_text_integration.TextReviewTests.record_fixture()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.test_primary_revision_marks_all_transitive_dependents_stale_and_archives_old_bytes()`
+# @used-by :meth:`test_text_workflow.TextTransactionTests.test_formatter_cannot_overwrite_a_document_protected_by_the_operation()`
+# @used-by :meth:`test_text_workflow.TextTransactionTests.test_registered_target_cannot_be_overwritten_via_formatter()`
+# @used-by :meth:`test_text_workflow.TextTransactionTests.test_unregistered_candidate_output_requires_cas_and_keeps_history()`
+# @used-by :meth:`test_text_workflow.TextWorkspaceCase.manifest()`
 def digest(data):
 	return hashlib.sha256(data).hexdigest()
+# @used-by :func:`validate_map()`
 def _nonempty(value):
 	return isinstance(value, str) and bool(value.strip())
+# @used-by :func:`validate_map()`
 def _issue(code, detail, **extra):
 	return {'code': code, 'message': detail, **extra}
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`agent_tools.text_sources.check_claim_sources()`
+# @used-by :func:`save_registry()`
+# @used-by :func:`validate_map()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 def registry_path(root, reference=None):
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
@@ -42,6 +84,10 @@ def registry_path(root, reference=None):
 		raise ValueError('The text claim registry must be an explicit agent KB JSON file')
 	r = path
 	return r
+# @used-by :func:`agent_tools.text_sources.check_claim_sources()`
+# @used-by :func:`validate_map()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 def subset(value, identifiers):
 	if not isinstance(value, dict) or 3 != value.get('schema_version'):
 		raise ValueError('Text claims require schema_version 3; legacy prose remains readable')
@@ -61,6 +107,7 @@ def subset(value, identifiers):
 # 2026-11-13
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
+# @used-by :func:`validate_map()`
 def primary_numbers(claim, index, seen=None):
 	seen = set() if None is seen else seen
 	ident = claim.get('id')
@@ -81,9 +128,13 @@ def primary_numbers(claim, index, seen=None):
 				values.update(norm.split('.'))
 		r = values
 	return r
+# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :func:`agent_tools.text_sources.check_claim_sources()`
+# @used-by :func:`validate_map()`
 def evidence_inputs(root, value):
 	from .evidence import local_file
 	result = {}
+	# @used-by :func:`evidence_inputs()`
 	def add(path):
 		path = Path(path).resolve()
 		if not path.is_relative_to(Path(root).resolve()) or not path.is_file():
@@ -108,6 +159,11 @@ def evidence_inputs(root, value):
 								add(inside(root, artifact['path']))
 	r = result
 	return r
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`test_text_workflow.TextMapTests.test_explicit_offer_can_be_nonfactual_without_a_registry()`
+# @used-by :meth:`test_text_workflow.TextMapTests.test_numeric_measurement_cannot_come_from_claim_wording_alone()`
+# @used-by :meth:`test_text_workflow.TextMapTests.test_stale_block_bytes_or_missing_coverage_fail()`
+# @used-by :meth:`test_text_workflow.TextMapTests.test_substantive_paragraph_cannot_be_unmapped_or_unsourced()`
 def validate_map(root, text, kind, manifest):
 	issues, inputs, mapped, assessment = ([], {}, {}, [])
 	if not isinstance(manifest, dict) or 1 != manifest.get('schema_version') or (not isinstance(manifest.get('blocks'), list)):
@@ -195,6 +251,14 @@ def validate_map(root, text, kind, manifest):
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unrelated_registry_revision_and_target_do_not_invalidate_selected_history()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.test_a_self_authored_note_is_not_a_native_reassessment_of_changed_evidence()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.test_primary_revision_marks_all_transitive_dependents_stale_and_archives_old_bytes()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.test_registry_compare_and_swap_never_overwrites_manual_revision()`
+# @used-by :meth:`test_text_workflow.TextWorkspaceCase.registry()`
 def save_registry(root, candidate, *, expected_sha256=None, reference=None, reassessments=None):
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)

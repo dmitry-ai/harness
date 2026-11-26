@@ -1,5 +1,6 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+from typing import override
 import hashlib
 import json
 from pathlib import Path
@@ -27,6 +28,12 @@ CHILD_CID = '8ec25783-99cc-40fa-99ff-a557eb04dde3'
 # "Enforce single falsifier review default and block duplicate send_message reports":
 # https://github.com/dmitry-ai/harness/issues/226
 class FalsifierDefaultSendMessageAndScheduleM8Tests(ProjectCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self) -> None:
 		super().setUp()
 		self.value = self.valid_review_analysis()
@@ -34,6 +41,7 @@ class FalsifierDefaultSendMessageAndScheduleM8Tests(ProjectCase):
 		flow.resume(self.project, 'm8 fixture', 'Show the saved client title.')
 		self.answer = 'Client task\n'
 		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task', 'novelty': 'new'}]
+	# @used-by :meth:`FalsifierDefaultSendMessageAndScheduleM8Tests.test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor()`
 	def _native_record(self, pkg: dict, report: dict) -> dict:
 		reviewer = str(uuid.uuid4())
 		raw = json_data(report).decode('utf-8')
@@ -43,6 +51,7 @@ class FalsifierDefaultSendMessageAndScheduleM8Tests(ProjectCase):
 		with patch('agent_tools.metrics.verify_native_proof', return_value=proof):
 			r = flow.record_review(self.project, raw.encode('utf-8'), parent_id=self.parent, reviewer_id=reviewer, native_evidence=proof_rel)
 		return r
+	# @used-by :mod:`unittest`
 	def test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor(self) -> None:
 		claim = self.value['identity'][0]
 		claim.update(verification_status='limited', missing_checks=['Check logs.'], properties=['content', 'causality'])
@@ -71,6 +80,7 @@ class FalsifierDefaultSendMessageAndScheduleM8Tests(ProjectCase):
 			auth = review.authorize(self.project, flow.load(self.project), response=self.answer)
 		self.assertEqual('significant', auth['risk'])
 		self.assertEqual(1, len(auth['review_ids']))
+	# @used-by :mod:`unittest`
 	def test_send_message_gate_blocks_duplicate_json_verdicts_and_allows_prompts(self) -> None:
 		dup_std = json.dumps({'schema_version': 2, 'package': 'p.json', 'result': 'approved', 'claim_reviews': [], 'findings': []})
 		dec_std = run_pre_tool_gates('send_message', {'Recipient': PARENT_CID, 'Message': dup_std}, {'conversationId': CHILD_CID})
@@ -86,6 +96,7 @@ class FalsifierDefaultSendMessageAndScheduleM8Tests(ProjectCase):
 		self.assertEqual('allow', ok_prompt['decision'])
 		ok_short = run_pre_tool_gates('send_message', {'Recipient': PARENT_CID, 'Message': 'Audit finished; verdict is in final reply.'}, {'conversationId': CHILD_CID})
 		self.assertEqual('allow', ok_short['decision'])
+	# @used-by :mod:`unittest`
 	def test_schedule_gate_blocks_after_send_message_and_ignores_task_sender(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

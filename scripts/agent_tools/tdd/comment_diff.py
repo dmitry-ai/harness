@@ -102,6 +102,10 @@ _SHEBANG_MAP = (
 	('pwsh', 'powershell'),
 	('php', 'php'),
 )
+# @used-by :func:`_is_last_commit_comment_only()`
+# @used-by :func:`agent_tools.tdd.mechanical._is_last_commit_mechanical_exempt()`
+# @used-by :func:`agent_tools.tdd.mechanical.is_git_file_mechanical_exempt()`
+# @used-by :func:`is_git_file_comment_only()`
 def _git_read_text(repo: Path, args: list[str]) -> str | None:
 	r = None
 	if (repo / '.git').exists():
@@ -117,9 +121,11 @@ def _git_read_text(repo: Path, args: list[str]) -> str | None:
 		if 0 == proc.returncode:
 			r = proc.stdout.decode('utf-8', errors='replace')
 	return r
+# @used-by :func:`detect_comment_language()`
 def _lang_from_shebang(first_line: str) -> str:
 	low = first_line.lower()
 	return next((lang for key, lang in _SHEBANG_MAP if key in low), 'shell')
+# @used-by :func:`detect_comment_language()`
 def _read_first_line(path: Path, content: str | None) -> str:
 	if isinstance(content, str):
 		r = content.splitlines()[0] if content else ''
@@ -130,6 +136,10 @@ def _read_first_line(path: Path, content: str | None) -> str:
 		except OSError:
 			r = ''
 	return r
+# @used-by :func:`is_comment_only_diff()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_comment_only_diffs_accepted_for_all_20_languages()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def detect_comment_language(path: str | Path, *, content: str | None=None) -> str | None:
 	p = Path(str(path))
 	suffix = p.suffix.lower()
@@ -146,6 +156,14 @@ def detect_comment_language(path: str | Path, *, content: str | None=None) -> st
 # 2026-11-25
 # "Add comment-only diff lexer exemption for top 20 repository languages":
 # https://github.com/dmitry-ai/harness/issues/238
+# @used-by :func:`_is_last_commit_comment_only()`
+# @used-by :func:`agent_tools.issue_comment_gate._check_diff_issue_lines()`
+# @used-by :func:`agent_tools.tdd.exemption.is_diff_exempt()`
+# @used-by :func:`is_git_file_comment_only()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_comment_only_diffs_accepted_for_all_20_languages()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_non_comment_and_edge_cases_fail_closed()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def is_comment_only_diff(path: str | Path, old_text: str | None, new_text: str | None) -> bool:
 	if None is old_text or None is new_text:
 		r = False
@@ -160,6 +178,7 @@ def is_comment_only_diff(path: str | Path, old_text: str | None, new_text: str |
 			new_lex = lex_language(lang, new_text)
 			r = (None is not old_lex) and (None is not new_lex) and (old_lex[0] == new_lex[0]) and (old_lex[1] != new_lex[1])
 	return r
+# @used-by :func:`agent_tools.tdd.exemption.is_git_path_exempt()`
 def is_git_file_comment_only(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False) -> bool:
 	repo = Path(repo_root).resolve()
 	fpath = repo / rel_posix
@@ -174,6 +193,7 @@ def is_git_file_comment_only(repo_root: Path, rel_posix: str, *, disk_text: str 
 	else:
 		r = _is_last_commit_comment_only(repo, fpath, rel_posix)
 	return r
+# @used-by :func:`is_git_file_comment_only()`
 def _is_last_commit_comment_only(repo: Path, fpath: Path, rel_posix: str) -> bool:
 	sha_raw = _git_read_text(repo, ['log', '-n', '1', '--format=%H', '--', f':(literal){rel_posix}'])
 	sha = (sha_raw or '').strip()
@@ -184,6 +204,7 @@ def _is_last_commit_comment_only(repo: Path, fpath: Path, rel_posix: str) -> boo
 		curr_txt = _git_read_text(repo, ['show', f'{sha}:{rel_posix}'])
 		r = is_comment_only_diff(fpath, prev_txt, curr_txt)
 	return r
+# @used-by :func:`is_comment_only_diff()`
 def lex_language(lang: str, source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	if 'python' == lang:
 		r = lex_python(source)

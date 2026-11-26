@@ -19,6 +19,7 @@ KB_DOCUMENT_READABLE_CALL_SITES = frozenset({
 	('agent_tools/project_card.py', 'sync_block'),
 	('agent_tools/workflow.py', 'ProjectHealthAuditor.check_project'),
 })
+# @used-by :func:`_collect_link_calls()`
 def _allow_unencoded_kw_value(call: ast.Call) -> object:
 	r: object = None
 	for kw in call.keywords:
@@ -26,6 +27,7 @@ def _allow_unencoded_kw_value(call: ast.Call) -> object:
 			r = kw.value.value if isinstance(kw.value, ast.Constant) else 'dynamic'
 			break
 	return r
+# @used-by :func:`_collect_link_calls()`
 def _call_name(call: ast.Call) -> str | None:
 	fn = call.func
 	if isinstance(fn, ast.Name):
@@ -35,6 +37,7 @@ def _call_name(call: ast.Call) -> str | None:
 	else:
 		r = None
 	return r
+# @used-by :func:`audit_readable_link_call_sites()`
 def _collect_link_calls(node: ast.AST, scope: tuple[str, ...], rel: str, out: list[tuple[str, str, str, object, int]]) -> None:
 	next_scope = (*scope, node.name) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) else scope
 	if isinstance(node, ast.Call):
@@ -43,6 +46,7 @@ def _collect_link_calls(node: ast.AST, scope: tuple[str, ...], rel: str, out: li
 			out.append((rel, '.'.join(next_scope), name, _allow_unencoded_kw_value(node), int(getattr(node, 'lineno', 0))))
 	for child in ast.iter_child_nodes(node):
 		_collect_link_calls(child, next_scope, rel, out)
+# @used-by :func:`audit_readable_link_call_sites()`
 def _evaluate_call_site(rel: str, qual: str, name: str, kw_val: object, lineno: int) -> str | None:
 	site = (rel, qual)
 	if 'chat_reply_link_issues' == name:
@@ -54,6 +58,7 @@ def _evaluate_call_site(rel: str, qual: str, name: str, kw_val: object, lineno: 
 	else:
 		r = f'Unregistered readable_link_issues call site at {rel}:{lineno} ({qual}); use chat_reply_link_issues for chat replies or register KB site'
 	return r
+# @used-by :meth:`test_contract_invariants.ContractInvariantsM2Tests.test_readable_link_call_site_ast_policy_registry_and_negative_detection()`
 def audit_readable_link_call_sites(scripts_dir: Path, *, require_expected_chat_sites: bool=True) -> list[str]:
 	base = Path(scripts_dir).resolve()
 	hits: list[tuple[str, str, str, object, int]] = []

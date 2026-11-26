@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Thread
+from typing import override
 from unittest.mock import patch
 import hashlib
 import json
@@ -28,15 +29,109 @@ from agent_tools.journal import record_step
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class ProjectCase(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.setUp()`
+	# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests.setUp()`
+	# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.setUp()`
+	# @used-by :meth:`test_continuation_binding.CodexContinuationTests.setUp()`
+	# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.setUp()`
+	# @used-by :meth:`test_native_review_binding_m4.NativeReviewBindingM4Tests.setUp()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.setUp()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.setUp()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.setUp()`
+	# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.setUp()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.project = Path(up.initialize_upwork_project(source()['job_id'], domain_or_topic='Topic', extracted_data=source(), date_str='2026-10-15', daily_root=self.root / 'daily', register_antigravity=False)['project_dir'])
+	# @used-by :meth:`AnalysisContractTests.test_content_addressed_primary_evidence_tampering_is_detected()`
+	# @used-by :meth:`AnalysisContractTests.test_local_markdown_quote_must_belong_to_the_linked_section()`
+	# @used-by :meth:`ContinuationTests.test_changed_completed_stage_output_invalidates_dependencies()`
+	# @used-by :meth:`ContinuationTests.test_question_has_one_owner_and_explicit_handoff()`
+	# @used-by :meth:`NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
+	# @used-by :meth:`NativeReviewTests.test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness()`
+	# @used-by :meth:`NativeReviewTests.test_significant_risk_cannot_finish_with_one_independent_aa()`
+	# @used-by :meth:`NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
+	# @used-by :meth:`ProjectCase.valid_analysis()`
+	# @used-by :meth:`ProjectCase.valid_review_analysis()`
+	# @used-by :meth:`PublicationTests.test_untracked_or_manually_edited_file_is_preserved_with_candidate()`
+	# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.setUp()`
+	# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests._write_continuation()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_completion_and_grounding_match_chat_reply_link_policy()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_finalize_stage_accepts_unencoded_file_uri_chat_links()`
+	# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
+	# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+	# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
+	# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests._native_record()`
+	# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.test_proposal_export_selects_each_language_final_or_existing_draft()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.test_self_review_uses_codex_parent_evidence_without_requiring_antigravity()`
+	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_collect_receipt_preserves_plan_after_input_is_consumed()`
+	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_failed_or_changed_input_is_retained()`
+	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_invalid_consumption_scope_fails_before_analysis_changes()`
+	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_stdin_analysis_and_owned_scratch_inputs_leave_no_permanent_candidate()`
+	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.valid_analysis()`
+	# @used-by :meth:`test_readable_links.ReadableProjectTests.test_project_check_covers_agent_kb_and_client_markdown_text_and_html()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_analysis_commit_requires_current_hash_and_preserves_history()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_collection_cli_signals_unavailable_content_with_saved_diagnostics()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_malformed_evidence_fields_return_diagnostics_without_crashing()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_new_question_invalidates_completed_research_and_dependent_analysis()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_overview_and_nested_kb_module_change_invalidates_review_receipt()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_public_example_passes_structure_evidence_and_project_checks()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_review_package_pins_primary_evidence_and_unquoted_new_contradiction()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_routine_self_review_is_explicit_and_never_counts_as_independent()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.native_record()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_causal_property_forces_significant_even_when_labeled_descriptive_routine()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_cli_exact_candidate_and_report_support_stdin_without_implicit_risk()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_e12_check_project_flags_unsynced_client_identity_in_kb_project_md()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_e9_e10_e11_prepare_review_rejects_empty_red_flags_finalize_notes_and_doc4_multi_sentence_lines()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_empty_manifest_cannot_omit_the_entire_pricing_analysis()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_finalize_rejects_changed_journal_answer_after_approved_stage_receipts()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_empty_manifest_package_cannot_pass_record_review()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_routine_package_cannot_bypass_computed_risk()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_needs_changes_and_open_findings_persist_and_parent_disposition_cannot_approve()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_official_distributor_is_not_established_by_contains_lunos_proxy()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_original_report_proof_is_immutable_when_input_filename_is_reused()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_restatement_is_routine_only_after_two_approved_exact_versions_and_no_new_evidence()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_task_flags_cannot_omit_typed_work_or_silently_default()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
+	# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.setUp()`
 	def put_project(self, relative, data):
 		path = self.project / relative
 		path.parent.mkdir(parents=True, exist_ok=True)
 		path.write_bytes(data if isinstance(data, bytes) else data.encode('utf-8'))
 		r = path
 		return r
+	# @used-by :meth:`AnalysisContractTests.test_anchored_quote_from_another_section_is_rejected()`
+	# @used-by :meth:`AnalysisContractTests.test_content_addressed_primary_evidence_tampering_is_detected()`
+	# @used-by :meth:`AnalysisContractTests.test_existing_heading_or_ancestor_anchor_is_required()`
+	# @used-by :meth:`AnalysisContractTests.test_local_markdown_quote_must_belong_to_the_linked_section()`
+	# @used-by :meth:`AnalysisContractTests.test_many_independent_errors_are_reported_with_fields_and_ids()`
+	# @used-by :meth:`AnalysisContractTests.test_no_anchor_exception_uses_an_observed_specific_section()`
+	# @used-by :meth:`AnalysisContractTests.test_no_counterevidence_needs_documented_review_and_real_sources()`
+	# @used-by :meth:`AnalysisContractTests.test_quote_from_another_json_field_is_rejected()`
+	# @used-by :meth:`AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
+	# @used-by :meth:`ContinuationTests.test_file_presence_does_not_complete_analysis_or_review()`
+	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.valid_analysis()`
+	# @used-by :meth:`test_readable_links.ReadableProjectTests.test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes()`
+	# @used-by :meth:`test_readable_links.ReadableProjectTests.test_project_check_covers_agent_kb_and_client_markdown_text_and_html()`
+	# @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_malformed_evidence_fields_return_diagnostics_without_crashing()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_remote_json_pointer_checks_only_the_target_field()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_review_package_pins_primary_evidence_and_unquoted_new_contradiction()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_routine_self_review_is_explicit_and_never_counts_as_independent()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_legacy_review_and_analysis_cannot_authorize_new_answer()`
 	def valid_analysis(self):
 		value = analysis()
 		self.put_project('ꘖ/KB/Evidence/client.json', '{"concern":"The concern","alternative":"Alternative"}')
@@ -51,6 +146,19 @@ class ProjectCase(TemporaryCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :meth:`NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
+	# @used-by :meth:`NativeReviewTests.test_significant_risk_cannot_finish_with_one_independent_aa()`
+	# @used-by :meth:`ProjectCase.review_package()`
+	# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.setUp()`
+	# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests.setUp()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_finalize_stage_accepts_unencoded_file_uri_chat_links()`
+	# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.setUp()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_analysis_commit_requires_current_hash_and_preserves_history()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_new_question_invalidates_completed_research_and_dependent_analysis()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.setUp()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.setUp()`
+	# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.setUp()`
 	def valid_review_analysis(self):
 		from agent_tools.knowledge import sync_website_card
 		project = json.loads((self.project / 'ꘖ/project.json').read_text(encoding='utf-8'))
@@ -68,6 +176,28 @@ class ProjectCase(TemporaryCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :meth:`NativeReviewTests.test_af_or_terminal_quota_error_is_not_an_independent_completed_aa_review()`
+	# @used-by :meth:`NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
+	# @used-by :meth:`NativeReviewTests.test_native_review_rejects_prompt_bias_and_reviewer_isolation_violations()`
+	# @used-by :meth:`NativeReviewTests.test_parent_model_selection_allowed_and_observed_mismatch_rejected()`
+	# @used-by :meth:`NativeReviewTests.test_significant_risk_cannot_finish_with_one_independent_aa()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_finalize_stage_accepts_unencoded_file_uri_chat_links()`
+	# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.setUp()`
+	# @used-by :meth:`test_continuation_binding.CodexContinuationTests.setUp()`
+	# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
+	# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor()`
+	# @used-by :meth:`test_native_review_binding_m4.NativeReviewBindingM4Tests.setUp()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.setUp()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_review_package_pins_primary_evidence_and_unquoted_new_contradiction()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_routine_self_review_is_explicit_and_never_counts_as_independent()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.package()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_e9_e10_e11_prepare_review_rejects_empty_red_flags_finalize_notes_and_doc4_multi_sentence_lines()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_empty_manifest_cannot_omit_the_entire_pricing_analysis()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
+	# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.setUp()`
 	def review_package(self, parent, response='Client task', risk='routine', claims=None):
 		if not (self.project / 'ꘖ/KB/Analysis.json').exists() or 3 != json.loads((self.project / 'ꘖ/KB/Analysis.json').read_text()).get('schema_version'):
 			self.valid_review_analysis()
@@ -96,6 +226,34 @@ class ProjectCase(TemporaryCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :meth:`NativeReviewTests.native_fixture()`
+	# @used-by :meth:`NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
+	# @used-by :meth:`NativeReviewTests.test_native_review_rejects_prompt_bias_and_reviewer_isolation_violations()`
+	# @used-by :meth:`NativeReviewTests.test_significant_risk_cannot_finish_with_one_independent_aa()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_finalize_stage_accepts_unencoded_file_uri_chat_links()`
+	# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
+	# @used-by :meth:`test_continuation_binding.CodexContinuationTests.report()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
+	# @used-by :meth:`test_portability.CodexEvidenceTests.test_self_review_uses_codex_parent_evidence_without_requiring_antigravity()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_routine_self_review_is_explicit_and_never_counts_as_independent()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.native_record()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.self_record()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_audit_must_explain_falsifiability_and_compare_raw_criteria()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_audit_target_must_equal_the_analysis_claim_and_irrelevant_test_is_unsupported()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_cli_exact_candidate_and_report_support_stdin_without_implicit_risk()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_empty_manifest_package_cannot_pass_record_review()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_new_parent_cannot_self_approve_unchanged_answer_rejected_by_native_reviewer()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_official_distributor_is_not_established_by_contains_lunos_proxy()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_original_report_proof_is_immutable_when_input_filename_is_reused()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_parent_cannot_replace_authored_needs_changes_with_an_approved_json()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_per_claim_audit_is_required_and_qualified_gap_can_pass()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_relabeling_same_answer_cannot_hide_an_independent_rejection()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_significant_self_finding_requires_two_independent_authored_followups()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_report_validator_covers_falsifier_and_text_checks()`
+	# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_review_input_and_validator_expose_verbatim_target_claim_rule_and_diff()`
 	def review_report(self, package, *, self_review=False, result='approved', findings=None):
 		report = {'schema_version': 2, 'package': package['package'], 'package_sha256': package['package_sha256'], 'scope': [*SECTIONS, 'kb_consistency', 'response'], 'result': result, 'claim_reviews': [{'claim_id': c['claim_id'], 'observed': 'Exact registered title inspected.', 'inferred': 'Only the attributed title is asserted.', 'method': 'Read saved intake JSON.', 'alternatives': 'No hidden configuration or cause is inferred.', 'limits': 'Client attribution only.', 'falsification': 'A different registered title would contradict the literal attribution.', 'raw_vs_criteria': 'The saved title equals the response excerpt; no causal experiment is claimed.', 'test_alignment': {'target_claim': c['essence'], 'tested_claim': 'The registered intake literally contains this title.', 'relationship': 'direct', 'rationale': 'A different literal title would fail this attribution check.', 'counterexample': 'A later change on the live site could leave the old intake title unchanged; this answer only attributes the saved title.'}, 'outcome': 'supported'} for c in package['claims']], 'findings': findings or []}
 		if self_review:
@@ -105,17 +263,25 @@ class ProjectCase(TemporaryCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :meth:`ContinuationTests.test_question_has_one_owner_and_explicit_handoff()`
+	# @used-by :meth:`ContinuationTests.test_search_cycle_returns_gap_or_requires_a_new_method()`
+	# @used-by :meth:`NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
+	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_new_question_invalidates_completed_research_and_dependent_analysis()`
+	# @used-by :meth:`test_review_contract.ReviewContractTests.test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap()`
 	def experiment_requirement(self, ident='R-CONTENT'):
 		return {'id': ident, 'claim': 'Inspect the returned document content.', 'property': 'content', 'alternatives': ['The requested document may be unavailable.'], 'method': 'http', 'conditions': {}, 'scope': {'objects': ['https://example.invalid/']}, 'falsification': 'The returned content contradicts the proposed text.', 'discriminating_test': 'Compare literal returned content to the expected text, including contradictory content.', 'expected': 'Saved content or an explicit gap.', 'completion_criterion': 'Hash-checked saved response or unavailable result.'}
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :meth:`ContinuationTests.test_question_has_one_owner_and_explicit_handoff()`
+	# @used-by :meth:`NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	def experiment_gap(self, requirement):
 		from agent_tools.experiments import prepare_experiment, record_experiment
 		plan = prepare_experiment(self.project, requirement)
 		r = record_experiment(self.project, {'plan': plan['plan'], 'plan_sha256': plan['plan_sha256'], 'status': 'unavailable', 'conditions': {}, 'artifacts': [], 'actual_steps': [], 'actual_result': 'No usable document could be obtained.', 'limitation': 'Source unavailable in this fixture.'})
 		return r
 class AnalysisContractTests(ProjectCase):
+	# @used-by :mod:`unittest`
 	def test_many_independent_errors_are_reported_with_fields_and_ids(self):
 		value = self.valid_analysis()
 		value['causes'][0]['probability_percent'] = None
@@ -125,6 +291,7 @@ class AnalysisContractTests(ProjectCase):
 		issues = analysis_issues(value)
 		self.assertTrue({'claim.score', 'claim.reference', 'claim.required', 'argument.required'}.issubset({x['code'] for x in issues}))
 		self.assertTrue(all(('field' in x and 'claim_id' in x for x in issues)))
+	# @used-by :mod:`unittest`
 	def test_no_counterevidence_needs_documented_review_and_real_sources(self):
 		value = self.valid_analysis()
 		claim = value['causes'][0]
@@ -135,6 +302,7 @@ class AnalysisContractTests(ProjectCase):
 		self.assertEqual(evidence_issues(self.project, value), [])
 		claim['counterevidence']['reviewed_sources'] = ['Evidence/invented.json']
 		self.assertTrue(evidence_issues(self.project, value))
+	# @used-by :mod:`unittest`
 	def test_source_registry_and_escaped_pointers_resolve(self):
 		data = {'~job/a': ['exact quote']}
 		ref = pointer('~job/a', 0)
@@ -150,15 +318,18 @@ class AnalysisContractTests(ProjectCase):
 		self.assertEqual(analysis_issues(value), [])
 		self.assertEqual(evidence_issues(self.project, value), [])
 		self.assertIn('Evidence/client.json#/concern', render_analysis(value))
+	# @used-by :mod:`unittest`
 	def test_quote_from_another_json_field_is_rejected(self):
 		value = self.valid_analysis()
 		value['concerns'][0]['for'][0]['source'] = 'Evidence/client.json#/alternative'
 		self.assertTrue(evidence_issues(self.project, value))
+	# @used-by :mod:`unittest`
 	def test_local_markdown_quote_must_belong_to_the_linked_section(self):
 		self.put_project('ꘖ/KB/Evidence/article.md', '# First\nThe concern\n\n# Second\nAlternative\n')
 		value = self.valid_analysis()
 		value['concerns'][0]['for'][0]['source'] = 'Evidence/article.md#second'
 		self.assertTrue(evidence_issues(self.project, value))
+	# @used-by :mod:`unittest`
 	def test_no_anchor_exception_uses_an_observed_specific_section(self):
 		response = Response('https://docs.example/article', 200, 'text/html', b'<h1>Article</h1><h2>Eligibility</h2><p>The concern</p><h2>Other</h2><p>Alternative</p>')
 		observation = collect(self.project, response.url, fetcher=lambda *args: response)
@@ -171,6 +342,7 @@ class AnalysisContractTests(ProjectCase):
 		self.assertTrue(evidence_issues(self.project, value))
 		arg['anchor_exception']['observation'] = 'Evidence/missing/observation.json'
 		self.assertTrue(evidence_issues(self.project, value))
+	# @used-by :mod:`unittest`
 	def test_existing_heading_or_ancestor_anchor_is_required(self):
 		for html in (b'<h2 id="eligibility">Eligibility</h2><p>The concern</p>', b'<section id="part"><h2>Eligibility</h2><p>The concern</p></section>'):
 			response = Response('https://docs.example/article', 200, 'text/html', html)
@@ -182,12 +354,14 @@ class AnalysisContractTests(ProjectCase):
 			arg.pop('anchor_exception')
 			arg['source'] += '#eligibility' if b'id="eligibility"' in html else '#part'
 			self.assertEqual(evidence_issues(self.project, value), [])
+	# @used-by :mod:`unittest`
 	def test_anchored_quote_from_another_section_is_rejected(self):
 		response = Response('https://docs.example/article', 200, 'text/html', b'<h2 id="a">A</h2>The concern<h2 id="b">B</h2>Alternative')
 		collect(self.project, response.url, fetcher=lambda *args: response)
 		value = self.valid_analysis()
 		value['concerns'][0]['for'][0].update(source=response.url + '#b', documentation=True)
 		self.assertTrue(evidence_issues(self.project, value))
+	# @used-by :mod:`unittest`
 	def test_content_addressed_primary_evidence_tampering_is_detected(self):
 		value = self.valid_analysis()
 		raw = b'{"concern":"The concern"}'
@@ -198,6 +372,7 @@ class AnalysisContractTests(ProjectCase):
 		file.write_bytes(b'{"concern":"edited"}')
 		self.assertTrue(evidence_issues(self.project, value))
 class PublicationTests(ProjectCase):
+	# @used-by :mod:`unittest`
 	def test_repeat_render_updates_owned_file_and_archives_previous_bytes(self):
 		target = self.project / 'ꘖ/KB/Analysis.md'
 		self.assertEqual(publish_owned(target, 'first')['status'], 'published')
@@ -205,6 +380,7 @@ class PublicationTests(ProjectCase):
 		self.assertEqual(publish_owned(target, 'second')['status'], 'published')
 		self.assertEqual(target.read_text(), 'second')
 		self.assertIn(b'first', [p.read_bytes() for p in (self.project / 'ꘖ/data/render-history').rglob('*.md')])
+	# @used-by :mod:`unittest`
 	def test_untracked_or_manually_edited_file_is_preserved_with_candidate(self):
 		target = self.put_project('ꘖ/KB/Analysis.md', 'manual')
 		result = publish_owned(target, 'generated')
@@ -215,10 +391,12 @@ class PublicationTests(ProjectCase):
 		target.write_text('new manual edit')
 		self.assertEqual(publish_owned(target, 'generated')['status'], 'conflict')
 		self.assertEqual(target.read_text(), 'new manual edit')
+	# @used-by :mod:`unittest`
 	def test_interrupted_state_write_preserves_published_output_for_recovery(self):
 		target = self.project / 'ꘖ/KB/Analysis.md'
 		from agent_tools import analysis as module
 		real = module.replace_bytes
+		# @used-by :meth:`PublicationTests.test_interrupted_state_write_preserves_published_output_for_recovery()`
 		def interrupted(path, data):
 			if 'rendered.json' == Path(path).name:
 				raise OSError('power failure')
@@ -229,8 +407,10 @@ class PublicationTests(ProjectCase):
 		self.assertEqual(target.read_text(), 'first')
 		self.assertEqual(publish_owned(target, 'first')['status'], 'unchanged')
 class ResearchTests(ProjectCase):
+	# @used-by :mod:`unittest`
 	def test_concurrent_and_repeated_fetches_reuse_one_saved_response(self):
 		calls = []
+		# @used-by :meth:`ResearchTests.test_concurrent_and_repeated_fetches_reuse_one_saved_response()`
 		def fetcher(*args):
 			calls.append(args)
 			r = Response(args[0], 200, 'text/html', b'<head><title>Title</title></head><body><h1>Title</h1><p>Exact text</p></body>')
@@ -243,8 +423,10 @@ class ResearchTests(ProjectCase):
 		data = json.loads((self.project / 'ꘖ/KB' / extracted['extraction']).read_text())
 		self.assertEqual(data['title'], 'Title')
 		self.assertIn('Exact text', data['text'])
+	# @used-by :mod:`unittest`
 	def test_conditions_scope_and_explicit_refresh_make_separate_measurements(self):
 		calls = []
+		# @used-by :meth:`ResearchTests.test_conditions_scope_and_explicit_refresh_make_separate_measurements()`
 		def fetcher(*args):
 			calls.append(args)
 			r = Response(args[0], 200, 'text/plain', b'body')
@@ -258,18 +440,21 @@ class ResearchTests(ProjectCase):
 		self.assertNotEqual(first['observation'], refreshed['observation'])
 		self.assertNotEqual(first['request_key'], changed['request_key'])
 		self.assertNotIn('FAKE-TEST-SECRET', json.dumps(first))
+	# @used-by :mod:`unittest`
 	def test_changed_cached_body_is_not_silently_used(self):
 		observation = collect(self.project, 'https://example.org/', fetcher=lambda *a: Response(a[0], 200, 'text/plain', b'original'))
 		folder = (self.project / 'ꘖ/KB' / observation['observation']).parent
 		(folder / 'response.bin').write_bytes(b'altered')
 		with self.assertRaises(ValueError):
 			load_observation(self.project, observation['observation'])
+	# @used-by :mod:`unittest`
 	def test_http_error_observation_is_completed_and_preserved(self):
 		result = collect_plan(self.project, {'requests': [{'url': 'https://example.org/absent'}]}, fetcher=lambda *a: Response(a[0], 404, 'text/html', b'Not found'))
 		self.assertTrue(result['complete'])
 		self.assertFalse(result['content_available_for_all'])
 		self.assertEqual(result['results'][0]['status'], 404)
 		self.assertTrue((self.project / 'ꘖ/KB' / result['results'][0]['observation']).is_file())
+	# @used-by :mod:`unittest`
 	def test_tracking_and_shopify_extraction_preserve_provenance_limits(self):
 		data = extract_bytes(b'<script>webPixelsConfigList=[{"id":123}];</script><div>GTM-ABC</div>', 'text/html', 'tracking')
 		self.assertFalse(data['execution_checked'])
@@ -277,23 +462,28 @@ class ResearchTests(ProjectCase):
 		product = extract_bytes(b'{"product":{"id":1,"variants":[{"price":"25.97"}]}}', 'application/json', 'shopify')
 		self.assertEqual(product['data']['product']['variants'][0]['price'], '25.97')
 		self.assertIn('not Merchant Center', product['scope'])
+	# @used-by :mod:`unittest`
 	def test_real_get_and_cross_origin_redirect_strip_authentication(self):
 		received = []
 		class Destination(BaseHTTPRequestHandler):
+			# @used-by :meth:`ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`
 			def do_GET(self):
 				received.append(self.headers.get('Authorization'))
 				self.send_response(200)
 				self.send_header('Content-Type', 'text/html')
 				self.end_headers()
 				self.wfile.write(b'<h1>Actual response</h1>')
+			# @used-by :meth:`ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`
 			def log_message(self, *args):
 				pass
 		destination = ThreadingHTTPServer(('127.0.0.1', 0), Destination)
 		class Redirect(BaseHTTPRequestHandler):
+			# @used-by :meth:`ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`
 			def do_GET(self):
 				self.send_response(302)
 				self.send_header('Location', f'http://127.0.0.1:{destination.server_port}/')
 				self.end_headers()
+			# @used-by :meth:`ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`
 			def log_message(self, *args):
 				pass
 		redirect = ThreadingHTTPServer(('127.0.0.1', 0), Redirect)
@@ -312,6 +502,7 @@ class ResearchTests(ProjectCase):
 			for thread in threads:
 				thread.join()
 class ContinuationTests(ProjectCase):
+	# @used-by :mod:`unittest`
 	def test_resume_uses_existing_capture_and_agent_kb_without_reading_context(self):
 		original = {p: p.read_bytes() for p in (self.project / 'ꘖ/KB').glob('*.md')}
 		capture = self.project / json.loads((self.project / 'ꘖ/project.json').read_text())['snapshot']
@@ -332,11 +523,13 @@ class ContinuationTests(ProjectCase):
 		self.assertEqual({p: p.read_bytes() for p in original}, original)
 		self.assertNotIn('EXTERNAL_ONLY_INFORMATION', (self.project / 'ꘖ/KB/Progress.md').read_text())
 		self.assertEqual(flow.load(self.project)['requests'][-1]['text'], request)
+	# @used-by :mod:`unittest`
 	def test_file_presence_does_not_complete_analysis_or_review(self):
 		self.valid_analysis()
 		flow.resume(self.project, 'quota')
 		self.assertNotEqual(flow.status(self.project)['stages']['analysis'], 'complete')
 		self.assertNotEqual(flow.status(self.project)['stages']['review'], 'complete')
+	# @used-by :mod:`unittest`
 	def test_changed_completed_stage_output_invalidates_dependencies(self):
 		flow.resume(self.project, 'quota')
 		path = self.put_project('ꘖ/KB/Evidence/init-check.json', '{}')
@@ -344,6 +537,7 @@ class ContinuationTests(ProjectCase):
 		self.assertEqual(flow.status(self.project)['stages']['identity_init'], 'complete')
 		path.write_text('{"changed":true}')
 		self.assertEqual(flow.status(self.project)['stages']['identity_init'], 'stale')
+	# @used-by :mod:`unittest`
 	def test_question_has_one_owner_and_explicit_handoff(self):
 		flow.resume(self.project, 'quota')
 		# 2026-10-18
@@ -362,6 +556,7 @@ class ContinuationTests(ProjectCase):
 		flow.finish_question(self.project, 'Q-SITE', 'worker-b', ['ꘖ/KB/Evidence/site.json'], gap='Source unavailable.', results=[self.experiment_gap(requirement)])
 		with self.assertRaises(ValueError):
 			flow.claim_question(self.project, 'Q-SITE', 'worker-a')
+	# @used-by :mod:`unittest`
 	def test_search_cycle_returns_gap_or_requires_a_new_method(self):
 		flow.resume(self.project, 'quota')
 		# 2026-10-18
@@ -375,6 +570,12 @@ class ContinuationTests(ProjectCase):
 			flow.record_search(self.project, 'Q-DOC', 'worker', 'fourth variant')
 		flow.record_search(self.project, 'Q-DOC', 'worker', 'official navigation', method_change='Use documentation navigation instead of reformulating search')
 class NativeReviewTests(ProjectCase):
+	# @used-by :meth:`NativeReviewTests.test_af_or_terminal_quota_error_is_not_an_independent_completed_aa_review()`
+	# @used-by :meth:`NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
+	# @used-by :meth:`NativeReviewTests.test_native_review_rejects_prompt_bias_and_reviewer_isolation_violations()`
+	# @used-by :meth:`NativeReviewTests.test_parent_model_selection_allowed_and_observed_mismatch_rejected()`
+	# @used-by :meth:`NativeReviewTests.test_significant_risk_cannot_finish_with_one_independent_aa()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_finalize_stage_accepts_unencoded_file_uri_chat_links()`
 	def native_fixture(self, package, child=None, agent='self', final_type=15):
 		home = self.root / 'home'
 		backend = home / '.gemini/antigravity'
@@ -405,6 +606,7 @@ class NativeReviewTests(ProjectCase):
 		conn.close()
 		r = (home, backend, parent, child)
 		return r
+	# @used-by :mod:`unittest`
 	def test_af_or_terminal_quota_error_is_not_an_independent_completed_aa_review(self):
 		package = self.review_package(str(uuid.uuid4()))
 		for agent, final in [('af-worker', 15), ('self', 17)]:
@@ -414,6 +616,7 @@ class NativeReviewTests(ProjectCase):
 	# 2026-11-23
 	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
 	# https://github.com/dmitry-ai/harness/issues/133
+	# @used-by :mod:`unittest`
 	def test_parent_model_selection_allowed_and_observed_mismatch_rejected(self):
 		package = self.review_package(str(uuid.uuid4()))
 		home, backend, parent, child = self.native_fixture(package)
@@ -439,6 +642,7 @@ class NativeReviewTests(ProjectCase):
 				conn.close()
 		with self.assertRaises(ValueError):
 			native_review_proof(self.project, parent, child, backend=backend)
+	# @used-by :mod:`unittest`
 	def test_significant_risk_cannot_finish_with_one_independent_aa(self):
 		self.valid_review_analysis()
 		flow.resume(self.project, 'quota')
@@ -456,6 +660,7 @@ class NativeReviewTests(ProjectCase):
 			flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/significant.json', parent_id=parent, reviewer_id=child, native_evidence=native['proof'])
 			with self.assertRaises(ValueError):
 				flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/significant.json'])
+	# @used-by :mod:`unittest`
 	def test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context(self):
 		value = self.valid_review_analysis()
 		publish_owned(self.project / 'ꘖ/KB/Analysis.md', render_analysis(value))
@@ -500,6 +705,7 @@ class NativeReviewTests(ProjectCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_native_review_rejects_prompt_bias_and_reviewer_isolation_violations(self):
 		package = self.review_package(str(uuid.uuid4()))
 		home, backend, parent, child = self.native_fixture(package)
@@ -535,6 +741,7 @@ class NativeReviewTests(ProjectCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness(self):
 		html_data = extract_bytes(b'<html><body><a href="https://instagram.com/brand">IG</a></body></html>', 'text/html', 'html')
 		self.assertEqual(html_data['links'], [{'href': 'https://instagram.com/brand', 'text': 'IG'}])
@@ -562,6 +769,7 @@ class NativeReviewTests(ProjectCase):
 	# 2026-11-02
 	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 	# https://github.com/dmitry-ai/harness/issues/38
+	# @used-by :mod:`unittest`
 	def test_void_elements_compact_extracted_disk_json_and_max_bytes_guard(self):
 		html_doc = ('<html><head><link id="void-link" href="/a.css"><meta id="void-meta" content="x"></head><body><h1 id="sec-1">Title</h1><img id="void-img" src="/a.png"><div id="box"><p>' + ('word ' * 400) + '</p></div></body></html>').encode('utf-8')
 		parsed = extract_bytes(html_doc, 'text/html', 'html')
@@ -592,6 +800,7 @@ class NativeReviewTests(ProjectCase):
 	# 2026-11-14
 	# "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
 	# https://github.com/dmitry-ai/harness/issues/74
+	# @used-by :mod:`unittest`
 	def test_workflow_classes_and_shared_attachment_inventory(self):
 		from agent_tools.knowledge import AttachmentInventory
 		engine = flow.WorkflowStateEngine(self.project)
@@ -613,6 +822,7 @@ class NativeReviewTests(ProjectCase):
 		self.assertIn(synced[0]['sha256'], AttachmentInventory(self.project).scan()['source_by_sha'])
 		self.assertTrue(unsynced.is_file())
 class MetricsTests(TemporaryCase):
+	# @used-by :mod:`unittest`
 	def test_unknown_tokens_stay_unknown_and_duplicate_exports_are_not_summed(self):
 		path = self.put('c-id/.system_generated/logs/transcript_full.jsonl', json.dumps({'type': 'PLANNER_RESPONSE', 'step_index': 1, 'input_tokens': 10, 'output_tokens': 4}) + '\n')
 		result = summarize([path, path])
@@ -623,6 +833,7 @@ class MetricsTests(TemporaryCase):
 	# 2026-11-21
 	# "Add compact evidence-query command and unify collect-http CLI flags":
 	# https://github.com/dmitry-ai/harness/issues/118
+	# @used-by :mod:`unittest`
 	def test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query(self):
 		import io
 		from contextlib import redirect_stdout
@@ -638,6 +849,7 @@ class MetricsTests(TemporaryCase):
 				f'Closing caveat sentence of paragraph {idx}.</p></body></html>'
 			).encode('utf-8')
 		class Handler(BaseHTTPRequestHandler):
+			# @used-by :meth:`MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 			def do_GET(self):
 				body = pages.get(self.path)
 				if None is body:
@@ -648,6 +860,7 @@ class MetricsTests(TemporaryCase):
 				self.send_header('Content-Type', 'text/html; charset=utf-8')
 				self.end_headers()
 				self.wfile.write(body)
+			# @used-by :meth:`MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 			def log_message(self, *args):
 				pass
 		proj = Path(up.initialize_upwork_project(source()['job_id'], domain_or_topic='EvidenceQuery', extracted_data=source(), date_str='2026-10-15', daily_root=self.root / 'daily_eq', register_antigravity=False)['project_dir'])

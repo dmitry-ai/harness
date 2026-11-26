@@ -8,6 +8,7 @@ import os
 # "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 # https://github.com/dmitry-ai/harness/issues/239
 _SKIP_TURN_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
+# @used-by :func:`has_competing_open_turns()`
 def _candidate_turns_dirs(root: Path) -> list[Path]:
 	from ..path_registry import project_paths
 	resolved = Path(root).resolve()
@@ -21,6 +22,7 @@ def _candidate_turns_dirs(root: Path) -> list[Path]:
 		if p not in cands:
 			cands.append(p)
 	return [d for d in cands if d.is_dir()]
+# @used-by :func:`detect_active_session()`
 def _fallback_env_session(environ: dict[str, str]) -> tuple[str, str]:
 	from ..meta.transcripts import _parse_antigravity_source_metadata
 	meta_cid, _ = _parse_antigravity_source_metadata(environ)
@@ -33,8 +35,10 @@ def _fallback_env_session(environ: dict[str, str]) -> tuple[str, str]:
 	else:
 		r = ('', '')
 	return r
+# @used-by :func:`select_target_open_turns()`
 def _match_open_by_cid(open_files: list[tuple[Path, str, str]], cid_low: str) -> list[Path]:
 	return [tfile for tfile, _, t_cid in open_files if t_cid and cid_low == t_cid.lower()]
+# @used-by :func:`select_target_open_turns()`
 def _resolve_antigravity_parent_cid(active_cid: str, environ: dict[str, str]) -> str:
 	r = ''
 	try:
@@ -45,6 +49,7 @@ def _resolve_antigravity_parent_cid(active_cid: str, environ: dict[str, str]) ->
 	except Exception:
 		r = ''
 	return r
+# @used-by :func:`select_target_open_turns()`
 def _sole_untagged_open_turn(open_files: list[tuple[Path, str, str]], active_plat: str) -> list[Path]:
 	r: list[Path] = []
 	if 1 == len(open_files):
@@ -55,6 +60,7 @@ def _sole_untagged_open_turn(open_files: list[tuple[Path, str, str]], active_pla
 # 2026-11-24
 # "Isolate per-conversation github_issues recording and turn-state filtering":
 # https://github.com/dmitry-ai/harness/issues/195
+# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.record_issue_in_open_turns()`
 def detect_active_session(conversation_id: str | None=None, env: dict[str, str] | None=None) -> tuple[str, str]:
 	from ..meta.builders import _detect_env_platform
 	environ = dict(os.environ) if None is env else dict(env)
@@ -66,6 +72,8 @@ def detect_active_session(conversation_id: str | None=None, env: dict[str, str] 
 	eff_cid = explicit if explicit else str(env_cid or '').strip().lower()
 	eff_plat = str(plat or '').strip().lower()
 	return (eff_plat, eff_cid)
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_repos_and_issues()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor.collect_turn_issues()`
 def has_competing_open_turns(root: Path, current_cid: str) -> bool:
 	cur_low = str(current_cid or '').strip().lower()
 	open_cids: set[str] = set()
@@ -85,6 +93,7 @@ def has_competing_open_turns(root: Path, current_cid: str) -> bool:
 					open_cids.add(cid)
 	has_other_cid = bool(cur_low and any((cid != cur_low for cid in open_cids)))
 	return has_other_cid or 2 <= open_total
+# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.record_issue_in_open_turns()`
 def select_target_open_turns(open_files: list[tuple[Path, str, str]], active_plat: str, active_cid: str, *, env: dict[str, str] | None=None) -> tuple[list[Path], str, str]:
 	environ = dict(os.environ) if None is env else dict(env)
 	if not active_cid:

@@ -22,11 +22,12 @@ from agent_tools.issues.workspace import IssueEvidenceWorkspace
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # @used-by :class:`AddonObservabilityTests`
 class AddonObservabilityTests(unittest.TestCase):
-	# @used-by :meth:`AddonObservabilityTests.test_dirty_issue_first_excludes_live_runtime_data_only`
+	# @used-by :meth:`AddonObservabilityTests._init_addons_repo()`
 	def _git(self, repo: Path, *args: str) -> str:
 		proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True, creationflags=_NO_WINDOW)
 		return (proc.stdout or '').strip()
-	# @used-by :meth:`AddonObservabilityTests.test_dirty_issue_first_excludes_live_runtime_data_only`
+	# @used-by :meth:`AddonObservabilityTests.test_close_blocks_antigravity_addons_when_companion_unhealthy()`
+	# @used-by :meth:`AddonObservabilityTests.test_dirty_issue_first_excludes_live_runtime_data_only()`
 	def _init_addons_repo(self, root: Path) -> Path:
 		proj = root / 'Addons'
 		code = proj / '\u2c0f/\u227b/\u2655/\u26ef'

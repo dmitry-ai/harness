@@ -14,6 +14,7 @@ import check_markdown_slop
 # "Replace monolithic CLI router with declarative registry and modular docs":
 # https://github.com/dmitry-ai/harness/issues/168
 class CliRegistryTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cli_docs_renders_registered_commands_and_runs_via_cli(self):
 		from agent_tools.cli_registry import render_cli_index
 		from agent_tools.upwork_project import main as cli_main
@@ -21,6 +22,7 @@ class CliRegistryTests(unittest.TestCase):
 		for cmd in ('cli-docs', 'land-acquire', 'run-tests', 'worktree-begin', 'worktree-land'):
 			self.assertIn(f'`{cmd}`', md)
 		self.assertEqual(cli_main(['cli-docs']), 0)
+	# @used-by :mod:`unittest`
 	def test_dynamic_command_registration_roundtrip(self):
 		from agent_tools.cli_registry import _REGISTRY, execute_registered, register_command
 		seen: list[str] = []
@@ -33,6 +35,7 @@ class CliRegistryTests(unittest.TestCase):
 			self.assertEqual(seen, ['alpha'])
 		finally:
 			_REGISTRY.pop('demo-plugin-cmd', None)
+	# @used-by :mod:`unittest`
 	def test_modular_docs_and_per_feature_test_rule_valid(self):
 		readme = HARNESS_ROOT / 'scripts/README-agent-tools.md'
 		doc_wt = HARNESS_ROOT / 'scripts/docs/worktrees-and-testing.md'
@@ -47,6 +50,7 @@ class CliRegistryTests(unittest.TestCase):
 		self.assertIn('docs/plugin-registries.md', r_text)
 		self.assertIn('run-tests', r_text)
 		self.assertIn('test_<feature>.py', rule_doc.read_text(encoding='utf-8'))
+	# @used-by :mod:`unittest`
 	def test_operation_handlers_cover_all_non_completion_commands(self):
 		from agent_tools.cli_domains import OPERATION_HANDLERS
 		from agent_tools.completion import COMMANDS as COMP_CMDS

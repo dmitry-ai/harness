@@ -38,6 +38,7 @@ STEP_670 = {
 	'created_at': '2026-11-24T03:49:20Z',
 	'content': 'Created At: 2026-11-24T06:49:20+03:00\nCompleted At: 2026-11-25T16:19:40+03:00\nCreated At: 2026-11-24T06:49:20+03:00\nCompleted At: 2026-11-25T16:19:40+03:00\nA1: \u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u0443\u0441\u0442\u0440\u0430\u043d\u0435\u043d\u0430 \u0432 \u043e\u0442\u0432\u0435\u0442\u0435 250.\n\u0417\u0430\u0432\u0435\u0440\u0448\u0438 \u0441\u0432\u043e\u044e \u0437\u0430\u0434\u0430\u0447\u0443.',
 }
+# @used-by :meth:`AskQuestionClarificationsM8Tests.test_antigravity_scanner_and_turn_state_preserve_clarifications_without_breaking_user_turns()`
 def _wire(field: int, payload: bytes) -> bytes:
 	out = bytearray()
 	for val in ((field << 3) | 2, len(payload)):
@@ -52,6 +53,7 @@ def _wire(field: int, payload: bytes) -> bytes:
 # "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
 # https://github.com/dmitry-ai/harness/issues/234
 class AskQuestionClarificationsM8Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_antigravity_scanner_and_turn_state_preserve_clarifications_without_breaking_user_turns(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -85,6 +87,7 @@ class AskQuestionClarificationsM8Tests(unittest.TestCase):
 			state_file = proj / beg['state']
 			state_data = json.loads(state_file.read_text(encoding='utf-8'))
 			self.assertEqual(clar, state_data.get('clarifications'))
+	# @used-by :mod:`unittest`
 	def test_extract_ask_question_clarifications_from_steps_669_670(self) -> None:
 		from agent_tools.platforms.clarifications import extract_ask_question_clarifications
 		items = extract_ask_question_clarifications([STEP_669, STEP_670])
@@ -95,6 +98,7 @@ class AskQuestionClarificationsM8Tests(unittest.TestCase):
 		self.assertEqual('2026-11-25T16:19:40+03:00', item['answered_at'])
 		self.assertEqual(['Confirm when Harness fixes are applied:'], item['questions'])
 		self.assertEqual([{'id': 'A1', 'text': '\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u0443\u0441\u0442\u0440\u0430\u043d\u0435\u043d\u0430 \u0432 \u043e\u0442\u0432\u0435\u0442\u0435 250.\n\u0417\u0430\u0432\u0435\u0440\u0448\u0438 \u0441\u0432\u043e\u044e \u0437\u0430\u0434\u0430\u0447\u0443.'}], item['answers'])
+	# @used-by :mod:`unittest`
 	def test_skill_and_turn_completion_docs_prohibit_ask_question_stop_gate_bypass(self) -> None:
 		for rel in ('skills/upwork-init/SKILL.md', 'references/turn-completion.md'):
 			doc = WT_ROOT / rel

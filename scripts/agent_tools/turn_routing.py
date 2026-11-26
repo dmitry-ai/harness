@@ -13,6 +13,7 @@ _STATUS_RANK = {
 	'preparation_unverified': 0,
 	'prepared': 3,
 }
+# @used-by :func:`resolve_active_turn_state()`
 def _collect_turn_candidates(t_dir: Path, sid: str, last_user_step: int, rows: list[dict] | None, user_text: str | None) -> tuple[tuple | None, tuple | None, tuple | None]:
 	from .hook_runtime import iter_turn_state_files
 	best_exact, best_secondary, best_handoff = (None, None, None)
@@ -29,6 +30,7 @@ def _collect_turn_candidates(t_dir: Path, sid: str, last_user_step: int, rows: l
 		if None is not h_rank:
 			best_handoff = _pick_higher(best_handoff, h_rank, st)
 	return (best_exact, best_secondary, best_handoff)
+# @used-by :func:`_extract_user_text()`
 def _extract_step_text_from_db(conversations_dir: Path, conversation_id: str, step_idx: int) -> str | None:
 	r: str | None = None
 	conv_db = conversations_dir / f'{conversation_id}.db'
@@ -44,6 +46,7 @@ def _extract_step_text_from_db(conversations_dir: Path, conversation_id: str, st
 		finally:
 			conn.close()
 	return r
+# @used-by :func:`resolve_handoff_target_root()`
 def _extract_user_text(rows: list[dict] | None, last_user_step: int, conversations_dir: Path | None, conversation_id: str) -> str | None:
 	r: str | None = None
 	for row in rows or ():
@@ -53,6 +56,7 @@ def _extract_user_text(rows: list[dict] | None, last_user_step: int, conversatio
 	if None is r and None is not conversations_dir:
 		r = _extract_step_text_from_db(conversations_dir, conversation_id, last_user_step)
 	return r
+# @used-by :func:`_collect_turn_candidates()`
 def _handoff_rank(st: dict, rows: list[dict] | None, last_user_step: int, user_text: str | None) -> tuple[int, str, str] | None:
 	r: tuple[int, str, str] | None = None
 	if 'handed_off' == st.get('status'):
@@ -62,6 +66,7 @@ def _handoff_rank(st: dict, rows: list[dict] | None, last_user_step: int, user_t
 			if handoff_matches_user_step(st, rows or [], last_user_step, user_text=user_text):
 				r = (start_step, str(st.get('updated_at') or ''), str(st.get('key') or ''))
 	return r
+# @used-by :func:`_collect_turn_candidates()`
 def _match_tier(st: dict, session_id: str, last_user_step: int) -> int:
 	req_steps = {req.get('native_step') for req in st.get('requests') or () if isinstance(req, dict)}
 	if st.get('native_turn_id') == f'ag-{session_id}-{last_user_step}' or last_user_step == st.get('native_start_step'):
@@ -71,8 +76,10 @@ def _match_tier(st: dict, session_id: str, last_user_step: int) -> int:
 	else:
 		r = 0
 	return r
+# @used-by :func:`_collect_turn_candidates()`
 def _pick_higher(current: tuple | None, cand_rank: tuple, st: dict) -> tuple:
 	return (cand_rank, st) if None is current or cand_rank > current[0] else current
+# @used-by :func:`resolve_active_turn_state()`
 def _select_best_turn_candidate(best_exact: tuple | None, best_secondary: tuple | None, best_handoff: tuple | None) -> dict | None:
 	if None is not best_handoff and (None is best_exact or best_exact[1].get('status') not in ('prepared', 'delivered')):
 		r = best_handoff[1]
@@ -81,8 +88,10 @@ def _select_best_turn_candidate(best_exact: tuple | None, best_secondary: tuple 
 	else:
 		r = best_secondary[1] if None is not best_secondary else None
 	return r
+# @used-by :func:`_collect_turn_candidates()`
 def _state_rank(st: dict, tier: int) -> tuple[int, int, str, str]:
 	return (tier, _STATUS_RANK.get(str(st.get('status') or ''), -1), str(st.get('updated_at') or ''), str(st.get('key') or ''))
+# @used-by :func:`resolve_handoff_target_root()`
 def read_optional_transcript_rows(brain_dir: Path, conversation_id: str, t_path: Path | None=None) -> list[dict]:
 	from .hook_runtime import _read_jsonl_dicts
 	logs_dir = t_path.parent if None is not t_path else (brain_dir / conversation_id / '.system_generated/logs')
@@ -90,10 +99,17 @@ def read_optional_transcript_rows(brain_dir: Path, conversation_id: str, t_path:
 	compact_t = logs_dir / 'transcript.jsonl'
 	eff = full_t if full_t.is_file() else (t_path if None is not t_path and t_path.is_file() else compact_t)
 	return _read_jsonl_dicts(eff) if eff.is_file() else []
+# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
+# @used-by :func:`check_pre_invocation._resolve_pre_invocation_target()`
+# @used-by :func:`check_pre_invocation._turn_step_already_covered()`
+# @used-by :func:`check_stop_gate._find_turn_state()`
+# @used-by :func:`resolve_handoff_target_root()`
+# @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_stop_gate_deterministic_priority_prevents_alphabetical_shadowing()`
 def resolve_active_turn_state(t_dir: Path, session_id: str, last_user_step: int, *, rows: list[dict] | None=None, user_text: str | None=None) -> dict | None:
 	sid = str(session_id or '').strip().lower()
 	best_exact, best_secondary, best_handoff = _collect_turn_candidates(t_dir, sid, last_user_step, rows, user_text)
 	return _select_best_turn_candidate(best_exact, best_secondary, best_handoff)
+# @used-by :func:`check_pre_invocation._routed_pre_invocation_root()`
 def resolve_handoff_target_root(t_dir: Path, session_id: str, last_user_step: int, *, brain_dir: Path | None=None, conversations_dir: Path | None=None, t_path: Path | None=None, rows: list[dict] | None=None, user_text: str | None=None) -> Path | None:
 	eff_rows = rows if None is not rows else (read_optional_transcript_rows(brain_dir, session_id, t_path=t_path) if None is not brain_dir else [])
 	eff_text = user_text if None is not user_text else _extract_user_text(eff_rows, last_user_step, conversations_dir, session_id)

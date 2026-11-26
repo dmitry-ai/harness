@@ -12,9 +12,13 @@ HOOK_SCRIPT = SCRIPT_DIR / 'check_rules_and_server_gate.py'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import tdd_gate, upwork_project
+# @used-by :meth:`FailFastAndScheduleGateTests.test_pre_tool_use_blocks_redundant_schedule_timer_over_run_command()`
+# @used-by :meth:`FailFastAndScheduleGateTests.test_pre_tool_use_denies_multi_segment_test_command_without_failfast()`
+# @used-by :meth:`FailFastAndScheduleGateTests.test_pre_tool_use_overwrites_single_segment_test_commands_and_low_wait_ms()`
 def _run_hook(payload: dict) -> dict:
 	proc = subprocess.run([sys.executable, str(HOOK_SCRIPT)], input=json.dumps(payload, ensure_ascii=False).encode('utf-8'), capture_output=True, check=True)
 	return json.loads(proc.stdout.decode('utf-8'))
+# @used-by :meth:`FailFastAndScheduleGateTests.test_pre_tool_use_blocks_redundant_schedule_timer_over_run_command()`
 def _write_tx(path: Path, rows: list[dict]) -> Path:
 	path.write_text(''.join((json.dumps(r, ensure_ascii=False) + '\n' for r in rows)), encoding='utf-8')
 	return path
@@ -22,6 +26,7 @@ def _write_tx(path: Path, rows: list[dict]) -> Path:
 # "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
 # https://github.com/dmitry-ai/harness/issues/162
 class FailFastAndScheduleGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_hooks_manifest_and_canonical_hooks_match_schedule(self) -> None:
 		hooks = json.loads((HARNESS_ROOT / 'platforms/antigravity/hooks.json').read_text(encoding='utf-8'))
 		matcher = hooks['rules-and-server-gate']['PreToolUse'][0]['matcher']
@@ -30,6 +35,7 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 		self.assertEqual(canon['rules-and-server-gate']['PreToolUse'][0]['matcher'], matcher)
 		legacy = upwork_project.legacy_runner_global_hooks(HARNESS_ROOT)
 		self.assertNotIn('|schedule', legacy['rules-and-server-gate']['PreToolUse'][0]['matcher'])
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_blocks_redundant_schedule_timer_over_run_command(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -63,6 +69,7 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 			])
 			d_explicit = _run_hook({'cwd': str(base), 'transcriptPath': str(tx), 'toolCall': {'name': 'schedule', 'args': {'DurationSeconds': 600, 'Prompt': 'Reminder'}}})
 			self.assertEqual(d_explicit['decision'], 'allow', d_explicit)
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_denies_multi_segment_test_command_without_failfast(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			d_bad = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'Set-Location tests; python -m unittest discover -s . -p test_*.py', 'WaitMsBeforeAsync': 500}}})
@@ -77,6 +84,7 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 			d_ok = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': f'Set-Location tests; python "{SCRIPT_DIR / "harness.py"}" run-tests . --module-timeout 120', 'WaitMsBeforeAsync': 10000}}})
 			self.assertEqual(d_ok['decision'], 'allow', d_ok)
 			self.assertNotIn('overwrite', d_ok)
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_overwrites_single_segment_test_commands_and_low_wait_ms(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			cases = (
@@ -105,6 +113,7 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 			opt_out = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': f'python "{SCRIPT_DIR / "harness.py"}" run-tests tests --no-failfast', 'WaitMsBeforeAsync': 500}}})
 			self.assertEqual(opt_out['decision'], 'allow', opt_out)
 			self.assertEqual(opt_out.get('overwrite'), {'WaitMsBeforeAsync': 10000})
+	# @used-by :mod:`unittest`
 	def test_tdd_gate_records_non_failfast_full_suite_warning_without_breaking_verified(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()

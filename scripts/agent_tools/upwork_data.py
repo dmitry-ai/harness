@@ -28,8 +28,11 @@ _VIDEO_URL_RE = re.compile('https?://(?:www\\.)?(?:loom\\.com/(?:share|embed)/[A
 class DocxMarkdownExtractor:
 	R = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 	W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+	# @used-by :func:`extract_docx_markdown()`
+	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_docx_extractor_tables_fields_numbering_and_heading_normalization()`
 	def __init__(self, raw_bytes: bytes):
 		self.raw_bytes = raw_bytes
+	# @used-by :meth:`DocxMarkdownExtractor._parse_paragraph()`
 	def _extract_paragraph_text(self, elem, rels: dict[str, str], state: dict) -> str:
 		parts: list[str] = []
 		field_buf: list[str] = []
@@ -69,6 +72,7 @@ class DocxMarkdownExtractor:
 		if state['in_field_result'] and field_buf:
 			parts.append(self._render_link(''.join(field_buf), state['active_field_url'] or ''))
 		return re.sub('[ \\t]+', ' ', ''.join(parts)).strip()
+	# @used-by :meth:`DocxMarkdownExtractor.extract()`
 	def _load_numbering(self, zf: zipfile.ZipFile) -> dict[str, dict[str, str]]:
 		r: dict[str, dict[str, str]] = {}
 		if 'word/numbering.xml' in zf.namelist():
@@ -89,6 +93,7 @@ class DocxMarkdownExtractor:
 				if None is not num_id and None is not abs_ref:
 					r[num_id] = abstract_map.get(abs_ref.attrib.get(f'{self.W}val'), {})
 		return r
+	# @used-by :meth:`DocxMarkdownExtractor.extract()`
 	def _load_relationships(self, zf: zipfile.ZipFile) -> dict[str, str]:
 		r: dict[str, str] = {}
 		if 'word/_rels/document.xml.rels' in zf.namelist():
@@ -99,6 +104,7 @@ class DocxMarkdownExtractor:
 				if rid and target:
 					r[rid] = target
 		return r
+	# @used-by :meth:`DocxMarkdownExtractor.extract()`
 	def _normalize_heading_levels(self, items: list[dict]) -> None:
 		heading_levels = [it['level'] for it in items if 'heading' == it['kind']]
 		if heading_levels:
@@ -112,6 +118,7 @@ class DocxMarkdownExtractor:
 						else:
 							it['level'] = 1
 							first_h_seen = True
+	# @used-by :meth:`DocxMarkdownExtractor.extract()`
 	def _parse_paragraph(self, elem, rels: dict[str, str], num_formats: dict[str, dict[str, str]], list_counters: dict[tuple[str, int], int], state: dict) -> dict | None:
 		text = self._extract_paragraph_text(elem, rels, state)
 		if not text:
@@ -149,6 +156,7 @@ class DocxMarkdownExtractor:
 					list_counters[key] = list_counters.get(key, 0) + 1
 					r = {'kind': 'list', 'text': f'{indent}{list_counters[key]}. {text}'}
 		return r
+	# @used-by :meth:`DocxMarkdownExtractor.extract()`
 	def _parse_table(self, elem) -> list[dict]:
 		rows_data: list[list[str]] = []
 		for row in elem.findall(f'./{self.W}tr'):
@@ -165,6 +173,7 @@ class DocxMarkdownExtractor:
 			data_rows = rows_data[1:] if 1 < len(rows_data) else rows_data
 			r = [{'kind': 'list', 'text': line} for line in format_table_bullet_rows(data_rows, headers)]
 		return r
+	# @used-by :meth:`DocxMarkdownExtractor.extract()`
 	def _render_items(self, items: list[dict]) -> str:
 		out_lines: list[str] = []
 		for it in items:
@@ -179,6 +188,7 @@ class DocxMarkdownExtractor:
 	# 2026-10-17
 	# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 	# https://github.com/dmitry-ai/harness/issues/9
+	# @used-by :meth:`DocxMarkdownExtractor._extract_paragraph_text()`
 	def _render_link(self, text: str, url: str) -> str:
 		t = text.strip()
 		if not t:
@@ -192,6 +202,8 @@ class DocxMarkdownExtractor:
 			else:
 				r = m.group(1) + markdown_link(m.group(2), url)
 		return r
+	# @used-by :func:`extract_docx_markdown()`
+	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_docx_extractor_tables_fields_numbering_and_heading_normalization()`
 	def extract(self) -> str:
 		with zipfile.ZipFile(io.BytesIO(self.raw_bytes)) as zf:
 			rels = self._load_relationships(zf)
@@ -218,10 +230,13 @@ class DocxMarkdownExtractor:
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
 class PdfMarkdownExtractor:
+	# @used-by :func:`extract_pdf_markdown()`
+	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_pdf_extractor_xml_layout_and_raw_stream_ligature_fallback()`
 	def __init__(self, raw_bytes: bytes, pdf_path=None):
 		self.pdf_path = pdf_path
 		self.raw_bytes = raw_bytes
 		self.repairs = discover_pdf_ligature_repairs(raw_bytes)
+	# @used-by :meth:`PdfMarkdownExtractor._extract_from_xml()`
 	def _build_blocks(self, visual_lines: list[dict]) -> list[dict]:
 		r: list[dict] = []
 		for ln in visual_lines:
@@ -265,8 +280,11 @@ class PdfMarkdownExtractor:
 					continue
 			r.append({'kind': 'para', 'text': line_text, 'page': ln['page'], 'top': ln['top'], 'left': ln['left'], 'body_left': ln['left'], 'height': ln['height']})
 		return r
+	# @used-by :meth:`PdfMarkdownExtractor._build_blocks()`
+	# @used-by :meth:`PdfMarkdownExtractor._collect_visual_lines()`
 	def _clean_txt(self, text: str) -> str:
 		return re.sub('\\s+', ' ', normalize_pdf_ligatures(text, self.repairs)).strip()
+	# @used-by :meth:`PdfMarkdownExtractor._extract_from_xml()`
 	def _collect_visual_lines(self, root, bold_fonts: set[str]) -> list[dict]:
 		r: list[dict] = []
 		for page in root.findall('page'):
@@ -304,6 +322,7 @@ class PdfMarkdownExtractor:
 					page_lines.append({'page': page_num, 'top': top, 'left': left, 'height': max(height, 12), 'spans': [(left, is_bold, raw_txt)]})
 			r.extend(page_lines)
 		return r
+	# @used-by :meth:`PdfMarkdownExtractor._extract_from_xml()`
 	def _detect_bold_fonts(self, root) -> set[str]:
 		r: set[str] = set()
 		font_chars: dict[str, int] = {}
@@ -327,6 +346,7 @@ class PdfMarkdownExtractor:
 				if txt.endswith(':') and 1 <= len(txt.split()) <= 5 or re.match('^(?:Phase|Step|Part|Section)\\s+\\d+\\b', txt):
 					r.add(fid)
 		return r
+	# @used-by :meth:`PdfMarkdownExtractor.extract()`
 	def _extract_from_pdftotext(self) -> str | None:
 		stdout = self._run_poppler('pdftotext', lambda tool, target: [tool, target, '-'])
 		if not (stdout and stdout.strip()):
@@ -335,6 +355,7 @@ class PdfMarkdownExtractor:
 			cleaned = normalize_pdf_ligatures(stdout.replace('\x0c', '\n\n'), self.repairs)
 			r = sanitize_kb_markdown(structure_job_description(cleaned))
 		return r
+	# @used-by :meth:`PdfMarkdownExtractor.extract()`
 	def _extract_from_raw_streams(self) -> str:
 		cid_to_uni, streams, unmapped = _parse_pdf_streams(self.raw_bytes)
 		for cid, lig_char in unmapped.items():
@@ -350,6 +371,7 @@ class PdfMarkdownExtractor:
 					extracted_chunks.append(''.join(chars))
 		joined = normalize_pdf_ligatures(' '.join(extracted_chunks), self.repairs)
 		return sanitize_kb_markdown(structure_job_description(joined))
+	# @used-by :meth:`PdfMarkdownExtractor.extract()`
 	def _extract_from_xml(self, xml_stdout: str) -> str | None:
 		try:
 			root = ET.fromstring(xml_stdout)
@@ -359,6 +381,7 @@ class PdfMarkdownExtractor:
 		except Exception:
 			r = None
 		return r
+	# @used-by :meth:`PdfMarkdownExtractor._extract_from_xml()`
 	def _render_blocks(self, blocks: list[dict]) -> str | None:
 		out_lines: list[str] = []
 		for b in blocks:
@@ -374,6 +397,8 @@ class PdfMarkdownExtractor:
 					out_lines.append('')
 				out_lines.append(f'{level} {htext}')
 		return sanitize_kb_markdown('\n'.join(out_lines)) if out_lines else None
+	# @used-by :meth:`PdfMarkdownExtractor._extract_from_pdftotext()`
+	# @used-by :meth:`PdfMarkdownExtractor.extract()`
 	def _run_poppler(self, tool_name: str, args_builder) -> str | None:
 		tool = _find_poppler_tool(tool_name)
 		r = None
@@ -399,6 +424,8 @@ class PdfMarkdownExtractor:
 					except OSError:
 						pass
 		return r
+	# @used-by :func:`extract_pdf_markdown()`
+	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_pdf_extractor_xml_layout_and_raw_stream_ligature_fallback()`
 	def extract(self) -> str:
 		r = None
 		xml_stdout = self._run_poppler('pdftohtml', lambda tool, target: [tool, '-xml', '-stdout', target])
@@ -412,6 +439,7 @@ class PdfMarkdownExtractor:
 # 2026-11-14
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
+# @used-by :func:`extract_attachment_markdown()`
 def _extract_xlsx_markdown(raw_bytes: bytes) -> str:
 	with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
 		shared: list[str] = []
@@ -444,6 +472,8 @@ def _extract_xlsx_markdown(raw_bytes: bytes) -> str:
 # 2026-11-14
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
+# @used-by :func:`discover_pdf_ligature_repairs()`
+# @used-by :meth:`PdfMarkdownExtractor._extract_from_raw_streams()`
 def _parse_pdf_streams(pdf_bytes: bytes, *, text_ops_only: bool=False) -> tuple[dict[int, str], list[str], dict[int, str]]:
 	cid_to_uni: dict[int, str] = {}
 	content_streams: list[str] = []
@@ -472,16 +502,33 @@ def _parse_pdf_streams(pdf_bytes: bytes, *, text_ops_only: bool=False) -> tuple[
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.intake._project()`
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :func:`agent_tools.upwork_extract.select_tab()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :func:`canonical_job_url()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_resume()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_native_requests_preserve_exact_bytes_and_current_job_scope()`
 def normalize_job_id(url_or_id: str) -> str:
 	match = re.search('(~0[12][0-9a-zA-Z]+)', url_or_id.strip())
 	if not match:
 		raise ValueError(f'Cannot extract Upwork job ID (~02...) from: {url_or_id}')
 	return match.group(1)
+# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
+# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :func:`collect_unique_public_past_jobs()`
+# @used-by :func:`format_kb_project_md()`
 def canonical_job_url(url_or_id: str) -> str:
 	return f'https://upwork.com/jobs/{normalize_job_id(url_or_id)}'
 # 2026-11-16
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
+# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 def extract_upwork_job_url_id(url: str, *, allow_query_or_fragment: bool=False) -> str | None:
 	r = None
 	if isinstance(url, str) and url.strip():
@@ -494,6 +541,8 @@ def extract_upwork_job_url_id(url: str, *, allow_query_or_fragment: bool=False) 
 			if m:
 				r = m.group(1)
 	return r
+# @used-by :func:`agent_tools.upwork_extract.decode_page()`
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 def resolve_nuxt_devalue(arr: list, idx: int=0, seen: set[int] | None=None):
 	if None is seen:
 		seen = set()
@@ -511,6 +560,7 @@ def resolve_nuxt_devalue(arr: list, idx: int=0, seen: set[int] | None=None):
 		else:
 			r = [resolve_nuxt_devalue(arr, x, seen) if isinstance(x, int) else x for x in val]
 	return r
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 def extract_client_names(work_history: list[dict]) -> list[dict]:
 	patterns = ['\\bworking with ([A-Z][a-z]{2,15})\\b', '\\bThank you,? ([A-Z][a-z]{2,15})\\b', '\\b([A-Z][a-z]{2,15}) is (?:a |an )?(?:very |truly |super )?(?:nice|great|wonderful|excellent|good|supportive|easy|clear|amazing|awesome|fantastic|pleasure)', '\\b([A-Z][a-z]{2,15}) was (?:a )?(?:great|wonderful|excellent|very|easy|clear|supportive)', '\\b([A-Z][a-z]{2,15}) has been (?:a )?(?:great|wonderful|excellent|very|supportive)', '\\b([A-Z][a-z]{2,15}) is the best\\b']
 	stopwords = {'This', 'That', 'There', 'Client', 'Working', 'Thank', 'Thanks', 'Everything', 'Communication', 'Overall', 'Project', 'Team', 'He', 'She', 'They'}
@@ -531,15 +581,28 @@ def extract_client_names(work_history: list[dict]) -> list[dict]:
 # 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :meth:`test_onboarding.EvidenceTests.test_domain_mentions_include_vendors_and_keep_full_hostnames()`
 def extract_candidate_domains(texts: list[str]) -> list[str]:
 	pattern = '(?<![\\w.-])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63})(?![\\w.-])'
 	domains = (m[4:] if m.startswith('www.') else m for text in texts for m in re.findall(pattern, text.lower()))
 	return list(dict.fromkeys(domains))
+# @used-by :func:`agent_tools.knowledge._render_evidence_md()`
+# @used-by :func:`agent_tools.knowledge._render_projects_md()`
+# @used-by :func:`format_kb_project_md()`
 def markdown_fence(text: str, marker: str='~') -> str:
 	return marker * max(3, 1 + max((len(m[0]) for m in re.finditer(re.escape(marker) + '+', text)), default=0))
+# @used-by :func:`extract_attachment_markdown()`
+# @used-by :func:`structure_job_description()`
+# @used-by :meth:`DocxMarkdownExtractor._render_items()`
+# @used-by :meth:`PdfMarkdownExtractor._render_blocks()`
 def split_sentences_one_per_line(text: str) -> list[str]:
 	parts = [p.strip() for p in _SENTENCE_SPLIT_RE.split(text.strip()) if p.strip()]
 	return parts or ([text.strip()] if text.strip() else [])
+# @used-by :func:`extract_attachment_markdown()`
+# @used-by :func:`format_kb_project_md()`
+# @used-by :meth:`PdfMarkdownExtractor._extract_from_pdftotext()`
+# @used-by :meth:`PdfMarkdownExtractor._extract_from_raw_streams()`
 def structure_job_description(description: str, questions: list[str] | None=None) -> str:
 	raw = (description or '').replace('\r\n', '\n').replace('\r', '\n').strip()
 	lines = [line.strip() for line in raw.split('\n')]
@@ -581,6 +644,7 @@ def structure_job_description(description: str, questions: list[str] | None=None
 			for q in clean_q:
 				out_lines.append(f'- {q}')
 	return '\n'.join(out_lines)
+# @used-by :func:`format_kb_project_md()`
 def collect_unique_public_past_jobs(data: dict) -> list[dict]:
 	current_cid = data.get('job_id')
 	rel_descs = data.get('related_descriptions') or {}
@@ -614,6 +678,11 @@ def collect_unique_public_past_jobs(data: dict) -> list[dict]:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.knowledge._replace_section2_in_project_md()`
+# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
+# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`test_onboarding.EvidenceTests.test_embedded_fences_do_not_end_the_manual_description()`
 def format_kb_project_md(data: dict) -> str:
 	buyer = data.get('buyer') or {}
 	loc = buyer.get('location') or {}
@@ -668,6 +737,10 @@ def format_kb_project_md(data: dict) -> str:
 # 2026-11-14
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
+# @used-by :func:`extract_attachment_markdown()`
+# @used-by :func:`sanitize_kb_markdown()`
+# @used-by :meth:`DocxMarkdownExtractor._parse_table()`
+# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_shared_table_bullet_rows_across_markdown_and_csv()`
 def format_table_bullet_rows(rows: list[list[str]], headers: list[str] | None=None) -> list[str]:
 	hdrs = [h.strip() for h in headers or ()]
 	r: list[str] = []
@@ -679,6 +752,9 @@ def format_table_bullet_rows(rows: list[list[str]], headers: list[str] | None=No
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
+# @used-by :func:`detect_client_videos()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
 def classify_attachment(filename_or_path, raw_bytes: bytes | None=None) -> str:
 	suffix = Path(str(filename_or_path)).suffix.lower()
 	r = 'binary'
@@ -698,12 +774,17 @@ def classify_attachment(filename_or_path, raw_bytes: bytes | None=None) -> str:
 			except UnicodeDecodeError:
 				pass
 	return r
+# @used-by :meth:`PdfMarkdownExtractor._clean_txt()`
+# @used-by :meth:`PdfMarkdownExtractor._extract_from_pdftotext()`
+# @used-by :meth:`PdfMarkdownExtractor._extract_from_raw_streams()`
 def normalize_pdf_ligatures(text: str, repairs: dict[str, str] | None=None) -> str:
 	out = (text or '').translate(LIGATURE_MAP)
 	if repairs:
 		for bad, good in repairs.items():
 			out = out.replace(bad, good)
 	return re.sub('(?<=[A-Za-z])\\u01af(?=[A-Za-z])', 'ff', out)
+# @used-by :meth:`PdfMarkdownExtractor.__init__()`
+# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_pdf_extractor_xml_layout_and_raw_stream_ligature_fallback()`
 def discover_pdf_ligature_repairs(pdf_bytes: bytes) -> dict[str, str]:
 	cid_to_uni, content_streams, unmapped_ligatures = _parse_pdf_streams(pdf_bytes, text_ops_only=True)
 	r: dict[str, str] = {}
@@ -729,6 +810,7 @@ def discover_pdf_ligature_repairs(pdf_bytes: bytes) -> dict[str, str]:
 					r[b.replace('\ufffd', ' ').translate(LIGATURE_MAP)] = clean_w
 					r[b.replace('\ufffd', '\u01af').translate(LIGATURE_MAP)] = clean_w
 	return r
+# @used-by :meth:`PdfMarkdownExtractor._run_poppler()`
 def _find_poppler_tool(name: str) -> str | None:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -742,6 +824,13 @@ def _find_poppler_tool(name: str) -> str | None:
 				r = str(cand)
 				break
 	return r
+# @used-by :func:`_extract_xlsx_markdown()`
+# @used-by :func:`extract_attachment_markdown()`
+# @used-by :meth:`DocxMarkdownExtractor._render_items()`
+# @used-by :meth:`PdfMarkdownExtractor._extract_from_pdftotext()`
+# @used-by :meth:`PdfMarkdownExtractor._extract_from_raw_streams()`
+# @used-by :meth:`PdfMarkdownExtractor._render_blocks()`
+# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_shared_table_bullet_rows_across_markdown_and_csv()`
 def sanitize_kb_markdown(text: str) -> str:
 	lines = (text or '').replace('\r\n', '\n').replace('\r', '\n').split('\n')
 	out: list[str] = []
@@ -760,6 +849,7 @@ def sanitize_kb_markdown(text: str) -> str:
 				i += 1
 			out.extend(format_table_bullet_rows(table_rows, headers))
 	return '\n'.join(out).strip()
+# @used-by :meth:`PdfMarkdownExtractor._build_blocks()`
 def _join_wrapped_lines(prev: str, nxt: str) -> str:
 	return prev + nxt if prev.endswith('-') and nxt and nxt[0].islower() else (prev + ' ' + nxt).strip()
 # 2026-10-17
@@ -768,6 +858,8 @@ def _join_wrapped_lines(prev: str, nxt: str) -> str:
 # 2026-11-14
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
+# @used-by :func:`agent_tools.research.extract_bytes()`
+# @used-by :func:`extract_attachment_markdown()`
 def extract_pdf_markdown(raw_bytes: bytes, pdf_path=None) -> str:
 	return PdfMarkdownExtractor(raw_bytes, pdf_path=pdf_path).extract()
 # 2026-10-17
@@ -776,11 +868,18 @@ def extract_pdf_markdown(raw_bytes: bytes, pdf_path=None) -> str:
 # 2026-11-14
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
+# @used-by :func:`agent_tools.research.extract_bytes()`
+# @used-by :func:`extract_attachment_markdown()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_docx_hyperlinks_are_readable_without_altering_their_visible_source_text()`
 def extract_docx_markdown(raw_bytes: bytes) -> str:
 	return DocxMarkdownExtractor(raw_bytes).extract()
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.evidence.saved_source()`
+# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_shared_table_bullet_rows_across_markdown_and_csv()`
 def extract_attachment_markdown(path_or_name, raw_bytes: bytes | None=None) -> str:
 	path = Path(str(path_or_name))
 	if None is raw_bytes:
@@ -818,6 +917,8 @@ def extract_attachment_markdown(path_or_name, raw_bytes: bytes | None=None) -> s
 			rows = reader[1:] if 1 < len(reader) else reader
 			r = '\n'.join(format_table_bullet_rows(rows, headers)) if reader else ''
 	return r
+# @used-by :func:`detect_client_videos()`
+# @used-by :func:`extract_loom_video()`
 def canonical_video_url(url: str) -> str:
 	u = url.strip().rstrip('.,;!?')
 	m = re.match('^https?://(?:www\\.)?loom\\.com/(?:share|embed)/([A-Za-z0-9]+)', u, re.I)
@@ -825,6 +926,8 @@ def canonical_video_url(url: str) -> str:
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
 def detect_client_videos(description: str='', document_markdowns: list[str] | tuple[str, ...]=(), saved_attachments: list[dict] | tuple[dict, ...]=()) -> list[dict]:
 	r: list[dict] = []
 	seen_keys: set[str] = set()
@@ -845,6 +948,7 @@ def detect_client_videos(description: str='', document_markdowns: list[str] | tu
 				seen_keys.add(key)
 				r.append({'kind': 'file', 'video_id': item.get('sha256'), 'filename': name, 'sha256': item.get('sha256'), 'label': f'`{name}`', 'heading': f'Description in `{name}`'})
 	return r
+# @used-by :func:`extract_loom_video()`
 def format_duration_ru(seconds: int | float | None) -> str:
 	if not seconds or 0 >= seconds:
 		r = 'duration not specified'
@@ -857,6 +961,7 @@ def format_duration_ru(seconds: int | float | None) -> str:
 		else:
 			r = f'{ss} sec'
 	return r
+# @used-by :func:`extract_loom_video()`
 def parse_webvtt_phrases(vtt_text: str) -> list[dict]:
 	r: list[dict] = []
 	for block in re.split('\\r?\\n\\r?\\n', (vtt_text or '').strip()):
@@ -882,6 +987,7 @@ def parse_webvtt_phrases(vtt_text: str) -> list[dict]:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 def extract_loom_video(url: str, timeout: float=15.0, opener=None) -> dict:
 	open_fn = opener or (lambda req, tm: urlopen(req, timeout=tm))
 	canon = canonical_video_url(url)

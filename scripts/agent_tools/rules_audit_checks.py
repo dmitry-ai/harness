@@ -21,6 +21,7 @@ _MD_DOC_LINK_RE = re.compile(r'\[[^\]]+\]\(\s*<?\.\./[^)>\s]+>?\s*\)')
 _STALE_ALL_ALWAYS_RE = re.compile(r'all\s+shared\s+rules\s+remain\s+`?always_on`?', re.I)
 _STALE_ANSWER_MD_RE = re.compile(r'scratch/answer\.md\b')
 _VAGUE_TAIL_RE = re.compile(r'\bfor\s+(?:details|more\s+info(?:rmation)?|reference)\b', re.I)
+# @used-by :func:`check_skill_leakage_duplicates()`
 def _collect_skill_fingerprints(primary: Path) -> tuple[dict[str, str], dict[str, str]]:
 	blocks: dict[str, str] = {}
 	long_lines: dict[str, str] = {}
@@ -32,6 +33,8 @@ def _collect_skill_fingerprints(primary: Path) -> tuple[dict[str, str], dict[str
 		for ln in _extract_long_proc_lines(txt):
 			long_lines.setdefault(ln, rel)
 	return (blocks, long_lines)
+# @used-by :func:`_collect_skill_fingerprints()`
+# @used-by :func:`check_skill_leakage_duplicates()`
 def _extract_fenced_blocks(text: str) -> list[str]:
 	r: list[str] = []
 	for m in _FENCE_BLOCK_RE.finditer(text or ''):
@@ -40,6 +43,8 @@ def _extract_fenced_blocks(text: str) -> list[str]:
 		if 3 <= len(lines) and 60 <= len(joined):
 			r.append(joined)
 	return r
+# @used-by :func:`_collect_skill_fingerprints()`
+# @used-by :func:`check_skill_leakage_duplicates()`
 def _extract_long_proc_lines(text: str) -> list[str]:
 	body = _FENCE_RE.sub('', text or '')
 	r: list[str] = []
@@ -48,6 +53,7 @@ def _extract_long_proc_lines(text: str) -> list[str]:
 		if 90 <= len(norm) and (not norm.startswith(('#', '---', 'trigger:', 'description:', 'name:'))):
 			r.append(norm)
 	return r
+# @used-by :func:`check_links_and_blind_references()`
 def _is_blind_reference_line(raw_line: str) -> bool:
 	r = False
 	if raw_line.strip() and (not re.match(r'^\s+[-*]\s+', raw_line)):
@@ -58,11 +64,19 @@ def _is_blind_reference_line(raw_line: str) -> bool:
 			is_vague_lead = bool(_BARE_LEAD_RE.match(raw_line.strip())) and (not _CONTEXT_HINT_RE.search(stripped) or bool(_VAGUE_TAIL_RE.search(stripped)))
 			r = 6 > len(words) or is_vague_lead
 	return r
+# @used-by :func:`check_budget_smells()`
+# @used-by :func:`check_cross_platform_leaks()`
+# @used-by :func:`check_html_comments()`
+# @used-by :func:`check_instruction_drift()`
+# @used-by :func:`check_links_and_blind_references()`
+# @used-by :func:`check_skill_leakage_duplicates()`
 def _issue(code: str, file_label: str, detail: str) -> dict[str, str]:
 	return {'code': code, 'file': file_label, 'detail': detail}
+# @used-by :func:`check_links_and_blind_references()`
 def _strip_frontmatter(text: str) -> str:
 	m = re.match(r'^---\r?\n.*?\r?\n---\r?\n?', text or '', re.S)
 	return text[m.end():] if m else (text or '')
+# @used-by :func:`agent_tools.rules_audit.audit_rules()`
 def check_budget_smells(entries: list[dict], workspace_files: list[dict], *, max_file_bytes: int=MAX_RULE_FILE_BYTES, max_always_on_bytes: int=MAX_ALWAYS_ON_BYTES, max_always_on_tokens: int=MAX_ALWAYS_ON_TOKENS) -> list[dict]:
 	r: list[dict] = []
 	for entry in entries:
@@ -76,6 +90,7 @@ def check_budget_smells(entries: list[dict], workspace_files: list[dict], *, max
 	if max_always_on_tokens < total_tokens:
 		r.append(_issue('AGGREGATE_ALWAYS_ON_TOKENS', 'rules/*', f'Aggregate always_on plus workspace auto-loaded rules is {total_tokens:,} estimated tokens (limit {max_always_on_tokens:,} tokens)'))
 	return r
+# @used-by :func:`agent_tools.rules_audit.audit_rules()`
 def check_cross_platform_leaks(entries: list[dict], workspace_files: list[dict]) -> list[dict]:
 	r: list[dict] = []
 	targets = [(f"rules/{e['name']}", e['text']) for e in entries] + [(w['label'], w['text']) for w in workspace_files]
@@ -84,6 +99,7 @@ def check_cross_platform_leaks(entries: list[dict], workspace_files: list[dict])
 		if m:
 			r.append(_issue('CROSS_PLATFORM_CODEX_LEAK', label, f'Antigravity-loaded file contains Codex-only directive {m.group(0)!r}'))
 	return r
+# @used-by :func:`agent_tools.rules_audit.audit_rules()`
 def check_html_comments(entries: list[dict]) -> list[dict]:
 	r: list[dict] = []
 	for entry in entries:
@@ -92,6 +108,7 @@ def check_html_comments(entries: list[dict]) -> list[dict]:
 		if found:
 			r.append(_issue('NON_STRIPPED_HTML_COMMENT', f"rules/{entry['name']}", f'Found {len(found)} HTML comment(s) outside code fences in shared rule'))
 	return r
+# @used-by :func:`agent_tools.rules_audit.audit_rules()`
 def check_instruction_drift(entries: list[dict], primary: Path) -> list[dict]:
 	r: list[dict] = []
 	has_model_decision = any(('model_decision' == e['trigger'] for e in entries))
@@ -104,6 +121,7 @@ def check_instruction_drift(entries: list[dict], primary: Path) -> list[dict]:
 	if codex_md.is_file() and _STALE_ANSWER_MD_RE.search(codex_md.read_text(encoding='utf-8-sig', errors='replace')):
 		r.append(_issue('INSTRUCTION_DRIFT', 'platforms/codex.md', 'Stale scratch/answer.md reference in Codex adapter; use answer-<turn_key>.md'))
 	return r
+# @used-by :func:`agent_tools.rules_audit.audit_rules()`
 def check_links_and_blind_references(entries: list[dict]) -> list[dict]:
 	r: list[dict] = []
 	for entry in entries:
@@ -115,6 +133,7 @@ def check_links_and_blind_references(entries: list[dict]) -> list[dict]:
 			if _is_blind_reference_line(raw_line):
 				r.append(_issue('BLIND_REFERENCE', label, f'Line {idx} references a document without purpose or activation context: {raw_line.strip()[:100]}'))
 	return r
+# @used-by :func:`agent_tools.rules_audit.audit_rules()`
 def check_skill_leakage_duplicates(entries: list[dict], primary: Path) -> list[dict]:
 	r: list[dict] = []
 	skill_blocks, skill_lines = _collect_skill_fingerprints(primary)

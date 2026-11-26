@@ -1,5 +1,6 @@
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import contextmanager
+from typing import override
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,12 @@ class CodexContinuationTests(ProjectCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.home = self.root / 'codex'
@@ -33,16 +40,38 @@ class CodexContinuationTests(ProjectCase):
 		self.child_rows = [self.meta(self.child, self.project, parent=self.parent), self.context(self.project), {'type': 'response_item', 'payload': {'type': 'custom_tool_call', 'name': 'exec', 'call_id': 'read-package', 'input': 'review-input --package ' + self.package['package']}}, {'type': 'response_item', 'payload': {'type': 'custom_tool_call_output', 'call_id': 'read-package', 'output': json.dumps(receipt)}}, {'type': 'event_msg', 'payload': {'type': 'task_complete', 'last_agent_message': 'Reviewed'}}]
 		self.write(self.parent, self.parent_rows)
 		self.write(self.child, self.child_rows)
+	# @used-by :meth:`CodexContinuationTests.setUp()`
+	# @used-by :meth:`CodexContinuationTests.test_changed_cwd_before_and_after_user_input_does_not_import_foreign_turn()`
+	# @used-by :meth:`CodexContinuationTests.test_injected_rules_and_environment_are_excluded_but_user_text_is_unchanged()`
+	# @used-by :meth:`CodexContinuationTests.test_missing_native_root_keeps_legacy_job_id_but_foreign_root_does_not()`
+	# @used-by :meth:`CodexContinuationTests.test_same_words_in_another_native_root_do_not_establish_ownership()`
 	def meta(self, ident, cwd, parent=None):
 		return {'type': 'session_meta', 'payload': {'id': ident, 'cwd': str(cwd), 'source': {'subagent': {'thread_spawn': {'parent_thread_id': parent, 'agent_path': '/root/audit'}}} if parent else 'vscode'}}
+	# @used-by :meth:`CodexContinuationTests.setUp()`
+	# @used-by :meth:`CodexContinuationTests.test_changed_cwd_before_and_after_user_input_does_not_import_foreign_turn()`
+	# @used-by :meth:`CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+	# @used-by :meth:`CodexContinuationTests.test_injected_rules_and_environment_are_excluded_but_user_text_is_unchanged()`
+	# @used-by :meth:`CodexContinuationTests.test_same_words_in_another_native_root_do_not_establish_ownership()`
 	def context(self, cwd, turn='turn-a'):
 		return {'type': 'turn_context', 'payload': {'model': 'fixture-model', 'effort': 'max', 'cwd': str(cwd), 'turn_id': turn}}
+	# @used-by :meth:`CodexContinuationTests.setUp()`
+	# @used-by :meth:`CodexContinuationTests.test_changed_cwd_before_and_after_user_input_does_not_import_foreign_turn()`
+	# @used-by :meth:`CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+	# @used-by :meth:`CodexContinuationTests.test_injected_rules_and_environment_are_excluded_but_user_text_is_unchanged()`
+	# @used-by :meth:`CodexContinuationTests.test_missing_native_root_keeps_legacy_job_id_but_foreign_root_does_not()`
+	# @used-by :meth:`CodexContinuationTests.test_same_words_in_another_native_root_do_not_establish_ownership()`
 	def message(self, text, kinds=('user.text',), turn='turn-a'):
 		payload = {'type': 'message', 'role': 'user', 'content': [{'type': 'input_text', 'text': text}]}
 		if None is not kinds:
 			payload['internal_chat_message_metadata_passthrough'] = {'content_item_kinds': list(kinds), 'turn_id': turn}
 		r = {'type': 'response_item', 'payload': payload}
 		return r
+	# @used-by :meth:`CodexContinuationTests.setUp()`
+	# @used-by :meth:`CodexContinuationTests.test_changed_cwd_before_and_after_user_input_does_not_import_foreign_turn()`
+	# @used-by :meth:`CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+	# @used-by :meth:`CodexContinuationTests.test_injected_rules_and_environment_are_excluded_but_user_text_is_unchanged()`
+	# @used-by :meth:`CodexContinuationTests.test_missing_native_root_keeps_legacy_job_id_but_foreign_root_does_not()`
+	# @used-by :meth:`CodexContinuationTests.test_same_words_in_another_native_root_do_not_establish_ownership()`
 	def write(self, ident, rows):
 		path = self.home / 'sessions' / (ident + '.jsonl')
 		path.parent.mkdir(exist_ok=True)
@@ -52,6 +81,8 @@ class CodexContinuationTests(ProjectCase):
 		conn.execute('INSERT OR REPLACE INTO threads VALUES(?,?,?)', (ident, str(path), '/root/audit' if ident == self.child else None))
 		conn.commit()
 		conn.close()
+	# @used-by :meth:`CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+	# @used-by :meth:`CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
 	@contextmanager
 	def selected(self):
 		config = runtime.platform_settings('codex')
@@ -61,8 +92,11 @@ class CodexContinuationTests(ProjectCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :meth:`CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+	# @used-by :meth:`CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
 	def report(self):
 		return self.review_report(self.package, self_review=True)
+	# @used-by :mod:`unittest`
 	def test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds(self):
 		requests = codex.native_requests(self.project, self.parent, backend=self.home)
 		self.assertEqual([item['text'] for item in requests], ['  Continue analysis.\nAfter outage.  '])
@@ -75,6 +109,7 @@ class CodexContinuationTests(ProjectCase):
 			proof = codex.native_review_proof(self.project, self.parent, self.child, backend=self.home, write=False)
 		self.assertEqual(proof['status'], 'completed')
 		self.assertFalse(flow.load(self.project)['reviews'][0]['independent'])
+	# @used-by :mod:`unittest`
 	def test_same_words_in_another_native_root_do_not_establish_ownership(self):
 		rows = [self.meta(self.parent, self.root), self.context(self.root), self.message('  Continue analysis.\nAfter outage.  ')]
 		self.write(self.parent, rows)
@@ -82,11 +117,13 @@ class CodexContinuationTests(ProjectCase):
 			codex.native_requests(self.project, self.parent, backend=self.home)
 		with self.assertRaises(ValueError):
 			codex.require_current_binding(self.project, self.parent, backend=self.home)
+	# @used-by :mod:`unittest`
 	def test_changed_cwd_before_and_after_user_input_does_not_import_foreign_turn(self):
 		rows = [self.meta(self.parent, self.project), self.context(self.project), self.message('Own first'), self.message('Foreign before its native context', turn='turn-b'), self.context(self.root, 'turn-b'), self.message('Foreign after context', turn='turn-b'), self.context(self.project, 'turn-c'), self.message('Own again', turn='turn-c')]
 		self.write(self.parent, rows)
 		requests = codex.native_requests(self.project, self.parent, backend=self.home)
 		self.assertEqual([item['text'] for item in requests], ['Own first', 'Own again'])
+	# @used-by :mod:`unittest`
 	def test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews(self):
 		rows = [*self.parent_rows[:-1], self.message('/upwork-init https://www.upwork.com/jobs/~0299999'), self.context(self.project), self.message('Continue analysis.'), self.parent_rows[-1]]
 		self.write(self.parent, rows)
@@ -96,6 +133,7 @@ class CodexContinuationTests(ProjectCase):
 		self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(self.report()))
 		with self.selected(), self.assertRaises(ValueError):
 			flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=self.parent, reviewer_id=self.parent)
+	# @used-by :mod:`unittest`
 	def test_injected_rules_and_environment_are_excluded_but_user_text_is_unchanged(self):
 		rules = '# AGENTS.md instructions for ' + str(self.project) + '\n<INSTRUCTIONS>text</INSTRUCTIONS>'
 		literal_environment = '<environment_context>quoted by user</environment_context>'
@@ -103,6 +141,7 @@ class CodexContinuationTests(ProjectCase):
 		self.write(self.parent, rows)
 		requests = codex.native_requests(self.project, self.parent, backend=self.home)
 		self.assertEqual([item['text'] for item in requests], [rules, literal_environment])
+	# @used-by :mod:`unittest`
 	def test_missing_native_root_keeps_legacy_job_id_but_foreign_root_does_not(self):
 		rows = [self.meta(self.parent, self.root), self.message('Reference ' + flow.load(self.project)['job_id'])]
 		self.write(self.parent, rows)
@@ -116,7 +155,15 @@ class CodexContinuationTests(ProjectCase):
 		self.assertEqual(len(codex.native_requests(self.project, self.parent, backend=self.home)), 1)
 		with self.assertRaises(ValueError):
 			codex.require_current_binding(self.project, self.parent, backend=self.home)
+# @used-by :func:`test_native_review_binding_m4._chip_payload()`
+# @used-by :meth:`AntigravityContinuationTests.inputs()`
+# @used-by :meth:`AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+# @used-by :meth:`AntigravityContinuationTests.test_status_five_compacted_step_recovers_nested_protobuf_and_transcript_fallback()`
+# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.setUp()`
+# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests.setUp()`
+# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests._setup_antigravity_reviewer()`
 def wire(field, payload):
+	# @used-by :func:`wire()`
 	def encode(value):
 		encoded = bytearray()
 		while value >= 128:
@@ -136,6 +183,12 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.home = self.root / 'ag-home'
@@ -150,11 +203,29 @@ class AntigravityContinuationTests(ProjectCase):
 		conn.commit()
 		conn.close()
 		self.inputs(['  Continue analysis.\nAfter outage.  '])
+	# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
+	# @used-by :func:`agent_tools.cli_registry._exec_shadow_replay()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
+	# @used-by :meth:`AntigravityContinuationTests.test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text()`
+	# @used-by :meth:`AntigravityContinuationTests.test_foreign_or_multiple_native_workspaces_cannot_claim_identical_request()`
+	# @used-by :meth:`AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
+	# @used-by :meth:`AntigravityContinuationTests.test_legacy_job_mention_after_foreign_init_cannot_reactivate_old_project()`
+	# @used-by :meth:`AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
+	# @used-by :meth:`AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+	# @used-by :meth:`AntigravityContinuationTests.test_text_root_labels_neither_break_valid_workspace_nor_claim_foreign_workspace()`
 	def workspace(self, paths):
 		conn = sqlite3.connect(self.backend / 'conversation_summaries.db')
 		conn.execute('UPDATE conversation_summaries SET workspace_uris=? WHERE conversation_id=?', (json.dumps([path.as_uri() for path in paths]), self.parent))
 		conn.commit()
 		conn.close()
+	# @used-by :meth:`AntigravityContinuationTests.setUp()`
+	# @used-by :meth:`AntigravityContinuationTests.test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text()`
+	# @used-by :meth:`AntigravityContinuationTests.test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace()`
+	# @used-by :meth:`AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
+	# @used-by :meth:`AntigravityContinuationTests.test_legacy_job_mention_after_foreign_init_cannot_reactivate_old_project()`
+	# @used-by :meth:`AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
+	# @used-by :meth:`AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+	# @used-by :meth:`AntigravityContinuationTests.test_text_root_labels_neither_break_valid_workspace_nor_claim_foreign_workspace()`
 	def inputs(self, texts):
 		conn = sqlite3.connect(self.backend / 'conversations' / (self.parent + '.db'))
 		conn.execute('CREATE TABLE IF NOT EXISTS steps(idx INTEGER,step_type INTEGER,status INTEGER,step_format INTEGER,step_payload BLOB,metadata BLOB)')
@@ -177,12 +248,14 @@ class AntigravityContinuationTests(ProjectCase):
 		conn.execute('INSERT INTO steps VALUES(1,15,3)')
 		conn.commit()
 		conn.close()
+	# @used-by :mod:`unittest`
 	def test_exact_native_workspace_allows_plain_continuation_and_independent_review(self):
 		requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
 		self.assertEqual(requests[0]['text'], '  Continue analysis.\nAfter outage.  ')
 		self.assertEqual(requests[0]['project_binding']['kind'], 'antigravity-workspace-uris')
 		proof = antigravity.native_review_proof(self.project, self.parent, self.child, backend=self.backend, write=False)
 		self.assertEqual(proof['status'], 'completed')
+	# @used-by :mod:`unittest`
 	def test_foreign_or_multiple_native_workspaces_cannot_claim_identical_request(self):
 		for paths in ([self.root], [self.project, self.root]):
 			self.workspace(paths)
@@ -191,6 +264,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-11-21
 	# "Remove text-based explicit-project-root override from request binding":
 	# https://github.com/dmitry-ai/harness/issues/112
+	# @used-by :mod:`unittest`
 	def test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text(self):
 		self.workspace([self.root])
 		job_id = flow.load(self.project)['job_id']
@@ -207,6 +281,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-11-21
 	# "Remove text-based explicit-project-root override from request binding":
 	# https://github.com/dmitry-ai/harness/issues/112
+	# @used-by :mod:`unittest`
 	def test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace(self):
 		self.inputs(['Own request', '/upwork-init https://www.upwork.com/jobs/~0299999', 'Continue analysis.'])
 		self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 1)
@@ -219,6 +294,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-11-21
 	# "Remove text-based explicit-project-root override from request binding":
 	# https://github.com/dmitry-ai/harness/issues/112
+	# @used-by :mod:`unittest`
 	def test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id(self):
 		self.workspace([self.project])
 		self.inputs(['Continue analysis.'])
@@ -232,6 +308,7 @@ class AntigravityContinuationTests(ProjectCase):
 			antigravity.native_requests(self.project, self.parent, backend=self.backend)
 		self.inputs(['Exact native job ' + flow.load(self.project)['job_id']])
 		self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 1)
+	# @used-by :mod:`unittest`
 	def test_legacy_job_mention_after_foreign_init_cannot_reactivate_old_project(self):
 		self.workspace([])
 		job_id = flow.load(self.project)['job_id']
@@ -243,6 +320,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-10-31
 	# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 	# https://github.com/dmitry-ai/harness/issues/29
+	# @used-by :mod:`unittest`
 	def test_git_folder_project_id_fallback_and_relocated_root_canonicalization(self):
 		from agent_tools.platforms.request_binding import _same_root
 		self.assertTrue(_same_root('C:/work/research/provision/code/Software/OpenAI/Codex', 'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons'))
@@ -266,6 +344,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-11-14
 	# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 	# https://github.com/dmitry-ai/harness/issues/75
+	# @used-by :mod:`unittest`
 	def test_status_five_compacted_step_recovers_nested_protobuf_and_transcript_fallback(self):
 		db_file = self.backend / 'conversations' / (self.parent + '.db')
 		conn = sqlite3.connect(db_file)
@@ -294,6 +373,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-11-21
 	# "Remove text-based explicit-project-root override from request binding":
 	# https://github.com/dmitry-ai/harness/issues/112
+	# @used-by :mod:`unittest`
 	def test_text_root_labels_neither_break_valid_workspace_nor_claim_foreign_workspace(self):
 		self.workspace([self.project])
 		for text_mention in (
@@ -314,6 +394,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-11-21
 	# "Remove text-based explicit-project-root override from request binding":
 	# https://github.com/dmitry-ai/harness/issues/112
+	# @used-by :mod:`unittest`
 	def test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state(self):
 		from agent_tools import completion
 		self.workspace([self.project])
@@ -353,6 +434,7 @@ class AntigravityContinuationTests(ProjectCase):
 	# 2026-11-23
 	# "Use native workspace priority and AST command parsing in request binding":
 	# https://github.com/dmitry-ai/harness/issues/129
+	# @used-by :mod:`unittest`
 	def test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands(self):
 		from agent_tools import completion
 		from agent_tools.platforms.request_binding import completion_project_id, scoped_inputs
@@ -360,6 +442,7 @@ class AntigravityContinuationTests(ProjectCase):
 		job_id = flow.load(self.project)['job_id']
 		other_url = 'https://www.upwork.com/jobs/~0299999999999999999'
 		own_url = f'https://www.upwork.com/jobs/{job_id}'
+		# @used-by :meth:`AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
 		def _ag_chip_payload(prefix_text, cmd_name, suffix_text, flat_text):
 			parts = [wire(2, flat_text.encode('utf-8'))]
 			if prefix_text:

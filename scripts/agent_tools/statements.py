@@ -26,6 +26,7 @@ _SUBHEAD_RE = re.compile(r'^(#{2,6})\s+(.+?)\s*$')
 _TABLE_SEP_RE = re.compile(r'^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$|^\s*\|\s*:?-{3,}:?\s*\|\s*$')
 _TOP_HEAD_RE = re.compile(r'^#\s+(\d+)\.?(?:\s+(.*))?$')
 _VERBATIM_RE = re.compile(r'```|^\s*>\s*\S|«[^»]{4,}»|"[^"\n]{4,}"|`[^`\n]{3,}`', re.M)
+# @used-by :func:`_check_item_group()`
 def _check_item_fields(label: str, body: str, *, require_link: bool, kind: str) -> list[str]:
 	errs: list[str] = []
 	rule = 'DOC-2' if 'hypothesis' == kind else 'DOC-3'
@@ -38,6 +39,8 @@ def _check_item_fields(label: str, body: str, *, require_link: bool, kind: str) 
 	if not _PCT_RE.search(body):
 		errs.append(f'{rule} / df-analysis: {kind} "{label}" must state an analyst score in %')
 	return errs
+# @used-by :func:`_check_problem_sections()`
+# @used-by :func:`_validate_general()`
 def _check_item_group(items: list[tuple[str, str]], *, require_link: bool, kind: str, context: str) -> list[str]:
 	rule = 'DOC-2' if 'hypothesis' == kind else 'DOC-3'
 	errs: list[str] = []
@@ -49,6 +52,7 @@ def _check_item_group(items: list[tuple[str, str]], *, require_link: bool, kind:
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
+# @used-by :func:`validate_df_analysis()`
 def _check_problem_blocks(blocks: list[dict]) -> list[str]:
 	from .problem_tracks import companion_track_issues
 	errs: list[str] = []
@@ -58,6 +62,7 @@ def _check_problem_blocks(blocks: list[dict]) -> list[str]:
 		errs.extend((f'{prefix}{err}' for err in _check_problem_sections(blk['sections'])))
 	errs.extend(companion_track_issues(blocks))
 	return errs
+# @used-by :func:`_check_problem_sections()`
 def _check_problem_metadata(body: str) -> list[str]:
 	m = _JSON_FENCE_RE.search(body or '')
 	if None is m:
@@ -70,6 +75,7 @@ def _check_problem_metadata(body: str) -> list[str]:
 		else:
 			r = _validate_metadata_obj(obj)
 	return r
+# @used-by :func:`_check_problem_blocks()`
 def _check_problem_sections(sections: dict[int, tuple[str, str]]) -> list[str]:
 	errs = [f'DOC-5 / df-analysis: Problem analysis is missing required top-level section # {num}' for num in range(5) if num not in sections]
 	if 0 in sections:
@@ -92,9 +98,11 @@ def _check_problem_sections(sections: dict[int, tuple[str, str]]) -> list[str]:
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
 # 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
+# @used-by :func:`validate_df_analysis()`
 def _detect_mode(text: str, blocks: list[dict], requests: list | tuple, mode: str, *, turn_context: dict | None=None) -> str:
 	from .doc5_context import detect_df_analysis_mode
 	return detect_df_analysis_mode(text, blocks, requests, mode, turn_context=turn_context, prob_head_re=_PROB_HEAD_RE, req_cmd_fn=_requests_invoke_df_analysis, explicit_fn=_parse_explicit_items)
+# @used-by :func:`agent_tools.scatter_banner.validate_scatter_banners()`
 def _extract_top_sections(text: str) -> dict[int, tuple[str, str]]:
 	sections: dict[int, tuple[str, list[str]]] = {}
 	cur: int | None = None
@@ -106,11 +114,19 @@ def _extract_top_sections(text: str) -> dict[int, tuple[str, str]]:
 		elif None is not cur:
 			sections[cur][1].append(raw)
 	return {k: (title, '\n'.join(lines)) for k, (title, lines) in sections.items()}
+# @used-by :func:`find_markdown_table_lines()`
 def _is_table_header_pair(lines: list[tuple[int, str, bool]], idx: int) -> bool:
 	_, raw, fenced = lines[idx]
 	_, nxt, nxt_fenced = lines[idx + 1]
 	stripped = raw.strip()
 	return (not fenced) and (not nxt_fenced) and ('|' in stripped) and (not stripped.startswith('>')) and bool(_TABLE_SEP_RE.match(nxt))
+# @used-by :func:`_extract_top_sections()`
+# @used-by :func:`_parse_explicit_items()`
+# @used-by :func:`_parse_section_items()`
+# @used-by :func:`_requests_invoke_df_analysis()`
+# @used-by :func:`agent_tools.scatter_banner._parse_standalone_recommendations()`
+# @used-by :func:`find_markdown_table_lines()`
+# @used-by :func:`validate_df_analysis()`
 def _mask_fenced_lines(text: str) -> list[tuple[int, str, bool]]:
 	out: list[tuple[int, str, bool]] = []
 	in_fence, marker, in_fm = (False, '', False)
@@ -127,6 +143,9 @@ def _mask_fenced_lines(text: str) -> list[tuple[int, str, bool]]:
 		else:
 			out.append((idx, raw, in_fence))
 	return out
+# @used-by :func:`_detect_mode()`
+# @used-by :func:`_validate_general()`
+# @used-by :func:`agent_tools.scatter_banner._collect_candidate_recommendations()`
 def _parse_explicit_items(text: str) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
 	hyps: list[tuple[str, list[str]]] = []
 	mets: list[tuple[str, list[str]]] = []
@@ -144,6 +163,7 @@ def _parse_explicit_items(text: str) -> tuple[list[tuple[str, str]], list[tuple[
 		elif None is not cur:
 			cur.append(raw)
 	return ([(k, '\n'.join(v)) for k, v in hyps], [(k, '\n'.join(v)) for k, v in mets])
+# @used-by :func:`_parse_section_items()`
 def _parse_list_items(masked: list[tuple[int, str, bool]]) -> list[tuple[str, str]]:
 	items: list[tuple[str, list[str]]] = []
 	for _, raw, fenced in masked:
@@ -152,6 +172,8 @@ def _parse_list_items(masked: list[tuple[int, str, bool]]) -> list[tuple[str, st
 		elif items:
 			items[-1][1].append(raw)
 	return [(k, '\n'.join(v)) for k, v in items]
+# @used-by :func:`_check_problem_sections()`
+# @used-by :func:`agent_tools.scatter_banner._collect_candidate_recommendations()`
 def _parse_section_items(body: str) -> list[tuple[str, str]]:
 	masked = _mask_fenced_lines(body)
 	levels = [len(m.group(1)) for _, raw, fenced in masked if (not fenced) and (m := _SUBHEAD_RE.match(raw.strip()))]
@@ -168,6 +190,8 @@ def _parse_section_items(body: str) -> list[tuple[str, str]]:
 				items[-1][1].append(raw)
 		r = [(k, '\n'.join(v)) for k, v in items]
 	return r
+# @used-by :func:`_detect_mode()`
+# @used-by :func:`validate_df_analysis()`
 def _requests_invoke_df_analysis(requests: list | tuple) -> bool:
 	r = False
 	for req in requests or ():
@@ -177,6 +201,7 @@ def _requests_invoke_df_analysis(requests: list | tuple) -> bool:
 			r = True
 			break
 	return r
+# @used-by :func:`validate_df_analysis()`
 def _validate_general(text: str, explicit_cmd: bool) -> list[str]:
 	hyps, mets = _parse_explicit_items(text)
 	errs: list[str] = []
@@ -187,6 +212,7 @@ def _validate_general(text: str, explicit_cmd: bool) -> list[str]:
 	if mets:
 		errs.extend(_check_item_group(mets, require_link=False, kind='solution method', context='Solution method analysis'))
 	return errs
+# @used-by :func:`_check_problem_metadata()`
 def _validate_metadata_obj(obj: object) -> list[str]:
 	errs: list[str] = []
 	if not isinstance(obj, dict):
@@ -203,8 +229,10 @@ def _validate_metadata_obj(obj: object) -> list[str]:
 				errs.append(f'DOC-5 / df-analysis: Section # 0 metadata is missing required "{req_key}" key')
 	return errs
 # 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
+# @used-by :func:`agent_tools.cli_command_grounding.response_turn_gate_issues()`
 def analysis_gate_issues(response: str, *, requests: list | tuple=(), turn_context: dict | None=None) -> list[str]:
 	return [*markdown_table_issues(response), *validate_df_analysis(response, requests=requests, mode='auto', turn_context=turn_context)]
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_external_refs()`
 def external_anchor_issues(label: str, href: str, norm_url: str, observed_anchors: dict[str, set[str]], response: str) -> list[str]:
 	errs: list[str] = []
 	frag = urlsplit(href).fragment
@@ -215,6 +243,8 @@ def external_anchor_issues(label: str, href: str, norm_url: str, observed_anchor
 	elif (not frag) and is_documentation_url(href) and anchors and ('anchor_exception' not in response):
 		errs.append(f'VERIFY-1 / LINK-2: Documentation link [{label}]({href}) omits a section #anchor despite {len(anchors)} available anchor(s) in the saved observation (cite an exact #anchor or record anchor_exception)')
 	return errs
+# @used-by :func:`markdown_table_issues()`
+# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
 def find_markdown_table_lines(text: str) -> list[int]:
 	masked = _mask_fenced_lines(text)
 	hits: list[int] = []
@@ -228,17 +258,35 @@ def find_markdown_table_lines(text: str) -> list[int]:
 		else:
 			idx += 1
 	return hits
+# @used-by :func:`external_anchor_issues()`
 def is_documentation_url(url: str) -> bool:
 	parsed = urlsplit((url or '').strip())
 	host = (parsed.hostname or '').lower()
 	path = (parsed.path or '').lower()
 	return host.startswith(_DOC_HOST_PREFIXES) or host.endswith(_DOC_HOST_SUFFIXES) or any((m in path for m in _DOC_PATH_MARKERS)) or (host in ('github.com', 'raw.githubusercontent.com') and path.endswith('.md'))
+# @used-by :func:`agent_tools.cli_registry._exec_analysis_check()`
+# @used-by :func:`agent_tools.hook_runtime.scan_doc4_sentence_issues()`
+# @used-by :func:`analysis_gate_issues()`
 def markdown_table_issues(text: str) -> list[str]:
 	return [f'DOC-4 Line {ln}: Markdown table detected; Markdown tables are forbidden by rule DOC-4 (rewrite as structured prose or a list).' for ln in find_markdown_table_lines(text)]
 # 2026-11-24
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
 # 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
+# @used-by :func:`agent_tools.cli_registry._exec_analysis_check()`
+# @used-by :func:`analysis_gate_issues()`
+# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_general_df_analysis_requires_multiple_hypotheses_methods_and_template_fields()`
+# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_problem_analysis_auto_triggers_and_enforces_all_five_sections()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_bundled_companion_topics_inside_single_block_still_rejected()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_four_blocks_missing_or_merged_companion_track_rejected()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_four_separate_problem_analyses_validated_independently_ru_and_en()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_general_mode_and_non_problem_responses_unaffected()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_scatter_banner_enforced_in_earlier_problem_blocks()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_single_problem_block_rejected_when_companion_tracks_missing()`
+# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_analysis_check_and_answer_check_enforce_file6_banner()`
+# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_banner_must_be_exact_uppercase_and_at_start_of_recommendation()`
+# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_detects_english_and_standalone_scattering_recommendations()`
+# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_does_not_false_positive_on_safe_methods_native_configs_or_prose()`
 def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str='auto', turn_context: dict | None=None) -> list[str]:
 	from .metadata import strip_leading_metadata_header
 	# 2026-11-25
@@ -275,6 +323,8 @@ def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str=
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`test_agent_tools.StatementTests.test_missing_test_not_masked_by_words_in_statement()`
 def validate_statements(directory: Path) -> list[str]:
 	directory = Path(directory)
 	if not directory.is_dir():

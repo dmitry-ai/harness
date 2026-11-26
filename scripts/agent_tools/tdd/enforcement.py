@@ -17,6 +17,7 @@ import subprocess
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
 _HEAD_TEXT_CACHE: dict[tuple[str, str, str], str | None] = {}
+# @used-by :func:`_eval_test_ratchet_and_fitting()`
 def _active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[str]:
 	r: list[str] = []
 	for blob in (new_text or '', old_text or ''):
@@ -24,6 +25,12 @@ def _active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[
 			if u not in r:
 				r.append(u)
 	return r
+# @used-by :func:`_eval_pre_code_write()`
+# @used-by :func:`_eval_pre_test_write()`
+# @used-by :func:`agent_tools.code_size_gate.evaluate_pre_tool_use_code_size()`
+# @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
+# @used-by :func:`agent_tools.issue_comment_gate.evaluate_pre_tool_use_issue_comment()`
+# @used-by :func:`agent_tools.subprocess_hygiene_gate.evaluate_pre_tool_use_subprocess_hygiene()`
 def _compute_edited_content(name: str, args: dict, target_path: Path) -> tuple[str | None, str | None, list[str], set[int]]:
 	old_disk = target_path.read_text(encoding='utf-8', errors='replace') if target_path.is_file() else None
 	new_text = _resolve_new_text(name, args, old_disk)
@@ -33,6 +40,8 @@ def _compute_edited_content(name: str, args: dict, target_path: Path) -> tuple[s
 		added_lines, added_nums = _diff_added_lines(old_disk, new_text)
 		r = (old_disk, new_text, added_lines, added_nums)
 	return r
+# @used-by :func:`_compute_edited_content()`
+# @used-by :func:`_verify_staged_test_file()`
 def _diff_added_lines(old_text: str | None, new_text: str) -> tuple[list[str], set[int]]:
 	old_lines = (old_text or '').splitlines()
 	new_lines = new_text.splitlines()
@@ -47,6 +56,7 @@ def _diff_added_lines(old_text: str | None, new_text: str) -> tuple[list[str], s
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_eval_pre_write()`
 def _eval_pre_code_write(name: str, args: dict, target_path: Path, cls: str, cwd: Path | None, payload: dict) -> str | None:
 	scope = resolve_code_scope(target_path)
 	if 'production' != cls:
@@ -63,6 +73,7 @@ def _eval_pre_code_write(name: str, args: dict, target_path: Path, cls: str, cwd
 			sc_state = _load_pre_tool_tdd_state(payload, cwd)['scopes'].get(str(scope))
 			r = _eval_pre_prod_write(target_path, sc_state)
 	return r
+# @used-by :func:`_eval_pre_code_write()`
 def _eval_pre_prod_write(target_path: Path, sc_state: dict | None) -> str | None:
 	if None is not sc_state and sc_state.get('state') in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
 		r = None
@@ -74,6 +85,7 @@ def _eval_pre_prod_write(target_path: Path, sc_state: dict | None) -> str | None
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`evaluate_pre_tool_use_tdd()`
 def _eval_pre_run_command(cmd: str, cwd: Path | None, payload: dict) -> str | None:
 	prod_targets = shell_code_write_targets(cmd, cwd=cwd)
 	del_targets = shell_test_delete_targets(cmd, cwd=cwd)
@@ -83,6 +95,7 @@ def _eval_pre_run_command(cmd: str, cwd: Path | None, payload: dict) -> str | No
 		prod_err = _eval_shell_prod_writes(prod_targets, cwd, _load_pre_tool_tdd_state(payload, cwd)) if prod_targets else None
 		r = prod_err or (_eval_shell_test_deletes(del_targets, cwd) if del_targets else None)
 	return r
+# @used-by :func:`_eval_pre_code_write()`
 def _eval_pre_test_write(name: str, args: dict, target_path: Path, scope: Path, cwd: Path | None, sc_state: dict | None) -> str | None:
 	old_disk, new_text, added_lines, added_nums = _compute_edited_content(name, args, target_path)
 	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
@@ -100,6 +113,7 @@ def _eval_pre_test_write(name: str, args: dict, target_path: Path, scope: Path, 
 				rel_posix = _rel_posix_for_scope(target_path, scope)
 				r = _eval_test_ratchet_and_fitting(rel_posix, scope, cwd, old_disk, new_text, sc_state)
 	return r
+# @used-by :func:`evaluate_pre_tool_use_tdd()`
 def _eval_pre_write(name: str, args: dict, cwd: Path | None, payload: dict) -> str | None:
 	r = None
 	raw_p = str(args.get('Path') or '').strip()
@@ -111,6 +125,7 @@ def _eval_pre_write(name: str, args: dict, cwd: Path | None, payload: dict) -> s
 		if 'non_code' != cls:
 			r = _eval_pre_code_write(name, args, target_path, cls, cwd, payload)
 	return r
+# @used-by :func:`_eval_pre_run_command()`
 def _eval_shell_prod_writes(prod_targets: list[Path], cwd: Path | None, tdd_state: dict) -> str | None:
 	from .mechanical import find_matching_mechanical_recipes
 	r = None
@@ -124,6 +139,7 @@ def _eval_shell_prod_writes(prod_targets: list[Path], cwd: Path | None, tdd_stat
 			r = f'EXEC-2 TDD-RED-GATE: Shell command writes production code file "{target_p.name}" before a failing (RED) test was written and observed. Write a failing test first.'
 			break
 	return r
+# @used-by :func:`_eval_pre_run_command()`
 def _eval_shell_test_deletes(del_targets: list[Path], cwd: Path | None) -> str | None:
 	r = None
 	for del_test in del_targets:
@@ -135,6 +151,7 @@ def _eval_shell_test_deletes(del_targets: list[Path], cwd: Path | None) -> str |
 				r = f'EXEC-2 TDD-RATCHET-GATE: Deleting tracked test file "{rel_posix}" via shell command is prohibited without audited RATCHET-OK approval.'
 				break
 	return r
+# @used-by :func:`_eval_pre_test_write()`
 def _eval_test_ratchet_and_fitting(rel_posix: str, scope: Path, cwd: Path | None, old_disk: str | None, new_text: str, sc_state: dict | None) -> str | None:
 	r = None
 	issue_urls = _active_turn_issue_urls(new_text, old_disk)
@@ -152,6 +169,7 @@ def _eval_test_ratchet_and_fitting(rel_posix: str, scope: Path, cwd: Path | None
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_git_head_text()`
 def _git_head_sha(repo_root: Path) -> str | None:
 	gitdir, common = _resolve_git_dirs(repo_root)
 	r = None
@@ -171,6 +189,19 @@ def _git_head_sha(repo_root: Path) -> str | None:
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_eval_shell_test_deletes()`
+# @used-by :func:`_eval_test_ratchet_and_fitting()`
+# @used-by :func:`_staged_entry_texts()`
+# @used-by :func:`agent_tools.code_size_gate.evaluate_pre_tool_use_code_size()`
+# @used-by :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
+# @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
+# @used-by :func:`agent_tools.code_style_gate.verify_staged_code_style_ratchet()`
+# @used-by :func:`agent_tools.issue_comment_gate.evaluate_pre_tool_use_issue_comment()`
+# @used-by :func:`agent_tools.issue_comment_gate.verify_staged_issue_comment_placement()`
+# @used-by :func:`agent_tools.python_integrity.verify_touched_python_files()`
+# @used-by :func:`agent_tools.subprocess_hygiene_gate.evaluate_pre_tool_use_subprocess_hygiene()`
+# @used-by :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
 def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 	sha = _git_head_sha(repo_root)
 	if None is sha:
@@ -183,8 +214,16 @@ def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 			_HEAD_TEXT_CACHE[key] = _git_show_text(repo_root, f'HEAD:{rel_posix}')
 		r = _HEAD_TEXT_CACHE[key]
 	return r
+# @used-by :func:`_staged_entry_texts()`
+# @used-by :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
+# @used-by :func:`agent_tools.code_style_gate.verify_staged_code_style_ratchet()`
+# @used-by :func:`agent_tools.issue_comment_gate.verify_staged_issue_comment_placement()`
+# @used-by :func:`agent_tools.rules_audit._read_staged_overrides()`
+# @used-by :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
 def _git_index_text(repo_root: Path, rel_posix: str) -> str | None:
 	return _git_show_text(repo_root, f':{rel_posix}')
+# @used-by :func:`_git_head_text()`
+# @used-by :func:`_git_index_text()`
 def _git_show_text(repo_root: Path, spec: str) -> str | None:
 	r = None
 	if (repo_root / '.git').exists():
@@ -201,16 +240,21 @@ def _git_show_text(repo_root: Path, spec: str) -> str | None:
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_eval_pre_code_write()`
+# @used-by :func:`_eval_pre_run_command()`
 def _load_pre_tool_tdd_state(payload: dict, cwd: Path | None) -> dict:
 	t_raw = str(payload.get('transcriptPath') or '').strip()
 	events = extract_antigravity_tdd_events(Path(t_raw), cwd=cwd) if t_raw else []
 	return evaluate_tdd_events(events, require_final_full_green=False, project_root=cwd)
+# @used-by :func:`_eval_pre_test_write()`
+# @used-by :func:`_eval_shell_test_deletes()`
 def _rel_posix_for_scope(target_path: Path, scope: Path) -> str:
 	try:
 		r = target_path.relative_to(scope).as_posix()
 	except ValueError:
 		r = target_path.name
 	return r
+# @used-by :func:`_git_head_sha()`
 def _resolve_git_dirs(repo_root: Path) -> tuple[Path | None, Path | None]:
 	dot = repo_root / '.git'
 	if dot.is_dir():
@@ -220,6 +264,7 @@ def _resolve_git_dirs(repo_root: Path) -> tuple[Path | None, Path | None]:
 	else:
 		r = (None, None)
 	return r
+# @used-by :func:`_compute_edited_content()`
 def _resolve_new_text(name: str, args: dict, old_disk: str | None) -> str | None:
 	r = None
 	if 'write_file' == name:
@@ -231,6 +276,7 @@ def _resolve_new_text(name: str, args: dict, old_disk: str | None) -> str | None
 		if None is not old_disk and isinstance(target_str, str) and isinstance(repl_str, str) and target_str in old_disk:
 			r = old_disk.replace(target_str, repl_str)
 	return r
+# @used-by :func:`_resolve_git_dirs()`
 def _resolve_worktree_git_dirs(repo_root: Path, dot: Path) -> tuple[Path | None, Path | None]:
 	r: tuple[Path | None, Path | None] = (None, None)
 	try:
@@ -244,6 +290,7 @@ def _resolve_worktree_git_dirs(repo_root: Path, dot: Path) -> tuple[Path | None,
 	except OSError:
 		r = (None, None)
 	return r
+# @used-by :func:`verify_staged_tdd_diff()`
 def _staged_entry_texts(repo: Path, rel: str, use_index: bool, issue_urls: list[str]) -> tuple[Path, str | None, str | None, str]:
 	fpath = repo / rel
 	head_text = _git_head_text(repo, rel)
@@ -256,6 +303,7 @@ def _staged_entry_texts(repo: Path, rel: str, use_index: bool, issue_urls: list[
 			if u not in issue_urls:
 				issue_urls.append(u)
 	return (fpath, head_text, disk_text, cls)
+# @used-by :func:`verify_staged_tdd_diff()`
 def _verify_staged_test_file(repo: Path, rel: str, fpath: Path, head_text: str | None, disk_text: str | None, project_root: Path | None, issue_urls: list[str]) -> list[str]:
 	r: list[str] = []
 	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
@@ -275,6 +323,14 @@ def _verify_staged_test_file(repo: Path, rel: str, fpath: Path, head_text: str |
 # 2026-11-24
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
+# @used-by :func:`agent_tools.gates.tdd.check()`
+# @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_pre_tool_use_allows_comment_only_edit_and_denies_code_edit()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_fast_path.TddFastPathTests.test_pre_tool_use_short_circuits_non_code_and_non_writing_commands()`
+# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_pre_tool_use_allows_matching_mechanical_edit_and_denies_extraneous_edit()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | None:
 	r = None
 	# 2026-11-26
@@ -291,6 +347,12 @@ def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | Non
 # 2026-11-24
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
+# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_tdd_commit()`
+# @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_hardening_header_exit_code_indirect_source_read_and_index_blob()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def verify_staged_tdd_diff(repo_root: Path, staged_paths: list[str], *, message: str | None=None, project_root: Path | None=None, use_index: bool=False) -> list[str]:
 	repo = Path(repo_root).resolve()
 	r: list[str] = []

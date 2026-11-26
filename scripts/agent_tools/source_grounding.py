@@ -68,6 +68,11 @@ _SOURCE_INFO_CACHE: dict[tuple[str, int, int], dict] = {}
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
 _READ_ONLY_GROUNDING: ContextVar[bool] = ContextVar('harness_read_only_grounding', default=False)
+# @used-by :func:`agent_tools.completion.begin()`
+# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :func:`agent_tools.completion.issue_first_check_turn()`
+# @used-by :func:`agent_tools.completion.recover_checkpoint()`
+# @used-by :func:`agent_tools.completion.tdd_check_turn()`
 @contextmanager
 def read_only_grounding():
 	tok = _READ_ONLY_GROUNDING.set(True)
@@ -85,6 +90,11 @@ _TIER0_TEXT_SUFFIXES = {'.md', '.txt', '.json', '.yaml', '.yml', '.xml', '.csv',
 # "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
 # https://github.com/dmitry-ai/harness/issues/54
 class LocalSourceGroundingAuditor:
+	# @used-by :func:`local_source_grounding_issues()`
+	# @used-by :meth:`LocalSourceGroundingAuditor._audit_linked_analyses()`
+	# @used-by :meth:`test_grounding_corpus_cache_m9.GroundingCorpusCacheM9Tests.test_corpus_cache_matches_uncached_norm_and_isolates_observed_texts()`
+	# @used-by :meth:`test_grounding_corpus_cache_m9.GroundingCorpusCacheM9Tests.test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization()`
+	# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_auditor_and_domain_rules_deduplicate_ledger_tuples()`
 	def __init__(self, root: Path, content: str, *, doc_path: Path | None=None, observed_texts: dict | None=None, cache: dict | None=None, visited: set | None=None):
 		self.root = Path(root).resolve()
 		self.content = content
@@ -104,6 +114,7 @@ class LocalSourceGroundingAuditor:
 		self.list_depth = 0
 		self.linked_analyses: list[Path] = []
 		self.ledger_tuples: list[dict] = []
+	# @used-by :meth:`LocalSourceGroundingAuditor.run()`
 	def _audit_block(self, block) -> None:
 		if 'heading_open' == block.type:
 			self._reset_section_scope()
@@ -135,6 +146,7 @@ class LocalSourceGroundingAuditor:
 			# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 			from .grounding_helpers import audit_active_block
 			audit_active_block(self, block, filtered_locals, ext_urls, active_primary, norm_quote_text, _source_numeric_tokens)
+	# @used-by :meth:`LocalSourceGroundingAuditor.run()`
 	def _audit_linked_analyses(self) -> None:
 		for ap in self.linked_analyses:
 			try:
@@ -148,17 +160,20 @@ class LocalSourceGroundingAuditor:
 	# 2026-11-24
 	# "Cache normalized text and numeric tokens in source_grounding active corpus":
 	# https://github.com/dmitry-ai/harness/issues/216
+	# @used-by :func:`agent_tools.grounding_helpers.audit_active_block()`
 	def _build_active_corpus(self, filtered_locals: list[Path], ext_urls: list[str], active_primary: list[Path]) -> tuple[list[dict], str, str, set[str], str]:
 		from .grounding_helpers import build_active_corpus_cached
 		active_locals = _filter_primary_sources(list(dict.fromkeys(filtered_locals + self.section_all_locals + active_primary)))
 		active_exts = list(dict.fromkeys(ext_urls + self.section_ext_urls))
 		return build_active_corpus_cached(self, active_locals, active_exts, active_primary, norm_quote_text, _source_numeric_tokens)
+	# @used-by :func:`agent_tools.grounding_helpers.audit_block_lines()`
 	def _check_blockquote(self, text: str, combined_norm: str, src_label: str) -> None:
 		if not META_REFUTATION_RE.search(text):
 			for bq in extract_blockquote_quotes(text):
 				if not quote_segments_present(bq, combined_norm, 12):
 					preview = ' '.join(bq.split())[:80]
 					self.errors.append(f'VERIFY-1 / LINK-1: Blockquote \u00ab{preview}\u00bb attributed to {src_label} is absent from the primary source')
+	# @used-by :func:`agent_tools.grounding_helpers.audit_block_lines()`
 	def _check_prose_line(self, sline: str, infos: list[dict], combined_raw: str, combined_norm: str, ev_nums: set[str], src_label: str, ticket_infos: list[dict], valid_msg_nums: set[int], bound_ticket_ids: set[str], any_cyrillic_source: bool) -> None:
 		if sline and (not META_REFUTATION_RE.search(sline)):
 			for bq_str in re.findall('`["\\u201c]([^"\\u201d`]{8,})["\\u201d]`', sline):
@@ -194,6 +209,7 @@ class LocalSourceGroundingAuditor:
 	# 2026-11-02
 	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 	# https://github.com/dmitry-ai/harness/issues/37
+	# @used-by :meth:`LocalSourceGroundingAuditor._audit_block()`
 	def _check_relational_operands(self, text: str, filtered_locals: list[Path], ext_urls: list[str]) -> None:
 		if RELATIONAL_MOD_RE.search(text) and (not META_REFUTATION_RE.search(text)):
 			rel_operands = list(dict.fromkeys(filtered_locals + self.section_all_locals))
@@ -206,6 +222,7 @@ class LocalSourceGroundingAuditor:
 	# 2026-11-06
 	# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 	# https://github.com/dmitry-ai/harness/issues/45
+	# @used-by :meth:`LocalSourceGroundingAuditor._audit_block()`
 	def _check_tier2_sole_evidence(self, text: str, local_all: list[Path], orphan_analyses: list[Path], primary_here: list[Path], ext_urls: list[str]) -> None:
 		tier2_here = [p for p in local_all if 'tier_2' == classify_provenance_tier(p, self.root)] + orphan_analyses
 		if tier2_here and (not primary_here) and (not ext_urls) and (not META_REFUTATION_RE.search(text)):
@@ -219,6 +236,7 @@ class LocalSourceGroundingAuditor:
 	# 2026-11-10
 	# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
 	# https://github.com/dmitry-ai/harness/issues/50
+	# @used-by :func:`agent_tools.grounding_helpers.audit_active_block()`
 	def _check_unlinked_deliverable_metrics(self, text: str) -> None:
 		if _is_client_deliverable_doc(self.doc_path) and 0 == self.quote_depth and (not META_REFUTATION_RE.search(text)):
 			if CLIENT_DELIVERABLE_METRIC_RE.search(text):
@@ -226,6 +244,7 @@ class LocalSourceGroundingAuditor:
 	# 2026-11-07
 	# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 	# https://github.com/dmitry-ai/harness/issues/45
+	# @used-by :meth:`LocalSourceGroundingAuditor.run()`
 	def _load_ledger_tuples(self) -> list[dict]:
 		r: list[dict] = []
 		seen_keys: set[tuple] = set()
@@ -243,10 +262,12 @@ class LocalSourceGroundingAuditor:
 						seen_keys.add(tkey)
 						r.append(tup)
 		return r
+	# @used-by :meth:`LocalSourceGroundingAuditor._audit_block()`
 	def _reset_section_scope(self) -> None:
 		self.section_sources = list(self.default_sources)
 		self.section_all_locals = list(self.default_sources)
 		self.section_ext_urls = []
+	# @used-by :meth:`LocalSourceGroundingAuditor._audit_block()`
 	def _resolve_block_sources(self, block) -> tuple[list[Path], list[str], list[Path], list[Path], list[Path]]:
 		local_all, ext_urls = _extract_block_links(block, self.root, self.doc_path)
 		sibling_tier0_for_analysis: list[Path] = []
@@ -267,6 +288,11 @@ class LocalSourceGroundingAuditor:
 			if sib_src not in primary_here:
 				primary_here.append(sib_src)
 		return (local_all, ext_urls, filtered_locals, primary_here, orphan_analyses)
+	# @used-by :func:`local_source_grounding_issues()`
+	# @used-by :meth:`LocalSourceGroundingAuditor._audit_linked_analyses()`
+	# @used-by :meth:`test_grounding_corpus_cache_m9.GroundingCorpusCacheM9Tests.test_corpus_cache_matches_uncached_norm_and_isolates_observed_texts()`
+	# @used-by :meth:`test_grounding_corpus_cache_m9.GroundingCorpusCacheM9Tests.test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization()`
+	# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_auditor_and_domain_rules_deduplicate_ledger_tuples()`
 	def run(self) -> list[str]:
 		r: list[str] = []
 		if self.content and isinstance(self.content, str):
@@ -289,6 +315,8 @@ class LocalSourceGroundingAuditor:
 class Tier0SourceIndex:
 	CACHE_SCHEMA_VERSION = 2
 	_INDICES: dict[str, 'Tier0SourceIndex'] = {}
+	# @used-by :meth:`Tier0SourceIndex.for_root()`
+	# @uses :meth:`agent_tools.path_registry.ProjectPaths.grounding_cache_json()`
 	def __init__(self, root: Path):
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -303,6 +331,9 @@ class Tier0SourceIndex:
 	# 2026-11-23
 	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 	# https://github.com/dmitry-ai/harness/issues/76
+	# @used-by :meth:`Tier0SourceIndex.ensure_entry()`
+	# @used-by :meth:`Tier0SourceIndex.hydrate_standalone()`
+	# @used-by :meth:`Tier0SourceIndex.load_source_info()`
 	@staticmethod
 	def _build_hydrated_info(path: Path, rp: Path, stat_key: tuple[str, int, int] | None, raw: str, sha256: str, tuples: list[dict], root: Path | None=None) -> dict:
 		extra = [raw]
@@ -317,6 +348,7 @@ class Tier0SourceIndex:
 		if None is not stat_key:
 			_SOURCE_INFO_CACHE[stat_key] = r
 		return r
+	# @used-by :meth:`Tier0SourceIndex.load_index()`
 	def _candidate_files(self, tickets: list[str] | tuple[str, ...]=()) -> list[Path]:
 		r: list[Path] = []
 		seen: set[Path] = set()
@@ -357,6 +389,9 @@ class Tier0SourceIndex:
 						seen.add(rp)
 						r.append(rp)
 		return r
+	# @used-by :meth:`Tier0SourceIndex.ensure_entry()`
+	# @used-by :meth:`Tier0SourceIndex.load_index()`
+	# @used-by :meth:`Tier0SourceIndex.load_source_info()`
 	def _ensure_disk_loaded(self) -> None:
 		if not self._disk_loaded:
 			self._disk_loaded = True
@@ -372,6 +407,7 @@ class Tier0SourceIndex:
 					except (OSError, ValueError):
 						self.entries = {}
 				_TIER0_INDEX_CACHE[self.root_key] = self.entries
+	# @used-by :meth:`Tier0SourceIndex.load_index()`
 	def _persist_if_dirty(self, dirty: bool) -> None:
 		# 2026-11-21
 		# "Add read-only answer-check pre-flight validation command to harness CLI":
@@ -384,6 +420,7 @@ class Tier0SourceIndex:
 				self.cache_file.write_text(json.dumps({'version': self.CACHE_SCHEMA_VERSION, 'files': self.entries}, ensure_ascii=False) + '\n', encoding='utf-8')
 			except OSError:
 				pass
+	# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_tier0_source_index_schema_upgrade_and_single_read()`
 	def discover_entities(self, text: str) -> list[dict]:
 		r: list[dict] = []
 		if text and isinstance(text, str):
@@ -412,6 +449,8 @@ class Tier0SourceIndex:
 						if matched_entities:
 							r.append({'path': rel, 'sha256': entry['sha256'], 'tier': 'tier_0', 'matched_entities': matched_entities})
 		return r
+	# @used-by :func:`_get_tier0_file_entry()`
+	# @used-by :meth:`Tier0SourceIndex.load_index()`
 	def ensure_entry(self, rp: Path) -> tuple[str, dict | None, bool]:
 		self._ensure_disk_loaded()
 		r: tuple[str, dict | None, bool] = ('', None, False)
@@ -452,6 +491,14 @@ class Tier0SourceIndex:
 						self._build_hydrated_info(rp, rp, stat_key, raw, sha256, tuples, root=self.root)
 						r = (rel, entry, True)
 		return r
+	# @used-by :func:`_get_tier0_file_entry()`
+	# @used-by :func:`_load_local_source_info()`
+	# @used-by :func:`_load_tier0_index()`
+	# @used-by :func:`_tier0_candidate_files()`
+	# @used-by :func:`discover_entity_tier0_sources()`
+	# @used-by :func:`sync_fact_ledger()`
+	# @used-by :meth:`LocalSourceGroundingAuditor.__init__()`
+	# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_tier0_source_index_schema_upgrade_and_single_read()`
 	@classmethod
 	def for_root(cls, root: Path) -> 'Tier0SourceIndex':
 		resolved = Path(root).resolve()
@@ -464,6 +511,7 @@ class Tier0SourceIndex:
 	# 2026-11-23
 	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 	# https://github.com/dmitry-ai/harness/issues/76
+	# @used-by :meth:`Tier0SourceIndex.hydrate_standalone()`
 	@staticmethod
 	def _stat_and_read(path: Path) -> tuple[Path, tuple[str, int, int] | None, bytes, str]:
 		stat_key = None
@@ -483,6 +531,8 @@ class Tier0SourceIndex:
 	# 2026-11-23
 	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 	# https://github.com/dmitry-ai/harness/issues/76
+	# @used-by :func:`_load_local_source_info()`
+	# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_standalone_source_hydration_uses_tier0_index()`
 	@classmethod
 	def hydrate_standalone(cls, path: Path, cache: dict | None=None) -> dict:
 		key = str(path)
@@ -498,6 +548,8 @@ class Tier0SourceIndex:
 			if None is not cache:
 				cache[key] = r
 		return r
+	# @used-by :meth:`Tier0SourceIndex.discover_entities()`
+	# @used-by :meth:`Tier0SourceIndex.sync_ledger()`
 	def load_index(self, tickets: list[str] | tuple[str, ...]=()) -> tuple[list[Path], dict[str, dict]]:
 		self._ensure_disk_loaded()
 		candidates = self._candidate_files(tickets)
@@ -508,6 +560,8 @@ class Tier0SourceIndex:
 				dirty = True
 		self._persist_if_dirty(dirty)
 		return (candidates, self.entries)
+	# @used-by :func:`agent_tools.grounding_helpers.build_active_corpus_cached()`
+	# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_tier0_source_index_schema_upgrade_and_single_read()`
 	def load_source_info(self, path: Path, cache: dict | None=None) -> dict:
 		key = str(path)
 		if None is not cache and key in cache:
@@ -544,12 +598,18 @@ class Tier0SourceIndex:
 			if None is not cache:
 				cache[key] = r
 		return r
+	# @used-by :func:`agent_tools.grounding_helpers.build_active_corpus_cached()`
+	# @used-by :meth:`Tier0SourceIndex.discover_entities()`
+	# @used-by :meth:`Tier0SourceIndex.ensure_entry()`
+	# @used-by :meth:`Tier0SourceIndex.load_source_info()`
+	# @used-by :meth:`Tier0SourceIndex.sync_ledger()`
 	def locator_for(self, path: Path) -> str:
 		try:
 			r = path.resolve().relative_to(self.root).as_posix()
 		except ValueError:
 			r = path.as_posix()
 		return r
+	# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_tier0_source_index_schema_upgrade_and_single_read()`
 	def sync_ledger(self) -> dict:
 		candidates, mem_idx = self.load_index()
 		tuples: list[dict] = []
@@ -569,6 +629,7 @@ class Tier0SourceIndex:
 # 2026-11-02
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# @used-by :func:`detect_prose_locale()`
 def _char_script(ch: str) -> str:
 	name = unicodedata.name(ch, '')
 	if not name:
@@ -577,8 +638,11 @@ def _char_script(ch: str) -> str:
 		head = name.split()[0]
 		r = 'CJK' if head in ('CJK', 'IDEOGRAPHIC', 'HIRAGANA', 'KATAKANA', 'HANGUL') else head
 	return r
+# @used-by :meth:`LocalSourceGroundingAuditor._resolve_block_sources()`
 def _extract_block_links(block, root: Path, doc_path: Path | None):
 	return extract_block_links(block, root, doc_path)
+# @used-by :meth:`LocalSourceGroundingAuditor._build_active_corpus()`
+# @used-by :meth:`LocalSourceGroundingAuditor._resolve_block_sources()`
 def _filter_primary_sources(paths: list[Path]) -> list[Path]:
 	src_dirs = {p.parent for p in paths if 'source.md' == p.name.lower()}
 	r = [p for p in paths if not ('analysis.md' == p.name.lower() and p.parent in src_dirs)]
@@ -588,12 +652,14 @@ def _filter_primary_sources(paths: list[Path]) -> list[Path]:
 # 2026-11-10
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
+# @used-by unused
 def _get_tier0_file_entry(root: Path, rp: Path, mem_idx: dict[str, dict]) -> tuple[str, dict | None, bool]:
 	idx = Tier0SourceIndex.for_root(root)
 	idx.entries = mem_idx
 	_TIER0_INDEX_CACHE[idx.root_key] = mem_idx
 	idx._disk_loaded = True
 	return idx.ensure_entry(rp)
+# @used-by :func:`_load_local_source_info()`
 def _infer_source_root(path: Path) -> Path | None:
 	r = None
 	try:
@@ -615,6 +681,7 @@ def _infer_source_root(path: Path) -> Path | None:
 # 2026-11-21
 # "Initialize new Upwork projects in the V2 filesystem layout":
 # https://github.com/dmitry-ai/harness/issues/110
+# @used-by :meth:`LocalSourceGroundingAuditor._check_unlinked_deliverable_metrics()`
 def _is_client_deliverable_doc(doc_path: Path | None) -> bool:
 	if None is doc_path or is_normative_harness_doc(doc_path):
 		r = False
@@ -622,8 +689,12 @@ def _is_client_deliverable_doc(doc_path: Path | None) -> bool:
 		norm_p = '/' + doc_path.as_posix().lower().lstrip('/')
 		r = False if '/\ua616/' in norm_p or '/\ua66e/' in norm_p else any((seg.lower() in norm_p for seg in ('/letters/', '/result/', '/defects/', '/articles/', '/\u2c0f/\u227b/\u2655/\U0001f582/')))
 	return r
+# @used-by :meth:`LocalSourceGroundingAuditor._check_tier2_sole_evidence()`
+# @used-by :meth:`LocalSourceGroundingAuditor.run()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
 def _is_normative_harness_doc(path: Path) -> bool:
 	return is_normative_harness_doc(path)
+# @used-by :meth:`Tier0SourceIndex._build_hydrated_info()`
 def _json_scalar_strings(obj, out: list[str]) -> None:
 	if None is not obj and (not isinstance(obj, (dict, list, float))):
 		out.append(str(obj))
@@ -637,6 +708,7 @@ def _json_scalar_strings(obj, out: list[str]) -> None:
 		for k, v in obj.items():
 			out.append(str(k))
 			_json_scalar_strings(v, out)
+# @used-by :meth:`LocalSourceGroundingAuditor._check_prose_line()`
 def _line_grounded_numbers_check(sline: str, ev_nums: set[str], valid_msg_nums: set[int], bound_ticket_ids: set[str], is_ticket: bool) -> list[str]:
 	r: list[str] = []
 	if is_ticket:
@@ -659,6 +731,7 @@ def _line_grounded_numbers_check(sline: str, ev_nums: set[str], valid_msg_nums: 
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_standalone_source_hydration_uses_tier0_index()`
 def _load_local_source_info(path: Path, cache: dict | None=None, *, root: Path | None=None) -> dict:
 	eff_root = root if None is not root else _infer_source_root(path)
 	r = Tier0SourceIndex.for_root(eff_root).load_source_info(path, cache) if None is not eff_root else Tier0SourceIndex.hydrate_standalone(path, cache)
@@ -666,8 +739,10 @@ def _load_local_source_info(path: Path, cache: dict | None=None, *, root: Path |
 # 2026-11-10
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
+# @used-by unused
 def _load_tier0_index(root: Path, tickets: list[str] | tuple[str, ...]=()) -> tuple[list[Path], dict[str, dict]]:
 	return Tier0SourceIndex.for_root(root).load_index(tickets)
+# @used-by :meth:`LocalSourceGroundingAuditor._check_prose_line()`
 def _quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int=12) -> bool:
 	return quote_segments_present(q_raw, obs_norm, min_seg_len)
 # 2026-11-13
@@ -677,11 +752,21 @@ _source_numeric_tokens = source_numeric_tokens
 # 2026-11-10
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
+# @used-by unused
 def _tier0_candidate_files(root: Path, tickets: list[str] | tuple[str, ...]=()) -> list[Path]:
 	return Tier0SourceIndex.for_root(root)._candidate_files(tickets)
 # 2026-11-06
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
+# @used-by :func:`_filter_primary_sources()`
+# @used-by :func:`is_primary_local_source()`
+# @used-by :meth:`LocalSourceGroundingAuditor._check_tier2_sole_evidence()`
+# @used-by :meth:`Tier0SourceIndex._build_hydrated_info()`
+# @used-by :meth:`Tier0SourceIndex._candidate_files()`
+# @used-by :meth:`Tier0SourceIndex.load_source_info()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_disproved_claim()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def classify_provenance_tier(path: Path, root: Path | None=None) -> str:
 	norm = '/' + path.as_posix().lower().lstrip('/')
 	name = path.name.lower()
@@ -701,6 +786,7 @@ def classify_provenance_tier(path: Path, root: Path | None=None) -> str:
 # 2026-11-02
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# @used-by :func:`verify_target_locale()`
 def detect_prose_locale(prose: str) -> dict:
 	script_counts: dict[str, int] = {}
 	for ch in prose or '':
@@ -728,11 +814,16 @@ def detect_prose_locale(prose: str) -> dict:
 # 2026-11-06
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
+# @used-by :func:`agent_tools.review.prepare()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache()`
 def discover_entity_tier0_sources(root: Path, text: str) -> list[dict]:
 	return Tier0SourceIndex.for_root(root).discover_entities(text)
 # 2026-11-02
 # "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 # https://github.com/dmitry-ai/harness/issues/37
+# @used-by :func:`verify_target_locale()`
+# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests()`
 def extract_authored_prose(text: str, *, is_title: bool=False) -> str:
 	if not isinstance(text, str) or (not text.strip()):
 		r = ''
@@ -774,6 +865,8 @@ def extract_authored_prose(text: str, *, is_title: bool=False) -> str:
 		joined = re.sub('(?:^|(?<=\\s))(?:/|\\$)[A-Za-z][A-Za-z0-9_:-]*(?=$|\\s)', ' ', joined)
 		r = ' '.join(joined.split())
 	return r
+# @used-by :func:`_extract_block_links()`
+# @used-by :func:`agent_tools.completion._find_evicted_cited_files()`
 def extract_block_links(block, root: Path, doc_path: Path | None):
 	local_all: list[Path] = []
 	ext_urls: list[str] = []
@@ -787,6 +880,8 @@ def extract_block_links(block, root: Path, doc_path: Path | None):
 				if None is not rp and rp not in local_all:
 					local_all.append(rp)
 	return (local_all, ext_urls)
+# @used-by :meth:`LocalSourceGroundingAuditor._check_blockquote()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
 def extract_blockquote_quotes(content: str, *, min_guillemet_len: int=8, allow_backtick_quotes: bool=False, min_orig_len: int=12) -> list[str]:
 	r = list(re.findall(f'\\u00ab([^\\u00bb]{{{min_guillemet_len},}})\\u00bb', content or ''))
 	if allow_backtick_quotes:
@@ -802,12 +897,16 @@ def extract_blockquote_quotes(content: str, *, min_guillemet_len: int=8, allow_b
 # 2026-11-13
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
+# @used-by :func:`_is_client_deliverable_doc()`
+# @used-by :func:`_is_normative_harness_doc()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_local_grounding()`
 def is_normative_harness_doc(path: Path) -> bool:
 	norm = '/' + path.as_posix().lower().lstrip('/')
 	return '/.agents/rules/' not in norm and any((seg in norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/')))
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :meth:`LocalSourceGroundingAuditor._resolve_block_sources()`
 def is_primary_local_source(path: Path) -> bool:
 	tier = classify_provenance_tier(path)
 	if 'tier_2' == tier:
@@ -823,6 +922,7 @@ def is_primary_local_source(path: Path) -> bool:
 # 2026-11-07
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
+# @used-by :meth:`LocalSourceGroundingAuditor._load_ledger_tuples()`
 def load_fact_ledger(root: Path) -> list[dict]:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -841,6 +941,16 @@ def load_fact_ledger(root: Path) -> list[dict]:
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :func:`agent_tools.review.prepare()`
+# @used-by :func:`check_markdown_slop._check_doc_grounding_and_links()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_comments_evidence()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._lint_saved_issue_obj()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_local_grounding()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_fact_tuple_ledger_and_contradictions()`
+# @used-by :meth:`test_scratch_slop_and_grounding_loc_m7.ScratchSlopAndGroundingLocM7Tests.test_scratch_draft_defers_grounding_but_keeps_doc4_syntax_checks()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_client_deliverable_grounding_and_evicted_step_output_gate()`
 def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | None=None, observed_texts: dict | None=None, cache: dict | None=None, _visited: set | None=None) -> list[str]:
 	return LocalSourceGroundingAuditor(root, content, doc_path=doc_path, observed_texts=observed_texts, cache=cache, visited=_visited).run()
 # 2026-11-13
@@ -849,6 +959,12 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`agent_tools.completion._authored_nonquote_hrefs()`
+# @used-by :func:`agent_tools.completion._find_evicted_cited_files()`
+# @used-by :func:`agent_tools.platforms.request_binding._extract_leading_upwork_init_ids()`
+# @used-by :func:`extract_authored_prose()`
+# @used-by :meth:`LocalSourceGroundingAuditor.run()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
 def markdown_parser() -> MarkdownIt:
 	from .markdown_links import parser as md_parser
 	r = md_parser(preserve_links=True)
@@ -856,6 +972,14 @@ def markdown_parser() -> MarkdownIt:
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :func:`quote_segments_present()`
+# @used-by :meth:`LocalSourceGroundingAuditor._audit_block()`
+# @used-by :meth:`LocalSourceGroundingAuditor._build_active_corpus()`
+# @used-by :meth:`LocalSourceGroundingAuditor._check_prose_line()`
+# @used-by :meth:`Tier0SourceIndex._build_hydrated_info()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_external_refs()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_disproved_claim()`
+# @used-by :meth:`test_grounding_corpus_cache_m9.GroundingCorpusCacheM9Tests.test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization()`
 def norm_quote_text(value: str) -> str:
 	cleaned = re.sub('[`*_~]+', '', value or '')
 	cleaned = cleaned.replace('\u00a0', ' ').replace('\u2014', '-').replace('\u2013', '-').replace('\u2019', "'").replace('\u2018', "'").replace('\u201c', '"').replace('\u201d', '"')
@@ -864,6 +988,10 @@ def norm_quote_text(value: str) -> str:
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :func:`_quote_segments_present()`
+# @used-by :meth:`LocalSourceGroundingAuditor._check_blockquote()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_external_refs()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_disproved_claim()`
 def quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int=12) -> bool:
 	raw_parts = [norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[\\u2026\\]|\\(\\u2026\\)|\\.{3,}|\\u2026', q_raw)]
 	segs = [s for s in raw_parts if min_seg_len <= len(s)]
@@ -879,6 +1007,7 @@ def quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int=12) -> bo
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :func:`extract_block_links()`
 def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Path | None:
 	r = None
 	raw = urldefrag((href or '').strip())[0].split('?', 1)[0].strip()
@@ -917,12 +1046,16 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 # 2026-11-06
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
+# @used-by :func:`agent_tools.review.prepare()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_fact_tuple_ledger_and_contradictions()`
+# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_auditor_and_domain_rules_deduplicate_ledger_tuples()`
 def sync_fact_ledger(root: Path) -> dict:
 	return Tier0SourceIndex.for_root(root).sync_ledger()
 # 2026-11-23
 # "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
 # https://github.com/dmitry-ai/harness/issues/131
 _LOCALE_SCRIPT_MAP = {'ru': 'cyrillic', 'uk': 'cyrillic', 'be': 'cyrillic', 'bg': 'cyrillic', 'sr': 'cyrillic', 'mk': 'cyrillic', 'kk': 'cyrillic', 'ky': 'cyrillic', 'mn': 'cyrillic', 'cyrillic': 'cyrillic', 'el': 'greek', 'greek': 'greek', 'he': 'hebrew', 'iw': 'hebrew', 'hebrew': 'hebrew', 'ar': 'arabic', 'fa': 'arabic', 'ur': 'arabic', 'arabic': 'arabic', 'hi': 'devanagari', 'mr': 'devanagari', 'ne': 'devanagari', 'devanagari': 'devanagari', 'ko': 'hangul', 'hangul': 'hangul', 'ja': 'cjk', 'zh': 'cjk', 'cjk': 'cjk'}
+# @used-by :func:`verify_target_locale()`
 def _locale_to_target(locale_code: str | None) -> str | None:
 	if not isinstance(locale_code, str) or not locale_code.strip():
 		return None
@@ -943,6 +1076,9 @@ def _locale_to_target(locale_code: str | None) -> str | None:
 # 2026-11-13
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
+# @used-by :func:`agent_tools.completion._intermediate_or_language_issues()`
+# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.lint()`
+# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests()`
 def verify_target_locale(text: str, *, target_locale: str='en-US', container_text: str | None=None, is_title: bool=False, allow_explicit_english_request: bool=False, min_target_ratio: float=0.35, min_alpha: int=15, default_locale: str | None=None) -> list[dict]:
 	r: list[dict] = []
 	eff_target = (target_locale or 'en-US').strip()

@@ -10,11 +10,15 @@ from .storage import locked, replace_bytes
 _DICT_SECTIONS = ('notes', 'sources')
 _LIST_SECTIONS = ('facts', 'identity', 'concerns', 'misconceptions', 'causes', 'methods')
 _PARTIAL_IGNORED_CODES = frozenset({'analysis.empty'})
+# @used-by :func:`_index_existing()`
+# @used-by :func:`_merge_claim_list()`
 def _claim_id(item) -> str | None:
 	cid = item.get('id') if isinstance(item, dict) else None
 	return cid if isinstance(cid, str) and cid else None
+# @used-by :func:`_load_merge_base()`
 def _empty_skeleton() -> dict:
 	return {'schema_version': 3, 'facts': [], 'identity': [], 'concerns': [], 'misconceptions': [], 'causes': [], 'methods': [], 'notes': {}, 'red_flags': [], 'websites': []}
+# @used-by :func:`_merge_claim_list()`
 def _index_existing(existing, remove_ids: set[str]) -> tuple[list, dict[str, int]]:
 	out: list = []
 	idx_by_id: dict[str, int] = {}
@@ -26,6 +30,7 @@ def _index_existing(existing, remove_ids: set[str]) -> tuple[list, dict[str, int
 			idx_by_id[cid] = len(out)
 		out.append(item)
 	return (out, idx_by_id)
+# @used-by :func:`save_merged_analysis()`
 def _load_merge_base(pp, expected_sha256: str | None, partial: bool) -> tuple[dict, bool]:
 	draft = pp.data_dir / 'analysis-draft.json'
 	target = pp.kb_dir / 'Analysis.json'
@@ -39,6 +44,7 @@ def _load_merge_base(pp, expected_sha256: str | None, partial: bool) -> tuple[di
 	else:
 		r = (_empty_skeleton(), False)
 	return r
+# @used-by :func:`merge_analysis_candidate()`
 def _merge_claim_list(existing, incoming, remove_ids: set[str]) -> list:
 	out, idx_by_id = _index_existing(existing, remove_ids)
 	for item in incoming if isinstance(incoming, list) else ():
@@ -50,6 +56,7 @@ def _merge_claim_list(existing, incoming, remove_ids: set[str]) -> list:
 				idx_by_id[cid] = len(out)
 			out.append(item)
 	return out
+# @used-by :func:`merge_analysis_candidate()`
 def _merge_extra_fields(base: dict, patch: dict, merged: dict) -> None:
 	for sec in _DICT_SECTIONS:
 		if sec in patch and isinstance(patch[sec], dict):
@@ -59,12 +66,14 @@ def _merge_extra_fields(base: dict, patch: dict, merged: dict) -> None:
 	for key, val in patch.items():
 		if key not in skip:
 			merged[key] = val
+# @used-by :func:`save_merged_analysis()`
 def _validate_partial(root: Path, merged: dict) -> None:
 	issues = [it for it in analysis_issues(merged) if it.get('code') not in _PARTIAL_IGNORED_CODES]
 	if not merged.get('websites'):
 		issues = [it for it in issues if not str(it.get('code') or '').startswith('website')]
 	require_valid(issues)
 	require_valid(evidence_issues(root, merged, skip_structural=True))
+# @used-by :func:`save_merged_analysis()`
 def merge_analysis_candidate(base: dict, patch: dict) -> dict:
 	if not isinstance(patch, dict):
 		raise ValueError('Analysis merge candidate must be a JSON object')
@@ -78,6 +87,8 @@ def merge_analysis_candidate(base: dict, patch: dict) -> dict:
 # 2026-11-24
 # "Prevent context compaction with schema-help CLI and staged analysis merge":
 # https://github.com/dmitry-ai/harness/issues/217
+# @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
+# @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_save_analysis_merge_supports_partial_draft_final_commit_and_patch()`
 def save_merged_analysis(root: Path | str, patch: dict, expected_sha256: str | None=None, *, partial: bool=False) -> dict:
 	pp = project_paths(root, exact_root=True)
 	draft = pp.data_dir / 'analysis-draft.json'

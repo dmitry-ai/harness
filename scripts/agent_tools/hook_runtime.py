@@ -15,16 +15,21 @@ _FENCE_RE = re.compile('^(`{3,}|~{3,})')
 _WF_BOLD_BULLET_RE = re.compile('^[-*]\\s+\\*\\*[^*]+\\*\\*')
 _WF_BOLD_SENT_RE = re.compile('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]{3,}[.!?]\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{2,}\\s+\\S+.*[.!?]\\s*$')
 _WF_PROSE_SENT_RE = re.compile('(?:[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z0-9\\u00ab\\u00bb"(),:-]+\\s+){3,}[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z]{3,}[.!?]\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{2,}\\s+[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z0-9]+\\s+[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451A-Za-z0-9]+')
+# @used-by :func:`_scan_hook_line()`
+# @used-by :func:`_scan_workflow_line()`
 def _clean_doc4_line(text: str, *, ignore_case: bool) -> str:
 	cleaned = re.sub('`[^`]*`', 'code', text)
 	cleaned = re.sub('\\[([^\\]]+)\\]\\([^)]+\\)', '\\1', cleaned)
 	cleaned = re.sub('\\u00ab[^\\u00bb]*\\u00bb', '\u00abquote\u00bb', cleaned)
 	return re.sub(ABBREVIATIONS, 'abbr', cleaned, flags=re.IGNORECASE if ignore_case else 0)
+# @used-by :func:`scan_doc4_sentence_issues()`
 def _dispatch_doc4_line(mode: str, idx: int, line: str, stripped: str, lines: list[str], issues: list[str]) -> None:
 	if 'hook' == mode and (not stripped.startswith(('#', '|', '---', '===', '>'))):
 		_scan_hook_line(idx, line, stripped, lines, issues)
 	elif 'workflow' == mode and (not stripped.startswith(('#', '>', '|'))):
 		_scan_workflow_line(idx + 1, stripped, issues)
+# @used-by :func:`agent_tools.turn_routing.read_optional_transcript_rows()`
+# @used-by :func:`read_last_user_segment()`
 def _read_jsonl_dicts(path: Path) -> list[dict]:
 	rows: list[dict] = []
 	if path.is_file():
@@ -37,6 +42,7 @@ def _read_jsonl_dicts(path: Path) -> list[dict]:
 		except (OSError, ValueError):
 			rows = []
 	return rows
+# @used-by :func:`_dispatch_doc4_line()`
 def _scan_hook_line(idx: int, line: str, stripped: str, lines: list[str], issues: list[str]) -> None:
 	cleaned = _clean_doc4_line(line, ignore_case=True)
 	if MULTI_SENT_RE.search(cleaned):
@@ -45,12 +51,14 @@ def _scan_hook_line(idx: int, line: str, stripped: str, lines: list[str], issues
 		next_s = lines[idx + 1].strip()
 		if next_s and (not next_s.startswith(('#', '```', '~~~', '---', '===', '>', '|'))) and (not re.match('^(?:[-*+]|\\d+\\.)\\s+', next_s)) and (not (line.endswith('  ') or line.endswith('\\'))):
 			issues.append(f"DOC-4 Line {idx + 1}: run-on text without a CommonMark hard line break detected. The line continues to the next without a blank line or two trailing spaces ('  \\n').\nLine: {stripped[:70]}")
+# @used-by :func:`_dispatch_doc4_line()`
 def _scan_workflow_line(lineno: int, stripped: str, issues: list[str]) -> None:
 	cleaned = _clean_doc4_line(stripped, ignore_case=False)
 	if _WF_BOLD_BULLET_RE.match(stripped) and _WF_BOLD_SENT_RE.search(cleaned):
 		issues.append(f'DOC-4 violation on line {lineno}: multiple sentences on a single bullet line (place each sentence on its own line or use sub-bullets)')
 	elif _WF_PROSE_SENT_RE.search(cleaned):
 		issues.append(f'DOC-4 violation on line {lineno}: multiple sentences on a single line (place each sentence on its own line)')
+# @used-by :func:`read_last_user_segment()`
 def _slice_after_last_user(rows: list[dict], by_step_index: bool) -> tuple[int | None, list[dict]]:
 	if by_step_index:
 		steps = [row['step_index'] for row in rows if 'USER_INPUT' == row.get('type') and isinstance(row.get('step_index'), int)]
@@ -61,6 +69,7 @@ def _slice_after_last_user(rows: list[dict], by_step_index: bool) -> tuple[int |
 		last_ref = last_idx if 0 <= last_idx else None
 		seg = rows[last_idx + 1:]
 	return (last_ref, seg)
+# @used-by :func:`scan_doc4_sentence_issues()`
 def _update_fence(stripped: str, in_fence: bool, marker: str) -> tuple[bool, str, bool]:
 	m_fence = _FENCE_RE.match(stripped)
 	if not m_fence:
@@ -72,6 +81,11 @@ def _update_fence(stripped: str, in_fence: bool, marker: str) -> tuple[bool, str
 	else:
 		r = (in_fence, marker, True)
 	return r
+# @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
+# @used-by :func:`agent_tools.turn_routing._collect_turn_candidates()`
+# @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
+# @used-by :meth:`test_hook_unification.HookUnificationTests.test_iter_turn_state_files_skips_aux_files()`
+# @used-by :meth:`test_stop_gate_contract.StopGateContractTests.test_continuation_active_guards_against_unchanged_readiness_loops_but_allows_progress()`
 def iter_turn_state_files(turns_dir: Path, *, exclude_hyphen: bool=False) -> list[tuple[Path, dict]]:
 	items: list[tuple[Path, dict]] = []
 	if turns_dir.is_dir():
@@ -85,6 +99,9 @@ def iter_turn_state_files(turns_dir: Path, *, exclude_hyphen: bool=False) -> lis
 			if isinstance(data, dict):
 				items.append((tfile, data))
 	return items
+# @used-by :func:`agent_tools.gates.bulk_source_read._recent_segment_rows()`
+# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
+# @used-by :meth:`test_hook_unification.HookUnificationTests.test_read_last_user_segment_positional_and_by_step()`
 def read_last_user_segment(t_path: Path, *, prefer_full: bool=False, by_step_index: bool=False) -> tuple[list[dict], int | None, list[dict]]:
 	full_cand = t_path.parent / 'transcript_full.jsonl'
 	eff_path = full_cand if prefer_full and 'transcript.jsonl' == t_path.name and full_cand.is_file() else t_path
@@ -94,6 +111,10 @@ def read_last_user_segment(t_path: Path, *, prefer_full: bool=False, by_step_ind
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
+# @used-by :func:`check_markdown_slop.main()`
+# @used-by :func:`check_rules_and_server_gate.main()`
+# @used-by :func:`check_stop_gate.main()`
+# @used-by :meth:`test_hook_unification.HookUnificationTests.test_run_json_hook_dispatches_and_fails_open()`
 def run_json_hook(handler, *, stdin=None, stdout=None) -> dict:
 	in_stream = stdin if None is not stdin else sys.stdin
 	out_stream = stdout if None is not stdout else sys.stdout
@@ -106,6 +127,9 @@ def run_json_hook(handler, *, stdin=None, stdout=None) -> dict:
 		decision = {'decision': 'allow'}
 	out_stream.write(json.dumps(decision, ensure_ascii=False))
 	return decision
+# @used-by :func:`agent_tools.workflow.doc4_sentence_issues()`
+# @used-by :func:`check_markdown_slop.markdown_slop_issues()`
+# @used-by :meth:`test_hook_unification.HookUnificationTests.test_doc4_scanner_supports_hook_and_workflow_modes()`
 def scan_doc4_sentence_issues(text: str, *, mode: str='hook') -> list[str]:
 	from .statements import markdown_table_issues
 	issues: list[str] = []

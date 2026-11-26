@@ -14,8 +14,12 @@ for p in (SCRIPTS, TESTS):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
 HARNESS_PY = SCRIPTS / 'harness.py'
+# @used-by :meth:`ShadowReplayM3Tests.test_shadow_replay_cli_executes_downstream_pipeline_and_cleans_scratch()`
+# @used-by :meth:`ShadowReplayM3Tests.test_shadow_replay_detects_downstream_failure_and_cleans_scratch()`
 def _snapshot_tree(root: Path) -> dict[str, str]:
 	return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file()}
+# @used-by :meth:`ShadowReplayM3Tests.test_shadow_replay_cli_executes_downstream_pipeline_and_cleans_scratch()`
+# @used-by :meth:`ShadowReplayM3Tests.test_shadow_replay_detects_downstream_failure_and_cleans_scratch()`
 def _seed_pre_finalize_project(case: unittest.TestCase, base: Path) -> tuple[dict[str, str], Path, Path, Path, Path, str]:
 	from test_upwork_init_e2e import PARENT_CID, _iso_env, _run_cli, _run_turn1_init_and_review
 	home = base / 'home'
@@ -31,6 +35,7 @@ def _seed_pre_finalize_project(case: unittest.TestCase, base: Path) -> tuple[dic
 	proj, _tx, cand_md, _ev_bin, _req1, _reply1, _rows = _run_turn1_init_and_review(case, base, launcher, backend, env)
 	_run_cli(env, 'answer-prepare', str(proj), '--response-file', str(cand_md), '--conversation', PARENT_CID, '--platform', 'antigravity', '--consume-input', cwd=proj)
 	return (env, backend, launcher, proj, ws, PARENT_CID)
+# @used-by :meth:`ShadowReplayM3Tests.test_shadow_replay_cli_executes_downstream_pipeline_and_cleans_scratch()`
 def _plant_shadowing_and_orphan_states(launcher: Path, proj: Path, cid: str) -> None:
 	stale_daily = proj / '\ua616/data/turns/0000000000000000000000000000000000000001.json'
 	stale_daily.write_text(json.dumps({'key': '0000000000000000000000000000000000000001', 'conversation_id': cid, 'native_turn_id': f'ag-{cid}-legacy', 'native_start_step': 0, 'status': 'open', 'project_root': str(proj), 'journal': str(proj / '\ua66e'), 'requests': [{'native_step': 0, 'text': 'stale'}, {'native_step': 2, 'text': 'stale2'}]}), encoding='utf-8')
@@ -40,6 +45,7 @@ def _plant_shadowing_and_orphan_states(launcher: Path, proj: Path, cid: str) -> 
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
 class ShadowReplayM3Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_exec2_rules_and_readme_document_shadow_replay_gate(self) -> None:
 		from agent_tools import links
 		from agent_tools.cli_registry import registered_commands
@@ -57,6 +63,7 @@ class ShadowReplayM3Tests(unittest.TestCase):
 		for tok in ('shadow-replay', '\ua616/data/scratch/shadow-replay', 'FILE-6', 'stages_verified'):
 			self.assertIn(tok, skill_text)
 		self.assertIn('shadow-replay', readme_doc.read_text(encoding='utf-8'))
+	# @used-by :mod:`unittest`
 	def test_shadow_replay_cli_executes_downstream_pipeline_and_cleans_scratch(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp)
@@ -82,6 +89,7 @@ class ShadowReplayM3Tests(unittest.TestCase):
 			self.assertEqual(list((ws / '\ua616/data/turns').glob('*')), [])
 			self.assertEqual(_snapshot_tree(proj), proj_before)
 			self.assertEqual(_snapshot_tree(launcher), launcher_before)
+	# @used-by :mod:`unittest`
 	def test_shadow_replay_detects_downstream_failure_and_cleans_scratch(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp)

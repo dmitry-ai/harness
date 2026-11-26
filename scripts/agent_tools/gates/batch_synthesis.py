@@ -12,6 +12,7 @@ PRIORITY = 60
 TOOLS = frozenset({'run_command', 'write_file', 'edit_file'})
 _ANALYSIS_RE = re.compile('analysis' + '\\.md', re.I)
 _WRITE_CALL_RE = re.compile('\\b(?:write_' + 'text|write_' + 'bytes|open\\s*\\()\\b')
+# @used-by :func:`agent_tools.gates._load_builtin_entry()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	r = None
 	if name in ('write_file', 'edit_file'):

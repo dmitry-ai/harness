@@ -109,10 +109,13 @@ def _link_unique_or_typed_attr(node: ast.Attribute, attr: str, finfo: dict, cls_
 		cands = repo_index['methods_by_name'].get(attr, ())
 		if 1 == len(cands):
 			_add_edge(used_by, cands[0], caller[0], caller[1])
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
 # @used-by :func:`_collect_local_bindings()`
 def _record_assign_type(stmt: ast.Assign, finfo: dict, local_imports: dict[str, str], repo_index: dict, var_types: dict[str, str]) -> None:
 	if isinstance(stmt.value, ast.Call):
-		cname = _resolve_class_key(_expr_dotted(stmt.value.func), finfo, local_imports, repo_index)
+		cname = _resolve_call_class(stmt.value, finfo, local_imports, repo_index)
 		if cname:
 			for tgt in stmt.targets:
 				if isinstance(tgt, ast.Name):
@@ -129,21 +132,27 @@ def _record_attr_ref(node: ast.Attribute, finfo: dict, cls_qn: str | None, local
 		if None is not hit:
 			_add_edge(used_by, hit, caller[0], caller[1])
 		elif isinstance(node.value, ast.Call):
-			ckey = _resolve_class_key(_expr_dotted(node.value.func), finfo, local_imports, repo_index)
+			ckey = _resolve_call_class(node.value, finfo, local_imports, repo_index)
 			if ckey:
 				_link_class_member(ckey, attr, repo_index, caller, used_by)
 		else:
 			_link_unique_or_typed_attr(node, attr, finfo, cls_qn, var_types, repo_index, caller, used_by)
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
 # @used-by :func:`_scan_scope_nodes()`
-def _record_name_or_call_ref(node: ast.AST, finfo: dict, local_imports: dict[str, str], repo_index: dict, caller: tuple[str, str], used_by: dict[str, set[tuple[str, str]]]) -> None:
+def _record_name_or_call_ref(node: ast.AST, finfo: dict, cls_qn: str | None, local_imports: dict[str, str], repo_index: dict, caller: tuple[str, str], used_by: dict[str, set[tuple[str, str]]]) -> None:
 	if isinstance(node, ast.Name):
 		hit = _resolve_dotted_symbol(node.id, finfo, local_imports, {}, repo_index)
 		if None is not hit:
 			_add_edge(used_by, hit, caller[0], caller[1])
 	elif isinstance(node, ast.Call):
-		ckey = _resolve_class_key(_expr_dotted(node.func), finfo, local_imports, repo_index)
-		if ckey:
-			_link_class_member(ckey, '__init__', repo_index, caller, used_by)
+		if isinstance(node.func, ast.Name) and 'cls' == node.func.id and None is not cls_qn:
+			_link_class_member(f"{finfo['module']}.{cls_qn}", '__init__', repo_index, caller, used_by)
+		else:
+			ckey = _resolve_class_key(_expr_dotted(node.func), finfo, local_imports, repo_index)
+			if ckey:
+				_link_class_member(ckey, '__init__', repo_index, caller, used_by)
 	elif isinstance(node, (ast.With, ast.AsyncWith)):
 		_record_with_ref(node, finfo, local_imports, repo_index, caller, used_by)
 # @used-by :func:`_record_name_or_call_ref()`
@@ -192,14 +201,30 @@ def _record_all_exports(stmt: ast.Assign, finfo: dict, repo_index: dict, caller:
 				hit = _resolve_dotted_symbol(elt.value, finfo, finfo['imports'], {}, repo_index)
 				if None is not hit:
 					_add_edge(used_by, hit, caller[0], caller[1])
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
+# @used-by :func:`_record_assign_type()`
+# @used-by :func:`_record_attr_ref()`
+def _resolve_call_class(call_node: ast.Call, finfo: dict, local_imports: dict[str, str], repo_index: dict) -> str | None:
+	dotted = _expr_dotted(call_node.func)
+	r = _resolve_class_key(dotted, finfo, local_imports, repo_index)
+	if None is r:
+		sym_key = _resolve_dotted_symbol(dotted, finfo, local_imports, {}, repo_index)
+		sym = repo_index['symbols'].get(sym_key) if sym_key else None
+		ret_node = sym['node'].returns if sym and hasattr(sym.get('node'), 'returns') else None
+		if None is not ret_node:
+			sf = repo_index['files'].get(sym['rel_path'])
+			if None is not sf:
+				r = _resolve_class_key(_expr_dotted(ret_node), sf, sf['imports'], repo_index)
+	return r
 # @used-by :func:`_collect_local_bindings()`
 # @used-by :func:`_link_class_member()`
 # @used-by :func:`_link_super_member()`
 # @used-by :func:`_link_unique_or_typed_attr()`
-# @used-by :func:`_record_assign_type()`
-# @used-by :func:`_record_attr_ref()`
 # @used-by :func:`_record_name_or_call_ref()`
 # @used-by :func:`_record_with_ref()`
+# @used-by :func:`_resolve_call_class()`
 def _resolve_class_key(dotted: str, finfo: dict, local_imports: dict[str, str], repo_index: dict) -> str | None:
 	r: str | None = None
 	if dotted:
@@ -218,6 +243,7 @@ def _resolve_class_key(dotted: str, finfo: dict, local_imports: dict[str, str], 
 # @used-by :func:`_record_all_exports()`
 # @used-by :func:`_record_attr_ref()`
 # @used-by :func:`_record_name_or_call_ref()`
+# @used-by :func:`_resolve_call_class()`
 def _resolve_dotted_symbol(dotted: str, finfo: dict, local_imports: dict[str, str], var_types: dict[str, str], repo_index: dict) -> str | None:
 	r: str | None = None
 	if dotted:
@@ -268,7 +294,7 @@ def _scan_scope_nodes(root_node: ast.AST, finfo: dict, cls_qn: str | None, repo_
 		if isinstance(node, ast.Attribute):
 			_record_attr_ref(node, finfo, cls_qn, local_imports, var_types, repo_index, caller, used_by)
 		elif isinstance(node, (ast.Name, ast.Call, ast.With, ast.AsyncWith)):
-			_record_name_or_call_ref(node, finfo, local_imports, repo_index, caller, used_by)
+			_record_name_or_call_ref(node, finfo, cls_qn, local_imports, repo_index, caller, used_by)
 # @used-by :func:`agent_tools.xref.python_sync.check_python_repo()`
 # @used-by :func:`agent_tools.xref.python_sync.sync_python_repo()`
 def build_python_call_graph(repo_index: dict) -> dict[str, set[tuple[str, str]]]:

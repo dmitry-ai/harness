@@ -16,19 +16,26 @@ for p in (SCRIPTS, TESTS):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
 HARNESS_PY = SCRIPTS / 'harness.py'
+# @used-by :func:`_run_init()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
+# @used-by :func:`_run_init()`
 def _write_capture(base: Path, job_id: str='~022124567641351805598') -> Path:
 	from test_onboarding import source
 	cap = base / 'capture/source.json'
 	cap.parent.mkdir(parents=True, exist_ok=True)
 	cap.write_text(json.dumps({**source(job_id), 'url': f'https://upwork.com/jobs/{job_id}'}, ensure_ascii=False), encoding='utf-8')
 	return cap
+# @used-by :meth:`ProjectLabelValidationTests.test_init_cli_domain_records_domain_label_kind()`
+# @used-by :meth:`ProjectLabelValidationTests.test_init_cli_legacy_topic_via_domain_warns_and_marks_provisional()`
+# @used-by :meth:`ProjectLabelValidationTests.test_init_cli_rejects_kebab_slug_and_bad_domain_with_exit_2()`
+# @used-by :meth:`ProjectLabelValidationTests.test_init_cli_topic_records_provisional_topic_label_kind()`
 def _run_init(base: Path, *extra: str) -> subprocess.CompletedProcess:
 	cap = _write_capture(base)
 	env = _iso_env(base / 'home')
 	return subprocess.run([sys.executable, str(HARNESS_PY), 'init', '~022124567641351805598', '--from-json', str(cap), '--date', '2026-11-23', '--daily-root', str(base / 'daily'), '--no-register', *extra], cwd=str(base), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=60, check=False)
 class ProjectLabelValidationTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_init_cli_domain_records_domain_label_kind(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -41,6 +48,7 @@ class ProjectLabelValidationTests(unittest.TestCase):
 			self.assertEqual('domain', state.get('label_kind'))
 			self.assertEqual('blueskypeptide.com', state.get('label'))
 			self.assertNotIn('label_warning', out)
+	# @used-by :mod:`unittest`
 	def test_init_cli_legacy_topic_via_domain_warns_and_marks_provisional(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -52,6 +60,7 @@ class ProjectLabelValidationTests(unittest.TestCase):
 			self.assertEqual('provisional_topic', state.get('label_kind'))
 			self.assertEqual('Topic', state.get('label'))
 			self.assertTrue(out.get('label_warning'))
+	# @used-by :mod:`unittest`
 	def test_init_cli_rejects_kebab_slug_and_bad_domain_with_exit_2(self) -> None:
 		bad_cases = (
 			('--domain', 'magento-nextjs-ga4-reporting'),
@@ -67,6 +76,7 @@ class ProjectLabelValidationTests(unittest.TestCase):
 				proc = _run_init(base, *flags)
 				self.assertEqual(2, proc.returncode, f'Expected exit 2 for {flags}, got {proc.returncode}: {proc.stdout}\n{proc.stderr}')
 				self.assertFalse((base / 'daily').exists())
+	# @used-by :mod:`unittest`
 	def test_init_cli_topic_records_provisional_topic_label_kind(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -78,6 +88,7 @@ class ProjectLabelValidationTests(unittest.TestCase):
 			state = json.loads((proj / '\ua616/project.json').read_text(encoding='utf-8'))
 			self.assertEqual('provisional_topic', state.get('label_kind'))
 			self.assertEqual('Magento & GA4', state.get('label'))
+	# @used-by :mod:`unittest`
 	def test_validate_label_and_helpers_enforce_slug_and_domain_rules(self) -> None:
 		from agent_tools import upwork_project as up
 		from agent_tools.project_labels import LabelValidationError, is_kebab_slug, is_valid_domain_label, resolve_init_label

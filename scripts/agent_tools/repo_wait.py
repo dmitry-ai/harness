@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
+from typing import override
 import sqlite3
 import time
 from .git_gate import GitRepoGate
@@ -11,13 +12,22 @@ from .path_registry import project_paths
 DEFAULT_WAIT_POLL_SECONDS = 1.0
 DEFAULT_WAIT_TIMEOUT_SECONDS = 180.0
 class RetryableOperationError(RuntimeError):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :func:`_sleep_or_raise_transient()`
+	# @used-by :func:`_wait_active_repo_leases()`
+	# @see :meth:`RuntimeError.__init__()`
+	@override
 	def __init__(self, message: str) -> None:
 		super().__init__(message)
 		self.retryable = True
+# @used-by :func:`_probe_repo_state()`
 def _dirty_files(repo: Path) -> list[str]:
 	proc = GitRepoGate(repo).run_read(['status', '--porcelain', '-z'], check=False)
 	raw = proc.stdout.decode('utf-8', errors='replace') if 0 == proc.returncode else ''
 	return _parse_porcelain_z(raw)
+# @used-by :func:`is_transient_contention_error()`
 def _has_active_workspace_lease(root: Path | None) -> bool:
 	r = False
 	if None is not root:
@@ -26,17 +36,20 @@ def _has_active_workspace_lease(root: Path | None) -> bool:
 				r = True
 				break
 	return r
+# @used-by :func:`wait_for_repo()`
 def _probe_repo_state(main_repo: Path, *, require_clean: bool, require_lease_free: bool, leases_dir: Path | None) -> dict[str, Any]:
 	st = lease_status(main_repo, leases_dir=leases_dir)
 	dirty = _dirty_files(main_repo) if require_clean else []
 	is_clean, is_free = (not dirty, bool(st.get('free')))
 	ready = (is_clean or (not require_clean)) and (is_free or (not require_lease_free))
 	return {'ready': ready, 'clean': is_clean, 'lease_free': is_free, 'dirty_files': dirty, 'holder': st.get('holder'), 'queue_length': len(st.get('queue') or [])}
+# @used-by :func:`run_with_transient_wait()`
 def _sleep_or_raise_transient(exc: BaseException, deadline: float, poll_interval: float) -> None:
 	rem = deadline - time.monotonic()
 	if 0.0 >= rem:
 		raise RetryableOperationError(str(exc)) from exc
 	time.sleep(min(max(0.01, float(poll_interval)), rem))
+# @used-by :func:`run_with_transient_wait()`
 def _wait_active_repo_leases(root: Path, deadline: float, poll_interval: float) -> None:
 	for cr in _workspace_code_repos(root):
 		if lease_status(cr)['free']:
@@ -47,6 +60,8 @@ def _wait_active_repo_leases(root: Path, deadline: float, poll_interval: float) 
 		res = wait_for_repo(cr, lease_free=True, timeout=rem, poll_interval=poll_interval)
 		if not res['ready']:
 			raise RetryableOperationError(f'Timed out waiting for active landing lease on {cr.as_posix()}')
+# @used-by :func:`_has_active_workspace_lease()`
+# @used-by :func:`_wait_active_repo_leases()`
 def _workspace_code_repos(root: Path) -> list[Path]:
 	repos: list[Path] = []
 	try:
@@ -58,6 +73,8 @@ def _workspace_code_repos(root: Path) -> list[Path]:
 		if (resolved / '.git').exists() and resolved not in repos:
 			repos.append(resolved)
 	return repos
+# @used-by :func:`agent_tools.cli_common.operation_error_payload()`
+# @used-by :func:`run_with_transient_wait()`
 def is_transient_contention_error(exc: BaseException, root: Path | None=None) -> bool:
 	msg = str(exc).lower()
 	if bool(getattr(exc, 'retryable', False)):
@@ -73,6 +90,7 @@ def is_transient_contention_error(exc: BaseException, root: Path | None=None) ->
 	else:
 		r = False
 	return r
+# @used-by :func:`agent_tools.completion.prepare()`
 def run_with_transient_wait(root: Path, fn: Callable[[], dict[str, Any]], *, wait_timeout: float=0.0, poll_interval: float=DEFAULT_WAIT_POLL_SECONDS) -> dict[str, Any]:
 	started = time.monotonic()
 	budget = max(0.0, float(wait_timeout))
@@ -96,6 +114,9 @@ def run_with_transient_wait(root: Path, fn: Callable[[], dict[str, Any]], *, wai
 # 2026-11-24
 # "Add deterministic reactive wait primitive for transient repository and journal contention":
 # https://github.com/dmitry-ai/harness/issues/199
+# @used-by :func:`_wait_active_repo_leases()`
+# @used-by :func:`agent_tools.cli_registry._exec_wait_repo()`
+# @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_wait_repo_reacts_to_lease_release_dead_pid_and_clean_tree()`
 def wait_for_repo(repo: Path | str, *, clean: bool=False, lease_free: bool=False, timeout: float=DEFAULT_WAIT_TIMEOUT_SECONDS, poll_interval: float=DEFAULT_WAIT_POLL_SECONDS, leases_dir: Path | None=None) -> dict[str, Any]:
 	resolved = Path(repo).resolve()
 	main_repo = GitRepoGate(resolved).main_repo() if (resolved / '.git').exists() else resolved

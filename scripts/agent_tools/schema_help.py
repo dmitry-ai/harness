@@ -24,6 +24,7 @@ _CLAIM_HINTS = {
 _CLAIM_PREFIXES = ('analysis.', 'argument.', 'claim.', 'documentation.', 'evidence.', 'fact.', 'hypothesis.', 'method.', 'primary.', 'red_flag', 'source.', 'website')
 _EXPERIMENT_HINT = 'Hint: run "harness.py schema-help experiment" for required fields, valid property/method pairs, and assertion locators.'
 _REVIEW_HINT = 'Hint: run "harness.py schema-help review" for review_mode (falsifier vs standard), claim_targets, and schema_version 2 fields.'
+# @used-by :func:`schema_help_payload()`
 def _analysis_payload() -> dict:
 	from .claims import KINDS, PROPERTIES, SECTIONS, STATUSES
 	return {
@@ -36,6 +37,7 @@ def _analysis_payload() -> dict:
 		'common_pitfalls': ['Never put inline source/quote inside for/against when referencing claim_id or evidence_id.', 'Unverified hypotheses with empty against cannot exceed probability_percent 75.', 'Use save-analysis --merge --partial to validate and stage sections incrementally into \ua616/data/analysis-draft.json.'],
 		'minimal_example': {'schema_version': 3, 'facts': [], 'identity': [{'id': 'F-ID', 'essence': 'Verbatim intake fact.', 'assessment_basis': 'Saved intake.', 'knowledge_type': 'client_report', 'verification_status': 'verified', 'scope': {'description': 'Intake only.', 'sample': ['Evidence/intake.json'], 'limitations': ['No admin access.']}, 'properties': ['content'], 'derived_from': [], 'evidence': [{'id': 'E-1', 'kind': 'intake', 'source': 'Evidence/intake.json', 'manifest': 'Evidence/intake.json', 'source_sha256': '<64-hex>', 'quote': 'Verbatim intake fact.', 'locator': {'type': 'json_pointer', 'value': '/title'}}], 'missing_checks': [], 'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive', 'impact': {'severity': 'unknown', 'basis': 'Not measured.', 'evidence_claim_ids': []}, 'probability_percent': 100, 'addresses': [], 'for': [{'argument': 'Exact quote.', 'evidence_id': 'E-1'}], 'against': [], 'counterevidence': {'status': 'not_found', 'reviewed_sources': ['Evidence/intake.json'], 'limitations': 'Intake only.'}}], 'concerns': [], 'misconceptions': [], 'causes': [], 'methods': [], 'notes': {'concerns': 'Explain empty section.'}, 'websites': [{'role': 'client', 'url': None, 'basis_id': 'F-ID'}], 'red_flags': []},
 	}
+# @used-by :func:`requirement_assertion_issues()`
 def _check_one_assertion(label: str, item, seen_ids: set[str], operators: tuple[str, ...], issues: list[str]) -> None:
 	if not isinstance(item, dict):
 		issues.append(label + ': deterministic assertion object required')
@@ -53,6 +55,7 @@ def _check_one_assertion(label: str, item, seen_ids: set[str], operators: tuple[
 			issues.append(label + ': assertion needs an exact JSON pointer or text locator')
 		if not (_valid_comparison(item, operators) and _valid_comparison(item.get('disconfirming'), operators)):
 			issues.append(label + ': explicit positive and disconfirming deterministic comparisons required')
+# @used-by :func:`schema_help_payload()`
 def _experiment_payload() -> dict:
 	from .experiments import METHODS, OPERATORS, PROPERTY_METHODS, STATUSES
 	return {
@@ -65,6 +68,7 @@ def _experiment_payload() -> dict:
 		'common_pitfalls': ['property must be supported by the chosen method in property_methods.', 'Every assertion requires exactly one of artifact_id or artifact_role and both positive and disconfirming comparisons.', 'json_pointer locator values must be empty or start with "/".'],
 		'minimal_example': {'id': 'EXP-1', 'claim': 'Target page exposes Product JSON-LD.', 'property': 'markup', 'method': 'http', 'scope': {'objects': ['https://example.com/product']}, 'conditions': {'session': {'mode': 'unknown'}}, 'expected': 'JSON-LD script contains Product type.', 'falsification': 'No Product type appears in fetched HTML.', 'discriminating_test': 'Inspect extracted JSON-LD @type.', 'completion_criterion': 'Saved HTTP observation inspected.', 'alternatives': ['Markup injected only after client JS.'], 'assertions': [{'id': 'A-1', 'artifact_id': 'page_html', 'locator': {'type': 'text', 'value': 'Product'}, 'operator': 'contains', 'expected': 'Product', 'disconfirming': {'operator': 'equals', 'expected': ''}}]},
 	}
+# @used-by :func:`schema_help_payload()`
 def _review_payload() -> dict:
 	from .review import REPORT_CONTRACT, REVIEW_SCHEMA, SCOPES, TASK_FLAGS
 	return {
@@ -78,23 +82,30 @@ def _review_payload() -> dict:
 		'minimal_example': {'schema_version': REVIEW_SCHEMA, 'review_mode': 'falsifier', 'package': '<package-rel-path>', 'package_sha256': '<64-hex>', 'scope': list(SCOPES), 'result': 'approved', 'disproved_claims': [], 'findings': []},
 		'report_contract': dict(REPORT_CONTRACT),
 	}
+# @used-by :func:`_check_one_assertion()`
 def _valid_assertion_locator(loc) -> bool:
 	r = False
 	if isinstance(loc, dict) and loc.get('type') in ('json_pointer', 'text') and isinstance(loc.get('value'), str):
 		r = ('json_pointer' != loc.get('type')) or (not loc['value']) or loc['value'].startswith('/')
 	return r
+# @used-by :func:`_check_one_assertion()`
 def _valid_comparison(cmp_obj, operators: tuple[str, ...]) -> bool:
 	return isinstance(cmp_obj, dict) and cmp_obj.get('operator') in operators and ('expected' in cmp_obj) and (not isinstance(cmp_obj.get('expected'), (dict, list)))
+# @used-by :func:`agent_tools.experiments.requirement_issues()`
 def annotate_experiment_issues(issues: list[str]) -> list[str]:
 	return [msg if 'schema-help experiment' in msg else f'{msg} ({_EXPERIMENT_HINT})' for msg in issues]
+# @used-by :meth:`agent_tools.review.ReviewReportValidator.validate()`
 def annotate_review_issues(issues: list[str]) -> list[str]:
 	return [msg if 'schema-help review' in msg else f'{msg} ({_REVIEW_HINT})' for msg in issues]
+# @used-by :func:`agent_tools.diagnostics.problem()`
 def claim_error_hint(code: str) -> str | None:
 	c = str(code or '')
 	r = _CLAIM_HINTS.get(c)
 	if None is r and c.startswith(_CLAIM_PREFIXES):
 		r = 'Run: harness.py schema-help analysis.'
 	return r
+# @used-by :func:`agent_tools.cli_registry._format_schema_help()`
+# @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_schema_help_command_returns_contract_for_all_topics()`
 def format_schema_help_text(res: dict) -> str:
 	lines = [f"Schema Help: {res['topic']} (schema_version: {res['schema_version']})", 'Commands:']
 	lines.extend((f'  - {cmd}' for cmd in res.get('commands') or ()))
@@ -105,6 +116,7 @@ def format_schema_help_text(res: dict) -> str:
 	lines.append('Minimal example:')
 	lines.append(json.dumps(res.get('minimal_example') or {}, ensure_ascii=False, indent='\t'))
 	return '\n'.join(lines) + '\n'
+# @used-by :func:`agent_tools.experiments.requirement_issues()`
 def requirement_assertion_issues(label: str, requirement: dict, operators: tuple[str, ...]) -> list[str]:
 	issues: list[str] = []
 	assertions = requirement.get('assertions', [])
@@ -115,6 +127,7 @@ def requirement_assertion_issues(label: str, requirement: dict, operators: tuple
 		for item in assertions:
 			_check_one_assertion(label, item, seen_ids, operators, issues)
 	return issues
+# @used-by :func:`agent_tools.cli_registry._exec_schema_help()`
 def schema_help_payload(topic: str) -> dict:
 	key = str(topic or '').strip().lower()
 	builders = {'analysis': _analysis_payload, 'experiment': _experiment_payload, 'review': _review_payload}

@@ -6,6 +6,9 @@ from .formatting import posix_path
 import json
 import tempfile
 _PROJECTS_DIR_CACHE: dict[tuple[str, int], list[dict[str, Any]]] = {}
+# @used-by :func:`resolve_project_identity()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _antigravity_project_dirs(ag_paths: dict[str, Any] | None=None, *, canon_root: Path | None=None) -> list[Path]:
 	dirs: list[Path] = []
 	seen: set[str] = set()
@@ -19,6 +22,9 @@ def _antigravity_project_dirs(ag_paths: dict[str, Any] | None=None, *, canon_roo
 		except Exception:
 			pass
 	return dirs
+# @used-by :func:`_antigravity_project_dirs()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _is_temp_path(path: Path) -> bool:
 	try:
 		tmp_root = Path(tempfile.gettempdir()).resolve()
@@ -26,6 +32,9 @@ def _is_temp_path(path: Path) -> bool:
 	except OSError:
 		r = False
 	return r
+# @used-by :func:`_lookup_name_from_project_dirs()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _load_projects_dir_items(pdir: Path) -> list[dict[str, Any]]:
 	try:
 		mtime_ns = pdir.stat().st_mtime_ns
@@ -44,6 +53,7 @@ def _load_projects_dir_items(pdir: Path) -> list[dict[str, Any]]:
 			_PROJECTS_DIR_CACHE[cache_key] = items
 			r = items
 	return r
+# @used-by :func:`resolve_project_identity()`
 def _lookup_name_by_project_id(pdirs: list[Path], canon: Path, project_id: str | None) -> str | None:
 	from ..platforms.antigravity import _project_item_matches_root
 	r: str | None = None
@@ -58,6 +68,7 @@ def _lookup_name_by_project_id(pdirs: list[Path], canon: Path, project_id: str |
 					r = data['name'].strip()
 					break
 	return r
+# @used-by :func:`resolve_project_identity()`
 def _lookup_name_from_project_dirs(pdirs: list[Path], canon: Path) -> str | None:
 	from ..platforms.antigravity import _project_item_matches_root
 	r: str | None = None
@@ -72,6 +83,7 @@ def _lookup_name_from_project_dirs(pdirs: list[Path], canon: Path) -> str | None
 			if None is relocated:
 				relocated = raw_name.strip()
 	return r if None is not r else relocated
+# @used-by :func:`resolve_project_identity()`
 def _lookup_name_from_project_json(canon: Path) -> str | None:
 	from ..path_registry import project_paths
 	r: str | None = None
@@ -87,6 +99,7 @@ def _lookup_name_from_project_json(canon: Path) -> str | None:
 				r = val.strip()
 				break
 	return r
+# @used-by :func:`_antigravity_project_dirs()`
 def _push_project_dir(dirs: list[Path], seen: set[str], p_val: str | Path | None) -> None:
 	if p_val:
 		p = Path(p_val)
@@ -96,6 +109,9 @@ def _push_project_dir(dirs: list[Path], seen: set[str], p_val: str | Path | None
 			if key not in seen:
 				seen.add(key)
 				dirs.append(resolved)
+# @used-by :func:`_load_projects_dir_items()`
+# @used-by :func:`_lookup_name_by_project_id()`
+# @used-by :func:`_lookup_name_from_project_json()`
 def _read_json_dict(path: Path) -> dict[str, Any] | None:
 	try:
 		data = json.loads(path.read_text(encoding='utf-8-sig'))
@@ -103,6 +119,9 @@ def _read_json_dict(path: Path) -> dict[str, Any] | None:
 	except (OSError, ValueError):
 		r = None
 	return r
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _resolve_ag_paths_safe(backend=None, *, instance=None, conversation_id=None) -> dict[str, Any] | None:
 	try:
 		from ..runtime import resolve_antigravity_paths, settings
@@ -110,6 +129,9 @@ def _resolve_ag_paths_safe(backend=None, *, instance=None, conversation_id=None)
 	except Exception:
 		r = None
 	return r
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _resolve_codex_paths_safe(backend=None, *, instance=None, conversation_id=None) -> dict[str, Any] | None:
 	try:
 		from ..runtime import platform_settings, resolve_codex_paths
@@ -120,6 +142,11 @@ def _resolve_codex_paths_safe(backend=None, *, instance=None, conversation_id=No
 # 2026-11-24
 # "Decompose metadata.py into modular metadata collection package":
 # https://github.com/dmitry-ai/harness/issues/170
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_resolve_project_identity_skips_user_registry_for_isolated_temp_dir()`
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_identity_submodule_resolves_registry_project_json_and_fallback()`
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def resolve_project_identity(root: str | Path, *, ag_paths: dict[str, Any] | None=None, project_id: str | None=None) -> dict[str, str]:
 	from ..path_registry import canonicalize_root_dir
 	canon = canonicalize_root_dir(root)

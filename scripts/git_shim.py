@@ -17,6 +17,7 @@ _NET_SUBCOMMANDS = ('push', 'fetch', 'pull', 'clone', 'ls-remote', 'submodule')
 # 2026-11-02
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
+# @used-by :func:`prepare_git_invocation()`
 def _normalize_arg_token(token: str) -> str:
 	# 2026-11-19
 	# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
@@ -30,6 +31,7 @@ def _normalize_arg_token(token: str) -> str:
 # 2026-10-24
 # "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 # https://github.com/dmitry-ai/harness/issues/17
+# @used-by :func:`main()`
 def resolve_system_git() -> str:
 	r = None
 	explicit = os.environ.get('UPWORK_REAL_GIT')
@@ -68,6 +70,11 @@ def resolve_system_git() -> str:
 # 2026-10-24
 # "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 # https://github.com/dmitry-ai/harness/issues/17
+# @used-by :func:`main()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_read_git_and_git_shim_and_unflagged_detector()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
+# @used-by :mod:`git_shim`
 def prepare_git_invocation(argv: list[str], *, mode: str | None=None, cwd: Path | None=None) -> tuple[list[str], dict[str, str]]:
 	mode = (mode or os.environ.get('GIT_SHIM_MODE') or os.environ.get('UPWORK_GIT_SHIM_MODE') or 'inject').strip().lower()
 	effective = [_normalize_arg_token(tok) for tok in argv]
@@ -93,6 +100,7 @@ def prepare_git_invocation(argv: list[str], *, mode: str | None=None, cwd: Path 
 	r = (effective, env)
 	return r
 normalize_argv = prepare_git_invocation
+# @used-by :mod:`git_shim`
 def main(argv: list[str] | None=None) -> int:
 	args = list(sys.argv[1:] if None is argv else argv)
 	# 2026-10-31

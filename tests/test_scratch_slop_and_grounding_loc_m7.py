@@ -14,12 +14,15 @@ import check_markdown_slop
 # "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
 # https://github.com/dmitry-ai/harness/issues/214
 class ScratchSlopAndGroundingLocM7Tests(unittest.TestCase):
+	# @used-by :meth:`ScratchSlopAndGroundingLocM7Tests.test_non_scratch_md_reports_all_unique_grounding_issues_with_line_numbers_and_relpaths()`
+	# @used-by :meth:`ScratchSlopAndGroundingLocM7Tests.test_scratch_draft_defers_grounding_but_keeps_doc4_syntax_checks()`
 	def _make_project(self, root: Path) -> Path:
 		ev = root / '\ua616/KB/Evidence/HTTP/abc123/response.bin'
 		ev.parent.mkdir(parents=True, exist_ok=True)
 		ev.write_text('GTM-PPXJGN container payload without unrelated ids\n', encoding='utf-8')
 		(root / '\ua616/data/scratch').mkdir(parents=True, exist_ok=True)
 		return ev
+	# @used-by :mod:`unittest`
 	def test_scratch_draft_defers_grounding_but_keeps_doc4_syntax_checks(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -35,6 +38,7 @@ class ScratchSlopAndGroundingLocM7Tests(unittest.TestCase):
 			self.assertEqual(1, len(errs), errs)
 			self.assertIn('\ua616/KB/Evidence/HTTP/abc123/response.bin', errs[0])
 			self.assertIn('line 3', errs[0])
+	# @used-by :mod:`unittest`
 	def test_non_scratch_md_reports_all_unique_grounding_issues_with_line_numbers_and_relpaths(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()

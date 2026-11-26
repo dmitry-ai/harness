@@ -19,6 +19,7 @@ import check_markdown_slop
 # "Codify mandatory TDD workflow and ratchet contract in Harness documentation":
 # https://github.com/dmitry-ai/harness/issues/139
 class TddRulesAndDocumentationContractTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_rules_and_docs_codify_tdd_contract_and_pass_lint_checks(self) -> None:
 		rule_doc = HARNESS_ROOT / 'rules/08-execution-and-tools.md'
 		turn_doc = HARNESS_ROOT / 'references/turn-completion.md'
@@ -51,6 +52,7 @@ class TddRulesAndDocumentationContractTests(unittest.TestCase):
 		for token in ('ratchet-ok', 'tdd-check', 'RATCHET-OK', 'PreToolUse', 'pre-commit'):
 			self.assertIn(token, readme_text, f'Missing TDD documentation term {token!r} in scripts/README-agent-tools.md')
 
+	# @used-by :mod:`unittest`
 	def test_cli_help_and_doctor_expose_tdd_commands(self) -> None:
 		p_root = subprocess.run(
 			[sys.executable, str(SCRIPT_DIR / 'harness.py'), '--help'],
@@ -80,6 +82,7 @@ class TddRulesAndDocumentationContractTests(unittest.TestCase):
 	# 2026-11-23
 	# "Codify fail-fast defaults and prohibit schedule timers over run_command in rules and docs":
 	# https://github.com/dmitry-ai/harness/issues/164
+	# @used-by :mod:`unittest`
 	def test_failfast_defaults_and_schedule_prohibition_contract(self) -> None:
 		rule_text = (HARNESS_ROOT / 'rules/08-execution-and-tools.md').read_text(encoding='utf-8')
 		self.assertNotIn('or a `schedule` timer with `DurationSeconds`', rule_text)

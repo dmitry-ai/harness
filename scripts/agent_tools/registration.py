@@ -1,6 +1,7 @@
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
 from datetime import datetime, timezone
+from typing import override
 import json
 from pathlib import Path
 import uuid
@@ -16,11 +17,24 @@ from .storage import locked, replace_bytes
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class RegistrationConflict(ValueError):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :func:`validate_registration()`
+	# @see :meth:`ValueError.__init__()`
+	@override
 	def __init__(self, message, *, expected, actual, issues):
 		super().__init__(message)
 		self.expected, self.actual, self.issues = (expected, actual, issues)
+# @used-by :func:`_begin()`
+# @used-by :func:`save_registration()`
 def _now():
 	return datetime.now(timezone.utc).isoformat(timespec='microseconds')
+# @used-by :func:`register_project()`
+# @used-by :func:`register_projects()`
+# @used-by :func:`validate_registration()`
+# @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_codex_adapter_uses_fallback_and_rejects_wrong_native_name_without_rename()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.cx()`
 def _expected(project, label=None, day=None):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -36,6 +50,9 @@ def _expected(project, label=None, day=None):
 	label = label or root.name.split(' - ', 1)[-1]
 	r = (root, label, day.isoformat(), {'project_name': f'{label} - U.P.{day:%Y.%m.%d}', 'root_paths': [str(root)], 'folder_path': f'Upwork / Proposals / {day:%Y / %m / %d}'})
 	return r
+# @used-by :func:`_success()`
+# @used-by :func:`save_registration()`
+# @used-by :func:`validate_registration()`
 def _complete(result):
 	if False is result.get('complete'):
 		r = False
@@ -45,6 +62,8 @@ def _complete(result):
 		profile = result.get('profile')
 		r = bool(profile and result['profiles'].get(profile, {}).get('ready'))
 	return r
+# @used-by :func:`_attempt()`
+# @used-by :func:`agent_tools.platforms.codex.register()`
 def validate_registration(project, label, day, platform, result):
 	root, _, _, expected = _expected(project, label, day)
 	if not isinstance(result, dict):
@@ -89,6 +108,8 @@ def validate_registration(project, label, day, platform, result):
 	value['status'] = 'registered' if value['complete'] else block['status'] if block.get('status') in ('untrusted', 'blocked') else 'pending'
 	r = value
 	return r
+# @used-by :func:`_begin()`
+# @used-by :func:`save_registration()`
 def _read(root):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -100,8 +121,12 @@ def _read(root):
 		raise ValueError('Registrations must be a map of platform receipts')
 	r = (path, data)
 	return r
+# @used-by :func:`_begin()`
+# @used-by :func:`save_registration()`
 def _write(path, data):
 	replace_bytes(path, (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
+# @used-by :func:`_begin()`
+# @used-by :func:`save_registration()`
 def _success(previous):
 	if previous.get('last_success'):
 		r = deepcopy(previous['last_success'])
@@ -110,6 +135,7 @@ def _success(previous):
 	else:
 		r = {key: deepcopy(value) for key, value in previous.items() if key not in ('intent', 'attempt', 'attempts', 'attempt_history', 'last_success')}
 	return r
+# @used-by :func:`_attempt()`
 def _begin(root, platform, intent):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -131,6 +157,9 @@ def _begin(root, platform, intent):
 		_write(path, data)
 		r = deepcopy(entry)
 	return r
+# @used-by :func:`_attempt()`
+# @used-by :func:`agent_tools.upwork_project.save_registration()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_legacy_success_and_direct_save_keep_native_identity_after_failure()`
 def save_registration(root, platform, result):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -167,6 +196,8 @@ def save_registration(root, platform, result):
 		_write(path, data)
 		r = deepcopy(value)
 	return r
+# @used-by :func:`register_project()`
+# @used-by :func:`register_projects()`
 def _attempt(root, label, day, target, expected, registrar):
 	started = _begin(root, target, deepcopy(expected))
 	error = None
@@ -183,6 +214,9 @@ def _attempt(root, label, day, target, expected, registrar):
 	result.update(intent=started['intent'], attempt=started['attempt'])
 	r = (save_registration(root, target, result), error)
 	return r
+# @used-by :func:`agent_tools.upwork_project.register_project()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_single_adapter_entry_point_preserves_failure_semantics_and_receipt()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_single_success_only_calls_the_selected_adapter()`
 def register_project(project, label=None, day=None, *, platform=None):
 	active = platform_name(platform)
 	root, label, day, expected = _expected(project, label, day)
@@ -191,6 +225,21 @@ def register_project(project, label=None, day=None, *, platform=None):
 		raise error
 	r = result
 	return r
+# @used-by :func:`agent_tools.project_rename._sync_registrations()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`test_project_rename._assert_renamed_registrations()`
+# @used-by :func:`test_project_rename._seed_dual_antigravity()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.complete_stage()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.run_registration()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_intent_is_saved_before_native_call_and_interrupted_attempt_remains()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_pending_secondary_does_not_gate_active_and_pending_active_does()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_secondary_failure_keeps_current_ready_and_previous_success()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_shared_id_without_selected_profile_native_id_is_not_success()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_workflow_registration_status_exposes_all_targets_and_pending_targets()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.test_wrong_roots_or_folder_are_not_reported_as_registered()`
 def register_projects(project, label=None, day=None, *, platform=None, targets=None, registrars=None):
 	active, config = (platform_name(platform), settings())
 	# 2026-11-18

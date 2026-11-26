@@ -1,6 +1,7 @@
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
 from pathlib import Path
+from typing import override
 import hashlib
 import json
 import unittest
@@ -9,8 +10,53 @@ from agent_tools.analysis import analysis_issues, render_analysis, save_analysis
 from agent_tools.claims import all_claims, claim_index, claim_digest, contract_issues
 from agent_tools.evidence import evidence_issues
 from agent_tools.research import collect, Response
+# @used-by :func:`v3_analysis()`
+# @used-by :meth:`EvidenceContractTests.price_analysis()`
+# @used-by :meth:`EvidenceContractTests.test_misconception_hypothesis_requires_alternatives_and_discriminating_check()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.dependent_registry()`
 def claim_metadata(ident, *, knowledge_type='observation', status='verified'):
 	return {'id': ident, 'essence': 'The captured page contains the stated text.', 'assessment_basis': 'Exact saved bytes at this URL; no statement about UI execution.', 'knowledge_type': knowledge_type, 'verification_status': status, 'scope': {'description': 'One captured public page at the recorded time.', 'sample': ['https://example.org/source'], 'limitations': ['One sample; no admin access.']}, 'properties': ['content'], 'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive', 'derived_from': [], 'evidence': [], 'missing_checks': [] if 'verified' == status else ['Run the discriminating browser/admin check.'], 'impact': {'severity': 'unknown', 'basis': 'No business impact measured.', 'evidence_claim_ids': []}}
+# @used-by :meth:`ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
+# @used-by :meth:`ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
+# @used-by :meth:`EvidenceContractTests.price_analysis()`
+# @used-by :meth:`EvidenceContractTests.test_agent_site_hypothesis_in_intake_manifest_is_not_primary()`
+# @used-by :meth:`EvidenceContractTests.test_arbitrary_intake_receipt_cannot_promote_own_note_or_attachment()`
+# @used-by :meth:`EvidenceContractTests.test_causal_alternatives_and_recommendation_conditions_are_required()`
+# @used-by :meth:`EvidenceContractTests.test_claim_index_includes_facts_and_all_five_stages()`
+# @used-by :meth:`EvidenceContractTests.test_critical_severity_needs_impact_evidence()`
+# @used-by :meth:`EvidenceContractTests.test_dependency_change_and_cycle_are_reported()`
+# @used-by :meth:`EvidenceContractTests.test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected()`
+# @used-by :meth:`EvidenceContractTests.test_e3_network_error_classification_and_unverified_dns_claim_rejection()`
+# @used-by :meth:`EvidenceContractTests.test_e4_site_wide_schema_absence_requires_multi_page_or_product_template_sample()`
+# @used-by :meth:`EvidenceContractTests.test_e7_contradictory_evidence_reuse_in_against_and_intake_only_counterevidence_cap()`
+# @used-by :meth:`EvidenceContractTests.test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes()`
+# @used-by :meth:`EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
+# @used-by :meth:`EvidenceContractTests.test_explicit_text_locator_does_not_cover_another_part_of_page()`
+# @used-by :meth:`EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
+# @used-by :meth:`EvidenceContractTests.test_http_does_not_establish_click_currency_ip_or_admin()`
+# @used-by :meth:`EvidenceContractTests.test_limited_hypothesis_keeps_missing_browser_check_and_can_be_published()`
+# @used-by :meth:`EvidenceContractTests.test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract()`
+# @used-by :meth:`EvidenceContractTests.test_malformed_properties_and_dependency_keep_field_diagnostics_in_cli()`
+# @used-by :meth:`EvidenceContractTests.test_malformed_typed_metadata_returns_diagnostics()`
+# @used-by :meth:`EvidenceContractTests.test_misconception_hypothesis_requires_alternatives_and_discriminating_check()`
+# @used-by :meth:`EvidenceContractTests.test_missing_or_revised_primary_hash_is_rejected()`
+# @used-by :meth:`EvidenceContractTests.test_own_prya_kb_note_in_evidence_is_not_a_primary_observation()`
+# @used-by :meth:`EvidenceContractTests.test_primary_http_fact_accepts_and_renders_with_scope()`
+# @used-by :meth:`EvidenceContractTests.test_referenced_primary_cannot_be_replaced_with_an_own_kb_quote()`
+# @used-by :meth:`EvidenceContractTests.test_registered_intake_and_attachment_are_primary_but_quote_must_match_locator()`
+# @used-by :meth:`EvidenceContractTests.test_unavailable_result_is_valid_with_explicit_gap()`
+# @used-by :meth:`EvidenceContractTests.test_unverified_hypothesis_with_empty_against_caps_probability_at_75()`
+# @used-by :meth:`EvidenceContractTests.test_v3_documentation_requires_verified_anchor_or_genuine_no_anchor_section()`
+# @used-by :meth:`EvidenceContractTests.test_v3_save_checks_real_evidence_and_does_not_overwrite_invalid_candidate()`
+# @used-by :meth:`EvidenceContractTests.test_verified_observation_rejects_ungrounded_numbers_in_essence()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_new_analysis_cannot_finish_with_an_unpublished_website_card()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_website_and_red_flags_have_stable_order_and_preserve_manual_edits()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.valid_analysis()`
+# @used-by :meth:`test_red_flags.RedFlagTests.setUp()`
+# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.dependent_registry()`
+# @used-by :meth:`test_text_workflow.TextMapTests.test_limited_claim_rejects_lazy_conditional_qualification()`
+# @used-by :meth:`test_text_workflow.TextWorkspaceCase.registry()`
 def v3_analysis(project, legacy=None):
 	observation = collect(project, 'https://example.org/source', fetcher=lambda *args: Response(args[0], 200, 'text/plain', b'The concern\nAlternative\nOld price EUR53.95\nNew price EUR63.95\n'))
 	fact = claim_metadata('F-PRIMARY-1')
@@ -43,10 +89,17 @@ def v3_analysis(project, legacy=None):
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
 class ClaimGraphValidatorTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.project = self.root / 'project'
 		self.project.mkdir()
+	# @used-by :mod:`unittest`
 	def test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache(self):
 		from agent_tools.claims import ClaimGraphValidator
 		value = v3_analysis(self.project)
@@ -65,6 +118,7 @@ class ClaimGraphValidatorTests(TemporaryCase):
 		self.assertIn('F-PRIMARY-1', validator.inherited_memo)
 		self.assertIn('F-TOP', validator.inherited_memo)
 		self.assertIs(False, validator.http_dns_error_cached)
+	# @used-by :mod:`unittest`
 	def test_collect_claim_closure_and_save_registry_single_structural_pass(self):
 		from agent_tools.claims import collect_claim_closure
 		from agent_tools.text_claims import save_registry
@@ -89,12 +143,46 @@ class ClaimGraphValidatorTests(TemporaryCase):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class EvidenceContractTests(TemporaryCase):
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.project = self.root / 'project'
 		self.project.mkdir()
+	# @used-by :meth:`EvidenceContractTests.test_6395_relative_to_5395_is_185357_percent_not_20()`
+	# @used-by :meth:`EvidenceContractTests.test_agent_site_hypothesis_in_intake_manifest_is_not_primary()`
+	# @used-by :meth:`EvidenceContractTests.test_arbitrary_intake_receipt_cannot_promote_own_note_or_attachment()`
+	# @used-by :meth:`EvidenceContractTests.test_calculation_operand_must_match_its_own_primary_quote()`
+	# @used-by :meth:`EvidenceContractTests.test_calculation_requires_sourced_common_units_and_explicit_percent_result()`
+	# @used-by :meth:`EvidenceContractTests.test_causal_alternatives_and_recommendation_conditions_are_required()`
+	# @used-by :meth:`EvidenceContractTests.test_critical_severity_needs_impact_evidence()`
+	# @used-by :meth:`EvidenceContractTests.test_currency_cannot_be_borrowed_from_another_quantity()`
+	# @used-by :meth:`EvidenceContractTests.test_dependency_change_and_cycle_are_reported()`
+	# @used-by :meth:`EvidenceContractTests.test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected()`
+	# @used-by :meth:`EvidenceContractTests.test_e3_network_error_classification_and_unverified_dns_claim_rejection()`
+	# @used-by :meth:`EvidenceContractTests.test_e4_site_wide_schema_absence_requires_multi_page_or_product_template_sample()`
+	# @used-by :meth:`EvidenceContractTests.test_e7_contradictory_evidence_reuse_in_against_and_intake_only_counterevidence_cap()`
+	# @used-by :meth:`EvidenceContractTests.test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes()`
+	# @used-by :meth:`EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
+	# @used-by :meth:`EvidenceContractTests.test_explicit_text_locator_does_not_cover_another_part_of_page()`
+	# @used-by :meth:`EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
+	# @used-by :meth:`EvidenceContractTests.test_html_markup_cannot_hide_a_sign_between_spans()`
+	# @used-by :meth:`EvidenceContractTests.test_http_does_not_establish_click_currency_ip_or_admin()`
+	# @used-by :meth:`EvidenceContractTests.test_malformed_properties_and_dependency_keep_field_diagnostics_in_cli()`
+	# @used-by :meth:`EvidenceContractTests.test_misconception_hypothesis_requires_alternatives_and_discriminating_check()`
+	# @used-by :meth:`EvidenceContractTests.test_missing_or_revised_primary_hash_is_rejected()`
+	# @used-by :meth:`EvidenceContractTests.test_own_prya_kb_note_in_evidence_is_not_a_primary_observation()`
+	# @used-by :meth:`EvidenceContractTests.test_referenced_primary_cannot_be_replaced_with_an_own_kb_quote()`
+	# @used-by :meth:`EvidenceContractTests.test_registered_intake_and_attachment_are_primary_but_quote_must_match_locator()`
+	# @used-by :meth:`EvidenceContractTests.test_signed_quantity_cannot_be_replaced_with_its_positive_substring()`
+	# @used-by :meth:`EvidenceContractTests.test_unavailable_result_is_valid_with_explicit_gap()`
+	# @used-by :meth:`EvidenceContractTests.test_unverified_hypothesis_with_empty_against_caps_probability_at_75()`
+	# @used-by :meth:`EvidenceContractTests.test_v3_documentation_requires_verified_anchor_or_genuine_no_anchor_section()`
+	# @used-by :meth:`EvidenceContractTests.test_verified_observation_rejects_ungrounded_numbers_in_essence()`
 	def codes(self, issues):
 		return {issue['code'] for issue in issues}
+	# @used-by :mod:`unittest`
 	def test_primary_http_fact_accepts_and_renders_with_scope(self):
 		value = v3_analysis(self.project)
 		self.assertEqual(analysis_issues(value), [])
@@ -103,6 +191,7 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertIn('verified', rendered)
 		self.assertIn('One captured public page', rendered)
 		self.assertIn('E-PRIMARY-1', rendered)
+	# @used-by :mod:`unittest`
 	def test_legacy_is_readable_but_cannot_be_newly_saved_or_published(self):
 		from test_onboarding import analysis
 		value = analysis()
@@ -115,6 +204,7 @@ class EvidenceContractTests(TemporaryCase):
 		target.write_text(json.dumps(value), encoding='utf-8')
 		with self.assertRaisesRegex(ValueError, 'schema_version 3'):
 			publish_analysis(target)
+	# @used-by :mod:`unittest`
 	def test_v3_save_checks_real_evidence_and_does_not_overwrite_invalid_candidate(self):
 		value = v3_analysis(self.project)
 		result = save_analysis(self.project, value)
@@ -127,6 +217,7 @@ class EvidenceContractTests(TemporaryCase):
 			save_analysis(self.project, bad, result['sha256'])
 		self.assertEqual(target.read_bytes(), original)
 		self.assertEqual(publish_analysis(target)['status'], 'published')
+	# @used-by :mod:`unittest`
 	def test_own_prya_kb_note_in_evidence_is_not_a_primary_observation(self):
 		value = v3_analysis(self.project)
 		note = self.project / 'ꘖ/KB/Evidence/Website.md'
@@ -134,12 +225,14 @@ class EvidenceContractTests(TemporaryCase):
 		ref = value['facts'][0]['evidence'][0]
 		ref.update(source='Evidence/Website.md', kind='intake', manifest='Evidence/Website.md', source_sha256=hashlib.sha256(note.read_bytes()).hexdigest())
 		self.assertIn('primary.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_http_does_not_establish_click_currency_ip_or_admin(self):
 		for property_name in ('dom', 'interaction', 'currency_transition', 'ip_country', 'admin_configuration', 'serp', 'causality', 'business_impact'):
 			with self.subTest(property=property_name):
 				value = v3_analysis(self.project)
 				value['facts'][0]['properties'] = [property_name]
 				self.assertIn('claim.method_insufficient', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_limited_hypothesis_keeps_missing_browser_check_and_can_be_published(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -150,6 +243,7 @@ class EvidenceContractTests(TemporaryCase):
 		target = Path(save_analysis(self.project, value)['target'])
 		self.assertEqual(publish_analysis(target)['status'], 'published')
 		self.assertIn('Missing check', target.with_suffix('.md').read_text(encoding='utf-8'))
+	# @used-by :mod:`unittest`
 	def test_unavailable_result_is_valid_with_explicit_gap(self):
 		value = v3_analysis(self.project)
 		claim = value['facts'][0]
@@ -158,16 +252,19 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertEqual(evidence_issues(self.project, value), [])
 		claim['missing_checks'] = []
 		self.assertIn('claim.missing_checks', self.codes(analysis_issues(value)))
+	# @used-by :mod:`unittest`
 	def test_causal_alternatives_and_recommendation_conditions_are_required(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
 		value['causes'][0].pop('alternative_explanations')
 		value['methods'][0].pop('validation')
 		self.assertTrue({'claim.causal', 'claim.recommendation'} <= self.codes(analysis_issues(value)))
+	# @used-by :mod:`unittest`
 	def test_critical_severity_needs_impact_evidence(self):
 		value = v3_analysis(self.project)
 		value['facts'][0]['impact'].update(severity='critical', basis='Serious defect')
 		self.assertIn('claim.impact_evidence', self.codes(analysis_issues(value)))
+	# @used-by :mod:`unittest`
 	def test_dependency_change_and_cycle_are_reported(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -175,16 +272,25 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertIn('claim.stale_dependency', self.codes(analysis_issues(value)))
 		value['facts'][0]['derived_from'] = [{'claim_id': value['causes'][0]['id'], 'sha256': claim_digest(value['causes'][0])}]
 		self.assertIn('claim.cycle', self.codes(analysis_issues(value)))
+	# @used-by :mod:`unittest`
 	def test_claim_index_includes_facts_and_all_five_stages(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
 		self.assertEqual(len(all_claims(value)), 4)
 		self.assertIn('F-PRIMARY-1', claim_index(value))
+	# @used-by :mod:`unittest`
 	def test_explicit_text_locator_does_not_cover_another_part_of_page(self):
 		value = v3_analysis(self.project)
 		ref = value['facts'][0]['evidence'][0]
 		ref.update(quote='Alternative', locator={'type': 'text', 'value': 'The concern'})
 		self.assertIn('primary.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :meth:`EvidenceContractTests.signed_price_analysis()`
+	# @used-by :meth:`EvidenceContractTests.test_6395_relative_to_5395_is_185357_percent_not_20()`
+	# @used-by :meth:`EvidenceContractTests.test_calculation_operand_must_match_its_own_primary_quote()`
+	# @used-by :meth:`EvidenceContractTests.test_calculation_requires_sourced_common_units_and_explicit_percent_result()`
+	# @used-by :meth:`EvidenceContractTests.test_currency_cannot_be_borrowed_from_another_quantity()`
+	# @used-by :meth:`EvidenceContractTests.test_html_markup_cannot_hide_a_sign_between_spans()`
+	# @used-by :meth:`EvidenceContractTests.test_json_amount_currency_pair_is_an_exact_quantity_locator()`
 	def price_analysis(self):
 		value = v3_analysis(self.project)
 		observation = value['facts'][0]['evidence'][0]
@@ -200,6 +306,7 @@ class EvidenceContractTests(TemporaryCase):
 		value['facts'] = [old, new, calc]
 		r = value
 		return r
+	# @used-by :mod:`unittest`
 	def test_6395_relative_to_5395_is_185357_percent_not_20(self):
 		value = self.price_analysis()
 		self.assertEqual(analysis_issues(value), [])
@@ -208,6 +315,7 @@ class EvidenceContractTests(TemporaryCase):
 		issues = evidence_issues(self.project, value)
 		self.assertIn('calculation.unconfirmed', self.codes(issues))
 		self.assertIn('18.5357', str(issues))
+	# @used-by :mod:`unittest`
 	def test_calculation_operand_must_match_its_own_primary_quote(self):
 		value = self.price_analysis()
 		value['facts'][2]['calculation']['operands']['old']['value'] = '50'
@@ -215,6 +323,7 @@ class EvidenceContractTests(TemporaryCase):
 		value = self.price_analysis()
 		value['facts'][2]['calculation']['operands']['old']['evidence_id'] = 'E-NEW'
 		self.assertIn('calculation.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_calculation_requires_sourced_common_units_and_explicit_percent_result(self):
 		value = self.price_analysis()
 		calculation = value['facts'][2]['calculation']
@@ -230,10 +339,12 @@ class EvidenceContractTests(TemporaryCase):
 		calculation['operands']['old']['unit'] = 'GBP'
 		self.assertEqual(analysis_issues(value), [])
 		self.assertIn('calculation.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_missing_or_revised_primary_hash_is_rejected(self):
 		value = v3_analysis(self.project)
 		value['facts'][0]['evidence'][0]['source_sha256'] = '0' * 64
 		self.assertIn('primary.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_registered_intake_and_attachment_are_primary_but_quote_must_match_locator(self):
 		value = v3_analysis(self.project)
 		raw_attachment = b'Client attached requirement'
@@ -258,11 +369,13 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertEqual(evidence_issues(self.project, value), [])
 		fact['properties'] = ['admin_configuration']
 		self.assertIn('claim.method_insufficient', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_referenced_primary_cannot_be_replaced_with_an_own_kb_quote(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
 		value['concerns'][0]['for'][0].update(source='Website.md#claim', quote='Agent says verified')
 		self.assertIn('argument.competing_reference', self.codes(analysis_issues(value)))
+	# @used-by :mod:`unittest`
 	def test_experiment_primary_uses_recorder_artifact_and_actual_method(self):
 		from agent_tools.experiments import prepare_experiment, record_experiment, load_experiment
 		requirement = {'id': 'REQ-CONTENT', 'claim': 'This HTTP capture contains the concern.', 'property': 'content', 'method': 'http', 'alternatives': ['The response is a challenge page.'], 'conditions': {}, 'scope': {'objects': ['https://example.org/source']}, 'expected': 'Contains the concern', 'falsification': 'The exact phrase is absent.', 'discriminating_test': 'Compare an exact primary quote against the response.', 'completion_criterion': 'Exact saved source quote matches.', 'assertions': [{'id': 'ASSERT-CONTENT', 'artifact_id': 'A-CONTENT', 'locator': {'type': 'text', 'value': ''}, 'operator': 'contains', 'expected': 'The concern', 'disconfirming': {'operator': 'contains', 'expected': 'Concern absent'}}]}
@@ -279,12 +392,14 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertIn('claim.method_insufficient', self.codes(evidence_issues(self.project, value)))
 		value['facts'][0]['evidence'][0]['artifact_id'] = 'nonexistent'
 		self.assertIn('primary.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_malformed_typed_metadata_returns_diagnostics(self):
 		for key in ('knowledge_type', 'verification_status', 'materiality', 'novelty', 'category'):
 			with self.subTest(field=key):
 				value = v3_analysis(self.project)
 				value['facts'][0][key] = []
 				self.assertTrue(contract_issues(value))
+	# @used-by :mod:`unittest`
 	def test_agent_site_hypothesis_in_intake_manifest_is_not_primary(self):
 		value = v3_analysis(self.project)
 		raw = b'{"essence":"Configured exactly +20 percent"}'
@@ -297,6 +412,7 @@ class EvidenceContractTests(TemporaryCase):
 		(self.project / 'ꘖ/project.json').write_text('{"job_id":"~02123"}', encoding='utf-8')
 		value['facts'][0]['evidence'] = [{'id': 'E-SELF', 'kind': 'intake', 'source': target.relative_to(self.project / 'ꘖ/KB').as_posix(), 'manifest': manifest.relative_to(self.project / 'ꘖ/KB').as_posix(), 'source_sha256': sha, 'quote': 'Configured exactly +20 percent', 'locator': {'type': 'json_pointer', 'value': '/essence'}}]
 		self.assertIn('primary.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_arbitrary_intake_receipt_cannot_promote_own_note_or_attachment(self):
 		value = v3_analysis(self.project)
 		raw = b'{"job_id":"~02123","description":"Original client statement"}'
@@ -318,6 +434,7 @@ class EvidenceContractTests(TemporaryCase):
 				with self.assertRaisesRegex(ValueError, 'primary.unconfirmed'):
 					save_analysis(self.project, value)
 				self.assertFalse((self.project / 'ꘖ/KB/Analysis.json').exists())
+	# @used-by :mod:`unittest`
 	def test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note(self):
 		from test_intake import IntakeTests
 		fixture = IntakeTests()
@@ -341,6 +458,7 @@ class EvidenceContractTests(TemporaryCase):
 		ref = value['facts'][0]['evidence'][0]
 		ref.update(source=note.relative_to(fixture.project / 'ꘖ/KB').as_posix(), source_sha256=sha, quote='Own agent conclusion')
 		self.assertIn('primary.unconfirmed', self.codes(evidence_issues(fixture.project, value)))
+	# @used-by :mod:`unittest`
 	def test_malformed_properties_and_dependency_keep_field_diagnostics_in_cli(self):
 		for field, bad, expected in (('properties', 1, 'claim.properties'), ('derived_from', [{'claim_id': [], 'sha256': '0' * 64}], 'claim.dependency')):
 			with self.subTest(field=field):
@@ -355,6 +473,7 @@ class EvidenceContractTests(TemporaryCase):
 				self.assertIn(expected, self.codes(issues))
 				self.assertNotIn('operation.input', self.codes(issues))
 				self.assertTrue(any(('F-PRIMARY-1' == i.get('claim_id') and i['field'].startswith('/facts/0/') for i in issues)))
+	# @used-by :mod:`unittest`
 	def test_currency_cannot_be_borrowed_from_another_quantity(self):
 		value = self.price_analysis()
 		response = Response('https://example.org/prices', 200, 'text/plain', b'Old price GBP53.95; EUR1.00 conversion reference.\nNew price GBP63.95; EUR1.00 conversion reference.')
@@ -368,6 +487,7 @@ class EvidenceContractTests(TemporaryCase):
 		for operand in value['facts'][2]['calculation']['operands'].values():
 			operand['unit'] = 'GBP'
 		self.assertEqual(evidence_issues(self.project, value), [])
+	# @used-by :mod:`unittest`
 	def test_json_amount_currency_pair_is_an_exact_quantity_locator(self):
 		value = self.price_analysis()
 		payload = json.dumps({'old': {'amount': '53.95', 'currency': 'EUR'}, 'new': {'amount': '63.95', 'currency': 'EUR'}}).encode('utf-8')
@@ -379,6 +499,8 @@ class EvidenceContractTests(TemporaryCase):
 		value['facts'][2]['derived_from'] = [{'claim_id': c['id'], 'sha256': claim_digest(c)} for c in value['facts'][:2]]
 		self.assertEqual(analysis_issues(value), [])
 		self.assertEqual(evidence_issues(self.project, value), [])
+	# @used-by :meth:`EvidenceContractTests.test_signed_quantity_cannot_be_replaced_with_its_positive_substring()`
+	# @used-by :meth:`EvidenceContractTests.test_supported_signed_quantities_preserve_decimal_value_and_units()`
 	def signed_price_analysis(self, quote, declared_old, *, excerpt=None):
 		value = self.price_analysis()
 		new_quote = 'New price 63.95 EUR'
@@ -392,6 +514,7 @@ class EvidenceContractTests(TemporaryCase):
 		value['facts'][2]['derived_from'] = [{'claim_id': c['id'], 'sha256': claim_digest(c)} for c in value['facts'][:2]]
 		r = value
 		return r
+	# @used-by :mod:`unittest`
 	def test_signed_quantity_cannot_be_replaced_with_its_positive_substring(self):
 		cases = [('-53.95 EUR', '53.95'), ('−53.95 EUR', '53.95'), ('- 53.95 EUR', '53.95'), ('EUR-53.95', '53.95'), ('-EUR53.95', '53.95'), ('-€53.95', '53.95'), ('- EUR53.95', '53.95'), ('EUR −53.95', '53.95'), ('+53.95 EUR', '-53.95'), ('EUR+53.95', '-53.95'), ('(EUR53.95)', '53.95'), ('(53.95) EUR', '53.95'), ('EUR153.95', '53.95'), ('1 053.95 EUR', '53.95'), ('－53.95 EUR', '53.95'), ('-\u200b53.95 EUR', '53.95')]
 		for quote, declared in cases:
@@ -405,6 +528,7 @@ class EvidenceContractTests(TemporaryCase):
 			with self.subTest(trimmed_sign=quote):
 				value = self.signed_price_analysis('Old price ' + quote, '53.95', excerpt=excerpt)
 				self.assertIn('calculation.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# @used-by :mod:`unittest`
 	def test_supported_signed_quantities_preserve_decimal_value_and_units(self):
 		for quote in ('EUR53.95', '53.95 EUR', '€53.95', '+53.95 EUR', 'EUR+53.95'):
 			with self.subTest(positive=quote):
@@ -415,6 +539,7 @@ class EvidenceContractTests(TemporaryCase):
 				value = self.signed_price_analysis('Old price ' + quote, '-53.95')
 				self.assertEqual(evidence_issues(self.project, value), [])
 				self.assertEqual(value['facts'][2]['calculation']['result'], '-218.5357')
+	# @used-by :mod:`unittest`
 	def test_html_markup_cannot_hide_a_sign_between_spans(self):
 		value = self.price_analysis()
 		response = Response('https://example.org/html-prices', 200, 'text/html', b'<html><p>Old price <span class="sign">-</span><span class="value">53.95 EUR</span></p><p>New price <span class="value">63.95 EUR</span></p></html>')
@@ -422,6 +547,7 @@ class EvidenceContractTests(TemporaryCase):
 		for claim, number in ((value['facts'][0], '53.95'), (value['facts'][1], '63.95')):
 			quote = f'<span class="value">{number} EUR</span>'
 			claim['evidence'][0].update(source=response.url, observation=observation['observation'], source_sha256=observation['body_sha256'], quote=quote, locator={'type': 'text', 'value': quote})
+		# @used-by :meth:`EvidenceContractTests.test_html_markup_cannot_hide_a_sign_between_spans()`
 		def refresh_dependencies():
 			value['facts'][2]['derived_from'] = [{'claim_id': c['id'], 'sha256': claim_digest(c)} for c in value['facts'][:2]]
 		refresh_dependencies()
@@ -443,6 +569,7 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertEqual(analysis_issues(value), [])
 		self.assertEqual(evidence_issues(self.project, value), [])
 		self.assertTrue(save_analysis(self.project, value)['evidence_checked'])
+	# @used-by :mod:`unittest`
 	def test_v3_documentation_requires_verified_anchor_or_genuine_no_anchor_section(self):
 		value = v3_analysis(self.project)
 		response = Response('https://docs.example.org/feature', 200, 'text/html', b'<html><h2 id="policy">Policy</h2><p>Official source says this feature exists.</p></html>')
@@ -472,6 +599,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_verified_observation_rejects_ungrounded_numbers_in_essence(self):
 		value = v3_analysis(self.project)
 		fact = value['facts'][0]
@@ -483,6 +611,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_misconception_hypothesis_requires_alternatives_and_discriminating_check(self):
 		value = v3_analysis(self.project)
 		fact = value['facts'][0]
@@ -497,6 +626,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_unverified_hypothesis_with_empty_against_caps_probability_at_75(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -510,6 +640,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected(self):
 		value = v3_analysis(self.project)
 		sitemap_xml = b'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.org/blog/post-one</loc></url></urlset>'
@@ -524,11 +655,13 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e3_network_error_classification_and_unverified_dns_claim_rejection(self):
 		import socket
 		from agent_tools.research import classify_network_error
 		self.assertEqual(classify_network_error(socket.gaierror(11001, 'getaddrinfo failed')), ('dns_error', False))
 		self.assertEqual(classify_network_error(TimeoutError('timed out')), ('tcp_timeout', None))
+		# @used-by :meth:`EvidenceContractTests.test_e3_network_error_classification_and_unverified_dns_claim_rejection()`
 		def timeout_fetcher(*args):
 			raise TimeoutError('timed out')
 		obs = collect(self.project, 'https://timeout.example.org/', fetcher=timeout_fetcher)
@@ -545,6 +678,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e4_site_wide_schema_absence_requires_multi_page_or_product_template_sample(self):
 		value = v3_analysis(self.project)
 		fact = value['facts'][0]
@@ -558,6 +692,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e5_and_e6_html_sitemap_and_site_summary_diagnostics(self):
 		from agent_tools.research import compute_site_summary, extract_observation
 		html_bytes = b'<html><head><title>' + b'Very Long Page Title ' * 4 + b'</title><script type="application/ld+json">{"@type":"WebSite","name":"S P I R I T  S E A","description":"","image":"http://example.org/logo.jpg"}</script></head><body><h1>First H1</h1><h1>Second H1</h1><img src="/a.jpg" alt=""><iframe src="https://www.youtube.com/embed/xyz"></iframe></body></html>'
@@ -585,6 +720,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e7_contradictory_evidence_reuse_in_against_and_intake_only_counterevidence_cap(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -598,6 +734,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-11-02
 	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 	# https://github.com/dmitry-ai/harness/issues/37
+	# @used-by :mod:`unittest`
 	def test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -621,6 +758,7 @@ class EvidenceContractTests(TemporaryCase):
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 	# https://github.com/dmitry-ai/harness/issues/81
+	# @used-by :mod:`unittest`
 	def test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract(self):
 		value = v3_analysis(self.project)
 		html_obs = collect(self.project, 'https://example.org/meta-capi', fetcher=lambda *a: Response(a[0], 200, 'text/html', b'<div id="testEvents"><h2>Test Events Tool</h2></div><p>Verify server payloads with test_event_code.</p>'))

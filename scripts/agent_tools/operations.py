@@ -105,6 +105,7 @@ _read_input = read_input_bytes
 # 2026-11-21
 # "Add compact evidence-query command and unify collect-http CLI flags":
 # https://github.com/dmitry-ai/harness/issues/118
+# @used-by unused
 def _collect_cli_urls(args, *, require_nonempty: bool = True) -> list[str]:
 	legacy_single = getattr(args, 'url', None)
 	raw = [*(getattr(args, 'urls_pos', None) or ()), *(getattr(args, 'url_list', None) or ()), *([legacy_single] if isinstance(legacy_single, str) and legacy_single.strip() else ())]
@@ -112,6 +113,7 @@ def _collect_cli_urls(args, *, require_nonempty: bool = True) -> list[str]:
 	if require_nonempty and (not urls):
 		raise ValueError('Provide at least one URL via positional <URL> or --url <URL>')
 	return urls
+# @used-by :func:`agent_tools.cli_domains._op_collect()`
 def _execute_collect(args):
 	from .research import collect_plan, compute_site_summary, inside, json_data
 	payload = _operation_input(args, args.plan)
@@ -150,10 +152,13 @@ def _execute_collect(args):
 		result['publication'] = publish_owned(target, json_data(result), source={'kind': 'collection-plan', 'sha256': digest(payload), 'plan': plan})
 		r = result if 'conflict' == result['publication']['status'] else _consumed(args, args.plan, payload, result)
 	return r
+# @used-by unused
 def _load_consumed_json(args, path, fn, *extra_args, **extra_kwargs):
 	payload = _operation_input(args, path)
 	result = fn(*extra_args, json.loads(payload.decode('utf-8-sig')), **extra_kwargs)
 	return _consumed(args, path, payload, result)
+# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`test_text_integration.TextBoundaryTests.test_dom_cli_dispatch_keeps_the_explicit_authorized_session()`
 def add_parsers(sub):
 	from .completion import add_parser_arguments
 	from .runtime import settings
@@ -192,6 +197,8 @@ def add_parsers(sub):
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`agent_tools.cli_domains._op_render_analysis()`
+# @used-by :func:`agent_tools.upwork_project.run()`
 def analysis_root(file):
 	from .path_registry import canonicalize_root_dir
 	file = Path(file).resolve()
@@ -204,6 +211,13 @@ def analysis_root(file):
 # 2026-11-23
 # "Replace monolithic CLI router with declarative registry and modular docs":
 # https://github.com/dmitry-ai/harness/issues/168
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness()`
+# @used-by :meth:`test_cli_registry.CliRegistryTests.test_operation_handlers_cover_all_non_completion_commands()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_collect_receipt_preserves_plan_after_input_is_consumed()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_invalid_consumption_scope_fails_before_analysis_changes()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_stdin_analysis_and_owned_scratch_inputs_leave_no_permanent_candidate()`
+# @used-by :meth:`test_text_integration.TextBoundaryTests.test_dom_cli_dispatch_keeps_the_explicit_authorized_session()`
 def execute(args):
 	command = args.command
 	if command in COMPLETION_COMMANDS:

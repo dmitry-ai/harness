@@ -17,6 +17,7 @@ from agent_tools import cli, cli_common, github_issue, text_cli, upwork_project
 # "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
 # https://github.com/dmitry-ai/harness/issues/69
 class CliCommonTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_declarative_arg_specs_and_routers_parse_expected_flags(self):
 		parser = argparse.ArgumentParser(prog='demo')
 		cli_common.add_arg_specs(parser, (('target', {'type': Path}), (('--output', '-o'), {'type': Path}), ('--check', {'action': 'store_true'})))
@@ -37,6 +38,7 @@ class CliCommonTests(unittest.TestCase):
 				else:
 					fn(argv)
 			self.assertEqual(0, ctx.exception.code)
+	# @used-by :mod:`unittest`
 	def test_scratch_consumption_sha256_and_parallel_answer_guard(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'proj'

@@ -16,6 +16,9 @@ from .subprocess_hygiene_gate import verify_staged_subprocess_hygiene
 # 2026-11-25
 # "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
 # https://github.com/dmitry-ai/harness/issues/243
+# @used-by :meth:`agent_tools.git_gate.GitRepoGate._verify_agent_staged()`
+# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban()`
+# @used-by :meth:`test_rules_audit.RulesAuditTests.test_pre_tool_use_rules_budget_and_doctor_and_pre_commit_enforce_limits()`
 def verify_staged_extra_gates(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	violations = verify_staged_subprocess_hygiene(repo_root, staged_paths, use_index=use_index)
 	violations.extend(verify_staged_code_style_ratchet(repo_root, staged_paths, use_index=use_index))

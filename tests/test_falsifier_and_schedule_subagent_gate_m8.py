@@ -13,6 +13,8 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools.failfast_gate import evaluate_pre_tool_use_schedule
 PARENT_CID = 'be6873ea-5b72-4a7f-82bd-420b873f13f9'
 CHILD_CID = '8ec25783-99cc-40fa-99ff-a557eb04dde3'
+# @used-by :meth:`FalsifierAndScheduleSubagentGateM8Tests.test_allows_schedule_after_subagent_finishes_or_on_explicit_slash_schedule()`
+# @used-by :meth:`FalsifierAndScheduleSubagentGateM8Tests.test_blocks_one_shot_schedule_while_invoke_subagent_is_active()`
 def _write_transcript(base: Path, cid: str, rows: list[dict]) -> Path:
 	log = base / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
 	log.parent.mkdir(parents=True, exist_ok=True)
@@ -22,6 +24,7 @@ def _write_transcript(base: Path, cid: str, rows: list[dict]) -> Path:
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
 class FalsifierAndScheduleSubagentGateM8Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_blocks_one_shot_schedule_while_invoke_subagent_is_active(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -38,6 +41,7 @@ class FalsifierAndScheduleSubagentGateM8Tests(unittest.TestCase):
 			deny_cond = evaluate_pre_tool_use_schedule('schedule', {'DurationSeconds': 120, 'TimerCondition': CHILD_CID, 'Prompt': 'Check'}, {'conversationId': PARENT_CID, 'transcriptPath': str(log)})
 			self.assertIsNotNone(deny_cond)
 			self.assertIn(CHILD_CID, deny_cond)
+	# @used-by :mod:`unittest`
 	def test_allows_schedule_after_subagent_finishes_or_on_explicit_slash_schedule(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

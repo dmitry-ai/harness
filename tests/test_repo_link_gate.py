@@ -16,8 +16,10 @@ from agent_tools.issues.linter import IssueMarkdownLinter
 from agent_tools.repo_tags import ensure_commit_tag
 from agent_tools.response_grounding import ResponseEvidenceAuditor
 import check_markdown_slop
+# @used-by :func:`_init_tagged_repo()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', '-C', str(repo), *args], check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+# @used-by :func:`_sample_workspace()`
 def _init_tagged_repo(root: Path, slug: str, files: dict[str, str], *, tag_date: str='2026-11-26') -> Path:
 	root.mkdir(parents=True, exist_ok=True)
 	_git(root, 'init', '-b', 'main')
@@ -31,6 +33,11 @@ def _init_tagged_repo(root: Path, slug: str, files: dict[str, str], *, tag_date:
 	_git(root, 'commit', '-m', f'https://github.com/{slug}/issues/1')
 	ensure_commit_tag(root, date_override=tag_date, push=False)
 	return root
+# @used-by :meth:`RepoLinkGateTests.test_cross_repo_relative_link_rejected_while_intra_repo_relative_link_allowed()`
+# @used-by :meth:`RepoLinkGateTests.test_grounding_accepts_verified_local_repo_tagged_url_and_blocks_fabrications()`
+# @used-by :meth:`RepoLinkGateTests.test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban()`
+# @used-by :meth:`RepoLinkGateTests.test_rejects_file_uri_to_github_repo_and_allows_non_repo_and_gitignored_files()`
+# @used-by :meth:`RepoLinkGateTests.test_validates_github_blob_and_tree_tags_paths_lines_and_anchors()`
 def _sample_workspace(base: Path) -> tuple[Path, Path, Path]:
 	proj = base / 'proj'
 	meta = _init_tagged_repo(proj, 'acme/demo--meta', {'docs/b.md': '# Target\nBody.\n'})
@@ -49,6 +56,7 @@ def _sample_workspace(base: Path) -> tuple[Path, Path, Path]:
 	plain.write_text('Plain local note.\n', encoding='utf-8')
 	return (meta, code, plain)
 class RepoLinkGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cross_repo_relative_link_rejected_while_intra_repo_relative_link_allowed(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			meta, code, _ = _sample_workspace(Path(tmp).resolve())
@@ -64,6 +72,7 @@ class RepoLinkGateTests(unittest.TestCase):
 			self.assertTrue(any('LINK-6' in e for e in uri_errs), uri_errs)
 			doc.write_text('Tagged [app.py](https://github.com/acme/demo/blob/2026-11-26/src/app.py#L1-L2).  \n', encoding='utf-8')
 			self.assertEqual([], links.validate_file(doc, local_anchors=True, readable_links=True))
+	# @used-by :mod:`unittest`
 	def test_grounding_accepts_verified_local_repo_tagged_url_and_blocks_fabrications(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			meta, _, _ = _sample_workspace(Path(tmp).resolve())
@@ -78,6 +87,7 @@ class RepoLinkGateTests(unittest.TestCase):
 			bad_num = f'In [app.py]({url}) the buffer limit is `99999` bytes.  \n'
 			n_errs = ResponseEvidenceAuditor(meta, bad_num, []).validate()
 			self.assertTrue(any('99999' in e for e in n_errs), n_errs)
+	# @used-by :mod:`unittest`
 	def test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			meta, code, _ = _sample_workspace(Path(tmp).resolve())
@@ -95,6 +105,7 @@ class RepoLinkGateTests(unittest.TestCase):
 			note.write_text(good_md, encoding='utf-8')
 			self.assertEqual([], staged_gates.verify_staged_extra_gates(meta, ['docs/note.md'], use_index=False))
 			self.assertIsNone(check_markdown_slop.check_markdown_content(good_md, str(note)))
+	# @used-by :mod:`unittest`
 	def test_rejects_file_uri_to_github_repo_and_allows_non_repo_and_gitignored_files(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			meta, code, plain = _sample_workspace(Path(tmp).resolve())
@@ -108,6 +119,7 @@ class RepoLinkGateTests(unittest.TestCase):
 			self.assertEqual([], links.chat_reply_link_issues(f'Plain [notes.md](file:///{plain.as_posix()}).  \n', root=meta))
 			quoted = f'> [app.py]({app_uri})\n\n```markdown\n[app.py]({app_uri})\n```\n'
 			self.assertEqual([], links.chat_reply_link_issues(quoted, root=meta))
+	# @used-by :mod:`unittest`
 	def test_validates_github_blob_and_tree_tags_paths_lines_and_anchors(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			meta, _, _ = _sample_workspace(Path(tmp).resolve())

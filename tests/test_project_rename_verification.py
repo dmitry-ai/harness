@@ -21,10 +21,15 @@ HARNESS_PY = SCRIPTS / 'harness.py'
 # @used-by :func:`_run_harness()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
-# @used-by :meth:`ProjectRenameVerificationTests.test_auto_detects_sibling_init_launcher_without_flag()`, :meth:`ProjectRenameVerificationTests.test_promote_domain_updates_sibling_init_launcher()`
+# @used-by :meth:`ProjectRenameVerificationTests.test_auto_detects_sibling_init_launcher_without_flag()`
+# @used-by :meth:`ProjectRenameVerificationTests.test_promote_domain_updates_sibling_init_launcher()`
 def _run_harness(base: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run([sys.executable, str(HARNESS_PY), *args], cwd=str(base), env=_iso_env(base / 'home'), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=60, check=False)
-# @used-by :meth:`ProjectRenameVerificationTests.test_auto_detects_sibling_init_launcher_without_flag()`, :meth:`ProjectRenameVerificationTests.test_post_verify_rolls_back_all_state_on_stage_or_review_regression()`, :meth:`ProjectRenameVerificationTests.test_promote_domain_updates_sibling_init_launcher()`
+# @used-by :meth:`ProjectRenameVerificationTests.test_auto_detects_sibling_init_launcher_without_flag()`
+# @used-by :meth:`ProjectRenameVerificationTests.test_post_verify_rolls_back_all_state_on_stage_or_review_regression()`
+# @used-by :meth:`ProjectRenameVerificationTests.test_promote_domain_updates_sibling_init_launcher()`
+# @used-by :meth:`test_shadow_replay_command.ShadowReplayCommandTests.test_shadow_replay_exec_rename_domain_isolated_and_writes_receipt()`
+# @used-by :meth:`test_shadow_replay_command.ShadowReplayCommandTests.test_shadow_replay_generic_command_and_failure_receipt()`
 def _seed_proposals_layout(base: Path, *, job_id: str='~022124567641351805598') -> tuple[Path, Path, Path, Path]:
 	from agent_tools import upwork_project as up
 	from test_onboarding import source
@@ -38,6 +43,8 @@ def _seed_proposals_layout(base: Path, *, job_id: str='~022124567641351805598') 
 	l_turn.write_text(json.dumps({'key': 'handoff01', 'status': 'handed_off', 'handed_off_to': {'project_root': str(proj), 'job_id': job_id}}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 	return (proj, daily, launcher, l_turn)
 # @used-by :meth:`ProjectRenameVerificationTests.test_post_verify_rolls_back_all_state_on_stage_or_review_regression()`
+# @used-by :meth:`test_shadow_replay_command.ShadowReplayCommandTests.test_shadow_replay_exec_rename_domain_isolated_and_writes_receipt()`
+# @used-by :meth:`test_shadow_replay_command.ShadowReplayCommandTests.test_shadow_replay_generic_command_and_failure_receipt()`
 def _seed_complete_workflow(proj: Path) -> None:
 	pj_sha = hashlib.sha256((proj / '\ua616/project.json').read_bytes()).hexdigest()
 	out_f = proj / '\ua616/KB/Evidence/init-ok.json'
@@ -76,6 +83,7 @@ class ProjectRenameVerificationTests(unittest.TestCase):
 			launcher_before = l_turn.read_bytes()
 			idx_file = daily / '\ua616/data/projects.json'
 			idx_before = idx_file.read_bytes()
+			# @used-by :meth:`ProjectRenameVerificationTests.test_post_verify_rolls_back_all_state_on_stage_or_review_regression()`
 			def _fake_stage_statuses(root, state):
 				p_res = Path(root).resolve()
 				return {'capture': 'complete', 'identity_init': 'stale' if 'blueskypeptide.com' in p_res.name else 'complete'}

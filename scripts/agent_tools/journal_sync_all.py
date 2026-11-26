@@ -15,6 +15,7 @@ from .runtime import platform_adapter_name, resolve_antigravity_paths
 # 2026-11-26
 # "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
 # https://github.com/dmitry-ai/harness/issues/255
+# @used-by :func:`_is_native_idle_for_sync()`
 def _antigravity_summary_is_idle(st: dict[str, Any], cid: str) -> bool:
 	r = False
 	db_path = _resolve_ag_summary_db(st, cid)
@@ -27,7 +28,8 @@ def _antigravity_summary_is_idle(st: dict[str, Any], cid: str) -> bool:
 			r = False
 	return r
 # 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
-# @used-by :func:`_collect_all_open_candidates()`, :func:`reconcile_foreign_open_reservations()`
+# @used-by :func:`_collect_all_open_candidates()`
+# @used-by :func:`reconcile_foreign_open_reservations()`
 def _iter_idle_prepared_candidates(root: Path, *, folder_fn, read_fn) -> dict[str, dict[str, Any]]:
 	out: dict[str, dict[str, Any]] = {}
 	turns_dir = folder_fn(root)
@@ -48,6 +50,7 @@ def _iter_idle_prepared_candidates(root: Path, *, folder_fn, read_fn) -> dict[st
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
 # 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
+# @used-by :func:`sync_all_open()`
 def _collect_all_open_candidates(root: Path, jdir: Path, *, folder_fn, read_fn) -> list[tuple[str, dict[str, Any]]]:
 	entries: dict[str, dict[str, Any]] = dict(journal.iter_turn_reservations(jdir))
 	for k, v in _iter_idle_prepared_candidates(root, folder_fn=folder_fn, read_fn=read_fn).items():
@@ -61,6 +64,7 @@ def _collect_all_open_candidates(root: Path, jdir: Path, *, folder_fn, read_fn) 
 					entries[path.stem] = {'conversation_id': str(st['conversation_id'])}
 	return sorted(entries.items())
 # 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
+# @used-by :func:`_try_sync_foreign_entry()`
 def _is_foreign_open_eligible(st: dict[str, Any], *, adopt_conflict: bool=False) -> tuple[bool, str]:
 	recorded = any((isinstance(st.get(k), dict) and 'journal_steps' in st[k] for k in ('prepared', 'journal_record', 'delivery')))
 	status = str(st.get('status') or '')
@@ -77,6 +81,7 @@ def _is_foreign_open_eligible(st: dict[str, Any], *, adopt_conflict: bool=False)
 	else:
 		r = (True, '')
 	return r
+# @used-by :func:`_try_sync_foreign_entry()`
 def _is_native_idle_for_sync(st: dict[str, Any], cid: str) -> bool:
 	adapter_kind = platform_adapter_name(st.get('platform'))
 	if 'antigravity' == adapter_kind:
@@ -84,6 +89,7 @@ def _is_native_idle_for_sync(st: dict[str, Any], cid: str) -> bool:
 	else:
 		r = 'codex' == adapter_kind
 	return r
+# @used-by :func:`reconcile_before_begin()`
 def _reconcile_current_earlier(root: Path, native: dict[str, Any], turn: dict[str, Any], key: str, journal_directory: Any, *, folder_fn, dir_fn, read_fn, sync_fn, key_fn) -> dict[str, Any] | None:
 	earlier = any((t.get('owned') and t.get('completed') and (not t.get('aborted')) and (t.get('start_step', 0) <= turn['start_step']) and key_fn(native, t) != key for t in native.get('turns', [])))
 	r: dict[str, Any] | None = None
@@ -94,6 +100,8 @@ def _reconcile_current_earlier(root: Path, native: dict[str, Any], turn: dict[st
 		except (OSError, ValueError, sqlite3.Error) as exc:
 			r = {'valid': False, 'error': str(exc)}
 	return r
+# @used-by :func:`_antigravity_summary_is_idle()`
+# @used-by :func:`agent_tools.journal_liveness.is_conversation_running_live()`
 def _resolve_ag_summary_db(st: dict[str, Any], cid: str) -> Path | None:
 	backend_raw = str(st.get('native_backend') or '').strip()
 	r: Path | None = None
@@ -108,6 +116,7 @@ def _resolve_ag_summary_db(st: dict[str, Any], cid: str) -> Path | None:
 		except (OSError, ValueError, KeyError):
 			r = None
 	return r
+# @used-by :func:`_reconcile_current_earlier()`
 def _resolve_current_sync_journal(root: Path, key: str, journal_directory: Any, *, folder_fn, dir_fn, read_fn) -> Any:
 	existing_path = folder_fn(root) / (key + '.json')
 	sync_j = journal_directory
@@ -122,6 +131,9 @@ def _resolve_current_sync_journal(root: Path, key: str, journal_directory: Any, 
 			if 'already has a different journal' in str(exc):
 				raise
 	return sync_j
+# @used-by :func:`_collect_all_open_candidates()`
+# @used-by :func:`_iter_idle_prepared_candidates()`
+# @used-by :func:`_try_sync_foreign_entry()`
 def _load_turn_state_safe(path: Path, read_fn) -> dict[str, Any] | None:
 	r: dict[str, Any] | None = None
 	if path.is_file():
@@ -132,6 +144,8 @@ def _load_turn_state_safe(path: Path, read_fn) -> dict[str, Any] | None:
 		except (OSError, ValueError):
 			r = None
 	return r
+# @used-by :func:`reconcile_foreign_open_reservations()`
+# @used-by :func:`sync_all_open()`
 def _try_sync_foreign_entry(root: Path, turn_key: str, entry: dict[str, Any], journal_directory: Any, *, folder_fn, read_fn, sync_fn, adopt_conflict: bool=False, from_step: int=0) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
 	cid = str(entry.get('conversation_id') or '').strip()
 	st = _load_turn_state_safe(folder_fn(root) / f'{turn_key}.json', read_fn) if cid else None
@@ -150,11 +164,15 @@ def _try_sync_foreign_entry(root: Path, turn_key: str, entry: dict[str, Any], jo
 			except (OSError, ValueError, sqlite3.Error) as exc:
 				r = (None, {'turn_key': turn_key, 'conversation_id': cid, 'reason': 'sync_error', 'error': str(exc)})
 	return r
+# @used-by :func:`agent_tools.completion.begin()`
+# @used-by :mod:`agent_tools.journal_sync_all`
 def reconcile_before_begin(root: Path, native: dict[str, Any], turn: dict[str, Any], key: str, journal_directory: Any, *, folder_fn, dir_fn, read_fn, sync_fn, key_fn) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
 	cur_rec = _reconcile_current_earlier(root, native, turn, key, journal_directory, folder_fn=folder_fn, dir_fn=dir_fn, read_fn=read_fn, sync_fn=sync_fn, key_fn=key_fn)
 	foreign = reconcile_foreign_open_reservations(root, native['conversation_id'], journal_directory=journal_directory, folder_fn=folder_fn, dir_fn=dir_fn, read_fn=read_fn, sync_fn=sync_fn)
 	return (cur_rec, foreign)
 # 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
+# @used-by :func:`reconcile_before_begin()`
+# @used-by :mod:`agent_tools.journal_sync_all`
 def reconcile_foreign_open_reservations(root: Path, current_cid: str | None, *, journal_directory: Any=None, folder_fn, dir_fn, read_fn, sync_fn) -> list[dict[str, Any]]:
 	jdir = dir_fn(root, journal_directory)
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
@@ -173,6 +191,8 @@ def reconcile_foreign_open_reservations(root: Path, current_cid: str | None, *, 
 				seen_cids.add(cid.lower())
 				synced.append(hit)
 	return synced
+# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._reconcile_turn()`
+# @used-by :mod:`agent_tools.journal_sync_all`
 def resolve_sync_provenance(value: dict[str, Any], *, adopt_conflict: bool) -> str:
 	if value.get('prepared') and (not adopt_conflict):
 		r = 'prepared'
@@ -186,6 +206,8 @@ def resolve_sync_provenance(value: dict[str, Any], *, adopt_conflict: bool) -> s
 # 2026-11-26
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
+# @used-by :func:`agent_tools.completion.sync()`
+# @used-by :mod:`agent_tools.journal_sync_all`
 def sync_all_open(root: Path, *, journal_directory: Any=None, adopt_conflict: bool=False, from_step: int=0, folder_fn, dir_fn, read_fn, sync_fn) -> dict[str, Any]:
 	root_p = canonicalize_root_dir(root)
 	jdir = dir_fn(root_p, journal_directory)

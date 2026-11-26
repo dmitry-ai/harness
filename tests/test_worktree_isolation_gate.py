@@ -11,9 +11,13 @@ HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :func:`_init_git_repo()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return (proc.stdout or '').strip()
+# @used-by :meth:`WorktreeIsolationGateTests.test_agent_metadata_and_read_only_tools_are_allowed()`
+# @used-by :meth:`WorktreeIsolationGateTests.test_harness_main_blocks_write_and_edit_while_linked_worktree_allows()`
+# @used-by :meth:`WorktreeIsolationGateTests.test_non_harness_repo_allows_single_turn_and_blocks_concurrent_open_turns()`
 def _init_git_repo(repo: Path, files: dict[str, str]) -> Path:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git(repo, 'init', '-b', 'main')
@@ -26,6 +30,8 @@ def _init_git_repo(repo: Path, files: dict[str, str]) -> Path:
 	_git(repo, 'add', '.')
 	_git(repo, 'commit', '-m', 'init')
 	return repo
+# @used-by :meth:`WorktreeIsolationGateTests.test_agent_metadata_and_read_only_tools_are_allowed()`
+# @used-by :meth:`WorktreeIsolationGateTests.test_non_harness_repo_allows_single_turn_and_blocks_concurrent_open_turns()`
 def _write_turn(turns_dir: Path, name: str, *, status: str, conv_id: str, age_hours: float=0.0) -> None:
 	turns_dir.mkdir(parents=True, exist_ok=True)
 	ts = (datetime.now(timezone.utc) - timedelta(hours=age_hours)).isoformat()
@@ -35,6 +41,7 @@ def _write_turn(turns_dir: Path, name: str, *, status: str, conv_id: str, age_ho
 # "Add PreToolUse worktree isolation gate for live main checkouts":
 # https://github.com/dmitry-ai/harness/issues/185
 class WorktreeIsolationGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_agent_metadata_and_read_only_tools_are_allowed(self) -> None:
 		from agent_tools.gates.worktree_isolation import check
 		with tempfile.TemporaryDirectory() as td:
@@ -47,6 +54,7 @@ class WorktreeIsolationGateTests(unittest.TestCase):
 			self.assertIsNone(check('write_file', {'Path': str(proj / '\ua616/KB/note.md'), 'Content': 'ok'}, {'cwd': str(proj)}))
 			self.assertIsNone(check('read_file', {'Path': str(proj / 'readme.md')}, {'cwd': str(proj)}))
 			self.assertIsNone(check('run_command', {'CommandLine': 'echo hi'}, {'cwd': str(proj)}))
+	# @used-by :mod:`unittest`
 	def test_harness_main_blocks_write_and_edit_while_linked_worktree_allows(self) -> None:
 		from agent_tools.gates import discover_pre_tool_gates, run_pre_tool_gates
 		from agent_tools.gates.worktree_isolation import check
@@ -69,6 +77,7 @@ class WorktreeIsolationGateTests(unittest.TestCase):
 			wt = Path(worktree_begin(repo, 'iso-ok', worktrees_dir=root / 'wts')['worktree'])
 			self.assertIsNone(check('edit_file', {'Path': str(wt / 'scripts/check_rules_and_server_gate.py')}, {'cwd': str(wt)}))
 			self.assertIsNone(check('write_file', {'Path': str(wt / 'scripts/new_mod.py')}, {'cwd': str(wt)}))
+	# @used-by :mod:`unittest`
 	def test_non_harness_repo_allows_single_turn_and_blocks_concurrent_open_turns(self) -> None:
 		from agent_tools.gates import run_pre_tool_gates
 		from agent_tools.gates.worktree_isolation import check

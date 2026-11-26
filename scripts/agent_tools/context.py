@@ -8,6 +8,8 @@ from .journal import canonicalize_journal_dir_identity, get_existing_step_ids, j
 # 2026-11-03
 # "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
 # https://github.com/dmitry-ai/harness/issues/42
+# @used-by :func:`assemble()`
+# @used-by :func:`generate()`
 def default_context_config(root: Path | str | None=None) -> dict:
 	out_rel = 'ꙮ/0/Context.md'
 	kb_glob = 'ꘖ/KB/**/*.md'
@@ -39,6 +41,7 @@ def default_context_config(root: Path | str | None=None) -> dict:
 # 2026-11-03
 # "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
 # https://github.com/dmitry-ai/harness/issues/42
+# @used-by :func:`assemble()`
 def _is_excluded(rel_path: Path, patterns: list[str]) -> bool:
 	rel_str = rel_path.as_posix()
 	for pat in patterns:
@@ -60,6 +63,7 @@ def _is_excluded(rel_path: Path, patterns: list[str]) -> bool:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`generate()`
 def inside(root: Path, path: str | Path) -> Path:
 	target = (root / path).resolve()
 	if not target.is_relative_to(root.resolve()):
@@ -69,6 +73,7 @@ def inside(root: Path, path: str | Path) -> Path:
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`assemble()`
 def _inside_allowed(root: Path, path: str | Path, allowed_roots: tuple[Path, ...]=()) -> Path:
 	p = Path(path)
 	target = p.resolve() if p.is_absolute() else (root / p).resolve()
@@ -79,9 +84,14 @@ def _inside_allowed(root: Path, path: str | Path, allowed_roots: tuple[Path, ...
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`assemble()`
+# @used-by :func:`generate()`
 def _expand_entry(pp, raw: str | Path) -> str:
 	text = str(raw)
 	return pp.expand(text) if ('${' in text or '%' in text) else text
+# @used-by :func:`assemble()`
+# @used-by :func:`discover_letters()`
+# @used-by :meth:`test_agent_tools.ContextTests.test_empty_final_never_falls_back_to_draft()`
 def resolve_letter_file(path: Path, languages=('EN', 'RU')) -> Path | None:
 	path = Path(path)
 	if path.is_file():
@@ -103,6 +113,8 @@ def resolve_letter_file(path: Path, languages=('EN', 'RU')) -> Path | None:
 	if not chosen.is_file() or not chosen.read_text(encoding='utf-8').strip():
 		raise ValueError(f'Chosen letter is empty or not a file: {chosen}')
 	return chosen
+# @used-by :func:`assemble()`
+# @used-by :meth:`test_agent_tools.ContextTests.test_final_without_draft_and_new_year_nested_letters()`
 def discover_letters(root: Path, languages=('EN', 'RU')) -> list[Path]:
 	if not root.is_dir():
 		raise FileNotFoundError(root)
@@ -118,11 +130,18 @@ def discover_letters(root: Path, languages=('EN', 'RU')) -> list[Path]:
 		groups.add(parent)
 	r = [chosen for group in sorted(groups) if None is not (chosen := resolve_letter_file(group, languages))]
 	return r
+# @used-by :func:`assemble()`
 def _fence(text: str) -> str:
 	return '`' * max(3, max((len(m.group()) + 1 for m in re.finditer('`+', text)), default=3))
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# @used-by :func:`generate()`
+# @used-by :meth:`test_agent_tools.ContextTests.test_default_context_config_includes_agent_kb_and_excludes_evidence_subfolder()`
+# @used-by :meth:`test_agent_tools.ContextTests.test_sources_and_fences_preserved_in_configured_order()`
+# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_generate_accepts_explicit_now_for_deterministic_timestamp()`
+# @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_context_generate_accepts_fixed_now()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_exact_quotes_code_and_source_copies_are_not_rewritten_or_rejected()`
 def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) -> tuple[str, list[Path]]:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -269,6 +288,20 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 # 2026-11-23
 # "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
 # https://github.com/dmitry-ai/harness/issues/158
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`test_agent_tools.ContextTests.test_default_context_config_includes_agent_kb_and_excludes_evidence_subfolder()`
+# @used-by :meth:`test_agent_tools.ContextTests.test_missing_input_fails_and_dry_run_writes_nothing()`
+# @used-by :meth:`test_agent_tools.ContextTests.test_output_cannot_overwrite_input_or_escape_root()`
+# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
+# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_generate_accepts_explicit_now_for_deterministic_timestamp()`
+# @used-by :meth:`test_onboarding.IsolationTests.test_incomplete_journal_does_not_replace_context()`
+# @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_context_generate_accepts_fixed_now()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_proposal_export_selects_each_language_final_or_existing_draft()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate()`
 def generate(root: Path, config: Path | dict | None=None, output: Path | None=None, dry_run=False, now: datetime | None=None):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -292,6 +325,7 @@ def generate(root: Path, config: Path | dict | None=None, output: Path | None=No
 	# 2026-10-14
 	# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 	# https://github.com/dmitry-ai/harness/issues/3
+	# @used-by :func:`generate()`
 	def build():
 		content, sources = assemble(root, manifest, now=now)
 		raw_out = output if None is not output else _expand_entry(pp, manifest.get('output', default_out))

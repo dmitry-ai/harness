@@ -13,6 +13,7 @@ TOOLS = frozenset({'write_file', 'edit_file'})
 # 2026-11-26
 # "Add deterministic rules-audit CLI and aggregate budget enforcement":
 # https://github.com/dmitry-ai/harness/issues/244
+# @used-by :func:`check()`
 def _check_local_rule(name: str, args: dict, path: str, normalized: str) -> str | None:
 	r = None
 	content = args.get('Content') if 'write_file' == name else args.get('Replacement')
@@ -30,6 +31,8 @@ def _check_local_rule(name: str, args: dict, path: str, normalized: str) -> str 
 # 2026-11-26
 # "Add deterministic rules-audit CLI and aggregate budget enforcement":
 # https://github.com/dmitry-ai/harness/issues/244
+# @used-by :func:`agent_tools.gates._load_builtin_entry()`
+# @used-by :meth:`test_rules_audit.RulesAuditTests.test_pre_tool_use_rules_budget_and_doctor_and_pre_commit_enforce_limits()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	path = str(args.get('Path') or '')
 	normalized = path.replace('\\', '/').lower() if path else ''

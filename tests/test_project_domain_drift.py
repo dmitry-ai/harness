@@ -18,10 +18,15 @@ from test_upwork_init_e2e import _upsert_summary, _wire, _write_falsifier_audito
 CID = '44444444-5555-4666-8777-888888888881'
 CHILD = '44444444-5555-4666-8777-888888888882'
 JOB_ID = '~022124567641351805598'
+# @used-by :func:`_prepare_pre_finalize_with_target()`
+# @used-by :meth:`ProjectDomainDriftTests.test_check_project_allows_unidentified_low_confidence_multi_target_and_exempt()`
+# @used-by :meth:`ProjectDomainDriftTests.test_check_project_flags_domain_drift_on_folder_and_registration_mismatch()`
 def _save_and_publish(proj: Path, analysis_val: dict) -> None:
 	from agent_tools.analysis import publish_analysis, save_analysis
 	save_analysis(proj, analysis_val)
 	publish_analysis(proj / '\ua616/KB/Analysis.json')
+# @used-by :meth:`ProjectDomainDriftTests.test_finalize_rejects_provisional_topic_when_target_domain_resolved()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
 def _prepare_pre_finalize_with_target(base: Path, proj: Path) -> tuple[Path, Path]:
 	backend = base / 'home/.gemini/antigravity'
 	req1 = f'/upwork-init https://upwork.com/jobs/{JOB_ID}'
@@ -38,6 +43,8 @@ def _prepare_pre_finalize_with_target(base: Path, proj: Path) -> tuple[Path, Pat
 	_run_harness(base, 'stage', str(proj), 'research', '--input', '\ua616/project.json', '--output', '\ua616/KB/Evidence/research-report.json')
 	_save_and_publish(proj, _target_analysis(proj, url='https://www.blueskypeptide.com/', prob=90))
 	return (backend, rows)
+# @used-by :meth:`ProjectDomainDriftTests.test_finalize_rejects_provisional_topic_when_target_domain_resolved()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
 def _complete_review_and_prepare(base: Path, proj: Path, backend: Path, rows: list[dict]) -> tuple[Path, str]:
 	import test_upwork_init_e2e as e2e
 	ev_bin = proj / '\ua616/KB/Evidence/HTTP/e2e/response.bin'
@@ -68,6 +75,7 @@ def _complete_review_and_prepare(base: Path, proj: Path, backend: Path, rows: li
 	review_out = rec['reviews'][-1]['report'] if isinstance(rec.get('reviews'), list) and rec['reviews'] else proof['proof']
 	return (cand_md, review_out)
 class ProjectDomainDriftTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_check_project_allows_unidentified_low_confidence_multi_target_and_exempt(self) -> None:
 		from agent_tools import workflow
 		with tempfile.TemporaryDirectory() as tmp:
@@ -92,6 +100,7 @@ class ProjectDomainDriftTests(unittest.TestCase):
 			pj['domain_drift_exempt'] = {'reason': 'Explicit multi-brand portfolio exception.'}
 			pj_f.write_text(json.dumps(pj), encoding='utf-8')
 			self.assertTrue(workflow.check_project(proj4)['valid'])
+	# @used-by :mod:`unittest`
 	def test_check_project_flags_domain_drift_on_folder_and_registration_mismatch(self) -> None:
 		from agent_tools import workflow
 		with tempfile.TemporaryDirectory() as tmp:
@@ -112,6 +121,7 @@ class ProjectDomainDriftTests(unittest.TestCase):
 			chk_reg = workflow.check_project(renamed)
 			self.assertFalse(chk_reg['valid'])
 			self.assertIn('project.domain_drift', {i['code'] for i in chk_reg['issues']})
+	# @used-by :mod:`unittest`
 	def test_finalize_rejects_provisional_topic_when_target_domain_resolved(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

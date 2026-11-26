@@ -4,11 +4,16 @@ from __future__ import annotations
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
 TARGET_CLAIM_RULE = 'Copy claims[i].essence verbatim in its original language without translating or paraphrasing (see claim_targets)'
+# @used-by :func:`_package_envelope_issues()`
+# @used-by :func:`alignment_issues()`
+# @used-by :func:`build_claim_targets()`
+# @used-by :func:`envelope_issues()`
 def _nonempty(value) -> bool:
 	return isinstance(value, str) and bool(value.strip())
 # 2026-11-24
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
+# @used-by :func:`envelope_issues()`
 def _package_envelope_issues(data: dict, package: dict) -> list[str]:
 	r: list[str] = []
 	if not _nonempty(data.get('package')):
@@ -18,6 +23,7 @@ def _package_envelope_issues(data: dict, package: dict) -> list[str]:
 	elif _nonempty(package.get('package_sha256')) and data.get('package_sha256') != package.get('package_sha256'):
 		r.append('Review report package_sha256 does not match the immutable package')
 	return r
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_alignment_and_outcome()`
 def alignment_issues(ident: str, alignment, expected_target: str | None) -> list[str]:
 	issues: list[str] = []
 	if not isinstance(alignment, dict):
@@ -36,6 +42,7 @@ def alignment_issues(ident: str, alignment, expected_target: str | None) -> list
 # 2026-11-24
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
+# @used-by :func:`agent_tools.review.input_receipt()`
 def bind_contract_envelope(contract: dict, package_path: str, package_sha: str, review_mode: str | None=None) -> dict:
 	r = dict(contract)
 	if 'falsifier' == review_mode and isinstance(r.get('falsifier_required_top_level_fields'), list):
@@ -43,11 +50,13 @@ def bind_contract_envelope(contract: dict, package_path: str, package_sha: str, 
 	r['expected_package'] = package_path
 	r['expected_package_sha256'] = package_sha
 	return r
+# @used-by :func:`agent_tools.review.input_receipt()`
 def build_claim_targets(claims: list | tuple | None) -> dict[str, str]:
 	return {c['claim_id']: c['essence'] for c in (claims or ()) if isinstance(c, dict) and _nonempty(c.get('claim_id')) and isinstance(c.get('essence'), str)}
 # 2026-11-24
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_envelope()`
 def envelope_issues(data: dict, package: dict, *, review_schema: int, scopes: tuple[str, ...], require_envelope: bool=False) -> list[str]:
 	r: list[str] = []
 	if review_schema != data.get('schema_version'):
@@ -63,6 +72,7 @@ def envelope_issues(data: dict, package: dict, *, review_schema: int, scopes: tu
 # 2026-11-24
 # "Enforce single falsifier review default and block duplicate send_message reports":
 # https://github.com/dmitry-ai/harness/issues/226
+# @used-by :func:`agent_tools.review.prepare()`
 def resolve_package_review_mode(spec: object, package: dict, evaluator) -> str | None:
 	if isinstance(spec, dict) and spec.get('review_mode') in ('standard', 'falsifier'):
 		r: str | None = spec['review_mode']

@@ -18,8 +18,12 @@ from agent_tools import native_profiles as native, runtime, upwork_project as up
 # "Manage Harness ephemeral Git exclusions in install-global and doctor":
 # https://github.com/dmitry-ai/harness/issues/198
 class GlobalGitIgnoreTests(unittest.TestCase):
+	# @used-by :meth:`GlobalGitIgnoreTests.test_real_git_ignores_embedded_worktree_via_global_ignore()`
 	def _git(self, cwd: Path, *args: str, env: dict[str, str] | None=None, check: bool=True) -> subprocess.CompletedProcess:
 		return subprocess.run(['git', '-C', str(cwd), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, check=check)
+	# @used-by :meth:`GlobalGitIgnoreTests.test_doctor_reports_and_validates_global_git_ignore()`
+	# @used-by :meth:`GlobalGitIgnoreTests.test_install_global_check_and_apply_preserve_user_rules_and_are_idempotent()`
+	# @used-by :meth:`GlobalGitIgnoreTests.test_isolated_synthetic_primary_skips_host_git_ignore_mutation()`
 	def _make_primary(self, root: Path) -> tuple[Path, dict]:
 		primary = root / 'harness/code'
 		(primary / 'rules').mkdir(parents=True)
@@ -38,6 +42,7 @@ class GlobalGitIgnoreTests(unittest.TestCase):
 		cfg['platforms']['antigravity']['instances'] = {'A0': {'enabled': True, 'primary': True, 'home': str(ag_home)}}
 		(primary / 'runtime.json').write_text(json.dumps(cfg), encoding='utf-8')
 		return (primary, cfg)
+	# @used-by :mod:`unittest`
 	def test_doctor_reports_and_validates_global_git_ignore(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -58,6 +63,7 @@ class GlobalGitIgnoreTests(unittest.TestCase):
 				self.assertTrue(after['valid'], after)
 				self.assertTrue(after['git_ignore']['valid'])
 				self.assertEqual(Path(after['git_ignore']['path']).resolve(), ignore_file.resolve())
+	# @used-by :mod:`unittest`
 	def test_install_global_check_and_apply_preserve_user_rules_and_are_idempotent(self) -> None:
 		from agent_tools.git_ignore import HARNESS_GLOBAL_IGNORE_PATTERNS
 		with tempfile.TemporaryDirectory() as td:
@@ -90,6 +96,7 @@ class GlobalGitIgnoreTests(unittest.TestCase):
 			self.assertTrue(preserved['valid'])
 			self.assertIn('my_trailing.bak\n', ignore_file.read_text(encoding='utf-8'))
 			self.assertTrue(native.install_native_profiles(('A0',), primary=primary, check=True, config_dirs=ag_cfg, codex_homes={}, git_ignore_path=ignore_file)['valid'])
+	# @used-by :mod:`unittest`
 	def test_isolated_synthetic_primary_skips_host_git_ignore_mutation(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -102,6 +109,7 @@ class GlobalGitIgnoreTests(unittest.TestCase):
 			self.assertTrue(res['valid'], res)
 			self.assertTrue(res['git_ignore']['skipped'])
 			self.assertFalse((fake_home / '.config/git/ignore').exists())
+	# @used-by :mod:`unittest`
 	def test_malformed_managed_markers_fail_without_corrupting_file(self) -> None:
 		from agent_tools.git_ignore import GIT_IGNORE_START, sync_global_git_ignore
 		with tempfile.TemporaryDirectory() as td:
@@ -112,6 +120,7 @@ class GlobalGitIgnoreTests(unittest.TestCase):
 			self.assertFalse(res['valid'])
 			self.assertTrue(res['issues'])
 			self.assertEqual(ignore_file.read_text(encoding='utf-8'), broken)
+	# @used-by :mod:`unittest`
 	def test_real_git_ignores_embedded_worktree_via_global_ignore(self) -> None:
 		from agent_tools.git_ignore import sync_global_git_ignore
 		with tempfile.TemporaryDirectory() as td:
@@ -143,6 +152,7 @@ class GlobalGitIgnoreTests(unittest.TestCase):
 			self.assertNotIn('adding embedded git repository', add_proc.stderr)
 			stage = self._git(meta, 'ls-files', '--stage', env=env).stdout
 			self.assertNotIn('160000 ', stage)
+	# @used-by :mod:`unittest`
 	def test_resolve_global_git_ignore_path_precedence(self) -> None:
 		from agent_tools.git_ignore import resolve_global_git_ignore_path
 		with tempfile.TemporaryDirectory() as td:

@@ -9,6 +9,7 @@ TOOLS = frozenset({'run_command', 'write_file', 'edit_file'})
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
+# @used-by :func:`agent_tools.gates._load_builtin_entry()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	# 2026-11-24
 	# "Convert PreToolUse hook entry points to lazy tool-scoped imports":

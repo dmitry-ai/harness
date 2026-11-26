@@ -27,6 +27,7 @@ _HASH_ISSUE_REF_RE = re.compile(r'(?<![A-Za-z0-9_/])#(\d+)\b')
 _USER_REQUEST_BLOCK_RE = re.compile(r'<USER_REQUEST>\r?\n([\s\S]*?)\r?\n</USER_REQUEST>')
 
 
+# @used-by :func:`resolve_issue_first_target()`
 def _find_git_repo_root(path: Path) -> Path | None:
 	start = path if path.is_dir() else path.parent
 	for anc in (start, *start.parents):
@@ -35,6 +36,8 @@ def _find_git_repo_root(path: Path) -> Path | None:
 	return None
 
 
+# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
+# @used-by :func:`resolve_issue_first_target()`
 def _is_excluded_meta_rel(rel_posix: str) -> bool:
 	low = rel_posix.replace('\\', '/').casefold()
 	while low.startswith('./'):
@@ -48,6 +51,9 @@ def _is_excluded_meta_rel(rel_posix: str) -> bool:
 	return any(part in _EXCLUDED_META_PARTS for part in parts[:-1])
 
 
+# @used-by :func:`build_code_write_issue_first_event()`
+# @used-by :func:`evaluate_pre_tool_use_issue_first()`
+# @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_resolve_issue_first_target_distinguishes_github_backed_local_and_metadata_paths()`
 def resolve_issue_first_target(path: str | Path, *, content: str | None = None) -> dict | None:
 	cand = normalize_host_path(path)
 	try:
@@ -78,12 +84,20 @@ def resolve_issue_first_target(path: str | Path, *, content: str | None = None) 
 
 
 # 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`agent_tools.issue_first_bg._record_bg_seg_issues()`
+# @used-by :func:`build_issue_action_events()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_extract_issue_actions_recognizes_fetch_and_anti_spoofing_command_check()`
 def is_df_github_issue_command(cmd: str) -> bool:
 	from .issue_first_bg import is_df_issue_command_text
 	return is_df_issue_command_text(cmd, _DF_ISSUE_CMD_RE)
 
 
 # 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :func:`extract_antigravity_issue_first_events()`
 def build_code_write_issue_first_event(
 	step: int,
 	raw_path: str | Path,
@@ -106,6 +120,12 @@ def build_code_write_issue_first_event(
 	return r
 
 
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`agent_tools.issue_first_bg._record_bg_seg_issues()`
+# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :func:`extract_antigravity_issue_first_events()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
 def build_issue_action_events(
 	step: int,
 	cmd: str,
@@ -135,6 +155,8 @@ def build_issue_action_events(
 	return out_events
 
 
+# @used-by :func:`_seed_open_issues_from_requests()`
+# @used-by :func:`evaluate_issue_first_events()`
 def _load_evidence_issue_info(
 	project_root: Path | None,
 	slug: str,
@@ -169,6 +191,7 @@ def _load_evidence_issue_info(
 	return None
 
 
+# @used-by :func:`_seed_open_issues_from_requests()`
 def _extract_request_text(req) -> str:
 	raw = ''
 	if isinstance(req, str):
@@ -179,6 +202,7 @@ def _extract_request_text(req) -> str:
 	return m.group(1) if m else raw
 
 
+# @used-by :func:`evaluate_issue_first_events()`
 def _seed_open_issues_from_requests(
 	requests: list | tuple | None,
 	known_repos: dict[str, tuple[str, list[Path]]],
@@ -219,6 +243,7 @@ def _seed_open_issues_from_requests(
 	return (seeded_parents, seeded_children)
 
 
+# @used-by :func:`evaluate_issue_first_events()`
 def _is_established_before(est: tuple[int, int | None], step: int, sub_step: int | None) -> bool:
 	est_step, est_sub = est
 	if est_step < step:
@@ -231,6 +256,11 @@ def _is_established_before(est: tuple[int, int | None], step: int, sub_step: int
 # 2026-11-23
 # "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
 # https://github.com/dmitry-ai/harness/issues/143
+# @used-by :func:`agent_tools.completion._issue_first_status()`
+# @used-by :func:`evaluate_pre_tool_use_issue_first()`
+# @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_first_skips_denied_writes_and_reads_background_task_issue_actions()`
+# @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_chronological_state_machine_enforces_parent_issue_before_tests_and_code()`
+# @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_user_input_seeding_accepts_referenced_open_evidence_and_rejects_closed_or_unreferenced()`
 def evaluate_issue_first_events(
 	events: list[dict] | tuple[dict, ...] | None,
 	*,
@@ -261,6 +291,7 @@ def evaluate_issue_first_events(
 	repos: dict[str, dict] = {}
 	violations: list[str] = []
 
+	# @used-by :func:`evaluate_issue_first_events()`
 	def _ensure_repo(slug: str, repo_root: str | None = None) -> dict:
 		key = slug.lower()
 		st = repos.get(key)
@@ -408,6 +439,8 @@ def evaluate_issue_first_events(
 	return {'verified': not violations, 'repos': serialized_repos, 'violations': violations}
 
 
+# @used-by :func:`evaluate_pre_tool_use_issue_first()`
+# @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_first_skips_denied_writes_and_reads_background_task_issue_actions()`
 def extract_antigravity_issue_first_events(transcript_path: Path, *, cwd: Path | None = None) -> tuple[list[dict], list[dict]]:
 	t_path = Path(transcript_path)
 	if 'transcript.jsonl' == t_path.name:
@@ -437,6 +470,8 @@ def extract_antigravity_issue_first_events(transcript_path: Path, *, cwd: Path |
 	return (events, requests)
 
 
+# @used-by :func:`agent_tools.gates.issue_first.check()`
+# @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_evaluate_pre_tool_use_issue_first_blocks_spoofing_and_enforces_live_order()`
 def evaluate_pre_tool_use_issue_first(name: str, args: dict, payload: dict) -> str | None:
 	cwd_raw = str(payload.get('cwd') or '').strip()
 	cwd = Path(cwd_raw).resolve() if cwd_raw else None

@@ -14,6 +14,7 @@ GIT_IGNORE_START = '# >>> harness:ephemeral-ignore:start >>>'
 HARNESS_GLOBAL_IGNORE_PATTERNS = ('\ua616/data/worktrees/', '\ua616/data/scratch/', '\ua616/data/browser-locks/', '\ua616/data/repo-leases/', '**/*.lock')
 _MODULE_PRIMARY = Path(__file__).resolve().parents[2]
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+# @used-by :func:`ensure_worktree_dir_ignored()`
 def _append_exclude_pattern(exclude_file: Path, pattern: str) -> bool:
 	existing = exclude_file.read_text(encoding='utf-8') if exclude_file.is_file() else ''
 	if pattern in existing.splitlines():
@@ -24,10 +25,12 @@ def _append_exclude_pattern(exclude_file: Path, pattern: str) -> bool:
 		replace_bytes(exclude_file, f'{existing}{sep}{pattern}{nl}'.encode('utf-8'))
 		r = True
 	return r
+# @used-by :func:`resolve_global_git_ignore_path()`
 def _configured_excludes_file(env: dict[str, str] | None) -> Path | None:
 	proc = subprocess.run(['git', 'config', '--global', '--path', '--get', 'core.excludesFile'], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, check=False, creationflags=_NO_WINDOW)
 	raw = (proc.stdout or '').strip() if 0 == proc.returncode else ''
 	return normalize_host_path(raw).resolve() if raw else None
+# @used-by :func:`ensure_worktree_dir_ignored()`
 def _detect_enclosing_repo(base_dir: Path) -> tuple[Path, Path, str] | None:
 	proc = _git_read(base_dir, 'rev-parse', '--show-toplevel', '--git-common-dir')
 	lines = [ln.strip() for ln in (proc.stdout or '').splitlines() if ln.strip()] if 0 == proc.returncode else []
@@ -43,14 +46,21 @@ def _detect_enclosing_repo(base_dir: Path) -> tuple[Path, Path, str] | None:
 			rel = ''
 		r = (toplevel, common, rel) if rel and '.' != rel else None
 	return r
+# @used-by :func:`sync_global_git_ignore()`
 def _git_ignore_issue(target: Path, message: str) -> dict:
 	return {'file': str(target), 'message': message}
+# @used-by :func:`_detect_enclosing_repo()`
+# @used-by :func:`_is_path_ignored()`
+# @used-by :func:`_tracked_worktree_entries()`
 def _git_read(cwd: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(cwd), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}, check=False, creationflags=_NO_WINDOW)
+# @used-by :func:`resolve_managed_git_ignore_target()`
 def _is_canonical_primary(primary: Path) -> bool:
 	return resolve_code_anchor(primary) == resolve_code_anchor(_MODULE_PRIMARY)
+# @used-by :func:`ensure_worktree_dir_ignored()`
 def _is_path_ignored(toplevel: Path, rel_probe: str) -> bool:
 	return 0 == _git_read(toplevel, 'check-ignore', '-q', '--no-index', '--', rel_probe).returncode
+# @used-by :func:`merge_managed_git_ignore()`
 def _merge_managed_block(existing: str, block: str, *, newline: str) -> str:
 	has_start, has_end = (GIT_IGNORE_START in existing, GIT_IGNORE_END in existing)
 	if not has_start and (not has_end):
@@ -63,6 +73,7 @@ def _merge_managed_block(existing: str, block: str, *, newline: str) -> str:
 		end_idx = existing.index(GIT_IGNORE_END) + len(GIT_IGNORE_END)
 		r = existing[:start_idx] + block + existing[end_idx:]
 	return r
+# @used-by :func:`sync_global_git_ignore()`
 def _plan_global_git_ignore(target: Path) -> tuple[str | None, str | None, str | None]:
 	if target.exists() and (not target.is_file()):
 		r = (None, None, 'Global Git ignore target is not a regular file; preserved')
@@ -74,8 +85,10 @@ def _plan_global_git_ignore(target: Path) -> tuple[str | None, str | None, str |
 		except (OSError, UnicodeDecodeError, ValueError) as exc:
 			r = (None, None, str(exc))
 	return r
+# @used-by :func:`finalize_install_result()`
 def _skipped_git_ignore_report() -> dict:
 	return {'valid': True, 'skipped': True, 'reason': 'isolated_primary', 'path': None, 'changed': False, 'patterns': list(HARNESS_GLOBAL_IGNORE_PATTERNS), 'issues': []}
+# @used-by :func:`ensure_worktree_dir_ignored()`
 def _tracked_worktree_entries(toplevel: Path, rel: str) -> tuple[list[dict], list[str], list[str]]:
 	proc = _git_read(toplevel, '-c', 'core.quotePath=false', 'ls-files', '--stage', '--', rel)
 	entries, gitlinks, warnings = ([], [], [])
@@ -90,6 +103,7 @@ def _tracked_worktree_entries(toplevel: Path, rel: str) -> tuple[list[dict], lis
 					gitlinks.append(path)
 				warnings.append(f'Enclosing repo {toplevel.as_posix()} already tracks {path} (mode {mode}); untrack via: git -C "{toplevel.as_posix()}" rm --cached "{path}"')
 	return (entries, gitlinks, warnings)
+# @used-by :func:`sync_global_git_ignore()`
 def _write_verified_ignore(target: Path, desired: str) -> str | None:
 	payload = desired.encode('utf-8')
 	try:
@@ -101,6 +115,10 @@ def _write_verified_ignore(target: Path, desired: str) -> str | None:
 # 2026-11-24
 # "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
 # https://github.com/dmitry-ai/harness/issues/201
+# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
+# @used-by :func:`prepare_worktrees_base_dir()`
+# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_ensure_worktree_dir_ignored_handles_non_git_directory()`
+# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_ensure_worktree_dir_ignored_skips_exclude_edit_when_already_ignored()`
 def ensure_worktree_dir_ignored(base_dir: Path | str) -> dict:
 	target = normalize_host_path(str(base_dir)).resolve()
 	target.mkdir(parents=True, exist_ok=True)
@@ -116,6 +134,7 @@ def ensure_worktree_dir_ignored(base_dir: Path | str) -> dict:
 		entries, gitlinks, warnings = _tracked_worktree_entries(toplevel, rel)
 		r = {'enclosing_repo': toplevel.as_posix(), 'already_ignored': already, 'excluded': excluded, 'exclude_file': exclude_file.as_posix(), 'pattern': pattern, 'tracked_entries': entries, 'tracked_gitlinks': gitlinks, 'warnings': warnings}
 	return r
+# @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
 def finalize_install_result(result: dict, all_declared: list, names: list, primary: Path, *, check: bool=False, git_ignore_path: Path | str | None=None) -> dict:
 	result['skipped_disabled'] = [name for name in all_declared if name not in names]
 	target = resolve_managed_git_ignore_target(primary, git_ignore_path=git_ignore_path)
@@ -131,16 +150,23 @@ def finalize_install_result(result: dict, all_declared: list, names: list, prima
 	# https://github.com/dmitry-ai/harness/issues/184
 	from .runtime_snapshot import finalize_native_install
 	return finalize_native_install(result, primary, check=check)
+# @used-by :func:`_plan_global_git_ignore()`
 def merge_managed_git_ignore(existing_text: str, *, patterns: tuple[str, ...]=HARNESS_GLOBAL_IGNORE_PATTERNS) -> str:
 	nl = '\r\n' if '\r\n' in existing_text else '\n'
 	block = render_managed_git_ignore_block(patterns, newline=nl)
 	return _merge_managed_block(existing_text, block, newline=nl)
+# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`
+# @used-by :meth:`agent_tools.git_gate.WorktreeCommitTransaction.create()`
 def prepare_worktrees_base_dir(repo: Path | str, *, worktrees_dir: Path | str | None=None) -> tuple[Path, dict]:
 	from .path_registry import project_paths
 	base = normalize_host_path(str(worktrees_dir)).resolve() if None is not worktrees_dir else project_paths(Path(repo).resolve()).worktrees_dir.resolve()
 	return (base, ensure_worktree_dir_ignored(base))
+# @used-by :func:`merge_managed_git_ignore()`
 def render_managed_git_ignore_block(patterns: tuple[str, ...]=HARNESS_GLOBAL_IGNORE_PATTERNS, *, newline: str='\n') -> str:
 	return newline.join((GIT_IGNORE_START, *patterns, GIT_IGNORE_END))
+# @used-by :func:`resolve_managed_git_ignore_target()`
+# @used-by :func:`sync_global_git_ignore()`
+# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_resolve_global_git_ignore_path_precedence()`
 def resolve_global_git_ignore_path(*, env: dict[str, str] | None=None, explicit_path: Path | str | None=None) -> Path:
 	if None is not explicit_path:
 		r = normalize_host_path(str(explicit_path)).resolve()
@@ -159,6 +185,7 @@ def resolve_global_git_ignore_path(*, env: dict[str, str] | None=None, explicit_
 			else:
 				r = (Path.home() / '.config/git/ignore').resolve()
 	return r
+# @used-by :func:`finalize_install_result()`
 def resolve_managed_git_ignore_target(primary: Path | str, *, git_ignore_path: Path | str | None=None, env: dict[str, str] | None=None) -> Path | None:
 	if None is not git_ignore_path:
 		r = normalize_host_path(str(git_ignore_path)).resolve()
@@ -167,6 +194,9 @@ def resolve_managed_git_ignore_target(primary: Path | str, *, git_ignore_path: P
 	else:
 		r = None
 	return r
+# @used-by :func:`finalize_install_result()`
+# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_malformed_managed_markers_fail_without_corrupting_file()`
+# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_real_git_ignores_embedded_worktree_via_global_ignore()`
 def sync_global_git_ignore(*, check: bool=False, ignore_path: Path | str | None=None, env: dict[str, str] | None=None) -> dict:
 	target = resolve_global_git_ignore_path(env=env, explicit_path=ignore_path)
 	existing, desired, plan_err = _plan_global_git_ignore(target)

@@ -12,8 +12,10 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :func:`_seed_two_releases()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+# @used-by :meth:`HookRunnerWatchdogTests.test_watchdog_env_override_terminates_hung_child_process_and_keeps_ascii_header()`
 def _is_pid_alive(pid: int) -> bool:
 	r = False
 	if 0 < pid:
@@ -31,6 +33,8 @@ def _is_pid_alive(pid: int) -> bool:
 			except OSError:
 				r = False
 	return r
+# @used-by :meth:`HookRunnerWatchdogTests.test_default_watchdog_falls_back_to_lkg_on_8s_delay_within_10s()`
+# @used-by :meth:`HookRunnerWatchdogTests.test_watchdog_env_override_terminates_hung_child_process_and_keeps_ascii_header()`
 def _seed_two_releases(base: Path) -> tuple[Path, Path, Path, str, str]:
 	from agent_tools.runtime_snapshot import harness_hook_runner_source, promote_runtime_snapshot
 	repo = base / 'proj/\u2c0f/\u227b/\u2655/\u26ef'
@@ -68,6 +72,7 @@ def _seed_two_releases(base: Path) -> tuple[Path, Path, Path, str, str]:
 # "Add soft watchdog timeout with LKG fallback to harness_hook_runner":
 # https://github.com/dmitry-ai/harness/issues/252
 class HookRunnerWatchdogTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_default_watchdog_falls_back_to_lkg_on_8s_delay_within_10s(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			_, store, runner, sha1, sha2 = _seed_two_releases(Path(td).resolve())
@@ -84,6 +89,7 @@ class HookRunnerWatchdogTests(unittest.TestCase):
 			self.assertIn('TimeoutError', fb_log)
 			self.assertIn(sha1, fb_log)
 			self.assertIn(sha2, fb_log)
+	# @used-by :mod:`unittest`
 	def test_watchdog_env_override_terminates_hung_child_process_and_keeps_ascii_header(self) -> None:
 		from agent_tools.runtime_launchers import HOOK_RUNNER_HEADER, harness_hook_runner_source
 		with tempfile.TemporaryDirectory() as td:

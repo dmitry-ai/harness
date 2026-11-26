@@ -11,13 +11,19 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :meth:`SnapshotCanaryAndHookCrashAuditTests.test_promote_rejects_chatty_pre_tool_use_snapshot_and_keeps_current()`
+# @used-by :meth:`SnapshotCanaryAndHookCrashAuditTests.test_promote_rejects_slow_pre_tool_use_snapshot_and_keeps_current()`
 def _commit_rg(repo: Path, source: str, message: str) -> None:
 	(repo / 'scripts/check_rules_and_server_gate.py').write_text(source, encoding='utf-8')
 	_git(repo, 'add', 'scripts/check_rules_and_server_gate.py')
 	_git(repo, 'commit', '--no-verify', '-m', message)
+# @used-by :func:`_commit_rg()`
+# @used-by :func:`_seed_canary_repo()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return (proc.stdout or '').strip()
+# @used-by :meth:`SnapshotCanaryAndHookCrashAuditTests.test_promote_rejects_chatty_pre_tool_use_snapshot_and_keeps_current()`
+# @used-by :meth:`SnapshotCanaryAndHookCrashAuditTests.test_promote_rejects_slow_pre_tool_use_snapshot_and_keeps_current()`
 def _seed_canary_repo(base: Path) -> Path:
 	repo = base / 'proj/\u2c0f/\u227b/\u2655/\u26ef'
 	(repo / 'scripts/agent_tools/gates').mkdir(parents=True, exist_ok=True)
@@ -43,6 +49,8 @@ def _seed_canary_repo(base: Path) -> Path:
 	_git(repo, 'add', '.')
 	_git(repo, 'commit', '--no-verify', '-m', 'init')
 	return repo
+# @used-by :meth:`SnapshotCanaryAndHookCrashAuditTests.test_answer_check_enforces_hook_crash_gate()`
+# @used-by :meth:`SnapshotCanaryAndHookCrashAuditTests.test_hook_crash_audit_blocks_silent_omission_and_accepts_disclosed_issue_or_recovery()`
 def _write_transcript(path: Path, rows: list[dict]) -> Path:
 	path.parent.mkdir(parents=True, exist_ok=True)
 	path.write_text(''.join((json.dumps(r, ensure_ascii=False) + '\n' for r in rows)), encoding='utf-8')
@@ -51,6 +59,7 @@ def _write_transcript(path: Path, rows: list[dict]) -> Path:
 # "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 # https://github.com/dmitry-ai/harness/issues/251
 class SnapshotCanaryAndHookCrashAuditTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_answer_check_enforces_hook_crash_gate(self) -> None:
 		from agent_tools import completion
 		with tempfile.TemporaryDirectory() as td:
@@ -70,6 +79,7 @@ class SnapshotCanaryAndHookCrashAuditTests(unittest.TestCase):
 				self.assertFalse(silent['checks']['hook_crash'])
 				disclosed = completion.check_answer(root, 'PreToolUse hook rules-and-server-gate failed with exit status 1 on step 2.\n', conversation=cid, platform='antigravity')
 				self.assertTrue(disclosed['checks']['hook_crash'], disclosed)
+	# @used-by :mod:`unittest`
 	def test_hook_crash_audit_blocks_silent_omission_and_accepts_disclosed_issue_or_recovery(self) -> None:
 		from agent_tools.hook_crash_audit import detect_hook_crashes, evaluate_hook_crash_check
 		with tempfile.TemporaryDirectory() as td:
@@ -98,10 +108,12 @@ class SnapshotCanaryAndHookCrashAuditTests(unittest.TestCase):
 			self.assertTrue(evaluate_hook_crash_check(root, native_err, {**turn_err, 'issue_actions': [{'repo': 'dmitry-ai/harness', 'number': 245, 'action': 'create', 'url': 'https://github.com/dmitry-ai/harness/issues/245'}]}, {'key': 'tk1'}, 'Completed task.')['verified'])
 			(root / '\ua616/data/turns/tk1-violation-recovery.json').write_text(json.dumps({'turn_key': 'tk1', 'covered_hook_crash_steps': [5], 'reason': 'Transient host error investigated'}), encoding='utf-8')
 			self.assertTrue(evaluate_hook_crash_check(root, native_err, turn_err, {'key': 'tk1'}, 'Completed task.')['verified'])
+	# @used-by :mod:`unittest`
 	def test_live_worktree_passes_pre_tool_use_canary(self) -> None:
 		from agent_tools.snapshot_canary import run_pre_tool_use_canary
 		ok, detail = run_pre_tool_use_canary(WT_ROOT)
 		self.assertTrue(ok, detail)
+	# @used-by :mod:`unittest`
 	def test_promote_rejects_chatty_pre_tool_use_snapshot_and_keeps_current(self) -> None:
 		from agent_tools.runtime_snapshot import promote_runtime_snapshot
 		with tempfile.TemporaryDirectory() as td:
@@ -116,6 +128,7 @@ class SnapshotCanaryAndHookCrashAuditTests(unittest.TestCase):
 			self.assertFalse(bad['promoted'], bad)
 			self.assertIn('subprocess', bad.get('error', '').lower())
 			self.assertEqual(sha1, json.loads((store / 'current.json').read_text(encoding='utf-8'))['current'])
+	# @used-by :mod:`unittest`
 	def test_promote_rejects_slow_pre_tool_use_snapshot_and_keeps_current(self) -> None:
 		from agent_tools.runtime_snapshot import promote_runtime_snapshot
 		with tempfile.TemporaryDirectory() as td:

@@ -11,11 +11,16 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_DIR = WT_ROOT / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
+# @used-by :meth:`PerfTimesheetTests.test_antigravity_parallel_tool_calls_match_bg_task_result()`
+# @used-by :meth:`PerfTimesheetTests.test_antigravity_timesheet_computes_chronometry_switches_checkpoints_and_bg_waits()`
+# @used-by :meth:`PerfTimesheetTests.test_cli_help_text_format_and_journal_step_resolution()`
+# @used-by :meth:`PerfTimesheetTests.test_codex_rollout_timesheet_and_step_slicing()`
 def _write_jsonl(path: Path, rows: list[dict]) -> Path:
 	path.parent.mkdir(parents=True, exist_ok=True)
 	text = '\n'.join((json.dumps(r, ensure_ascii=False) for r in rows)) + '\n'
 	path.write_text(text, encoding='utf-8')
 	return path
+# @used-by :meth:`PerfTimesheetTests.test_antigravity_timesheet_computes_chronometry_switches_checkpoints_and_bg_waits()`
 def _make_summary_db(path: Path, cid: str, start_ts: str, end_ts: str) -> Path:
 	conn = sqlite3.connect(str(path))
 	try:
@@ -25,6 +30,8 @@ def _make_summary_db(path: Path, cid: str, start_ts: str, end_ts: str) -> Path:
 	finally:
 		conn.close()
 	return path
+# @used-by :meth:`PerfTimesheetTests.test_antigravity_timesheet_computes_chronometry_switches_checkpoints_and_bg_waits()`
+# @used-by :meth:`PerfTimesheetTests.test_cli_help_text_format_and_journal_step_resolution()`
 def _sample_antigravity_rows(cid: str) -> list[dict]:
 	bg_id = f'{cid}/task-4'
 	return [
@@ -39,6 +46,7 @@ def _sample_antigravity_rows(cid: str) -> list[dict]:
 		{'step_index': 8, 'source': 'SYSTEM', 'type': 'CHECKPOINT', 'status': 'DONE', 'created_at': '2026-11-23T10:01:21Z', 'input_tokens': 4000, 'cache_read_tokens': 40000, 'output_tokens': 500, 'content': '# Resuming from a compaction'},
 		{'step_index': 9, 'source': 'MODEL', 'type': 'PLANNER_RESPONSE', 'status': 'DONE', 'created_at': '2026-11-23T10:01:51Z', 'model': 'gemini-4-neon-xhigh', 'input_tokens': 18000, 'cache_read_tokens': 0, 'output_tokens': 400, 'content': 'Done'},
 	]
+# @used-by :meth:`PerfTimesheetTests.test_codex_rollout_timesheet_and_step_slicing()`
 def _sample_codex_rows() -> list[dict]:
 	return [
 		{'timestamp': '2026-11-23T12:00:00Z', 'type': 'session_meta', 'payload': {'id': '11111111-2222-3333-4444-555555555555', 'cwd': 'C:/work/demo'}},
@@ -56,6 +64,7 @@ def _sample_codex_rows() -> list[dict]:
 # "Add harness perf-timesheet CLI for deterministic turn chronometry":
 # https://github.com/dmitry-ai/harness/issues/191
 class PerfTimesheetTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_antigravity_timesheet_computes_chronometry_switches_checkpoints_and_bg_waits(self) -> None:
 		from agent_tools.perf.timesheet import build_timesheet
 		cid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
@@ -93,6 +102,7 @@ class PerfTimesheetTests(unittest.TestCase):
 			self.assertEqual(rep['trace_sha256'], cli_data['trace_sha256'])
 			self.assertTrue(out_file.is_file())
 			self.assertEqual(cli_data['step_count'], json.loads(out_file.read_text(encoding='utf-8'))['step_count'])
+	# @used-by :mod:`unittest`
 	def test_antigravity_parallel_tool_calls_match_bg_task_result(self) -> None:
 		from agent_tools.perf.timesheet import build_timesheet
 		cid = 'cccccccc-dddd-eeee-ffff-000000000000'
@@ -111,6 +121,7 @@ class PerfTimesheetTests(unittest.TestCase):
 			self.assertAlmostEqual(100.0, rep['commands']['bg_test_waits'][0]['wall_s'], places=1)
 			self.assertEqual(885, rep['commands']['bg_test_waits'][0]['tests_count'])
 			self.assertAlmostEqual(100.0, rep['commands']['categories']['test_runs']['wall_s'], places=1)
+	# @used-by :mod:`unittest`
 	def test_cli_help_text_format_and_journal_step_resolution(self) -> None:
 		cid = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff'
 		with tempfile.TemporaryDirectory() as td:
@@ -128,6 +139,7 @@ class PerfTimesheetTests(unittest.TestCase):
 			self.assertIn('Surface: antigravity', p_txt.stdout)
 			self.assertIn('Step count: 7', p_txt.stdout)
 			self.assertIn('test_runs', p_txt.stdout)
+	# @used-by :mod:`unittest`
 	def test_codex_rollout_timesheet_and_step_slicing(self) -> None:
 		from agent_tools.perf.timesheet import build_timesheet
 		with tempfile.TemporaryDirectory() as td:

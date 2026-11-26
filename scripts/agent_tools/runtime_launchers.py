@@ -220,15 +220,21 @@ _GIT_MAIN = (
 	"if '__main__' == __name__:\n"
 	'\tmain()\n'
 )
+# @used-by :func:`git_hook_launcher_source()`
+# @used-by :func:`harness_hook_runner_source()`
 def _default_store_dir(primary: Path) -> Path:
 	from .storage import data_dir_for
 	return data_dir_for(Path(primary).resolve()) / 'runtime-snapshots'
+# @used-by :func:`agent_tools.runtime_snapshot._deploy_git_hooks()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def git_hook_launcher_source(primary: str | Path, *, store_dir: str | Path | None=None) -> str:
 	prim_p = Path(primary).resolve()
 	st_p = Path(store_dir).resolve() if None is not store_dir else _default_store_dir(prim_p)
 	fb_lit = json.dumps(prim_p.as_posix(), ensure_ascii=True)
 	st_lit = json.dumps(st_p.as_posix(), ensure_ascii=True)
 	return GIT_HOOK_LAUNCHER_HEADER + _RUNNER_COMMON + f'FALLBACK_PRIMARY = {fb_lit}\nRUNTIME_STORE = {st_lit}\n' + _GIT_MAIN
+# @used-by :func:`agent_tools.runtime_snapshot._deploy_git_hooks()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def git_hook_shell_wrapper(hook_name: str) -> str:
 	return (
 		'#!/bin/sh\n'
@@ -242,6 +248,13 @@ def git_hook_shell_wrapper(hook_name: str) -> str:
 		'fi\n'
 		f'python "$LAUNCHER" --hook {hook_name} "$@"\n'
 	)
+# @used-by :func:`agent_tools.upwork_project.harness_hook_runner_source()`
+# @used-by :func:`test_hook_runner_e2e_budget._stage_snapshot_runner()`
+# @used-by :func:`test_hook_runner_watchdog._seed_two_releases()`
+# @used-by :meth:`test_hook_runner_watchdog.HookRunnerWatchdogTests.test_watchdog_env_override_terminates_hung_child_process_and_keeps_ascii_header()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_lkg_fallback_runs_previous_release_when_current_crashes()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_promote_exports_snapshot_surviving_live_tree_corruption_and_preserving_anchor()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def harness_hook_runner_source(primary: str | Path, *, store_dir: str | Path | None=None) -> str:
 	prim_p = Path(primary).resolve()
 	st_p = Path(store_dir).resolve() if None is not store_dir else _default_store_dir(prim_p)

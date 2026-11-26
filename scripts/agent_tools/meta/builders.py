@@ -25,6 +25,7 @@ _HOOKS: dict[str, tuple[Any, Any]] = {
 	'_resolve_codex_paths_safe': (identity, identity._resolve_codex_paths_safe),
 	'resolve_project_identity': (identity, identity.resolve_project_identity),
 }
+# @used-by :func:`build_github_issue_metadata()`
 def _apply_issue_state_details(state_path: Path | None, state_obj: dict[str, Any] | None, canon_root: Path | None, platform: str | None, ctx: dict[str, Any]) -> dict[str, Any]:
 	from .. import journal
 	out: dict[str, Any] = {'group_file': None, 'jdir': None, 'start_step': None, 'state_path': state_path, 'steps': [], 'turn_id': None, 'turn_key': None}
@@ -37,11 +38,15 @@ def _apply_issue_state_details(state_path: Path | None, state_obj: dict[str, Any
 		out['group_file'] = _resolve_issue_group_file(state_obj, out['jdir'], out['turn_key'])
 		_refine_issue_ctx_from_state(platform, ctx, out['turn_id'], out['start_step'])
 	return out
+# @used-by :func:`build_github_issue_metadata()`
+# @used-by :func:`build_journal_metadata()`
 def _assemble_optional_blocks(base: dict[str, Any], extras: tuple[tuple[str, dict[str, Any] | None], ...]) -> dict[str, Any]:
 	for key, val in extras:
 		if val:
 			base[key] = val
 	return base
+# @used-by :func:`_collect_issue_env_ctx()`
+# @used-by :func:`agent_tools.issues.turn_scope._resolve_antigravity_parent_cid()`
 def _collect_ag_issue_ctx(environ: dict[str, str], active_cid: str) -> dict[str, Any]:
 	ag_backend_env = str(environ.get('ANTIGRAVITY_APP_DATA_DIR') or '').strip() or None
 	ag_inst_env = str(environ.get('ANTIGRAVITY_ACCOUNT') or '').strip() or None
@@ -58,6 +63,7 @@ def _collect_ag_issue_ctx(environ: dict[str, str], active_cid: str) -> dict[str,
 	model, effort = _fn('_resolve_ag_model_and_effort')(ag_paths, active_cid, transcript_path=t_path)
 	inst_id = (ag_paths.get('instance') if isinstance(ag_paths, dict) else None) or ag_inst_env
 	return {'ag_paths': ag_paths, 'effort': effort, 'instance_id': inst_id, 'model': model, 'primary_cid': primary_cid, 'subagent_cid': subagent_cid, 'summary_row': summary_row, 'transcript_path': t_path, 'turn_index': None}
+# @used-by :func:`_collect_issue_env_ctx()`
 def _collect_codex_issue_ctx(environ: dict[str, str], active_cid: str) -> dict[str, Any]:
 	cx_home_env = str(environ.get('CODEX_HOME') or '').strip() or None
 	cx_paths = _fn('_resolve_codex_paths_safe')(backend=cx_home_env, conversation_id=active_cid)
@@ -70,6 +76,7 @@ def _collect_codex_issue_ctx(environ: dict[str, str], active_cid: str) -> dict[s
 		t_path = None
 	c_info = _fn('_extract_codex_transcript_info')(t_path) if None is not t_path else {}
 	return {'ag_paths': None, 'effort': c_info.get('effort'), 'instance_id': instance_id, 'model': c_info.get('model'), 'primary_cid': active_cid, 'subagent_cid': None, 'summary_row': None, 'transcript_path': t_path, 'turn_index': c_info.get('turn_index')}
+# @used-by :func:`build_github_issue_metadata()`
 def _collect_issue_env_ctx(environ: dict[str, str], platform: str | None, active_cid: str | None) -> dict[str, Any]:
 	if 'antigravity' == platform and active_cid:
 		r = _collect_ag_issue_ctx(environ, active_cid)
@@ -78,6 +85,7 @@ def _collect_issue_env_ctx(environ: dict[str, str], platform: str | None, active
 	else:
 		r = {'ag_paths': None, 'effort': None, 'instance_id': None, 'model': None, 'primary_cid': active_cid, 'subagent_cid': None, 'summary_row': None, 'transcript_path': None, 'turn_index': None}
 	return r
+# @used-by :func:`build_journal_metadata()`
 def _collect_journal_turn_state(platform: str, cid: str, ag_paths: dict[str, Any] | None, summary_row: dict[str, Any] | None, native: dict[str, Any], turn: dict[str, Any], request_at: Any, response_at: Any) -> dict[str, Any]:
 	model, effort = _split_model_and_effort(turn.get('model'), turn.get('effort'))
 	state: dict[str, Any] = {
@@ -94,6 +102,8 @@ def _collect_journal_turn_state(platform: str, cid: str, ag_paths: dict[str, Any
 	elif 'codex' == platform:
 		_enrich_journal_codex(native.get('source_file'), turn.get('turn_id'), state)
 	return state
+# @used-by :func:`agent_tools.issues.turn_scope.detect_active_session()`
+# @used-by :func:`build_github_issue_metadata()`
 def _detect_env_platform(environ: dict[str, str]) -> tuple[str | None, str | None, int | None]:
 	meta_cid, tool_step = transcripts._parse_antigravity_source_metadata(environ)
 	ag_cid = str(environ.get('ANTIGRAVITY_CONVERSATION_ID') or '').strip().lower() or meta_cid or ''
@@ -105,6 +115,7 @@ def _detect_env_platform(environ: dict[str, str]) -> tuple[str | None, str | Non
 	else:
 		r = (None, None, tool_step)
 	return r
+# @used-by :func:`_collect_journal_turn_state()`
 def _enrich_journal_ag(cid: str, ag_paths: dict[str, Any] | None, summary_row: dict[str, Any] | None, source_file: Any, state: dict[str, Any]) -> None:
 	t_path = source_file or (_fn('_ag_transcript_file')(ag_paths, cid) if cid else None)
 	if None is state['req_ts'] or None is state['model'] or None is state['effort'] or None is state['turn_index']:
@@ -116,10 +127,12 @@ def _enrich_journal_ag(cid: str, ag_paths: dict[str, Any] | None, summary_row: d
 			state['effort'] = state['effort'] or fb_e
 	if None is state['req_ts'] and isinstance(summary_row, dict) and summary_row.get('last_user_input_time'):
 		state['req_ts'] = summary_row.get('last_user_input_time')
+# @used-by :func:`_collect_journal_turn_state()`
 def _enrich_journal_codex(source_file: Any, turn_id: Any, state: dict[str, Any]) -> None:
 	if None is state['req_ts'] or None is state['model'] or None is state['effort'] or None is state['turn_index']:
 		c_info = _fn('_extract_codex_transcript_info')(source_file, turn_id=turn_id, start_step=state['start_step'], final_step=state['final_step'])
 		_merge_transcript_fields(state, c_info, include_model=True)
+# @used-by :func:`build_github_issue_metadata()`
 def _find_issue_state_pair(canon_root: Path | None, primary_cid: str | None) -> tuple[Path | None, dict[str, Any] | None]:
 	r: tuple[Path | None, dict[str, Any] | None] = (None, None)
 	if None is not canon_root and primary_cid:
@@ -131,9 +144,20 @@ def _find_issue_state_pair(canon_root: Path | None, primary_cid: str | None) -> 
 		except (OSError, ValueError):
 			r = (None, None)
 	return r
+# @used-by :func:`_collect_ag_issue_ctx()`
+# @used-by :func:`_collect_codex_issue_ctx()`
+# @used-by :func:`_enrich_journal_ag()`
+# @used-by :func:`_enrich_journal_codex()`
+# @used-by :func:`_refine_issue_ctx_from_state()`
+# @used-by :func:`_resolve_journal_platform()`
+# @used-by :func:`build_github_issue_metadata()`
+# @used-by :func:`build_journal_metadata()`
+# @used-by :func:`build_problem_metadata()`
 def _fn(name: str) -> Any:
 	mod, default = _HOOKS[name]
 	return _resolve_hook(name, mod, default)
+# @used-by :func:`_enrich_journal_ag()`
+# @used-by :func:`_enrich_journal_codex()`
 def _merge_transcript_fields(state: dict[str, Any], info: dict[str, Any], *, include_model: bool=False) -> None:
 	for dst, src in (('req_ts', 'request_timestamp'), ('res_ts', 'response_timestamp'), ('turn_index', 'turn_index')):
 		if None is state[dst]:
@@ -144,6 +168,7 @@ def _merge_transcript_fields(state: dict[str, Any], info: dict[str, Any], *, inc
 # 2026-11-24
 # "Add structured problem metadata builder and CLI command":
 # https://github.com/dmitry-ai/harness/issues/180
+# @used-by :func:`build_problem_metadata()`
 def _normalize_problem_issue_url(issue_url: str | None, *, allow_no_issue: bool) -> str | None:
 	raw = str(issue_url or '').strip().rstrip('/')
 	if not raw:
@@ -155,6 +180,7 @@ def _normalize_problem_issue_url(issue_url: str | None, *, allow_no_issue: bool)
 	else:
 		r = raw
 	return r
+# @used-by :func:`_apply_issue_state_details()`
 def _refine_issue_ctx_from_state(platform: str | None, ctx: dict[str, Any], turn_id: Any, start_step: int | None) -> None:
 	if 'antigravity' == platform and ctx['primary_cid']:
 		p_trans = _fn('_ag_transcript_file')(ctx['ag_paths'], ctx['primary_cid'])
@@ -167,6 +193,7 @@ def _refine_issue_ctx_from_state(platform: str | None, ctx: dict[str, Any], turn
 			ctx['turn_index'] = c_info['turn_index']
 		ctx['model'] = ctx['model'] or c_info.get('model')
 		ctx['effort'] = ctx['effort'] or c_info.get('effort')
+# @used-by :func:`_apply_issue_state_details()`
 def _resolve_issue_group_file(state_obj: dict[str, Any], jdir: Path | None, turn_key: str | None) -> Path | None:
 	from .. import journal
 	r: Path | None = None
@@ -178,6 +205,7 @@ def _resolve_issue_group_file(state_obj: dict[str, Any], jdir: Path | None, turn
 	if None is r and None is not jdir and turn_key:
 		r = journal.state_dir(jdir) / 'answer-groups' / f'native-{turn_key}.json'
 	return r
+# @used-by :func:`build_journal_metadata()`
 def _resolve_journal_platform(platform: str, native: dict[str, Any], cid: str) -> tuple[dict[str, Any] | None, Any, dict[str, Any] | None]:
 	backend_raw, inst = (native.get('native_backend'), native.get('instance'))
 	ag_paths = _fn('_resolve_ag_paths_safe')(backend=backend_raw, instance=inst, conversation_id=cid) if 'antigravity' == platform else None
@@ -185,6 +213,7 @@ def _resolve_journal_platform(platform: str, native: dict[str, Any], cid: str) -
 	instance_id = inst or (ag_paths.get('instance') if isinstance(ag_paths, dict) else None) or (cx_paths.get('instance') if isinstance(cx_paths, dict) else None)
 	summary_row = _fn('_read_ag_summary_row')(ag_paths, cid) if 'antigravity' == platform and cid else None
 	return (ag_paths, instance_id, summary_row)
+# @used-by :func:`_collect_journal_turn_state()`
 def _resolve_turn_index(turn: dict[str, Any], native: dict[str, Any]) -> Any:
 	r = turn.get('turn_index')
 	if not isinstance(r, int) or 1 > r:
@@ -193,6 +222,13 @@ def _resolve_turn_index(turn: dict[str, Any], native: dict[str, Any]) -> Any:
 				r = idx
 				break
 	return r
+# @used-by :func:`agent_tools.cleanup_audit.build_cleanup_metadata()`
+# @used-by :func:`build_problem_metadata()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._prepend_issue_metadata()`
+# @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_build_github_issue_metadata_live_env_child_subagent_and_standalone()`
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_builders_honor_facade_monkeypatch_seam_and_match_metadata_parity()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def build_github_issue_metadata(*, issue_url: str, project_root: str | Path | None=None, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None) -> dict[str, Any]:
 	from ..path_registry import canonicalize_root_dir
 	environ = dict(os.environ) if None is env else dict(env)
@@ -211,6 +247,12 @@ def build_github_issue_metadata(*, issue_url: str, project_root: str | Path | No
 	trace_block = _build_trace_block(cid=ctx['primary_cid'], subagent_cid=ctx['subagent_cid'], turn_trace=turn_trace, journal_trace=journal_trace, transcript_path=ctx['transcript_path'])
 	extras = (('Project', project_info), ('Journal', _build_journal_block(st['steps'], conv_label)), ('Agent', _build_agent_block(platform, ctx['instance_id'], ctx['model'], ctx['effort'])), ('Trace', trace_block))
 	return _assemble_optional_blocks({'Time': format_local_timestamp(now, tz=tz), 'Issue': str(issue_url)}, extras)
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.stop_emergency_capture._build_emergency_response()`
+# @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_build_journal_metadata_for_antigravity_and_codex()`
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_builders_honor_facade_monkeypatch_seam_and_match_metadata_parity()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def build_journal_metadata(root: str | Path, native: dict[str, Any], turn: dict[str, Any], *, journal_dir: str | Path, steps: list[int], turn_key: str, turn_state_path: str | Path | None=None, group_file: str | Path | None=None, conversation_steps: list[int] | None=None, request_at: datetime | str | None=None, response_at: datetime | str | None=None, tz=None) -> dict[str, Any]:
 	from ..path_registry import canonicalize_root_dir, project_paths
 	canon_root = canonicalize_root_dir(root)
@@ -232,6 +274,12 @@ def build_journal_metadata(root: str | Path, native: dict[str, Any], turn: dict[
 # 2026-11-24
 # "Add structured problem metadata builder and CLI command":
 # https://github.com/dmitry-ai/harness/issues/180
+# @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
+# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_allow_no_issue_keeps_mandatory_issue_key()`
+# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_rejects_missing_or_invalid_issue_url()`
+# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_with_issue_url_and_distinct_source_project()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def build_problem_metadata(*, issue_url: str | None=None, project_root: str | Path | None=None, source_project_root: str | Path | None=None, allow_no_issue: bool=False, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None) -> dict[str, Any]:
 	from ..path_registry import canonicalize_root_dir
 	clean_url = _normalize_problem_issue_url(issue_url, allow_no_issue=allow_no_issue)

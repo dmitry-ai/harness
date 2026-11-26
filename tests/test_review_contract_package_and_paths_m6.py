@@ -16,6 +16,7 @@ from agent_tools import cli_domains, review
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
 class ReviewContractPackageAndPathsM6Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_report_contract_and_validator_require_package_envelope_keys(self) -> None:
 		req_fields = review.REPORT_CONTRACT.get('required_top_level_fields') or []
 		self.assertIn('package', req_fields)
@@ -41,6 +42,7 @@ class ReviewContractPackageAndPathsM6Tests(unittest.TestCase):
 		report_missing_path = {**report_missing_both, 'package_sha256': 'a' * 64}
 		partial_issues = review.report_issues(report_missing_path, pkg)
 		self.assertTrue(any(('package' in item for item in partial_issues)), partial_issues)
+	# @used-by :mod:`unittest`
 	def test_record_review_resolves_project_relative_report_from_foreign_cwd(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -54,6 +56,7 @@ class ReviewContractPackageAndPathsM6Tests(unittest.TestCase):
 			args = argparse.Namespace(project=str(proj), parent='p-1', reviewer='r-1', report=rel_report, native_evidence='ꘖ/KB/Evidence/Reviews/rev-native.json', consume_input=False, expected_sha256=None)
 			old_cwd = os.getcwd()
 			captured = {}
+			# @used-by :meth:`ReviewContractPackageAndPathsM6Tests.test_record_review_resolves_project_relative_report_from_foreign_cwd()`
 			def _fake_record(project, payload, **kwargs):
 				captured['project'] = project
 				captured['payload'] = payload

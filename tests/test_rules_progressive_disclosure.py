@@ -10,6 +10,10 @@ SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import configuration, upwork_project
+# @used-by :meth:`RulesProgressiveDisclosureTests.test_doctor_accepts_model_decision_and_reports_trigger_metrics()`
+# @used-by :meth:`RulesProgressiveDisclosureTests.test_doctor_rejects_invalid_trigger_or_undescribed_model_decision()`
+# @used-by :meth:`RulesProgressiveDisclosureTests.test_loader_omits_on_demand_header_when_all_rules_are_always_on()`
+# @used-by :meth:`RulesProgressiveDisclosureTests.test_loader_separates_always_on_and_catalogs_model_decision_with_description()`
 def _seed_primary(root: Path, rules: dict[str, str]) -> Path:
 	primary = root / 'primary'
 	for rel in ('rules', 'platforms', 'skills/upwork-init', 'agents', 'scripts'):
@@ -25,6 +29,7 @@ def _seed_primary(root: Path, rules: dict[str, str]) -> Path:
 # "Support model_decision trigger class in doctor and Codex loader":
 # https://github.com/dmitry-ai/harness/issues/241
 class RulesProgressiveDisclosureTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_doctor_accepts_model_decision_and_reports_trigger_metrics(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			primary = _seed_primary(Path(td), {'00-scope.md': '---\ntrigger: always_on\ndescription: "Core scope"\n---\n# Scope\nStay in scope.  \n', '11-code-formatting.md': '---\ntrigger: model_decision\ndescription: "Read before editing source code files"\n---\n# Code\nUse tabs.  \n'})
@@ -34,6 +39,7 @@ class RulesProgressiveDisclosureTests(unittest.TestCase):
 			self.assertEqual((primary / 'rules/00-scope.md').stat().st_size, rep['always_on_rule_bytes'])
 			self.assertGreater(rep['always_on_estimated_tokens'], 0)
 			self.assertLess(rep['always_on_rule_bytes'], rep['rule_bytes'])
+	# @used-by :mod:`unittest`
 	def test_doctor_rejects_invalid_trigger_or_undescribed_model_decision(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			base = Path(td)
@@ -46,6 +52,7 @@ class RulesProgressiveDisclosureTests(unittest.TestCase):
 			p_no_trig = _seed_primary(base / 'no_trig', {'00-scope.md': '# Scope without frontmatter\n'})
 			with self.assertRaises(ValueError):
 				upwork_project.doctor(primary=p_no_trig)
+	# @used-by :mod:`unittest`
 	def test_loader_separates_always_on_and_catalogs_model_decision_with_description(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			primary = _seed_primary(Path(td), {'00-scope.md': '---\ntrigger: always_on\ndescription: "Core scope"\n---\n# Scope\n', '11-code-formatting.md': '---\ntrigger: model_decision\ndescription: "Read before editing source code"\n---\n# Code\n', '90-legacy.md': 'Plain rule without frontmatter.\n'})
@@ -56,12 +63,14 @@ class RulesProgressiveDisclosureTests(unittest.TestCase):
 			self.assertIn((primary / 'rules/90-legacy.md').as_posix(), always_part)
 			self.assertNotIn((primary / 'rules/11-code-formatting.md').as_posix(), always_part)
 			self.assertIn(f'- {(primary / "rules/11-code-formatting.md").as_posix()} — Read before editing source code', on_demand_part)
+	# @used-by :mod:`unittest`
 	def test_loader_omits_on_demand_header_when_all_rules_are_always_on(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			primary = _seed_primary(Path(td), {'00-scope.md': '---\ntrigger: always_on\n---\n# Scope\n'})
 			loader = configuration._loader(primary)
 			self.assertIn((primary / 'rules/00-scope.md').as_posix(), loader)
 			self.assertNotIn('On-demand shared rules', loader)
+	# @used-by :mod:`unittest`
 	def test_token_estimator_is_positive_and_monotonic(self) -> None:
 		from agent_tools.rules_manifest import estimate_tokens
 		short_t = estimate_tokens('Hello world.')

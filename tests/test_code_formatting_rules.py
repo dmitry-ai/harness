@@ -15,6 +15,12 @@ RULE_DOC = HARNESS_ROOT / 'rules/11-code-formatting.md'
 # "Migrate general code formatting rules with Bash and ES6 guides":
 # https://github.com/dmitry-ai/harness/issues/154
 class CodeFormattingRulesContractTests(unittest.TestCase):
+	# @used-by :meth:`CodeFormattingRulesContractTests.test_bash_and_javascript_guides_cover_migrated_rules_without_p_prefix()`
+	# @used-by :meth:`CodeFormattingRulesContractTests.test_general_rule_passes_doctor_native_bootstrap_and_lint()`
+	# @used-by :meth:`CodeFormattingRulesContractTests.test_issue_comments_guide_and_rules_codify_contextual_placement()`
+	# @used-by :meth:`CodeFormattingRulesContractTests.test_mage2pro_derived_php_markup_and_other_guides()`
+	# @used-by :meth:`CodeFormattingRulesContractTests.test_python_and_ini_guides_cover_pipeline_standards()`
+	# @used-by :meth:`CodeFormattingRulesContractTests.test_xref_standards_codified_for_python_javascript_and_java()`
 	def _assert_clean_doc(self, doc: Path) -> str:
 		self.assertTrue(doc.is_file(), f'Missing formatting document: {doc}')
 		self.assertFalse(doc.name.startswith('P.'), f'Prohibited P. filename prefix: {doc}')
@@ -24,6 +30,7 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		slop_errs = check_markdown_slop.markdown_slop_issues(text)
 		self.assertEqual([], slop_errs, f'DOC-4 slop errors in {doc.name}: {slop_errs}')
 		return text
+	# @used-by :mod:`unittest`
 	def test_bash_and_javascript_guides_cover_migrated_rules_without_p_prefix(self) -> None:
 		self.assertTrue(CODE_FORMATTING_DIR.is_dir(), f'Missing hierarchy directory: {CODE_FORMATTING_DIR}')
 		p_prefixed = [p for p in CODE_FORMATTING_DIR.rglob('*.md') if p.name.startswith('P.')]
@@ -36,6 +43,7 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		js_text = self._assert_clean_doc(js_doc)
 		for token in ('11-code-formatting.md#code-1', 'ES6', 'const', '=>', 'template literal', '===', 'else', 'not part of'):
 			self.assertIn(token, js_text, f'Missing JavaScript formatting requirement {token!r}')
+	# @used-by :mod:`unittest`
 	def test_general_rule_passes_doctor_native_bootstrap_and_lint(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		# 2026-11-25
@@ -53,6 +61,7 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 	# 2026-11-26
 	# "Codify contextual issue-comment placement standard in Harness rules":
 	# https://github.com/dmitry-ai/harness/issues/272
+	# @used-by :mod:`unittest`
 	def test_issue_comments_guide_and_rules_codify_contextual_placement(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		self.assertIn('issue-comments.md', rule_text)
@@ -66,6 +75,7 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 	# 2026-11-23
 	# "Add PHP and markup formatting standards derived from mage2pro/core":
 	# https://github.com/dmitry-ai/harness/issues/155
+	# @used-by :mod:`unittest`
 	def test_mage2pro_derived_php_markup_and_other_guides(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		for rel in ('programming/php.md', 'markup/xml.md', 'markup/html.md', 'other/json.md', 'other/less.md'):
@@ -88,6 +98,7 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 	# 2026-11-23
 	# "Add Python and INI formatting standards derived from reference pipelines":
 	# https://github.com/dmitry-ai/harness/issues/156
+	# @used-by :mod:`unittest`
 	def test_python_and_ini_guides_cover_pipeline_standards(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		for rel in ('programming/python.md', 'other/ini.md'):
@@ -107,6 +118,7 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 	# 2026-11-26
 	# "Codify navigable cross-reference standards and override SLOC exemption":
 	# https://github.com/dmitry-ai/harness/issues/286
+	# @used-by :mod:`unittest`
 	def test_xref_standards_codified_for_python_javascript_and_java(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		self.assertLess(len(RULE_DOC.read_bytes()), 6000)

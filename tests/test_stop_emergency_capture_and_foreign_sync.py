@@ -13,6 +13,8 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import completion, journal, metadata
 import check_stop_gate
+# @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running()`
+# @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict()`
 def _reserve_foreign(backend: Path, proj: Path, cid: str, req_text: str, resp_text: str | None, *, patch_state: dict | None=None, final_status: str='CASCADE_RUN_STATUS_IDLE') -> dict:
 	_seed_ag_conversation(backend, proj, cid, req_text, None, status='CASCADE_RUN_STATUS_RUNNING', not_fully_idle=1)
 	beg = completion.begin(proj, cid, platform='antigravity', backend=backend)
@@ -24,6 +26,13 @@ def _reserve_foreign(backend: Path, proj: Path, cid: str, req_text: str, resp_te
 	if None is not resp_text:
 		_seed_ag_conversation(backend, proj, cid, req_text, resp_text, status=final_status, not_fully_idle=0 if 'CASCADE_RUN_STATUS_IDLE' == final_status else 1)
 	return beg
+# @used-by :func:`_reserve_foreign()`
+# @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running()`
+# @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_all_open_syncs_idle_prepared_turn()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_idle_prepared_turn_transitions_to_delivered_via_foreign_sync_and_all_open_without_mutating_journal()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
+# @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict()`
 def _seed_ag_conversation(backend: Path, proj: Path, cid: str, req_text: str, resp_text: str | None, *, status: str='CASCADE_RUN_STATUS_IDLE', not_fully_idle: int=0, killed: int=0) -> Path:
 	(backend / 'conversations').mkdir(parents=True, exist_ok=True)
 	logs = backend / 'brain' / cid / '.system_generated/logs'
@@ -45,6 +54,7 @@ def _seed_ag_conversation(backend: Path, proj: Path, cid: str, req_text: str, re
 			conn.execute('INSERT INTO steps VALUES(5, 15, 3, 0, ?)', (b'',))
 		conn.commit()
 	return tx
+# @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
 def _stop_payload(proj: Path, cid: str, tx: Path, req_text: str, *, continuation_active: bool=False, execution_num: int=0) -> dict:
 	return {
 		'hookEventName': 'Stop',
@@ -59,6 +69,7 @@ def _stop_payload(proj: Path, cid: str, tx: Path, req_text: str, *, continuation
 		'continuationActive': continuation_active,
 		'executionNum': execution_num,
 	}
+# @used-by :func:`_seed_ag_conversation()`
 def _wire(field: int, payload: bytes) -> bytes:
 	out = bytearray()
 	val = field << 3 | 2
@@ -76,6 +87,7 @@ def _wire(field: int, payload: bytes) -> bytes:
 # "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
 # https://github.com/dmitry-ai/harness/issues/255
 class StopEmergencyCaptureAndForeignSyncTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			base = Path(td).resolve()
@@ -99,6 +111,7 @@ class StopEmergencyCaptureAndForeignSyncTests(unittest.TestCase):
 			self.assertIn(beg_b['turn_key'], res_map)
 			self.assertIn(beg_c['turn_key'], res_map)
 			self.assertIn(beg_d['turn_key'], res_map)
+	# @used-by :mod:`unittest`
 	def test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			base = Path(td).resolve()

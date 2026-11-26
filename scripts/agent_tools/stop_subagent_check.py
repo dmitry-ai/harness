@@ -16,6 +16,7 @@ _LEGACY_DONE_RE = re.compile(r'<SYSTEM_MESSAGE>.*\bSubagent\b.*\bcompleted\b', r
 _OPTIONAL_COLS = (('status', "''"), ('not_fully_idle', '0'), ('killed', '0'), ('last_modified_time', "''"))
 _TERMINAL_STATUSES = frozenset({'CASCADE_RUN_STATUS_IDLE', 'IDLE', 'COMPLETED', 'FAILED', 'ERROR', 'CANCELED', 'CANCELLED', 'KILLED'})
 _UUID_RE = re.compile(r'^[a-f0-9-]{36}$', re.I)
+# @used-by :func:`_process_row_calls()`
 def _apply_call(segment: list[dict], pos: int, row: dict, call: dict, state: dict) -> None:
 	cname = str(call.get('name') or '')
 	args = _parse_args(call.get('args'))
@@ -33,6 +34,7 @@ def _apply_call(segment: list[dict], pos: int, row: dict, call: dict, state: dic
 			state['completed_uuids'].discard(recip)
 			state['killed_all'] = False
 			state['spawned'] += 1
+# @used-by :func:`_record_invoke()`
 def _collect_invoke_outputs(segment: list[dict], pos: int) -> set[str]:
 	found: set[str] = set()
 	for nxt in segment[pos + 1:]:
@@ -43,6 +45,7 @@ def _collect_invoke_outputs(segment: list[dict], pos: int) -> set[str]:
 		if 'GENERIC' == nxt.get('type') and nxt.get('content'):
 			found.update((u.lower() for u in _INVOKE_UUID_RE.findall(str(nxt.get('content')))))
 	return found
+# @used-by :func:`_query_summary_children()`
 def _fetch_summary_rows(conn: sqlite3.Connection, session_id: str) -> list[dict] | None:
 	cols = {row[1] for row in conn.execute('PRAGMA table_info(conversation_summaries)')}
 	r: list[dict] | None = None
@@ -51,6 +54,7 @@ def _fetch_summary_rows(conn: sqlite3.Connection, session_id: str) -> list[dict]
 		raw = conn.execute(f"SELECT {','.join(sel)} FROM conversation_summaries WHERE lower(parent_conversation_id)=?", (session_id.strip().lower(),)).fetchall()
 		r = [{'conversation_id': str(x[0] or '').strip().lower(), 'status': x[1], 'not_fully_idle': x[2], 'killed': x[3], 'last_modified_time': x[4]} for x in raw if x[0]]
 	return r
+# @used-by :func:`has_running_subagents()`
 def _filter_turn_db_rows(db_rows: list[dict], state: dict) -> list[dict]:
 	spawned_ids = state['spawned_uuids']
 	first_ts = _norm_ts(state.get('first_spawn_ts'))
@@ -64,6 +68,7 @@ def _filter_turn_db_rows(db_rows: list[dict], state: dict) -> list[dict]:
 # 2026-11-24
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
+# @used-by :func:`evaluate_schedule_subagent_block()`
 def _find_summary_db(t_path: Path) -> Path | None:
 	r: Path | None = None
 	for parent in t_path.parents:
@@ -73,6 +78,8 @@ def _find_summary_db(t_path: Path) -> Path | None:
 				r = cand
 			break
 	return r
+# @used-by :func:`_live_running_db_children()`
+# @used-by :func:`has_running_subagents()`
 def _is_row_running(row: dict) -> bool:
 	if 0 != int(row.get('killed') or 0):
 		r = False
@@ -84,12 +91,15 @@ def _is_row_running(row: dict) -> bool:
 # 2026-11-24
 # "Enforce single falsifier review default and block duplicate send_message reports":
 # https://github.com/dmitry-ai/harness/issues/226
+# @used-by :func:`evaluate_schedule_subagent_block()`
 def _live_running_db_children(conversations_db: Path | None, session_id: str, killed_uuids: set[str]) -> list[str]:
 	db_rows = _query_summary_children(conversations_db, session_id) if session_id else None
 	return sorted({row['conversation_id'] for row in (db_rows or ()) if row['conversation_id'] not in killed_uuids and _is_row_running(row)})
+# @used-by :func:`_filter_turn_db_rows()`
 def _norm_ts(value) -> str:
 	raw = str(value or '').strip()
 	return raw.replace('T', ' ').rstrip('Z')[:19] if 19 <= len(raw) else ''
+# @used-by :func:`_apply_call()`
 def _parse_args(raw) -> dict:
 	r: dict = {}
 	if isinstance(raw, dict):
@@ -102,6 +112,7 @@ def _parse_args(raw) -> dict:
 		except ValueError:
 			r = {}
 	return r
+# @used-by :func:`_apply_call()`
 def _process_manage_subagents(args: dict, state: dict) -> None:
 	action = str(args.get('Action') or '').strip().lower()
 	if 'kill_all' == action:
@@ -111,12 +122,14 @@ def _process_manage_subagents(args: dict, state: dict) -> None:
 			cid = str(raw_id or '').strip().lower()
 			if _UUID_RE.fullmatch(cid):
 				state['killed_uuids'].add(cid)
+# @used-by :func:`extract_segment_subagent_state()`
 def _process_row_calls(segment: list[dict], pos: int, row: dict, state: dict) -> None:
 	calls = [c for c in (row.get('tool_calls') or ()) if isinstance(c, dict)]
 	for call in calls:
 		_apply_call(segment, pos, row, call, state)
 	if 'PLANNER_RESPONSE' == row.get('type') and (not calls) and str(row.get('content') or '').strip():
 		state['last_planner_text'] = str(row.get('content'))
+# @used-by :func:`extract_segment_subagent_state()`
 def _process_row_message(row: dict, state: dict) -> None:
 	rtype = row.get('type')
 	if rtype in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE'):
@@ -128,6 +141,8 @@ def _process_row_message(row: dict, state: dict) -> None:
 			state['spawned_uuids'].update(senders)
 		elif 'EPHEMERAL_MESSAGE' == rtype and _LEGACY_DONE_RE.search(content):
 			state['legacy_completed'] += 1
+# @used-by :func:`_live_running_db_children()`
+# @used-by :func:`has_running_subagents()`
 def _query_summary_children(conversations_db: Path | None, session_id: str) -> list[dict] | None:
 	db_path = Path(conversations_db) if None is not conversations_db else None
 	r: list[dict] | None = None
@@ -145,6 +160,7 @@ def _query_summary_children(conversations_db: Path | None, session_id: str) -> l
 # 2026-11-24
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
+# @used-by :func:`evaluate_schedule_subagent_block()`
 def _read_turn_segment(t_path: Path) -> list[dict]:
 	try:
 		rows = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
@@ -155,6 +171,7 @@ def _read_turn_segment(t_path: Path) -> list[dict]:
 		if isinstance(row, dict) and 'USER_INPUT' == row.get('type'):
 			last_user = idx
 	return rows[last_user + 1:] if 0 <= last_user else rows
+# @used-by :func:`_apply_call()`
 def _record_invoke(segment: list[dict], pos: int, row: dict, args: dict, state: dict) -> None:
 	sub_list = args.get('Subagents')
 	state['spawned'] += len(sub_list) if isinstance(sub_list, list) and sub_list else 1
@@ -165,6 +182,7 @@ def _record_invoke(segment: list[dict], pos: int, row: dict, args: dict, state: 
 # 2026-11-24
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
+# @used-by :func:`evaluate_schedule_subagent_block()`
 def _resolve_transcript_file(transcript_path: str) -> Path | None:
 	r = Path(transcript_path) if transcript_path else None
 	if None is not r and 'transcript.jsonl' == r.name:
@@ -175,6 +193,7 @@ def _resolve_transcript_file(transcript_path: str) -> Path | None:
 # 2026-11-24
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
+# @used-by :func:`agent_tools.failfast_gate._schedule_block_reason()`
 def evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: dict) -> str | None:
 	t_path = _resolve_transcript_file(transcript_path)
 	r: str | None = None
@@ -194,6 +213,9 @@ def evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: 
 			label = ', '.join(pending) if pending else f"{state['spawned']} active"
 			r = f'EXEC-4-SCHEDULE-GATE: Active invoke_subagent worker(s) ({label}) already deliver reactive completion notifications; do not attach a one-shot schedule timer over active subagents.'
 	return r
+# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
+# @used-by :func:`evaluate_schedule_subagent_block()`
+# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_schedule_gate_blocks_after_send_message_and_ignores_task_sender()`
 def extract_segment_subagent_state(segment: list[dict]) -> dict:
 	state = {'spawned': 0, 'spawned_uuids': set(), 'completed_uuids': set(), 'killed_uuids': set(), 'killed_all': False, 'legacy_completed': 0, 'first_spawn_ts': '', 'last_planner_text': ''}
 	for pos, row in enumerate(segment or ()):
@@ -204,6 +226,8 @@ def extract_segment_subagent_state(segment: list[dict]) -> dict:
 # 2026-11-24
 # "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
 # https://github.com/dmitry-ai/harness/issues/211
+# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
+# @used-by :func:`evaluate_schedule_subagent_block()`
 def has_running_subagents(state: dict, session_id: str, conversations_db: Path | None=None) -> bool:
 	if 0 >= int(state.get('spawned') or 0) or state.get('killed_all'):
 		r = False

@@ -14,6 +14,7 @@ if str(SCRIPTS) not in sys.path:
 class JavaXrefTests(unittest.TestCase):
 	# @used-by :meth:`JavaXrefTests.test_java_anonymous_class_overloads_and_plugin_xml()`
 	# @used-by :meth:`JavaXrefTests.test_java_rejects_bare_used_by_and_uses_block_tags()`
+	# @used-by :meth:`JavaXrefTests.test_java_see_override_edges_unused_and_lf_sync()`
 	# @used-by :meth:`JavaXrefTests.test_java_sync_and_check_overrides_records_and_uses()`
 	def _write(self, root: Path, rel: str, content: str) -> Path:
 		p = root / rel
@@ -71,6 +72,38 @@ class JavaXrefTests(unittest.TestCase):
 			joined = '\n'.join(res['issues'])
 			self.assertIn('- @used-by', joined)
 			self.assertIn('- @uses', joined)
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	def test_java_see_override_edges_unused_and_lf_sync(self) -> None:
+		from agent_tools.xref.java_sync import check_java_repo, sync_java_repo
+		src = (
+			'package demo;\n'
+			'import java.lang.AutoCloseable;\n'
+			'import java.lang.Runnable;\n'
+			'public final class Multi implements Runnable, AutoCloseable {\n'
+			'\t/**\n\t * @see Runnable#run()\n\t */\n'
+			'\t@Override\n'
+			'\tpublic void run() {}\n'
+			'\t/**\n\t * - @used-by unused\n\t */\n'
+			'\tpublic void orphan() {}\n'
+			'\t/**\n\t * @see AutoCloseable#close()\n\t */\n'
+			'\t@Override\n'
+			'\tpublic void close() {}\n'
+			'}\n'
+		)
+		with tempfile.TemporaryDirectory() as td:
+			repo = Path(td)
+			p = self._write(repo, 'src/main/java/demo/Multi.java', src)
+			sync_java_repo(repo, apply=True)
+			raw = p.read_bytes()
+			self.assertNotIn(b'\r\n', raw)
+			txt = raw.decode('utf-8')
+			self.assertIn('* - @used-by {@link Runnable#run()}', txt)
+			self.assertIn('* - @used-by unused', txt)
+			res = check_java_repo(repo)
+			self.assertTrue(res['valid'], res['issues'])
 	# @used-by :mod:`unittest`
 	def test_java_sync_and_check_overrides_records_and_uses(self) -> None:
 		from agent_tools.xref.java_sync import check_java_repo, sync_java_repo

@@ -15,6 +15,7 @@ from agent_tools.cli_registry import execute_registered, registered_commands
 from agent_tools.diagnostics import ValidationError
 from agent_tools.experiments import requirement_issues
 from agent_tools.review import ReviewReportValidator
+# @used-by :meth:`SchemaHelpAndAnalysisMergeM10Tests.test_save_analysis_merge_supports_partial_draft_final_commit_and_patch()`
 def _intake_claim(cid: str, eid: str, quote: str, ptr: str, ref: str, sha: str) -> dict:
 	return {
 		'id': cid,
@@ -41,6 +42,7 @@ def _intake_claim(cid: str, eid: str, quote: str, ptr: str, ref: str, sha: str) 
 # "Prevent context compaction with schema-help CLI and staged analysis merge":
 # https://github.com/dmitry-ai/harness/issues/217
 class SchemaHelpAndAnalysisMergeM10Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_save_analysis_merge_supports_partial_draft_final_commit_and_patch(self) -> None:
 		from agent_tools.analysis_merge import save_merged_analysis
 		with tempfile.TemporaryDirectory() as tmp:
@@ -73,6 +75,7 @@ class SchemaHelpAndAnalysisMergeM10Tests(unittest.TestCase):
 			patched = json.loads((root / '\ua616/KB/Analysis.json').read_text(encoding='utf-8'))
 			self.assertEqual('Updated pending note.', patched['notes']['causes'])
 			self.assertEqual(['F-TITLE'], [x['id'] for x in patched['identity']])
+	# @used-by :mod:`unittest`
 	def test_schema_help_command_returns_contract_for_all_topics(self) -> None:
 		from agent_tools.schema_help import format_schema_help_text
 		from argparse import Namespace
@@ -87,6 +90,7 @@ class SchemaHelpAndAnalysisMergeM10Tests(unittest.TestCase):
 			self.assertTrue(res['minimal_example'])
 			txt = format_schema_help_text(res)
 			self.assertIn(topic, txt.lower())
+	# @used-by :mod:`unittest`
 	def test_shared_native_outputs_af_worker_includes_file_handoff_contract(self) -> None:
 		from agent_tools.native_profiles import shared_native_outputs
 		outputs = shared_native_outputs(WT_ROOT)
@@ -94,6 +98,7 @@ class SchemaHelpAndAnalysisMergeM10Tests(unittest.TestCase):
 		self.assertIn('evidence-query', af_text)
 		self.assertIn('<question>-extract.json', af_text)
 		self.assertIn('issues/217', af_text)
+	# @used-by :mod:`unittest`
 	def test_validators_emit_actionable_hints(self) -> None:
 		bad_analysis = {'schema_version': 3, 'facts': [], 'identity': [{'id': 'H-1', 'essence': 'X', 'assessment_basis': 'B', 'knowledge_type': 'hypothesis', 'verification_status': 'limited', 'scope': {}, 'properties': ['content'], 'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive', 'derived_from': [], 'evidence': [], 'missing_checks': [], 'impact': {'severity': 'unknown', 'basis': 'B', 'evidence_claim_ids': []}, 'for': [{'argument': 'A'}], 'against': [], 'counterevidence': {'status': 'unavailable', 'reviewed_sources': ['x'], 'limitations': 'L'}, 'probability_percent': 50}], 'concerns': [], 'misconceptions': [], 'causes': [], 'methods': [], 'notes': {}}
 		issues = contract_issues(bad_analysis)

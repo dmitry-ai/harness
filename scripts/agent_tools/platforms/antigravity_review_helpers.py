@@ -1,6 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from typing import override
 import sqlite3
 import time
 from .trace_common import open_readonly_sqlite, read_jsonl_objects
@@ -10,12 +11,19 @@ from .trace_common import open_readonly_sqlite, read_jsonl_objects
 MAX_REVIEW_WAIT_SECONDS = 300.0
 _TERMINAL_SUMMARY_STATES = frozenset({'CASCADE_RUN_STATUS_IDLE', 'IDLE', 'COMPLETED', 'FAILED', 'ERROR', 'CANCELED', 'CANCELLED', 'KILLED'})
 class RetryableReviewProofError(ValueError):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :func:`wait_for_reviewer_final_step()`
+	# @see :meth:`ValueError.__init__()`
+	@override
 	def __init__(self, message: str) -> None:
 		super().__init__(message)
 		self.retryable = True
 # 2026-11-24
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
+# @used-by :func:`reviewer_assigned_package()`
 def _is_incoming_assignment_row(idx: int, row: dict, parent_id: str | None) -> bool:
 	rtype = row.get('type')
 	content = str(row.get('content') or '')
@@ -31,6 +39,7 @@ def _is_incoming_assignment_row(idx: int, row: dict, parent_id: str | None) -> b
 # 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
+# @used-by :func:`wait_for_reviewer_final_step()`
 def _is_reviewer_in_flight(conversations_db: Path, reviewer_id: str) -> bool:
 	r = False
 	if conversations_db.is_file():
@@ -49,6 +58,7 @@ def _is_reviewer_in_flight(conversations_db: Path, reviewer_id: str) -> bool:
 # 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
+# @used-by :func:`wait_for_reviewer_final_step()`
 def _probe_reviewer_final(paths: dict, backend: Path, reviewer_id: str, *, transcript_path_fn, db_path_fn, completed_statuses) -> tuple[tuple | None, str, bool]:
 	log = transcript_path_fn(paths['brain_dir'], reviewer_id)
 	raw = log.read_bytes()
@@ -67,6 +77,7 @@ def _probe_reviewer_final(paths: dict, backend: Path, reviewer_id: str, *, trans
 # 2026-11-24
 # "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
 # https://github.com/dmitry-ai/harness/issues/210
+# @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
 def resolve_parent_binding_inputs(backend, parent_id, parent_inputs, *, paths, native_inputs_fn, extract_transcript_fn):
 	try:
 		loaded = native_inputs_fn(backend, parent_id, paths=paths, include_meta=True)
@@ -80,6 +91,7 @@ def resolve_parent_binding_inputs(backend, parent_id, parent_inputs, *, paths, n
 # 2026-11-24
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
+# @used-by :func:`agent_tools.platforms.antigravity.verify_native_proof()`
 def reviewer_assigned_package(native_log: str | Path, package: str, *, parent_id: str | None=None, final_step: int | None=None) -> bool:
 	rows = read_jsonl_objects(Path(native_log))
 	r = False
@@ -96,6 +108,7 @@ def reviewer_assigned_package(native_log: str | Path, package: str, *, parent_id
 # 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
+# @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
 def wait_for_reviewer_final_step(paths: dict, backend: Path, reviewer_id: str, *, wait_timeout: float=0.0, poll_interval: float=0.2, transcript_path_fn, db_path_fn, completed_statuses):
 	budget = min(max(0.0, float(wait_timeout or 0.0)), MAX_REVIEW_WAIT_SECONDS)
 	deadline = time.monotonic() + budget

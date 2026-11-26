@@ -56,18 +56,23 @@ _TRACK_RES = {
 	'journal_reporting': _JOURNAL_RE,
 	'test_escape': _TEST_ESCAPE_RE,
 }
+# @used-by :func:`_block_track_matches()`
 def _block_scope_text(block: dict) -> str:
 	secs = block.get('sections') or {}
 	s0 = secs.get(0, ('', ''))
 	s1 = secs.get(1, ('', ''))
 	return '\n'.join((str(block.get('header') or ''), str(s0[0] or ''), str(s1[0] or ''), str(s1[1] or '')))
+# @used-by :func:`companion_track_issues()`
 def _block_track_matches(block: dict) -> set[str]:
 	scope = _block_scope_text(block)
 	return {name for name, pat in _TRACK_RES.items() if pat.search(scope)}
+# @used-by :func:`extract_problem_blocks()`
 def _finalize_blocks(raw_blocks: list[dict]) -> list[dict]:
 	return [{'header': blk['header'], 'sections': {k: (title, '\n'.join(lines)) for k, (title, lines) in blk['sections'].items()}} for blk in raw_blocks]
+# @used-by :func:`companion_track_issues()`
 def _has_distinct_assignment(track_indices: dict[str, list[int]]) -> bool:
 	return any((ic != it and ic != ij and it != ij for ic in track_indices['culprit'] for it in track_indices['test_escape'] for ij in track_indices['journal_reporting']))
+# @used-by :func:`extract_problem_blocks()`
 def _start_or_continue_block(raw_blocks: list[dict], num: int, pending_header: str) -> dict:
 	if not raw_blocks or 0 == num or num in raw_blocks[-1]['sections'] or pending_header:
 		raw_blocks.append({'header': pending_header, 'sections': {}})
@@ -75,6 +80,7 @@ def _start_or_continue_block(raw_blocks: list[dict], num: int, pending_header: s
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
+# @used-by :func:`agent_tools.statements._check_problem_blocks()`
 def companion_track_issues(blocks: list[dict]) -> list[str]:
 	matches = [_block_track_matches(blk) for blk in blocks]
 	track_indices = {name: [idx for idx, m in enumerate(matches) if name in m] for name in _COMPANION_ORDER}
@@ -87,6 +93,7 @@ def companion_track_issues(blocks: list[dict]) -> list[str]:
 	if 4 <= len(blocks) and all(track_indices.values()) and (not _has_distinct_assignment(track_indices)):
 		errs.append('DOC-5 / df-analysis: Culprit/Provenance, Test & Verification Escape, and Journal & Reporting Integrity must each occupy a distinct # 0..# 4 analysis separate from the Primary Problem and from each other')
 	return errs
+# @used-by :func:`agent_tools.statements.validate_df_analysis()`
 def extract_problem_blocks(text: str, mask_fn, top_head_re) -> list[dict]:
 	raw_blocks: list[dict] = []
 	pending_header = ''

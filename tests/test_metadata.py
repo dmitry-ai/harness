@@ -23,6 +23,7 @@ from agent_tools import metadata
 # "Implement shared execution metadata collector and tab-indented JSON header formatter":
 # https://github.com/dmitry-ai/harness/issues/149
 class MetadataFormattingAndCollectionTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_format_local_timestamp_and_duration_timecode(self) -> None:
 		tz_plus3 = timezone(timedelta(hours=3))
 		tz_minus5 = timezone(timedelta(hours=-5))
@@ -65,6 +66,7 @@ class MetadataFormattingAndCollectionTests(unittest.TestCase):
 			'00:00:00',
 		)
 
+	# @used-by :mod:`unittest`
 	def test_render_prepend_extract_and_strip_tab_indented_json_header(self) -> None:
 		sample = {
 			'Time': {
@@ -121,6 +123,7 @@ class MetadataFormattingAndCollectionTests(unittest.TestCase):
 		self.assertEqual(untouched, ordinary_json_md)
 		self.assertEqual(metadata.strip_leading_metadata_header(ordinary_json_md), ordinary_json_md)
 
+	# @used-by :mod:`unittest`
 	def test_build_journal_metadata_for_antigravity_and_codex(self) -> None:
 		tz_plus3 = timezone(timedelta(hours=3))
 		with tempfile.TemporaryDirectory() as tmp:
@@ -308,6 +311,7 @@ class MetadataFormattingAndCollectionTests(unittest.TestCase):
 			self.assertEqual(len(cx_meta['Trace']['Journal']['Request']), 2)
 			self.assertEqual(len(cx_meta['Trace']['Journal']['Response']), 2)
 
+	# @used-by :mod:`unittest`
 	def test_build_github_issue_metadata_live_env_child_subagent_and_standalone(self) -> None:
 		tz_plus3 = timezone(timedelta(hours=3))
 		with tempfile.TemporaryDirectory() as tmp:

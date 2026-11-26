@@ -13,6 +13,7 @@ from agent_tools.tdd.commands import shell_code_write_targets, shell_write_targe
 # "Strip PowerShell here-strings before shell redirect write-target scanning":
 # https://github.com/dmitry-ai/harness/issues/221
 class ShellHerestringWriteTargetsM4Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_ignores_arrows_and_html_inside_powershell_herestring(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -30,6 +31,7 @@ class ShellHerestringWriteTargetsM4Tests(unittest.TestCase):
 			code_targets = shell_code_write_targets(cmd, cwd=base)
 			self.assertEqual([base / 'analysis-candidate.json'], all_targets)
 			self.assertEqual([], code_targets)
+	# @used-by :mod:`unittest`
 	def test_ignores_double_quoted_herestring_and_bash_heredoc_bodies(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -39,6 +41,7 @@ class ShellHerestringWriteTargetsM4Tests(unittest.TestCase):
 			self.assertEqual([], shell_code_write_targets(ps_cmd, cwd=base))
 			self.assertEqual([], shell_code_write_targets(sh_cmd, cwd=base))
 			self.assertEqual([], shell_code_write_targets(quoted_cmd, cwd=base))
+	# @used-by :mod:`unittest`
 	def test_preserves_real_shell_redirects_and_embedded_code_writes(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

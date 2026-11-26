@@ -8,6 +8,7 @@ from .journal_sync_all import _resolve_ag_summary_db
 from .platforms.trace_common import open_readonly_sqlite
 from .runtime import platform_adapter_name
 # @used-by :func:`classify_reservation_entry()`
+# @used-by :mod:`agent_tools.journal_liveness`
 def is_conversation_running_live(r_key: str, entry: dict[str, Any], by_key: dict[str, dict[str, Any]]) -> bool:
 	st = by_key.get(r_key)
 	cid = str(entry.get('conversation_id') or (st.get('conversation_id') if isinstance(st, dict) else '') or '').strip()
@@ -24,7 +25,9 @@ def is_conversation_running_live(r_key: str, entry: dict[str, Any], by_key: dict
 				except (OSError, sqlite3.Error):
 					r = False
 	return r
+# @used-by :func:`agent_tools.journal_integrity._reservation_orphan_reason()`
 # @used-by :func:`agent_tools.journal_integrity.classify_reservations()`
+# @used-by :mod:`agent_tools.journal_liveness`
 def classify_reservation_entry(r_key: str, entry: dict[str, Any], max_existing: int, committed_rids: set[str], by_key: dict[str, dict[str, Any]], max_start_by_cid: dict[str, int], *, require_empty: bool, turn_reason_fn) -> tuple[str | None, dict[str, Any] | None]:
 	cid = str(entry.get('conversation_id') or '').strip().lower()
 	e_steps = [s for s in (entry.get('steps') or ()) if int is type(s) and 1 <= s]

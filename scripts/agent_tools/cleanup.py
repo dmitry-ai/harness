@@ -25,6 +25,7 @@ from .cleanup_lifecycle import count_project_conversations, effective_project_ac
 from .cleanup_audit import maybe_write_cleanup_manifest, record_cleanup_answer_log
 _ACTIVE_CODEX_GLOBS = ContextVar('upwork_cleanup_codex_globs', default=None)
 _ACTIVE_READONLY_HISTORY = ContextVar('upwork_cleanup_readonly_history', default=None)
+# @used-by :meth:`ProjectCleanupScanner.run()`
 @contextmanager
 def _codex_glob_scope(globs, readonly_history=None):
 	token = _ACTIVE_CODEX_GLOBS.set(globs or {})
@@ -44,12 +45,42 @@ _STATUS_NAMES = ('recent', 'preserved', 'eligible', 'removed', 'pending', 'block
 # 2026-11-26
 # "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
 # https://github.com/dmitry-ai/harness/issues/308
+# @used-by :func:`agent_tools.cleanup_audit.run_cleanup_report_cli()`
+# @used-by :meth:`test_cleanup.CleanupReportTests.test_empty_answer_or_naive_timestamp_does_not_create_a_log()`
+# @used-by :meth:`test_cleanup.CleanupReportTests.test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight()`
+# @used-by :meth:`test_cleanup.CleanupReportTests.test_repeated_and_concurrent_answers_never_overwrite_logs_in_the_same_minute()`
 def record_cleanup_answer(body, *, now=None, log_root=None, config=None, manifest_path=None, project_root=None, env=None):
 	return record_cleanup_answer_log(body, now=now, log_root=log_root, config=config, manifest_path=manifest_path, project_root=project_root, env=env, settings_fn=settings, linked_fn=linked)
+# @used-by :func:`_age()`
+# @used-by :func:`_belongs_cached()`
+# @used-by :func:`_count_indexed_conversations()`
+# @used-by :func:`_finish_pending()`
+# @used-by :func:`antigravity_projects()`
+# @used-by :func:`catalog_projects()`
+# @used-by :func:`remove_antigravity()`
+# @used-by :func:`restore_antigravity()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_file_uri_with_drive_in_authority_is_the_same_local_workspace()`
 def path_key(value):
 	return str(local_uri_to_path(value, require_absolute=True)).replace('\\', '/').rstrip('/').casefold()
+# @used-by :func:`_guard_history_db()`
+# @used-by :func:`_json()`
+# @used-by :func:`candidates()`
+# @used-by :func:`legacy_initialization()`
+# @used-by :func:`record_cleanup_answer()`
+# @used-by :func:`remove_antigravity()`
+# @used-by :func:`restore_antigravity()`
+# @used-by :meth:`ProjectCleanupScanner.__init__()`
+# @used-by :meth:`ProjectCleanupScanner._inspect_unresolved()`
+# @used-by :meth:`ProjectCleanupScanner.run()`
 def linked(path):
 	return any((p.is_symlink() or p.is_junction() for p in (path, *path.parents)))
+# @used-by :func:`_finish_pending()`
+# @used-by :func:`antigravity_projects()`
+# @used-by :func:`candidates()`
+# @used-by :func:`legacy_initialization()`
+# @used-by :func:`remove_antigravity()`
+# @used-by :func:`restore_antigravity()`
+# @used-by :meth:`ProjectCleanupScanner.run()`
 def _json(path):
 	if linked(path):
 		raise ValueError(f'Linked store preserved: {path}')
@@ -73,9 +104,12 @@ def _base_age(root, state, config):
 		birth = getattr(root.stat(), 'st_birthtime', None)
 		r = (max(day, datetime.fromtimestamp(birth, timezone.utc)), 'legacy-directory-birthtime') if None is not birth else (day + timedelta(days=1), 'legacy-request-day-upper-bound')
 	return r
+# @used-by :func:`candidates()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_legacy_age_uses_birthtime_or_end_of_request_day_without_guessing_midnight_creation()`
 def _age(root, state, config):
 	created, basis = _base_age(root, state, config)
 	return effective_project_activity(root, state, config, created, basis, path_key)
+# @used-by :func:`_count_indexed_conversations()`
 def _belongs_cached(raw_path, wanted, prefix, key_cache):
 	key = key_cache.get(raw_path) if isinstance(raw_path, str) else None
 	if None is key:
@@ -83,6 +117,8 @@ def _belongs_cached(raw_path, wanted, prefix, key_cache):
 		if isinstance(raw_path, str):
 			key_cache[raw_path] = key
 	return key == wanted or key.startswith(prefix)
+# @used-by :func:`prune_folders()`
+# @used-by :func:`remove_antigravity()`
 def _collect_folder_ancestors(by_id, assignments, project_ids, error_msg):
 	r = set()
 	for ident in project_ids:
@@ -98,11 +134,16 @@ def _collect_folder_ancestors(by_id, assignments, project_ids, error_msg):
 # 2026-11-26
 # "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
 # https://github.com/dmitry-ai/harness/issues/307
+# @used-by :func:`conversations()`
+# @used-by :meth:`ProjectCleanupScanner._discover_conversations()`
 def _count_indexed_conversations(root, ag_projects, homes, catalog, index):
 	return count_project_conversations(root, ag_projects, homes, catalog, index, path_key, _belongs_cached)
+# @used-by :func:`_load_conversation_index()`
+# @used-by :func:`_read_ag_rows()`
 def _guard_history_db(database):
 	if not database.is_file() or linked(database):
 		raise ValueError(f'Native history unavailable: {database}')
+# @used-by :func:`_load_conversation_index()`
 def _read_ag_rows(backend_dir, *, allow_missing=False, db_path=None):
 	db = Path(db_path) if None is not db_path else Path(backend_dir) / 'conversation_summaries.db'
 	if allow_missing and (not db.exists()) and (not db.is_symlink()):
@@ -118,6 +159,9 @@ def _read_ag_rows(backend_dir, *, allow_missing=False, db_path=None):
 # 2026-11-26
 # "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
 # https://github.com/dmitry-ai/harness/issues/307
+# @used-by :func:`conversations()`
+# @used-by :meth:`ProjectCleanupScanner._discover_conversations()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_project_cleanup_scanner_reuses_single_pass_history_index_in_dry_run()`
 def _load_conversation_index(backend, homes):
 	ro = _ACTIVE_READONLY_HISTORY.get() or {}
 	if isinstance(backend, dict):
@@ -129,6 +173,7 @@ def _load_conversation_index(backend, homes):
 	merged_homes = {**homes, **(ro.get('codex_homes') or {})}
 	codex_rows = load_codex_history_rows(merged_homes, codex_globs, _guard_history_db)
 	return (ag_rows, codex_rows, {})
+# @used-by :func:`candidates()`
 def legacy_initialization(root):
 	agents = root / '.agents'
 	rule = agents / 'rules/90-project.md'
@@ -159,6 +204,7 @@ def legacy_initialization(root):
 		raise ValueError('Unsupported historical job ID preserved without cleanup')
 	day = datetime(int(root.parents[2].name), int(root.parents[1].name), int(root.parent.name)).date()
 	return {'job_id': current_ids[0], 'initialized': True, 'request_date': day.isoformat()}
+# @used-by :meth:`ProjectCleanupScanner.run()`
 def candidates(daily, config, now):
 	values, issues = ([], [])
 	for root in sorted(daily.glob('????/??/??/*')):
@@ -183,8 +229,12 @@ def candidates(daily, config, now):
 # 2026-10-31
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
+# @used-by :func:`antigravity_projects()`
 def _resource_uri(res):
 	return extract_resource_uri(res)
+# @used-by :func:`remove_antigravity()`
+# @used-by :func:`restore_antigravity()`
+# @used-by :meth:`ProjectCleanupScanner._collect_ag_projects()`
 def antigravity_projects(directory, root):
 	target_key = path_key(root)
 	r = []
@@ -215,9 +265,19 @@ def antigravity_projects(directory, root):
 				raise ValueError('Pending Antigravity payload changed identity')
 			r.append({'id': ident, 'file': str(path), 'sha': None, 'restore': payload})
 	return r
+# @used-by :meth:`ProjectCleanupScanner._discover_conversations()`
+# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_changed_native_payload_during_final_check_is_never_unlinked()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_chat_after_native_unlink_restores_both_registrations_and_folder_assignment()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_new_conversation_after_preview_is_rechecked_before_any_delete()`
+# @used-by :mod:`agent_tools.cleanup`
 def conversations(root, ag_projects, backend, homes, catalog):
 	return _count_indexed_conversations(root, ag_projects, homes, catalog, _load_conversation_index(backend, homes))
 _DEFAULT_CONVERSATIONS = conversations
+# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
+# @used-by :meth:`ProjectCleanupScanner._inspect_unresolved()`
+# @used-by :meth:`ProjectCleanupScanner._recover_preserved()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
 def catalog_projects(catalog, root, homes):
 	if not homes:
 		return []
@@ -244,6 +304,8 @@ def catalog_projects(catalog, root, homes):
 	if 1 < len(r):
 		raise ValueError('Ambiguous Shared-Projects root')
 	return r
+# @used-by :func:`remove_antigravity()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_only_newly_emptied_folder_ancestors_are_pruned()`
 def prune_folders(value, removed_ids):
 	nodes, assignments = (value['folders'], value['projectFolderMap'])
 	if not isinstance(nodes, list) or not isinstance(assignments, dict):
@@ -267,6 +329,8 @@ def prune_folders(value, removed_ids):
 		if key in value:
 			value[key] = [ident for ident in value[key] if ident not in r]
 	return r
+# @used-by :func:`restore_antigravity()`
+# @used-by :meth:`ProjectCleanupScanner._apply_removal()`
 def _finish_pending(directory, root):
 	path = directory / 'ꘖ/data/cleanup-pending.json'
 	if path.exists():
@@ -276,6 +340,7 @@ def _finish_pending(directory, root):
 			path.unlink()
 		else:
 			replace_bytes(path, json_data(pending))
+# @used-by :meth:`ProjectCleanupScanner._recover_preserved()`
 def restore_antigravity(root, directory, folders):
 	with locked(directory / 'ꘖ/data/registration.lock'):
 		path = directory / 'ꘖ/data/cleanup-pending.json'
@@ -311,6 +376,7 @@ def restore_antigravity(root, directory, folders):
 				_finish_pending(directory, root)
 				r = {'complete': True, 'restored_projects': restored}
 	return r
+# @used-by :meth:`ProjectCleanupScanner._apply_removal()`
 def remove_antigravity(root, directory, folders, expected, check):
 	with locked(directory / 'ꘖ/data/registration.lock'):
 		check()
@@ -356,6 +422,7 @@ def remove_antigravity(root, directory, folders, expected, check):
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
 class ProjectCleanupScanner:
+	# @used-by :func:`cleanup_projects()`
 	def __init__(self, *, apply=False, daily_root=None, now=None, config=None, ag_directory=None, ag_backend=None, folders=None, control=None):
 		self.apply = apply
 		self.config = config or settings()
@@ -449,8 +516,11 @@ class ProjectCleanupScanner:
 			'projects': [],
 			'issues': [],
 		}
+	# @used-by :meth:`ProjectCleanupScanner._apply_removal()`
+	# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
 	def _ag_flat(self, ag):
 		return ag if self.single_ag_mode else [p for plist in ag.values() for p in plist]
+	# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
 	def _apply_removal(self, entry, root, ag, cx, live_check):
 		live_check()
 		ag_flat = self._ag_flat(ag)
@@ -483,6 +553,8 @@ class ProjectCleanupScanner:
 			entry['status'] = 'removed'
 			if self.homes:
 				self.catalog = self.control({'command': 'shared-catalog'})
+	# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
+	# @used-by :meth:`ProjectCleanupScanner._inspect_unresolved()`
 	def _discover_conversations(self, root, ag, cx):
 		if conversations is not _DEFAULT_CONVERSATIONS:
 			r = conversations(root, ag, self.backend, self.homes, cx)
@@ -491,10 +563,13 @@ class ProjectCleanupScanner:
 				self._history = _load_conversation_index(self.backend, self.homes)
 			r = _count_indexed_conversations(root, ag, self.homes, cx, self._history)
 		return r
+	# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
+	# @used-by :meth:`ProjectCleanupScanner._inspect_unresolved()`
 	def _collect_ag_projects(self, root):
 		if self.single_ag_mode:
 			return antigravity_projects(self.directory, root)
 		return {iid: antigravity_projects(store['directory'], root) if store['directory'].is_dir() else [] for iid, store in self.ag_stores.items()}
+	# @used-by :meth:`ProjectCleanupScanner.run()`
 	def _inspect_candidate(self, item):
 		root = Path(item['root'])
 		entry = {**item, 'status': 'recent' if not item['old_enough'] else 'checking'}
@@ -518,6 +593,7 @@ class ProjectCleanupScanner:
 					if not self.single_ag_mode:
 						entry['native_projects']['antigravity_instances'] = {iid: [p['id'] for p in plist] for iid, plist in ag.items() if plist}
 					if self.apply:
+						# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
 						def live_check():
 							live = conversations(root, ag, self.backend, self.homes, cx)
 							entry['conversations'] = live
@@ -534,6 +610,7 @@ class ProjectCleanupScanner:
 					self._recover_preserved(entry, root, cx)
 				elif 'blocked' == entry['status']:
 					self.result['complete'] = False
+	# @used-by :meth:`ProjectCleanupScanner.run()`
 	def _inspect_unresolved(self, issues):
 		for issue in issues:
 			root = Path(issue['root'])
@@ -555,6 +632,8 @@ class ProjectCleanupScanner:
 			if not preserved:
 				self.result['issues'].append(issue)
 		self.result['discovery']['unresolved_entries'] = len(self.result['issues'])
+	# @used-by :meth:`ProjectCleanupScanner._inspect_candidate()`
+	# @used-by :meth:`ProjectCleanupScanner._inspect_unresolved()`
 	def _recover_preserved(self, entry, root, cx):
 		if self.apply:
 			try:
@@ -575,6 +654,7 @@ class ProjectCleanupScanner:
 			except (OSError, ValueError, RuntimeError) as recovery_error:
 				entry['recovery_error'] = str(recovery_error)
 				self.result['complete'] = False
+	# @used-by :func:`cleanup_projects()`
 	def run(self):
 		from .path_registry import store_path
 		with locked(store_path('cleanup_lock')) if self.apply else nullcontext(), _codex_glob_scope(self.home_globs, self.readonly_history):
@@ -609,5 +689,17 @@ class ProjectCleanupScanner:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`test_cleanup.CleanupTests.run_cleanup()`
+# @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_apply_persists_sidecar_manifest_with_rollback_snapshots_while_dry_run_stays_readonly()`
+# @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_writes_metadata_header_links_manifest_and_consumes_scratch_file()`
+# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._run_cleanup_no_codex()`
+# @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._run_cleanup()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_all_disabled_and_claude_code_only_environment_without_antigravity_or_codex()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
+# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_project_cleanup_integration()`
 def cleanup_projects(*, apply=False, daily_root=None, now=None, config=None, ag_directory=None, ag_backend=None, folders=None, control=None):
 	return ProjectCleanupScanner(apply=apply, daily_root=daily_root, now=now, config=config, ag_directory=ag_directory, ag_backend=ag_backend, folders=folders, control=control).run()

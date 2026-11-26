@@ -12,6 +12,8 @@ from .path_registry import _path_key, load_registry
 # 2026-11-25
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
+# @used-by :func:`_remap_journal_data()`
+# @used-by :func:`clone_project_tree()`
 def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
 	dst.parent.mkdir(parents=True, exist_ok=True)
 	linked = False
@@ -23,9 +25,11 @@ def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
 			linked = False
 	if not linked:
 		shutil.copy2(src, dst)
+# @used-by :func:`clone_project_tree()`
 def _is_evidence_file(rel: Path) -> bool:
 	parts = rel.parts
 	return 3 <= len(parts) and '\ua616' == parts[0] and 'KB' == parts[1] and 'Evidence' == parts[2]
+# @used-by :func:`clone_project_tree()`
 def _is_skipped_rel(rel: Path) -> bool:
 	parts = rel.parts
 	if any((p.endswith('.lock') for p in parts)):
@@ -35,6 +39,8 @@ def _is_skipped_rel(rel: Path) -> bool:
 	else:
 		r = False
 	return r
+# @used-by :func:`agent_tools.shadow_replay_command.execute_shadow_command()`
+# @used-by :func:`remap_shadow_state()`
 def _path_pairs(raw_pairs: tuple[tuple[Path, Path], ...]) -> list[tuple[str, str]]:
 	pairs: list[tuple[str, str]] = []
 	for old_p, new_p in raw_pairs:
@@ -45,6 +51,7 @@ def _path_pairs(raw_pairs: tuple[tuple[Path, Path], ...]) -> list[tuple[str, str
 		if old_posix != str(old_r):
 			pairs.append((old_posix, new_posix))
 	return pairs
+# @used-by :func:`remap_shadow_state()`
 def _remap_journal_data(old_state: Path, new_state: Path, pairs: list[tuple[str, str]]) -> None:
 	if old_state.is_dir():
 		for item in sorted(old_state.rglob('*')):
@@ -53,16 +60,21 @@ def _remap_journal_data(old_state: Path, new_state: Path, pairs: list[tuple[str,
 				_copy_file(item, target, hardlink=False)
 				if '.json' == target.suffix.lower() and 'answer-groups' not in target.parts:
 					_rewrite_json_file(target, pairs)
+# @used-by :func:`_remap_journal_data()`
+# @used-by :func:`agent_tools.shadow_replay_command._copy_native_profile()`
+# @used-by :func:`remap_shadow_state()`
 def _rewrite_json_file(path: Path, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()) -> None:
 	if path.is_file():
 		data = json.loads(path.read_text(encoding='utf-8-sig'))
 		updated = _rewrite_value(data, pairs, preserve_keys=preserve_keys)
 		path.write_text(json.dumps(updated, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+# @used-by :func:`_rewrite_value()`
 def _rewrite_path_text(text: str, pairs: list[tuple[str, str]]) -> str:
 	out = text
 	for old_s, new_s in pairs:
 		out = re.sub(re.escape(old_s), lambda _m, rep=new_s: rep, out, flags=re.IGNORECASE)
 	return out
+# @used-by :func:`_rewrite_json_file()`
 def _rewrite_value(value, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()):
 	if isinstance(value, str):
 		r = _rewrite_path_text(value, pairs)
@@ -73,6 +85,7 @@ def _rewrite_value(value, pairs: list[tuple[str, str]], *, preserve_keys: tuple[
 	else:
 		r = value
 	return r
+# @used-by :func:`agent_tools.shadow_replay._execute_replay_pipeline()`
 def build_stop_transcript(native_tx: Path, prepared_body: str, out_dir: Path) -> Path:
 	out_dir.mkdir(parents=True, exist_ok=True)
 	rows = [json.loads(line) for line in native_tx.read_text(encoding='utf-8-sig').splitlines() if line.strip()]
@@ -81,6 +94,7 @@ def build_stop_transcript(native_tx: Path, prepared_body: str, out_dir: Path) ->
 	dest = out_dir / 'transcript_full.jsonl'
 	dest.write_text('\n'.join((json.dumps(row, ensure_ascii=False) for row in rows)) + '\n', encoding='utf-8')
 	return dest
+# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
 def cleanup_shadow_root(shadow_root: Path) -> bool:
 	if shadow_root.exists():
 		shutil.rmtree(shadow_root, ignore_errors=False)
@@ -88,6 +102,9 @@ def cleanup_shadow_root(shadow_root: Path) -> bool:
 	if parent.is_dir() and (not any(parent.iterdir())):
 		parent.rmdir()
 	return not shadow_root.exists()
+# @used-by :func:`agent_tools.shadow_replay._stage_shadow_copies()`
+# @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
+# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
 def clone_project_tree(src_root: Path, dst_root: Path, *, hardlink_evidence: bool=True) -> None:
 	src_r = Path(src_root).resolve()
 	dst_r = Path(dst_root).resolve()
@@ -102,8 +119,10 @@ def clone_project_tree(src_root: Path, dst_root: Path, *, hardlink_evidence: boo
 		elif item.is_file():
 			_copy_file(item, target, hardlink=hardlink_evidence and _is_evidence_file(rel))
 	(dst_r / '\ua616/data/scratch').mkdir(parents=True, exist_ok=True)
+# @used-by :func:`shadow_isolation_context()`
 def _journal_identity_matcher(orig_fn, relocations: dict[Path, Path]):
 	mapped = {(_path_key(Path(src).resolve() / '\ua66e'), _path_key(Path(dst).resolve() / '\ua66e')) for src, dst in relocations.items()}
+	# @used-by :func:`_journal_identity_matcher()`
 	def _match(first, second) -> bool:
 		r = orig_fn(first, second)
 		if not r and first and second:
@@ -115,6 +134,7 @@ def _journal_identity_matcher(orig_fn, relocations: dict[Path, Path]):
 # @used-by :func:`shadow_isolation_context()`
 def _wrapped_shadow_registry(orig_load, relocations: dict[Path, Path]):
 	mapped = [(_path_key(Path(src).resolve()), Path(dst).resolve()) for src, dst in relocations.items()]
+	# @used-by :func:`_wrapped_shadow_registry()`
 	def _load(*args, **kwargs):
 		reg = orig_load(*args, **kwargs)
 		for src_k, dst_r in mapped:
@@ -122,12 +142,14 @@ def _wrapped_shadow_registry(orig_load, relocations: dict[Path, Path]):
 			reg.workspace_overrides[_path_key(dst_r)] = {}
 		return reg
 	return _load
+# @used-by :func:`shadow_isolation_context()`
 def _restore_shadow_registry(pr_mod, orig_load, ag_mod, orig_title, journal_mod, orig_same_j) -> None:
 	pr_mod.load_registry = orig_load
 	pr_mod.clear_registry_cache()
 	ag_mod.update_conversation_title = orig_title
 	journal_mod.same_journal_identity = orig_same_j
 	clear_path_cache()
+# @used-by :func:`agent_tools.shadow_replay._remap_staged_copies()`
 def remap_shadow_state(src_root: Path, dst_root: Path, extra_pairs: tuple[tuple[Path, Path], ...]=(), *, old_state: Path | None=None) -> None:
 	src_state = old_state if None is not old_state else state_dir(resolve_journal_dir(src_root))
 	new_state = state_dir(resolve_journal_dir(dst_root))
@@ -140,6 +162,7 @@ def remap_shadow_state(src_root: Path, dst_root: Path, extra_pairs: tuple[tuple[
 	if turns_dir.is_dir():
 		for item in sorted(turns_dir.glob('*.json')):
 			_rewrite_json_file(item, pairs, preserve_keys=('admission',))
+# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
 @contextmanager
 def shadow_isolation_context(relocations: dict[Path, Path]):
 	from . import journal as journal_mod, path_registry as pr_mod

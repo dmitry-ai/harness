@@ -12,6 +12,7 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools import links, rules_audit
 import check_markdown_slop
 class RepoTagsDocsTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_rules_and_docs_codify_daily_tagging_and_link6_within_budgets(self) -> None:
 		audit = rules_audit.audit_rules(WT_ROOT)
 		self.assertTrue(audit['valid'], audit['issues'])

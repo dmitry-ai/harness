@@ -16,6 +16,8 @@ OVERLAY_REFRESH_TTL_S = 5.0
 _FAST_PROJECT_PATHS: OrderedDict[tuple, tuple[Any, tuple, int]] = OrderedDict()
 _OVERLAY_TTL_STATE: dict[str, Any] = {'expires_at': 0.0, 'reg_path': None}
 _TEMP_DIR_RESOLVED = Path(tempfile.gettempdir()).resolve()
+# @used-by :func:`lookup_fast_project_paths()`
+# @used-by :func:`store_fast_project_paths()`
 def _fast_sig(pp: Any, reg: Any) -> tuple:
 	j_root = pp.journal_root_dir
 	j_dir = pp.journal_dir
@@ -33,6 +35,7 @@ def _fast_sig(pp: Any, reg: Any) -> tuple:
 		_stat_mtime(sw_git),
 		_overlay_candidates_sig(pp.root, reg),
 	)
+# @used-by :func:`_fast_sig()`
 def _overlay_candidates_sig(root: Path, reg: Any) -> tuple:
 	root_posix = root.as_posix()
 	sig: list[tuple] = []
@@ -45,12 +48,14 @@ def _overlay_candidates_sig(root: Path, reg: Any) -> tuple:
 		except OSError:
 			sig.append((rel, 0, 0, 0))
 	return tuple(sig)
+# @used-by :func:`_fast_sig()`
 def _stat_mtime(path: Path) -> int:
 	try:
 		r = os.stat(path).st_mtime_ns
 	except OSError:
 		r = 0
 	return r
+# @used-by :func:`_fast_sig()`
 def _stat_mtime_size(path: Path) -> tuple[int, int]:
 	try:
 		st = os.stat(path)
@@ -58,6 +63,11 @@ def _stat_mtime_size(path: Path) -> tuple[int, int]:
 	except OSError:
 		r = (0, 0)
 	return r
+# @used-by :func:`agent_tools.path_registry.clear_registry_cache()`
+# @used-by :func:`agent_tools.project_rename._apply_rename_mutations()`
+# @used-by :func:`agent_tools.project_rename._rollback_rename()`
+# @used-by :func:`agent_tools.shadow_replay_clone._restore_shadow_registry()`
+# @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
 def clear_path_cache() -> None:
 	_FAST_PROJECT_PATHS.clear()
 	_OVERLAY_TTL_STATE['expires_at'] = 0.0
@@ -73,6 +83,7 @@ def clear_path_cache() -> None:
 # 2026-11-24
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
+# @used-by :func:`agent_tools.runtime.settings()`
 def default_runtime_file(primary: Path, code_anchor: Path, registry_file: Path) -> Path:
 	snap_rt = registry_file.parent / 'runtime.json'
 	if primary.resolve() == code_anchor.resolve() and (registry_file.parent / 'snapshot.json').is_file() and snap_rt.is_file():
@@ -80,18 +91,21 @@ def default_runtime_file(primary: Path, code_anchor: Path, registry_file: Path) 
 	else:
 		r = primary / 'runtime.json'
 	return r
+# @used-by :func:`agent_tools.path_registry._refresh_known_overlay_links()`
 def get_ttl_overlay_links(reg: Any, default_registry_file: Path, discovery_state: dict[str, Any]) -> dict[str, Path] | None:
 	r = None
 	if reg.source_path == default_registry_file.resolve() and None is not discovery_state['fingerprint']:
 		if _OVERLAY_TTL_STATE['reg_path'] == reg.source_path and time.monotonic() < _OVERLAY_TTL_STATE['expires_at']:
 			r = dict(discovery_state['links'])
 	return r
+# @used-by :func:`resolve_reverse_map()`
 def is_under_tempdir(path: Path) -> bool:
 	try:
 		r = path.resolve().is_relative_to(_TEMP_DIR_RESOLVED)
 	except (OSError, ValueError):
 		r = False
 	return r
+# @used-by :func:`agent_tools.path_registry.project_paths()`
 def lookup_fast_project_paths(cache_key: tuple, reg: Any, rev_len: int) -> Any | None:
 	entry = _FAST_PROJECT_PATHS.get(cache_key)
 	r = None
@@ -103,20 +117,25 @@ def lookup_fast_project_paths(cache_key: tuple, reg: Any, rev_len: int) -> Any |
 		else:
 			_FAST_PROJECT_PATHS.pop(cache_key, None)
 	return r
+# @used-by :func:`agent_tools.path_registry.project_paths()`
 def lru_get(cache: OrderedDict, key: tuple) -> Any | None:
 	hit = cache.get(key)
 	if None is not hit:
 		cache.move_to_end(key)
 	return hit
+# @used-by :func:`agent_tools.path_registry.project_paths()`
+# @used-by :func:`store_fast_project_paths()`
 def lru_put(cache: OrderedDict, key: tuple, value: Any) -> None:
 	cache[key] = value
 	cache.move_to_end(key)
 	while CACHE_LIMIT < len(cache):
 		cache.popitem(last=False)
+# @used-by :func:`agent_tools.path_registry._refresh_known_overlay_links()`
 def mark_overlay_links_refreshed(reg: Any, default_registry_file: Path) -> None:
 	if reg.source_path == default_registry_file.resolve():
 		_OVERLAY_TTL_STATE['reg_path'] = reg.source_path
 		_OVERLAY_TTL_STATE['expires_at'] = time.monotonic() + OVERLAY_REFRESH_TTL_S
+# @used-by :func:`agent_tools.path_registry._refresh_known_overlay_links()`
 def overlay_signature_for_roots(candidate_roots: tuple[Path, ...], overlay_candidates: tuple[str, ...]) -> tuple:
 	ov_sig: list[tuple] = []
 	for root_p in candidate_roots:
@@ -133,6 +152,7 @@ def overlay_signature_for_roots(candidate_roots: tuple[Path, ...], overlay_candi
 # 2026-11-24
 # "Fix worktree scope resolution for new files in TDD classifier":
 # https://github.com/dmitry-ai/harness/issues/188
+# @used-by :func:`resolve_code_anchor()`
 def _linked_worktree_main_repo(anchor_dir: Path) -> Path | None:
 	r = None
 	dot_git = anchor_dir / '.git'
@@ -152,6 +172,12 @@ def _linked_worktree_main_repo(anchor_dir: Path) -> Path | None:
 # 2026-11-24
 # "Fix worktree scope resolution for new files in TDD classifier":
 # https://github.com/dmitry-ai/harness/issues/188
+# @used-by :func:`agent_tools.git_ignore._is_canonical_primary()`
+# @used-by :func:`agent_tools.native_profiles.shared_native_outputs()`
+# @used-by :func:`agent_tools.rules_manifest.resolve_rules_primary()`
+# @used-by :meth:`agent_tools.path_registry.PathRegistry.__init__()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo()`
+# @used-by :mod:`agent_tools.path_registry`
 def resolve_code_anchor(anchor_dir: Path) -> Path:
 	resolved = Path(anchor_dir).resolve()
 	r = resolved
@@ -169,6 +195,7 @@ def resolve_code_anchor(anchor_dir: Path) -> Path:
 		if None is not wt_main:
 			r = wt_main
 	return r
+# @used-by :func:`agent_tools.storage.journal_data_dir_for()`
 def resolve_journal_data_dir(eff: Path) -> Path:
 	from .path_registry import project_paths, workspace_override
 	fast_root = None
@@ -177,6 +204,7 @@ def resolve_journal_data_dir(eff: Path) -> Path:
 		if ((cand / '\ua616').is_dir() or (cand / '.agents').is_dir() or (cand / '\U0001f56e').is_dir() or (cand / '_/\ua616').is_dir()) and None is workspace_override(cand):
 			fast_root = cand
 	return project_paths(fast_root, exact_root=True).data_dir if None is not fast_root else project_paths(eff).data_dir
+# @used-by :func:`agent_tools.path_registry.resolve_project_root()`
 def resolve_reverse_map(start: Path, local_idx: int | None, local_root: Path | None, reg: Any, default_registry_file: Path, discovery_state: dict[str, Any], overlay_reverse_map: dict[str, Path], refresh_fn) -> dict[str, Path]:
 	is_default_reg = reg.source_path == default_registry_file.resolve()
 	if is_default_reg and is_under_tempdir(start):
@@ -186,5 +214,6 @@ def resolve_reverse_map(start: Path, local_idx: int | None, local_root: Path | N
 	else:
 		r = {**refresh_fn(reg), **overlay_reverse_map}
 	return r
+# @used-by :func:`agent_tools.path_registry.project_paths()`
 def store_fast_project_paths(cache_key: tuple, pp: Any, reg: Any, rev_len: int) -> None:
 	lru_put(_FAST_PROJECT_PATHS, cache_key, (pp, _fast_sig(pp, reg), rev_len))

@@ -19,6 +19,7 @@ import check_markdown_slop
 # "Document JSON metadata header contract in rules and references":
 # https://github.com/dmitry-ai/harness/issues/152
 class MetadataRulesAndDocsContractTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_rules_skill_and_docs_codify_json_metadata_headers_and_pass_lint(self) -> None:
 		file_rule = HARNESS_ROOT / 'rules/01-file-boundaries.md'
 		exec_rule = HARNESS_ROOT / 'rules/08-execution-and-tools.md'
@@ -62,6 +63,7 @@ class MetadataRulesAndDocsContractTests(unittest.TestCase):
 		for token in ('JSON metadata', '--no-metadata', 'body_sha256'):
 			self.assertIn(token, readme_text, f'Missing metadata term {token!r} in scripts/README-agent-tools.md')
 
+	# @used-by :mod:`unittest`
 	def test_cli_help_exposes_github_issue_no_metadata_flag(self) -> None:
 		p_gh = subprocess.run(
 			[sys.executable, str(SCRIPT_DIR / 'df_github_issue.py'), 'create', '--help'],

@@ -74,11 +74,16 @@ def _collect_actual_java_used_by(finfo: dict, hdr: dict, repo_index: dict, errs:
 		else:
 			errs.append(f'XREF: {rel}:{eln} invalid external - @used-by target {rval}')
 	return (actual, manual_ext)
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
 # @used-by :func:`_check_java_used_by()`
 # @used-by :func:`_sync_java_def_edit()`
 def _expected_java_used_by(computed: set[str], manual_ext: list[str], current_finfo: dict, repo_index: dict) -> list[str]:
 	refs = {format_java_ref(ck, current_finfo, repo_index, wrap_link=True) for ck in computed}
-	refs.update(manual_ext)
+	refs.update((m for m in manual_ext if 'unused' != m.split()[0]))
+	if not refs:
+		refs.update(manual_ext)
 	return sorted(refs)
 # @used-by :func:`_sync_java_file_source()`
 def _sync_java_def_edit(finfo: dict, dinfo: dict, lines: list[str], repo_index: dict, used_by: dict[str, set[str]]) -> tuple[int, int, list[str]]:
@@ -126,6 +131,7 @@ def check_java_file_local(rel_posix: str, source: str, *, baseline_source: str |
 # @used-by :func:`agent_tools.xref.run_xref_check()`
 # @used-by :meth:`test_java_xref.JavaXrefTests.test_java_anonymous_class_overloads_and_plugin_xml()`
 # @used-by :meth:`test_java_xref.JavaXrefTests.test_java_rejects_bare_used_by_and_uses_block_tags()`
+# @used-by :meth:`test_java_xref.JavaXrefTests.test_java_see_override_edges_unused_and_lf_sync()`
 # @used-by :meth:`test_java_xref.JavaXrefTests.test_java_sync_and_check_overrides_records_and_uses()`
 # @used-by :mod:`agent_tools.xref`
 def check_java_repo(repo_root: Path, *, files: list[str] | None=None, overrides_map: dict[str, str] | None=None) -> dict:
@@ -138,6 +144,7 @@ def check_java_repo(repo_root: Path, *, files: list[str] | None=None, overrides_
 	return {'file_count': len(target_rels), 'issue_count': len(errs), 'issues': errs, 'lang': 'java', 'repo': Path(repo_root).resolve().as_posix(), 'valid': not errs}
 # @used-by :func:`agent_tools.xref.run_xref_sync()`
 # @used-by :meth:`test_java_xref.JavaXrefTests.test_java_anonymous_class_overloads_and_plugin_xml()`
+# @used-by :meth:`test_java_xref.JavaXrefTests.test_java_see_override_edges_unused_and_lf_sync()`
 # @used-by :meth:`test_java_xref.JavaXrefTests.test_java_sync_and_check_overrides_records_and_uses()`
 # @used-by :mod:`agent_tools.xref`
 def sync_java_repo(repo_root: Path, *, apply: bool=True, files: list[str] | None=None) -> dict:
@@ -152,5 +159,8 @@ def sync_java_repo(repo_root: Path, *, apply: bool=True, files: list[str] | None
 		if updated != finfo['source']:
 			changed.append(rel)
 			if apply:
-				(root / rel).write_text(updated, encoding='utf-8')
+				# 2026-11-26
+				# "Apply cross-reference annotations across Harness Python and JavaScript":
+				# https://github.com/dmitry-ai/harness/issues/305
+				(root / rel).write_text(updated, encoding='utf-8', newline='\n')
 	return {'applied': apply, 'changed_count': len(changed), 'changed_files': changed, 'file_count': len(target_rels), 'lang': 'java', 'repo': root.as_posix(), 'valid': True}

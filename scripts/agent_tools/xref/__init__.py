@@ -39,6 +39,7 @@ def format_xref_text(res: dict) -> str:
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
 # @used-by :func:`agent_tools.cli_registry._exec_xref_check()`
+# @used-by :meth:`test_harness_xref_compliance.HarnessXrefComplianceTests.test_harness_python_and_js_pass_xref_check_with_zero_issues()`
 # @used-by :mod:`agent_tools.xref`
 def run_xref_check(repo: Path, *, lang: str='all', files: list[str] | None=None, overrides_map: dict[str, str] | None=None) -> dict:
 	runners = {'java': check_java_repo, 'js': check_js_repo, 'python': check_python_repo}

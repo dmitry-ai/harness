@@ -16,6 +16,8 @@ from .project_rename_verify import capture_pre_rename_snapshot, infer_launcher_r
 from .runtime import platform_instances, request_day
 from .storage import locked, replace_bytes
 _SEQ_PREFIX_RE = re.compile(r'^(\d+) - (.+)$')
+# @used-by :func:`_build_ag_registrar()`
+# @used-by :func:`_sync_registrations()`
 def _antigravity_dirs_map(override: dict[str, Path] | None) -> dict[str, Path]:
 	if None is not override:
 		r = {k: Path(v) for k, v in override.items()}
@@ -24,12 +26,14 @@ def _antigravity_dirs_map(override: dict[str, Path] | None) -> dict[str, Path]:
 		ordered = sorted(insts.items(), key=lambda kv: (0 if kv[1].get('primary') else 1, kv[0]))
 		r = {iid: Path(inst['system_paths']['projects_dir']) for iid, inst in ordered if inst.get('system_paths', {}).get('projects_dir')}
 	return r
+# @used-by :func:`_sync_registrations()`
 def _build_ag_registrar(ag_dirs: dict[str, Path] | None, folders_json: Path | None, preferred_id: str | None):
 	from .platforms.antigravity import register as ag_default, register_antigravity_project
 	if None is ag_dirs and None is folders_json:
 		r = None
 	else:
 		dirs = _antigravity_dirs_map(ag_dirs)
+		# @used-by :func:`_build_ag_registrar()`
 		def _reg(project, label, day):
 			per_inst, first, pid = ({}, None, preferred_id)
 			for iid, pdir in dirs.items():
@@ -40,6 +44,7 @@ def _build_ag_registrar(ag_dirs: dict[str, Path] | None, folders_json: Path | No
 			return {**first, 'instances': per_inst} if None is not first else ag_default(project, label, day)
 		r = _reg
 	return r
+# @used-by :func:`_rename_dir_safe()`
 def _do_dir_rename(old_root: Path, new_root: Path) -> None:
 	if old_root.name.casefold() == new_root.name.casefold() and old_root.name != new_root.name:
 		tmp_root = old_root.parent / f'.rename-tmp-{uuid.uuid4().hex[:10]}'
@@ -47,11 +52,13 @@ def _do_dir_rename(old_root: Path, new_root: Path) -> None:
 		os.rename(tmp_root, new_root)
 	else:
 		os.rename(old_root, new_root)
+# @used-by :func:`_sync_antigravity_native_files()`
 def _extract_prior_ag_id(new_root: Path, ag_dirs: dict[str, Path], old_root: Path) -> str | None:
 	pid = _ag_id_from_receipt(new_root)
 	if None is pid:
 		pid = _scan_ag_dirs_for_uri(ag_dirs, old_root.as_uri().casefold())
 	return pid
+# @used-by :func:`_extract_prior_ag_id()`
 def _ag_id_from_receipt(new_root: Path) -> str | None:
 	regs_f = project_paths(new_root, exact_root=True).registrations_json
 	r = None
@@ -62,6 +69,7 @@ def _ag_id_from_receipt(new_root: Path) -> str | None:
 		except (OSError, ValueError):
 			r = None
 	return r
+# @used-by :func:`_scan_ag_dirs_for_uri()`
 def _item_matches_uri(cand: Path, old_uri: str) -> str | None:
 	r = None
 	try:
@@ -72,6 +80,7 @@ def _item_matches_uri(cand: Path, old_uri: str) -> str | None:
 	except (OSError, ValueError):
 		r = None
 	return r
+# @used-by :func:`_extract_prior_ag_id()`
 def _scan_ag_dirs_for_uri(ag_dirs: dict[str, Path], old_uri: str) -> str | None:
 	r = None
 	for pdir in ag_dirs.values():
@@ -84,6 +93,10 @@ def _scan_ag_dirs_for_uri(ag_dirs: dict[str, Path], old_uri: str) -> str | None:
 		if None is not r:
 			break
 	return r
+# @used-by :func:`_update_projects_index()`
+# @used-by :func:`agent_tools.shadow_replay_command.resolve_shadow_launcher()`
+# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
+# @used-by :func:`rename_project()`
 def _infer_daily_root(root: Path, daily_root: Path | None) -> Path | None:
 	if None is not daily_root:
 		r = Path(daily_root).resolve()
@@ -92,6 +105,7 @@ def _infer_daily_root(root: Path, daily_root: Path | None) -> Path | None:
 	else:
 		r = None
 	return r
+# @used-by :func:`rename_project()`
 def _rename_dir_safe(old_root: Path, new_root: Path) -> Path | None:
 	prev_cwd = Path.cwd().resolve()
 	moved_cwd = prev_cwd if prev_cwd == old_root or prev_cwd.is_relative_to(old_root) else None
@@ -108,6 +122,7 @@ def _rename_dir_safe(old_root: Path, new_root: Path) -> Path | None:
 			os.chdir(moved_cwd)
 		raise
 	return moved_cwd
+# @used-by :func:`_rollback_rename()`
 def _restore_file_backups(backups: list[tuple[Path, bytes | None]]) -> None:
 	for path, raw in reversed(backups):
 		try:
@@ -118,6 +133,7 @@ def _restore_file_backups(backups: list[tuple[Path, bytes | None]]) -> None:
 		except OSError:
 			pass
 # 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+# @used-by :func:`rename_project()`
 def _rollback_rename(old_root: Path, new_root: Path, same_dir: bool, moved_cwd: Path | None, backups: list[tuple[Path, bytes | None]], state_moves: list[tuple[Path, Path]]=()) -> None:
 	_restore_file_backups(backups)
 	for old_st, new_st in reversed(state_moves):
@@ -129,6 +145,7 @@ def _rollback_rename(old_root: Path, new_root: Path, same_dir: bool, moved_cwd: 
 		os.chdir(moved_cwd)
 	clear_path_cache()
 	clear_registry_cache()
+# @used-by :func:`_sync_registrations()`
 def _sync_antigravity_native_files(old_root: Path, new_root: Path, new_label: str, day_str: str, ag_dirs: dict[str, Path], backups: list[tuple[Path, bytes | None]]) -> str | None:
 	day = request_day(day_str)
 	new_name = f'{new_label} - U.P.{day:%Y.%m.%d}'
@@ -145,6 +162,7 @@ def _sync_antigravity_native_files(old_root: Path, new_root: Path, new_label: st
 					payload['projectResources'] = {**(payload.get('projectResources') or {}), 'resources': [{'folderUri': new_root.as_uri()}]}
 					replace_bytes(target, (json.dumps(payload, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 	return pid
+# @used-by :func:`_apply_rename_mutations()`
 def _sync_registrations(old_root: Path, new_root: Path, new_label: str, day_str: str, *, register_native: bool | None, ag_dirs: dict[str, Path] | None, folders_json: Path | None, targets: list[str] | None, registrars: dict | None, backups: list[tuple[Path, bytes | None]]) -> dict | None:
 	from .registration import register_projects
 	from .upwork_project import DAILY_PROPOSALS_ROOT
@@ -166,10 +184,12 @@ def _sync_registrations(old_root: Path, new_root: Path, new_label: str, day_str:
 		r = register_projects(new_root, new_label, day_str, targets=targets, registrars=eff_regs or None)
 		refresh_workflow_file_hash(new_root, regs_f, old_reg_sha)
 	return r
+# @used-by :func:`_validate_rename_inputs()`
 def _target_name_and_root(old_root: Path, new_label: str) -> Path:
 	match = _SEQ_PREFIX_RE.match(old_root.name)
 	new_name = f'{match.group(1)} - {new_label}' if match else new_label
 	return old_root.parent / new_name
+# @used-by :func:`_apply_rename_mutations()`
 def _update_projects_index(old_root: Path, new_root: Path, job_id: str, daily_root: Path | None, backups: list[tuple[Path, bytes | None]]) -> str | None:
 	from .upwork_project import DAILY_PROPOSALS_ROOT
 	daily = _infer_daily_root(new_root, daily_root)
@@ -186,6 +206,7 @@ def _update_projects_index(old_root: Path, new_root: Path, job_id: str, daily_ro
 			replace_bytes(index_file, (json.dumps(index, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 			r = str(index_file)
 	return r
+# @used-by :func:`rename_project()`
 def _validate_rename_inputs(project_root: str | Path, domain: str | None, topic: str | None) -> tuple[Path, Path, str, str, dict]:
 	old_root = Path(project_root).resolve()
 	pj_path = project_paths(old_root, exact_root=True).project_json
@@ -200,6 +221,8 @@ def _validate_rename_inputs(project_root: str | Path, domain: str | None, topic:
 		raise FileExistsError(f'Target project directory already exists: {new_root}')
 	return (old_root, new_root, new_label, new_kind, pj_old)
 # 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+# @used-by :func:`agent_tools.cli_domains._op_render_analysis()`
+# @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
 def apply_domain_promotion(project_root: Path, analysis_value: dict, result: dict, *, register_native: bool | None=None, launcher_root: Path | None=None) -> dict:
 	promo = maybe_promote_project_domain(project_root, analysis_value, register_native=register_native, launcher_root=launcher_root)
 	result['domain_promotion'] = promo
@@ -214,6 +237,7 @@ def apply_domain_promotion(project_root: Path, analysis_value: dict, result: dic
 				result[key] = result[key].replace(old_str, str(new_root), 1)
 	return result
 # 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+# @used-by :func:`apply_domain_promotion()`
 def maybe_promote_project_domain(project_root: str | Path, analysis_value: dict, *, daily_root: Path | None=None, register_native: bool | None=None, launcher_root: Path | None=None) -> dict:
 	root = Path(project_root).resolve()
 	pj_path = project_paths(root, exact_root=True).project_json
@@ -233,6 +257,8 @@ def maybe_promote_project_domain(project_root: str | Path, analysis_value: dict,
 			res = rename_project(root, domain=domain, daily_root=daily_root, register_native=register_native, launcher_root=launcher_root)
 			r = {**res, 'basis_id': basis_id}
 	return r
+# @used-by :func:`agent_tools.project_drift.domain_drift_issues()`
+# @used-by :func:`maybe_promote_project_domain()`
 def resolve_promotable_target_domain(analysis_value: dict, *, min_probability: int=75) -> tuple[str | None, str | None]:
 	r: tuple[str | None, str | None] = (None, None)
 	if isinstance(analysis_value, dict):
@@ -264,6 +290,18 @@ def _apply_rename_mutations(old_root: Path, new_root: Path, new_label: str, new_
 	post_ver = verify_post_rename(old_root, new_root, pre_snap, launcher_root=eff_launcher)
 	return (idx_file, reg_info, post_ver)
 # 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+# @used-by :func:`agent_tools.cli_registry._exec_rename_project()`
+# @used-by :func:`agent_tools.shadow_replay_command._run_exec_rename_domain()`
+# @used-by :func:`maybe_promote_project_domain()`
+# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests.test_rename_project_cleanup_recent_and_old_path_history()`
+# @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
+# @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_rolls_back_finalized_fixture_on_review_authorize_regression()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_check_project_flags_domain_drift_on_folder_and_registration_mismatch()`
+# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
+# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_project_cleanup_integration()`
+# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_project_rolls_back_on_collision_or_failure()`
+# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_project_updates_folder_indexes_registrations_rules_and_journal()`
+# @used-by :meth:`test_project_rename_verification.ProjectRenameVerificationTests.test_post_verify_rolls_back_all_state_on_stage_or_review_regression()`
 def rename_project(project_root: str | Path, *, domain: str | None=None, topic: str | None=None, daily_root: Path | None=None, register_native: bool | None=None, antigravity_projects_dirs: dict[str, Path] | None=None, antigravity_folders_json: Path | None=None, targets: list[str] | None=None, registrars: dict | None=None, launcher_root: Path | None=None) -> dict:
 	old_root, new_root, new_label, new_kind, pj_old = _validate_rename_inputs(project_root, domain, topic)
 	eff_launcher = infer_launcher_root(old_root, _infer_daily_root(old_root, daily_root), launcher_root)

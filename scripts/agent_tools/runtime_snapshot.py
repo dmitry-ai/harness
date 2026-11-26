@@ -55,6 +55,7 @@ _VALIDATION_PROBE = (
 	'\tif pi_errs:\n'
 	"\t\traise SystemExit('; '.join(pi_errs[:5]))\n"
 )
+# @used-by :func:`_promote_locked()`
 def _activate_release(prim_p: Path, store: Path, staging: Path, sha: str, *, keep: int, configure_repo_hooks: bool) -> dict:
 	releases_dir = store / 'releases'
 	releases_dir.mkdir(parents=True, exist_ok=True)
@@ -73,6 +74,7 @@ def _activate_release(prim_p: Path, store: Path, staging: Path, sha: str, *, kee
 	protected = {s for s in (sha, new_prev) if s}
 	pruned = _rotate_releases(releases_dir, keep, protected)
 	return {'valid': True, 'promoted': True, 'commit_sha': sha, 'previous': new_prev, 'release_dir': release_dir.as_posix(), 'store_dir': store.as_posix(), 'git_hooks_dir': gh_dir.as_posix(), 'pruned': pruned}
+# @used-by :func:`_activate_release()`
 def _deploy_git_hooks(store: Path, primary: Path) -> Path:
 	gh_dir = store / 'git_hooks'
 	gh_dir.mkdir(parents=True, exist_ok=True)
@@ -86,6 +88,7 @@ def _deploy_git_hooks(store: Path, primary: Path) -> Path:
 		except OSError:
 			pass
 	return gh_dir
+# @used-by :func:`_promote_locked()`
 def _export_git_archive(repo: Path, staging: Path) -> str:
 	head_proc = _git_read(repo, 'rev-parse', '--verify', 'HEAD')
 	sha = head_proc.stdout.decode('utf-8', errors='replace').strip()
@@ -98,12 +101,17 @@ def _export_git_archive(repo: Path, staging: Path) -> str:
 	with tarfile.open(fileobj=io.BytesIO(arc_proc.stdout), mode='r:') as tf:
 		_safe_extract_tar(tf, staging)
 	return sha
+# @used-by :func:`_export_git_archive()`
+# @used-by :func:`_has_git_head()`
+# @used-by :func:`check_runtime_snapshot()`
 def _git_read(repo: Path, *args: str) -> subprocess.CompletedProcess:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, env=env, timeout=30, check=False, creationflags=_NO_WINDOW)
 	if 0 != proc.returncode:
 		raise RuntimeError(proc.stderr.decode('utf-8', errors='replace').strip() or f'git {" ".join(args)} failed')
 	return proc
+# @used-by :func:`check_runtime_snapshot()`
+# @used-by :func:`promote_runtime_snapshot()`
 def _has_git_head(repo: Path) -> bool:
 	r = False
 	if (repo / '.git').exists():
@@ -113,6 +121,7 @@ def _has_git_head(repo: Path) -> bool:
 		except (OSError, RuntimeError, subprocess.SubprocessError):
 			r = False
 	return r
+# @used-by :func:`promote_runtime_snapshot()`
 def _promote_locked(prim_p: Path, store: Path, *, keep: int, entrypoints: tuple[str, ...], configure_repo_hooks: bool) -> dict:
 	staging = store / f'.staging-{uuid.uuid4().hex[:10]}'
 	try:
@@ -127,6 +136,8 @@ def _promote_locked(prim_p: Path, store: Path, *, keep: int, entrypoints: tuple[
 	finally:
 		shutil.rmtree(staging, ignore_errors=True)
 	return r
+# @used-by :func:`_activate_release()`
+# @used-by :func:`check_runtime_snapshot()`
 def _read_pointer(store: Path) -> dict:
 	ptr_file = store / 'current.json'
 	r: dict = {}
@@ -138,6 +149,7 @@ def _read_pointer(store: Path) -> dict:
 		except (OSError, ValueError):
 			r = {}
 	return r
+# @used-by :func:`_activate_release()`
 def _rotate_releases(releases_dir: Path, keep: int, protected: set[str]) -> list[str]:
 	pruned: list[str] = []
 	if releases_dir.is_dir():
@@ -151,6 +163,7 @@ def _rotate_releases(releases_dir: Path, keep: int, protected: set[str]) -> list
 				shutil.rmtree(cand, ignore_errors=True)
 				pruned.append(cand.name)
 	return pruned
+# @used-by :func:`_export_git_archive()`
 def _safe_extract_tar(tf: tarfile.TarFile, dest: Path) -> None:
 	base = dest.resolve()
 	for member in tf.getmembers():
@@ -164,12 +177,15 @@ def _safe_extract_tar(tf: tarfile.TarFile, dest: Path) -> None:
 			src = tf.extractfile(member)
 			if None is not src:
 				target.write_bytes(src.read())
+# @used-by :func:`_activate_release()`
+# @used-by :func:`ensure_repo_git_hooks()`
 def _set_local_hooks_path(main_repo: Path, hooks_dir: Path) -> None:
 	from .shell_audit import normalize_host_path
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30, check=False, creationflags=_NO_WINDOW)
 	current = (proc.stdout or '').strip()
 	if (not current) or normalize_host_path(current).resolve() != hooks_dir.resolve():
 		subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(hooks_dir)], stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False, creationflags=_NO_WINDOW)
+# @used-by :func:`_promote_locked()`
 def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints: tuple[str, ...]) -> tuple[bool, str]:
 	proc = subprocess.run([sys.executable, '-I', '-c', _VALIDATION_PROBE, str(staging), canonical_primary.as_posix(), json.dumps(list(entrypoints))], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60, check=False, creationflags=_NO_WINDOW)
 	detail = (proc.stderr or proc.stdout or '').strip()
@@ -182,6 +198,9 @@ def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints
 		from .snapshot_canary import run_pre_tool_use_canary
 		r = run_pre_tool_use_canary(staging)
 	return r
+# @used-by :func:`agent_tools.cli_registry._exec_runtime_status()`
+# @used-by :func:`finalize_native_install()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def check_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=None) -> dict:
 	prim_p = Path(primary).resolve()
 	store = runtime_store_dir(prim_p, store_dir=store_dir)
@@ -191,6 +210,9 @@ def check_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=
 	cur_ok = bool(cur and (store / 'releases' / str(cur) / 'scripts').is_dir())
 	head = _git_read(prim_p, 'rev-parse', 'HEAD').stdout.decode('utf-8', errors='replace').strip() if _has_git_head(prim_p) else None
 	return {'valid': (not ptr) or cur_ok, 'active': cur_ok, 'current': cur, 'previous': prev, 'head': head, 'stale': bool(cur and head and cur != head), 'store_dir': store.as_posix()}
+# @used-by :func:`ensure_repo_git_hooks()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def effective_git_hooks_dir(fallback_dir: str | Path | None=None, *, store_dir: str | Path | None=None, primary: str | Path | None=None) -> Path:
 	env_store = os.environ.get('HARNESS_RUNTIME_STORE')
 	if None is not store_dir:
@@ -208,6 +230,8 @@ def effective_git_hooks_dir(fallback_dir: str | Path | None=None, *, store_dir: 
 		from .path_registry import tool_path
 		r = tool_path('git_hooks_dir').resolve()
 	return r
+# @used-by :meth:`agent_tools.git_gate.GitRepoGate.ensure_hooks()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def ensure_repo_git_hooks(repo_root: Path, main_repo: Path, fallback_dir: Path) -> Path | None:
 	r = None
 	hooks_dir = effective_git_hooks_dir(fallback_dir)
@@ -222,6 +246,8 @@ def ensure_repo_git_hooks(repo_root: Path, main_repo: Path, fallback_dir: Path) 
 		except OSError:
 			r = None
 	return r
+# @used-by :func:`agent_tools.git_ignore.finalize_install_result()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def finalize_native_install(result: dict, primary: Path, *, check: bool) -> dict:
 	if check:
 		snap = check_runtime_snapshot(primary)
@@ -236,9 +262,25 @@ def finalize_native_install(result: dict, primary: Path, *, check: bool) -> dict
 			result['valid'] = False
 			result['issues'].append({'file': str(primary), 'message': f"Runtime snapshot promotion failed: {snap.get('error', 'unknown error')}"})
 	return result
+# @used-by :func:`agent_tools.gates.worktree_isolation._evaluate_main_checkout()`
+# @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def is_harness_code_repo(repo: str | Path) -> bool:
 	p = Path(repo).resolve()
 	return (p / 'paths.json').is_file() and (p / 'runtime.json').is_file() and (p / 'scripts/check_rules_and_server_gate.py').is_file()
+# @used-by :func:`agent_tools.cli_registry._exec_runtime_promote()`
+# @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
+# @used-by :func:`finalize_native_install()`
+# @used-by :func:`test_hook_runner_watchdog._seed_two_releases()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_snapshot_promotion_and_auditor_reject_undefined_global()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_broken_head_rejected_by_validation_preserving_current()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_lkg_fallback_runs_previous_release_when_current_crashes()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_promote_exports_snapshot_surviving_live_tree_corruption_and_preserving_anchor()`
+# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_release_rotation_keeps_latest_five_and_retains_lkg()`
+# @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_promote_rejects_chatty_pre_tool_use_snapshot_and_keeps_current()`
+# @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_promote_rejects_slow_pre_tool_use_snapshot_and_keeps_current()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def promote_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=None, keep: int=DEFAULT_KEEP_RELEASES, entrypoints: tuple[str, ...]=REQUIRED_ENTRYPOINTS, configure_repo_hooks: bool=True) -> dict:
 	prim_p = Path(primary).resolve()
 	if not _has_git_head(prim_p):
@@ -249,6 +291,10 @@ def promote_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | Non
 		with locked(store / 'promote.lock'):
 			r = _promote_locked(prim_p, store, keep=keep, entrypoints=entrypoints, configure_repo_hooks=configure_repo_hooks)
 	return r
+# @used-by :func:`check_runtime_snapshot()`
+# @used-by :func:`effective_git_hooks_dir()`
+# @used-by :func:`promote_runtime_snapshot()`
+# @used-by :mod:`agent_tools.runtime_snapshot`
 def runtime_store_dir(primary: str | Path | None=None, *, store_dir: str | Path | None=None) -> Path:
 	if None is not store_dir:
 		r = Path(store_dir).resolve()

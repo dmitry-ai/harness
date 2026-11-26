@@ -9,6 +9,8 @@ from .tdd_gate import shell_write_targets
 _DF_ISSUE_VAR_RE = re.compile(r'(\$[A-Za-z_][A-Za-z0-9_]*)\s*=\s*["\'][^"\']*df_github_issue\.py["\']', re.I)
 _PY_INLINE_C_RE = re.compile(r'(?i)\bpython(?:3(?:\.\d+)?)?(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-c\b')
 _WRITE_TOOLS = frozenset({'edit_file', 'multi_replace_file_content', 'replace_file_content', 'write_file', 'write_to_file'})
+# @used-by :func:`_record_bg_issue_completion()`
+# @used-by :func:`_record_bg_seg_issues()`
 def _bg_fin_outputs(fin_body: str, log_path: str | None) -> list[str]:
 	r = [fin_body]
 	m_log = _BG_TASK_LOG_RE.search(fin_body)
@@ -19,6 +21,7 @@ def _bg_fin_outputs(fin_body: str, log_path: str | None) -> list[str]:
 		except OSError:
 			pass
 	return r
+# @used-by :func:`_dispatch_row_calls()`
 def _collect_row_outputs(segment: list[dict], pos: int) -> list[str]:
 	r: list[str] = []
 	for nxt in segment[pos + 1:]:
@@ -29,6 +32,7 @@ def _collect_row_outputs(segment: list[dict], pos: int) -> list[str]:
 		if 'GENERIC' == nxt.get('type') and nxt.get('content'):
 			r.append(str(nxt.get('content')))
 	return r
+# @used-by :func:`_process_segment_row()`
 def _dispatch_row_calls(segment: list[dict], pos: int, step_idx: int, raw_calls: list, cwd: Path | None, events: list[dict], bg_cmds: dict[str, tuple[str, str | None]], build_write_fn, build_action_fn) -> None:
 	calls = [c for c in raw_calls if isinstance(c, dict)]
 	if calls:
@@ -36,6 +40,7 @@ def _dispatch_row_calls(segment: list[dict], pos: int, step_idx: int, raw_calls:
 		for c_pos, call in enumerate(calls):
 			matched = [outputs[c_pos]] if c_pos < len(outputs) else outputs
 			_dispatch_segment_call(step_idx, c_pos, call, matched, cwd, events, bg_cmds, build_write_fn, build_action_fn)
+# @used-by :func:`_dispatch_row_calls()`
 def _dispatch_segment_call(step_idx: int, c_pos: int, call: dict, matched: list[str], cwd: Path | None, events: list[dict], bg_cmds: dict[str, tuple[str, str | None]], build_write_fn, build_action_fn) -> None:
 	cname = str(call.get('name') or '')
 	cargs = _normalize_args_dict(call.get('args', {}))
@@ -43,6 +48,7 @@ def _dispatch_segment_call(step_idx: int, c_pos: int, call: dict, matched: list[
 		_handle_write_call(step_idx, c_pos, cname, cargs, matched, cwd, events, build_write_fn)
 	elif 'run_command' == cname:
 		_handle_run_command_call(step_idx, c_pos, cargs, matched, cwd, events, bg_cmds, build_write_fn, build_action_fn)
+# @used-by :func:`_dispatch_segment_call()`
 def _handle_run_command_call(step_idx: int, c_pos: int, cargs: dict, matched: list[str], cwd: Path | None, events: list[dict], bg_cmds: dict[str, tuple[str, str | None]], build_write_fn, build_action_fn) -> None:
 	cmd = str(cargs.get('CommandLine') or '')
 	for wt in shell_write_targets(cmd, cwd=cwd):
@@ -51,6 +57,7 @@ def _handle_run_command_call(step_idx: int, c_pos: int, cargs: dict, matched: li
 			events.append(ev)
 	events.extend(build_action_fn(step_idx, cmd, matched, sub_step=c_pos))
 	_register_bg_issue_tasks(cmd, matched, bg_cmds)
+# @used-by :func:`_dispatch_segment_call()`
 def _handle_write_call(step_idx: int, c_pos: int, cname: str, cargs: dict, matched: list[str], cwd: Path | None, events: list[dict], build_write_fn) -> None:
 	raw_p = str(next((cargs[k] for k in ('Path', 'TargetFile', 'AbsolutePath', 'path') if cargs.get(k)), '')).strip()
 	if raw_p:
@@ -58,14 +65,17 @@ def _handle_write_call(step_idx: int, c_pos: int, cname: str, cargs: dict, match
 		ev = build_write_fn(step_idx, raw_p, cwd=cwd, content=raw_c if isinstance(raw_c, str) else None, sub_step=c_pos, cmd_outputs=matched)
 		if None is not ev:
 			events.append(ev)
+# @used-by :func:`is_df_issue_command_text()`
 def _has_direct_issue_seg(segs: list[str], direct_re) -> bool:
 	return any((direct_re.match(s) and (not _PY_INLINE_C_RE.search(s)) for s in segs))
+# @used-by :func:`extract_segment_issue_first_events()`
 def _process_segment_row(segment: list[dict], pos: int, row: dict, cwd: Path | None, events: list[dict], bg_cmds: dict[str, tuple[str, str | None]], build_write_fn, build_action_fn) -> None:
 	step_idx = row.get('step_index') if isinstance(row.get('step_index'), int) else pos
 	if row.get('type') in ('SYSTEM_MESSAGE', 'EPHEMERAL_MESSAGE', 'GENERIC') and row.get('content'):
 		_record_bg_issue_completion(str(row.get('content')), step_idx, bg_cmds, events, build_action_fn)
 	if row.get('tool_calls'):
 		_dispatch_row_calls(segment, pos, step_idx, row['tool_calls'], cwd, events, bg_cmds, build_write_fn, build_action_fn)
+# @used-by :func:`_process_segment_row()`
 def _record_bg_issue_completion(c_str: str, step_idx: int, bg_cmds: dict[str, tuple[str, str | None]], events: list[dict], build_action_fn) -> None:
 	m_fin = _BG_TASK_FINISHED_RE.search(c_str)
 	if m_fin:
@@ -73,6 +83,7 @@ def _record_bg_issue_completion(c_str: str, step_idx: int, bg_cmds: dict[str, tu
 		if None is not entry:
 			cmd, log_path = entry
 			events.extend(build_action_fn(step_idx, cmd, _bg_fin_outputs(m_fin.group(2), log_path)))
+# @used-by :func:`handle_antigravity_bg_task_message()`
 def _record_bg_seg_issues(cev: dict, fin_body: str, prev_log: str | None, step_idx, seg: dict) -> None:
 	from .issue_first_gate import build_issue_action_events, is_df_github_issue_command
 	cmd = str(cev.get('cmd') or '')
@@ -84,6 +95,7 @@ def _record_bg_seg_issues(cev: dict, fin_body: str, prev_log: str | None, step_i
 		if 'issue_actions' in seg:
 			for act in extract_issue_actions_from_outputs(outs):
 				seg['issue_actions'].append({**act, 'step': eff_step})
+# @used-by :func:`_handle_run_command_call()`
 def _register_bg_issue_tasks(cmd: str, matched: list[str], bg_cmds: dict[str, tuple[str, str | None]]) -> None:
 	joined = '\n'.join(matched)
 	m_log = _BG_TASK_LOG_RE.search(joined)
@@ -91,6 +103,7 @@ def _register_bg_issue_tasks(cmd: str, matched: list[str], bg_cmds: dict[str, tu
 	lp_str = str(lp) if None is not lp else None
 	for tid in extract_bg_task_ids(joined):
 		bg_cmds[tid] = (cmd, lp_str)
+# @used-by :func:`is_df_issue_command_text()`
 def _var_issue_matches(cmd: str, segments: list[str]) -> bool:
 	r = False
 	for vname in _DF_ISSUE_VAR_RE.findall(cmd):
@@ -100,6 +113,7 @@ def _var_issue_matches(cmd: str, segments: list[str]) -> bool:
 			break
 	return r
 # 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
+# @used-by :func:`agent_tools.issue_first_gate.extract_antigravity_issue_first_events()`
 def extract_segment_issue_first_events(segment: list[dict], cwd: Path | None, build_write_fn, build_action_fn) -> list[dict]:
 	events: list[dict] = []
 	bg_cmds: dict[str, tuple[str, str | None]] = {}
@@ -107,6 +121,7 @@ def extract_segment_issue_first_events(segment: list[dict], cwd: Path | None, bu
 		if isinstance(row, dict):
 			_process_segment_row(segment, pos, row, cwd, events, bg_cmds, build_write_fn, build_action_fn)
 	return events
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._scan_segment()`
 def handle_antigravity_bg_task_message(c_str: str, step_idx, seg: dict, parse_command_outcome) -> None:
 	m_fin = _BG_TASK_FINISHED_RE.search(c_str)
 	if m_fin:
@@ -116,6 +131,7 @@ def handle_antigravity_bg_task_message(c_str: str, step_idx, seg: dict, parse_co
 			prev_log = (cev.get('outcome') or {}).get('background_log_path')
 			cev['outcome'] = parse_command_outcome(fin_body)
 			_record_bg_seg_issues(cev, fin_body, prev_log, step_idx, seg)
+# @used-by :func:`agent_tools.issue_first_gate.is_df_github_issue_command()`
 def is_df_issue_command_text(cmd: str, direct_re) -> bool:
 	r = False
 	if isinstance(cmd, str) and 'df_github_issue.py' in cmd.lower():

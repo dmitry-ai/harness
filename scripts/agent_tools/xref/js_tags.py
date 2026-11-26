@@ -7,19 +7,27 @@ import re
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
 _BARE_JS_RE = re.compile(r'^[A-Za-z_$][A-Za-z0-9_$.#]*(?:\(\))?$')
-_EXT_RUNNERS = frozenset({'browser', 'CDP', 'chrome', 'CLI', 'cli', 'DOM', 'electron', 'Electron', 'IPC', 'node', 'node:test', 'npm', 'playwright', 'PowerShell', 'VBS', 'Windows'})
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
+_EXT_RUNNERS = frozenset({'browser', 'CDP', 'chrome', 'CLI', 'cli', 'DOM', 'electron', 'Electron', 'IPC', 'node', 'node:test', 'npm', 'playwright', 'PowerShell', 'unused', 'VBS', 'Windows'})
 _IMPORT_LINK_RE = re.compile(r"^import\(['\"]([^'\"]+)['\"]\)(?:\.([A-Za-z0-9_$.#]+))?$")
 _LINK_RE = re.compile(r'^\{@link\s+([^}\s]+)(?:\s+([^}]+))?\}(.*)$')
 _NOTE_LOCAL_RE = re.compile(r'^\(([A-Za-z0-9_$.#]+)\)$')
 _TAG_LINE_RE = re.compile(r'^\*?\s*@(used-by|uses|see|override)(?:\s+(.*?))?\s*$')
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
 # @used-by :func:`collect_file_js_uses()`
 def _enclosing_or_next_def(finfo: dict, end_line: int) -> str:
+	toks = finfo['tokens']
 	r = '*module*'
 	for dinfo in finfo['defs']:
+		end_ln = toks[dinfo['body_end']][2] if dinfo['body_end'] < len(toks) else dinfo['lineno']
 		if dinfo['lineno'] == end_line + 1:
 			r = dinfo['qualname']
 			break
-		if dinfo['lineno'] <= end_line:
+		if dinfo['lineno'] <= end_line <= end_ln:
 			r = dinfo['qualname']
 	return r
 # @used-by :func:`resolve_js_link()`

@@ -11,6 +11,7 @@ from agent_tools.platforms.trace_common import init_turn_accumulator, record_nor
 # "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
 # https://github.com/dmitry-ai/harness/issues/173
 class TddWorktreeAndSubagentTraceTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_combined_git_commit_and_full_test_command_updates_full_green(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()
@@ -25,6 +26,7 @@ class TddWorktreeAndSubagentTraceTests(unittest.TestCase):
 			res = tdd_gate.evaluate_tdd_events([ev_test, ev_red, ev_prod, ev_comb])
 			self.assertTrue(res['verified'], res)
 			self.assertEqual(4, res['scopes'][str(repo)]['last_full_green_step'])
+	# @used-by :mod:`unittest`
 	def test_denied_write_tool_call_is_excluded_from_tdd_events(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()
@@ -42,6 +44,7 @@ class TddWorktreeAndSubagentTraceTests(unittest.TestCase):
 			]
 			tfile.write_text('\n'.join((json.dumps(r) for r in rows)) + '\n', encoding='utf-8')
 			self.assertEqual([], tdd_gate.extract_antigravity_tdd_events(tfile, cwd=repo))
+	# @used-by :mod:`unittest`
 	def test_resolve_code_scope_maps_deleted_worktree_to_main_code_repo(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			meta = Path(tmp).resolve()
@@ -50,6 +53,7 @@ class TddWorktreeAndSubagentTraceTests(unittest.TestCase):
 			(code_repo / '.git').mkdir(parents=True)
 			deleted_wt_file = meta / '\ua616' / 'data' / 'worktrees' / 'dead-task' / 'scripts' / 'agent_tools' / 'x.py'
 			self.assertEqual(code_repo, tdd_gate.resolve_code_scope(deleted_wt_file))
+	# @used-by :mod:`unittest`
 	def test_subagent_events_sharing_parent_step_preserve_sub_step_order(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()

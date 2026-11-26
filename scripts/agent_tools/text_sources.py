@@ -12,6 +12,9 @@ from .text_core import Finding, scan
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
 SOURCE_MAX_AGE = 86400
+# @used-by :func:`_evaluate()`
+# @used-by :func:`probe_links()`
+# @used-by :func:`save_source_check()`
 def _attempt(root, candidate, url, observation, reference, *, read_only=False):
 	from .research import load_observation, json_data
 	from .text_claims import digest
@@ -41,6 +44,11 @@ def _attempt(root, candidate, url, observation, reference, *, read_only=False):
 				replace_bytes(index, json_data(value))
 			r = previous
 	return r
+# @used-by :func:`_evaluate()`
+# @used-by :func:`probe_links()`
+# @used-by :func:`save_source_check()`
+# @used-by :func:`validate_source_checks()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_unicode_address_and_encoded_markdown_destination_share_one_identity()`
 def source_urls(text):
 	prose = '\n'.join((line.raw for line in scan(text) if line.kind in ('prose', 'heading')))
 	r = list(dict.fromkeys((readable_reference(url) for url in references(prose)[0] if url.startswith(('http://', 'https://')))))
@@ -51,6 +59,8 @@ def source_urls(text):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`read_source_check()`
+# @used-by :func:`save_source_check()`
 def _evaluate(root, candidate, spec):
 	from .claims import _manifest_primary, _verify_quote
 	from .evidence import local_file
@@ -175,6 +185,11 @@ def _evaluate(root, candidate, spec):
 			raise ValueError('DOM identity does not bind this exact observation')
 		inputs[path.relative_to(Path(root).resolve()).as_posix()] = digest(raw)
 	return {'url': readable_reference(spec['url']), 'requested_url': meta['url'], 'final_url': meta['final_url'], 'method': meta['method'], 'http_status': meta['status'], 'observed_at': meta['observed_at'], 'body_sha256': meta['body_sha256'], 'currency': spec['currency'], 'edition': spec.get('edition'), 'inputs': inputs}
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.check_and_review()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.saved()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_full_native_review_fixture_requires_and_preserves_source_assessments()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
 def save_source_check(root, candidate, spec):
 	from .research import json_data
 	from .text_claims import digest
@@ -204,6 +219,15 @@ def save_source_check(root, candidate, spec):
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_later_conflicting_probe_rejects_new_publication_but_preserves_history()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_a_later_failed_probe_cannot_be_overridden_by_minting_an_older_success()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_changing_candidate_does_not_erase_a_later_failure_of_the_same_url()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_later_failure_invalidates_apply_and_an_already_applied_gate()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_real_http_failure_and_redirect_are_saved_once_per_base_url()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
 def probe_links(root, candidate, *, fetcher=None):
 	from .evidence_loader import probe_observation_status
 	from .research import collect, json_data
@@ -228,6 +252,9 @@ def probe_links(root, candidate, *, fetcher=None):
 		if 'http-ok' != status:
 			findings.append(Finding('error', 'SOURCE-UNVERIFIED', 1, url + ': ' + status))
 	return {'results': results, 'findings': findings}
+# @used-by :func:`agent_tools.text_review._source_reviews()`
+# @used-by :func:`validate_source_checks()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_plain_authored_verified_objects_and_changed_candidates_are_rejected()`
 def read_source_check(root, candidate, reference):
 	from .research import inside
 	from .text_claims import digest
@@ -247,6 +274,9 @@ def read_source_check(root, candidate, reference):
 # 2026-11-03
 # "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 # https://github.com/dmitry-ai/harness/issues/41
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.applied_integrity()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
 def source_integrity(root, candidate, reference):
 	from .research import inside
 	from .text_claims import digest
@@ -268,6 +298,9 @@ def source_integrity(root, candidate, reference):
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_unicode_address_and_encoded_markdown_destination_share_one_identity()`
 def validate_source_checks(root, candidate, records):
 	required = set(source_urls(candidate))
 	inputs, checks, seen, issues = ({}, [], set(), [])
@@ -299,6 +332,7 @@ def validate_source_checks(root, candidate, records):
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`agent_tools.text_cli.main()`
 def check_claim_sources(root, identifiers, *, reference=None):
 	path = registry_path(root, reference)
 	selected = subset(json.loads(path.read_text(encoding='utf-8-sig')), identifiers)
@@ -310,6 +344,7 @@ def check_claim_sources(root, identifiers, *, reference=None):
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# @used-by :meth:`test_text_integration.TextBoundaryTests.test_network_source_checks_distinguish_missing_anchor_and_skip_inline_code()`
 def check_links(text, *, fetcher=None):
 	prose = '\n'.join((line.raw for line in scan(text) if 'prose' == line.kind))
 	urls = references(prose)[0]

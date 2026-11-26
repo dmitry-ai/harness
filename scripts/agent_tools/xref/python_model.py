@@ -61,10 +61,10 @@ def _decorator_info(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[int, 
 # @used-by :func:`_record_top_assign()`
 # @used-by :func:`_walk_class()`
 # @used-by :func:`agent_tools.xref.python_graph._collect_local_bindings()`
-# @used-by :func:`agent_tools.xref.python_graph._record_assign_type()`
 # @used-by :func:`agent_tools.xref.python_graph._record_attr_ref()`
 # @used-by :func:`agent_tools.xref.python_graph._record_name_or_call_ref()`
 # @used-by :func:`agent_tools.xref.python_graph._record_with_ref()`
+# @used-by :func:`agent_tools.xref.python_graph._resolve_call_class()`
 def _expr_dotted(expr: ast.AST) -> str:
 	if isinstance(expr, ast.Name):
 		r = expr.id

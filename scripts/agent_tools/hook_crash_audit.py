@@ -7,6 +7,7 @@ import re
 _HOOK_CRASH_RE = re.compile(r'JSON hook "([^"]+)" failed[^\r\n]*', re.IGNORECASE)
 _HOOK_FAILURE_WORD_RE = re.compile(r'(?i)(?:fail(?:ed|ure)?|crash\w*|timeout|exit\s+status\s+[1-9]\d*|таймаут\w*|падени\w*|сбо[йяею]\w*|упал\w*|ошибк\w*|обрыв\w*)')
 _HOOK_TOPIC_RE = re.compile(r'(?i)(?:json\s+hook|pretooluse|stop\s+gate|preinvocation|rules-and-server-gate|doc4-anti-slop-gate|final-turn-gate|harness_hook_runner|хук[а-я]*)')
+# @used-by :func:`_has_recorded_hook_issue()`
 def _collect_issue_refs(turn: dict[str, Any], value: dict[str, Any] | None) -> list[tuple[str, int]]:
 	raw_items: list[Any] = list(turn.get('issue_actions') or ())
 	gh_raw = (value or {}).get('github_issues')
@@ -21,6 +22,7 @@ def _collect_issue_refs(turn: dict[str, Any], value: dict[str, Any] | None) -> l
 			if slug and isinstance(num, int) and (not isinstance(num, bool)):
 				refs.append((slug, num))
 	return refs
+# @used-by :func:`detect_hook_crashes()`
 def _extract_hook_error(row: dict[str, Any]) -> tuple[str, str] | None:
 	r: tuple[str, str] | None = None
 	if 'ERROR' == str(row.get('status') or '').strip().upper():
@@ -30,9 +32,11 @@ def _extract_hook_error(row: dict[str, Any]) -> tuple[str, str] | None:
 				r = (m.group(1), m.group(0).strip())
 				break
 	return r
+# @used-by :func:`evaluate_hook_crash_check()`
 def _has_recorded_hook_issue(root: Path, turn: dict[str, Any], value: dict[str, Any] | None, crashes: list[dict[str, Any]]) -> bool:
 	from .issue_lifecycle import evidence_issue_files
 	return any((_issue_evidence_mentions_crash(evidence_issue_files(root, slug, f'issue-{num}.json'), crashes) for slug, num in _collect_issue_refs(turn, value)))
+# @used-by :func:`_has_recorded_hook_issue()`
 def _issue_evidence_mentions_crash(files: list[Path], crashes: list[dict[str, Any]]) -> bool:
 	r = False
 	for fpath in files[:1]:
@@ -44,6 +48,11 @@ def _issue_evidence_mentions_crash(files: list[Path], crashes: list[dict[str, An
 		except (OSError, ValueError):
 			r = False
 	return r
+# @used-by :func:`agent_tools.addon_observability.detect_suppressed_worktree_errors()`
+# @used-by :func:`agent_tools.cli_command_grounding._collect_passing_trace_commands()`
+# @used-by :func:`agent_tools.doc5_context._earliest_cli_failure_step()`
+# @used-by :func:`agent_tools.verification_observability.detect_shadow_replay_runs()`
+# @used-by :func:`detect_hook_crashes()`
 def _load_turn_rows(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
 	src = Path(str((native or {}).get('source_file') or '')) if (native or {}).get('source_file') else None
 	r: list[dict[str, Any]] = []
@@ -54,6 +63,8 @@ def _load_turn_rows(native: dict[str, Any] | None, turn: dict[str, Any] | None) 
 			all_rows = []
 		r = _slice_turn_rows(all_rows, turn or {})
 	return r
+# @used-by :func:`agent_tools.addon_observability.evaluate_worktree_removal_audit()`
+# @used-by :func:`evaluate_hook_crash_check()`
 def _load_violation_receipt(root: Path, turn_key: str) -> dict[str, Any]:
 	from .path_registry import project_paths
 	r: dict[str, Any] = {}
@@ -67,6 +78,7 @@ def _load_violation_receipt(root: Path, turn_key: str) -> dict[str, Any]:
 			except (OSError, ValueError):
 				r = {}
 	return r
+# @used-by :func:`_load_turn_rows()`
 def _slice_turn_rows(all_rows: list[Any], turn: dict[str, Any]) -> list[dict[str, Any]]:
 	start_i = turn['start_step'] if isinstance(turn.get('start_step'), int) else 0
 	final_i = turn['final_step'] if isinstance(turn.get('final_step'), int) and turn.get('completed') else None
@@ -79,6 +91,8 @@ def _slice_turn_rows(all_rows: list[Any], turn: dict[str, Any]) -> list[dict[str
 			if s_idx >= start_i:
 				out.append(row)
 	return out
+# @used-by :func:`_issue_evidence_mentions_crash()`
+# @used-by :func:`evaluate_hook_crash_check()`
 def _text_documents_hook_crash(text: str | None, crashes: list[dict[str, Any]]) -> bool:
 	raw = str(text or '')
 	if not raw.strip():
@@ -88,6 +102,8 @@ def _text_documents_hook_crash(text: str | None, crashes: list[dict[str, Any]]) 
 		named = any((str(c.get('hook') or '').lower() in low for c in crashes if c.get('hook')))
 		r = (named or bool(_HOOK_TOPIC_RE.search(raw))) and bool(_HOOK_FAILURE_WORD_RE.search(raw))
 	return r
+# @used-by :func:`agent_tools.completion.recover_turn_violation()`
+# @used-by :mod:`agent_tools.hook_crash_audit`
 def build_violation_recovery_receipt(root_p: Path, key: str, turn: dict[str, Any], reason: str | None, now_fn, *, native: dict[str, Any] | None=None) -> tuple[dict[str, Any], Any]:
 	exec5_v = list(turn.get('exec5_violations') or [])
 	http_v = list(turn.get('http_fetch_violations') or [])
@@ -104,11 +120,17 @@ def build_violation_recovery_receipt(root_p: Path, key: str, turn: dict[str, Any
 		'turn_key': key,
 	}
 	return (receipt, lambda value: {'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check']})
+# @used-by :func:`agent_tools.blocked_report._run_runner_audits()`
+# @used-by :mod:`agent_tools.hook_crash_audit`
 def check_runner_hook_crashes(runner) -> None:
 	chk = evaluate_hook_crash_check(runner.root, runner.native, runner.turn, runner.value, runner.response)
 	runner.value['hook_crash_check'] = chk
 	if not chk['verified']:
 		runner._fail_gate('hook_crash', chk['detail'])
+# @used-by :func:`build_violation_recovery_receipt()`
+# @used-by :func:`evaluate_hook_crash_check()`
+# @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_hook_crash_audit_blocks_silent_omission_and_accepts_disclosed_issue_or_recovery()`
+# @used-by :mod:`agent_tools.hook_crash_audit`
 def detect_hook_crashes(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
 	explicit = (turn or {}).get('hook_crashes')
 	if isinstance(explicit, list):
@@ -124,6 +146,10 @@ def detect_hook_crashes(native: dict[str, Any] | None, turn: dict[str, Any] | No
 # 2026-11-25
 # "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 # https://github.com/dmitry-ai/harness/issues/251
+# @used-by :func:`agent_tools.completion._hook_crash_status()`
+# @used-by :func:`check_runner_hook_crashes()`
+# @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_hook_crash_audit_blocks_silent_omission_and_accepts_disclosed_issue_or_recovery()`
+# @used-by :mod:`agent_tools.hook_crash_audit`
 def evaluate_hook_crash_check(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
 	crashes = detect_hook_crashes(native, turn)
 	if not crashes:

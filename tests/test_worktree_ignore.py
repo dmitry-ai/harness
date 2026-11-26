@@ -18,8 +18,16 @@ from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
 # "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
 # https://github.com/dmitry-ai/harness/issues/201
 class WorktreeIgnoreInvariantTests(unittest.TestCase):
+	# @used-by :meth:`WorktreeIgnoreInvariantTests._init_meta_and_code()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_begin_adds_info_exclude_without_touching_gitignore_and_blocks_160000()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_begin_detects_previously_tracked_160000_gitlinks()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
 	def _git(self, cwd: Path, *args: str, env: dict[str, str] | None=None, check: bool=True) -> subprocess.CompletedProcess:
 		return subprocess.run(['git', '-C', str(cwd), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, check=check)
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_ensure_worktree_dir_ignored_skips_exclude_edit_when_already_ignored()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_begin_adds_info_exclude_without_touching_gitignore_and_blocks_160000()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_begin_detects_previously_tracked_160000_gitlinks()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
 	def _init_meta_and_code(self, root: Path, env: dict[str, str], *, v2_layout: bool=False) -> tuple[Path, Path]:
 		meta = root / 'meta'
 		code = (meta / '\u2c0f/\u227b/\u2655/\u26ef') if v2_layout else (meta / 'code')
@@ -41,10 +49,15 @@ class WorktreeIgnoreInvariantTests(unittest.TestCase):
 		self._git(code, 'add', '.', env=env)
 		self._git(code, 'commit', '-m', 'init code', env=env)
 		return (meta, code)
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_ensure_worktree_dir_ignored_skips_exclude_edit_when_already_ignored()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_begin_adds_info_exclude_without_touching_gitignore_and_blocks_160000()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_begin_detects_previously_tracked_160000_gitlinks()`
+	# @used-by :meth:`WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
 	def _isolated_env(self, root: Path) -> dict[str, str]:
 		empty_home = root / 'empty_home'
 		empty_home.mkdir(exist_ok=True)
 		return {**os.environ, 'HOME': str(empty_home), 'XDG_CONFIG_HOME': '', 'GIT_CONFIG_NOSYSTEM': '1'}
+	# @used-by :mod:`unittest`
 	def test_ensure_worktree_dir_ignored_handles_non_git_directory(self) -> None:
 		from agent_tools.git_ignore import ensure_worktree_dir_ignored
 		with tempfile.TemporaryDirectory() as td:
@@ -54,6 +67,7 @@ class WorktreeIgnoreInvariantTests(unittest.TestCase):
 			self.assertFalse(res['excluded'])
 			self.assertEqual(res['tracked_gitlinks'], [])
 			self.assertEqual(res['warnings'], [])
+	# @used-by :mod:`unittest`
 	def test_ensure_worktree_dir_ignored_skips_exclude_edit_when_already_ignored(self) -> None:
 		from agent_tools.git_ignore import ensure_worktree_dir_ignored
 		with tempfile.TemporaryDirectory() as td:
@@ -68,6 +82,7 @@ class WorktreeIgnoreInvariantTests(unittest.TestCase):
 			self.assertTrue(res['already_ignored'])
 			self.assertFalse(res['excluded'])
 			self.assertEqual(exclude_file.read_text(encoding='utf-8'), before_exclude)
+	# @used-by :mod:`unittest`
 	def test_worktree_begin_adds_info_exclude_without_touching_gitignore_and_blocks_160000(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -93,6 +108,7 @@ class WorktreeIgnoreInvariantTests(unittest.TestCase):
 			self.assertNotIn('160000 ', self._git(meta, 'ls-files', '--stage', env=env).stdout)
 			worktree_cleanup(code, Path(first['worktree']), force=True)
 			worktree_cleanup(code, Path(second['worktree']), force=True)
+	# @used-by :mod:`unittest`
 	def test_worktree_begin_detects_previously_tracked_160000_gitlinks(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -114,6 +130,7 @@ class WorktreeIgnoreInvariantTests(unittest.TestCase):
 			self.assertIn('\ua616/data/worktrees/legacy-141', info['tracked_gitlinks'])
 			self.assertTrue(any(('rm --cached' in w and 'legacy-141' in w for w in info['warnings'])), info)
 			worktree_cleanup(code, Path(res['worktree']), force=True)
+	# @used-by :mod:`unittest`
 	def test_worktree_commit_transaction_create_protects_enclosing_repo(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()

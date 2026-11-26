@@ -13,6 +13,8 @@ if str(SCRIPTS) not in sys.path:
 # "Extract SourceDiagnosticsScanner class from diagnose_sources in text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/68
 class SourceDiagnosticsScannerTests(unittest.TestCase):
+	# @used-by :meth:`SourceDiagnosticsScannerTests.test_scanner_class_methods_and_wrapper_parity()`
+	# @used-by :meth:`SourceDiagnosticsScannerTests.test_scanner_detects_missing_manifest_target_and_invalid_receipt()`
 	def _make_primary(self, root: Path) -> Path:
 		prim = root / 'primary'
 		(prim / 'rules').mkdir(parents=True)
@@ -23,6 +25,7 @@ class SourceDiagnosticsScannerTests(unittest.TestCase):
 		(prim / 'skills/demo/SKILL.md').write_text('---\nname: demo\n---\n# Demo\n', encoding='utf-8')
 		(prim / 'platforms/antigravity.md').write_text('# Antigravity\n', encoding='utf-8')
 		return prim
+	# @used-by :mod:`unittest`
 	def test_scanner_class_methods_and_wrapper_parity(self):
 		from agent_tools.text_diagnostics import SourceDiagnosticsScanner, diagnose_sources
 		with tempfile.TemporaryDirectory() as td:
@@ -42,6 +45,7 @@ class SourceDiagnosticsScannerTests(unittest.TestCase):
 			self.assertTrue(hasattr(scanner, '_add_source'))
 			self.assertTrue(hasattr(scanner, '_inspect_native_toml'))
 			self.assertTrue(hasattr(scanner, '_check_rule_and_skill_divergence'))
+	# @used-by :mod:`unittest`
 	def test_scanner_detects_missing_manifest_target_and_invalid_receipt(self):
 		from agent_tools.text_diagnostics import SourceDiagnosticsScanner
 		with tempfile.TemporaryDirectory() as td:

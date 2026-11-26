@@ -36,6 +36,22 @@ class Finding:
 	line: int
 	message: str
 	excerpt: str = ''
+	# @used-by :func:`agent_tools.cli_registry._format_perf_profile_tests()`
+	# @used-by :func:`agent_tools.cli_registry._format_perf_timesheet()`
+	# @used-by :func:`agent_tools.cli_registry._format_problem_metadata()`
+	# @used-by :func:`agent_tools.cli_registry._format_rules_audit()`
+	# @used-by :func:`agent_tools.cli_registry._format_run_tests()`
+	# @used-by :func:`agent_tools.cli_registry._format_schema_help()`
+	# @used-by :func:`agent_tools.cli_registry._format_test_watchdog()`
+	# @used-by :func:`agent_tools.cli_registry._format_xref()`
+	# @used-by :func:`agent_tools.platforms.trace_common.current_turn_requests()`
+	# @used-by :func:`agent_tools.text_cli.findings_output()`
+	# @used-by :func:`agent_tools.text_cli.main()`
+	# @used-by :func:`agent_tools.upwork_project.run()`
+	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate()`
+	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_reference_article_has_no_errors_and_only_known_warnings()`
+	# @used-by :meth:`test_df_article.SlopDetectionTests.assertFlags()`
 	def format(self, path='') -> str:
 		where = f'{path}:{self.line}' if path else f'{self.line}'
 		tail = f' | {self.excerpt}' if self.excerpt else ''
@@ -46,6 +62,25 @@ class Line:
 	no: int
 	raw: str
 	kind: str
+# @used-by :func:`agent_tools.article.lint_text()`
+# @used-by :func:`agent_tools.article.render()`
+# @used-by :func:`agent_tools.article.render_map()`
+# @used-by :func:`agent_tools.article.to_source()`
+# @used-by :func:`agent_tools.causal_checks.unsupported_probability_claims()`
+# @used-by :func:`agent_tools.proposal._lines()`
+# @used-by :func:`agent_tools.proposal.lint_text()`
+# @used-by :func:`agent_tools.proposal.render()`
+# @used-by :func:`agent_tools.proposal.to_source()`
+# @used-by :func:`agent_tools.text_sections.content_blocks()`
+# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
+# @used-by :func:`agent_tools.text_sections.scope_blocks()`
+# @used-by :func:`agent_tools.text_sources.check_links()`
+# @used-by :func:`agent_tools.text_sources.source_urls()`
+# @used-by :func:`check_response()`
+# @used-by :func:`command_blocks()`
+# @used-by :meth:`test_source_admission.LinkPresentationTests.findings()`
+# @used-by :meth:`test_text_core.SharedMechanicsTests.test_fence_contents_end_only_at_matching_fence()`
+# @used-by :meth:`test_text_core.SharedMechanicsTests.test_hashed_asset_is_a_warning_not_proof_of_an_error()`
 def scan(text: str) -> list[Line]:
 	lines, fenced = ([], None)
 	for no, raw in enumerate(text.splitlines(), 1):
@@ -77,6 +112,8 @@ def scan(text: str) -> list[Line]:
 	return r
 INLINE_LITERAL = re.compile('(`+)(?!`)(.*?)\\1(?!`)|«[^»]*»|“[^”]*”|(?<!\\w)"[^"\\n]+"')
 PROTECTED_SPAN = re.compile(INLINE_LITERAL.pattern + '|!?\\[[^\\]\\n]*\\]\\((?:<?https?://[^\\s>)]*>?)\\)|<https?://[^>\\n]+>|https?://[^\\s<>"\\\']+|(?<!\\w)"[^"\\n]+"')
+# @used-by :func:`author_text()`
+# @used-by :func:`transform_prose()`
 def prose_spans(raw: str):
 	start = 0
 	for match in PROTECTED_SPAN.finditer(raw):
@@ -85,6 +122,10 @@ def prose_spans(raw: str):
 		start = match.end()
 	if start < len(raw):
 		yield (start, len(raw))
+# @used-by :func:`agent_tools.article.to_source()`
+# @used-by :func:`agent_tools.proposal.to_source()`
+# @used-by :func:`agent_tools.text_sections.rewrite_keyed_prose()`
+# @used-by :func:`normalize_external_refs()`
 def transform_prose(raw: str, transform):
 	pieces, cursor = ([], 0)
 	for start, end in prose_spans(raw):
@@ -93,14 +134,26 @@ def transform_prose(raw: str, transform):
 	pieces.append(raw[cursor:])
 	r = ''.join(pieces)
 	return r
+# @used-by :func:`external_section_ref()`
+# @used-by :func:`normalize_external_refs()`
 def reference_document(text, match):
 	prefix = re.search('\\b(?:(?:RFC|ISO(?:/IEC)?|IEC|IEEE|EN)\\s+\\d+(?::\\d+)?|\\d+\\s+(?:CCR|CFR|U\\.?S\\.?C\\.?))\\s*$', text[:match.start()], re.I)
 	r = ' '.join(prefix.group().split()) if prefix else None
 	return r
+# @used-by :func:`agent_tools.article.check_structure()`
+# @used-by :func:`agent_tools.article.to_source()`
+# @used-by :func:`agent_tools.proposal._number_refs()`
+# @used-by :func:`agent_tools.proposal.to_source()`
+# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
+# @used-by :func:`check_prose()`
 def external_section_ref(text, match):
 	return None is not reference_document(text, match)
+# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
+# @used-by :func:`agent_tools.text_sections.rewrite_keyed_prose()`
 def normalize_external_refs(raw, *, changes=None, line=None):
+	# @used-by :func:`normalize_external_refs()`
 	def segment(value):
+		# @used-by :func:`normalize_external_refs()`
 		def replace(match):
 			document = reference_document(value, match)
 			if None is document:
@@ -113,12 +166,20 @@ def normalize_external_refs(raw, *, changes=None, line=None):
 			return r
 		return re.sub('(§{1,2})[ \\t]+(?=\\d)', replace, value)
 	return transform_prose(raw, segment)
+# @used-by :func:`agent_tools.article.check_graph()`
+# @used-by :func:`agent_tools.article.check_structure()`
+# @used-by :func:`agent_tools.proposal._check_references()`
+# @used-by :func:`agent_tools.proposal._check_sequence()`
+# @used-by :func:`agent_tools.proposal._format_checks()`
+# @used-by :func:`agent_tools.proposal._number_refs()`
+# @used-by :func:`check_prose()`
 def author_text(raw: str):
 	out = [' '] * len(raw)
 	for start, end in prose_spans(raw):
 		out[start:end] = raw[start:end]
 	r = ''.join(out)
 	return r
+# @used-by :func:`agent_tools.article.lint_text()`
 def check_markdown_lists(lines, findings):
 	for line in lines:
 		if 'prose' != line.kind:
@@ -126,6 +187,9 @@ def check_markdown_lists(lines, findings):
 		match = re.match('^\\s*(\\d+)[.)]\\s+', line.raw)
 		if match and '1' != match.group(1):
 			findings.append(Finding('error', 'LIST-AUTONUM', line.no, 'use the native Markdown 1. marker for ordinary list items', line.raw[:80]))
+# @used-by :func:`agent_tools.article.check_structure()`
+# @used-by :func:`check_prose()`
+# @used-by :func:`detect_language()`
 def clean(raw: str) -> str:
 	s = LIST_MARK.sub('', raw)
 	s = INLINE_LITERAL.sub(lambda m: ' CODE ' if m.group(1) else ' QUOTE ', s)
@@ -139,6 +203,7 @@ def clean(raw: str) -> str:
 	s = re.sub('<[^>\\n]+>', ' ', s)
 	r = re.sub('\\s+', ' ', s).strip()
 	return r
+# @used-by :func:`check_prose()`
 def sentences(cleaned: str) -> list[str]:
 	parts, start = ([], 0)
 	for match in re.finditer('[.!?](?=\\s+[A-Z\\u0410-\\u042f\\u0401«"(\\[])', cleaned):
@@ -151,15 +216,22 @@ def sentences(cleaned: str) -> list[str]:
 	tail = cleaned[start:].strip()
 	r = parts + ([tail] if tail else [])
 	return r
+# @used-by :func:`agent_tools.article.lint_text()`
+# @used-by :func:`agent_tools.proposal.lint_text()`
+# @used-by :func:`check_response()`
 def detect_language(text: str) -> str:
 	letters = re.findall('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', clean(text))
 	cyrillic = sum((1 for ch in letters if re.match('[\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]', ch)))
 	r = 'ru' if letters and cyrillic / len(letters) > 0.3 else 'en'
 	return r
+# @used-by :func:`agent_tools.article.check_structure()`
 def bold_spans(raw: str):
 	marks = [m.start() for m in re.finditer('\\*\\*', raw)]
 	r = [(marks[i], marks[i + 1]) for i in range(0, len(marks) - 1, 2)]
 	return r
+# @used-by :func:`agent_tools.article.lint_text()`
+# @used-by :func:`agent_tools.proposal.lint_text()`
+# @used-by :meth:`test_text_core.SharedMechanicsTests.test_hashed_asset_is_a_warning_not_proof_of_an_error()`
 def check_code(lines, findings):
 	index = 0
 	while index < len(lines):
@@ -194,6 +266,9 @@ def check_code(lines, findings):
 				first = output[values.index(value)]
 				findings.append(Finding('warning', 'CODE-DUP-OUTPUT', first.no, f'line repeated {values.count(value)}× for {commands} command(s): add sort -u / -m1 or show why the repetition matters', value[:80]))
 		_ = start
+# @used-by :func:`agent_tools.article.lint_text()`
+# @used-by :func:`agent_tools.proposal.lint_text()`
+# @used-by :func:`check_response()`
 def check_prose(lines, kind, lang, findings, lexicon, bans):
 	entries = [e for e in lexicon if kind in e['kinds'] and e['lang'] in ('*', lang)]
 	compiled = [(e, [re.compile(p, 0 if e.get('case') else re.I) for p in e['patterns']]) for e in entries]
@@ -251,12 +326,19 @@ def check_prose(lines, kind, lang, findings, lexicon, bans):
 			findings.append(Finding('warning', 'BOLD-DENSITY', line.no, f'{len(bold)} bold fragments on one line (WP:AIBOLD)', raw[:60] + '…'))
 		if kind in ('article', 'proposal') and re.search('\\]\\((?!<?https?://|#|mailto:)', raw):
 			findings.append(Finding('error', 'LINK-LOCAL', line.no, 'link to a local file: the client cannot open it', raw[:80]))
+# @used-by :func:`check_prose()`
 def _excerpt(text, match, width=40):
 	start, end = (max(match.start() - width, 0), min(match.end() + width, len(text)))
 	r = ('…' if start else '') + text[start:end] + ('…' if end < len(text) else '')
 	return r
+# @used-by :func:`agent_tools.article.lint_text()`
+# @used-by :func:`agent_tools.proposal.lint_text()`
+# @used-by :func:`check_response()`
+# @used-by :meth:`test_df_article.LexiconAndProjectionTests.test_lexicon_entries_are_complete_and_compile()`
 def load_lexicon(path=None):
 	return json.loads(Path(path or LEXICON).read_text(encoding='utf-8'))['entries']
+# @used-by :func:`agent_tools.article.lint_text()`
+# @used-by :func:`agent_tools.proposal.lint_text()`
 def find_bans(path: Path | None):
 	if None is path:
 		return []
@@ -281,8 +363,16 @@ def find_bans(path: Path | None):
 			data = json.loads(candidate.read_text(encoding='utf-8'))
 			result.extend(data.get('bans', []) if isinstance(data, dict) else data)
 	return result
+# @used-by :func:`check_response()`
 def normalized(text: str) -> str:
 	return re.sub('\\s+', ' ', text).strip()
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate()`
+# @used-by :meth:`test_df_article.ResponseTests.test_procedural_filler()`
+# @used-by :meth:`test_df_article.ResponseTests.test_removal_claims_are_checked_against_the_file()`
+# @used-by :meth:`test_df_article.ResponseTests.test_repeated_answer_is_a_signal_only_for_the_later_answer()`
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_text_core_and_review_authorize_handle_metadata_prefixed_response()`
+# @used-by :meth:`test_text_core.SharedMechanicsTests.test_identical_answer_does_not_prove_nonexecution()`
 def check_response(path: Path, text: str | None=None, against=(), lexicon=None, journal: Path | None=None) -> list[Finding]:
 	# 2026-11-23
 	# "Prepend JSON metadata headers to new journal responses":
@@ -341,6 +431,8 @@ def check_response(path: Path, text: str | None=None, against=(), lexicon=None, 
 						findings.append(Finding('warning', 'RESP-CLAIM', no, f"claimed removed/replaced, but `{token}` remains in {target.name} at lines {', '.join(map(str, hits[:8]))}{(' …' if len(hits) > 8 else '')}", sentence[:100]))
 	r = sorted(findings, key=lambda f: (f.line, f.rule))
 	return r
+# @used-by :func:`replay()`
+# @used-by :meth:`test_text_core.SharedMechanicsTests.test_shell_can_be_configured()`
 def default_shell():
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -362,6 +454,7 @@ def default_shell():
 			if candidate.is_file():
 				return str(candidate)
 	return 'bash'
+# @used-by :func:`command_blocks()`
 def _plain(value: str) -> str:
 	value = re.sub('^\\s*>\\s?', '', value).rstrip()
 	value = re.sub('^\\s*(?:\\d+[.)]|[-*+])\\s+', '', value)
@@ -369,6 +462,8 @@ def _plain(value: str) -> str:
 	value = re.sub('(`+)(.*?)\\1', '\\2', value)
 	r = '' if '<empty response>' == value else value
 	return r
+# @used-by :func:`changed_command_lines()`
+# @used-by :func:`replay()`
 def command_blocks(text: str):
 	lines = scan(text)
 	blocks, index = ([], 0)
@@ -398,6 +493,8 @@ def command_blocks(text: str):
 		blocks.append({'line': first, 'end': output_end, 'command': command, 'command_sha256': hashlib.sha256(command.encode('utf-8')).hexdigest(), 'expected': expected, 'presentation': '\n'.join(presentation), 'closed': closed})
 	r = blocks
 	return r
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`test_text_core.ReplayTests.test_changed_blocks_need_receipts_unchanged_moves_do_not()`
 def changed_command_lines(text: str, previous: str | None=None):
 	from collections import Counter
 	old = Counter(((b['command_sha256'], tuple(b['expected'])) for b in command_blocks(previous or '')))
@@ -410,12 +507,22 @@ def changed_command_lines(text: str, previous: str | None=None):
 			changed.append(block['line'])
 	r = changed
 	return r
+# @used-by :func:`replay()`
 def _output_lines(value):
 	lines = [line.rstrip() for line in value.splitlines()]
 	while lines and (not lines[-1]):
 		lines.pop()
 	r = lines
 	return r
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
+# @used-by :meth:`test_text_core.ReplayTests.test_explicit_raw_contract_does_not_require_quote_wrapper()`
+# @used-by :meth:`test_text_core.ReplayTests.test_missing_output_uncovered_selector_and_empty_document_are_not_success()`
+# @used-by :meth:`test_text_core.ReplayTests.test_negative_grep_observation_requires_explicit_exit_contract()`
+# @used-by :meth:`test_text_core.ReplayTests.test_nonzero_exit_cannot_match_printed_stdout()`
+# @used-by :meth:`test_text_core.ReplayTests.test_pipeline_and_intermediate_command_failures_are_not_hidden()`
+# @used-by :meth:`test_text_core.ReplayTests.test_quoted_numbered_links_are_presentation_of_raw_output()`
+# @used-by :meth:`test_text_core.ReplayTests.test_unclosed_fence_is_an_error()`
 def replay(text: str, *, shell=None, timeout=60, only=None, expected_exit=None, contracts=None):
 	results, covered = ([], set())
 	shell = shell or default_shell()

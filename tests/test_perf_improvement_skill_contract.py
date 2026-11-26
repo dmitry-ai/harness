@@ -15,6 +15,7 @@ SKILL_NAME = 'df--harness--improvement--performance'
 # "Add /df--harness--improvement--performance skill and update platform adapters":
 # https://github.com/dmitry-ai/harness/issues/193
 class PerfImprovementSkillContractTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_adapters_and_readme_document_skill_and_perf_cli_and_pass_lint(self) -> None:
 		ag_doc = WT_ROOT / 'platforms/antigravity.md'
 		cx_doc = WT_ROOT / 'platforms/codex.md'
@@ -29,6 +30,7 @@ class PerfImprovementSkillContractTests(unittest.TestCase):
 		readme_text = readme_doc.read_text(encoding='utf-8')
 		for token in (f'/{SKILL_NAME}', 'perf-timesheet', 'perf-profile-tests'):
 			self.assertIn(token, readme_text, f'Missing {token!r} in README-agent-tools.md')
+	# @used-by :mod:`unittest`
 	def test_cli_help_exposes_perf_timesheet_and_perf_profile_tests(self) -> None:
 		harness_cli = str(SCRIPT_DIR / 'harness.py')
 		p_root = subprocess.run([sys.executable, harness_cli, '--help'], capture_output=True, text=True, encoding='utf-8', check=True)
@@ -38,6 +40,7 @@ class PerfImprovementSkillContractTests(unittest.TestCase):
 		self.assertIn('--journal-step', p_ts.stdout)
 		p_pr = subprocess.run([sys.executable, harness_cli, 'perf-profile-tests', '--help'], capture_output=True, text=True, encoding='utf-8', check=True)
 		self.assertIn('--cprofile', p_pr.stdout)
+	# @used-by :mod:`unittest`
 	def test_perf_improvement_skill_discovered_and_references_pass_lint(self) -> None:
 		skills = native_profiles._skills(WT_ROOT)
 		self.assertIn(SKILL_NAME, skills)

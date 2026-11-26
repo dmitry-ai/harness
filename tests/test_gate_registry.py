@@ -12,6 +12,7 @@ if str(SCRIPTS) not in sys.path:
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 class GateRegistryTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_answer_gates_collect_issues_and_checks_map(self):
 		from agent_tools.gates import run_answer_gates
 		ctx = {
@@ -38,10 +39,12 @@ class GateRegistryTests(unittest.TestCase):
 		gate_ids = [item['gate_id'] for item in issues]
 		self.assertIn('doc4', gate_ids)
 		self.assertIn('issue_first', gate_ids)
+	# @used-by :mod:`unittest`
 	def test_backward_compatible_exports_on_rules_gate_script(self):
 		import check_rules_and_server_gate as mod
 		for sym in ('check_rules_budget', 'check_server_hygiene', 'check_git_write_gate', 'check_external_write_gate', 'check_journal_write_gate', 'check_batch_analysis_generator', 'check_bulk_source_read_streak', 'check_cdp_bypass_gate', 'check_browser_mcp_gate', 'check_schedule_gate', 'check_issue_first_gate', 'check_tdd_gate', 'check_code_size_gate', 'MAX_UNPERSISTED_SOURCE_READS', 'EXTERNAL_WRITE_INTENT_RE'):
 			self.assertTrue(hasattr(mod, sym), f'Missing export {sym}')
+	# @used-by :mod:`unittest`
 	def test_builtin_pre_tool_gates_discovered_in_strict_priority_order(self):
 		from agent_tools.gates import discover_pre_tool_gates
 		gates = discover_pre_tool_gates()
@@ -56,6 +59,7 @@ class GateRegistryTests(unittest.TestCase):
 		self.assertLess(names.index('EXEC-4-SCHEDULE-GATE'), names.index('EXEC-5-ISSUE-FIRST-GATE'))
 		self.assertLess(names.index('EXEC-5-ISSUE-FIRST-GATE'), names.index('EXEC-2-TDD-GATE'))
 		self.assertLess(names.index('EXEC-2-TDD-GATE'), names.index('CODE-SIZE-RATCHET-GATE'))
+	# @used-by :mod:`unittest`
 	def test_dynamic_plugin_discovery_runs_without_touching_dispatcher(self):
 		from agent_tools.gates import run_pre_tool_gates
 		with tempfile.TemporaryDirectory() as td:
@@ -67,6 +71,7 @@ class GateRegistryTests(unittest.TestCase):
 			self.assertIn('blocked by custom plugin', decision['reason'])
 			ok = run_pre_tool_gates('other', {}, {}, extra_dirs=[plug_dir])
 			self.assertEqual(ok['decision'], 'allow')
+	# @used-by :mod:`unittest`
 	def test_stop_gates_evaluate_in_priority_order(self):
 		from agent_tools.gates import run_stop_gates
 		bad_if = {'status': 'prepared', 'prepared': {'response_sha256': 'x'}, 'readiness_check': {'verified': True}, 'issue_first_check': {'verified': False, 'violations': ['missing parent']}, 'tdd_check': {'verified': False, 'violations': ['no red']}}

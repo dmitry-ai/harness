@@ -6,6 +6,7 @@ from .links import readable_reference
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`iter_inline_segments()`
 def _consume_link(tokens, start: int, label_types: tuple[str, ...]) -> tuple[str, str, int]:
 	href = tokens[start].attrGet('href') or ''
 	parts, depth, pos = ([], 1, start + 1)
@@ -23,6 +24,8 @@ def _consume_link(tokens, start: int, label_types: tuple[str, ...]) -> tuple[str
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`agent_tools.links.decode_file_uri()`
+# @used-by :func:`agent_tools.repo_link_gate._validate_file_uri()`
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	raw = urldefrag((reference or '').strip())[0]
 	parsed = urlsplit(raw)
@@ -44,6 +47,7 @@ def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.article.check_link_style()`
 def display_address(href):
 	value = urlsplit(readable_reference(href))
 	host = (value.hostname or '').removeprefix('www.')
@@ -57,6 +61,8 @@ def display_address(href):
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`agent_tools.article.check_link_style()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def inline_links(tokens, *, include_images: bool=True):
 	for item in iter_inline_segments(tokens, include_images=include_images):
 		if 'link' == item[0]:
@@ -64,6 +70,10 @@ def inline_links(tokens, *, include_images: bool=True):
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`inline_links()`
+# @used-by :func:`numeric_text()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def iter_inline_segments(tokens, *, include_images: bool=True):
 	label_types = ('text', 'code_inline', 'image') if include_images else ('text', 'code_inline')
 	pos = 0
@@ -81,6 +91,8 @@ def iter_inline_segments(tokens, *, include_images: bool=True):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.claims.standalone_numbers()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def numeric_text(text):
 	engine = parser()
 	environment = {}
@@ -107,6 +119,14 @@ def numeric_text(text):
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`agent_tools.article.check_link_style()`
+# @used-by :func:`agent_tools.links.parse_markdown_headings()`
+# @used-by :func:`agent_tools.links.readable_link_issues()`
+# @used-by :func:`agent_tools.links.references()`
+# @used-by :func:`agent_tools.repo_link_gate._authored_targets()`
+# @used-by :func:`agent_tools.source_grounding.markdown_parser()`
+# @used-by :func:`numeric_text()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def parser(*, preserve_links: bool=False, allow_file_links: bool=False, html: bool=True):
 	try:
 		from markdown_it import MarkdownIt
@@ -127,6 +147,7 @@ def parser(*, preserve_links: bool=False, allow_file_links: bool=False, html: bo
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`numeric_text()`
 def technical_label(label, href):
 	if not label or any((c.isspace() for c in label)):
 		r = False

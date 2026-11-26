@@ -70,6 +70,7 @@ def _touches_antigravity_addons(turn: dict[str, Any] | None) -> bool:
 		r = any((any((_norm_posix(tf).startswith(rt) for rt in roots)) or '/antigravity/addons/' in _norm_posix(tf) for tf in touched))
 	return r
 # @used-by :func:`inspect_companion_runtime_health()`
+# @used-by :mod:`agent_tools.addon_observability`
 def default_companion_runtime_path() -> Path | None:
 	env_path = str(os.environ.get('HARNESS_COMPANION_RUNTIME_JSON') or '').strip()
 	if env_path:
@@ -80,7 +81,8 @@ def default_companion_runtime_path() -> Path | None:
 		appdata = str(os.environ.get('APPDATA') or '').strip()
 		r = (Path(appdata) / 'AntigravityTools/runtime.json') if appdata else None
 	return r
-# @used-by :func:`agent_tools.issues.service.GitHubIssueService._check_close_commit_readiness()`
+# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
+# @used-by :mod:`agent_tools.addon_observability`
 def check_close_companion_health(repo: str, code_repo: Path | None=None) -> str | None:
 	r: str | None = None
 	if _ADDONS_SLUG == str(repo or '').strip().lower():
@@ -96,12 +98,14 @@ def check_close_companion_health(repo: str, code_repo: Path | None=None) -> str 
 			r = f"EXEC-5 / DOC-5 repo health check failed for {repo}: {repo_health['error']}"
 	return r
 # @used-by :func:`agent_tools.blocked_report._run_runner_audits()`
+# @used-by :mod:`agent_tools.addon_observability`
 def check_runner_addon_observability(runner) -> None:
 	chk = evaluate_addon_observability(runner.root, runner.native, runner.turn, runner.value, runner.response)
 	runner.value['addon_observability_check'] = chk
 	if not chk['verified']:
 		runner._fail_gate('addon_observability', chk['detail'])
 # @used-by :func:`evaluate_worktree_removal_audit()`
+# @used-by :mod:`agent_tools.addon_observability`
 def detect_suppressed_worktree_errors(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
 	for pos, row in enumerate(_load_turn_rows(native, turn)):
@@ -114,6 +118,7 @@ def detect_suppressed_worktree_errors(native: dict[str, Any] | None, turn: dict[
 	return r
 # @used-by :func:`agent_tools.gates.answer_checks._addon_observability_messages()`
 # @used-by :func:`check_runner_addon_observability()`
+# @used-by :mod:`agent_tools.addon_observability`
 def evaluate_addon_observability(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
 	wt_chk = evaluate_worktree_removal_audit(root, native, turn, value, response)
 	issues: list[str] = [] if wt_chk['verified'] else [wt_chk['detail']]
@@ -126,6 +131,8 @@ def evaluate_addon_observability(root: Path, native: dict[str, Any] | None, turn
 			issues.append(f"EXEC-5 / DOC-5 companion runtime fault ({comp_health['path']}): {detail}")
 	return {'verified': not issues, 'detail': '; '.join(issues), 'worktree_errors': wt_chk['errors'], 'companion_health': comp_health}
 # @used-by :func:`evaluate_addon_observability()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_suppressed_worktree_removal_error_audit()`
+# @used-by :mod:`agent_tools.addon_observability`
 def evaluate_worktree_removal_audit(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
 	errors = detect_suppressed_worktree_errors(native, turn)
 	if not errors:
@@ -142,7 +149,9 @@ def evaluate_worktree_removal_audit(root: Path, native: dict[str, Any] | None, t
 			summary = '; '.join((f"step {e['step']}: {e['error']}" for e in errors[:3]))
 			r = {'verified': False, 'errors': errors, 'detail': f'EXEC-5 / DOC-5 worktree_removal_audit: unhandled worktree removal failure(s) occurred during the active turn ({summary}). Diagnose the locking process or explicitly disclose the error in the response.'}
 	return r
-# @used-by :func:`check_pre_invocation.evaluate_pre_invocation_payload()`
+# @used-by :func:`check_pre_invocation._format_turn_begin_message()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_pre_invocation_surfaces_companion_warning()`
+# @used-by :mod:`agent_tools.addon_observability`
 def format_pre_invocation_companion_warning(runtime_json: str | Path | None=None, *, pid_alive_fn=None) -> str:
 	health = inspect_companion_runtime_health(runtime_json, pid_alive_fn=pid_alive_fn)
 	detail = '; '.join(health['issues'])
@@ -150,6 +159,8 @@ def format_pre_invocation_companion_warning(runtime_json: str | Path | None=None
 # @used-by :func:`check_close_companion_health()`
 # @used-by :func:`evaluate_addon_observability()`
 # @used-by :func:`format_pre_invocation_companion_warning()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_companion_runtime_health_detects_error_dead_pid_and_worktree_path()`
+# @used-by :mod:`agent_tools.addon_observability`
 def inspect_companion_runtime_health(runtime_json: str | Path | None=None, *, pid_alive_fn=None) -> dict[str, Any]:
 	target = Path(runtime_json) if None is not runtime_json else default_companion_runtime_path()
 	if None is target or (not target.is_file()):
@@ -168,6 +179,8 @@ def inspect_companion_runtime_health(runtime_json: str | Path | None=None, *, pi
 				r = {'healthy': not issues, 'state': state, 'pid': pid, 'runtime_path': rt_path, 'issues': issues, 'path': str(target)}
 	return r
 # @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
+# @used-by :func:`agent_tools.polyglot_land.dirty_blocking_main_files()`
+# @used-by :mod:`agent_tools.addon_observability`
 def is_live_runtime_data_file(code_repo: Path, rel_posix: str) -> bool:
 	from .issues.workspace import IssueEvidenceWorkspace
 	from .path_registry import load_registry

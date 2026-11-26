@@ -17,7 +17,10 @@ from agent_tools import claims, completion, github_issue, review, source_groundi
 from agent_tools.platforms import antigravity, codex
 
 
+# @used-by :meth:`Issue45To48Tests.test_issue45_post_checkpoint_res_citation_and_issue48_recursive_subagent_aggregation()`
+# @used-by :meth:`Issue45To48Tests.test_issue48_antigravity_multiturn_subagent_isolation_mid_invocation()`
 def _wire(field: int, payload: bytes) -> bytes:
+    # @used-by :func:`_wire()`
     def _varint(val: int) -> bytes:
         out = bytearray()
         while val >= 128:
@@ -33,6 +36,7 @@ def _wire(field: int, payload: bytes) -> bytes:
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
 class Issue45To48Tests(unittest.TestCase):
+    # @used-by :mod:`unittest`
     def test_issue45_provenance_tiers_and_tier2_rejection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -158,6 +162,7 @@ class Issue45To48Tests(unittest.TestCase):
                 f'Expected Tier 2 rejection for relative .agents/rules/91-servers.md in touched_files, got: {rel_agent_rule_issues}',
             )
 
+    # @used-by :mod:`unittest`
     def test_issue46_fact_tuple_ledger_and_contradictions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -232,6 +237,7 @@ class Issue45To48Tests(unittest.TestCase):
                 f'Expected load average normalization contradiction, got: {issues_la}',
             )
 
+    # @used-by :mod:`unittest`
     def test_issue46_ast_arithmetic_grounding(self) -> None:
         val, lit_tokens = claims.evaluate_safe_arithmetic(
             'round((a - b) / a * 100, 2)', {'a': 12285, 'b': 10133}
@@ -310,6 +316,7 @@ class Issue45To48Tests(unittest.TestCase):
                 f'Expected inline arithmetic error, got: {bad_issues}',
             )
 
+    # @used-by :mod:`unittest`
     def test_issue47_merkle_cache_blind_predicates_and_falsifier_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -428,6 +435,7 @@ class Issue45To48Tests(unittest.TestCase):
                 f'Expected fabricated quote error in disproved_claims, got: {fab_issues}',
             )
 
+    # @used-by :mod:`unittest`
     def test_issue47_partial_candidate_read_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -490,6 +498,7 @@ class Issue45To48Tests(unittest.TestCase):
             issues_full = antigravity.reviewer_isolation_issues(root, full_rows)
             self.assertEqual(issues_full, [])
 
+    # @used-by :mod:`unittest`
     def test_issue45_post_checkpoint_evicted_citation_gate_and_issue48_defect_filing_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
@@ -571,6 +580,7 @@ class Issue45To48Tests(unittest.TestCase):
             self.assertTrue(lifecycle_ok['verified'], f'Expected verified=True, got violations: {lifecycle_ok["violations"]}')
             self.assertEqual(lifecycle_ok['violations'], [])
 
+    # @used-by :mod:`unittest`
     def test_issue45_post_checkpoint_res_citation_and_issue48_recursive_subagent_aggregation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -794,6 +804,7 @@ class Issue45To48Tests(unittest.TestCase):
                     watch=False,
                 )
 
+    # @used-by :mod:`unittest`
     def test_issue48_codex_subagent_aggregation_ignores_read_output_uuids(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1024,6 +1035,7 @@ class Issue45To48Tests(unittest.TestCase):
             self.assertEqual(active_turn['exec5_violations'], [])
             self.assertEqual(active_turn['http_fetch_violations'], [])
 
+    # @used-by :mod:`unittest`
     def test_issue48_antigravity_multiturn_subagent_isolation_mid_invocation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

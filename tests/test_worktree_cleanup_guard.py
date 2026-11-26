@@ -17,13 +17,13 @@ from agent_tools.worktree_flow import worktree_begin, worktree_cleanup, worktree
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # @used-by :class:`WorktreeCleanupGuardTests`
 class WorktreeCleanupGuardTests(unittest.TestCase):
-	# @used-by :meth:`WorktreeCleanupGuardTests._init_repo`
-	# @used-by :meth:`WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked`
+	# @used-by :meth:`WorktreeCleanupGuardTests._init_repo()`
+	# @used-by :meth:`WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`
 	def _git(self, repo: Path, *args: str) -> str:
 		proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True, creationflags=_NO_WINDOW)
 		return (proc.stdout or '').strip()
-	# @used-by :meth:`WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir`
-	# @used-by :meth:`WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked`
+	# @used-by :meth:`WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
+	# @used-by :meth:`WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`
 	def _init_repo(self, root: Path) -> Path:
 		repo = root / 'repo'
 		repo.mkdir(parents=True)
@@ -73,6 +73,7 @@ class WorktreeCleanupGuardTests(unittest.TestCase):
 			fake_holders = [{'pid': 18024, 'name': 'node.exe', 'command_line': f'node {wt.as_posix()}/Upgrade/cdp-companion.js'}]
 			fake_fail = subprocess.CompletedProcess(['git'], 128, '', f"error: failed to delete '{wt.as_posix()}': Permission denied\n")
 			real_exec = __import__('agent_tools.worktree_flow', fromlist=['_git_exec'])._git_exec
+			# @used-by :meth:`WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
 			def _exec_side_effect(r_path: Path, *args: str):
 				return fake_fail if 2 <= len(args) and 'worktree' == args[0] and 'remove' == args[1] else real_exec(r_path, *args)
 			with mock.patch('agent_tools.worktree_flow._git_exec', side_effect=_exec_side_effect), mock.patch('agent_tools.worktree_guard.find_worktree_lock_holders', return_value=fake_holders):

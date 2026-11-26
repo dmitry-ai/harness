@@ -13,7 +13,8 @@ SCRIPTS = WT_ROOT / 'scripts'
 for p in (SCRIPTS,):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
-# @used-by :meth:`CliCommandGroundingTests.test_answer_check_blocks_unverified_and_allows_shadow_replay_or_disclaimer()`, :meth:`CliCommandGroundingTests.test_prepare_rejects_unverified_cli_recommendation()`
+# @used-by :meth:`CliCommandGroundingTests.test_answer_check_blocks_unverified_and_allows_shadow_replay_or_disclaimer()`
+# @used-by :meth:`CliCommandGroundingTests.test_prepare_rejects_unverified_cli_recommendation()`
 def _seed_turn_native(base: Path, rows: list[dict], *, req_text: str) -> tuple[Path, str, Path, dict]:
 	proj = base / 'proj'
 	(proj / '\ua616/data/turns').mkdir(parents=True)

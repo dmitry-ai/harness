@@ -18,6 +18,7 @@ for p in (SCRIPTS, TESTS):
 from agent_tools import completion, journal, upwork_project as up, workflow as flow
 from agent_tools.analysis import publish_owned, render_analysis
 CID = '11111111-2222-4333-8444-555555555555'
+# @used-by :func:`_build_split_backend()`
 def _wire(field: int, payload: bytes) -> bytes:
 	out = bytearray()
 	for val in ((field << 3) | 2, len(payload)):
@@ -28,6 +29,9 @@ def _wire(field: int, payload: bytes) -> bytes:
 			if not val:
 				break
 	return bytes(out) + payload
+# @used-by :meth:`AtomicPrepareAndNarrowedReconcileM7Tests.test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal()`
+# @used-by :meth:`AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
 def _build_split_backend(base: Path, proj: Path, req1: str, req2: str, *, turn1_reply: str='Turn 1 done.') -> tuple[Path, Path]:
 	home = base / 'home'
 	backend = home / '.gemini/antigravity'
@@ -51,6 +55,7 @@ def _build_split_backend(base: Path, proj: Path, req1: str, req2: str, *, turn1_
 		conn.execute('INSERT INTO steps VALUES(434, 14, 3, 0, ?)', (_wire(19, _wire(2, req2.encode('utf-8'))),))
 		conn.commit()
 	return (home, backend)
+# @used-by :meth:`AtomicPrepareAndNarrowedReconcileM7Tests.test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal()`
 def _init_review_ready_project(base: Path) -> Path:
 	from test_onboarding import source
 	from agent_tools.knowledge import sync_website_card
@@ -67,6 +72,7 @@ def _init_review_ready_project(base: Path) -> Path:
 	sync_website_card(proj, val)
 	publish_owned(proj / '\ua616/KB/Analysis.md', render_analysis(val))
 	return proj
+# @used-by :meth:`AtomicPrepareAndNarrowedReconcileM7Tests.test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal()`
 def _authorize_routine_reply(proj: Path, home: Path, reply: str) -> None:
 	from agent_tools.analysis import SECTIONS
 	spec = {'risk': 'routine', 'basis': 'Routine restatement of exact title.', 'request_scope': 'Answer current request.', 'claim_ids': ['F-TITLE'], 'claims': [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'}], 'task_flags': []}
@@ -81,6 +87,7 @@ def _authorize_routine_reply(proj: Path, home: Path, reply: str) -> None:
 # "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
 # https://github.com/dmitry-ai/harness/issues/232
 class AtomicPrepareAndNarrowedReconcileM7Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -96,6 +103,7 @@ class AtomicPrepareAndNarrowedReconcileM7Tests(unittest.TestCase):
 			with self.assertRaisesRegex(ValueError, 'Align unanswered tracked requests'):
 				completion.prepare(proj, reply, CID, platform='antigravity', backend=backend)
 			self.assertEqual([], list((proj / '\ua66e').rglob('*.md')))
+	# @used-by :mod:`unittest`
 	def test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -119,6 +127,7 @@ class AtomicPrepareAndNarrowedReconcileM7Tests(unittest.TestCase):
 			self.assertEqual([1], res['turns'][0]['journal_steps'])
 			beg = completion.begin(proj, CID, platform='antigravity', backend=backend)
 			self.assertEqual([2], beg['reserved_journal_steps'])
+	# @used-by :mod:`unittest`
 	def test_narrowed_prepared_or_missing_tail_turn_remains_rejected(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

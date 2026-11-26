@@ -15,6 +15,8 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools import completion, evidence, evidence_loader, knowledge, path_registry, research, review, runtime, shell_audit, workflow
 from agent_tools.platforms import trace_common
 _HTML_DOC = b'<!doctype html><html><head><title>Sample</title></head><body><h1 id="sec-1">Heading One</h1><p>Section body quote and Plain body quote.</p></body></html>'
+# @used-by :func:`_write_minimal_v3_project()`
+# @used-by :meth:`RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
 def _build_html_obs_project(root: Path, url: str) -> tuple[str, dict]:
 	(root / '\ua616/KB').mkdir(parents=True, exist_ok=True)
 	(root / '\ua616/data').mkdir(parents=True, exist_ok=True)
@@ -22,6 +24,7 @@ def _build_html_obs_project(root: Path, url: str) -> tuple[str, dict]:
 	research.extract_observation(root, obs['observation'], 'html')
 	r = (obs['observation'], research.load_observation(root, obs['observation']))
 	return r
+# @used-by :meth:`RuntimeCacheAndEvidenceFastpathM9Tests.test_authorize_deduplicates_evidence_issues_across_check_project()`
 def _write_minimal_v3_project(root: Path, url: str) -> str:
 	obs_ref, meta = _build_html_obs_project(root, url)
 	analysis_obj = {
@@ -42,6 +45,7 @@ def _write_minimal_v3_project(root: Path, url: str) -> str:
 	(root / '\ua616/project.json').write_text(json.dumps({'schema_version': 1, 'job_id': '~0123456789abcdef', 'url': 'https://www.upwork.com/jobs/~0123456789abcdef'}, ensure_ascii=False, indent=2), encoding='utf-8')
 	(root / '\ua616/data/workflow.json').write_text(json.dumps({'schema_version': 1, 'project_root': str(root.resolve()), 'job_id': '~0123456789abcdef', 'requests': [{'id': 'r1', 'text': 'Analyze'}], 'questions': {}, 'stages': {'finalize': {'status': 'pending'}}, 'reviews': []}, ensure_ascii=False, indent=2), encoding='utf-8')
 	return obs_ref
+# @used-by :meth:`RuntimeCacheAndEvidenceFastpathM9Tests.test_tdd_and_issue_first_check_skip_shell_violation_scanning()`
 def _write_fake_ag_backend(tmp: Path, root: Path, cid: str) -> Path:
 	backend = tmp / 'backend'
 	(backend / 'conversations').mkdir(parents=True, exist_ok=True)
@@ -65,6 +69,7 @@ def _write_fake_ag_backend(tmp: Path, root: Path, cid: str) -> Path:
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_authorize_deduplicates_evidence_issues_across_check_project(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td) / 'proj'
@@ -72,6 +77,7 @@ class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
 			state = workflow.load(root)
 			calls = []
 			orig_ev = evidence.evidence_issues
+			# @used-by :meth:`RuntimeCacheAndEvidenceFastpathM9Tests.test_authorize_deduplicates_evidence_issues_across_check_project()`
 			def _spy(r_arg, val_arg, **kw):
 				calls.append(kw.get('skip_structural', False))
 				return orig_ev(r_arg, val_arg, **kw)
@@ -79,6 +85,7 @@ class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
 				with self.assertRaisesRegex(ValueError, 'Need current answer-bound'):
 					review.authorize(root, state, response='Candidate text.')
 			self.assertEqual(len(calls), 1)
+	# @used-by :mod:`unittest`
 	def test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td) / 'proj'
@@ -87,6 +94,7 @@ class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
 			meta_with_obs = {**meta, 'observation': obs_ref}
 			parse_calls = []
 			orig_extract = evidence_loader.extract_bytes
+			# @used-by :meth:`RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
 			def _spy_extract(*args, **kwargs):
 				parse_calls.append(1)
 				return orig_extract(*args, **kwargs)
@@ -102,10 +110,12 @@ class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
 				path_registry.clear_registry_cache()
 				self.assertEqual(evidence_loader.probe_observation_status(root, meta_with_obs, url, fragment='sec-1'), 'http-ok')
 				self.assertEqual(len(parse_calls), 2)
+	# @used-by :mod:`unittest`
 	def test_runtime_cache_import_skips_path_registry(self) -> None:
 		probe = 'import sys; sys.path.insert(0, sys.argv[1]); import agent_tools.runtime_cache; print("agent_tools.path_registry" in sys.modules)'
 		out = subprocess.check_output([sys.executable, '-c', probe, str(SCRIPTS)], stdin=subprocess.DEVNULL, text=True, timeout=15).strip()
 		self.assertEqual(out, 'False')
+	# @used-by :mod:`unittest`
 	def test_runtime_settings_cache_invalidates_on_file_or_env_change_and_isolates_mutations(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			rt = Path(td) / 'runtime.json'
@@ -113,6 +123,7 @@ class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
 			rt.write_text(json.dumps(base), encoding='utf-8')
 			loads_count = []
 			orig_loads = json.loads
+			# @used-by :meth:`RuntimeCacheAndEvidenceFastpathM9Tests.test_runtime_settings_cache_invalidates_on_file_or_env_change_and_isolates_mutations()`
 			def _spy_loads(s, *a, **kw):
 				if 'HARNESS_M9_ENV_DIR' in str(s):
 					loads_count.append(1)
@@ -136,6 +147,7 @@ class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
 			custom_cfg = {'platforms': {'antigravity': {'browser': {'cdp_port': 19444}}}}
 			with mock.patch.object(runtime, 'settings', return_value=custom_cfg):
 				self.assertEqual(shell_audit.protected_browser_perimeter()['ports'], [19444])
+	# @used-by :mod:`unittest`
 	def test_tdd_and_issue_first_check_skip_shell_violation_scanning(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			tmp = Path(td)

@@ -16,7 +16,8 @@ TESTS = WT_ROOT / 'tests'
 for p in (SCRIPTS, TESTS):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
-# @used-by :meth:`IssueCloseAcceptanceTests.test_close_requires_passing_shadow_replay_for_new_cli_command()`, :meth:`IssueCloseAcceptanceTests.test_close_requires_fresh_passing_receipt_for_upwork_init_and_allows_ordinary_issue()`
+# @used-by :meth:`IssueCloseAcceptanceTests.test_close_requires_fresh_passing_receipt_for_upwork_init_and_allows_ordinary_issue()`
+# @used-by :meth:`IssueCloseAcceptanceTests.test_close_requires_passing_shadow_replay_for_new_cli_command()`
 def _commit_and_tag(code: Path, rel_path: str, content: str, num: int) -> str:
 	from agent_tools.repo_tags import ensure_commit_tag
 	from test_repo_tag_close_gate import _git
@@ -30,10 +31,13 @@ def _commit_and_tag(code: Path, rel_path: str, content: str, num: int) -> str:
 	sha = _git(code, 'rev-parse', 'HEAD')
 	ensure_commit_tag(code, commit=sha, push=True)
 	return sha
-# @used-by :meth:`IssueCloseAcceptanceTests.test_close_requires_passing_shadow_replay_for_new_cli_command()`, :meth:`IssueCloseAcceptanceTests.test_close_requires_fresh_passing_receipt_for_upwork_init_and_allows_ordinary_issue()`
+# @used-by :meth:`IssueCloseAcceptanceTests.test_close_requires_fresh_passing_receipt_for_upwork_init_and_allows_ordinary_issue()`
+# @used-by :meth:`IssueCloseAcceptanceTests.test_close_requires_passing_shadow_replay_for_new_cli_command()`
+# @used-by :meth:`IssueCloseAcceptanceTests.test_service_close_preserves_verify_repo_issue_ready_for_close_patch_hook()`
 def _run_close_cli(proj: Path, code: Path, num: int) -> tuple[int, dict]:
 	from agent_tools.github_issue import main
 	stored = {'number': num, 'state': 'open', 'state_reason': None, 'title': f'Issue {num}', 'body': 'Body.', 'html_url': f'https://github.com/acme/demo/issues/{num}'}
+	# @used-by :func:`_run_close_cli()`
 	def fake_api(path: str, method: str='GET', payload=None):
 		if 'PATCH' == method and isinstance(payload, dict):
 			stored.update(payload)

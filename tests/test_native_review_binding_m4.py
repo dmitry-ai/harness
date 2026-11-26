@@ -1,5 +1,6 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+from typing import override
 import json
 from pathlib import Path
 import sqlite3
@@ -17,6 +18,7 @@ from agent_tools.platforms import antigravity
 from agent_tools.platforms.request_binding import _extract_leading_upwork_init_ids, scoped_inputs
 from test_analysis_workflow import ProjectCase
 from test_continuation_binding import wire
+# @used-by :meth:`NativeReviewBindingM4Tests.test_native_review_proof_binds_launcher_chat_with_user_request_and_uses_native_meta()`
 def _chip_payload(prefix_text: str, cmd_name: str, suffix_text: str, flat_text: str) -> bytes:
 	parts = [wire(2, flat_text.encode('utf-8'))]
 	if prefix_text:
@@ -29,6 +31,12 @@ def _chip_payload(prefix_text: str, cmd_name: str, suffix_text: str, flat_text: 
 # "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
 # https://github.com/dmitry-ai/harness/issues/210
 class NativeReviewBindingM4Tests(ProjectCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self) -> None:
 		super().setUp()
 		self.home = self.root / 'ag-home'
@@ -48,6 +56,7 @@ class NativeReviewBindingM4Tests(ProjectCase):
 			conn.commit()
 		finally:
 			conn.close()
+	# @used-by :meth:`NativeReviewBindingM4Tests.test_native_review_proof_binds_launcher_chat_with_user_request_and_uses_native_meta()`
 	def _write_traces(self, db_payload: bytes, transcript_user_content: str) -> None:
 		p_db = self.backend / 'conversations' / f'{self.parent}.db'
 		conn = sqlite3.connect(p_db)
@@ -80,6 +89,7 @@ class NativeReviewBindingM4Tests(ProjectCase):
 			conn_c.commit()
 		finally:
 			conn_c.close()
+	# @used-by :mod:`unittest`
 	def test_extract_leading_upwork_init_strips_outer_user_request_wrapper(self) -> None:
 		url = f'https://upwork.com/jobs/{self.job_id}'
 		wrapped = f'<USER_REQUEST>\n/upwork-init  {url}\n</USER_REQUEST>'
@@ -94,6 +104,7 @@ class NativeReviewBindingM4Tests(ProjectCase):
 		self.assertTrue(active)
 		self.assertEqual(1, len(sel))
 		self.assertEqual('explicit-upwork-init', bnd['kind'])
+	# @used-by :mod:`unittest`
 	def test_native_review_proof_binds_launcher_chat_with_user_request_and_uses_native_meta(self) -> None:
 		url = f'https://upwork.com/jobs/{self.job_id}'
 		cmd = f'/upwork-init  {url}'

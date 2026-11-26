@@ -10,6 +10,19 @@ from ..runtime import platform_adapter_name, platform_name, settings
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.completion._native()`
+# @used-by :func:`agent_tools.metrics.native_executor_metadata()`
+# @used-by :func:`agent_tools.metrics.native_requests()`
+# @used-by :func:`agent_tools.metrics.native_review_proof()`
+# @used-by :func:`agent_tools.metrics.native_tool_trace()`
+# @used-by :func:`agent_tools.metrics.verify_native_proof()`
+# @used-by :func:`agent_tools.registration._attempt()`
+# @used-by :func:`agent_tools.review.authenticate_report()`
+# @used-by :func:`agent_tools.review.disposition()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
+# @uses :mod:`agent_tools.platforms.antigravity`
+# @uses :mod:`agent_tools.platforms.codex`
+# @uses :func:`agent_tools.platforms.codex.verify_native_proof()`
 def adapter(platform=None, surface=None):
 	# 2026-11-18
 	# "Externalize agent environments and per-instance system paths into runtime.json":

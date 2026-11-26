@@ -28,6 +28,7 @@ _SEMANTIC_AUDIT_CHECKLIST = (
 	'Report each finding neutrally with file path, line range, verbatim quote, smell category, and verdict (confirmed_defect, advisory_candidate, or no_defect_found).  ',
 )
 _SHARED_RULE_PATH_RE = re.compile(r'/rules/[^/]+\.md$', re.I)
+# @used-by :func:`check_shared_rule_edit()`
 def _check_shared_rule_content(target: Path, new_text: str) -> str | None:
 	byte_len = len(new_text.encode('utf-8'))
 	if MAX_RULE_FILE_BYTES < byte_len:
@@ -43,6 +44,7 @@ def _check_shared_rule_content(target: Path, new_text: str) -> str | None:
 		else:
 			r = None
 	return r
+# @used-by :func:`audit_rules()`
 def _inspect_workspace_auto_files(primary: Path, workspace: Path | None) -> list[dict]:
 	roots: list[Path] = []
 	for cand in (workspace, primary):
@@ -59,6 +61,7 @@ def _inspect_workspace_auto_files(primary: Path, workspace: Path | None) -> list
 				txt = raw.decode('utf-8-sig', errors='replace')
 				r.append({'path': fp, 'label': name if root == roots[0] else fp.as_posix(), 'bytes': len(raw), 'estimated_tokens': estimate_tokens(txt), 'text': txt})
 	return r
+# @used-by :func:`audit_rules()`
 def _load_rule_entries(primary: Path, overrides: dict[Path, bytes] | None=None) -> list[dict]:
 	ov = {Path(k).resolve(): v for k, v in (overrides or {}).items()}
 	r: list[dict] = []
@@ -74,6 +77,7 @@ def _load_rule_entries(primary: Path, overrides: dict[Path, bytes] | None=None) 
 			item['text'] = path.read_text(encoding='utf-8-sig', errors='replace')
 			r.append(item)
 	return r
+# @used-by :func:`_check_shared_rule_content()`
 def _prospective_always_on_totals(target: Path, new_text: str) -> tuple[int, int]:
 	rules_dir = target.parent
 	resolved_target = target.resolve()
@@ -87,6 +91,7 @@ def _prospective_always_on_totals(target: Path, new_text: str) -> tuple[int, int
 				total_bytes += info['bytes']
 				total_tokens += info['estimated_tokens']
 	return (total_bytes, total_tokens)
+# @used-by :func:`check_shared_rule_edit()`
 def _prospective_rule_text(name: str, args: dict, target: Path) -> str | None:
 	r = None
 	if 'write_file' == name:
@@ -99,6 +104,7 @@ def _prospective_rule_text(name: str, args: dict, target: Path) -> str | None:
 			old = target.read_text(encoding='utf-8-sig', errors='replace')
 			r = old.replace(tgt, repl) if tgt in old else None
 	return r
+# @used-by :func:`verify_staged_rules_audit()`
 def _read_staged_overrides(repo_root: Path, staged_paths: list[str], use_index: bool) -> dict[Path, bytes]:
 	r: dict[Path, bytes] = {}
 	if use_index:
@@ -110,6 +116,7 @@ def _read_staged_overrides(repo_root: Path, staged_paths: list[str], use_index: 
 				if None is not txt:
 					r[(repo_root / norm).resolve()] = txt.encode('utf-8')
 	return r
+# @used-by :func:`verify_staged_rules_audit()`
 def _touches_audit_surface(staged_paths: list[str]) -> bool:
 	r = False
 	for rel in staged_paths:
@@ -121,6 +128,13 @@ def _touches_audit_surface(staged_paths: list[str]) -> bool:
 # 2026-11-26
 # "Add deterministic rules-audit CLI and aggregate budget enforcement":
 # https://github.com/dmitry-ai/harness/issues/244
+# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
+# @used-by :func:`agent_tools.rules_manifest._build_doctor_rule_meta()`
+# @used-by :func:`verify_staged_rules_audit()`
+# @used-by :meth:`test_cli_command_grounding.CliCommandGroundingTests.test_exec2_rule_contains_shadow_replay_requirement_and_passes_rules_audit()`
+# @used-by :meth:`test_repo_tags_docs.RepoTagsDocsTests.test_rules_and_docs_codify_daily_tagging_and_link6_within_budgets()`
+# @used-by :meth:`test_rules_audit.RulesAuditTests.test_detects_broken_links_blind_references_drift_and_skill_leakage()`
+# @used-by :meth:`test_rules_audit.RulesAuditTests.test_detects_budget_html_comment_and_cross_platform_codex_leaks()`
 def audit_rules(primary: str | Path, *, workspace: str | Path | None=None, max_file_bytes: int=MAX_RULE_FILE_BYTES, max_always_on_bytes: int=MAX_ALWAYS_ON_BYTES, max_always_on_tokens: int=MAX_ALWAYS_ON_TOKENS, overrides: dict[Path, bytes] | None=None) -> dict:
 	prim = Path(primary).resolve()
 	ws = Path(workspace).resolve() if None is not workspace else None
@@ -140,6 +154,7 @@ def audit_rules(primary: str | Path, *, workspace: str | Path | None=None, max_f
 	ws_bytes = sum((w['bytes'] for w in ws_files))
 	ws_tokens = sum((w['estimated_tokens'] for w in ws_files))
 	return {'valid': not issues, 'primary': prim.as_posix(), 'workspace': ws.as_posix() if None is not ws else None, 'rule_count': len(entries), 'always_on_count': len(always), 'model_decision_count': sum((1 for e in entries if 'model_decision' == e['trigger'])), 'always_on_bytes': always_bytes, 'always_on_estimated_tokens': always_tokens, 'workspace_auto_bytes': ws_bytes, 'total_always_on_bytes': always_bytes + ws_bytes, 'total_always_on_tokens': always_tokens + ws_tokens, 'limits': {'max_file_bytes': max_file_bytes, 'max_always_on_bytes': max_always_on_bytes, 'max_always_on_tokens': max_always_on_tokens}, 'issue_count': len(issues), 'issues': issues}
+# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
 def build_semantic_audit_brief(primary: str | Path, *, workspace: str | Path | None=None) -> str:
 	prim = Path(primary).resolve()
 	ws_label = Path(workspace).resolve().as_posix() if None is not workspace else prim.as_posix()
@@ -147,6 +162,7 @@ def build_semantic_audit_brief(primary: str | Path, *, workspace: str | Path | N
 	skills = [f'- `{p.as_posix()}`' for p in sorted((prim / 'skills').glob('*/SKILL.md'))]
 	lines = ['# Neutral Read-Only A.A Semantic Rules Audit Brief', '', 'Role: independent read-only A.A auditor (REVIEW-1 / REVIEW-4; do not modify files or invoke hidden model sessions).  ', f'Primary Harness root: `{prim.as_posix()}`.  ', f'Workspace root: `{ws_label}`.  ', *_SEMANTIC_AUDIT_CHECKLIST, 'Shared rules to read in full:  ', *rules, 'Skills to cross-check for leakage or duplication:  ', *skills]
 	return '\n'.join(lines) + '\n'
+# @used-by :func:`agent_tools.gates.rules_budget.check()`
 def check_shared_rule_edit(name: str, args: dict) -> str | None:
 	r = None
 	raw_path = str(args.get('Path') or '').strip()
@@ -158,6 +174,7 @@ def check_shared_rule_edit(name: str, args: dict) -> str | None:
 		if None is not new_text and (is_harness_dir or bool(parse_rule_frontmatter(new_text).get('trigger'))):
 			r = _check_shared_rule_content(target, new_text)
 	return r
+# @used-by :func:`agent_tools.cli_registry._format_rules_audit()`
 def format_rules_audit_text(report: dict) -> str:
 	if report.get('semantic_brief'):
 		r = str(report['semantic_brief'])
@@ -168,6 +185,7 @@ def format_rules_audit_text(report: dict) -> str:
 			lines.append(f"- [{item['code']}] {item['file']}: {item['detail']}")
 		r = '\n'.join(lines) + '\n'
 	return r
+# @used-by :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
 def verify_staged_rules_audit(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	r: list[str] = []
 	repo = Path(repo_root).resolve()

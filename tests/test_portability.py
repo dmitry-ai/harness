@@ -1,6 +1,7 @@
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import contextmanager
 from copy import deepcopy
+from typing import override
 import json
 from pathlib import Path
 import shutil
@@ -24,6 +25,12 @@ from agent_tools.snapshot import snapshot_draft
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class ProjectionTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.primary = self.root / 'canonical'
@@ -37,6 +44,7 @@ class ProjectionTests(TemporaryCase):
 	# 2026-10-17
 	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 	# https://github.com/dmitry-ai/harness/issues/7
+	# @used-by :mod:`unittest`
 	def test_verified_legacy_migrates_but_manual_configuration_and_fallback_survive(self):
 		configuration.build_native(self.output, primary=self.primary)
 		legacy = self.output / 'CODEX.md'
@@ -68,6 +76,7 @@ class ProjectionTests(TemporaryCase):
 	# 2026-10-17
 	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 	# https://github.com/dmitry-ai/harness/issues/7
+	# @used-by :mod:`unittest`
 	def test_unowned_legacy_prevents_partial_migration(self):
 		self.output.mkdir()
 		legacy = self.output / 'CODEX.md'
@@ -79,6 +88,7 @@ class ProjectionTests(TemporaryCase):
 	# 2026-10-17
 	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 	# https://github.com/dmitry-ai/harness/issues/7
+	# @used-by :mod:`unittest`
 	def test_global_instructions_are_read_safely_and_local_override_keeps_its_priority(self):
 		config = deepcopy(runtime.settings())
 		homes = {name: str(self.root / name) for name in ('C1', 'C2')}
@@ -103,6 +113,7 @@ class ProjectionTests(TemporaryCase):
 		self.assertTrue(value.startswith('LOCAL OVERRIDE'))
 		self.assertNotIn('policy-instructions', value)
 		self.assertIn('00-scope.md', value)
+	# @used-by :mod:`unittest`
 	def test_generation_is_idempotent_detects_source_changes_and_preserves_manual_edits(self):
 		first = configuration.build_native(self.output, primary=self.primary)
 		self.assertTrue(first['valid'])
@@ -120,12 +131,14 @@ class ProjectionTests(TemporaryCase):
 		result = configuration.build_native(self.output, primary=self.primary)
 		self.assertFalse(result['valid'])
 		self.assertEqual(generated.read_text(), 'USER CHANGE')
+	# @used-by :mod:`unittest`
 	def test_check_does_not_create_an_uninstalled_workspace(self):
 		self.assertFalse(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
 		self.assertFalse(self.output.exists())
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
 	# https://github.com/dmitry-ai/harness/issues/35
+	# @used-by :mod:`unittest`
 	def test_dangling_personal_guidance_links_are_preserved_before_shared_publication(self):
 		for relative in ('AGENTS.md', '.codex/config.toml', 'CODEX.md'):
 			with self.subTest(relative=relative):
@@ -144,10 +157,12 @@ class ProjectionTests(TemporaryCase):
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
 	# https://github.com/dmitry-ai/harness/issues/35
+	# @used-by :mod:`unittest`
 	def test_shared_generation_uses_one_owner_across_projects_and_profile_install(self):
 		from agent_tools import native_profiles
 		from agent_tools.storage import data_dir_for
 		home = self.root / 'profile-C2'
+		# @used-by :meth:`ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
 		def install(check=False):
 			return native_profiles.install_native_profiles(['C2'], primary=self.primary, check=check, config_dirs={}, codex_homes={'C2': home})
 		self.assertTrue(install()['valid'])
@@ -177,12 +192,14 @@ class ProjectionTests(TemporaryCase):
 		for project in (self.output, second):
 			receipt = json.loads((data_dir_for(project) / 'native-config.json').read_text(encoding='utf-8'))
 			self.assertFalse(any(Path(path).is_relative_to(self.primary) for path in receipt))
+	# @used-by :mod:`unittest`
 	def test_first_install_preserves_an_unowned_antigravity_worker(self):
 		worker = self.primary / 'agents/af-worker.md'
 		worker.write_text('CUSTOM WORKER', encoding='utf-8')
 		result = configuration.build_native(self.output, primary=self.primary)
 		self.assertFalse(result['valid'])
 		self.assertEqual(worker.read_text(), 'CUSTOM WORKER')
+	# @used-by :mod:`unittest`
 	def test_native_toml_preserves_settings_and_resolves_models_from_one_config(self):
 		config = deepcopy(runtime.settings())
 		config['platforms']['codex']['roles']['AA'].update(model='test-next-model', effort='high')
@@ -218,6 +235,7 @@ class ProjectionTests(TemporaryCase):
 		self.assertNotIn('project_doc_fallback_filenames', result)
 		self.assertNotIn('project_doc_max_bytes', result)
 		self.assertIn('Load source policy.', result['developer_instructions'])
+	# @used-by :mod:`unittest`
 	def test_project_rules_feed_both_systems_and_detect_stale_codex_projection(self):
 		project = self.output / 'job'
 		local = project / '.agents/rules/91-proposal.md'
@@ -247,6 +265,7 @@ class ProjectionTests(TemporaryCase):
 		self.assertTrue(configuration.configure_codex_project(project, self.primary, check=True)['valid'])
 		(project / '.agents/skills.json').unlink()
 		self.assertFalse(up.check_configuration(project, self.primary)['valid'])
+	# @used-by :mod:`unittest`
 	def test_multiline_toml_values_do_not_damage_unrelated_settings(self):
 		original = '# Preserve root and table settings.\n"project_doc_fallback_filenames" = [\n    "TEAM.md", # ], # and quotes are not structure\n    \'AGENTS.local.md\',\n]\nmodel = "keep-me"\ndeveloper_instructions = ' + "'''" + 'A multiline instruction.\n[This is plain text, not a TOML table]\nproject_doc_max_bytes = 1\n' + "'''" + '\n[features]\ncustom = true\n'
 		expected = tomllib.loads(original)
@@ -264,6 +283,7 @@ class ProjectionTests(TemporaryCase):
 					actual = tomllib.loads(configuration._root_options(source, 'Load source policy.'))
 					self.assertEqual(actual['banner'], tomllib.loads(source)['banner'])
 					self.assertEqual(actual['project_doc_fallback_filenames'], ['TEAM.md'])
+	# @used-by :mod:`unittest`
 	def test_extra_rule_sources_are_projected_and_unsupported_selectors_reported(self):
 		project = self.output / 'job'
 		up.configure_project(project, self.primary)
@@ -289,6 +309,7 @@ class ProjectionTests(TemporaryCase):
 		self.assertFalse(check['valid'])
 		self.assertIn('filtered', check['issues'][0]['message'])
 		self.assertEqual((project / '.agents/rules/90-project.md').read_bytes(), previous)
+	# @used-by :mod:`unittest`
 	def test_project_setup_merges_native_entries_and_preserves_custom_context(self):
 		project = self.output / 'job'
 		agents = project / '.agents'
@@ -313,6 +334,9 @@ class CodexEvidenceTests(ProjectCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.home = self.root / 'codex-profile'
@@ -327,17 +351,32 @@ class CodexEvidenceTests(ProjectCase):
 		self.set_review_input(self.package)
 		self.write_trace(self.parent, self.parent_rows)
 		self.write_trace(self.child, self.child_rows)
+	# @used-by :meth:`CodexEvidenceTests.setUp()`
+	# @used-by :meth:`CodexEvidenceTests.test_codex_token_metrics_use_response_usage_and_do_not_count_summaries()`
 	def meta(self, ident, parent=None):
 		return {'type': 'session_meta', 'payload': {'id': ident, 'source': {'subagent': {'thread_spawn': {'parent_thread_id': parent, 'agent_path': '/root/reviewer'}}} if parent else 'vscode'}}
+	# @used-by :meth:`CodexEvidenceTests.setUp()`
 	def context(self):
 		return {'type': 'turn_context', 'payload': {'model': self.model, 'effort': 'max'}}
+	# @used-by :meth:`CodexEvidenceTests.setUp()`
+	# @used-by :meth:`CodexEvidenceTests.test_exact_user_text_job_scope_and_cross_platform_request_merge()`
 	def message(self, role, text):
 		return {'type': 'response_item', 'payload': {'type': 'message', 'role': role, 'content': [{'type': 'input_text' if 'user' == role else 'output_text', 'text': text}]}}
+	# @used-by :meth:`CodexEvidenceTests.setUp()`
+	# @used-by :meth:`CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
 	def set_review_input(self, package):
 		with patch.dict('os.environ', {'CODEX_THREAD_ID': self.child}):
 			receipt = flow.review_input(self.project, package['package'])
 		self.child_rows = [item for item in self.child_rows if 'review-input-call' != item.get('payload', {}).get('call_id')]
 		self.child_rows[3:3] = [{'type': 'response_item', 'payload': {'type': 'custom_tool_call', 'call_id': 'review-input-call', 'name': 'exec', 'input': f'''python upwork_project.py review-input "{self.project}" --package "{package['package']}" --platform codex'''}}, {'type': 'response_item', 'payload': {'type': 'custom_tool_call_output', 'call_id': 'review-input-call', 'output': [{'type': 'input_text', 'text': json.dumps(receipt)}]}}]
+	# @used-by :meth:`CodexEvidenceTests.setUp()`
+	# @used-by :meth:`CodexEvidenceTests.test_codex_token_metrics_use_response_usage_and_do_not_count_summaries()`
+	# @used-by :meth:`CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
+	# @used-by :meth:`CodexEvidenceTests.test_encrypted_assignment_or_missing_native_package_execution_cannot_prove_a_review()`
+	# @used-by :meth:`CodexEvidenceTests.test_exact_user_text_job_scope_and_cross_platform_request_merge()`
+	# @used-by :meth:`CodexEvidenceTests.test_native_windows_extended_path_keeps_the_profile_boundary()`
+	# @used-by :meth:`CodexEvidenceTests.test_parent_can_select_another_model_and_effort_with_native_proof()`
+	# @used-by :meth:`CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
 	def write_trace(self, ident, rows):
 		path = self.home / 'sessions/2026/10/15' / (ident + '.jsonl')
 		path.parent.mkdir(parents=True, exist_ok=True)
@@ -349,12 +388,19 @@ class CodexEvidenceTests(ProjectCase):
 		connection.close()
 		r = path
 		return r
+	# @used-by :meth:`CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
+	# @used-by :meth:`CodexEvidenceTests.test_exact_user_text_job_scope_and_cross_platform_request_merge()`
+	# @used-by :meth:`CodexEvidenceTests.test_native_windows_extended_path_keeps_the_profile_boundary()`
+	# @used-by :meth:`CodexEvidenceTests.test_parent_can_select_another_model_and_effort_with_native_proof()`
+	# @used-by :meth:`CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
+	# @used-by :meth:`CodexEvidenceTests.test_self_review_uses_codex_parent_evidence_without_requiring_antigravity()`
 	@contextmanager
 	def selected(self):
 		config = runtime.platform_settings('codex')
 		config['homes'] = {'C2': str(self.home)}
 		with patch.object(codex, 'platform_settings', return_value=config), runtime.using('codex', 'C2'):
 			yield
+	# @used-by :mod:`unittest`
 	def test_exact_user_text_job_scope_and_cross_platform_request_merge(self):
 		other = str(uuid.uuid4())
 		rows = [*self.parent_rows, self.message('user', 'Continue analysis.\n\nAfter outage.'), self.message('user', '/upwork-init https://www.upwork.com/jobs/~0299999'), self.message('user', 'Text of another project.')]
@@ -371,6 +417,7 @@ class CodexEvidenceTests(ProjectCase):
 		saved = flow.load(self.project)['requests']
 		self.assertEqual(len(saved), 3)
 		self.assertEqual(saved[0]['response_prepared']['sha256'], 'kept')
+	# @used-by :mod:`unittest`
 	def test_review_provenance_checks_parent_completion_model_and_assignment(self):
 		with self.selected():
 			proof = metrics.native_review_proof(self.project, self.parent, self.child)
@@ -390,6 +437,7 @@ class CodexEvidenceTests(ProjectCase):
 		self.write_trace(self.child, self.child_rows)
 		with self.assertRaises(ValueError):
 			codex.native_review_proof(self.project, self.parent, self.child, backend=self.home)
+	# @used-by :mod:`unittest`
 	def test_native_windows_extended_path_keeps_the_profile_boundary(self):
 		path = self.write_trace(self.child, self.child_rows)
 		connection = sqlite3.connect(self.home / 'state_5.sqlite')
@@ -407,6 +455,7 @@ class CodexEvidenceTests(ProjectCase):
 		connection.close()
 		with self.assertRaisesRegex(ValueError, 'outside the selected profile'):
 			codex.native_review_proof(self.project, self.parent, self.child, backend=self.home)
+	# @used-by :mod:`unittest`
 	def test_parent_can_select_another_model_and_effort_with_native_proof(self):
 		self.parent_rows[-1]['payload']['arguments'] = json.dumps({'task_name': 'reviewer', 'message': self.assignment, 'model': 'context-selected-model', 'reasoning_effort': 'high', 'fork_turns': 'none'})
 		self.write_trace(self.parent, self.parent_rows)
@@ -416,6 +465,7 @@ class CodexEvidenceTests(ProjectCase):
 			proof = metrics.native_review_proof(self.project, self.parent, self.child)
 			self.assertEqual(proof['model_selection']['selection'], 'explicit-parent-spawn')
 			metrics.verify_native_proof(self.project, proof)
+	# @used-by :mod:`unittest`
 	def test_codex_token_metrics_use_response_usage_and_do_not_count_summaries(self):
 		row = {'type': 'token_usage_record', 'payload': {'thread_id': self.child, 'turn_id': 'turn', 'response_id': 'response', 'usage': {'input_tokens': 100, 'cached_input_tokens': 60, 'output_tokens': 7}}}
 		path = self.write_trace(self.parent, [*self.parent_rows, self.meta(str(uuid.uuid4())), row, row, {'type': 'event_msg', 'payload': {'type': 'token_count', 'info': {'total_token_usage': {'input_tokens': 999}}}}])
@@ -425,6 +475,7 @@ class CodexEvidenceTests(ProjectCase):
 		self.assertEqual(result['tokens']['input_tokens']['complete_total'], 100)
 		self.assertEqual(result['tokens']['cache_read_tokens']['complete_total'], 60)
 		self.assertEqual(result['phases']['review']['generations'], 1)
+	# @used-by :mod:`unittest`
 	def test_encrypted_assignment_or_missing_native_package_execution_cannot_prove_a_review(self):
 		self.child_rows[2]['payload']['content'][1]['encrypted_content'] = 'different-assignment'
 		self.write_trace(self.child, self.child_rows)
@@ -438,6 +489,7 @@ class CodexEvidenceTests(ProjectCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :mod:`unittest`
 	def test_self_review_uses_codex_parent_evidence_without_requiring_antigravity(self):
 		report = self.review_report(self.package, self_review=True)
 		self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
@@ -447,6 +499,7 @@ class CodexEvidenceTests(ProjectCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# @used-by :mod:`unittest`
 	def test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply(self):
 		value = self.valid_review_analysis()
 		publish_owned(self.project / 'ꘖ/KB/Analysis.md', render_analysis(value))
@@ -509,6 +562,7 @@ class CodexEvidenceTests(ProjectCase):
 		context = (self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').read_text(encoding='utf-8')
 		self.assertIn(expected, context)
 		self.assertIn(answer, context)
+	# @used-by :mod:`unittest`
 	def test_second_platform_keeps_original_date_root_manual_kb_and_saved_snapshot(self):
 		# 2026-11-21
 		# "Initialize new Upwork projects in the V2 filesystem layout":
@@ -525,6 +579,7 @@ class CodexEvidenceTests(ProjectCase):
 		self.assertEqual(state['snapshot'], state_before['snapshot'])
 		self.assertFalse((self.project / '.codex/config.toml').exists())
 		self.assertIn('`Topic`', (self.project / '.agents/rules/90-project.md').read_text(encoding='utf-8'))
+	# @used-by :mod:`unittest`
 	def test_proposal_export_selects_each_language_final_or_existing_draft(self):
 		# 2026-11-21
 		# "Initialize new Upwork projects in the V2 filesystem layout":
@@ -547,6 +602,7 @@ class CodexEvidenceTests(ProjectCase):
 			generate(self.project, self.project / '.agents/context.json')
 		self.assertEqual(target.read_bytes(), saved)
 		self.assertEqual(en.read_text(), 'English draft')
+	# @used-by :mod:`unittest`
 	def test_known_old_context_is_upgraded_with_a_preserved_original(self):
 		context = self.project / '.agents/context.json'
 		legacy = up.default_context_config(self.project)

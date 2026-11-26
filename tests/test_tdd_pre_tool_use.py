@@ -22,6 +22,10 @@ import check_rules_and_server_gate as gate
 # 2026-11-24
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
+# @used-by :meth:`TddPreToolUseGateTests.test_blocks_production_code_across_languages_before_red_test()`
+# @used-by :meth:`TddPreToolUseGateTests.test_ratchet_anti_fitting_substantive_and_behavioral_test_guards()`
+# @used-by :meth:`TddPreToolUseGateTests.test_red_green_commit_reset_cycle_in_live_hook()`
+# @used-by :meth:`TddPreToolUseGateTests.test_shell_write_bypass_and_test_deletion_blocked()`
 def _run_hook(payload: dict) -> dict:
 	buf = io.StringIO()
 	with patch.object(sys, 'stdin', io.StringIO(json.dumps(payload, ensure_ascii=False))), redirect_stdout(buf):
@@ -29,6 +33,11 @@ def _run_hook(payload: dict) -> dict:
 	return json.loads(buf.getvalue())
 
 
+# @used-by :meth:`TddPreToolUseGateTests.test_blocks_production_code_across_languages_before_red_test()`
+# @used-by :meth:`TddPreToolUseGateTests.test_cli_subprocess_smoke()`
+# @used-by :meth:`TddPreToolUseGateTests.test_ratchet_anti_fitting_substantive_and_behavioral_test_guards()`
+# @used-by :meth:`TddPreToolUseGateTests.test_red_green_commit_reset_cycle_in_live_hook()`
+# @used-by :meth:`TddPreToolUseGateTests.test_shell_write_bypass_and_test_deletion_blocked()`
 def _init_git_repo(repo: Path) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
 	# 2026-11-24
@@ -39,6 +48,11 @@ def _init_git_repo(repo: Path) -> None:
 	cfg.write_text(cfg.read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test User\n', encoding='utf-8')
 
 
+# @used-by :meth:`TddPreToolUseGateTests.test_blocks_production_code_across_languages_before_red_test()`
+# @used-by :meth:`TddPreToolUseGateTests.test_cli_subprocess_smoke()`
+# @used-by :meth:`TddPreToolUseGateTests.test_ratchet_anti_fitting_substantive_and_behavioral_test_guards()`
+# @used-by :meth:`TddPreToolUseGateTests.test_red_green_commit_reset_cycle_in_live_hook()`
+# @used-by :meth:`TddPreToolUseGateTests.test_shell_write_bypass_and_test_deletion_blocked()`
 def _write_transcript(path: Path, rows: list[dict]) -> Path:
 	path.write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in rows), encoding='utf-8')
 	return path
@@ -48,6 +62,7 @@ def _write_transcript(path: Path, rows: list[dict]) -> Path:
 # "Enforce live TDD PreToolUse gate in check_rules_and_server_gate.py":
 # https://github.com/dmitry-ai/harness/issues/136
 class TddPreToolUseGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_blocks_production_code_across_languages_before_red_test(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -90,6 +105,7 @@ class TddPreToolUseGateTests(unittest.TestCase):
 				})
 				self.assertEqual(allow_doc['decision'], 'allow', f'Non-code {rel} should be allowed: {allow_doc}')
 
+	# @used-by :mod:`unittest`
 	def test_red_green_commit_reset_cycle_in_live_hook(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -180,6 +196,7 @@ class TddPreToolUseGateTests(unittest.TestCase):
 			})
 			self.assertEqual(d_post_commit['decision'], 'deny', d_post_commit)
 
+	# @used-by :mod:`unittest`
 	def test_shell_write_bypass_and_test_deletion_blocked(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -218,6 +235,7 @@ class TddPreToolUseGateTests(unittest.TestCase):
 			self.assertEqual(d_shell_del['decision'], 'deny', d_shell_del)
 			self.assertIn('TDD-RATCHET-GATE', d_shell_del.get('reason', ''))
 
+	# @used-by :mod:`unittest`
 	def test_ratchet_anti_fitting_substantive_and_behavioral_test_guards(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -365,6 +383,7 @@ class TddPreToolUseGateTests(unittest.TestCase):
 	# 2026-11-24
 	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 	# https://github.com/dmitry-ai/harness/issues/175
+	# @used-by :mod:`unittest`
 	def test_cli_subprocess_smoke(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

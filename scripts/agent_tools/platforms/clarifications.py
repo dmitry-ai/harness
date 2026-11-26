@@ -5,10 +5,12 @@ import re
 from .trace_common import parse_tool_args
 _ANSWER_HEADER_RE = re.compile(r'^(A\d+):\s*(.*)$')
 _META_TS_RE = re.compile(r'^(Created|Completed)\s+At:\s*(.+?)\s*$')
+# @used-by :func:`_record_ask_call()`
 def _extract_question_texts(call: dict) -> list[str]:
 	args = parse_tool_args(call.get('args', {}))
 	qs = args.get('questions') if isinstance(args.get('questions'), list) else []
 	return [str(q.get('question') or '').strip() for q in qs if isinstance(q, dict) and str(q.get('question') or '').strip()]
+# @used-by :func:`extract_ask_question_clarifications()`
 def _find_generic_output(segment: list[dict], pos: int, call_idx: int) -> dict | None:
 	generics: list[dict] = []
 	for cand in segment[pos + 1:]:
@@ -23,6 +25,7 @@ def _find_generic_output(segment: list[dict], pos: int, call_idx: int) -> dict |
 	else:
 		r = generics[-1] if generics else None
 	return r
+# @used-by :func:`_parse_output_envelope()`
 def _parse_answers(body_lines: list[str]) -> list[dict[str, str]]:
 	items: list[dict[str, str]] = []
 	for line in body_lines:
@@ -32,6 +35,7 @@ def _parse_answers(body_lines: list[str]) -> list[dict[str, str]]:
 		elif items:
 			items[-1]['text'] = (items[-1]['text'] + '\n' + line) if items[-1]['text'] else line
 	return [{'id': it['id'], 'text': it['text'].strip()} for it in items]
+# @used-by :func:`_record_ask_call()`
 def _parse_output_envelope(raw_content: str) -> tuple[str | None, str | None, list[dict[str, str]], str]:
 	asked_at, answered_at = (None, None)
 	lines = (raw_content or '').splitlines()
@@ -47,6 +51,7 @@ def _parse_output_envelope(raw_content: str) -> tuple[str | None, str | None, li
 		idx += 1
 	body_lines = lines[idx:]
 	return (asked_at, answered_at, _parse_answers(body_lines), '\n'.join(body_lines).strip())
+# @used-by :func:`extract_ask_question_clarifications()`
 def _record_ask_call(row: dict, call: dict, out_row: dict | None) -> dict[str, Any]:
 	raw = str(out_row.get('content') or '') if isinstance(out_row, dict) else ''
 	env_asked, env_answered, answers, clean_body = _parse_output_envelope(raw)
@@ -61,6 +66,7 @@ def _record_ask_call(row: dict, call: dict, out_row: dict | None) -> dict[str, A
 		'answers': answers,
 		'raw_output': clean_body,
 	}
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
 def build_segment_metadata(segment: list[dict], seg_models: list[str] | tuple[str, ...], config_fn) -> dict[str, Any]:
 	raw_model = seg_models[-1] if seg_models else None
 	model_name, effort_val = (None, None)
@@ -76,6 +82,8 @@ def build_segment_metadata(segment: list[dict], seg_models: list[str] | tuple[st
 # 2026-11-25
 # "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
 # https://github.com/dmitry-ai/harness/issues/234
+# @used-by :func:`build_segment_metadata()`
+# @used-by :meth:`test_ask_question_clarifications_m8.AskQuestionClarificationsM8Tests.test_extract_ask_question_clarifications_from_steps_669_670()`
 def extract_ask_question_clarifications(segment: list[dict]) -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
 	for pos, row in enumerate(segment or ()):
@@ -87,6 +95,7 @@ def extract_ask_question_clarifications(segment: list[dict]) -> list[dict[str, A
 				out_row = _find_generic_output(segment, pos, c_idx)
 				r.append(_record_ask_call(row, call, out_row))
 	return r
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._merge_pending()`
 def merge_segment_metadata(merged: dict[str, Any], items: list[dict[str, Any]]) -> dict[str, Any]:
 	req_ts = next((it.get('request_timestamp') for it in items if it.get('request_timestamp')), None)
 	if None is not req_ts:

@@ -10,6 +10,7 @@ HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :func:`_init_repo()`
 def _copy_fixture_modules(repo: Path, rels: tuple[str, ...]) -> None:
 	for rel in rels:
 		src = HARNESS_ROOT / rel
@@ -17,9 +18,14 @@ def _copy_fixture_modules(repo: Path, rels: tuple[str, ...]) -> None:
 			dst = repo / rel
 			dst.parent.mkdir(parents=True, exist_ok=True)
 			shutil.copy2(src, dst)
+# @used-by :func:`_init_repo()`
+# @used-by :meth:`PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return (proc.stdout or '').strip()
+# @used-by :meth:`PythonIntegrityGateTests.test_legacy_oversized_edit_deferred_in_pre_tool_use_while_write_file_enforced()`
+# @used-by :meth:`PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
+# @used-by :meth:`PythonIntegrityGateTests.test_snapshot_promotion_and_auditor_reject_undefined_global()`
 def _init_repo(repo: Path, files: dict[str, str], *, copy_rels: tuple[str, ...]=()) -> Path:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git(repo, 'init', '-b', 'main')
@@ -33,17 +39,21 @@ def _init_repo(repo: Path, files: dict[str, str], *, copy_rels: tuple[str, ...]=
 	_git(repo, 'add', '.')
 	_git(repo, 'commit', '-m', 'init')
 	return repo
+# @used-by :meth:`PythonIntegrityGateTests.test_legacy_oversized_edit_deferred_in_pre_tool_use_while_write_file_enforced()`
+# @used-by :meth:`PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
 def _make_legacy_file(lines_count: int=310) -> str:
 	return ''.join((f'CONST_{i} = {i}\n' for i in range(lines_count)))
 # 2026-11-24
 # "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
 # https://github.com/dmitry-ai/harness/issues/186
 class PythonIntegrityGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_check_python_size_violations_rejects_syntax_error(self) -> None:
 		from agent_tools.code_size_gate import check_python_size_violations
 		errs = check_python_size_violations('scripts/bad.py', 'def broken(:\n\tpass\n')
 		self.assertTrue(errs, 'SyntaxError must not silently return []')
 		self.assertTrue(any(('syntax' in e.lower() for e in errs)), errs)
+	# @used-by :mod:`unittest`
 	def test_legacy_oversized_edit_deferred_in_pre_tool_use_while_write_file_enforced(self) -> None:
 		from agent_tools.code_size_gate import evaluate_pre_tool_use_code_size
 		with tempfile.TemporaryDirectory() as td:
@@ -61,6 +71,7 @@ class PythonIntegrityGateTests(unittest.TestCase):
 			syn_err = evaluate_pre_tool_use_code_size('write_file', {'Path': str(repo / 'scripts/syn.py'), 'Content': 'def bad(:\n\tpass\n'}, {'cwd': str(repo)})
 			self.assertIsNotNone(syn_err)
 			self.assertIn('syntax', (syn_err or '').lower())
+	# @used-by :mod:`unittest`
 	def test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet(self) -> None:
 		from agent_tools.code_size_gate import verify_staged_code_size_ratchet
 		from agent_tools.worktree_flow import worktree_begin, worktree_land
@@ -82,6 +93,7 @@ class PythonIntegrityGateTests(unittest.TestCase):
 			self.assertFalse(land['landed'])
 			self.assertEqual('python_integrity', land['stage'])
 			self.assertIn('MissingWtSym', land['error'])
+	# @used-by :mod:`unittest`
 	def test_python_integrity_catches_syntax_and_undefined_globals_zero_fp_on_harness(self) -> None:
 		from agent_tools.python_integrity import check_python_integrity, verify_directory_python_integrity
 		e1 = check_python_integrity('scripts/a.py', '_CACHE: OrderedDict = OrderedDict()\n')
@@ -108,6 +120,7 @@ class PythonIntegrityGateTests(unittest.TestCase):
 		self.assertEqual([], check_python_integrity('scripts/ok.py', valid_src))
 		self.assertEqual([], check_python_integrity('scripts/star.py', 'from math import *\nX = sin(1)\n'))
 		self.assertEqual([], verify_directory_python_integrity(HARNESS_ROOT / 'scripts'))
+	# @used-by :mod:`unittest`
 	def test_snapshot_promotion_and_auditor_reject_undefined_global(self) -> None:
 		from agent_tools.python_integrity import verify_touched_python_files
 		from agent_tools.runtime_snapshot import promote_runtime_snapshot

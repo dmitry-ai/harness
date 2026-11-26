@@ -1,6 +1,7 @@
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from collections import Counter
 from dataclasses import dataclass
+from typing import override
 import html as html_lib
 from html.parser import HTMLParser
 from pathlib import Path
@@ -12,7 +13,9 @@ from urllib.error import HTTPError
 # 2026-10-17
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
+# @used-by :func:`readable_reference()`
 def _readable_escapes(value: str) -> str:
+	# @used-by :func:`_readable_escapes()`
 	def decode(match):
 		encoded = match.group()
 		raw = bytes.fromhex(encoded.replace('%', ''))
@@ -26,6 +29,16 @@ def _readable_escapes(value: str) -> str:
 			result.append(char if safe_ascii or safe_unicode else original)
 		return ''.join(result)
 	return re.sub('(?:%[0-9a-fA-F]{2})+', decode, value)
+# @used-by :func:`agent_tools.markdown_links.display_address()`
+# @used-by :func:`agent_tools.text_sources._attempt()`
+# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :func:`agent_tools.text_sources.save_source_check()`
+# @used-by :func:`agent_tools.text_sources.source_urls()`
+# @used-by :func:`markdown_link()`
+# @used-by :func:`readable_link_issues()`
+# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._collect_visual_lines()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
 def readable_reference(value: str | Path) -> str:
 	value = value.as_posix() if isinstance(value, Path) else value
 	base, fragment_sep, fragment = value.partition('#')
@@ -38,6 +51,22 @@ def readable_reference(value: str | Path) -> str:
 		elif re.match('^/[A-Za-z]:/', path):
 			path = path[1:]
 	return _readable_escapes(path) + query_sep + query + fragment_sep + _readable_escapes(fragment)
+# @used-by :func:`agent_tools.analysis._render_claim_contract()`
+# @used-by :func:`agent_tools.analysis.render_analysis()`
+# @used-by :func:`agent_tools.knowledge._render_evidence_md()`
+# @used-by :func:`agent_tools.knowledge._render_projects_md()`
+# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
+# @used-by :func:`agent_tools.knowledge.sync_website_card()`
+# @used-by :func:`agent_tools.upwork_data.format_kb_project_md()`
+# @used-by :meth:`agent_tools.upwork_data.DocxMarkdownExtractor._render_link()`
+# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._collect_visual_lines()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_cli_readability_check_catches_original_encoding_and_accepts_readable_destination()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_readable_navigation_links_can_address_a_directory()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_readable_source_survives_a_renderer_that_encodes_its_href()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_utf8_anchor_and_balanced_parentheses_need_no_url_encoding()`
 def markdown_link(label: str | None, target: str | Path) -> str:
 	target = readable_reference(target)
 	if any((char in target for char in '\r\n<>')):
@@ -50,18 +79,41 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 # "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 # https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
+# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.__init__()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
+# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_rejects_file_uri_to_github_repo_and_allows_non_repo_and_gitignored_files()`
+# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_validates_github_blob_and_tree_tags_paths_lines_and_anchors()`
 def chat_reply_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 	from .repo_link_gate import chat_repo_link_issues
 	return readable_link_issues(content, allow_unencoded_file_uri=True) + chat_repo_link_issues(content, root=root)
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`agent_tools.evidence.local_file()`
+# @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
+# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_decode_file_uri_handles_windows_relative_and_remote()`
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	from .markdown_links import decode_file_uri as _decode
 	return _decode(reference, reject_remote=reject_remote)
 # 2026-10-17
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
+# @used-by :func:`agent_tools.analysis.publish_owned()`
+# @used-by :func:`agent_tools.knowledge.create_once()`
+# @used-by :func:`agent_tools.project_card.sync_block()`
+# @used-by :func:`chat_reply_link_issues()`
+# @used-by :func:`validate_content()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
+# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
+# @used-by :meth:`test_readable_links.ReadableProjectTests.test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_docx_hyperlinks_are_readable_without_altering_their_visible_source_text()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_encoded_authored_links_are_detected_in_all_supported_text_forms()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_exact_quotes_code_and_source_copies_are_not_rewritten_or_rejected()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
 def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) -> list[str]:
 	from .markdown_links import parser as md_parser
 	parser = md_parser(preserve_links=True)
@@ -99,12 +151,25 @@ def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) 
 			errors.append(f'LINK-5: Use a readable document link: {readable} (instead of {target})')
 	return errors
 class HTMLReferences(HTMLParser):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :func:`agent_tools.completion._authored_nonquote_hrefs()`
+	# @used-by :func:`agent_tools.repo_link_gate._authored_targets()`
+	# @used-by :func:`check_network()`
+	# @used-by :func:`readable_link_issues()`
+	# @used-by :func:`references()`
+	# @see :meth:`html.parser.HTMLParser.__init__()`
+	@override
 	def __init__(self, *, authored_only=False):
 		super().__init__(convert_charrefs=True)
 		self.anchors = []
 		self.links = []
 		self.authored_only = authored_only
 		self.literal_depth = 0
+	# @used-by :meth:`html.parser.HTMLParser.handle_starttag()`
+	# @see :meth:`html.parser.HTMLParser.handle_starttag()`
+	@override
 	def handle_starttag(self, tag, attrs):
 		if self.authored_only and tag in ('pre', 'code', 'blockquote'):
 			self.literal_depth += 1
@@ -120,12 +185,25 @@ class HTMLReferences(HTMLParser):
 				self.links.append(values['href'])
 		elif 'img' == tag and values.get('src'):
 			self.links.append(values['src'])
+	# @used-by :meth:`html.parser.HTMLParser.handle_endtag()`
+	# @see :meth:`html.parser.HTMLParser.handle_endtag()`
+	@override
 	def handle_endtag(self, tag):
 		if self.authored_only and tag in ('pre', 'code', 'blockquote'):
 			self.literal_depth = max(0, self.literal_depth - 1)
+	# @used-by :meth:`html.parser.HTMLParser.handle_data()`
+	# @see :meth:`html.parser.HTMLParser.handle_data()`
+	@override
 	def handle_data(self, data):
 		if self.authored_only and (not self.literal_depth):
 			self.links.extend(_document_urls(data))
+# @used-by :func:`_document_urls()`
+# @used-by :func:`agent_tools.completion._authored_nonquote_hrefs()`
+# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
+# @used-by :func:`references()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
 def _bare_urls(text: str):
 	for match in re.finditer('https?://[^\\s<>`"\\x00-\\x1f]+', text):
 		url = match.group().rstrip('.,;!?')
@@ -133,10 +211,24 @@ def _bare_urls(text: str):
 			while url.endswith(right) and url.count(right) > url.count(left):
 				url = url[:-1]
 		yield url
+# @used-by :func:`agent_tools.repo_link_gate._collect_block_targets()`
+# @used-by :func:`readable_link_issues()`
+# @used-by :meth:`HTMLReferences.handle_data()`
 def _document_urls(text: str):
 	yield from _bare_urls(text)
 	for match in re.finditer('(?:file://|[A-Za-z]:[/\\\\])[^\\s<>`"\\x00-\\x1f]+', text):
 		yield match.group().rstrip('.,;!?)')
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`agent_tools.repo_link_gate._validate_doc_or_json_anchor()`
+# @used-by :func:`agent_tools.research.extract_markdown()`
+# @used-by :func:`agent_tools.text_sources.check_links()`
+# @used-by :func:`agent_tools.text_sources.source_urls()`
+# @used-by :func:`validate_content()`
+# @used-by :func:`validate_file()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_code_samples_are_not_document_links()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_markdown_reference_links_balanced_parentheses_and_html()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_readable_source_survives_a_renderer_that_encodes_its_href()`
 def references(content: str, include_code: bool=False) -> tuple[list[str], list[str]]:
 	from .markdown_links import parser as md_parser
 	parser = md_parser(allow_file_links=True)
@@ -160,6 +252,12 @@ def references(content: str, include_code: bool=False) -> tuple[list[str], list[
 				links.extend(_bare_urls(token.content))
 	r = (links + html.links, html.anchors)
 	return r
+# @used-by :func:`validate_file()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_invalid_port_is_diagnostic_not_crash()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_local_anchors_decode_and_are_case_sensitive()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_preserves_valid_urls_and_markdown()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_same_id_and_name_on_one_anchor_are_not_duplicates()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_unique_urls_is_explicit_policy()`
 def validate_content(content: str, *, local_anchors: bool=False, unique_urls: bool=False, include_code: bool=False, readable_links: bool=False) -> list[str]:
 	links, anchors = references(content, include_code)
 	errors = []
@@ -189,6 +287,9 @@ def validate_content(content: str, *, local_anchors: bool=False, unique_urls: bo
 # 2026-11-16
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
+# @used-by :func:`agent_tools.evidence._markdown_section()`
+# @used-by :func:`agent_tools.research.extract_markdown()`
+# @used-by :func:`heading_anchors()`
 def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str], str]:
 	from .markdown_links import parser as md_parser
 	raw_lines = content.splitlines(keepends=True)
@@ -251,6 +352,10 @@ def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str
 # 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
+# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`agent_tools.repo_link_gate._validate_doc_or_json_anchor()`
+# @used-by :func:`validate_content()`
+# @used-by :func:`validate_file()`
 def heading_anchors(content: str) -> set[str]:
 	return parse_markdown_headings(content)[1]
 # 2026-10-11
@@ -259,6 +364,39 @@ def heading_anchors(content: str) -> set[str]:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
+# @used-by :func:`agent_tools.rules_audit_checks.check_links_and_blind_references()`
+# @used-by :meth:`agent_tools.git_gate.GitRepoGate.check_commit()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.kb_issues()`
+# @used-by :meth:`test_ask_question_clarifications_m8.AskQuestionClarificationsM8Tests.test_skill_and_turn_completion_docs_prohibit_ask_question_stop_gate_bypass()`
+# @used-by :meth:`test_cli_registry.CliRegistryTests.test_modular_docs_and_per_feature_test_rule_valid()`
+# @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests._assert_clean_doc()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_rules_doc_codifies_code4_size_ratchet()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_skill_rules_and_docs_codify_mandatory_separate_companion_tracks()`
+# @used-by :meth:`test_df_analysis_rules_contract.DfAnalysisRulesAndSkillContractTests.test_df_analysis_skill_discovered_by_native_profiles_and_lints_cleanly()`
+# @used-by :meth:`test_df_analysis_rules_contract.DfAnalysisRulesAndSkillContractTests.test_rules_adapters_and_docs_codify_df_analysis_and_pass_lint()`
+# @used-by :meth:`test_issue_first_rules_contract.IssueFirstRulesAndDocsContractTests.test_rules_skill_and_docs_codify_issue_first_before_tdd_and_pass_lint()`
+# @used-by :meth:`test_landing_lease.LandingLeaseTests.test_exec4_documents_fifo_lease_and_swarm()`
+# @used-by :meth:`test_metadata_rules_contract.MetadataRulesAndDocsContractTests.test_rules_skill_and_docs_codify_json_metadata_headers_and_pass_lint()`
+# @used-by :meth:`test_onboarding.EvidenceTests.test_analysis_links_causes_to_concerns_and_methods_to_causes()`
+# @used-by :meth:`test_onboarding.EvidenceTests.test_cross_file_markdown_anchors_and_missing_file()`
+# @used-by :meth:`test_onboarding.EvidenceTests.test_json_pointer_is_checked()`
+# @used-by :meth:`test_onboarding.EvidenceTests.test_windows_file_uris_and_absolute_paths()`
+# @used-by :meth:`test_perf_improvement_skill_contract.PerfImprovementSkillContractTests.test_adapters_and_readme_document_skill_and_perf_cli_and_pass_lint()`
+# @used-by :meth:`test_perf_improvement_skill_contract.PerfImprovementSkillContractTests.test_perf_improvement_skill_discovered_and_references_pass_lint()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_creation_publishes_supplied_site_and_reinit_keeps_the_card()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_readable_navigation_links_can_address_a_directory()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_readable_source_survives_a_renderer_that_encodes_its_href()`
+# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_utf8_anchor_and_balanced_parentheses_need_no_url_encoding()`
+# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_cross_repo_relative_link_rejected_while_intra_repo_relative_link_allowed()`
+# @used-by :meth:`test_repo_tags_docs.RepoTagsDocsTests.test_rules_and_docs_codify_daily_tagging_and_link6_within_budgets()`
+# @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_exec4_documents_wait_repo_wait_timeout_and_no_premature_user_escalation()`
+# @used-by :meth:`test_rules_architecture_m2.RulesArchitectureM2Tests.test_rules_have_zero_html_comments_valid_links_and_legacy_reference()`
+# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_rules_and_skill_codify_file6_banner_and_pass_lint()`
+# @used-by :meth:`test_shadow_replay_m3.ShadowReplayM3Tests.test_exec2_rules_and_readme_document_shadow_replay_gate()`
+# @used-by :meth:`test_tdd_rules_contract.TddRulesAndDocumentationContractTests.test_rules_and_docs_codify_tdd_contract_and_pass_lint_checks()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_exec5_documents_worktree_and_landing_only_host_mutations()`
 def validate_file(file_path: Path, **options) -> list[str]:
 	try:
 		file_path = Path(file_path).resolve()
@@ -320,6 +458,7 @@ class Page:
 	status: int
 	content_type: str
 	text: str
+# @used-by :func:`check_network()`
 def fetch_page(url: str, timeout: float=15) -> Page:
 	if urlsplit(url).scheme not in ('http', 'https'):
 		raise ValueError('Only HTTP(S) fetching is supported')
@@ -336,6 +475,12 @@ def fetch_page(url: str, timeout: float=15) -> Page:
 		charset = response.headers.get_content_charset() or 'utf-8'
 		r = Page(response.url, response.status, response.headers.get_content_type(), data.decode(charset, errors='replace'))
 	return r
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :func:`agent_tools.text_sources.check_links()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_anchor_html_parser_handles_spacing_entities_and_case()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_failed_cached_fetch_reports_each_anchor()`
+# @used-by :meth:`test_agent_tools.LinkTests.test_real_http_redirect_anchor_and_404()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids()`
 def check_network(urls: list[str], *, anchors: bool=False, timeout: float=15, fetcher=None) -> list[dict]:
 	fetcher = fetcher or fetch_page
 	cache = {}

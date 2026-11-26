@@ -10,6 +10,8 @@ SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import source_grounding as sg
+# @used-by :meth:`GroundingCorpusCacheM9Tests.test_corpus_cache_matches_uncached_norm_and_isolates_observed_texts()`
+# @used-by :meth:`GroundingCorpusCacheM9Tests.test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization()`
 def _setup_project(root: Path) -> tuple[Path, Path]:
 	ev = root / '\ua616/KB/Evidence'
 	ev.mkdir(parents=True, exist_ok=True)
@@ -23,6 +25,7 @@ def _setup_project(root: Path) -> tuple[Path, Path]:
 # "Cache normalized text and numeric tokens in source_grounding active corpus":
 # https://github.com/dmitry-ai/harness/issues/216
 class GroundingCorpusCacheM9Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_corpus_cache_matches_uncached_norm_and_isolates_observed_texts(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -37,6 +40,7 @@ class GroundingCorpusCacheM9Tests(unittest.TestCase):
 			self.assertEqual([], errs_ok)
 			errs_missing = sg.LocalSourceGroundingAuditor(root, doc, observed_texts=obs_missing, cache=shared_cache).run()
 			self.assertTrue(any(('63403' in e for e in errs_missing)))
+	# @used-by :mod:`unittest`
 	def test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -51,11 +55,13 @@ class GroundingCorpusCacheM9Tests(unittest.TestCase):
 			orig_nums = sg._source_numeric_tokens
 			large_norm_calls = 0
 			large_num_calls = 0
+			# @used-by :meth:`GroundingCorpusCacheM9Tests.test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization()`
 			def _count_norm(val: str) -> str:
 				nonlocal large_norm_calls
 				if 4000 <= len(val or ''):
 					large_norm_calls += 1
 				return orig_norm(val)
+			# @used-by :meth:`GroundingCorpusCacheM9Tests.test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization()`
 			def _count_nums(val: str) -> set[str]:
 				nonlocal large_num_calls
 				if 4000 <= len(val or ''):

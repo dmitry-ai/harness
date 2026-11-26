@@ -37,11 +37,60 @@ AGENT_PROCESS_NAMES = ('antigravity.exe', 'language_server.exe', 'codex.exe', 'c
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
 class GitRepoGate:
+	# @used-by :func:`_check_blob_size_limits()`
+	# @used-by :func:`_extract_added_diff_urls()`
+	# @used-by :func:`_main_repo_for_worktree()`
+	# @used-by :func:`_normalize_repo_paths()`
+	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
+	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
+	# @used-by :func:`agent_tools.polyglot_land._branch_touched_files()`
+	# @used-by :func:`agent_tools.polyglot_land.dirty_blocking_main_files()`
+	# @used-by :func:`agent_tools.repo_wait._dirty_files()`
+	# @used-by :func:`agent_tools.repo_wait.wait_for_repo()`
+	# @used-by :func:`agent_tools.worktree_flow._current_branch()`
+	# @used-by :func:`agent_tools.worktree_flow._enrich_worktree_entry()`
+	# @used-by :func:`agent_tools.worktree_flow._land_under_lease()`
+	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
+	# @used-by :func:`agent_tools.worktree_flow._rev_distance()`
+	# @used-by :func:`agent_tools.worktree_flow.git_config_file()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_status()`
+	# @used-by :func:`check_commit()`
+	# @used-by :func:`commit()`
+	# @used-by :func:`commit_in_worktree()`
+	# @used-by :func:`create_isolated_worktree()`
+	# @used-by :func:`ensure_repo_hooks()`
+	# @used-by :func:`git()`
+	# @used-by :func:`is_issue_tracked_code_repo()`
+	# @used-by :func:`read_git()`
+	# @used-by :func:`remove_isolated_worktree()`
+	# @used-by :func:`run_git_hook()`
+	# @used-by :func:`verify_git_write_invocation()`
+	# @used-by :func:`verify_issue_workflow()`
+	# @used-by :func:`verify_push_blob_sizes()`
+	# @used-by :func:`verify_repo_issue_ready_for_close()`
+	# @used-by :func:`verify_staged_blob_sizes()`
+	# @used-by :meth:`WorktreeCommitTransaction.commit()`
+	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
+	# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
+	# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
+	# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_pre_tool_use_and_pre_commit_enforce_issue_comment_gate()`
+	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
+	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
+	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+	# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
+	# @used-by :meth:`test_subprocess_hygiene_and_tree_kill.SubprocessHygieneAndTreeKillTests.test_pre_commit_and_pre_tool_use_enforce_subprocess_hygiene_ratchet()`
+	# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
 	def __init__(self, root: Path, *, strict: bool=False):
 		self.root = normalize_host_path(root).resolve(strict=strict)
 	# 2026-11-02
 	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 	# https://github.com/dmitry-ai/harness/issues/38
+	# @used-by :func:`_check_blob_size_limits()`
+	# @used-by :meth:`GitRepoGate.verify_push_blob_sizes()`
+	# @used-by :meth:`GitRepoGate.verify_staged_blob_sizes()`
 	def _check_blob_size_limits(self, rel_posix: str, size: int, *, kind: str, sha: str='') -> None:
 		if rel_posix and _EXTRACTED_DERIVED_RE.search(rel_posix) and (EXTRACTED_MAX_BYTES < size):
 			label = f'{rel_posix} ({sha[:12]})' if sha else rel_posix
@@ -53,6 +102,8 @@ class GitRepoGate:
 	# 2026-10-31
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
+	# @used-by :func:`_extract_added_diff_urls()`
+	# @used-by :func:`agent_tools.tdd.exemption._verify_single_file_issue_urls()`
 	def _extract_added_diff_urls(self, rel_name: str) -> tuple[set[str], set[str]]:
 		added_urls: set[str] = set()
 		head_urls: set[str] = set()
@@ -69,8 +120,13 @@ class GitRepoGate:
 				if 0 == show_proc.returncode and show_proc.stdout:
 					head_urls.update(extract_comment_issue_urls(show_proc.stdout.decode('utf-8', errors='replace')))
 		return (added_urls, head_urls)
+	# @used-by :meth:`GitRepoGate.check_commit()`
+	# @used-by :meth:`GitRepoGate.run_hook()`
+	# @used-by :meth:`GitRepoGate.verify_staged_blob_sizes()`
+	# @used-by :meth:`GitRepoGate.verify_write_invocation()`
 	def _staged_paths(self) -> list[str]:
 		return [x.decode('utf-8') for x in self.git('diff', '--cached', '--name-only', '--no-renames', '-z').split(b'\x00') if x]
+	# @used-by :meth:`GitRepoGate.check_commit()`
 	def assert_toplevel(self) -> Path:
 		actual = normalize_host_path(self.git('rev-parse', '--show-toplevel').decode('utf-8').strip()).resolve()
 		if actual != self.root:
@@ -79,6 +135,10 @@ class GitRepoGate:
 	# 2026-10-11
 	# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 	# https://github.com/dmitry-ai/harness/issues/2
+	# @used-by :func:`check_commit()`
+	# @used-by :meth:`GitRepoGate.commit()`
+	# @used-by :meth:`WorktreeCommitTransaction.commit()`
+	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 	def check_commit(self, paths: list[str], *, message: str | None=None) -> list[str]:
 		self.assert_toplevel()
 		self.ensure_hooks()
@@ -117,6 +177,8 @@ class GitRepoGate:
 	# 2026-10-11
 	# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 	# https://github.com/dmitry-ai/harness/issues/2
+	# @used-by :func:`commit()`
+	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 	def commit(self, paths: list[str], message: str, execute: bool=False, *, worktree: bool=False) -> list[str]:
 		if worktree and execute:
 			r = WorktreeCommitTransaction(self).commit(paths, message)
@@ -131,6 +193,10 @@ class GitRepoGate:
 	# 2026-11-24
 	# "Deploy immutable Harness runtime snapshots with LKG fallback":
 	# https://github.com/dmitry-ai/harness/issues/184
+	# @used-by :func:`ensure_repo_hooks()`
+	# @used-by :meth:`GitRepoGate.check_commit()`
+	# @used-by :meth:`GitRepoGate.verify_write_invocation()`
+	# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
 	def ensure_hooks(self) -> Path | None:
 		from .runtime_snapshot import ensure_repo_git_hooks
 		return ensure_repo_git_hooks(self.root, self.main_repo(), HOOKS_DIR)
@@ -140,6 +206,17 @@ class GitRepoGate:
 	# 2026-11-13
 	# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
 	# https://github.com/dmitry-ai/harness/issues/53
+	# @used-by :func:`agent_tools.polyglot_land.dirty_blocking_main_files()`
+	# @used-by :func:`agent_tools.worktree_flow._land_under_lease()`
+	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`
+	# @used-by :func:`git()`
+	# @used-by :meth:`GitRepoGate._staged_paths()`
+	# @used-by :meth:`GitRepoGate.assert_toplevel()`
+	# @used-by :meth:`GitRepoGate.check_commit()`
+	# @used-by :meth:`GitRepoGate.commit()`
+	# @used-by :meth:`GitRepoGate.read_git()`
+	# @used-by :meth:`WorktreeCommitTransaction.commit()`
 	def git(self, *args) -> bytes:
 		result = self.run_read(list(args), check=False)
 		if 0 != result.returncode:
@@ -148,6 +225,11 @@ class GitRepoGate:
 	# 2026-10-31
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
+	# @used-by :func:`is_issue_tracked_code_repo()`
+	# @used-by :meth:`GitRepoGate.verify_issue_workflow()`
+	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
+	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
+	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 	def is_issue_tracked(self) -> bool:
 		resolved = self.main_repo()
 		if not (resolved / '.git').exists():
@@ -183,6 +265,18 @@ class GitRepoGate:
 	# 2026-10-31
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
+	# @used-by :func:`_main_repo_for_worktree()`
+	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
+	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
+	# @used-by :func:`agent_tools.repo_wait.wait_for_repo()`
+	# @used-by :func:`agent_tools.worktree_flow.git_config_file()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_status()`
+	# @used-by :meth:`GitRepoGate._tdd_project_root()`
+	# @used-by :meth:`GitRepoGate.ensure_hooks()`
+	# @used-by :meth:`GitRepoGate.is_issue_tracked()`
 	def main_repo(self) -> Path:
 		r = self.root
 		dot_git = self.root / '.git'
@@ -198,6 +292,8 @@ class GitRepoGate:
 			except OSError:
 				pass
 		return r
+	# @used-by :func:`_normalize_repo_paths()`
+	# @used-by :meth:`GitRepoGate.check_commit()`
 	def normalize_paths(self, paths: list[str]) -> list[str]:
 		if not paths:
 			raise ValueError('An explicit file list is required')
@@ -213,6 +309,7 @@ class GitRepoGate:
 	# 2026-10-24
 	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 	# https://github.com/dmitry-ai/harness/issues/17
+	# @used-by :func:`read_git()`
 	def read_git(self, subcommand: str='status', args: tuple[str, ...] | list[str]=()) -> dict:
 		if subcommand not in READ_SUBCOMMANDS:
 			raise ValueError(f'Unsupported read-only Git subcommand: {subcommand}')
@@ -225,6 +322,9 @@ class GitRepoGate:
 	# 2026-11-02
 	# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 	# https://github.com/dmitry-ai/harness/issues/39
+	# @used-by :func:`run_git_hook()`
+	# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
+	# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_pre_tool_use_and_pre_commit_enforce_issue_comment_gate()`
 	def run_hook(self, hook_name: str, argv: list[str] | tuple[str, ...]=(), *, stdin_text: str | None=None, agent_context: bool | None=None) -> int:
 		is_agent = is_agent_git_context() if None is agent_context else bool(agent_context)
 		r = 0
@@ -254,6 +354,16 @@ class GitRepoGate:
 			print(f'ERROR (Git hook {hook_name}): {exc}', file=sys.stderr)
 			r = 2
 		return r
+	# @used-by :func:`agent_tools.polyglot_land._branch_touched_files()`
+	# @used-by :func:`agent_tools.repo_wait._dirty_files()`
+	# @used-by :func:`agent_tools.worktree_flow._current_branch()`
+	# @used-by :func:`agent_tools.worktree_flow._enrich_worktree_entry()`
+	# @used-by :func:`agent_tools.worktree_flow._rev_distance()`
+	# @used-by :func:`agent_tools.worktree_flow.worktree_status()`
+	# @used-by :meth:`GitRepoGate._extract_added_diff_urls()`
+	# @used-by :meth:`GitRepoGate.git()`
+	# @used-by :meth:`GitRepoGate.verify_push_blob_sizes()`
+	# @used-by :meth:`GitRepoGate.verify_staged_blob_sizes()`
 	def run_read(self, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 		# 2026-10-24
 		# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
@@ -272,6 +382,7 @@ class GitRepoGate:
 	# 2026-10-31
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
+	# @used-by :func:`verify_repo_issue_ready_for_close()`
 	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None, git_cache=None) -> dict:
 		from .github_issue import find_tracked_child_issues
 		# 2026-11-24
@@ -313,6 +424,8 @@ class GitRepoGate:
 	# 2026-11-23
 	# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
 	# https://github.com/dmitry-ai/harness/issues/137
+	# @used-by :meth:`GitRepoGate.verify_issue_workflow()`
+	# @used-by :meth:`GitRepoGate.verify_tdd_commit()`
 	def _tdd_project_root(self) -> Path:
 		main_r = self.main_repo()
 		try:
@@ -328,6 +441,10 @@ class GitRepoGate:
 	# 2026-11-23
 	# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
 	# https://github.com/dmitry-ai/harness/issues/161
+	# @used-by :meth:`GitRepoGate.check_commit()`
+	# @used-by :meth:`GitRepoGate.run_hook()`
+	# @used-by :meth:`GitRepoGate.verify_write_invocation()`
+	# @uses :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
 	def _verify_agent_staged(self, relative: list[str], *, message: str | None=None, use_index: bool=True) -> None:
 		self.verify_issue_workflow(relative, message=message, agent_context=True)
 		self.verify_tdd_commit(relative, message=message, agent_context=True, use_index=use_index)
@@ -342,12 +459,17 @@ class GitRepoGate:
 	# 2026-11-24
 	# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 	# https://github.com/dmitry-ai/harness/issues/206
+	# @used-by :meth:`GitRepoGate._verify_agent_staged()`
+	# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
+	# @uses :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
 	def verify_code_size_ratchet(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
 			run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)
 	# 2026-11-24
 	# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 	# https://github.com/dmitry-ai/harness/issues/206
+	# @used-by :meth:`test_subprocess_hygiene_and_tree_kill.SubprocessHygieneAndTreeKillTests.test_pre_commit_and_pre_tool_use_enforce_subprocess_hygiene_ratchet()`
+	# @uses :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
 	def verify_subprocess_hygiene(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
 			run_staged_gate('subprocess_hygiene_gate', 'verify_staged_subprocess_hygiene', self.root, relative, use_index=use_index)
@@ -357,6 +479,8 @@ class GitRepoGate:
 	# 2026-11-24
 	# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 	# https://github.com/dmitry-ai/harness/issues/206
+	# @used-by :meth:`GitRepoGate._verify_agent_staged()`
+	# @uses :func:`agent_tools.tdd.enforcement.verify_staged_tdd_diff()`
 	def verify_tdd_commit(self, relative: list[str], message: str | None=None, *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
 			run_staged_gate('tdd_gate', 'verify_staged_tdd_diff', self.root, relative, message=message, project_root=self._tdd_project_root(), use_index=use_index)
@@ -366,6 +490,10 @@ class GitRepoGate:
 	# 2026-11-02
 	# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 	# https://github.com/dmitry-ai/harness/issues/39
+	# @used-by :func:`verify_issue_workflow()`
+	# @used-by :meth:`GitRepoGate._verify_agent_staged()`
+	# @used-by :meth:`GitRepoGate.run_hook()`
+	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 	def verify_issue_workflow(self, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 		if agent_context:
 			stripped_msg = None
@@ -421,6 +549,9 @@ class GitRepoGate:
 	# 2026-11-02
 	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 	# https://github.com/dmitry-ai/harness/issues/38
+	# @used-by :func:`verify_push_blob_sizes()`
+	# @used-by :meth:`GitRepoGate.run_hook()`
+	# @used-by :meth:`GitRepoGate.verify_write_invocation()`
 	def verify_push_blob_sizes(self, stdin_lines: list[str] | None=None) -> None:
 		if (self.root / '.git').exists():
 			rev_args: list[str] = []
@@ -449,6 +580,10 @@ class GitRepoGate:
 	# 2026-11-02
 	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 	# https://github.com/dmitry-ai/harness/issues/38
+	# @used-by :func:`verify_staged_blob_sizes()`
+	# @used-by :meth:`GitRepoGate.check_commit()`
+	# @used-by :meth:`GitRepoGate.run_hook()`
+	# @used-by :meth:`GitRepoGate.verify_write_invocation()`
 	def verify_staged_blob_sizes(self, staged_paths: list[str] | None=None) -> None:
 		if (self.root / '.git').exists():
 			paths = list(staged_paths) if None is not staged_paths else self._staged_paths()
@@ -467,6 +602,7 @@ class GitRepoGate:
 	# 2026-11-02
 	# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 	# https://github.com/dmitry-ai/harness/issues/39
+	# @used-by :func:`verify_git_write_invocation()`
 	def verify_write_invocation(self, argv: list[str] | tuple[str, ...], *, subcommand: str | None=None, cwd: Path | None=None, agent_context: bool | None=None) -> None:
 		cmd_name = subcommand if None is not subcommand else classify_git_argv(argv)[0]
 		if cmd_name in ('commit', 'push', 'filter-branch', 'merge', 'rebase', 'cherry-pick'):
@@ -517,9 +653,16 @@ class GitRepoGate:
 # "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 # https://github.com/dmitry-ai/harness/issues/67
 class WorktreeCommitTransaction:
+	# @used-by :func:`commit_in_worktree()`
+	# @used-by :func:`create_isolated_worktree()`
+	# @used-by :func:`remove_isolated_worktree()`
+	# @used-by :meth:`GitRepoGate.commit()`
+	# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
 	def __init__(self, gate: GitRepoGate, *, label: str='commit'):
 		self.gate = gate
 		self.label = label
+	# @used-by :func:`commit_in_worktree()`
+	# @used-by :meth:`GitRepoGate.commit()`
 	def commit(self, paths: list[str], message: str) -> list[str]:
 		self.gate.assert_toplevel()
 		if not message.strip():
@@ -556,12 +699,22 @@ class WorktreeCommitTransaction:
 	# 2026-11-24
 	# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
 	# https://github.com/dmitry-ai/harness/issues/201
+	# @used-by :func:`create_isolated_worktree()`
+	# @used-by :meth:`WorktreeCommitTransaction.commit()`
+	# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
 	def create(self) -> Path:
 		from .git_ignore import prepare_worktrees_base_dir
 		base, _ = prepare_worktrees_base_dir(self.gate.root)
 		r = base / f'{self.label}-{uuid.uuid4().hex[:10]}'
 		self.gate.git('worktree', 'add', '--detach', str(r), 'HEAD')
 		return r
+	# @used-by :func:`agent_tools.article.check_graph()`
+	# @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
+	# @used-by :func:`remove_isolated_worktree()`
+	# @used-by :meth:`WorktreeCommitTransaction.commit()`
+	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_cycles()`
+	# @used-by :meth:`test_experiments.ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
+	# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
 	def remove(self, wt_dir: Path) -> None:
 		resolved_wt = Path(wt_dir).resolve()
 		try:
@@ -579,6 +732,7 @@ class WorktreeCommitTransaction:
 # 2026-11-02
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
+# @used-by :func:`is_agent_git_context()`
 def _ancestor_process_names(pid: int | None=None) -> list[str]:
 	r: list[str] = []
 	if 'nt' == os.name:
@@ -611,6 +765,10 @@ def _ancestor_process_names(pid: int | None=None) -> list[str]:
 # 2026-11-02
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
+# @used-by :func:`git_shim.main()`
+# @used-by :meth:`GitRepoGate.run_hook()`
+# @used-by :meth:`GitRepoGate.verify_write_invocation()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: list[str] | tuple[str, ...] | None=None) -> bool:
 	environ = os.environ if None is env else env
 	has_env = any((isinstance(val, str) and bool(val.strip()) and (val.strip().lower() not in ('0', 'false', 'no')) for key in AGENT_ENV_KEYS for val in (environ.get(key),)))
@@ -624,6 +782,10 @@ def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: lis
 # 2026-11-02
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
+# @used-by :func:`git_shim.main()`
+# @used-by :func:`run_git_hook()`
+# @used-by :func:`verify_git_write_invocation()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: list[Path] | tuple[Path, ...] | None=None, check_running: bool=True) -> list[str]:
 	if None is not candidates:
 		lock_paths = [normalize_host_path(p) for p in candidates]
@@ -685,6 +847,7 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by unused
 def git(root: Path, *args) -> bytes:
 	return GitRepoGate(root).git(*args)
 # 2026-10-24
@@ -693,6 +856,8 @@ def git(root: Path, *args) -> bytes:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.cli_domains._op_git_read()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_read_git_and_git_shim_and_unflagged_detector()`
 def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[str]=()) -> dict:
 	if subcommand not in READ_SUBCOMMANDS:
 		raise ValueError(f'Unsupported read-only Git subcommand: {subcommand}')
@@ -706,22 +871,60 @@ def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[
 # 2026-11-24
 # "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
 # https://github.com/dmitry-ai/harness/issues/204
+# @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
+# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
+# @used-by :func:`agent_tools.repo_link_gate._cat_file_type()`
+# @used-by :func:`agent_tools.repo_link_gate._is_gitignored()`
+# @used-by :func:`agent_tools.repo_link_gate._load_blob_text()`
+# @used-by :func:`agent_tools.repo_link_gate._read_staged_markdown()`
+# @used-by :func:`agent_tools.repo_link_gate._repo_has_tag()`
+# @used-by :func:`agent_tools.repo_tag_gate._has_upstream()`
+# @used-by :func:`agent_tools.repo_tag_gate._read_local_tag_map()`
+# @used-by :func:`agent_tools.repo_tag_gate._read_remote_tags()`
+# @used-by :func:`agent_tools.repo_tags._commit_sha_and_day()`
+# @used-by :func:`agent_tools.repo_tags._read_tag_refs()`
+# @used-by :func:`agent_tools.repo_tags._resolve_commit_sha()`
+# @used-by :func:`agent_tools.repo_tags._validate_blob_fragment()`
+# @used-by :func:`agent_tools.repo_tags.commit_date_day()`
+# @used-by :func:`agent_tools.repo_tags.has_origin_remote()`
+# @used-by :func:`agent_tools.repo_tags.list_repo_tags()`
+# @used-by :func:`agent_tools.repo_tags.plan_retro_tags()`
+# @used-by :func:`agent_tools.repo_tags.remote_has_tag()`
+# @used-by :func:`agent_tools.repo_tags.tags_at_commit()`
+# @used-by :func:`agent_tools.repo_tags.validate_tree_path_and_fragment()`
 def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], **({'input': input_bytes} if None is not input_bytes else {'stdin': subprocess.DEVNULL}), capture_output=True, env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}, check=check, creationflags=_NO_WINDOW)
+# @used-by unused
 def _main_repo_for_worktree(root: Path) -> Path:
 	return GitRepoGate(root).main_repo()
+# @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
+# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
+# @used-by :func:`agent_tools.issues.parity._peer_code_repo_candidates()`
+# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
+# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._bind_issue_repos()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_repos_and_issues()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_touched_repos()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._check_close_commit_readiness()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
 def is_issue_tracked_code_repo(root: Path) -> bool:
 	return GitRepoGate(root).is_issue_tracked()
+# @used-by unused
 def ensure_repo_hooks(root: Path) -> Path | None:
 	return GitRepoGate(root).ensure_hooks()
+# @used-by unused
 def _check_blob_size_limits(rel_posix: str, size: int, *, kind: str, sha: str='') -> None:
 	GitRepoGate(Path.cwd())._check_blob_size_limits(rel_posix, size, kind=kind, sha=sha)
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def verify_staged_blob_sizes(root: Path, staged_paths: list[str] | None=None) -> None:
 	GitRepoGate(root).verify_staged_blob_sizes(staged_paths)
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def verify_push_blob_sizes(root: Path, stdin_lines: list[str] | None=None) -> None:
 	GitRepoGate(root).verify_push_blob_sizes(stdin_lines=stdin_lines)
+# @used-by unused
 def _extract_added_diff_urls(root: Path, rel_name: str) -> tuple[set[str], set[str]]:
 	return GitRepoGate(root)._extract_added_diff_urls(rel_name)
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
 def verify_issue_workflow(root: Path, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 	GitRepoGate(root).verify_issue_workflow(relative, message=message, agent_context=agent_context)
 # 2026-10-31
@@ -730,6 +933,9 @@ def verify_issue_workflow(root: Path, relative: list[str], message: str | None=N
 # 2026-11-13
 # "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
 # https://github.com/dmitry-ai/harness/issues/53
+# @used-by :func:`agent_tools.tdd.events._is_git_commit_command()`
+# @used-by :func:`run_git_hook()`
+# @used-by :func:`verify_git_write_invocation()`
 def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> Path | None:
 	base_dir = normalize_host_path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
 	_, _, target_dir = _scan_git_global_opts(argv, base_dir=base_dir)
@@ -745,6 +951,11 @@ def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | No
 # 2026-11-02
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
+# @used-by :func:`git_shim.prepare_git_invocation()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
+# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | None=None, *, agent_context: bool | None=None) -> None:
 	cleanup_stale_credential_locks()
 	subcommand, _ = classify_git_argv(argv)
@@ -758,10 +969,19 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 # 2026-11-02
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
+# @used-by :func:`git_shim.main()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_doc_only_agent_commit_allowed_without_tests()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_ratchet_enforced_on_staged_test_edits_and_unlocked_by_ratchet_ok()`
+# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path | None=None, *, stdin_text: str | None=None, agent_context: bool | None=None) -> int:
 	cleanup_stale_credential_locks()
 	repo_root = resolve_git_repo_from_argv((), cwd=cwd)
 	return GitRepoGate(repo_root).run_hook(hook_name, argv, stdin_text=stdin_text, agent_context=agent_context) if None is not repo_root else 0
+# @used-by unused
 def _normalize_repo_paths(root: Path, paths: list[str]) -> list[str]:
 	return GitRepoGate(root).normalize_paths(paths)
 # 2026-10-11
@@ -770,21 +990,45 @@ def _normalize_repo_paths(root: Path, paths: list[str]) -> list[str]:
 # 2026-11-25
 # "Add comment-only diff lexer exemption for top 20 repository languages":
 # https://github.com/dmitry-ai/harness/issues/238
+# @used-by :meth:`test_agent_tools.GitTests.test_unrelated_staged_change_is_rejected()`
+# @used-by :meth:`test_agent_tools.GitTests.test_unstaged_change_rejected_and_explicit_commit_works()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_doc_only_agent_commit_allowed_without_tests()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_ratchet_enforced_on_staged_test_edits_and_unlocked_by_ratchet_ok()`
 def check_commit(root: Path, paths: list[str], *, message: str | None=None) -> list[str]:
 	return GitRepoGate(root, strict=True).check_commit(paths, message=message)
+# @used-by unused
 def create_isolated_worktree(root: Path, label: str='isolated') -> Path:
 	return WorktreeCommitTransaction(GitRepoGate(root, strict=True), label=label).create()
+# @used-by unused
 def remove_isolated_worktree(root: Path, wt_dir: Path) -> None:
 	WorktreeCommitTransaction(GitRepoGate(root, strict=True)).remove(wt_dir)
+# @used-by unused
 def commit_in_worktree(root: Path, paths: list[str], message: str) -> list[str]:
 	return WorktreeCommitTransaction(GitRepoGate(root, strict=True)).commit(paths, message)
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`test_agent_tools.GitTests.test_unstaged_change_rejected_and_explicit_commit_works()`
+# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
+# @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_ratchet_enforced_on_staged_test_edits_and_unlocked_by_ratchet_ok()`
 def commit(root: Path, paths: list[str], message: str, execute=False, *, worktree: bool=False):
 	return GitRepoGate(root, strict=True).commit(paths, message, execute=execute, worktree=worktree)
 # 2026-11-24
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
+# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
+# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._verify_required_repo_issues()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._check_close_commit_readiness()`
+# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_verify_issue_ready_for_close_allows_committed_header_issue_during_sibling_edit()`
+# @used-by :meth:`test_git_lifecycle_memoization.GitLifecycleMemoizationTests.test_verify_issue_ready_for_close_memoizes_parent_child_and_catches_defects()`
+# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_parent_child_issue_linking_bundled_subtasks_and_parent_closure()`
+# @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_verify_close_rejects_untagged_invalid_and_unpushed_tags_and_accepts_pushed_valid()`
 def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int, *, project_root: str | Path | None=None, git_cache=None) -> dict:
 	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number, project_root=project_root, git_cache=git_cache)

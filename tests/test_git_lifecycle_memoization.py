@@ -16,6 +16,8 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import git_gate, issue_lifecycle
 from agent_tools.repo_tags import ensure_commit_tag
+# @used-by :meth:`GitLifecycleMemoizationTests.test_audit_memoizes_readonly_git_commands_across_multiple_issues()`
+# @used-by :meth:`GitLifecycleMemoizationTests.test_verify_issue_ready_for_close_memoizes_parent_child_and_catches_defects()`
 def _git_subcommand(cmd) -> str | None:
 	r = None
 	if isinstance(cmd, (list, tuple)) and cmd and 'git' == Path(str(cmd[0])).stem.lower():
@@ -30,6 +32,8 @@ def _git_subcommand(cmd) -> str | None:
 				r = tok
 				break
 	return r
+# @used-by :meth:`GitLifecycleMemoizationTests.test_audit_memoizes_readonly_git_commands_across_multiple_issues()`
+# @used-by :meth:`GitLifecycleMemoizationTests.test_verify_issue_ready_for_close_memoizes_parent_child_and_catches_defects()`
 def _init_multi_issue_repo(base: Path) -> tuple[Path, Path]:
 	proj = base / 'proj'
 	code = proj / 'code'
@@ -50,6 +54,7 @@ def _init_multi_issue_repo(base: Path) -> tuple[Path, Path]:
 		_write_ev(ev_dir, num, state='closed', parent=10)
 	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main', '--tags'], check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 	return (proj, code)
+# @used-by :func:`_init_multi_issue_repo()`
 def _write_ev(ev_dir: Path, num: int, *, state: str='closed', parent: int | None=None) -> None:
 	body = f'Parent: [Issue #{parent}](https://github.com/acme/demo/issues/{parent})\n' if None is not parent else 'Problem statement.\n'
 	payload = {'url': f'https://github.com/acme/demo/issues/{num}', 'html_url': f'https://github.com/acme/demo/issues/{num}', 'repo': 'acme/demo', 'kind': 'issue', 'number': num, 'state': state, 'title': f'Issue {num}', 'body': body}
@@ -60,12 +65,14 @@ def _write_ev(ev_dir: Path, num: int, *, state: str='closed', parent: int | None
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
 class GitLifecycleMemoizationTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_audit_memoizes_readonly_git_commands_across_multiple_issues(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj, code = _init_multi_issue_repo(Path(tmp).resolve())
 			turn = {'touched_files': [str(code / 'a.py'), str(code / 'b.py'), str(code / 'c.py')], 'issue_actions': [{'url': f'https://github.com/acme/demo/issues/{n}', 'action': 'close', 'state': 'closed', 'parent_number': 10} for n in (11, 12, 13)]}
 			counts: Counter = Counter()
 			real_run = subprocess.run
+			# @used-by :meth:`GitLifecycleMemoizationTests.test_audit_memoizes_readonly_git_commands_across_multiple_issues()`
 			def spy_run(cmd, *args, **kwargs):
 				sub = _git_subcommand(cmd)
 				if None is not sub:
@@ -78,11 +85,13 @@ class GitLifecycleMemoizationTests(unittest.TestCase):
 			self.assertEqual(1, counts['log'], counts)
 			self.assertLessEqual(counts['rev-parse'], 1, counts)
 			self.assertLessEqual(counts['rev-list'], 1, counts)
+	# @used-by :mod:`unittest`
 	def test_verify_issue_ready_for_close_memoizes_parent_child_and_catches_defects(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj, code = _init_multi_issue_repo(Path(tmp).resolve())
 			counts: Counter = Counter()
 			real_run = subprocess.run
+			# @used-by :meth:`GitLifecycleMemoizationTests.test_verify_issue_ready_for_close_memoizes_parent_child_and_catches_defects()`
 			def spy_run(cmd, *args, **kwargs):
 				sub = _git_subcommand(cmd)
 				if None is not sub:

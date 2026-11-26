@@ -10,6 +10,9 @@ HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :meth:`HookLazyImportsTests.test_cdp_bypass_py_edit_and_read_skip_git_gate_and_still_blocks_loopback()`
+# @used-by :meth:`HookLazyImportsTests.test_check_markdown_slop_non_md_edit_skips_domain_imports()`
+# @used-by :meth:`HookLazyImportsTests.test_rules_gate_import_and_read_file_and_schedule_skip_heavy_modules()`
 def _run_probe(code: str) -> dict:
 	proc = subprocess.run([sys.executable, '-I', '-c', code, str(SCRIPTS.resolve())], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return json.loads(proc.stdout)
@@ -17,6 +20,7 @@ def _run_probe(code: str) -> dict:
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
 class HookLazyImportsTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cdp_bypass_py_edit_and_read_skip_git_gate_and_still_blocks_loopback(self) -> None:
 		code = (
 			'import json, sys\n'
@@ -36,6 +40,7 @@ class HookLazyImportsTests(unittest.TestCase):
 			other = Path(td).resolve() / 'ext.py'
 			self.assertIsNotNone(check('read_file', {'Path': str(Path(td).resolve() / 'DevToolsActivePort')}, {}))
 			self.assertIsNotNone(check('write_file', {'Path': str(other), 'Content': 'URL = "http://127.0.0.1:9222/devtools/page/1"\n'}, {}))
+	# @used-by :mod:`unittest`
 	def test_check_markdown_slop_non_md_edit_skips_domain_imports(self) -> None:
 		code = (
 			'import json, sys\n'
@@ -48,6 +53,7 @@ class HookLazyImportsTests(unittest.TestCase):
 		out = _run_probe(code)
 		self.assertEqual('allow', out['decision']['decision'])
 		self.assertEqual([], out['loaded'], f'check_markdown_slop eagerly imported: {out["loaded"]}')
+	# @used-by :mod:`unittest`
 	def test_discover_pre_tool_gates_tool_filtering_and_manifest_parity(self) -> None:
 		from agent_tools.gates import _BUILTIN_TOOLS_MANIFEST, discover_pre_tool_gates
 		read_names = [g['name'] for g in discover_pre_tool_gates(tool_name='read_file')]
@@ -60,6 +66,7 @@ class HookLazyImportsTests(unittest.TestCase):
 			stem = gate['module'].rsplit('.', 1)[-1]
 			self.assertIn(stem, _BUILTIN_TOOLS_MANIFEST, f'Missing manifest entry for {stem}')
 			self.assertEqual(set(_BUILTIN_TOOLS_MANIFEST[stem]), set(gate['tools'] or ()), f'Manifest mismatch for {stem}')
+	# @used-by :mod:`unittest`
 	def test_rules_gate_import_and_read_file_and_schedule_skip_heavy_modules(self) -> None:
 		code_imp = (
 			'import json, sys\n'

@@ -56,12 +56,20 @@ READ_ONLY_CDP_EXPRESSIONS = {
 _DOM_CAPTURE_EXPR = DOM_CAPTURE_EXPR
 _NODE_CLIENT = "\nlet input='';for await(const chunk of process.stdin) input+=chunk;\nconst {url,method,params,sessionId}=JSON.parse(input);\nconst result=await new Promise((resolve,reject)=>{\n const socket=new WebSocket(url);const timer=setTimeout(()=>{socket.close();reject(new Error('CDP timeout'));},12000);\n socket.onopen=()=>socket.send(JSON.stringify({id:1,method,params:params||{},...(sessionId?{sessionId}:{})}));\n socket.onerror=()=>{clearTimeout(timer);reject(new Error('CDP connection failed'));};\n socket.onmessage=event=>{const message=JSON.parse(event.data);if(message.id!==1)return;\n  clearTimeout(timer);socket.close();if(message.error)reject(new Error(JSON.stringify(message.error)));else resolve(message.result);};\n socket.onclose=()=>{clearTimeout(timer);reject(new Error('CDP socket closed before its response'));};\n});process.stdout.write(JSON.stringify(result));\n"
 _NODE_MUX_SESSION = "\nimport readline from 'node:readline';\nconst browserUrl=process.env.HARNESS_CDP_WS;\nconst pending=new Map();\nconst socket=new WebSocket(browserUrl);\nawait new Promise((resolve,reject)=>{\n const timer=setTimeout(()=>{try{socket.close();}catch{}reject(new Error('CDP browser connect timeout'));},10000);\n socket.onopen=()=>{clearTimeout(timer);resolve();};\n socket.onerror=()=>{clearTimeout(timer);reject(new Error('CDP browser connection failed'));};\n});\nprocess.stdout.write(JSON.stringify({ready:true})+'\\n');\nsocket.onmessage=event=>{\n let msg;try{msg=JSON.parse(event.data);}catch{return;}\n if(typeof msg.id!=='number'||!pending.has(msg.id))return;\n const entry=pending.get(msg.id);pending.delete(msg.id);clearTimeout(entry.timer);\n const out=msg.error?{req_id:msg.id,error:msg.error}:{req_id:msg.id,result:msg.result||{}};\n process.stdout.write(JSON.stringify(out)+'\\n');\n};\nsocket.onclose=()=>{\n for(const [id,entry] of pending.entries()){clearTimeout(entry.timer);process.stdout.write(JSON.stringify({req_id:id,error:{message:'CDP socket closed'}})+'\\n');}\n pending.clear();process.exit(0);\n};\nconst rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});\nrl.on('line',line=>{\n if(!line.trim())return;\n let req;try{req=JSON.parse(line);}catch{return;}\n if(req.close){try{socket.close();}catch{}rl.close();return;}\n const id=req.req_id;const timeoutMs=Math.max(1000,Number(req.timeout_ms||12000));\n const timer=setTimeout(()=>{if(pending.has(id)){pending.delete(id);process.stdout.write(JSON.stringify({req_id:id,error:{message:'CDP request timeout'}})+'\\n');}},timeoutMs);\n pending.set(id,{timer});\n const payload={id,method:req.method,params:req.params||{}};\n if(req.sessionId)payload.sessionId=req.sessionId;\n socket.send(JSON.stringify(payload));\n});\nrl.on('close',()=>{try{socket.close();}catch{}});\n"
+# @used-by :func:`browser_anchor_status()`
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`GuardedCDP.__init__()`
+# @used-by :meth:`ManagedHeadlessShell.__enter__()`
 def _http_json(url):
 	with urlopen(url, timeout=8) as response:
 		r = json.load(response)
 	return r
+# @used-by :func:`preflight()`
 def _normal_path(value):
 	return str(value).strip('"\'').replace('\\', '/').rstrip('/').casefold()
+# @used-by :func:`_endpoint_with_meta()`
+# @used-by :meth:`ManagedHeadlessShell.__enter__()`
 def _read_active_port_file(path_value):
 	lines = Path(path_value).expanduser().read_text(encoding='utf-8-sig').splitlines()
 	if not lines:
@@ -71,6 +79,8 @@ def _read_active_port_file(path_value):
 		raise ValueError('Invalid DevToolsActivePort')
 	ws_path = lines[1].strip() if 1 < len(lines) and lines[1].strip() else None
 	return (port, ws_path)
+# @used-by :func:`_endpoint()`
+# @used-by :func:`preflight()`
 def _endpoint_with_meta(session):
 	endpoint = session.get('endpoint')
 	ws_path = None
@@ -93,14 +103,29 @@ def _endpoint_with_meta(session):
 	if parsed.scheme not in ('http', 'https') or parsed.hostname not in _LOCAL_HOSTS or parsed.username or parsed.password or parsed.query or parsed.fragment or (parsed.path not in ('', '/')):
 		raise ValueError('A configured loopback CDP endpoint is required')
 	return (endpoint.rstrip('/'), ws_path, used_active_port)
+# @used-by :func:`browser_anchor_status()`
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`GuardedCDP._lock()`
 def _endpoint(session):
 	endpoint, _, _ = _endpoint_with_meta(session)
 	return endpoint
+# @used-by :func:`_verify_context_anchor()`
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :func:`browser_anchor_status()`
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`discover_cdp_browser()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+# @used-by :meth:`ManagedHeadlessShell.__enter__()`
 def _checked_ws(value, endpoint):
 	actual, expected = (urlsplit(value or ''), urlsplit(endpoint))
 	if actual.scheme not in ('ws', 'wss') or actual.hostname != expected.hostname or actual.port != expected.port or actual.username or actual.password or actual.query or actual.fragment:
 		raise ValueError('Discovered CDP websocket does not belong to the configured endpoint')
 	return value
+# @used-by :func:`browser_anchor_status()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`GuardedCDP.__init__()`
 def _session(spec, config):
 	identifier = spec.get('session_id')
 	sessions = config.get('text', {}).get('browser', {}).get('sessions', {})
@@ -110,6 +135,7 @@ def _session(spec, config):
 	if value.get('surface') not in ('browser', 'codex', 'antigravity'):
 		raise ValueError('Session surface must distinguish browser, codex or antigravity')
 	return value
+# @used-by :func:`preflight()`
 def _profile(session, config):
 	value = session.get('profile', {})
 	if value.get('path') and (value.get('platform') or value.get('name')):
@@ -125,6 +151,8 @@ def _profile(session, config):
 	if not isinstance(path, str) or not path.strip() or (not isinstance(argument, str)) or (not argument.startswith('--')):
 		raise ValueError('Session needs a profile path/reference and its observable command-line argument')
 	return (path, argument)
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`preflight()`
 def _argument_values(arguments, flag):
 	values = []
 	for index, argument in enumerate(arguments):
@@ -135,12 +163,19 @@ def _argument_values(arguments, flag):
 		elif argument == flag and index + 1 < len(arguments):
 			values.append(arguments[index + 1])
 	return values
+# @used-by :func:`_transport()`
+# @used-by :meth:`CDPSession.__enter__()`
 def _node_binary(config):
 	return config.get('text', {}).get('browser', {}).get('node') or config.get('platforms', {}).get('codex', {}).get('node')
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`GuardedCDP.__init__()`
+# @used-by :meth:`GuardedCDP._check()`
 def _transport(config, override):
 	if None is not override:
 		return override
 	node = _node_binary(config)
+	# @used-by :func:`_transport()`
 	def call(url, method, params, session_id=None):
 		if not node:
 			raise ValueError('Configure a Node runtime for the built-in CDP transport')
@@ -156,6 +191,14 @@ def _transport(config, override):
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
 class CDPSession:
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :func:`browser_anchor_status()`
+	# @used-by :func:`collect_cdp_dom()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :func:`preflight()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`GuardedCDP.create_target()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __init__(self, browser_ws, config=None, *, cdp_call=None):
 		self.browser_ws = browser_ws
 		self.config = settings() if None is config else config
@@ -163,6 +206,14 @@ class CDPSession:
 		self._proc = None
 		self._req_id = 0
 		self._session_targets = {}
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :func:`browser_anchor_status()`
+	# @used-by :func:`collect_cdp_dom()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :func:`preflight()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`GuardedCDP.create_target()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __enter__(self):
 		if None is self._override:
 			node = _node_binary(self.config)
@@ -179,9 +230,26 @@ class CDPSession:
 				self.close()
 				raise RuntimeError('CDP session did not report ready')
 		return self
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :func:`browser_anchor_status()`
+	# @used-by :func:`collect_cdp_dom()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :func:`preflight()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`GuardedCDP.create_target()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __exit__(self, exc_type, exc, tb):
 		self.close()
 		return False
+	# @used-by :func:`_verify_context_anchor()`
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :func:`browser_anchor_status()`
+	# @used-by :func:`collect_cdp_dom()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`GuardedCDP._broker_create_tab()`
+	# @used-by :meth:`GuardedCDP._broker_remove_tab()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def attach_target(self, target_id, *, fallback_ws=None):
 		res = self.send('Target.attachToTarget', {'targetId': target_id, 'flatten': True})
 		sid = res.get('sessionId') if isinstance(res, dict) else None
@@ -195,6 +263,8 @@ class CDPSession:
 		else:
 			raise RuntimeError(f'CDP Target.attachToTarget did not return a sessionId for {target_id}')
 		return r
+	# @used-by :meth:`CDPSession.__enter__()`
+	# @used-by :meth:`CDPSession.__exit__()`
 	def close(self):
 		proc = self._proc
 		self._proc = None
@@ -217,6 +287,15 @@ class CDPSession:
 						stream.close()
 					except OSError:
 						pass
+	# @used-by :func:`_verify_context_anchor()`
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :func:`browser_anchor_status()`
+	# @used-by :func:`collect_cdp_dom()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`GuardedCDP._broker_create_tab()`
+	# @used-by :meth:`GuardedCDP._broker_remove_tab()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def detach_target(self, session_id):
 		if isinstance(session_id, str) and session_id and (not session_id.startswith('compat:')):
 			try:
@@ -224,6 +303,20 @@ class CDPSession:
 			except Exception:
 				pass
 		self._session_targets.pop(session_id, None)
+	# @used-by :func:`_poll_dom_on_session()`
+	# @used-by :func:`_query_target_infos()`
+	# @used-by :func:`_verify_context_anchor()`
+	# @used-by :func:`agent_tools.upwork_extract._eval_session()`
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :func:`browser_anchor_status()`
+	# @used-by :func:`collect_cdp_dom()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`CDPSession.attach_target()`
+	# @used-by :meth:`CDPSession.detach_target()`
+	# @used-by :meth:`GuardedCDP._broker_create_tab()`
+	# @used-by :meth:`GuardedCDP._broker_remove_tab()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def send(self, method, params=None, *, session_id=None, timeout_ms=12000):
 		params = deepcopy(params or {})
 		if None is not self._override:
@@ -255,6 +348,10 @@ class CDPSession:
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
 class ManagedHeadlessShell:
+	# @used-by :func:`agent_tools.research.collect_browser_batch()`
+	# @used-by :func:`agent_tools.research.collect_plan()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __init__(self, config=None, *, executable=None):
 		self.config = settings() if None is config else config
 		self.executable = Path(executable) if executable else resolve_headless_shell(self.config)
@@ -263,6 +360,10 @@ class ManagedHeadlessShell:
 		self.endpoint = None
 		self.browser_ws = None
 		self.version = None
+	# @used-by :func:`agent_tools.research.collect_browser_batch()`
+	# @used-by :func:`agent_tools.research.collect_plan()`
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __enter__(self):
 		if not self.executable.is_file():
 			raise FileNotFoundError(f'Configured chrome-headless-shell executable does not exist: {self.executable}')
@@ -301,9 +402,13 @@ class ManagedHeadlessShell:
 			self.close()
 			raise RuntimeError('chrome-headless-shell /json/version did not become ready')
 		return self
+	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __exit__(self, exc_type, exc, tb):
 		self.close()
 		return False
+	# @used-by :meth:`ManagedHeadlessShell.__enter__()`
+	# @used-by :meth:`ManagedHeadlessShell.__exit__()`
 	def close(self):
 		proc = self._proc
 		self._proc = None
@@ -329,6 +434,10 @@ class ManagedHeadlessShell:
 				temp_dir.cleanup()
 			except OSError:
 				pass
+# @used-by :func:`headless_mcp_args()`
+# @used-by :meth:`ManagedHeadlessShell.__init__()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_m1_live_headless_shell_public_isolation_and_h_chs_6_static_skip()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 def resolve_headless_shell(config=None):
 	cfg = settings() if None is config else config
 	hs_cfg = cfg.get('text', {}).get('browser', {}).get('headless_shell') or {}
@@ -352,9 +461,13 @@ def resolve_headless_shell(config=None):
 		if cand.is_file():
 			return cand.resolve()
 	raise FileNotFoundError('chrome-headless-shell executable not found; configure text.browser.headless_shell.executable in runtime.json')
+# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
 def headless_mcp_args(config=None):
 	exe = resolve_headless_shell(config)
 	return ['--headless', '--isolated', f'--executablePath={exe.as_posix()}']
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`GuardedCDP._broker_create_tab()`
 def _query_target_infos(cdp_sess, fallback_targets):
 	infos = []
 	try:
@@ -370,6 +483,7 @@ def _query_target_infos(cdp_sess, fallback_targets):
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`preflight()`
 def _verify_context_anchor(prof_cfg, target_infos, targets, endpoint, cdp_sess, report):
 	ext_id = prof_cfg.get('extension_id')
 	sentinel_origin = prof_cfg.get('sentinel_origin')
@@ -438,6 +552,14 @@ def _verify_context_anchor(prof_cfg, target_infos, targets, endpoint, cdp_sess, 
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :func:`browser_anchor_status()`
+# @used-by :meth:`GuardedCDP._check()`
+# @used-by :meth:`GuardedCDP.call()`
+# @used-by :meth:`GuardedCDP.create_target()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.check()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_live_account_marker_is_separate_from_profile_and_caller_assertion()`
 def preflight(spec, *, config=None, http_get=None, cdp_call=None, require_target=True, cdp_session=None):
 	config = settings() if None is config else config
 	report = {'schema_version': 1, 'session_id': spec.get('session_id'), 'valid': False, 'profile': {'status': 'unknown'}, 'target': {'status': 'unknown'}, 'account': {'status': 'unknown'}, 'issues': [], 'independent_http_allowed': True, 'limitation': 'Cooperative check of the configured live CDP endpoint; it does not prove server internals, model reading, or ownership of external calls'}
@@ -504,6 +626,7 @@ def preflight(spec, *, config=None, http_get=None, cdp_call=None, require_target
 			else:
 				if 'verified' == report['profile']['status']:
 					report['profile']['status'] = 'unknown'
+				# @used-by :func:`preflight()`
 				@contextmanager
 				def _mux():
 					if None is not cdp_session:
@@ -573,6 +696,8 @@ def preflight(spec, *, config=None, http_get=None, cdp_call=None, require_target
 	except (ValueError, OSError, RuntimeError, TypeError, KeyError, IndexError) as exc:
 		report['issues'].append(str(exc))
 	return report
+# @used-by :meth:`GuardedCDP.call()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_javascript_read_requires_v8_side_effect_guard()`
 def operation(method, params=None):
 	params = params or {}
 	if method in _NEVER:
@@ -595,6 +720,9 @@ def operation(method, params=None):
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`collect_headless_dom()`
+# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 	deadline = time.time() + max(1.0, float(timeout))
 	data = None
@@ -631,6 +759,12 @@ def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
 class GuardedCDP:
+	# @used-by :func:`agent_tools.research.capture_dom()`
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :func:`collect_cdp_dom()`
+	# @used-by :func:`test_text_browser.dom_fixture()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.guard()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 	def __init__(self, root, spec, *, config=None, http_get=None, cdp_call=None):
 		if None is root or not str(root).strip():
 			raise ValueError('An explicit project root is required')
@@ -644,16 +778,29 @@ class GuardedCDP:
 		self._cdp_override = cdp_call
 		self.call_native = _transport(self.config, cdp_call)
 		self._owned = {}
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :meth:`GuardedCDP.call()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`GuardedCDP.create_target()`
+	# @used-by :meth:`GuardedCDP.inspect()`
+	# @used-by :meth:`GuardedCDP.select_owned()`
 	@contextmanager
 	def _lock(self):
 		with _endpoint_lock(_endpoint(self.session), self.config):
 			yield
+	# @used-by :meth:`GuardedCDP.call()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`GuardedCDP.create_target()`
+	# @used-by :meth:`GuardedCDP.inspect()`
 	def _check(self, *, require_target=True, cdp_session=None):
 		override = None if self.call_native is _transport(self.config, self._cdp_override) and None is self._cdp_override else self.call_native
 		report = preflight(self.spec, config=self.config, http_get=self.get, cdp_call=override, require_target=require_target, cdp_session=cdp_session)
 		if not report['valid']:
 			raise PermissionError('; '.join(report['issues']) or 'CDP profile/target is unknown')
 		return report
+	# @used-by :meth:`GuardedCDP.call()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`GuardedCDP.create_target()`
 	def _permitted(self, op):
 		allowed = set(self.session.get('allowed_operations', []))
 		if 'allowed_operations' in self.spec:
@@ -663,6 +810,9 @@ class GuardedCDP:
 	# 2026-11-16
 	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 	# https://github.com/dmitry-ai/harness/issues/80
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+	# @used-by :meth:`GuardedCDP.create_target()`
 	def _broker_create_tab(self, cdp_sess, anchor_target_id, verified_ctx, url, endpoint):
 		nonce = uuid.uuid4().hex
 		placeholder = f'about:blank#{nonce}'
@@ -701,6 +851,8 @@ class GuardedCDP:
 			raise
 		finally:
 			cdp_sess.detach_target(anchor_sid)
+	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 	def _broker_remove_tab(self, cdp_sess, anchor_target_id, ext_tab_id, target_id):
 		closed = False
 		if anchor_target_id and None is not ext_tab_id:
@@ -722,10 +874,13 @@ class GuardedCDP:
 			except Exception:
 				closed = False
 		return closed
+	# @used-by :func:`agent_tools.research.capture_dom()`
 	def inspect(self, *, require_target=True):
 		with self._lock():
 			r = self._check(require_target=require_target)
 		return r
+	# @used-by :func:`agent_tools.research.capture_dom()`
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 	def call(self, method, params=None, *, include_identity=False):
 		params = deepcopy(params or {})
 		op = operation(method, params)
@@ -762,6 +917,7 @@ class GuardedCDP:
 						owned['url'] = after['target']['url']
 			r = (result, deepcopy(report)) if include_identity else result
 		return r
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_only_real_created_target_can_be_mutated_and_ownership_change_stops_close()`
 	def create_target(self, url, *, background=False, hidden=False):
 		if 'browser' != self.session['surface']:
 			raise PermissionError('Desktop application window creation is unsupported')
@@ -802,6 +958,7 @@ class GuardedCDP:
 	# 2026-11-16
 	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 	# https://github.com/dmitry-ai/harness/issues/80
+	# @used-by :func:`collect_cdp_dom()`
 	def capture_authenticated_dom(self, url, *, timeout=15):
 		if 'browser' != self.session['surface']:
 			raise PermissionError('Authenticated DOM capture requires a browser session surface')
@@ -859,6 +1016,7 @@ class GuardedCDP:
 				raise RuntimeError('Authenticated CDP DOM capture returned empty or invalid HTML')
 			identity_ref, identity_hash = save_cdp_identity(self.root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'session_id': self.spec['session_id'], 'endpoint': endpoint, 'browser': report['browser']['product'], 'browser_websocket': browser_ws, 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'profile': report['profile']})
 			return {'url': data.get('url') or url, 'html': data['html'], 'title': data.get('title') or '', 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash, 'endpoint': endpoint}
+	# @used-by :meth:`test_text_browser.TextBrowserTests.test_only_real_created_target_can_be_mutated_and_ownership_change_stops_close()`
 	def select_owned(self, identifier):
 		with self._lock():
 			if identifier not in self._owned:
@@ -868,6 +1026,8 @@ class GuardedCDP:
 # 2026-10-31
 # "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
 # https://github.com/dmitry-ai/harness/issues/27
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :meth:`GuardedCDP._lock()`
 @contextmanager
 def _endpoint_lock(endpoint, config):
 	key = hashlib.sha256(endpoint.encode()).hexdigest()
@@ -886,6 +1046,7 @@ def _endpoint_lock(endpoint, config):
 # 2026-10-31
 # "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
 # https://github.com/dmitry-ai/harness/issues/27
+# @used-by :func:`collect_cdp_dom()`
 def resolve_cdp_port(config=None, explicit_port=None):
 	if None is not explicit_port:
 		r = int(explicit_port)
@@ -905,6 +1066,7 @@ def resolve_cdp_port(config=None, explicit_port=None):
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`collect_cdp_dom()`
 def collect_headless_dom(root, url, *, timeout=15, config=None, headless_shell=None):
 	if None is root or not str(root).strip():
 		raise ValueError('An explicit project root is required')
@@ -916,6 +1078,7 @@ def collect_headless_dom(root, url, *, timeout=15, config=None, headless_shell=N
 	parsed_req = urlsplit(clean_url)
 	if parsed_req.scheme not in ('http', 'https') or not parsed_req.hostname:
 		raise ValueError('A valid HTTP(S) URL is required for headless DOM collection')
+	# @used-by :func:`collect_headless_dom()`
 	@contextmanager
 	def _shell_ctx():
 		if None is not headless_shell:
@@ -969,6 +1132,8 @@ def collect_headless_dom(root, url, *, timeout=15, config=None, headless_shell=N
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`agent_tools.research.collect_browser()`
+# @used-by :func:`agent_tools.research.collect_plan()`
 def collect_cdp_dom(root, url, *, cdp_port=None, session_id=None, timeout=15, config=None, http_get=None, cdp_call=None, headless_shell=None):
 	if None is root or not str(root).strip():
 		raise ValueError('An explicit project root is required')
@@ -1034,6 +1199,7 @@ def collect_cdp_dom(root, url, *, cdp_port=None, session_id=None, timeout=15, co
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`agent_tools.upwork_project.run()`
 def browser_anchor_status(*, session_id=None, init_sentinel_tab=None, config=None, http_get=None, cdp_call=None):
 	cfg = settings() if None is config else deepcopy(config)
 	sid = session_id or cfg.get('text', {}).get('browser', {}).get('primary_session_id') or 'chrome-default'
@@ -1064,6 +1230,11 @@ def browser_anchor_status(*, session_id=None, init_sentinel_tab=None, config=Non
 # 2026-11-13
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
+# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+# @used-by :func:`browser_anchor_status()`
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`
 def discover_cdp_browser(endpoint, get):
 	version, targets = (get(endpoint + '/json/version'), get(endpoint + '/json/list'))
 	if not isinstance(version, dict) or not isinstance(targets, list):
@@ -1075,6 +1246,9 @@ def discover_cdp_browser(endpoint, get):
 # 2026-11-13
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`preflight()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`
 def probe_cdp_arguments(browser_ws, call):
 	observed = call(browser_ws, 'Browser.getBrowserCommandLine', {})
 	r = observed.get('arguments') if isinstance(observed, dict) else None
@@ -1084,6 +1258,12 @@ def probe_cdp_arguments(browser_ws, call):
 # 2026-11-13
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
+# @used-by :func:`agent_tools.research.capture_dom()`
+# @used-by :func:`collect_cdp_dom()`
+# @used-by :func:`collect_headless_dom()`
+# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`
 def save_cdp_identity(root, observed_identity):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":

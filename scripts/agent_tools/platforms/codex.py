@@ -18,6 +18,8 @@ from .trace_common import UUID_PATTERN, build_native_review_proof, collect_promp
 # 2026-11-18
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# @used-by :func:`_trace()`
+# @used-by :meth:`CodexTurnScanner._index_profile_subagents()`
 def _state_db_files(paths_or_home):
 	if isinstance(paths_or_home, dict):
 		home = _local_path(paths_or_home['home']) if paths_or_home.get('home') else None
@@ -32,6 +34,7 @@ def _state_db_files(paths_or_home):
 # "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
 # https://github.com/dmitry-ai/harness/issues/61
 class CodexTurnScanner:
+	# @used-by :func:`native_answers()`
 	def __init__(self, root, conversation_id, *, backend=None, instance=None):
 		self.root = root
 		self.root_p = Path(root).resolve()
@@ -58,6 +61,7 @@ class CodexTurnScanner:
 	# 2026-11-13
 	# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 	# https://github.com/dmitry-ai/harness/issues/64
+	# @used-by :meth:`CodexTurnScanner._finalize_turn()`
 	def _collect_subagent_bfs(self, t_idx, turn, acc):
 		visited_sub_ids = {self.conversation_id}
 		is_last_turn = t_idx == len(self.turn_entries) - 1
@@ -76,6 +80,7 @@ class CodexTurnScanner:
 	# 2026-11-01
 	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 	# https://github.com/dmitry-ai/harness/issues/34
+	# @used-by :meth:`CodexTurnScanner.scan()`
 	def _finalize_turn(self, t_idx, turn, acc):
 		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(acc['all_request_steps'])
 		# 2026-10-31
@@ -95,6 +100,7 @@ class CodexTurnScanner:
 	# 2026-11-07
 	# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 	# https://github.com/dmitry-ai/harness/issues/48
+	# @used-by :meth:`CodexTurnScanner._collect_subagent_bfs()`
 	def _index_profile_subagents(self):
 		if not self.indexed_subagents:
 			self.indexed_subagents = True
@@ -134,6 +140,7 @@ class CodexTurnScanner:
 								parent_children.append(tid)
 					except (OSError, ValueError, KeyError, TypeError, AttributeError):
 						continue
+	# @used-by :meth:`CodexTurnScanner.scan()`
 	def _load_context(self):
 		from .request_binding import completion_project_id
 		_, self.path, _, self.rows = _trace(self.home, self.conversation_id, paths=self.paths)
@@ -142,6 +149,7 @@ class CodexTurnScanner:
 		self.expected_job_id = completion_project_id(self.root)
 		selected, self.scope_active, self.scope_binding = _request_scope(self.root, self.rows, identifier=self.expected_job_id)
 		self.requests = {index: {'id': f'codex:{self.conversation_id}:{index}', 'text': text, 'native_step': index, 'project_binding': binding} for index, text, binding in selected}
+	# @used-by :meth:`CodexTurnScanner._collect_subagent_bfs()`
 	def _resolve_subagent_child(self, sub_id, expected_parent, anchor, turn, acc):
 		r = None
 		if sub_id not in self.thread_parent_map or (self.thread_parent_map[sub_id] and self.thread_parent_map[sub_id] == expected_parent):
@@ -156,6 +164,7 @@ class CodexTurnScanner:
 	# 2026-11-23
 	# "Prepend JSON metadata headers to new journal responses":
 	# https://github.com/dmitry-ai/harness/issues/151
+	# @used-by :meth:`CodexTurnScanner.scan()`
 	def _scan_primary_turns(self):
 		current, acc = (None, None)
 		last_ctx_model, last_ctx_effort = (None, None)
@@ -253,6 +262,7 @@ class CodexTurnScanner:
 					if is_df_github_issue_command(eff_cmd):
 						acc['pending_issue_cmds'][payload['call_id']] = (index, eff_cmd)
 		self.current_turn = current
+	# @used-by :meth:`CodexTurnScanner._resolve_subagent_child()`
 	def _visit_subagent_rows(self, sub_id, sub_rows, anchor, turn, acc):
 		r, sub_outputs, sub_spawn_call_ids = ([], [], set())
 		sub_pending_tdd: dict[str, dict] = {}
@@ -306,6 +316,7 @@ class CodexTurnScanner:
 	# 2026-11-23
 	# "Prepend JSON metadata headers to new journal responses":
 	# https://github.com/dmitry-ai/harness/issues/151
+	# @used-by :func:`native_answers()`
 	def scan(self):
 		self._load_context()
 		self._scan_primary_turns()
@@ -323,13 +334,26 @@ _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`_request_scope()`
+# @used-by :func:`_state_db_files()`
+# @used-by :func:`_trace()`
+# @used-by :meth:`CodexTurnScanner._index_profile_subagents()`
 def _local_path(value):
 	return local_uri_to_path(value)
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# @used-by :func:`_home()`
+# @used-by :func:`_trace()`
+# @used-by :func:`native_executor_metadata()`
+# @used-by :func:`native_requests()`
+# @used-by :func:`native_review_proof()`
+# @used-by :func:`native_tool_trace()`
+# @used-by :func:`require_current_binding()`
+# @used-by :meth:`CodexTurnScanner.__init__()`
 def _paths(backend=None, profile=None, *, conversation_id=None):
 	return resolve_codex_paths(backend, instance=profile, conversation_id=conversation_id, codex_cfg=platform_settings('codex'))
+# @used-by unused
 def _home(backend=None, profile=None, *, conversation_id=None):
 	return _paths(backend, profile=profile, conversation_id=conversation_id)['home']
 # 2026-10-15
@@ -341,6 +365,15 @@ def _home(backend=None, profile=None, *, conversation_id=None):
 # 2026-11-18
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# @used-by :func:`native_executor_metadata()`
+# @used-by :func:`native_requests()`
+# @used-by :func:`native_review_proof()`
+# @used-by :func:`native_tool_trace()`
+# @used-by :func:`require_current_binding()`
+# @used-by :meth:`CodexTurnScanner._load_context()`
+# @used-by :meth:`CodexTurnScanner._resolve_subagent_child()`
+# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_existing_codex_review_model_gate_still_rejects_missing_actual_context()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
 def _trace(home, conversation_id, *, paths=None):
 	resolved = paths or _paths(home, conversation_id=conversation_id)
 	home = _local_path(resolved['home']) if resolved.get('home') else None
@@ -379,6 +412,7 @@ def _trace(home, conversation_id, *, paths=None):
 	if not rows or 'session_meta' != rows[0][1].get('type') or rows[0][1]['payload'].get('id') != conversation_id:
 		raise ValueError('Codex trace identity differs from native database')
 	return (row, path, raw, rows)
+# @used-by :func:`_request_scope()`
 def _messages(rows, role):
 	for index, item in rows:
 		payload = item.get('payload', {})
@@ -389,6 +423,8 @@ def _messages(rows, role):
 			texts = [part['text'] for part in content if part.get('type') in ('input_text', 'output_text') and isinstance(part.get('text'), str)]
 			if texts:
 				yield (index, ''.join(texts), payload)
+# @used-by :func:`_request_scope()`
+# @used-by :meth:`CodexTurnScanner._scan_primary_turns()`
 def _actual_user_input(text, payload):
 	kinds = payload.get('internal_chat_message_metadata_passthrough', {}).get('content_item_kinds', [])
 	if 'user.text' in kinds:
@@ -409,6 +445,9 @@ def _actual_user_input(text, payload):
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
+# @used-by :func:`native_requests()`
+# @used-by :func:`require_current_binding()`
+# @used-by :meth:`CodexTurnScanner._load_context()`
 def _request_scope(root, rows, *, until=None, identifier=None):
 	from .request_binding import native_project_id, scoped_inputs
 	job_id = identifier if None is not identifier else native_project_id(root)
@@ -434,6 +473,15 @@ def _request_scope(root, rows, *, until=None, identifier=None):
 # 2026-11-21
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_changed_cwd_before_and_after_user_input_does_not_import_foreign_turn()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_injected_rules_and_environment_are_excluded_but_user_text_is_unchanged()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_missing_native_root_keeps_legacy_job_id_but_foreign_root_does_not()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_same_words_in_another_native_root_do_not_establish_ownership()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_exact_user_text_job_scope_and_cross_platform_request_merge()`
+# @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_codex_requests_preserve_exact_text_without_analysis_project()`
 def native_requests(root, conversation_id, *, backend=None, instance=None):
 	paths = _paths(backend, profile=instance, conversation_id=conversation_id)
 	home = paths['home']
@@ -445,6 +493,9 @@ def native_requests(root, conversation_id, *, backend=None, instance=None):
 # 2026-11-23
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_missing_native_root_keeps_legacy_job_id_but_foreign_root_does_not()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_same_words_in_another_native_root_do_not_establish_ownership()`
 def require_current_binding(root, conversation_id, *, backend=None, instance=None, rows=None, until=None):
 	from .request_binding import format_binding_diagnostic, native_project_id
 	if None is rows:
@@ -459,6 +510,9 @@ def require_current_binding(root, conversation_id, *, backend=None, instance=Non
 # 2026-11-07
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`CodexTurnScanner._scan_primary_turns()`
+# @used-by :meth:`CodexTurnScanner._visit_subagent_rows()`
 def _extract_codex_target_subagents(raw_args) -> list[str]:
 	parsed_args = parse_tool_args(raw_args)
 	candidates = [val.strip().lower() for key in ('id', 'Recipient', 'agent_id', 'subagent_id') for val in [parsed_args.get(key)] if isinstance(val, str)]
@@ -469,6 +523,8 @@ def _extract_codex_target_subagents(raw_args) -> list[str]:
 # 2026-11-07
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
+# @used-by :meth:`CodexTurnScanner._collect_subagent_bfs()`
+# @used-by :meth:`CodexTurnScanner._visit_subagent_rows()`
 def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 	r = []
 	if isinstance(out_text, str) and out_text.strip():
@@ -491,13 +547,26 @@ def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 # 2026-11-13
 # "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
 # https://github.com/dmitry-ai/harness/issues/61
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue48_codex_subagent_aggregation_ignores_read_output_uuids()`
+# @used-by :meth:`test_turn_completion.CodexTurnScannerTests.test_service_steps_parity_subagent_cache_and_bfs_depth_cap()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_external_journal_cannot_bypass_the_current_client_document_gate()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_matching_native_request_ids_reuse_an_existing_record_answer_group()`
+# @used-by :meth:`test_turn_completion.CompletionCase.tracked()`
 def native_answers(root, conversation_id, *, backend=None, instance=None):
 	return CodexTurnScanner(root, conversation_id, backend=backend, instance=instance).scan()
+# @used-by :func:`_selection()`
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_existing_codex_review_model_gate_still_rejects_missing_actual_context()`
 def _model(rows, before=None):
 	contexts = [item['payload'] for index, item in rows if 'turn_context' == item.get('type') and (None is before or index <= before)]
 	if not contexts or not contexts[-1].get('model') or (not contexts[-1].get('effort')):
 		raise ValueError('Actual Codex model/effort is unavailable in native turn context')
 	return {key: contexts[-1][key] for key in ('model', 'effort')}
+# @used-by :func:`_selection()`
+# @used-by :func:`native_executor_metadata()`
+# @used-by :func:`native_review_proof()`
 def _spawn(parent_rows, child_meta):
 	path, created, matches = (child_meta['source']['subagent']['thread_spawn'].get('agent_path', ''), child_meta.get('timestamp'), [])
 	for index, item in parent_rows:
@@ -509,6 +578,8 @@ def _spawn(parent_rows, child_meta):
 	if not matches:
 		raise ValueError('Native parent spawn call and its model selection are not established')
 	return matches[-1]
+# @used-by :func:`native_executor_metadata()`
+# @used-by :func:`native_review_proof()`
 def _selection(parent_rows, child_meta, invocation=None):
 	index, call_id, arguments = invocation or _spawn(parent_rows, child_meta)
 	parent = _model(parent_rows, before=index)
@@ -523,6 +594,13 @@ def _selection(parent_rows, child_meta, invocation=None):
 # 2026-11-13
 # "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
 # https://github.com/dmitry-ai/harness/issues/58
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_codex_aa_and_af_use_actual_spawn_selection()`
+# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_codex_explicit_requested_actual_model_mismatch_is_reported()`
+# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_codex_missing_native_context_is_explicitly_unverified()`
+# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_codex_primary_distinguishes_requested_unknown_from_observed()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Unknown executor role')
@@ -556,6 +634,7 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
 def native_tool_trace(root, request):
 	conversation_id = request.get('conversation_id', '')
 	paths = _paths(request.get('native_profile_home'), profile=request.get('instance'), conversation_id=conversation_id)
@@ -601,6 +680,7 @@ def native_tool_trace(root, request):
 				pass
 		events.append(make_tool_trace_event(call_id, index, output_index, call.get('name', ''), arguments, result, not error, created_at, completed_at, [call, output], namespace=call.get('namespace')))
 	return {'surface': 'codex-ui', 'conversation_id': conversation_id, 'native_profile_home': str(home), 'call_ids': ids, 'native_log': str(path), 'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
+# @used-by :func:`native_review_proof()`
 def _assignment_source(rows, meta, assignment):
 	r = None
 	path = meta['source']['subagent']['thread_spawn']['agent_path']
@@ -619,11 +699,14 @@ def _assignment_source(rows, meta, assignment):
 # 2026-11-14
 # "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
 # https://github.com/dmitry-ai/harness/issues/72
+# @used-by :func:`_review_inputs()`
 def _json_objects(value):
 	return iter_embedded_json_objects(value, parse_root=False)
 # 2026-11-21
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 def _review_inputs(root, rows, parent_id, reviewer_id):
 	from ..path_registry import canonicalize_root_dir, same_project_root
 	from ..research import inside
@@ -660,6 +743,13 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 # 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
+# @used-by :func:`verify_native_proof()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
+# @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_encrypted_assignment_or_missing_native_package_execution_cannot_prove_a_review()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_native_windows_extended_path_keeps_the_profile_boundary()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
+# @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_codex_native_review_for_text_has_no_fabricated_upwork_job()`
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
 	paths = _paths(backend, profile=instance, conversation_id=reviewer_id or parent_id)
 	home = paths['home']
@@ -704,6 +794,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 # 2026-11-13
 # "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/52
+# @used-by :func:`agent_tools.platforms.adapter()`
 def verify_native_proof(root, native, package=None):
 	home = Path(native.get('native_profile_home', '')).resolve()
 	allowed_homes = [Path(value).resolve() for value in extract_platform_homes(platform_settings('codex'), platform='codex', include_disabled=True).values()]
@@ -716,6 +807,8 @@ def verify_native_proof(root, native, package=None):
 # 2026-10-17
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 # https://github.com/dmitry-ai/harness/issues/8
+# @used-by :func:`register()`
+# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 def shared_control(request):
 	config = platform_settings('codex')
 	script = 'import {controlWithHelper as control} from ' + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
@@ -729,6 +822,7 @@ def shared_control(request):
 # 2026-10-16
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
+# @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_codex_adapter_uses_fallback_and_rejects_wrong_native_name_without_rename()`
 def register(project_dir, domain_or_topic, date_str=None):
 	from ..runtime import request_day, registration_profile_name
 	from ..registration import validate_registration
@@ -748,6 +842,7 @@ def register(project_dir, domain_or_topic, date_str=None):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`agent_tools.metrics.summarize()`
 def summarize(paths, bindings=None):
 	tools, events, seen = (Counter(), [], set())
 	for path in paths:

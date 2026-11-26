@@ -17,6 +17,7 @@ from agent_tools.issues import IssueEvidenceWorkspace
 from agent_tools.issues.parity import filter_turn_state_items
 CID_A = '11111111-2222-3333-4444-555555555555'
 CID_B = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+# @used-by :meth:`IssueConversationIsolationTests.test_analytical_turn_ignores_foreign_and_legacy_broadcast_issues_with_dirty_repo()`
 def _init_code_repo(root: Path) -> Path:
 	code = root / 'code'
 	bare = root / 'remote.git'
@@ -30,6 +31,9 @@ def _init_code_repo(root: Path) -> Path:
 	subprocess.run(['git', '-C', str(code), 'commit', '-m', 'https://github.com/acme/demo/issues/174'], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
 	return code
+# @used-by :meth:`IssueConversationIsolationTests.test_analytical_turn_ignores_foreign_and_legacy_broadcast_issues_with_dirty_repo()`
+# @used-by :meth:`IssueConversationIsolationTests.test_record_issue_isolates_by_antigravity_env_metadata_and_explicit_arg()`
+# @used-by :meth:`IssueConversationIsolationTests.test_record_issue_skips_broadcast_when_env_unknown_with_multiple_open_turns()`
 def _write_open_turn(turns_dir: Path, name: str, cid: str, platform: str='antigravity') -> Path:
 	tfile = turns_dir / f'{name}.json'
 	tfile.write_text(json.dumps({'status': 'open', 'platform': platform, 'conversation_id': cid, 'github_issues': {}}), encoding='utf-8')
@@ -38,6 +42,7 @@ def _write_open_turn(turns_dir: Path, name: str, cid: str, platform: str='antigr
 # "Isolate per-conversation github_issues recording and turn-state filtering":
 # https://github.com/dmitry-ai/harness/issues/195
 class IssueConversationIsolationTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_analytical_turn_ignores_foreign_and_legacy_broadcast_issues_with_dirty_repo(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -52,12 +57,14 @@ class IssueConversationIsolationTests(unittest.TestCase):
 			res = issue_lifecycle.code_and_issue_lifecycle_status(proj, {'touched_files': [], 'issue_actions': []}, turn_state=polluted_state)
 			self.assertTrue(res['verified'], res['violations'])
 			self.assertEqual({}, res['touched_repos'])
+	# @used-by :mod:`unittest`
 	def test_cli_parser_accepts_optional_conversation_flag(self) -> None:
 		parser = github_issue.build_parser()
 		parsed_create = parser.parse_args(['create', '--repo', 'acme/demo', '--title', 'T', '--body-file', 'b.md', '--conversation', CID_A])
 		parsed_fetch = parser.parse_args(['fetch', '--repo', 'acme/demo', '--issue', '10', '--conversation', CID_B])
 		self.assertEqual(CID_A, parsed_create.conversation)
 		self.assertEqual(CID_B, parsed_fetch.conversation)
+	# @used-by :mod:`unittest`
 	def test_filter_rejects_legacy_non_codex_broadcast_and_competing_untagged_entries(self) -> None:
 		url_foreign = 'https://github.com/acme/demo/issues/174'
 		url_own = 'https://github.com/acme/demo/issues/190'
@@ -68,6 +75,7 @@ class IssueConversationIsolationTests(unittest.TestCase):
 		self.assertEqual([legacy_broadcast], filter_turn_state_items([legacy_broadcast], CID_B, 'antigravity', {url_foreign}))
 		self.assertEqual([own_tagged], filter_turn_state_items([legacy_broadcast, untagged, own_tagged], CID_B, 'antigravity', set(), has_competing_open_turns=True))
 		self.assertEqual([untagged], filter_turn_state_items([untagged], CID_B, 'antigravity', set(), has_competing_open_turns=False))
+	# @used-by :mod:`unittest`
 	def test_record_issue_isolates_by_antigravity_env_metadata_and_explicit_arg(self) -> None:
 		ws = IssueEvidenceWorkspace()
 		rec = {'kind': 'issue', 'number': 174, 'state': 'closed', 'html_url': 'https://github.com/acme/demo/issues/174'}
@@ -95,6 +103,7 @@ class IssueConversationIsolationTests(unittest.TestCase):
 			da3, db3 = (json.loads(fa.read_text(encoding='utf-8')), json.loads(fb.read_text(encoding='utf-8')))
 			self.assertEqual(CID_A, da3['github_issues']['https://github.com/acme/demo/issues/195']['recorded_conversation_id'])
 			self.assertNotIn('https://github.com/acme/demo/issues/195', db3['github_issues'])
+	# @used-by :mod:`unittest`
 	def test_record_issue_skips_broadcast_when_env_unknown_with_multiple_open_turns(self) -> None:
 		ws = IssueEvidenceWorkspace()
 		rec = {'kind': 'issue', 'number': 199, 'state': 'open', 'html_url': 'https://github.com/acme/demo/issues/199'}

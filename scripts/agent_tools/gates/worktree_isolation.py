@@ -14,6 +14,7 @@ PRIORITY = 97
 TOOLS = frozenset({'write_file', 'edit_file', 'run_command'})
 _ACTIVE_TURN_MAX_AGE_SECONDS = 86400
 _META_PARTS = frozenset({'.git', '__pycache__', 'node_modules', '\ua616', '\ua66e', '\U0001f56e'})
+# @used-by :func:`_count_active_open_turns()`
 def _active_turn_id(path: Path, cutoff: float) -> str | None:
 	r = None
 	try:
@@ -24,6 +25,7 @@ def _active_turn_id(path: Path, cutoff: float) -> str | None:
 		if cutoff <= _turn_timestamp(data, path):
 			r = str(data.get('conversation_id') or data.get('turn_key') or path.stem).strip() or path.stem
 	return r
+# @used-by :func:`_evaluate_main_checkout()`
 def _count_active_open_turns(turns_dir: Path, *, max_age_seconds: int=_ACTIVE_TURN_MAX_AGE_SECONDS) -> int:
 	active: set[str] = set()
 	cutoff = time.time() - max(60, int(max_age_seconds))
@@ -37,6 +39,7 @@ def _count_active_open_turns(turns_dir: Path, *, max_age_seconds: int=_ACTIVE_TU
 			if None is not tid:
 				active.add(tid)
 	return len(active)
+# @used-by :func:`check()`
 def _evaluate_main_checkout(name: str, repo_root: Path, cwd: str | None) -> str | None:
 	from ..runtime_snapshot import is_harness_code_repo
 	r = None
@@ -49,6 +52,7 @@ def _evaluate_main_checkout(name: str, repo_root: Path, cwd: str | None) -> str 
 			if 2 <= active:
 				r = f'EXEC-5: Direct {name} inside main checkout ({repo_root.as_posix()}) is blocked while {active} concurrent open turns are active in {turns_dir.as_posix()}; create an isolated linked worktree via harness.py worktree-begin "{repo_root.as_posix()}" --task <task-id>.'
 	return r
+# @used-by :func:`_governed_repo_for_path()`
 def _find_git_repo_root(path: Path) -> Path | None:
 	r = None
 	start = path if path.is_dir() else path.parent
@@ -57,6 +61,7 @@ def _find_git_repo_root(path: Path) -> Path | None:
 			r = anc
 			break
 	return r
+# @used-by :func:`_evaluate_main_checkout()`
 def _find_turns_dir(repo_root: Path, cwd: str | None) -> Path | None:
 	r = None
 	roots = [repo_root]
@@ -73,6 +78,7 @@ def _find_turns_dir(repo_root: Path, cwd: str | None) -> Path | None:
 		if None is not r:
 			break
 	return r
+# @used-by :func:`check()`
 def _governed_repo_for_path(raw: str, cwd: str | None) -> Path | None:
 	r = None
 	full = _resolve_target_path(raw, cwd)
@@ -85,9 +91,11 @@ def _governed_repo_for_path(raw: str, cwd: str | None) -> Path | None:
 		if rel and (not _is_meta_rel(rel)):
 			r = repo_root
 	return r
+# @used-by :func:`_governed_repo_for_path()`
 def _is_meta_rel(rel_posix: str) -> bool:
 	parts = [p.casefold() for p in rel_posix.replace('\\', '/').split('/') if p and '.' != p]
 	return (not parts) or any(part in _META_PARTS for part in parts)
+# @used-by :func:`_governed_repo_for_path()`
 def _resolve_target_path(raw: str, cwd: str | None) -> Path:
 	text = raw.strip()
 	if 'nt' == os.name and 3 <= len(text) and '/' == text[0] and text[1].isalpha() and '/' == text[2]:
@@ -100,6 +108,7 @@ def _resolve_target_path(raw: str, cwd: str | None) -> Path:
 	except OSError:
 		r = cand
 	return r
+# @used-by :func:`_active_turn_id()`
 def _turn_timestamp(data: dict, path: Path) -> float:
 	r = 0.0
 	for key in ('updated_at', 'created_at'):
@@ -117,6 +126,10 @@ def _turn_timestamp(data: dict, path: Path) -> float:
 		except OSError:
 			r = 0.0
 	return r
+# @used-by :func:`agent_tools.gates._load_builtin_entry()`
+# @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_agent_metadata_and_read_only_tools_are_allowed()`
+# @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_harness_main_blocks_write_and_edit_while_linked_worktree_allows()`
+# @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_non_harness_repo_allows_single_turn_and_blocks_concurrent_open_turns()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	r = None
 	# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303

@@ -12,6 +12,12 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools.hook_runtime import iter_turn_state_files
 import check_stop_gate
 CID = '8001de65-315f-4a56-b144-3ae8e4fdc4eb'
+# @used-by :meth:`StopGateContractTests.test_ag2_conversation_id_without_session_id_enforces_stop_gate()`
+# @used-by :meth:`StopGateContractTests.test_continuation_active_guards_against_unchanged_readiness_loops_but_allows_progress()`
+# @used-by :meth:`StopGateContractTests.test_fully_idle_false_pending_subagent_and_scope1_opt_out_allow_stop()`
+# @used-by :meth:`StopGateContractTests.test_transcript_path_uuid_fallback_when_ids_absent()`
+# @used-by :meth:`test_stop_gate_subagents_m1.StopGateSubagentsM1Tests.test_ag2_system_message_fallback_without_db_and_killed_or_prior_children()`
+# @used-by :meth:`test_stop_gate_subagents_m1.StopGateSubagentsM1Tests.test_idle_children_in_summary_db_enforce_stop_gate_while_running_child_allows()`
 def make_ag2_stop_payload(cwd: Path, conversation_id: str | None, transcript_path: Path, *, continuation_active: bool=False, execution_num: int=0, fully_idle: bool=True, last_user_input: str='Analyze skill namespaces.', include_cwd: bool=True) -> dict:
 	payload: dict = {
 		'hookEventName': 'Stop',
@@ -30,6 +36,12 @@ def make_ag2_stop_payload(cwd: Path, conversation_id: str | None, transcript_pat
 	if None is not conversation_id:
 		payload['conversationId'] = conversation_id
 	return payload
+# @used-by :meth:`StopGateContractTests.test_ag2_conversation_id_without_session_id_enforces_stop_gate()`
+# @used-by :meth:`StopGateContractTests.test_continuation_active_guards_against_unchanged_readiness_loops_but_allows_progress()`
+# @used-by :meth:`StopGateContractTests.test_fully_idle_false_pending_subagent_and_scope1_opt_out_allow_stop()`
+# @used-by :meth:`StopGateContractTests.test_transcript_path_uuid_fallback_when_ids_absent()`
+# @used-by :meth:`test_stop_gate_subagents_m1.StopGateSubagentsM1Tests.test_ag2_system_message_fallback_without_db_and_killed_or_prior_children()`
+# @used-by :meth:`test_stop_gate_subagents_m1.StopGateSubagentsM1Tests.test_idle_children_in_summary_db_enforce_stop_gate_while_running_child_allows()`
 def _setup_fixture(base: Path, cid: str, *, user_text: str='Analyze skill namespaces.', extra_rows: list[dict] | None=None, turn_state: dict | None=None) -> tuple[Path, Path, Path, Path]:
 	proj = base / 'proj'
 	backend = base / 'ag_backend'
@@ -53,6 +65,7 @@ def _setup_fixture(base: Path, cid: str, *, user_text: str='Analyze skill namesp
 # "Align check_stop_gate with Antigravity 2.0 conversationId contract and continuation loop guard":
 # https://github.com/dmitry-ai/harness/issues/197
 class StopGateContractTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_ag2_conversation_id_without_session_id_enforces_stop_gate(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			state = {'key': 'turn001', 'conversation_id': CID, 'native_turn_id': f'ag-{CID}-0', 'native_start_step': 0, 'status': 'open', 'prepared': None, 'readiness_check': {'verified': False, 'gate_id': 'code_lifecycle', 'checked_at': '2026-11-24T01:27:05Z', 'detail': 'EXEC-5 violation'}}
@@ -70,6 +83,7 @@ class StopGateContractTests(unittest.TestCase):
 			state_file.write_text(json.dumps(state), encoding='utf-8')
 			ok_res = check_stop_gate.evaluate_stop_payload(make_ag2_stop_payload(proj, CID, log_file, continuation_active=True, execution_num=1), backend_override=backend)
 			self.assertEqual('allow', ok_res['decision'])
+	# @used-by :mod:`unittest`
 	def test_continuation_active_guards_against_unchanged_readiness_loops_but_allows_progress(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			state = {'key': 'turn001', 'conversation_id': CID, 'native_turn_id': f'ag-{CID}-0', 'native_start_step': 0, 'status': 'open', 'prepared': None, 'readiness_check': {'verified': False, 'gate_id': 'source_grounding', 'checked_at': '2026-11-24T01:20:00Z', 'detail': 'Missing link'}}
@@ -87,6 +101,7 @@ class StopGateContractTests(unittest.TestCase):
 			state_file.write_text(json.dumps(state), encoding='utf-8')
 			r4_cap = check_stop_gate.evaluate_stop_payload(make_ag2_stop_payload(proj, CID, log_file, continuation_active=True, execution_num=3), backend_override=backend)
 			self.assertEqual('allow', r4_cap['decision'])
+	# @used-by :mod:`unittest`
 	def test_fully_idle_false_pending_subagent_and_scope1_opt_out_allow_stop(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -104,6 +119,7 @@ class StopGateContractTests(unittest.TestCase):
 			proj_en, backend_en, log_en, _ = _setup_fixture(base / 'opt_en', CID, user_text='Answer briefly and skip journaling for this turn.', turn_state=state)
 			r_en = check_stop_gate.evaluate_stop_payload(make_ag2_stop_payload(proj_en, CID, log_en, last_user_input='Answer briefly and skip journaling for this turn.'), backend_override=backend_en)
 			self.assertEqual('allow', r_en['decision'])
+	# @used-by :mod:`unittest`
 	def test_transcript_path_uuid_fallback_when_ids_absent(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			state = {'key': 'turn001', 'conversation_id': CID, 'native_turn_id': f'ag-{CID}-0', 'native_start_step': 0, 'status': 'open', 'prepared': None}

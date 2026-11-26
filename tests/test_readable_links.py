@@ -8,6 +8,7 @@ from agent_tools.knowledge import sync_website_card
 from agent_tools.links import markdown_link, readable_link_issues, readable_reference, references, validate_file
 from agent_tools.project_card import sync_block
 from agent_tools import workflow
+from typing import override
 # 2026-10-17
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
@@ -15,15 +16,23 @@ from agent_tools import workflow
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class ReadableReferenceTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		(self.root / 'ꘖ').mkdir()
+	# @used-by :mod:`unittest`
 	def test_original_file_uri_becomes_a_readable_local_reference(self):
 		encoded = 'file:///C:/work/8%20-%20burattidesigns.com/%EA%98%96/KB/Evidence/source.json'
 		self.assertEqual(readable_reference(encoded), 'C:/work/8 - burattidesigns.com/ꘖ/KB/Evidence/source.json')
 		link = markdown_link('Source', encoded)
 		self.assertEqual(link, '[Source](<C:/work/8 - burattidesigns.com/ꘖ/KB/Evidence/source.json>)')
 		self.assertEqual(readable_link_issues(link), [])
+	# @used-by :mod:`unittest`
 	def test_readable_source_survives_a_renderer_that_encodes_its_href(self):
 		target = self.put('folder with spaces/ꘖ.json', '{}')
 		source = markdown_link('Source', target)
@@ -34,6 +43,7 @@ class ReadableReferenceTests(TemporaryCase):
 		self.assertIn('ꘖ', source)
 		document = self.put('draft.md', source)
 		self.assertEqual(validate_file(document, readable_links=True), [])
+	# @used-by :mod:`unittest`
 	def test_utf8_anchor_and_balanced_parentheses_need_no_url_encoding(self):
 		target = self.put('data (copy).md', '# Section ꘖ\n')
 		link = markdown_link('Section [1]', target.as_posix() + '#section-%EA%98%96')
@@ -41,11 +51,13 @@ class ReadableReferenceTests(TemporaryCase):
 		self.assertIn('Section \\[1\\]', link)
 		document = self.put('final.md', link)
 		self.assertEqual(validate_file(document, local_anchors=True, readable_links=True), [])
+	# @used-by :mod:`unittest`
 	def test_encoded_authored_links_are_detected_in_all_supported_text_forms(self):
 		cases = ['[Source](Evidence/with%20space.json)', '[Source](file:///C:/folder/data.json)', '[Section](#%EA%98%96)', 'https://example.org/%D0%BF%D1%83%D1%82%D1%8C', '![Figure](image%20one.png)', '<a href="https://example.org/with%20space">Source</a>', '<img src="image%20one.png">', '<p>https://example.org/with%20space</p>', 'C:/folder/with%20space.json']
 		for content in cases:
 			with self.subTest(content=content):
 				self.assertTrue(readable_link_issues(content))
+	# @used-by :mod:`unittest`
 	def test_exact_quotes_code_and_source_copies_are_not_rewritten_or_rejected(self):
 		exact = '[Source](https://example.org/raw%20source/%EA%98%96)'
 		content = '> ' + exact + '\n\n```markdown\n' + exact + '\n```\n\n`' + exact + '`\n'
@@ -61,12 +73,14 @@ class ReadableReferenceTests(TemporaryCase):
 		exported, _ = assemble(self.root, {'version': 1, 'sections': [{'title': 'Source', 'files': ['source-copy.md']}], 'output': 'Context.md'})
 		self.assertIn(content, exported)
 		self.assertEqual(readable_link_issues(exported), [])
+	# @used-by :mod:`unittest`
 	def test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved(self):
 		source = 'https://example.org/with%20space/%EA%98%96%2Fpart%23x%25%FF?sig=x%2Fy%20z#%D1%8F'
 		expected = 'https://example.org/with space/ꘖ%2Fpart%23x%25%FF?sig=x%2Fy%20z#\u044f'
 		self.assertEqual(readable_reference(source), expected)
 		self.assertEqual(readable_reference(expected), expected)
 		self.assertEqual(readable_link_issues(markdown_link(None, source)), [])
+	# @used-by :mod:`unittest`
 	def test_publication_guard_keeps_previous_document_and_primary_json_intact(self):
 		document = self.root / 'draft.md'
 		publish_owned(document, 'Original draft.\n')
@@ -81,6 +95,7 @@ class ReadableReferenceTests(TemporaryCase):
 		exact = '{"url": "https://example.org/with%20space"}\n'
 		publish_owned(primary, exact)
 		self.assertEqual(primary.read_bytes(), exact.encode())
+	# @used-by :mod:`unittest`
 	def test_cli_readability_check_catches_original_encoding_and_accepts_readable_destination(self):
 		target = self.put('with space.json', '{}')
 		document = self.put('final.md', '[Source](with%20space.json)')
@@ -90,6 +105,7 @@ class ReadableReferenceTests(TemporaryCase):
 		document.write_text(markdown_link('Source', target.name), encoding='utf-8')
 		result = self.cli('validate_links', '--readable', document)
 		self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+	# @used-by :mod:`unittest`
 	def test_readable_navigation_links_can_address_a_directory(self):
 		directory = self.root / 'folder with spaces'
 		directory.mkdir()
@@ -97,6 +113,7 @@ class ReadableReferenceTests(TemporaryCase):
 		self.assertEqual(validate_file(document, readable_links=True), [])
 		document.write_text(markdown_link('Section', directory.name + '#missing'), encoding='utf-8')
 		self.assertTrue(validate_file(document, readable_links=True))
+	# @used-by :mod:`unittest`
 	def test_docx_hyperlinks_are_readable_without_altering_their_visible_source_text(self):
 		import io
 		import zipfile
@@ -115,6 +132,7 @@ class ReadableReferenceTests(TemporaryCase):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class ReadableProjectTests(ProjectCase):
+	# @used-by :mod:`unittest`
 	def test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes(self):
 		value = self.valid_analysis()
 		exact = 'Exact source: https://example.org/with%20space'
@@ -126,6 +144,7 @@ class ReadableProjectTests(ProjectCase):
 	# 2026-11-21
 	# "Initialize new Upwork projects in the V2 filesystem layout":
 	# https://github.com/dmitry-ai/harness/issues/110
+	# @used-by :mod:`unittest`
 	def test_website_card_uses_readable_iri_and_keeps_original_website_selection(self):
 		from test_onboarding import claim
 		value = self.valid_analysis()
@@ -143,6 +162,7 @@ class ReadableProjectTests(ProjectCase):
 	# 2026-11-21
 	# "Initialize new Upwork projects in the V2 filesystem layout":
 	# https://github.com/dmitry-ai/harness/issues/110
+	# @used-by :mod:`unittest`
 	def test_project_check_covers_agent_kb_and_client_markdown_text_and_html(self):
 		self.valid_analysis()
 		files = ['ꘖ/KB/Notes.md', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/final.txt', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/publish.html']
@@ -151,6 +171,7 @@ class ReadableProjectTests(ProjectCase):
 		issues = workflow.check_project(self.project)['issues']
 		flagged = {issue['field'] for issue in issues if 'LINK-5' in issue['message']}
 		self.assertTrue(set(files).issubset(flagged), issues)
+	# @used-by :mod:`unittest`
 	def test_record_answer_blocks_encoded_authored_links_before_any_journal_mutation(self):
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
 			workflow.record_current_answer(self.project, '[Source](https://example.org/with%20space)')

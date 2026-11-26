@@ -1,5 +1,6 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+from typing import override
 import json
 from pathlib import Path
 import sqlite3
@@ -19,6 +20,12 @@ from test_continuation_binding import wire
 # "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 # https://github.com/dmitry-ai/harness/issues/213
 class BlockedReportM2Tests(ProjectCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self) -> None:
 		super().setUp()
 		self.valid_review_analysis()
@@ -46,8 +53,11 @@ class BlockedReportM2Tests(ProjectCase):
 		log.parent.mkdir(parents=True, exist_ok=True)
 		log.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': self.req_text}) + '\n', encoding='utf-8')
 		flow.adopt_requests(self.project, self.cid, backend=self.backend, platform='antigravity')
+	# @used-by :meth:`BlockedReportM2Tests.test_blocked_report_records_journal_without_closing_workflow_or_allowing_finalize()`
+	# @used-by :meth:`BlockedReportM2Tests.test_blocked_report_rejects_analytical_hm_claims_and_five_stage_content()`
 	def _write_continuation(self, body: str) -> None:
 		self.put_project('\ua616/data/continuation.md', body)
+	# @used-by :mod:`unittest`
 	def test_blocked_report_records_journal_without_closing_workflow_or_allowing_finalize(self) -> None:
 		report = '\u0410\u043d\u0430\u043b\u0438\u0437 \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d \u0434\u043e \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0439 \u0440\u0435\u0446\u0435\u043d\u0437\u0438\u0438 \u0438\u0437-\u0437\u0430 \u0432\u043d\u0435\u0448\u043d\u0435\u0433\u043e \u0431\u043b\u043e\u043a\u0435\u0440\u0430.\n\n\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433: \u043f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u044c \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443 \u043f\u043e\u0441\u043b\u0435 \u0443\u0441\u0442\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u0431\u043b\u043e\u043a\u0435\u0440\u0430.\n'
 		with self.assertRaisesRegex(ValueError, 'continuation\\.md'):
@@ -65,6 +75,7 @@ class BlockedReportM2Tests(ProjectCase):
 		self.assertNotEqual('complete', wf.get('stages', {}).get('finalize', {}).get('status'))
 		with self.assertRaises(ValueError):
 			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['\ua66e/\u227a/1\u201320/1.md'])
+	# @used-by :mod:`unittest`
 	def test_blocked_report_rejects_analytical_hm_claims_and_five_stage_content(self) -> None:
 		self._write_continuation('# Continuation\n\n\u0411\u043b\u043e\u043a\u0435\u0440: \u0438\u0441\u0442\u0435\u043a\u043b\u0430 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f \u0432\u043d\u0435\u0448\u043d\u0435\u0433\u043e \u043f\u043e\u0440\u0442\u0430\u043b\u0430.\n')
 		bad_hm = '\u0410\u043d\u0430\u043b\u0438\u0437 \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u043d. \u041f\u0440\u0435\u0434\u0432\u0430\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u0430\u044f \u043f\u0440\u0438\u0447\u0438\u043d\u0430 H-1 \u0438 \u043c\u0435\u0442\u043e\u0434 M-1.\n'

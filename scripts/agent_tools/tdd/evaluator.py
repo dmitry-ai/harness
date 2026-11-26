@@ -5,6 +5,7 @@ from ..shell_audit import _split_shell_segments, normalize_host_path
 from .classifier import _norm_posix, resolve_code_scope
 from .commands import classify_test_command
 from .exemption import is_write_event_exempt
+# @used-by :func:`evaluate_tdd_events()`
 def _apply_command_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], failfast_warnings: list[str]) -> None:
 	outcome = ev.get('outcome') or {}
 	if ev.get('is_git_commit') and outcome.get('exit_code') in (0, None):
@@ -16,6 +17,7 @@ def _apply_command_event(ev: dict, step: int, order: tuple[int, int, int], scope
 		for sk, st in scopes.items():
 			if _command_matches_scope(ev, sk, set(st['written_tests'])):
 				_update_scope_from_test_cmd(sk, st, orders[sk], ev, step, order, outcome, t_info)
+# @used-by :func:`_apply_command_event()`
 def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: dict[str, dict]) -> None:
 	c_key = Path(c_scope).resolve().as_posix().lower() if None is not c_scope else None
 	for sk, st in scopes.items():
@@ -27,6 +29,7 @@ def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: di
 			st['cycle_had_prod_edit'] = False
 			st['cycle_green_step'] = None
 			orders[sk]['written_test'] = None
+# @used-by :func:`evaluate_tdd_events()`
 def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None, exempt_cache: dict[tuple[str, str], bool] | None=None) -> None:
 	cls = ev.get('classification')
 	scope_str = str(ev.get('scope') or '')
@@ -39,6 +42,7 @@ def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], sc
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_apply_file_write_event()`
 def _apply_prod_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> None:
 	existing = scopes.get(scope_str)
 	if None is not existing and existing['state'] in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
@@ -49,6 +53,7 @@ def _apply_prod_file_event(fpath: str, scope_str: str, step: int, order: tuple[i
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
 		st_ord['last_non_exempt_prod'] = order
 		_apply_prod_write(st, st_ord, fpath, step, order, violations)
+# @used-by :func:`_apply_prod_file_event()`
 def _apply_prod_write(st: dict, st_ord: dict, fpath: str, step: int, order: tuple[int, int, int], violations: list[str]) -> None:
 	st['any_prod_edit'] = True
 	if fpath not in st['touched_prod_files']:
@@ -63,6 +68,7 @@ def _apply_prod_write(st: dict, st_ord: dict, fpath: str, step: int, order: tupl
 	st['last_prod_edit_step'] = step
 	st['last_code_edit_step'] = step
 	st_ord['last_code_edit'] = order
+# @used-by :func:`_apply_file_write_event()`
 def _apply_test_write(st: dict, st_ord: dict, fpath: str, step: int, order: tuple[int, int, int]) -> None:
 	if fpath not in st['written_tests']:
 		st['written_tests'].append(fpath)
@@ -73,6 +79,7 @@ def _apply_test_write(st: dict, st_ord: dict, fpath: str, step: int, order: tupl
 	st['last_code_edit_step'] = step
 	st_ord['last_code_edit'] = order
 	st_ord['last_test_edit'] = order
+# @used-by :func:`_apply_command_event()`
 def _collect_failfast_warnings(cmd_text: str, step: int, failfast_warnings: list[str]) -> None:
 	from ..failfast_gate import missing_failfast_flag
 	for seg in _split_shell_segments(cmd_text):
@@ -82,12 +89,14 @@ def _collect_failfast_warnings(cmd_text: str, step: int, failfast_warnings: list
 			if warn not in failfast_warnings:
 				failfast_warnings.append(warn)
 			break
+# @used-by :func:`evaluate_tdd_events()`
 def _collect_final_green_violations(scopes: dict[str, dict], orders: dict[str, dict], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> list[str]:
 	r: list[str] = []
 	for sk, st in sorted(scopes.items()):
 		if _scope_needs_final_full_green(sk, st, orders[sk], project_root, exempt_cache):
 			r.append(f"EXEC-2 TDD-FULL-GATE: Repository \"{sk}\" has production code edits (last edit at step {st['last_code_edit_step']}) without a subsequent passing (GREEN) full test suite run. Run the full test suite and verify all tests pass.")
 	return r
+# @used-by :func:`_apply_command_event()`
 def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[str]) -> bool:
 	scope_p = Path(scope_str).resolve()
 	scope_key = scope_p.as_posix().lower()
@@ -105,6 +114,7 @@ def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[
 		or ((not resolved_scopes) and _cwd_matches_scope(cwd_p, scope_p, scope_key, scope_main_key, is_full_cmd))
 	)
 	return r
+# @used-by :func:`_command_matches_scope()`
 def _cwd_matches_scope(cwd_p: Path | None, scope_p: Path, scope_key: str, scope_main_key: str, is_full_cmd: bool) -> bool:
 	r = False
 	if None is not cwd_p:
@@ -112,6 +122,8 @@ def _cwd_matches_scope(cwd_p: Path | None, scope_p: Path, scope_key: str, scope_
 		direct = cwd_scope.as_posix().lower() == scope_key or cwd_p.is_relative_to(scope_p) or scope_p.is_relative_to(cwd_p)
 		r = direct or (is_full_cmd and _git_main_repo_root(cwd_scope).as_posix().lower() == scope_main_key)
 	return r
+# @used-by :func:`_apply_file_write_event()`
+# @used-by :func:`_apply_prod_file_event()`
 def _ensure_scope(scopes: dict[str, dict], orders: dict[str, dict], scope_str: str) -> tuple[dict, dict]:
 	st = scopes.setdefault(scope_str, {
 		'any_prod_edit': False,
@@ -132,6 +144,9 @@ def _ensure_scope(scopes: dict[str, dict], orders: dict[str, dict], scope_str: s
 	# https://github.com/dmitry-ai/harness/issues/173
 	st_ord = orders.setdefault(scope_str, {'last_code_edit': None, 'last_full_green': None, 'last_non_exempt_prod': None, 'last_test_edit': None, 'unverified_prod_writes': [], 'written_test': None})
 	return (st, st_ord)
+# @used-by :func:`_command_matches_scope()`
+# @used-by :func:`_cwd_matches_scope()`
+# @used-by :func:`_scopes_overlap()`
 def _git_main_repo_root(repo: Path) -> Path:
 	r = repo.resolve()
 	dot_git = r / '.git'
@@ -150,6 +165,7 @@ def _git_main_repo_root(repo: Path) -> Path:
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_scope_needs_final_full_green()`
 def _has_non_exempt_prod(sk: str, st_ord: dict, project_root: Path | None, exempt_cache: dict[tuple[str, str], bool], *, min_order: tuple[int, int, int] | None=None) -> bool:
 	known = st_ord['last_non_exempt_prod']
 	if None is not known and (None is min_order or known >= min_order):
@@ -163,6 +179,8 @@ def _has_non_exempt_prod(sk: str, st_ord: dict, project_root: Path | None, exemp
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_apply_prod_file_event()`
+# @used-by :func:`_has_non_exempt_prod()`
 def _is_exempt_cached(fpath: str, scope_str: str, project_root: Path | None, cache: dict[tuple[str, str], bool]) -> bool:
 	key = (scope_str, fpath)
 	if key not in cache:
@@ -171,6 +189,7 @@ def _is_exempt_cached(fpath: str, scope_str: str, project_root: Path | None, cac
 # 2026-11-24
 # "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
 # https://github.com/dmitry-ai/harness/issues/173
+# @used-by :func:`evaluate_tdd_events()`
 def _order_tdd_events(events: list[dict] | tuple[dict, ...] | None) -> list[tuple[tuple[int, int, int], int, dict]]:
 	sub_ids: dict[str, int] = {}
 	tagged: list[tuple[tuple[int, int, int], int, dict]] = []
@@ -186,6 +205,7 @@ def _order_tdd_events(events: list[dict] | tuple[dict, ...] | None) -> list[tupl
 		tagged.append(((step, sub_seq, sub_step), idx, ev))
 	tagged.sort(key=lambda item: (item[0], item[1]))
 	return tagged
+# @used-by :func:`_command_matches_scope()`
 def _resolve_event_target_scopes(targets: list[str], cwd_p: Path | None) -> list[Path]:
 	r: list[Path] = []
 	for tp in targets:
@@ -199,6 +219,7 @@ def _resolve_event_target_scopes(targets: list[str], cwd_p: Path | None) -> list
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# @used-by :func:`_collect_final_green_violations()`
 def _scope_needs_final_full_green(sk: str, st: dict, st_ord: dict, project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> bool:
 	last_edit_ord, full_green_ord = (st_ord['last_code_edit'], st_ord['last_full_green'])
 	if (not st['any_prod_edit']) or (None is not full_green_ord and (None is last_edit_ord or full_green_ord > last_edit_ord)):
@@ -208,9 +229,11 @@ def _scope_needs_final_full_green(sk: str, st: dict, st_ord: dict, project_root:
 	else:
 		r = _has_non_exempt_prod(sk, st_ord, project_root, exempt_cache, min_order=full_green_ord)
 	return r
+# @used-by :func:`_command_matches_scope()`
 def _scopes_overlap(resolved_scopes: list[Path], scope_p: Path, scope_key: str, scope_main_key: str, is_full_cmd: bool) -> bool:
 	direct = any(rs.as_posix().lower() == scope_key or rs.is_relative_to(scope_p) or scope_p.is_relative_to(rs) for rs in resolved_scopes)
 	return direct or (is_full_cmd and any(_git_main_repo_root(rs).as_posix().lower() == scope_main_key for rs in resolved_scopes))
+# @used-by :func:`_apply_command_event()`
 def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step: int, order: tuple[int, int, int], outcome: dict, t_info: dict) -> None:
 	scope_full = bool(t_info.get('is_full_suite')) or classify_test_command(str(ev.get('cmd') or ''), scope_root=Path(sk))['is_full_suite']
 	if outcome.get('is_failure') and 'TEST_WRITTEN' == st['state'] and None is not st_ord['written_test'] and order > st_ord['written_test']:
@@ -225,6 +248,27 @@ def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step:
 # 2026-11-24
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
+# @used-by :func:`agent_tools.completion._tdd_status()`
+# @used-by :func:`agent_tools.tdd.enforcement._load_pre_tool_tdd_state()`
+# @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_completed_prior_turn_does_not_bleed_tdd_events_into_unrelated_followup()`
+# @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
+# @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_tdd_gate_records_non_failfast_full_suite_warning_without_breaking_verified()`
+# @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
+# @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_linked_worktree_scope_accepts_full_suite_green_on_main_repo()`
+# @used-by :meth:`test_pytest_xdist_runner.PytestXdistRunnerTests.test_tdd_state_machine_rejects_exit_5_red_and_accepts_xdist_full_green()`
+# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_evaluator_skips_tdd_red_and_full_gates_for_comment_only_write()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_evaluator_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_fast_path.TddFastPathTests.test_evaluator_lazy_exemption_and_full_green_edge_cases()`
+# @used-by :meth:`test_tdd_fast_path.TddFastPathTests.test_evaluator_memoizes_exemption_and_allows_exempt_only_edits()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_chronological_tdd_state_machine_and_commit_reset()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_extract_antigravity_tdd_events_handles_compact_and_full_transcripts()`
+# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
+# @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_combined_git_commit_and_full_test_command_updates_full_green()`
+# @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_subagent_events_sharing_parent_step_preserve_sub_step_order()`
+# @used-by :meth:`test_worktree_comment_exemption.WorktreeCommentExemptionTests.test_deleted_sibling_and_nested_worktree_comment_only_commits_are_exempt()`
+# @used-by :meth:`test_worktree_comment_exemption.WorktreeCommentExemptionTests.test_deleted_worktree_non_comment_code_commit_remains_blocked()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool=True, project_root: Path | None=None) -> dict:
 	scopes: dict[str, dict] = {}
 	orders: dict[str, dict] = {}

@@ -11,11 +11,20 @@ import re
 from .analysis import iter_arguments, SECTIONS
 from .diagnostics import problem
 from .research import inside, load_observation, extract_bytes
+# @used-by :func:`source_reference()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
 def pointer(*parts):
 	return '/' + '/'.join((str(x).replace('~', '~0').replace('/', '~1') for x in parts)) if parts else ''
 # 2026-11-14
 # "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
 # https://github.com/dmitry-ai/harness/issues/72
+# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`agent_tools.evidence_loader.load_observation_content()`
+# @used-by :func:`agent_tools.experiments._select_raw()`
+# @used-by :func:`agent_tools.links.validate_file()`
+# @used-by :func:`agent_tools.repo_link_gate._validate_doc_or_json_anchor()`
+# @used-by :func:`saved_source()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
 def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 	if decode_uri:
 		fragment = unquote(fragment)
@@ -38,6 +47,14 @@ def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 				value = value[int(key)]
 		r = value
 	return r
+# @used-by :func:`agent_tools.claims._manifest_primary()`
+# @used-by :func:`agent_tools.claims._primary_capabilities()`
+# @used-by :func:`agent_tools.evidence_loader.load_observation_content()`
+# @used-by :func:`agent_tools.evidence_loader.probe_observation_status()`
+# @used-by :func:`agent_tools.text_claims.evidence_inputs()`
+# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :func:`evidence_issues()`
+# @used-by :func:`saved_source()`
 def local_file(root, reference):
 	# 2026-11-23
 	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
@@ -68,6 +85,7 @@ def local_file(root, reference):
 # 2026-11-16
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
+# @used-by :func:`saved_source()`
 def _markdown_section(text: str, fragment: str) -> str:
 	from .links import parse_markdown_headings
 	headings, _, ambiguous, _ = parse_markdown_headings(text)
@@ -87,6 +105,9 @@ def _markdown_section(text: str, fragment: str) -> str:
 # 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
+# @used-by :func:`evidence_issues()`
+# @used-by :func:`verify_saved_quote()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract()`
 def saved_source(root, source, observation=None, *, need_sections=True):
 	base, fragment = urldefrag(source)
 	if urlsplit(base).scheme.lower() not in ('http', 'https'):
@@ -129,6 +150,8 @@ def saved_source(root, source, observation=None, *, need_sections=True):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`verify_html_quote_scope()`
+# @used-by :func:`verify_saved_quote()`
 def contains_quote(text, quote, mode='exact'):
 	if 'exact' == mode:
 		r = quote in text
@@ -140,6 +163,52 @@ def contains_quote(text, quote, mode='exact'):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`agent_tools.analysis.publish_analysis()`
+# @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.analysis_merge._validate_partial()`
+# @used-by :func:`agent_tools.review._analysis()`
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_anchored_quote_from_another_section_is_rejected()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_content_addressed_primary_evidence_tampering_is_detected()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_existing_heading_or_ancestor_anchor_is_required()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_local_markdown_quote_must_belong_to_the_linked_section()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_no_anchor_exception_uses_an_observed_specific_section()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_no_counterevidence_needs_documented_review_and_real_sources()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_quote_from_another_json_field_is_rejected()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.valid_review_analysis()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_6395_relative_to_5395_is_185357_percent_not_20()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_agent_site_hypothesis_in_intake_manifest_is_not_primary()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_arbitrary_intake_receipt_cannot_promote_own_note_or_attachment()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_calculation_operand_must_match_its_own_primary_quote()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_calculation_requires_sourced_common_units_and_explicit_percent_result()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_currency_cannot_be_borrowed_from_another_quantity()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e3_network_error_classification_and_unverified_dns_claim_rejection()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e4_site_wide_schema_absence_requires_multi_page_or_product_template_sample()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_explicit_text_locator_does_not_cover_another_part_of_page()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_html_markup_cannot_hide_a_sign_between_spans()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_http_does_not_establish_click_currency_ip_or_admin()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_json_amount_currency_pair_is_an_exact_quantity_locator()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_limited_hypothesis_keeps_missing_browser_check_and_can_be_published()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_malformed_properties_and_dependency_keep_field_diagnostics_in_cli()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_missing_or_revised_primary_hash_is_rejected()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_own_prya_kb_note_in_evidence_is_not_a_primary_observation()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_primary_http_fact_accepts_and_renders_with_scope()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_registered_intake_and_attachment_are_primary_but_quote_must_match_locator()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_signed_quantity_cannot_be_replaced_with_its_positive_substring()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_supported_signed_quantities_preserve_decimal_value_and_units()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_unavailable_result_is_valid_with_explicit_gap()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_v3_documentation_requires_verified_anchor_or_genuine_no_anchor_section()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_malformed_evidence_fields_return_diagnostics_without_crashing()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_public_example_passes_structure_evidence_and_project_checks()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_remote_json_pointer_checks_only_the_target_field()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_authorize_deduplicates_evidence_issues_across_check_project()`
 def evidence_issues(root, value, *, skip_structural=False):
 	if not isinstance(value, dict):
 		r = [problem('analysis.object', '/', 'Analysis must be a JSON object')]
@@ -188,6 +257,7 @@ def evidence_issues(root, value, *, skip_structural=False):
 		issues.extend(evidence_contract_issues(root, value, skip_structural=skip_structural))
 		r = issues
 	return r
+# @used-by :func:`agent_tools.cli_domains._op_source_ref()`
 def source_reference(root, file, parts=()):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -200,6 +270,7 @@ def source_reference(root, file, parts=()):
 # 2026-11-13
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
+# @used-by :func:`verify_saved_quote()`
 def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, exception=None, observation=None, require_bound_observation=False) -> str:
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
@@ -246,6 +317,9 @@ def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, 
 # 2026-11-13
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
+# @used-by :func:`agent_tools.claims._verify_quote()`
+# @used-by :func:`evidence_issues()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
 def verify_saved_quote(root, source, quote, *, mode='exact', expected_hash=None, require_hash=False, observation=None, documentation=False, exception=None, locator=None, require_bound_observation=False, hash_error='Source hash differs from the referenced observation', absent_error='Quote is absent from the referenced source fragment'):
 	# 2026-11-24
 	# "Cache runtime settings and deduplicate evidence validation in hot paths":

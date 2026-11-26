@@ -15,10 +15,19 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import cli_registry
 from agent_tools.repo_tags import build_github_blob_url, ensure_commit_tag, is_valid_date_tag, is_valid_repo_tag, next_date_tag, retro_tag_repo
+# @used-by :func:`_commit_at()`
+# @used-by :func:`_init_repo_with_bare_origin()`
+# @used-by :meth:`RepoTagsTests.test_ensure_commit_tag_creates_reuses_and_pushes_lightweight_tag()`
+# @used-by :meth:`RepoTagsTests.test_retro_tag_repo_tags_closing_commits_chronologically()`
 def _git(repo: Path, *args: str, env_extra: dict[str, str] | None=None) -> str:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0', **(env_extra or {})}
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', env=env, check=True, timeout=30)
 	return proc.stdout.strip()
+# @used-by :meth:`RepoTagsTests.test_cli_repo_tag_and_repo_tag_retro_registered()`
+# @used-by :meth:`RepoTagsTests.test_ensure_commit_tag_creates_reuses_and_pushes_lightweight_tag()`
+# @used-by :meth:`RepoTagsTests.test_ensure_commit_tag_uses_bounded_git_subprocesses()`
+# @used-by :meth:`RepoTagsTests.test_github_blob_url_builder_validates_file_and_lines()`
+# @used-by :meth:`RepoTagsTests.test_retro_tag_repo_tags_closing_commits_chronologically()`
 def _init_repo_with_bare_origin(tmp: Path, slug: str='acme/demo') -> tuple[Path, Path]:
 	origin = tmp / 'origin.git'
 	repo = tmp / 'repo'
@@ -31,6 +40,11 @@ def _init_repo_with_bare_origin(tmp: Path, slug: str='acme/demo') -> tuple[Path,
 	_git(repo, 'remote', 'add', 'origin', str(origin))
 	_git(repo, 'remote', 'add', 'github', f'https://github.com/{slug}.git')
 	return (repo, origin)
+# @used-by :meth:`RepoTagsTests.test_cli_repo_tag_and_repo_tag_retro_registered()`
+# @used-by :meth:`RepoTagsTests.test_ensure_commit_tag_creates_reuses_and_pushes_lightweight_tag()`
+# @used-by :meth:`RepoTagsTests.test_ensure_commit_tag_uses_bounded_git_subprocesses()`
+# @used-by :meth:`RepoTagsTests.test_github_blob_url_builder_validates_file_and_lines()`
+# @used-by :meth:`RepoTagsTests.test_retro_tag_repo_tags_closing_commits_chronologically()`
 def _commit_at(repo: Path, rel: str, text: str, msg: str, iso_dt: str) -> str:
 	fp = repo / rel
 	fp.parent.mkdir(parents=True, exist_ok=True)
@@ -40,6 +54,7 @@ def _commit_at(repo: Path, rel: str, text: str, msg: str, iso_dt: str) -> str:
 	_git(repo, 'commit', '--no-verify', '-m', msg, env_extra=env)
 	return _git(repo, 'rev-parse', 'HEAD')
 class RepoTagsTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cli_repo_tag_and_repo_tag_retro_registered(self) -> None:
 		cmds = cli_registry.registered_commands()
 		self.assertIn('repo-tag', cmds)
@@ -52,6 +67,7 @@ class RepoTagsTests(unittest.TestCase):
 			data = json.loads(proc.stdout)
 			self.assertEqual('2026-11-26', data['tag'])
 			self.assertEqual('https://github.com/acme/demo/blob/2026-11-26/src/a.py#L1-L2', data['github_url'])
+	# @used-by :mod:`unittest`
 	def test_date_tag_and_repo_tag_validation(self) -> None:
 		for good in ('2026-11-26', '2026-11-26--2', '2026-11-26--10', '2024-09-20--3'):
 			self.assertTrue(is_valid_date_tag(good), good)
@@ -62,6 +78,7 @@ class RepoTagsTests(unittest.TestCase):
 		self.assertTrue(is_valid_repo_tag('v2.3.4'))
 		self.assertFalse(is_valid_repo_tag('main'))
 		self.assertFalse(is_valid_repo_tag('2026-11-26--1'))
+	# @used-by :mod:`unittest`
 	def test_ensure_commit_tag_creates_reuses_and_pushes_lightweight_tag(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			repo, origin = _init_repo_with_bare_origin(Path(td))
@@ -83,6 +100,7 @@ class RepoTagsTests(unittest.TestCase):
 			self.assertEqual('2026-11-27', res3['tag'])
 			remote_tags = _git(origin, 'tag', '-l').splitlines()
 			self.assertEqual(['2026-11-26', '2026-11-26--2', '2026-11-27'], sorted(remote_tags))
+	# @used-by :mod:`unittest`
 	def test_github_blob_url_builder_validates_file_and_lines(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			repo, _ = _init_repo_with_bare_origin(Path(td), slug='dmitry-ai/sample')
@@ -91,11 +109,13 @@ class RepoTagsTests(unittest.TestCase):
 			self.assertEqual('https://github.com/dmitry-ai/sample/blob/2026-11-26/pkg/mod.py#L2-L3', url)
 			with self.assertRaises(ValueError):
 				build_github_blob_url(repo / 'pkg/mod.py', lines='L1-L99', push=False)
+	# @used-by :mod:`unittest`
 	def test_next_date_tag_daily_counter_and_reset(self) -> None:
 		self.assertEqual('2026-11-26', next_date_tag([], '2026-11-26'))
 		self.assertEqual('2026-11-26--2', next_date_tag(['2026-11-26'], '2026-11-26'))
 		self.assertEqual('2026-11-26--3', next_date_tag(['2026-11-26', '2026-11-26--2'], '2026-11-26'))
 		self.assertEqual('2026-11-27', next_date_tag(['2026-11-26', '2026-11-26--2'], '2026-11-27'))
+	# @used-by :mod:`unittest`
 	def test_retro_tag_repo_tags_closing_commits_chronologically(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			repo, origin = _init_repo_with_bare_origin(Path(td))
@@ -113,6 +133,7 @@ class RepoTagsTests(unittest.TestCase):
 			self.assertEqual(['2026-11-24', '2026-11-24--2', '2026-11-25'], sorted(_git(origin, 'tag', '-l').splitlines()))
 			rerun = retro_tag_repo(repo, apply=True, push=True)
 			self.assertEqual(0, rerun['created_count'])
+	# @used-by :mod:`unittest`
 	def test_ensure_commit_tag_uses_bounded_git_subprocesses(self) -> None:
 		from unittest.mock import patch
 		with tempfile.TemporaryDirectory() as td:
@@ -120,6 +141,7 @@ class RepoTagsTests(unittest.TestCase):
 			_commit_at(repo, 'a.py', 'x = 1\n', 'https://github.com/acme/demo/issues/1', '2026-11-26T10:00:00+03:00')
 			calls: list[list[str]] = []
 			real_run = subprocess.run
+			# @used-by :meth:`RepoTagsTests.test_ensure_commit_tag_uses_bounded_git_subprocesses()`
 			def spy(cmd, *args, **kwargs):
 				calls.append([str(c) for c in cmd])
 				return real_run(cmd, *args, **kwargs)

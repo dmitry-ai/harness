@@ -1,5 +1,6 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
+from typing import override
 import hashlib
 import json
 from pathlib import Path
@@ -12,6 +13,12 @@ from agent_tools.storage import data_dir_for
 # "Replace per-profile Harness projections with shared native connections":
 # https://github.com/dmitry-ai/harness/issues/35
 class NativeProfileTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.primary = self.root / 'harness/code'
@@ -32,10 +39,54 @@ class NativeProfileTests(TemporaryCase):
 		self.write(self.primary / 'agents/worker.md', '# Worker\nRead current evidence.  \n')
 		for name in ('upwork-init', 'df-article'):
 			self.write(self.primary / f'skills/{name}/SKILL.md', f'---\nname: {name}\ndescription: {name} canonical instructions.\n---\nOriginal {name} workflow.\n')
+	# @used-by :meth:`NativeProfileTests.former_role_config()`
+	# @used-by :meth:`NativeProfileTests.legacy_codex()`
+	# @used-by :meth:`NativeProfileTests.rename_af()`
+	# @used-by :meth:`NativeProfileTests.setUp()`
+	# @used-by :meth:`NativeProfileTests.test_antigravity_inherits_and_preserves_unrelated_fields_and_hooks()`
+	# @used-by :meth:`NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
+	# @used-by :meth:`NativeProfileTests.test_changed_created_link_does_not_stop_other_guarded_rollback()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_preimage_change_is_preserved_before_application()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_replacement_during_skill_rollback_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_conflicting_hook_blocks_the_whole_selected_plan()`
+	# @used-by :meth:`NativeProfileTests.test_custom_same_name_role_and_personal_loader_edit_are_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_role_link_blocks_rename_without_orphaning_ownership()`
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_shared_role_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_owned_config_role_block_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_project_projection_blocks_all_retirements()`
+	# @used-by :meth:`NativeProfileTests.test_edited_wrapper_is_not_retired_or_replaced()`
+	# @used-by :meth:`NativeProfileTests.test_existing_compact_loader_manual_edit_is_not_overwritten()`
+	# @used-by :meth:`NativeProfileTests.test_filtered_legacy_reference_is_preserved_without_duplicate_inheritance()`
+	# @used-by :meth:`NativeProfileTests.test_former_config_role_block_without_receipt_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
+	# @used-by :meth:`NativeProfileTests.test_m4_and_m5_scrub_antigravity_cdp_grant_mcp_hooks_and_codex_chrome_plugin()`
+	# @used-by :meth:`NativeProfileTests.test_manually_replaced_obsolete_skill_directory_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_owned_config_role_block_is_retired_preserving_other_edits()`
+	# @used-by :meth:`NativeProfileTests.test_pilot_changes_only_selected_profiles_and_links_original_content()`
+	# @used-by :meth:`NativeProfileTests.test_project_retirement_requires_exact_ownership_and_keeps_unrelated_files()`
+	# @used-by :meth:`NativeProfileTests.test_removed_role_retires_its_owned_link_and_definition()`
+	# @used-by :meth:`NativeProfileTests.test_role_parent_link_injected_immediately_before_creation_cannot_escape()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_retires_only_owned_links_and_shared_definition()`
+	# @used-by :meth:`NativeProfileTests.test_shared_manual_edit_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_skill_parent_link_injected_during_backup_is_preserved_without_escape()`
+	# @used-by :meth:`NativeProfileTests.test_skill_parent_link_injected_immediately_before_creation_cannot_escape()`
+	# @used-by :meth:`NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
+	# @used-by :meth:`NativeProfileTests.test_unknown_prior_link_record_is_preserved_during_skill_rename()`
+	# @used-by :meth:`NativeProfileTests.test_v2_unicode_primary_generates_ascii_hook_runner_upgrades_legacy_hooks_and_runs_via_cmd_exe()`
+	# @used-by :meth:`NativeProfileTests.test_wrong_role_file_link_is_preserved()`
 	def write(self, path, text):
 		path.parent.mkdir(parents=True, exist_ok=True)
 		path.write_bytes(text.encode('utf-8'))
 		return path
+	# @used-by :meth:`NativeProfileTests.former_role_config()`
+	# @used-by :meth:`NativeProfileTests.test_apply_and_check_are_idempotent_including_central_receipt()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_preimage_change_is_preserved_before_application()`
+	# @used-by :meth:`NativeProfileTests.test_custom_same_name_role_and_personal_loader_edit_are_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_wrapper_is_not_retired_or_replaced()`
+	# @used-by :meth:`NativeProfileTests.test_new_link_failure_rolls_back_existing_profile_files()`
+	# @used-by :meth:`NativeProfileTests.test_pilot_changes_only_selected_profiles_and_links_original_content()`
+	# @used-by :meth:`NativeProfileTests.test_role_link_failure_restores_retired_roles_and_config()`
 	def legacy_codex(self, name='C2'):
 		home = self.homes[name]
 		personal = '# Personal preferences\r\nKeep my exact prefix.\r\n\r\n'
@@ -47,10 +98,65 @@ class NativeProfileTests(TemporaryCase):
 		for role, agent, purpose, _ in native._role_values(self.primary):
 			self.write(home / f'agents/{agent}.toml', native._legacy_role(self.primary, role, agent, purpose).replace('/scripts/harness.py', '/scripts/upwork_project.py').replace('via harness.py git-read', 'via upwork_project.py git-read'))
 		return personal.encode('utf-8')
+	# @used-by :meth:`NativeProfileTests.check_skill_rename_rollback()`
+	# @used-by :meth:`NativeProfileTests.former_role_config()`
+	# @used-by :meth:`NativeProfileTests.test_antigravity_inherits_and_preserves_unrelated_fields_and_hooks()`
+	# @used-by :meth:`NativeProfileTests.test_apply_and_check_are_idempotent_including_central_receipt()`
+	# @used-by :meth:`NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
+	# @used-by :meth:`NativeProfileTests.test_changed_created_link_does_not_stop_other_guarded_rollback()`
+	# @used-by :meth:`NativeProfileTests.test_check_creates_no_lock_receipt_or_profile_files()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_preimage_change_is_preserved_before_application()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_replacement_during_skill_rollback_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_conflicting_hook_blocks_the_whole_selected_plan()`
+	# @used-by :meth:`NativeProfileTests.test_custom_same_name_role_and_personal_loader_edit_are_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_dangling_directory_symlink_skill_is_retired()`
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_role_link_blocks_rename_without_orphaning_ownership()`
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_shared_role_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_owned_config_role_block_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_wrapper_is_not_retired_or_replaced()`
+	# @used-by :meth:`NativeProfileTests.test_existing_compact_loader_manual_edit_is_not_overwritten()`
+	# @used-by :meth:`NativeProfileTests.test_filtered_legacy_reference_is_preserved_without_duplicate_inheritance()`
+	# @used-by :meth:`NativeProfileTests.test_former_config_role_block_without_receipt_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_m4_and_m5_scrub_antigravity_cdp_grant_mcp_hooks_and_codex_chrome_plugin()`
+	# @used-by :meth:`NativeProfileTests.test_manually_replaced_obsolete_skill_directory_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_new_link_failure_rolls_back_existing_profile_files()`
+	# @used-by :meth:`NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_obsolete_skill_under_linked_parent_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_owned_config_role_block_is_retired_preserving_other_edits()`
+	# @used-by :meth:`NativeProfileTests.test_pilot_changes_only_selected_profiles_and_links_original_content()`
+	# @used-by :meth:`NativeProfileTests.test_removed_role_retires_its_owned_link_and_definition()`
+	# @used-by :meth:`NativeProfileTests.test_removed_skill_retires_alias_without_deleting_canonical_directory()`
+	# @used-by :meth:`NativeProfileTests.test_role_link_failure_restores_retired_roles_and_config()`
+	# @used-by :meth:`NativeProfileTests.test_role_parent_link_injected_immediately_before_creation_cannot_escape()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_failure_restores_retired_link_definition_and_receipt()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_keeps_unselected_profile_and_shared_target_owned()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_retires_only_owned_links_and_shared_definition()`
+	# @used-by :meth:`NativeProfileTests.test_shared_manual_edit_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_skill_parent_link_injected_during_backup_is_preserved_without_escape()`
+	# @used-by :meth:`NativeProfileTests.test_skill_parent_link_injected_immediately_before_creation_cannot_escape()`
+	# @used-by :meth:`NativeProfileTests.test_skill_rename_does_not_touch_unselected_profile_or_forget_ownership()`
+	# @used-by :meth:`NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
+	# @used-by :meth:`NativeProfileTests.test_unknown_prior_link_record_is_preserved_during_skill_rename()`
+	# @used-by :meth:`NativeProfileTests.test_wrong_role_file_link_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_wrong_skill_link_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_wrong_target_obsolete_skill_link_is_preserved()`
 	def install(self, names=('A6', 'C2'), **kwargs):
 		return native.install_native_profiles(names, primary=self.primary, **kwargs)
+	# @used-by :meth:`NativeProfileTests.test_apply_and_check_are_idempotent_including_central_receipt()`
+	# @used-by :meth:`NativeProfileTests.test_check_creates_no_lock_receipt_or_profile_files()`
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_role_link_blocks_rename_without_orphaning_ownership()`
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_shared_role_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_owned_config_role_block_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_edited_wrapper_is_not_retired_or_replaced()`
+	# @used-by :meth:`NativeProfileTests.test_former_config_role_block_without_receipt_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_manually_replaced_obsolete_skill_directory_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_retires_only_owned_links_and_shared_definition()`
+	# @used-by :meth:`NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
+	# @used-by :meth:`NativeProfileTests.test_wrong_target_obsolete_skill_link_is_preserved()`
 	def snapshot(self):
 		return {str(path.relative_to(self.root)): path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
+	# @used-by :mod:`unittest`
 	def test_pilot_changes_only_selected_profiles_and_links_original_content(self):
 		personal = self.legacy_codex()
 		self.write(self.homes['C2'] / 'skills/personal/SKILL.md', 'My own workflow.\n')
@@ -83,6 +189,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual((self.homes['C2'] / 'skills/personal/SKILL.md').read_text(encoding='utf-8'), 'My own workflow.\n')
 		self.assertTrue(result['profiles']['C2']['valid'])
 		self.assertEqual(result['verification'], 'filesystem-only')
+	# @used-by :mod:`unittest`
 	def test_apply_and_check_are_idempotent_including_central_receipt(self):
 		self.legacy_codex()
 		self.assertTrue(self.install()['valid'])
@@ -95,6 +202,9 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(self.snapshot(), before)
 		self.assertTrue(self.install(check=True)['valid'])
 		self.assertEqual(self.snapshot(), before)
+	# @used-by :meth:`NativeProfileTests.test_edited_owned_config_role_block_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_former_config_role_block_without_receipt_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_owned_config_role_block_is_retired_preserving_other_edits()`
 	def former_role_config(self):
 		self.legacy_codex()
 		self.assertTrue(self.install(('C2',))['valid'])
@@ -108,6 +218,7 @@ class NativeProfileTests(TemporaryCase):
 		self.write(native._state_path(self.primary), json.dumps(state))
 		self.write(path, former)
 		return path, original
+	# @used-by :mod:`unittest`
 	def test_owned_config_role_block_is_retired_preserving_other_edits(self):
 		path, original = self.former_role_config()
 		changed = path.read_text(encoding='utf-8').replace('model = "mine"', 'model = "new-choice"') + '\n# Later personal setting\n[agents.other]\ndescription = "Keep me"\n'
@@ -117,6 +228,7 @@ class NativeProfileTests(TemporaryCase):
 		actual = path.read_text(encoding='utf-8')
 		self.assertEqual(actual, original.replace('model = "mine"', 'model = "new-choice"') + '\n\n# Later personal setting\n[agents.other]\ndescription = "Keep me"\n')
 		self.assertTrue(self.install(('C2',), check=True)['valid'])
+	# @used-by :mod:`unittest`
 	def test_edited_owned_config_role_block_is_preserved(self):
 		path, _ = self.former_role_config()
 		self.write(path, path.read_text(encoding='utf-8').replace('Independent substantive review', 'My own review'))
@@ -125,6 +237,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertIn('differs from its exact owned generated block', str(result['issues']))
 		self.assertEqual(self.snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_former_config_role_block_without_receipt_is_preserved(self):
 		path, _ = self.former_role_config()
 		state = native._load_state(self.primary)
@@ -135,6 +248,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertIn('no ownership proof', str(result['issues']))
 		self.assertEqual(self.snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_wrong_role_file_link_is_preserved(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		path = self.homes['C2'] / 'agents/upwork-aa.toml'
@@ -145,11 +259,13 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertTrue(path.samefile(other))
 		self.assertIn('different or missing file', str(result['issues']))
+	# @used-by :mod:`unittest`
 	def test_role_link_failure_restores_retired_roles_and_config(self):
 		self.legacy_codex()
 		before = {path: path.read_bytes() for path in self.homes['C2'].rglob('*') if path.is_file()}
 		actual = native._file_link
 		calls = 0
+		# @used-by :meth:`NativeProfileTests.test_role_link_failure_restores_retired_roles_and_config()`
 		def failing(target, path, primary):
 			nonlocal calls
 			calls += 1
@@ -162,6 +278,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual({path: path.read_bytes() for path in self.homes['C2'].rglob('*') if path.is_file()}, before)
 		self.assertFalse((self.homes['C2'] / 'agents/upwork-aa.toml').is_symlink())
 		self.assertFalse(native._state_path(self.primary).exists())
+	# @used-by :mod:`unittest`
 	def test_check_creates_no_lock_receipt_or_profile_files(self):
 		before = self.snapshot()
 		result = self.install(check=True)
@@ -170,6 +287,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['profiles']['C2']['valid'])
 		self.assertEqual(self.snapshot(), before)
 		self.assertFalse((data_dir_for(self.primary) / 'native-profiles').exists())
+	# @used-by :mod:`unittest`
 	def test_antigravity_inherits_and_preserves_unrelated_fields_and_hooks(self):
 		path = self.gravity['A6'] / 'skills.json'
 		original = {'entries': [{'path': (self.primary / 'skills').as_posix()}, {'path': 'mine', 'include_only': ['my-skill']}], 'inherits': [{'path': '/other/skills.json'}], 'exclude': ['hidden']}
@@ -183,6 +301,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertIn(original['inherits'][0], actual['inherits'])
 		self.assertIn({'path': (self.primary / 'platforms/antigravity/skills.json').as_posix()}, actual['inherits'])
 		self.assertEqual(json.loads((self.gravity['A6'] / 'hooks.json').read_text(encoding='utf-8'))['mine'], {'Stop': [{'command': 'my-command'}]})
+	# @used-by :mod:`unittest`
 	def test_conflicting_hook_blocks_the_whole_selected_plan(self):
 		path = self.write(self.gravity['A6'] / 'hooks.json', json.dumps({'final-turn-gate': {'Stop': [{'command': 'my-custom-hook'}]}}))
 		before = path.read_bytes()
@@ -192,6 +311,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(path.read_bytes(), before)
 		self.assertFalse((self.homes['C2'] / 'AGENTS.md').exists())
 		self.assertFalse((self.primary / 'platforms/codex/AGENTS.md').exists())
+	# @used-by :mod:`unittest`
 	def test_filtered_legacy_reference_is_preserved_without_duplicate_inheritance(self):
 		path = self.write(self.gravity['A6'] / 'rules.json', json.dumps({'entries': [{'path': (self.primary / 'rules').as_posix(), 'include_only': ['00-scope']}]}))
 		before = path.read_bytes()
@@ -199,6 +319,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertIn('Filtered legacy', str(result['issues']))
 		self.assertEqual(path.read_bytes(), before)
+	# @used-by :mod:`unittest`
 	def test_edited_wrapper_is_not_retired_or_replaced(self):
 		self.legacy_codex()
 		path = self.homes['C2'] / 'skills/df-article/SKILL.md'
@@ -210,6 +331,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(path.read_bytes(), before[str(path.relative_to(self.root))])
 		self.assertFalse(native._linked(path.parent))
 		self.assertFalse((self.gravity['A6'] / 'rules.json').exists())
+	# @used-by :mod:`unittest`
 	def test_wrong_skill_link_is_preserved(self):
 		other = self.root / 'other-skill'
 		other.mkdir()
@@ -219,6 +341,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertEqual(path.resolve(), other.resolve())
 		self.assertIn('different or missing directory', str(result['issues']))
+	# @used-by :mod:`unittest`
 	def test_custom_same_name_role_and_personal_loader_edit_are_preserved(self):
 		self.legacy_codex()
 		path = self.homes['C2'] / 'config.toml'
@@ -229,6 +352,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(path.read_bytes(), before)
 		self.assertTrue((self.homes['C2'] / 'agents/upwork-aa.toml').exists())
 		self.assertFalse(native._linked(self.homes['C2'] / 'skills/df-article'))
+	# @used-by :mod:`unittest`
 	def test_existing_compact_loader_manual_edit_is_not_overwritten(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		path = self.homes['C2'] / 'AGENTS.md'
@@ -237,11 +361,13 @@ class NativeProfileTests(TemporaryCase):
 		result = self.install(('C2',))
 		self.assertFalse(result['valid'])
 		self.assertEqual(path.read_bytes(), before)
+	# @used-by :mod:`unittest`
 	def test_new_link_failure_rolls_back_existing_profile_files(self):
 		self.legacy_codex()
 		before = {path: path.read_bytes() for path in self.homes['C2'].rglob('*') if path.is_file()}
 		actual = native._directory_link
 		calls = 0
+		# @used-by :meth:`NativeProfileTests.test_new_link_failure_rolls_back_existing_profile_files()`
 		def failing(target, path, primary):
 			nonlocal calls
 			calls += 1
@@ -255,11 +381,13 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(native._linked(self.homes['C2'] / 'skills/df-article'))
 		self.assertFalse((self.primary / 'platforms/codex/AGENTS.md').exists())
 		self.assertFalse(native._state_path(self.primary).exists())
+	# @used-by :mod:`unittest`
 	def test_concurrent_preimage_change_is_preserved_before_application(self):
 		self.legacy_codex()
 		path = self.homes['C2'] / 'AGENTS.md'
 		backup = native._backup
 		changed = False
+		# @used-by :meth:`NativeProfileTests.test_concurrent_preimage_change_is_preserved_before_application()`
 		def changing(primary, state, target, payload):
 			nonlocal changed
 			result = backup(primary, state, target, payload)
@@ -272,6 +400,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertEqual(path.read_text(encoding='utf-8'), 'Concurrent personal instructions.\n')
 		self.assertFalse((self.primary / 'platforms/codex/AGENTS.md').exists())
+	# @used-by :mod:`unittest`
 	def test_shared_manual_edit_is_preserved(self):
 		self.assertTrue(native.build_shared_native(self.primary)['valid'])
 		path = self.primary / 'platforms/codex/AGENTS.md'
@@ -281,6 +410,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertEqual(path.read_bytes(), before)
 		self.assertFalse((self.gravity['A6'] / 'rules.json').exists())
+	# @used-by :mod:`unittest`
 	def test_project_retirement_requires_exact_ownership_and_keeps_unrelated_files(self):
 		project = self.root / 'workspace'
 		paths = native.legacy_project_projection_paths(project, self.primary)
@@ -305,6 +435,7 @@ class NativeProfileTests(TemporaryCase):
 			key = path + ':' + hashlib.sha256(content).hexdigest()
 			self.assertEqual(Path(state['backups'][key]).read_bytes(), content)
 		self.assertTrue(native.retire_owned_project_projections(project, primary=self.primary, check=True)['valid'])
+	# @used-by :mod:`unittest`
 	def test_edited_project_projection_blocks_all_retirements(self):
 		project = self.root / 'workspace'
 		paths = native.legacy_project_projection_paths(project, self.primary)
@@ -317,6 +448,7 @@ class NativeProfileTests(TemporaryCase):
 		result = native.retire_owned_project_projections(project, primary=self.primary)
 		self.assertFalse(result['valid'])
 		self.assertTrue(all(path.exists() for path in paths))
+	# @used-by :mod:`unittest`
 	def test_project_retirement_skips_a_linked_source_directory(self):
 		project = self.root / 'workspace'
 		alias = project / '.agents/skills/df-article'
@@ -326,9 +458,15 @@ class NativeProfileTests(TemporaryCase):
 		self.assertTrue(result['valid'], result)
 		self.assertTrue(native._linked(alias))
 		self.assertEqual((alias / 'SKILL.md').read_bytes(), original)
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_role_link_blocks_rename_without_orphaning_ownership()`
+	# @used-by :meth:`NativeProfileTests.test_edited_obsolete_shared_role_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_failure_restores_retired_link_definition_and_receipt()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_keeps_unselected_profile_and_shared_target_owned()`
+	# @used-by :meth:`NativeProfileTests.test_role_rename_retires_only_owned_links_and_shared_definition()`
 	def rename_af(self):
 		self.config['platforms']['codex']['roles']['AF']['agent'] = 'evidence-worker'
 		self.write(self.primary / 'runtime.json', json.dumps(self.config))
+	# @used-by :mod:`unittest`
 	def test_role_rename_retires_only_owned_links_and_shared_definition(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		old = self.homes['C2'] / 'agents/upwork-af.toml'
@@ -356,6 +494,7 @@ class NativeProfileTests(TemporaryCase):
 		again = self.install(('C2',))
 		self.assertEqual((again['written'], again['removed'], again['linked']), ([], [], []))
 		self.assertEqual(before, self.snapshot())
+	# @used-by :mod:`unittest`
 	def test_role_rename_keeps_unselected_profile_and_shared_target_owned(self):
 		self.assertTrue(self.install(('C1', 'C2'))['valid'])
 		shared = self.primary / 'platforms/codex/agents/upwork-af.toml'
@@ -370,6 +509,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(old_c1.is_symlink())
 		self.assertFalse(shared.exists())
 		self.assertTrue(self.install(('C1', 'C2'), check=True)['valid'])
+	# @used-by :mod:`unittest`
 	def test_removed_role_retires_its_owned_link_and_definition(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		self.config['platforms']['codex']['roles'].pop('AF')
@@ -380,6 +520,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse((self.primary / 'platforms/codex/agents/upwork-af.toml').exists())
 		self.assertTrue((self.homes['C2'] / 'agents/upwork-aa.toml').is_symlink())
 		self.assertTrue(self.install(('C2',), check=True)['valid'])
+	# @used-by :mod:`unittest`
 	def test_edited_obsolete_role_link_blocks_rename_without_orphaning_ownership(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		old = self.homes['C2'] / 'agents/upwork-af.toml'
@@ -393,6 +534,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertIn('Obsolete managed role link changed', str(result['issues']))
 		self.assertEqual(self.snapshot(), before)
 		self.assertIn(str(old), native._load_state(self.primary)['profiles']['C2']['role_targets'])
+	# @used-by :mod:`unittest`
 	def test_edited_obsolete_shared_role_is_preserved(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		shared = self.primary / 'platforms/codex/agents/upwork-af.toml'
@@ -403,6 +545,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertIn('Obsolete shared role definition changed', str(result['issues']))
 		self.assertEqual(self.snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_role_rename_failure_restores_retired_link_definition_and_receipt(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		old = self.homes['C2'] / 'agents/upwork-af.toml'
@@ -411,6 +554,7 @@ class NativeProfileTests(TemporaryCase):
 		receipt = native._state_path(self.primary).read_bytes()
 		self.rename_af()
 		actual = native._file_link
+		# @used-by :meth:`NativeProfileTests.test_role_rename_failure_restores_retired_link_definition_and_receipt()`
 		def failing(target, path, primary):
 			if path.name == 'evidence-worker.toml':
 				raise OSError('New renamed role link failed')
@@ -423,6 +567,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(shared.read_bytes(), before)
 		self.assertEqual(native._state_path(self.primary).read_bytes(), receipt)
 		self.assertFalse((self.primary / 'platforms/codex/agents/evidence-worker.toml').exists())
+	# @used-by :mod:`unittest`
 	def test_concurrent_personal_edit_does_not_stop_other_guarded_rollback(self):
 		self.assertTrue(native.build_shared_native(self.primary)['valid'])
 		bootstrap = self.primary / 'platforms/codex/AGENTS.md'
@@ -430,6 +575,7 @@ class NativeProfileTests(TemporaryCase):
 		receipt = native._state_path(self.primary).read_bytes()
 		personal = self.write(self.homes['C2'] / 'AGENTS.md', '# My preferences\n')
 		self.write(self.primary / 'rules/11-new.md', '---\ntrigger: always_on\n---\n# New\nNew instruction.\n')
+		# @used-by :meth:`NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
 		def failing(target, path, primary):
 			self.write(personal, '# Concurrent personal edit\n')
 			raise OSError('Role creation failed after concurrent edit')
@@ -445,11 +591,13 @@ class NativeProfileTests(TemporaryCase):
 		recovery = json.loads(Path(result['recovery_receipt']).read_text(encoding='utf-8'))
 		self.assertEqual(recovery['rollback']['status'], 'partial')
 		self.assertTrue(recovery['backups'])
+	# @used-by :mod:`unittest`
 	def test_changed_created_link_does_not_stop_other_guarded_rollback(self):
 		personal = self.write(self.homes['C2'] / 'AGENTS.md', '# Original preferences\n')
 		external = self.write(self.root / 'personal-role.toml', '# Personal role\n')
 		actual = native._file_link
 		changed = self.homes['C2'] / 'agents/upwork-aa.toml'
+		# @used-by :meth:`NativeProfileTests.test_changed_created_link_does_not_stop_other_guarded_rollback()`
 		def failing(target, path, primary):
 			if path.name == 'upwork-af.toml':
 				changed.unlink()
@@ -464,6 +612,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(personal.read_text(encoding='utf-8'), '# Original preferences\n')
 		self.assertFalse((self.primary / 'platforms/codex/AGENTS.md').exists())
 		self.assertFalse(native._linked(self.homes['C2'] / 'skills/upwork-init'))
+	# @used-by :mod:`unittest`
 	def test_skill_parent_link_injected_during_backup_is_preserved_without_escape(self):
 		personal = self.write(self.homes['C2'] / 'AGENTS.md', '# Original preferences\n')
 		external = self.root / 'external-user-skills'
@@ -471,6 +620,7 @@ class NativeProfileTests(TemporaryCase):
 		sentinel = self.write(external / 'personal.txt', 'Preserve me\n')
 		parent = self.homes['C2'] / 'skills'
 		actual = native._backup
+		# @used-by :meth:`NativeProfileTests.test_skill_parent_link_injected_during_backup_is_preserved_without_escape()`
 		def changing(primary, state, target, payload):
 			value = actual(primary, state, target, payload)
 			if not native._linked(parent):
@@ -484,12 +634,14 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(list(external.iterdir()), [sentinel])
 		self.assertEqual(personal.read_text(encoding='utf-8'), '# Original preferences\n')
 		self.assertFalse((self.primary / 'platforms/codex/AGENTS.md').exists())
+	# @used-by :mod:`unittest`
 	def test_skill_parent_link_injected_immediately_before_creation_cannot_escape(self):
 		personal = self.write(self.homes['C2'] / 'AGENTS.md', '# Original preferences\n')
 		external = self.root / 'external-user-skills'
 		external.mkdir()
 		parent = self.homes['C2'] / 'skills'
 		actual = native._directory_link
+		# @used-by :meth:`NativeProfileTests.test_skill_parent_link_injected_immediately_before_creation_cannot_escape()`
 		def changing(target, path, primary):
 			if not native._linked(parent):
 				actual(external, parent, primary)
@@ -501,12 +653,14 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(list(external.iterdir()), [])
 		self.assertEqual(personal.read_text(encoding='utf-8'), '# Original preferences\n')
 		self.assertFalse((self.primary / 'platforms/codex/AGENTS.md').exists())
+	# @used-by :mod:`unittest`
 	def test_role_parent_link_injected_immediately_before_creation_cannot_escape(self):
 		personal = self.write(self.homes['C2'] / 'AGENTS.md', '# Original preferences\n')
 		external = self.root / 'external-user-roles'
 		external.mkdir()
 		parent = self.homes['C2'] / 'agents'
 		actual = native._file_link
+		# @used-by :meth:`NativeProfileTests.test_role_parent_link_injected_immediately_before_creation_cannot_escape()`
 		def changing(target, path, primary):
 			if not native._linked(parent):
 				native._directory_link(external, parent, primary)
@@ -518,11 +672,22 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(list(external.iterdir()), [])
 		self.assertEqual(personal.read_text(encoding='utf-8'), '# Original preferences\n')
 		self.assertFalse((self.primary / 'platforms/codex/AGENTS.md').exists())
+	# @used-by :meth:`NativeProfileTests.check_skill_rename_rollback()`
+	# @used-by :meth:`NativeProfileTests.test_concurrent_replacement_during_skill_rollback_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_dangling_directory_symlink_skill_is_retired()`
+	# @used-by :meth:`NativeProfileTests.test_manually_replaced_obsolete_skill_directory_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_obsolete_skill_under_linked_parent_is_preserved()`
+	# @used-by :meth:`NativeProfileTests.test_skill_rename_does_not_touch_unselected_profile_or_forget_ownership()`
+	# @used-by :meth:`NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
+	# @used-by :meth:`NativeProfileTests.test_unknown_prior_link_record_is_preserved_during_skill_rename()`
+	# @used-by :meth:`NativeProfileTests.test_wrong_target_obsolete_skill_link_is_preserved()`
 	def renamed_article(self):
 		source = self.primary / 'skills/df-article'
 		renamed = self.primary / 'skills/article-renamed'
 		source.rename(renamed)
 		return source, renamed
+	# @used-by :mod:`unittest`
 	def test_skill_rename_retires_owned_dangling_link_with_identity_backup(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		old = self.homes['C2'] / 'skills/df-article'
@@ -554,6 +719,7 @@ class NativeProfileTests(TemporaryCase):
 		again = self.install(('C2',))
 		self.assertEqual((again['written'], again['removed'], again['linked']), ([], [], []))
 		self.assertEqual(self.snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_removed_skill_retires_alias_without_deleting_canonical_directory(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		source = self.primary / 'skills/df-article'
@@ -565,6 +731,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertTrue(source.is_dir())
 		self.assertEqual((source / 'ARCHIVED.md').read_bytes(), original)
 		self.assertTrue(self.install(('C2',), check=True)['valid'])
+	# @used-by :mod:`unittest`
 	def test_dangling_directory_symlink_skill_is_retired(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		old = self.homes['C2'] / 'skills/df-article'
@@ -577,6 +744,7 @@ class NativeProfileTests(TemporaryCase):
 		result = self.install(('C2',))
 		self.assertTrue(result['valid'], result)
 		self.assertFalse(old.is_symlink())
+	# @used-by :mod:`unittest`
 	def test_skill_rename_does_not_touch_unselected_profile_or_forget_ownership(self):
 		self.assertTrue(self.install(('C1', 'C2'))['valid'])
 		source, renamed = self.renamed_article()
@@ -588,6 +756,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(native._exists(old_c1))
 		self.assertTrue((self.homes['C1'] / 'skills/article-renamed').samefile(renamed))
 		self.assertTrue(self.install(('C1', 'C2'), check=True)['valid'])
+	# @used-by :mod:`unittest`
 	def test_manually_replaced_obsolete_skill_directory_is_preserved(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		source, renamed = self.renamed_article()
@@ -601,6 +770,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(self.snapshot(), before)
 		self.assertEqual(sentinel.read_text(encoding='utf-8'), 'My content\n')
 		self.assertTrue((renamed / 'SKILL.md').is_file())
+	# @used-by :mod:`unittest`
 	def test_wrong_target_obsolete_skill_link_is_preserved(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		source, _ = self.renamed_article()
@@ -614,6 +784,7 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertTrue(old.samefile(personal))
 		self.assertEqual(self.snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_obsolete_skill_under_linked_parent_is_preserved(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		self.renamed_article()
@@ -627,6 +798,8 @@ class NativeProfileTests(TemporaryCase):
 		self.assertIn('Linked obsolete skill parent directory', str(result['issues']))
 		self.assertTrue(parent.samefile(external))
 		self.assertEqual({p.name: native._directory_link_identity(p) for p in external.iterdir()}, before)
+	# @used-by :meth:`NativeProfileTests.test_failed_skill_rename_restores_dangling_directory_junction_identity()`
+	# @used-by :meth:`NativeProfileTests.test_failed_skill_rename_restores_dangling_directory_symlink_identity()`
 	def check_skill_rename_rollback(self, directory_symlink=False):
 		self.assertTrue(self.install(('C2',))['valid'])
 		old = self.homes['C2'] / 'skills/df-article'
@@ -639,6 +812,7 @@ class NativeProfileTests(TemporaryCase):
 		original = (renamed / 'SKILL.md').read_bytes()
 		receipt = native._state_path(self.primary).read_bytes()
 		actual = native._directory_link
+		# @used-by :meth:`NativeProfileTests.check_skill_rename_rollback()`
 		def failing(target, path, primary):
 			if path.name == 'article-renamed':
 				raise OSError('Renamed skill creation failed')
@@ -652,10 +826,13 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual((renamed / 'SKILL.md').read_bytes(), original)
 		self.assertEqual(native._state_path(self.primary).read_bytes(), receipt)
 		self.assertFalse(native._exists(self.homes['C2'] / 'skills/article-renamed'))
+	# @used-by :mod:`unittest`
 	def test_failed_skill_rename_restores_dangling_directory_junction_identity(self):
 		self.check_skill_rename_rollback()
+	# @used-by :mod:`unittest`
 	def test_failed_skill_rename_restores_dangling_directory_symlink_identity(self):
 		self.check_skill_rename_rollback(directory_symlink=True)
+	# @used-by :mod:`unittest`
 	def test_obsolete_skill_changed_during_backup_is_preserved(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		source, _ = self.renamed_article()
@@ -664,6 +841,7 @@ class NativeProfileTests(TemporaryCase):
 		personal.mkdir()
 		receipt = native._state_path(self.primary).read_bytes()
 		actual = native._backup
+		# @used-by :meth:`NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
 		def changing(primary, state, path, payload):
 			value = actual(primary, state, path, payload)
 			if path == old:
@@ -676,11 +854,13 @@ class NativeProfileTests(TemporaryCase):
 		self.assertIn('Obsolete skill link changed during migration', str(result['issues']))
 		self.assertTrue(old.samefile(personal))
 		self.assertEqual(native._state_path(self.primary).read_bytes(), receipt)
+	# @used-by :mod:`unittest`
 	def test_concurrent_replacement_during_skill_rollback_is_preserved(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		self.renamed_article()
 		old = self.homes['C2'] / 'skills/df-article'
 		receipt = native._state_path(self.primary).read_bytes()
+		# @used-by :meth:`NativeProfileTests.test_concurrent_replacement_during_skill_rollback_is_preserved()`
 		def failing(target, path, primary):
 			self.write(old / 'personal.txt', 'Concurrent replacement\n')
 			raise OSError('Renamed skill creation failed')
@@ -695,6 +875,7 @@ class NativeProfileTests(TemporaryCase):
 	# 2026-11-14
 	# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 	# https://github.com/dmitry-ai/harness/issues/71
+	# @used-by :mod:`unittest`
 	def test_unified_managed_link_and_manifest_helpers(self):
 		target_file = self.write(self.root / 'shared-role.toml', 'name = "aa"\n')
 		role_link_path = self.root / 'links/aa.toml'
@@ -718,6 +899,7 @@ class NativeProfileTests(TemporaryCase):
 		backup, digest = configuration.store_content_backup(self.root / 'backups', target_file, b'payload')
 		self.assertEqual(b'payload', backup.read_bytes())
 		self.assertEqual(digest, configuration.receipt_sha256({'sha256': digest}))
+	# @used-by :mod:`unittest`
 	def test_unknown_prior_link_record_is_preserved_during_skill_rename(self):
 		self.assertTrue(self.install(('C2',))['valid'])
 		unknown = self.homes['C2'] / 'custom/personal-skill'
@@ -734,6 +916,7 @@ class NativeProfileTests(TemporaryCase):
 	# 2026-11-16
 	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 	# https://github.com/dmitry-ai/harness/issues/80
+	# @used-by :mod:`unittest`
 	def test_m4_and_m5_scrub_antigravity_cdp_grant_mcp_hooks_and_codex_chrome_plugin(self):
 		self.write(self.gravity['A6'] / 'config.json', json.dumps({'userSettings': {'globalPermissionGrants': {'allow': ['command(curl.exe -s http://127.0.0.1:9222/json)', 'read_url(*)']}}}))
 		fake_hs = self.write(self.root / 'tools/chrome-headless-shell.exe', 'binary')
@@ -760,6 +943,7 @@ class NativeProfileTests(TemporaryCase):
 	# 2026-11-20
 	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 	# https://github.com/dmitry-ai/harness/issues/103
+	# @used-by :mod:`unittest`
 	def test_v2_unicode_primary_generates_ascii_hook_runner_upgrades_legacy_hooks_and_runs_via_cmd_exe(self):
 		import shutil
 		import subprocess
@@ -794,6 +978,7 @@ class NativeProfileTests(TemporaryCase):
 	# 2026-11-20
 	# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
 	# https://github.com/dmitry-ai/harness/issues/106
+	# @used-by :mod:`unittest`
 	def test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists(self):
 		import shutil
 		old_primary = self.root / 'v2_mig/Artifacts/\u227b/Deliverables/\u26ef'
@@ -821,6 +1006,7 @@ class NativeProfileTests(TemporaryCase):
 	# 2026-11-20
 	# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
 	# https://github.com/dmitry-ai/harness/issues/106
+	# @used-by :mod:`unittest`
 	def test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary(self):
 		import shutil
 		old_primary = self.root / 'v2_rec/Artifacts/\u227b/Deliverables/\u26ef'
@@ -852,6 +1038,7 @@ class NativeProfileTests(TemporaryCase):
 	# 2026-11-21
 	# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 	# https://github.com/dmitry-ai/harness/issues/116
+	# @used-by :mod:`unittest`
 	def test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate(self):
 		from agent_tools.upwork_project import canonical_global_hooks, legacy_runner_global_hooks
 		legacy_hooks = legacy_runner_global_hooks(self.primary)

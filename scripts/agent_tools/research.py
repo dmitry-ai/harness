@@ -1,6 +1,7 @@
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import override
 import html as html_lib
 from html.parser import HTMLParser
 from pathlib import Path
@@ -41,8 +42,19 @@ _PASSIVE_JSD_SCRIPT_RE = re.compile('(?is)<script\\b[^>]*\\bsrc=["\\\'][^"\\\']*
 _CHALLENGE_TITLE_RE = re.compile('(?i)^(?:just a moment\\.{0,3}|attention required!\\s*\\|\\s*cloudflare|verify you are human|checking your (?:browser|site connection)(?:\\.{0,3}| before accessing.*)|one more step|ddos-guard|security check|access denied)$')
 _CHALLENGE_COPY_RE = re.compile('(?i)verify you are human|checking your browser|checking if the site connection is secure|enable javascript and cookies to continue|please stand by,? while we are checking your browser')
 _CHALLENGE_TOKEN_RE = re.compile('(?i)_cf_chl_opt|challenge-platform|challenges\\.cloudflare\\.com/turnstile|cf-chl-bypass|ray id')
+# @used-by :func:`_summarize_observation_bundle()`
+# @used-by :func:`_write_cached_extraction()`
+# @used-by :func:`agent_tools.evidence_loader._load_saved_extracted_html()`
+# @used-by :func:`agent_tools.evidence_loader._resolve_html_data()`
+# @used-by :func:`agent_tools.evidence_loader._scan_ext_files()`
 def extractor_version():
 	return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
+# @used-by :func:`_summarize_observation_bundle()`
+# @used-by :func:`agent_tools.evidence.verify_html_quote_scope()`
+# @used-by :func:`agent_tools.evidence_loader._extract_bundle_html()`
+# @used-by :func:`agent_tools.text_browser._poll_dom_on_session()`
+# @used-by :func:`extract_bytes()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked()`
 def classify_html_challenge(raw_html: str, *, parsed: dict | None=None, status: int | None=None) -> bool:
 	if not isinstance(raw_html, str):
 		return False
@@ -82,6 +94,8 @@ def classify_html_challenge(raw_html: str, *, parsed: dict | None=None, status: 
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`collect()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e3_network_error_classification_and_unverified_dns_claim_rejection()`
 def classify_network_error(exc):
 	cause = exc.reason if isinstance(exc, URLError) and None is not getattr(exc, 'reason', None) else exc
 	if isinstance(cause, socket.gaierror):
@@ -100,16 +114,128 @@ def classify_network_error(exc):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`_write_cached_extraction()`
+# @used-by :func:`agent_tools.cleanup._finish_pending()`
+# @used-by :func:`agent_tools.cleanup.remove_antigravity()`
+# @used-by :func:`agent_tools.cleanup.restore_antigravity()`
+# @used-by :func:`agent_tools.experiments._result_bytes()`
+# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
+# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`agent_tools.platforms.codex.native_executor_metadata()`
+# @used-by :func:`agent_tools.platforms.trace_common.make_tool_trace_event()`
+# @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
+# @used-by :func:`agent_tools.review.claim_merkle_hash()`
+# @used-by :func:`agent_tools.review.disposition()`
+# @used-by :func:`agent_tools.review.prepare()`
+# @used-by :func:`agent_tools.review.prepare_verdict_record()`
+# @used-by :func:`agent_tools.review.subject_digest()`
+# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
+# @used-by :func:`agent_tools.text_claims.save_registry()`
+# @used-by :func:`agent_tools.text_review.prepare()`
+# @used-by :func:`agent_tools.text_review.record()`
+# @used-by :func:`agent_tools.text_sources._attempt()`
+# @used-by :func:`agent_tools.text_sources.probe_links()`
+# @used-by :func:`agent_tools.text_sources.save_source_check()`
+# @used-by :func:`collect()`
+# @used-by :func:`observed_use()`
+# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
+# @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.save_index()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.update()`
+# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests._native_record()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.native_record()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.self_record()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_audit_must_explain_falsifiability_and_compare_raw_criteria()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_cli_exact_candidate_and_report_support_stdin_without_implicit_risk()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_empty_manifest_package_cannot_pass_record_review()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_routine_package_cannot_bypass_computed_risk()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_official_distributor_is_not_established_by_contains_lunos_proxy()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_per_claim_audit_is_required_and_qualified_gap_can_pass()`
+# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
+# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
+# @used-by :meth:`test_text_integration.TextReviewTests.test_parent_cannot_authorize_its_own_text()`
 def json_data(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`collect()`
+# @used-by :func:`request_key()`
 def _fingerprint(value):
 	return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.claims._manifest_primary()`
+# @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
+# @used-by :func:`agent_tools.cli_domains._resolve_project_input()`
+# @used-by :func:`agent_tools.evidence.source_reference()`
+# @used-by :func:`agent_tools.experiments.result_issues()`
+# @used-by :func:`agent_tools.metrics.project_metrics()`
+# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`agent_tools.platforms.codex._review_inputs()`
+# @used-by :func:`agent_tools.review.authenticate_report()`
+# @used-by :func:`agent_tools.review.authorize()`
+# @used-by :func:`agent_tools.review.disposition()`
+# @used-by :func:`agent_tools.review.input_receipt()`
+# @used-by :func:`agent_tools.review.prepare_verdict_record()`
+# @used-by :func:`agent_tools.review.read_package()`
+# @used-by :func:`agent_tools.review.read_package_envelope()`
+# @used-by :func:`agent_tools.review.resolve_addressed_reviews()`
+# @used-by :func:`agent_tools.review.verify_entry_native_proof()`
+# @used-by :func:`agent_tools.text_claims.evidence_inputs()`
+# @used-by :func:`agent_tools.text_claims.registry_path()`
+# @used-by :func:`agent_tools.text_review.approval_integrity()`
+# @used-by :func:`agent_tools.text_review.authorize()`
+# @used-by :func:`agent_tools.text_review.read_package()`
+# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :func:`agent_tools.text_sources.read_source_check()`
+# @used-by :func:`agent_tools.text_sources.source_integrity()`
+# @used-by :func:`agent_tools.workflow.hashes()`
+# @used-by :func:`extract_file()`
+# @used-by :func:`extract_observation()`
+# @used-by :func:`load_observation()`
+# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.load()`
+# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.preregistration_issues()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._ingest_artifacts_and_trace()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._verify_saved_artifacts()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.load()`
+# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approval_current()`
+# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approved_claim_digests()`
+# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.findings_closed()`
+# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.significant_findings()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._validate_begin_spec()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.document()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier._add_artifact()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.applied_integrity()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.reconciled_integrity()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify_applied_successor()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.kb_issues()`
+# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry._apply_finish()`
+# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.add()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_resume()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._resolve_receipt_artifact()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.status()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 def inside(root, relative):
 	root = Path(root).resolve()
 	target = (root / relative).resolve()
@@ -144,12 +270,20 @@ class Response:
 	charset: str = 'utf-8'
 	redirects: tuple = ()
 class SafeRedirects(HTTPRedirectHandler):
+	# @used-by :func:`fetch()`
 	def __init__(self):
 		self.chain = []
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`urllib.request.HTTPRedirectHandler.redirect_request()`
+	# @see :meth:`urllib.request.HTTPRedirectHandler.redirect_request()`
+	@override
 	def redirect_request(self, req, fp, code, msg, headers, newurl):
 		redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
 		if redirected:
 			self.chain.append({'from': req.full_url, 'to': redirected.full_url, 'status': code})
+			# @used-by :meth:`SafeRedirects.redirect_request()`
 			def origin(url):
 				value = urlsplit(url)
 				r = (value.scheme, value.hostname, value.port or (443 if 'https' == value.scheme else 80))
@@ -160,6 +294,7 @@ class SafeRedirects(HTTPRedirectHandler):
 						redirected.remove_header(key)
 		r = redirected
 		return r
+# @used-by :func:`collect()`
 def fetch(url, headers, timeout):
 	redirects = SafeRedirects()
 	try:
@@ -175,6 +310,9 @@ def fetch(url, headers, timeout):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`collect()`
+# @used-by :func:`request_key()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._check_conditions()`
 def request_context(value=None):
 	if None is value:
 		r = {'session': {'mode': 'unknown', 'verification': 'unverified'}, 'egress': {'country': None, 'verification': 'unverified'}}
@@ -207,6 +345,8 @@ def request_context(value=None):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`collect()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_cache_distinguishes_network_country_language_and_session_state()`
 def request_key(url, headers, scope, context=None):
 	url = urldefrag(url)[0]
 	parsed = urlsplit(url)
@@ -219,6 +359,11 @@ def request_key(url, headers, scope, context=None):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`agent_tools.claims._primary_capabilities()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_dom_is_fresh_and_never_proves_click()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_observation_kind_alone_never_grants_extra_capabilities()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_dom_collector_does_not_issue_content_proof_if_browser_identity_changes()`
 def observation_capabilities(meta):
 	if meta.get('error'):
 		r = set()
@@ -233,8 +378,12 @@ def observation_capabilities(meta):
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
 METRIC_KEYS = ('uses', 'cache_hits', 'fresh_attempts', 'failed_attempts', 'http_unavailable')
+# @used-by :func:`bounded_metrics()`
+# @used-by :func:`observed_use()`
 def metric_counts(events):
 	return dict(zip(METRIC_KEYS, (len(events), sum((True is x.get('cached') for x in events)), sum((False is x.get('cached') for x in events)), sum((bool(x.get('error')) for x in events)), sum(('http' == x.get('kind') and (x.get('status') or 0) >= 400 for x in events)))))
+# @used-by :func:`agent_tools.metrics.project_metrics()`
+# @used-by :func:`observed_use()`
 def bounded_metrics(value):
 	if isinstance(value, list):
 		r = {'version': 2, 'totals': metric_counts(value), 'recent': value[-32:]}
@@ -246,6 +395,8 @@ def bounded_metrics(value):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`collect()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_collector_retains_totals_and_only_32_recent_diagnostics()`
 def observed_use(root, result):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -273,6 +424,38 @@ def observed_use(root, result):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`agent_tools.text_sources.probe_links()`
+# @used-by :func:`capture_dom()`
+# @used-by :func:`collect_browser()`
+# @used-by :func:`collect_http()`
+# @used-by :func:`test_evidence_contract.v3_analysis()`
+# @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._build_html_obs_project()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_anchored_quote_from_another_section_is_rejected()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_existing_heading_or_ancestor_anchor_is_required()`
+# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_no_anchor_exception_uses_an_observed_specific_section()`
+# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_void_elements_compact_extracted_disk_json_and_max_bytes_guard()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_changed_cached_body_is_not_silently_used()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_concurrent_and_repeated_fetches_reuse_one_saved_response()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_conditions_scope_and_explicit_refresh_make_separate_measurements()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.signed_price_analysis()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_currency_cannot_be_borrowed_from_another_quantity()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e3_network_error_classification_and_unverified_dns_claim_rejection()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e4_site_wide_schema_absence_requires_multi_page_or_product_template_sample()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e5_and_e6_html_sitemap_and_site_summary_diagnostics()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_html_markup_cannot_hide_a_sign_between_spans()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_json_amount_currency_pair_is_an_exact_quantity_locator()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_v3_documentation_requires_verified_anchor_or_genuine_no_anchor_section()`
+# @used-by :meth:`test_experiments.ExperimentTests.observe()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_remote_json_pointer_checks_only_the_target_field()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.spec()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
 def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_reason=None, timeout=15, fetcher=None, observation_kind='http', context=None, extra_meta=None):
 	root = Path(root).resolve()
 	if max_age < 0 or timeout <= 0 or (not isinstance(scope, str)) or (not scope.strip()):
@@ -355,6 +538,17 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`agent_tools.claims._primary_capabilities()`
+# @used-by :func:`agent_tools.evidence.evidence_issues()`
+# @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
+# @used-by :func:`agent_tools.text_sources._attempt()`
+# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :func:`collect()`
+# @used-by :func:`extract_observation()`
+# @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._build_html_obs_project()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_changed_cached_body_is_not_silently_used()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
 def load_observation(root, reference):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -374,6 +568,9 @@ def load_observation(root, reference):
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 class HTMLData(HTMLParser):
+	# @used-by :func:`extract_bytes()`
+	# @see :meth:`html.parser.HTMLParser.__init__()`
+	@override
 	def __init__(self):
 		super().__init__(convert_charrefs=True)
 		self.stack, self.text, self.headings, self.anchors, self.scripts, self.json_ld = ([], [], [], [], [], [])
@@ -385,6 +582,9 @@ class HTMLData(HTMLParser):
 		self.images, self.embeds = ([], [])
 		self.anchor_ranges, self.section_ranges = ({}, [])
 		self.position = 0
+	# @used-by :meth:`html.parser.HTMLParser.handle_starttag()`
+	# @see :meth:`html.parser.HTMLParser.handle_starttag()`
+	@override
 	def handle_starttag(self, tag, attrs):
 		attrs = dict(attrs)
 		# 2026-11-02
@@ -435,6 +635,9 @@ class HTMLData(HTMLParser):
 			self.section_ranges.append(self.heading)
 		if not is_void:
 			self.stack.append({'tag': tag, 'anchor': anchor if not hidden_ctx else None, 'raw_anchor': anchor, 'hidden': hidden_ctx, 'start': self.position, 'end': None, 'anchors': [anchor] if anchor and (not hidden_ctx) else []})
+	# @used-by :meth:`html.parser.HTMLParser.handle_endtag()`
+	# @see :meth:`html.parser.HTMLParser.handle_endtag()`
+	@override
 	def handle_endtag(self, tag):
 		if 'a' == tag and None is not self.link:
 			self.link['text'] = ' '.join(self.link['text'].split())
@@ -466,6 +669,9 @@ class HTMLData(HTMLParser):
 		if tag in ('p', 'div', 'section', 'li', 'br') or re.fullmatch('h[1-6]', tag):
 			self.text.append('\n')
 			self.position += 1
+	# @used-by :meth:`html.parser.HTMLParser.handle_data()`
+	# @see :meth:`html.parser.HTMLParser.handle_data()`
+	@override
 	def handle_data(self, value):
 		tags = {frame['tag'] for frame in self.stack}
 		if self.script:
@@ -479,6 +685,11 @@ class HTMLData(HTMLParser):
 		if not tags.intersection(('script', 'style', 'head')):
 			self.text.append(value)
 			self.position += len(value)
+	# @used-by :func:`agent_tools.parallel_runner.run_parallel_tests()`
+	# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
+	# @used-by :func:`agent_tools.suite_runner.run_test_suite()`
+	# @used-by :func:`extract_bytes()`
+	# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 	def result(self):
 		plain = ''.join(self.text)
 		plain_len = len(plain)
@@ -489,6 +700,7 @@ class HTMLData(HTMLParser):
 		# https://github.com/dmitry-ai/harness/issues/81
 		raw_anchor_ranges = {anchor: [[x['start'], plain_len if None is x['end'] else x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}
 		ambiguous_set = {anchor for anchor, ranges in raw_anchor_ranges.items() if len(ranges) > 1}
+		# @used-by :meth:`HTMLData.result()`
 		def _strip_glyphs(seg):
 			return re.sub('[#\u00b6\u00a7\U0001f517\\s]+', '', seg)
 		sec_anchor_lists = [[] for _ in self.section_ranges]
@@ -608,6 +820,10 @@ class HTMLData(HTMLParser):
 # 2026-11-16
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
+# @used-by :func:`_summarize_observation_bundle()`
+# @used-by :func:`agent_tools.evidence_loader._extract_bundle_markdown()`
+# @used-by :func:`agent_tools.links.check_network()`
+# @used-by :func:`extract_bytes()`
 def extract_markdown(text: str) -> dict:
 	from collections import Counter
 	from markdown_it import MarkdownIt
@@ -666,6 +882,8 @@ def extract_markdown(text: str) -> dict:
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`classify_html_challenge()`
+# @used-by :func:`extract_bytes()`
 def _extract_sitemap(text):
 	stripped = text.lstrip()
 	if not (stripped.startswith('<?xml') or '<urlset' in stripped[:1500] or '<sitemapindex' in stripped[:1500]):
@@ -710,8 +928,10 @@ def _extract_sitemap(text):
 	root_missing = any(('/home' == p.rstrip('/') for p in paths)) and (not any((p in ('', '/') for p in paths)))
 	duplicate_images = {k: v for k, v in sorted(img_to_pages.items()) if len(v) > 1}
 	return {'type': root_name, 'url_count': len(urls), 'urls': urls, 'sitemap_issues': {'unescaped_spaces_in_loc': unescaped_spaces, 'template_slug_urls': template_slugs, 'root_url_missing': root_missing, 'polluted_image_titles': sorted(polluted_titles), 'duplicate_image_locs': duplicate_images}}
+# @used-by :func:`extract_bytes()`
 def _summarize_json_collections(value):
 	arrays = {}
+	# @used-by :func:`_summarize_json_collections()`
 	def walk(node, path='', depth=0):
 		if depth > 4:
 			return
@@ -755,6 +975,8 @@ def _summarize_json_collections(value):
 # 2026-11-13
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
+# @used-by :func:`extract_file()`
+# @used-by :func:`extract_observation()`
 def _write_cached_extraction(target, legacy_pattern, sha_key, sha_value, build_fn):
 	version = extractor_version()
 	target.parent.mkdir(parents=True, exist_ok=True)
@@ -787,6 +1009,16 @@ def _write_cached_extraction(target, legacy_pattern, sha_key, sha_value, build_f
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_summarize_observation_bundle()`
+# @used-by :func:`agent_tools.evidence.saved_source()`
+# @used-by :func:`agent_tools.evidence_loader._resolve_html_data()`
+# @used-by :func:`extract_file()`
+# @used-by :func:`extract_observation()`
+# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness()`
+# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_void_elements_compact_extracted_disk_json_and_max_bytes_guard()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_tracking_and_shopify_extraction_preserve_provenance_limits()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_tracking_extraction_handles_quoted_keys_and_declares_unparsed_js()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
 def extract_bytes(body, content_type, profile, charset='utf-8', *, status=None):
 	if profile not in PROFILES:
 		raise ValueError(f'Unknown profile: {profile}; choose {PROFILES}')
@@ -880,6 +1112,8 @@ def extract_bytes(body, content_type, profile, charset='utf-8', *, status=None):
 # 2026-11-02
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
+# @used-by :func:`extract_file()`
+# @used-by :func:`extract_observation()`
 def compact_extraction_for_disk(data):
 	out = {k: v for k, v in data.items() if 'anchor_content' != k}
 	if isinstance(out.get('sections'), list):
@@ -891,6 +1125,14 @@ def compact_extraction_for_disk(data):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`agent_tools.cli_domains._op_extract()`
+# @used-by :func:`capture_dom()`
+# @used-by :func:`collect_browser()`
+# @used-by :func:`collect_http()`
+# @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._build_html_obs_project()`
+# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_void_elements_compact_extracted_disk_json_and_max_bytes_guard()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_concurrent_and_repeated_fetches_reuse_one_saved_response()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e5_and_e6_html_sitemap_and_site_summary_diagnostics()`
 def extract_observation(root, reference, profile='html'):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -918,6 +1160,8 @@ def extract_observation(root, reference, profile='html'):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`agent_tools.cli_domains._op_extract_file()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`
 def extract_file(root, file, profile='document'):
 	import mimetypes
 	# 2026-11-19
@@ -940,6 +1184,7 @@ def extract_file(root, file, profile='document'):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_exact_dom_tab_is_read_without_inventing_http_status()`
 def select_dom_tab(tabs, url, tab_id):
 	matches = [t for t in tabs if 'page' == t.get('type') and t.get('id') == tab_id and (urldefrag(t.get('url', ''))[0] == urldefrag(url)[0])]
 	if 1 != len(matches):
@@ -952,6 +1197,12 @@ def select_dom_tab(tabs, url, tab_id):
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# @used-by :func:`agent_tools.cli_domains._op_capture_dom()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_dom_is_fresh_and_never_proves_click()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_exact_dom_tab_is_read_without_inventing_http_status()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_dom_collector_does_not_issue_content_proof_if_browser_identity_changes()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_dom_collector_exact_url_and_guard_project_cannot_be_substituted()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_dom_collector_requires_verified_profile_before_native_dom_evaluation()`
 def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, context=None, config=None, guard=None):
 	# 2026-11-23
 	# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
@@ -974,6 +1225,7 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 	identity_ref, identity_hash = save_cdp_identity(root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'session_id': session_id, 'target_id': tab_id, 'browser_websocket': identity['browser']['websocket_url'], 'profile': identity['profile'], 'account': identity['account']})
 	observed_context = dict(context or {})
 	observed_context.setdefault('session_id', session_id)
+	# @used-by :func:`capture_dom()`
 	def read_dom(target, headers, timeout):
 		# 2026-11-23
 		# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
@@ -996,6 +1248,13 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 # 2026-10-31
 # "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
 # https://github.com/dmitry-ai/harness/issues/27
+# @used-by :func:`agent_tools.cli_domains._op_collect_browser()`
+# @used-by :func:`collect_browser_batch()`
+# @used-by :func:`collect_http()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_browser_never_hijacks_open_user_tab_without_tab_id_and_uses_hidden_target()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_m1_live_headless_shell_public_isolation_and_h_chs_6_static_skip()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 def collect_browser(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None, headless_shell=None):
 	# 2026-11-21
 	# "Add compact evidence-query command and unify collect-http CLI flags":
@@ -1017,6 +1276,7 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 	if isinstance(session_id, str) and session_id.strip():
 		observed_context.setdefault('session_id', session_id.strip())
 	cdp_meta = {}
+	# @used-by :func:`collect_browser()`
 	def read_dom(target, headers, fetch_timeout):
 		# 2026-11-16
 		# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
@@ -1049,6 +1309,10 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`collect_browser_batch()`
+# @used-by :func:`collect_plan()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e5_and_e6_html_sitemap_and_site_summary_diagnostics()`
 def compute_site_summary(root, results):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -1106,6 +1370,14 @@ def compute_site_summary(root, results):
 # 2026-10-30
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
+# @used-by :func:`agent_tools.cli_domains._op_collect_http()`
+# @used-by :func:`collect_plan()`
+# @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
+# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_documentation_link_requires_anchor_when_observation_has_anchors()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_http_auto_fallback_to_browser_on_reddit_js_challenge_shell()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_m1_live_headless_shell_public_isolation_and_h_chs_6_static_skip()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adhoc_http_fetch_in_shell_blocks_and_collect_http_persists()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_universal_source_kb_check_blocks_reddit_js_shell_unverified_short_links_missing_anchors_and_fake_quotes()`
 def collect_http(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None, headless_shell=None):
 	# 2026-11-21
 	# "Add compact evidence-query command and unify collect-http CLI flags":
@@ -1165,6 +1437,12 @@ def collect_http(root, url, *, profile='html', scope='public', session_id=None, 
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`collect_http_batch()`
+# @used-by :meth:`test_analysis_workflow.ResearchTests.test_http_error_observation_is_completed_and_preserved()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_failed_extraction_keeps_saved_observation_and_reuses_it()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_m1_live_headless_shell_public_isolation_and_h_chs_6_static_skip()`
 def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, session_id=None, cdp_fetcher=None, http_get=None, cdp_call=None):
 	# 2026-10-31
 	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
@@ -1178,6 +1456,7 @@ def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, ses
 	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 	# https://github.com/dmitry-ai/harness/issues/80
 	shared_shell = {'instance': None}
+	# @used-by :func:`collect_plan()`
 	def _lazy_headless_fetcher(proj_root, target, *, cdp_port=None, timeout=15, config=None, http_get=None, cdp_call=None):
 		from .text_browser import ManagedHeadlessShell, collect_cdp_dom
 		if None is shared_shell['instance']:
@@ -1207,12 +1486,16 @@ def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, ses
 # 2026-11-21
 # "Add compact evidence-query command and unify collect-http CLI flags":
 # https://github.com/dmitry-ai/harness/issues/118
+# @used-by :func:`agent_tools.cli_domains._op_collect_http()`
+# @used-by :func:`collect_http()`
 def collect_http_batch(root, urls, *, profile='auto', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
 	cleaned = [str(u).strip() for u in (urls or ()) if str(u).strip()]
 	if not cleaned:
 		raise ValueError('Provide at least one HTTP(S) URL')
 	plan = {'requests': [{'url': u, 'profile': profile, 'scope': scope, 'session_id': session_id, 'refresh_reason': refresh_reason, 'max_age': max_age, 'headers': headers, 'context': context, 'browser': browser} for u in cleaned]}
 	return collect_plan(root, plan, fetcher=fetcher, browser=browser, cdp_port=cdp_port, session_id=session_id, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+# @used-by :func:`agent_tools.cli_domains._op_collect_browser()`
+# @used-by :func:`collect_browser()`
 def collect_browser_batch(root, urls, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None):
 	cleaned = [str(u).strip() for u in (urls or ()) if str(u).strip()]
 	if not cleaned:
@@ -1233,8 +1516,11 @@ def collect_browser_batch(root, urls, *, profile='html', scope='public', session
 		if None is not shared_shell['instance']:
 			shared_shell['instance'].close()
 	return {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and ('dom' == x.get('kind') or 0 < (x.get('status') or 0)) for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and ('dom' == x.get('kind') or 200 <= (x.get('status') or 0) < 300) and (not x.get('browser_check_required')) for x in results))}
+# @used-by :func:`evidence_query()`
 def _norm_query_url(url: str) -> str:
 	return urldefrag(str(url or '').strip())[0].rstrip('/')
+# @used-by :func:`agent_tools.evidence_loader._extract_bundle_html()`
+# @used-by :mod:`agent_tools.research`
 def extract_github_blob_lines(raw_text: str) -> list[str]:
 	if not raw_text:
 		return []
@@ -1264,6 +1550,7 @@ def extract_github_blob_lines(raw_text: str) -> list[str]:
 			return [by_ln.get(idx, '') for idx in range(1, max_ln + 1)]
 	return []
 _extract_github_blob_lines = extract_github_blob_lines
+# @used-by :func:`_summarize_observation_bundle()`
 def _grep_blob_windows(blob_lines: list[str], rx: re.Pattern, *, has_lc_anchors: bool, context_lines: int = 2, max_matches: int = 20) -> list[dict]:
 	hit_indices = [idx for idx, ln in enumerate(blob_lines) if rx.search(ln)]
 	if not hit_indices:
@@ -1285,6 +1572,7 @@ def _grep_blob_windows(blob_lines: list[str], rx: re.Pattern, *, has_lc_anchors:
 		anchor = f'#LC{hit1}' if has_lc_anchors else range_anchor
 		out.append({'line_start': s1, 'line_end': e1, 'hit_line': hit1, 'anchor': anchor, 'line_anchor': f'#LC{hit1}', 'range_anchor': range_anchor, 'heading': None, 'verbatim_context': '\n'.join(blob_lines[s:e + 1])})
 	return out
+# @used-by :func:`_summarize_observation_bundle()`
 def _grep_section_windows(sections: list[dict], fallback_text: str, rx: re.Pattern, *, context_lines: int = 2, max_matches: int = 20) -> list[dict]:
 	out: list[dict] = []
 	seen_snippets: set[str] = set()
@@ -1334,6 +1622,7 @@ def _grep_section_windows(sections: list[dict], fallback_text: str, rx: re.Patte
 		if len(out) >= max_matches:
 			break
 	return out
+# @used-by :func:`evidence_query()`
 def _summarize_observation_bundle(obs_file: Path, kb_dir: Path, *, include_anchors: bool = False, rx: re.Pattern | None = None, context_lines: int = 2, max_matches: int = 20) -> dict | None:
 	try:
 		data = json.loads(obs_file.read_text(encoding='utf-8'))
@@ -1516,6 +1805,8 @@ def _summarize_observation_bundle(obs_file: Path, kb_dir: Path, *, include_ancho
 		entry['match_count'] = len(matches)
 		entry['matches'] = matches
 	return entry
+# @used-by :func:`agent_tools.cli_domains._op_evidence_query()`
+# @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 def evidence_query(root, *, urls=None, include_anchors: bool = False, grep_pattern: str | None = None, context_lines: int = 2, max_matches: int = 20) -> dict:
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)

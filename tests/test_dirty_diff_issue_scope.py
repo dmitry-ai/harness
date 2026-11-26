@@ -21,6 +21,7 @@ URL_174 = 'https://github.com/acme/demo/issues/174'
 URL_177 = 'https://github.com/acme/demo/issues/177'
 URL_180 = 'https://github.com/acme/demo/issues/180'
 SUFFIXES = frozenset({'.py'})
+# @used-by :meth:`DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 def _git_subcommand(cmd) -> str | None:
 	r = None
 	if isinstance(cmd, (list, tuple)) and cmd and 'git' == Path(str(cmd[0])).stem.lower():
@@ -35,6 +36,9 @@ def _git_subcommand(cmd) -> str | None:
 				r = tok
 				break
 	return r
+# @used-by :meth:`DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
+# @used-by :meth:`DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
+# @used-by :meth:`DirtyDiffIssueScopeTests.test_verify_issue_ready_for_close_allows_committed_header_issue_during_sibling_edit()`
 def _init_repo(base: Path) -> Path:
 	code = base / 'code'
 	bare = base / 'remote.git'
@@ -53,11 +57,13 @@ def _init_repo(base: Path) -> Path:
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
 class DirtyDiffIssueScopeTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			code = _init_repo(Path(tmp).resolve())
 			counts: Counter = Counter()
 			real_run = subprocess.run
+			# @used-by :meth:`DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 			def spy_run(cmd, *args, **kwargs):
 				sub = _git_subcommand(cmd)
 				if None is not sub:
@@ -74,6 +80,7 @@ class DirtyDiffIssueScopeTests(unittest.TestCase):
 				self.assertEqual(['storage.py'], dirty_cache.dirty_referencing_issue(code, URL_177, SUFFIXES, git_gate.extract_issue_urls))
 				self.assertEqual([], dirty_cache.dirty_referencing_issue(code, URL_180, SUFFIXES, git_gate.extract_issue_urls))
 			self.assertEqual(1, counts['diff'])
+	# @used-by :mod:`unittest`
 	def test_historical_header_ignored_while_added_removed_and_untracked_refs_caught(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			code = _init_repo(Path(tmp).resolve())
@@ -93,6 +100,7 @@ class DirtyDiffIssueScopeTests(unittest.TestCase):
 			(code / 'pkg/helper.py').write_text(f'# {URL_180}\nY = 2\n', encoding='utf-8')
 			untracked_cache = RepoReadCache()
 			self.assertEqual(['new_mod.py', 'pkg/helper.py'], sorted(untracked_cache.dirty_referencing_issue(code, URL_180, SUFFIXES, git_gate.extract_issue_urls)))
+	# @used-by :mod:`unittest`
 	def test_verify_issue_ready_for_close_allows_committed_header_issue_during_sibling_edit(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			code = _init_repo(Path(tmp).resolve())

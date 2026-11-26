@@ -23,6 +23,8 @@ import check_stop_gate
 CID = '44444444-5555-4666-8777-888888888881'
 JOB_1 = '022124567641358888881'
 JOB_2 = '022124567641358888882'
+# @used-by :func:`_run_parity_defect_case()`
+# @used-by :func:`_run_routing_parity_case()`
 def _wire(field: int, payload: bytes) -> bytes:
 	out = bytearray()
 	for val in ((field << 3) | 2, len(payload)):
@@ -33,6 +35,8 @@ def _wire(field: int, payload: bytes) -> bytes:
 			if not val:
 				break
 	return bytes(out) + payload
+# @used-by :func:`_run_parity_defect_case()`
+# @used-by :func:`_run_routing_parity_case()`
 def _build_ag(base: Path, ws_root: Path, rows: list[dict], steps: list[tuple[int, int, int, bytes | None]], last_user: int) -> tuple[Path, Path, Path]:
 	home = base / 'home'
 	backend = home / '.gemini/antigravity'
@@ -50,6 +54,7 @@ def _build_ag(base: Path, ws_root: Path, rows: list[dict], steps: list[tuple[int
 			conn.execute('INSERT INTO steps VALUES(?,?,?,0,?)', (idx, stype, status, blob))
 		conn.commit()
 	return (home, backend, tx)
+# @used-by :func:`_run_parity_defect_case()`
 def _init_tracked_project(base: Path) -> Path:
 	from test_onboarding import source
 	src = dict(source())
@@ -65,6 +70,7 @@ def _init_tracked_project(base: Path) -> Path:
 	sync_website_card(proj, val)
 	publish_owned(proj / '\ua616/KB/Analysis.md', render_analysis(val))
 	return proj
+# @used-by :func:`_run_parity_defect_case()`
 def _authorize_routine(proj: Path, home: Path, reply: str) -> None:
 	spec = {'risk': 'routine', 'basis': 'Routine restatement of saved title.', 'request_scope': 'Answer active request.', 'claim_ids': ['F-TITLE'], 'claims': [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'}], 'task_flags': []}
 	pkg = flow.prepare_review(proj, CID, spec, reply)
@@ -74,6 +80,7 @@ def _authorize_routine(proj: Path, home: Path, reply: str) -> None:
 	rpath.write_text(json.dumps(rep), encoding='utf-8')
 	with patch.object(Path, 'home', return_value=home):
 		flow.record_review(proj, '\ua616/KB/Evidence/Reviews/self.json', parent_id=CID, reviewer_id=CID)
+# @used-by :meth:`ContractInvariantsM2Tests.test_answer_check_and_prepare_parity_matrix_zero_journal_writes_on_failure()`
 def _run_parity_defect_case(case: unittest.TestCase, mode: str) -> None:
 	with tempfile.TemporaryDirectory() as tmp:
 		base = Path(tmp).resolve()
@@ -107,8 +114,10 @@ def _run_parity_defect_case(case: unittest.TestCase, mode: str) -> None:
 		with case.assertRaises(ValueError, msg=mode):
 			completion.prepare(proj, reply, CID, platform='antigravity', backend=backend, blocked_report=blocked)
 		case.assertEqual([], list((proj / '\ua66e').rglob('*.md')), mode)
+# @used-by :func:`_run_routing_parity_case()`
 def _stop_payload(cwd: Path, tx: Path) -> dict:
 	return {'hookEventName': 'Stop', 'cwd': str(cwd), 'workspacePaths': [str(cwd)], 'conversationId': CID, 'transcriptPath': str(tx), 'terminationReason': 'NO_TOOL_CALL', 'error': '', 'fullyIdle': True, 'continuationActive': False, 'executionNum': 0}
+# @used-by :func:`_run_routing_parity_case()`
 def _setup_routing_dirs(base: Path) -> tuple[Path, Path]:
 	launcher, daily = (base / 'proposals/init', base / 'proposals/daily/2026/11/25/1 - parity')
 	for r in (launcher, daily):
@@ -117,6 +126,7 @@ def _setup_routing_dirs(base: Path) -> tuple[Path, Path]:
 		(r / '\ua616/data/turns').mkdir(parents=True)
 	(daily / '\ua616/project.json').write_text(json.dumps({'job_id': f'~{JOB_1}', 'snapshot': '\ua616/KB/Evidence/in.json'}), encoding='utf-8')
 	return (launcher, daily)
+# @used-by :meth:`ContractInvariantsM2Tests.test_pre_invocation_and_stop_gate_routing_parity_matrix()`
 def _run_routing_parity_case(case: unittest.TestCase, scenario: str) -> None:
 	with tempfile.TemporaryDirectory() as tmp:
 		base = Path(tmp).resolve()
@@ -154,14 +164,17 @@ def _run_routing_parity_case(case: unittest.TestCase, scenario: str) -> None:
 # "Enforce call-site policy registry and hook parity contract invariants":
 # https://github.com/dmitry-ai/harness/issues/236
 class ContractInvariantsM2Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_answer_check_and_prepare_parity_matrix_zero_journal_writes_on_failure(self) -> None:
 		for mode in ('misaligned_pending', 'blocked_report_missing_continuation', 'doc4_markdown_table', 'link5_percent_encoded', 'evicted_citations'):
 			with self.subTest(mode=mode):
 				_run_parity_defect_case(self, mode)
+	# @used-by :mod:`unittest`
 	def test_pre_invocation_and_stop_gate_routing_parity_matrix(self) -> None:
 		for scenario in ('turn1_launcher', 'turn1_handed_off', 'turn2_handed_off_followup', 'turn2_new_upwork_init_job', 'coexisting_stale_open_and_prepared'):
 			with self.subTest(scenario=scenario):
 				_run_routing_parity_case(self, scenario)
+	# @used-by :mod:`unittest`
 	def test_readable_link_call_site_ast_policy_registry_and_negative_detection(self) -> None:
 		from agent_tools.contract_invariants import audit_readable_link_call_sites
 		self.assertEqual([], audit_readable_link_call_sites(SCRIPTS))

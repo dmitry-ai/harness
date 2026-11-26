@@ -13,11 +13,13 @@ from agent_tools import github_issue, issue_lifecycle
 # "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
 # https://github.com/dmitry-ai/harness/issues/77
 class IssueDecompositionTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_gh_api_paginates_concatenated_json_via_shared_decoder(self):
 		fake = subprocess.CompletedProcess(['gh'], 0, stdout=b'[{"number": 1}][{"number": 2}]', stderr=b'')
 		with mock.patch.object(github_issue.subprocess, 'run', return_value=fake):
 			rows = github_issue._gh_api('repos/o/r/issues', paginate=True)
 		self.assertEqual([{'number': 1}, {'number': 2}], rows)
+	# @used-by :mod:`unittest`
 	def test_issue_evidence_workspace_uses_locked_atomic_turn_updates(self):
 		from agent_tools.issues import IssueEvidenceWorkspace
 		with tempfile.TemporaryDirectory() as tmp:
@@ -31,6 +33,7 @@ class IssueDecompositionTests(unittest.TestCase):
 			updated = json.loads(tfile.read_text(encoding='utf-8'))
 			self.assertIn('https://github.com/o/r/issues/9', updated['github_issues'])
 			self.assertEqual('create', updated['github_issues']['https://github.com/o/r/issues/9']['last_action'])
+	# @used-by :mod:`unittest`
 	def test_issue_markdown_linter_and_service_classes_exist(self):
 		from agent_tools.issues import GitHubIssueService, IssueEvidenceWorkspace, IssueMarkdownLinter, TurnIssueLifecycleAuditor
 		linter = IssueMarkdownLinter()
@@ -44,18 +47,21 @@ class IssueDecompositionTests(unittest.TestCase):
 			res = auditor.audit()
 			self.assertTrue(res['verified'])
 			self.assertEqual(res, issue_lifecycle.code_and_issue_lifecycle_status(Path(tmp), {'touched_files': [], 'issue_actions': []}))
+	# @used-by :mod:`unittest`
 	def test_issue_lifecycle_exports_multi_subtask_decomposition_helper(self):
 		from agent_tools.issue_lifecycle import _check_multi_subtask_decomposition
 		violations = []
 		with tempfile.TemporaryDirectory() as tmp:
 			_check_multi_subtask_decomposition(Path(tmp), '', {}, {}, {}, {}, [], violations)
 		self.assertEqual([], violations)
+	# @used-by :mod:`unittest`
 	def test_service_cmd_close_routes_through_module_gh_api_and_checks_readback(self):
 		from agent_tools.issues import GitHubIssueService
 		with tempfile.TemporaryDirectory() as tmp:
 			cfile = Path(tmp) / 'c.md'
 			cfile.write_text('Closing comment verified.\n', encoding='utf-8')
 			calls = []
+			# @used-by :meth:`IssueDecompositionTests.test_service_cmd_close_routes_through_module_gh_api_and_checks_readback()`
 			def fake_api(endpoint, *, method='GET', payload=None, paginate=False):
 				calls.append((method, endpoint))
 				if 'POST' == method:

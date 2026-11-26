@@ -6,10 +6,20 @@ from pathlib import Path
 import re
 import sqlite3
 import sys
+# @used-by :func:`_is_tracked_and_non_umbrella()`
+# @used-by :func:`_pre_flush_begin_context()`
+# @used-by :func:`_resolve_ag_paths()`
+# @used-by :func:`_resolve_pre_invocation_target()`
+# @used-by :func:`_resolve_root()`
+# @used-by :func:`_routed_pre_invocation_root()`
+# @used-by :func:`_scratch_answer_path()`
+# @used-by :func:`_turn_step_already_covered()`
+# @used-by :func:`_turns_dir()`
 def _ensure_scripts_on_path() -> None:
 	scripts_dir = str(Path(__file__).resolve().parent)
 	if scripts_dir not in sys.path:
 		sys.path.insert(0, scripts_dir)
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _resolve_root(payload: dict) -> Path | None:
 	_ensure_scripts_on_path()
 	from agent_tools.platforms.trace_common import local_uri_to_path
@@ -26,6 +36,7 @@ def _resolve_root(payload: dict) -> Path | None:
 # 2026-11-23
 # "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 # https://github.com/dmitry-ai/harness/issues/132
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _is_tracked_and_non_umbrella(root: Path, *, projects_dirs=None) -> tuple[bool, Path]:
 	_ensure_scripts_on_path()
 	try:
@@ -35,6 +46,8 @@ def _is_tracked_and_non_umbrella(root: Path, *, projects_dirs=None) -> tuple[boo
 		canon = root
 	tracked = (canon / '\ua616/project.json').is_file() or (canon / '_/\ua66e').is_dir() or (canon / '\ua66e').is_dir()
 	return (tracked, canon)
+# @used-by :func:`_resolve_pre_invocation_target()`
+# @used-by :func:`_routed_pre_invocation_root()`
 def _turns_dir(canon_root: Path) -> Path:
 	_ensure_scripts_on_path()
 	try:
@@ -46,6 +59,7 @@ def _turns_dir(canon_root: Path) -> Path:
 		return pp.turns_dir if pp.has_explicit_path('turns_dir') else (pp.data_dir / 'turns')
 	except Exception:
 		return (canon_root / '_/\ua616/data/turns') if (canon_root / '_/\ua616').is_dir() else (canon_root / '\ua616/data/turns')
+# @used-by :func:`_format_turn_begin_message()`
 def _scratch_answer_path(canon_root: Path, turn_key: str) -> str:
 	_ensure_scripts_on_path()
 	try:
@@ -53,6 +67,7 @@ def _scratch_answer_path(canon_root: Path, turn_key: str) -> str:
 		return (project_paths(canon_root, exact_root=True).scratch_dir / f'answer-{turn_key}.md').as_posix()
 	except Exception:
 		return (canon_root / '\ua616/data/scratch' / f'answer-{turn_key}.md').as_posix()
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _resolve_ag_paths(conversation_id: str, t_path: Path | None = None, backend_override: Path | None = None) -> tuple[Path, Path, Path, Path, Path]:
 	_ensure_scripts_on_path()
 	resolved = None
@@ -89,6 +104,7 @@ def _resolve_ag_paths(conversation_id: str, t_path: Path | None = None, backend_
 		from agent_tools.path_registry import default_platform_paths
 		backend = Path(default_platform_paths('antigravity')['backend_dir']).resolve()
 	return (backend, backend / 'brain', backend / 'conversation_summaries.db', backend / 'conversations', backend.parent / 'config/projects')
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _summary_primary_status(conversations_db: Path, conversation_id: str) -> str:
 	if not conversations_db.is_file():
 		return 'unavailable'
@@ -102,6 +118,7 @@ def _summary_primary_status(conversations_db: Path, conversation_id: str) -> str
 		return 'unavailable'
 	finally:
 		conn.close()
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _latest_completed_user_step(conversations_dir: Path, conversation_id: str) -> int | None:
 	conv_db = conversations_dir / f'{conversation_id}.db'
 	if not conv_db.is_file():
@@ -114,6 +131,7 @@ def _latest_completed_user_step(conversations_dir: Path, conversation_id: str) -
 		return None
 	finally:
 		conn.close()
+# @used-by :func:`_pre_flush_begin_context()`
 def _has_planner_steps(conversations_dir: Path, conversation_id: str) -> bool:
 	conv_db = conversations_dir / f'{conversation_id}.db'
 	if not conv_db.is_file():
@@ -128,6 +146,7 @@ def _has_planner_steps(conversations_dir: Path, conversation_id: str) -> bool:
 # 2026-11-21
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
+# @used-by :func:`evaluate_pre_invocation_payload()`
 @contextmanager
 def _pre_flush_begin_context(brain_dir: Path, conversations_dir: Path, conversation_id: str):
 	logs_dir = brain_dir / conversation_id / '.system_generated/logs'
@@ -140,6 +159,7 @@ def _pre_flush_begin_context(brain_dir: Path, conversations_dir: Path, conversat
 	from agent_tools.platforms import antigravity as ag_mod
 	orig_reader = ag_mod.read_jsonl_objects
 	allowed = {full_t.resolve(), comp_t.resolve()}
+	# @used-by :func:`_pre_flush_begin_context()`
 	def _empty_if_unflushed(source, *, partial_error=None):
 		if not isinstance(source, (bytes, bytearray)):
 			src_p = Path(source)
@@ -151,6 +171,7 @@ def _pre_flush_begin_context(brain_dir: Path, conversations_dir: Path, conversat
 		yield
 	finally:
 		ag_mod.read_jsonl_objects = orig_reader
+# @used-by unused
 def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> str:
 	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
 	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
@@ -182,6 +203,7 @@ def _format_turn_begin_message(canon_root: Path, res: dict) -> dict:
 # 2026-11-25
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _resolve_pre_invocation_target(canon_root: Path, backend: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path | None:
 	_ensure_scripts_on_path()
 	from agent_tools.turn_routing import resolve_active_turn_state
@@ -195,6 +217,8 @@ def _resolve_pre_invocation_target(canon_root: Path, backend: Path, conversation
 # 2026-11-25
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
+# @used-by :func:`_resolve_pre_invocation_target()`
+# @used-by :func:`test_contract_invariants._run_routing_parity_case()`
 def _routed_pre_invocation_root(canon_root: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path:
 	_ensure_scripts_on_path()
 	from agent_tools.turn_routing import resolve_handoff_target_root
@@ -203,16 +227,20 @@ def _routed_pre_invocation_root(canon_root: Path, conversation_id: str, max_user
 # 2026-11-25
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
+# @used-by :func:`_resolve_pre_invocation_target()`
 def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str, max_user_step: int) -> bool:
 	_ensure_scripts_on_path()
 	from agent_tools.turn_routing import resolve_active_turn_state
 	st = resolve_active_turn_state(t_dir, conversation_id, max_user_step)
 	return isinstance(st, dict) and st.get('status') in ('open', 'prepared', 'delivered', 'conflict', 'handed_off')
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _terminate_error(message: str) -> dict:
 	return {'injectSteps': [{'errorMessage': {'userMessage': f'Harness PreInvocation turn-begin blocked: {message}'}}], 'terminationBehavior': 'terminate'}
 # 2026-11-23
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
+# @used-by :func:`_is_binding_violation()`
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> str | None:
 	msg = str(exc)
 	if any((tok in msg for tok in ('partial record', 'primary/child identity is unavailable', 'Exact current native conversation UUID required', 'Exact native Antigravity conversation UUID required'))):
@@ -235,11 +263,23 @@ def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_i
 		except Exception:
 			return None
 	return None
+# @used-by unused
 def _is_binding_violation(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> bool:
 	return None is not _binding_violation_message(exc, canon_root, conversation_id, backend)
 # 2026-11-21
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
+# @used-by :func:`agent_tools.shadow_replay._run_pre_invocation()`
+# @used-by :func:`main()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_cli_ratchet_ok_and_tdd_check_commands()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_pre_invocation_hook_idempotent_turn_begin_child_skip_terminate_and_dry_run()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
+# @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_allows_new_job_in_launcher_instead_of_routing()`
+# @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_fast_exits_on_same_turn1_handed_off_step()`
+# @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_routes_turn2_handed_off_to_daily_without_launcher_orphan()`
 def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | None = None) -> dict:
 	if not isinstance(payload, dict):
 		return {}
@@ -296,6 +336,7 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	if 'primary' == res.get('role') and res.get('turn_key') and 'handed_off' != res.get('status'):
 		return _format_turn_begin_message(canon_root, res)
 	return {}
+# @used-by :mod:`check_pre_invocation`
 def main() -> None:
 	out: dict = {}
 	try:

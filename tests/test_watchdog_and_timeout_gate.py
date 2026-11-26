@@ -14,6 +14,8 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 if str(SCRIPTS_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS_DIR))
 from agent_tools import failfast_gate, tdd_gate
+# @used-by :func:`_kill_pid()`
+# @used-by :meth:`WatchdogAndTimeoutGateTests.test_watchdog_cli_kills_sleeping_test_and_grandchild_process_tree_on_timeout()`
 def _is_pid_alive(pid: int) -> bool:
 	r = False
 	if 0 < pid:
@@ -27,6 +29,7 @@ def _is_pid_alive(pid: int) -> bool:
 			except OSError:
 				r = False
 	return r
+# @used-by :meth:`WatchdogAndTimeoutGateTests.test_watchdog_cli_kills_sleeping_test_and_grandchild_process_tree_on_timeout()`
 def _kill_pid(pid: int) -> None:
 	if 0 < pid and _is_pid_alive(pid):
 		if 'nt' == os.name:
@@ -40,6 +43,7 @@ def _kill_pid(pid: int) -> None:
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
 class WatchdogAndTimeoutGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_non_test_command_mentioning_pytest_in_quoted_arg_is_ignored(self) -> None:
 		cmd = f'python "{SCRIPTS_DIR / "df_github_issue.py"}" create --title "Enforce timeout for unittest and pytest in failfast_gate"'
 		info = tdd_gate.classify_test_command(cmd)
@@ -47,6 +51,7 @@ class WatchdogAndTimeoutGateTests(unittest.TestCase):
 		deny, overwrite = failfast_gate.evaluate_pre_tool_use_test_failfast('run_command', {'CommandLine': cmd, 'WaitMsBeforeAsync': 10000})
 		self.assertIsNone(deny)
 		self.assertIsNone(overwrite)
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_normalizes_unbounded_unittest_and_pytest_and_denies_multi_segment(self) -> None:
 		u_deny, u_ov = failfast_gate.evaluate_pre_tool_use_test_failfast('run_command', {'CommandLine': 'python -m unittest -f tests/test_demo.py', 'WaitMsBeforeAsync': 10000})
 		self.assertIsNone(u_deny)
@@ -75,6 +80,7 @@ class WatchdogAndTimeoutGateTests(unittest.TestCase):
 		for multi in ('Set-Location tests; python -m unittest -f test_demo.py', 'Set-Location tests; python -m pytest test_demo.py -x', 'python -m unittest -f tests/test_demo.py > out.txt'):
 			m_deny, _ = failfast_gate.evaluate_pre_tool_use_test_failfast('run_command', {'CommandLine': multi, 'WaitMsBeforeAsync': 10000})
 			self.assertIsNotNone(m_deny, multi)
+	# @used-by :mod:`unittest`
 	def test_tdd_classify_unwraps_test_watchdog_prefix_for_scope_and_full_suite(self) -> None:
 		full_w = f'python "{HARNESS_SCRIPT}" test-watchdog --timeout 300 python -m pytest -x'
 		full_info = tdd_gate.classify_test_command(full_w)
@@ -90,6 +96,7 @@ class WatchdogAndTimeoutGateTests(unittest.TestCase):
 		u_info = tdd_gate.classify_test_command(u_disc)
 		self.assertTrue(u_info['is_test_cmd'])
 		self.assertTrue(u_info['is_full_suite'])
+	# @used-by :mod:`unittest`
 	def test_watchdog_cli_detaches_open_stdin_pipe_and_preserves_exit_code(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -111,6 +118,7 @@ class WatchdogAndTimeoutGateTests(unittest.TestCase):
 			fproc = subprocess.run([sys.executable, str(HARNESS_SCRIPT), 'test-watchdog', '--timeout', '10', sys.executable, '-m', 'unittest', '-f', str(fail_mod)], cwd=str(root), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=False, timeout=15, creationflags=_NO_WINDOW)
 			self.assertNotEqual(0, fproc.returncode)
 			self.assertIn('FAILED', fproc.stdout + fproc.stderr)
+	# @used-by :mod:`unittest`
 	def test_watchdog_cli_kills_sleeping_test_and_grandchild_process_tree_on_timeout(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()

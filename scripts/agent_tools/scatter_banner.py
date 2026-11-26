@@ -42,11 +42,13 @@ _PROPOSAL_STOP_RE = re.compile(
 	r'(?im)^\s*(?:(?:#{2,6}\s+)|(?:[-*+]\s+)?(?:\*\*|__)?)(?:доводы\s+(?:за|против)|аргументы\s+(?:за|против)|arguments?\s+(?:for|against)|for\s*[:—–-]|against\s*[:—–-]|pros\s*[:—–-]|cons\s*[:—–-]|оценка(?:\s+[^:\n]*)?\s*[:—–-]|score\s*[:—–-])'
 )
 _REC_HEAD_RE = re.compile(r'(?i)^(?:рекомендаци\w*|предложени\w*|recommendation\w*|proposal\w*|option\s*\d+|вариант\s*\d+)\b')
+# @used-by :func:`has_leading_scatter_banner()`
 def _bare_banner_at_start(lines: list[str]) -> bool:
 	return 3 <= len(lines) and [ln.rstrip() for ln in lines[:3]] == list(SCATTER_BANNER_LINES)
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
+# @used-by :func:`validate_scatter_banners()`
 def _collect_candidate_recommendations(body: str, sections: dict[int, tuple[str, str]], mode: str, blocks: list[dict] | None=None) -> list[tuple[str, str]]:
 	from .statements import _parse_explicit_items, _parse_section_items
 	raw_items: list[tuple[str, str]] = []
@@ -66,6 +68,7 @@ def _collect_candidate_recommendations(body: str, sections: dict[int, tuple[str,
 			seen.add(key)
 			r.append((lbl, item_body))
 	return r
+# @used-by :func:`has_leading_scatter_banner()`
 def _fenced_banner_at_start(lines: list[str]) -> bool:
 	m = _OPEN_FENCE_RE.match(lines[0].strip())
 	r = False
@@ -79,8 +82,10 @@ def _fenced_banner_at_start(lines: list[str]) -> bool:
 				break
 			inner.append(ln)
 	return r
+# @used-by :func:`proposes_external_scattering()`
 def _has_unnegated_match(text: str, pattern: re.Pattern[str]) -> bool:
 	return any((not _NEG_PREFIX_RE.search(text[max(0, m.start() - 70):m.start()]) for m in pattern.finditer(text)))
+# @used-by :func:`_collect_candidate_recommendations()`
 def _parse_standalone_recommendations(text: str) -> list[tuple[str, str]]:
 	from .statements import _mask_fenced_lines
 	items: list[tuple[str, list[str]]] = []
@@ -99,15 +104,18 @@ def _parse_standalone_recommendations(text: str) -> list[tuple[str, str]]:
 		elif None is not cur_lvl:
 			items[-1][1].append(raw)
 	return [(k, '\n'.join(v)) for k, v in items]
+# @used-by :func:`proposes_external_scattering()`
 def _proposal_slice(body: str) -> str:
 	m = _PROPOSAL_STOP_RE.search(body)
 	raw = body[:m.start()] if None is not m else body
 	return _NATIVE_CONFIG_ALLOW_RE.sub(' ', _MD_LINK_RE.sub(r'\1', raw))
+# @used-by :func:`validate_scatter_banners()`
 def has_leading_scatter_banner(body: str) -> bool:
 	tail = (body or '').splitlines()[1:]
 	idx = next((i for i, ln in enumerate(tail) if ln.strip()), len(tail))
 	rest = tail[idx:]
 	return bool(rest) and (_fenced_banner_at_start(rest) or _bare_banner_at_start(rest))
+# @used-by :func:`validate_scatter_banners()`
 def proposes_external_scattering(body: str) -> bool:
 	prop = _proposal_slice(body or '')
 	return _has_unnegated_match(prop, _EXT_PATH_RE) or _has_unnegated_match(prop, _OUTSIDE_PROSE_RE)
@@ -117,6 +125,7 @@ def proposes_external_scattering(body: str) -> bool:
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
+# @used-by :func:`agent_tools.statements.validate_df_analysis()`
 def validate_scatter_banners(body: str, *, sections: dict[int, tuple[str, str]] | None=None, blocks: list[dict] | None=None, mode: str='auto') -> list[str]:
 	from .statements import _extract_top_sections
 	secs = sections if None is not sections else ({} if None is not blocks else _extract_top_sections(body))

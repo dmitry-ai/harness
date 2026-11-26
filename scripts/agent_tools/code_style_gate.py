@@ -16,6 +16,7 @@ _COUNT_RULES = (
 	('yoda', 'Non-Yoda comparison(s)', 'place the constant or literal on the left (e.g., None is x, 200 == status)'),
 	('double_quotes', 'Unnecessary double-quoted string(s)', 'use single quotes by default'),
 )
+# @used-by :func:`check_python_style_violations()`
 def _check_function_returns(rel_label: str, cur_ret: dict[str, int], base_ret: dict[str, int]) -> list[str]:
 	errs: list[str] = []
 	for qname, cnt in cur_ret.items():
@@ -23,6 +24,7 @@ def _check_function_returns(rel_label: str, cur_ret: dict[str, int], base_ret: d
 		if lim < cnt:
 			errs.append(f'CODE-1: Function {rel_label}:{qname} has {cnt} return statements (limit {lim}); assign result to `r` and use a single return point')
 	return errs
+# @used-by :func:`check_python_style_violations()`
 def _collect_count_style_errors(rel_label: str, cur: dict, base: dict | None) -> list[str]:
 	errs: list[str] = []
 	for key, label, hint in _COUNT_RULES:
@@ -32,6 +34,7 @@ def _collect_count_style_errors(rel_label: str, cur: dict, base: dict | None) ->
 	if cur['space_indents'] and (None is base or 0 == len(base['space_indents'])):
 		errs.append(f'CODE-1: Space indentation in {rel_label} at line(s) {cur["space_indents"][:5]}; indent new Python code with tab characters (\\t)')
 	return errs
+# @used-by :func:`_unique_return_map()`
 def _collect_fn_returns(fn_node: ast.AST) -> int:
 	returns: list[ast.Return] = []
 	is_gen = False
@@ -46,6 +49,7 @@ def _collect_fn_returns(fn_node: ast.AST) -> int:
 			returns.append(node)
 		stack.extend(ast.iter_child_nodes(node))
 	return sum((0 if is_gen and None is ret.value else 1 for ret in returns))
+# @used-by :func:`analyze_python_style()`
 def _collect_yoda_lines(tree: ast.AST) -> list[int]:
 	lines: list[int] = []
 	for node in ast.walk(tree):
@@ -54,9 +58,11 @@ def _collect_yoda_lines(tree: ast.AST) -> list[int]:
 			if (not isinstance(node.left, ast.Constant)) and isinstance(right, ast.Constant) and type(right.value) in _SCALAR_YODA_TYPES:
 				lines.append(int(getattr(node, 'lineno', 0)))
 	return sorted(lines)
+# @used-by :func:`_scan_tokens()`
 def _is_unneeded_double_quote(tok_text: str) -> bool:
 	body = tok_text.lstrip('rRbBuUfF')
 	return 2 <= len(body) and body.startswith('"') and body.endswith('"') and (not body.startswith('"""')) and ('\n' not in body) and ("'" not in body) and ('\\' not in body)
+# @used-by :func:`analyze_python_style()`
 def _scan_tokens(source: str) -> tuple[list[int], list[int], list[int]]:
 	str_lines: set[int] = set()
 	space_indents: list[int] = []
@@ -73,6 +79,7 @@ def _scan_tokens(source: str) -> tuple[list[int], list[int], list[int]]:
 		pass
 	blanks = [idx for idx, line in enumerate(source.splitlines(), 1) if '' == line.strip() and idx not in str_lines]
 	return (blanks, space_indents, dbl_quotes)
+# @used-by :func:`analyze_python_style()`
 def _unique_return_map(tree: ast.AST) -> dict[str, int]:
 	seen: dict[str, int] = {}
 	out: dict[str, int] = {}
@@ -82,6 +89,7 @@ def _unique_return_map(tree: ast.AST) -> dict[str, int]:
 		key = qname if 1 == idx else f'{qname}#{idx}'
 		out[key] = _collect_fn_returns(node)
 	return out
+# @used-by :func:`check_python_style_violations()`
 def analyze_python_style(source: str) -> dict:
 	try:
 		tree = ast.parse(source or '')
@@ -91,6 +99,11 @@ def analyze_python_style(source: str) -> dict:
 		blanks, space_indents, dbl_quotes = _scan_tokens(source or '')
 		r = {'syntax_error': False, 'blanks': blanks, 'space_indents': space_indents, 'double_quotes': dbl_quotes, 'yoda': _collect_yoda_lines(tree), 'returns': _unique_return_map(tree)}
 	return r
+# @used-by :func:`evaluate_pre_tool_use_code_style()`
+# @used-by :func:`verify_staged_code_style_ratchet()`
+# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_clean_code1_python_passes_all_checks()`
+# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_legacy_ratchet_preserves_existing_violations_but_blocks_new_ones()`
+# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_rejects_blank_lines_spaces_multireturn_non_yoda_and_double_quotes()`
 def check_python_style_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	cur = analyze_python_style(source)
 	errs: list[str] = []
@@ -101,6 +114,7 @@ def check_python_style_violations(path: str | Path, source: str, *, baseline_sou
 		errs.extend(_collect_count_style_errors(rel_label, cur, base))
 		errs.extend(_check_function_returns(rel_label, cur['returns'], base['returns'] if None is not base else {}))
 	return errs
+# @used-by :func:`agent_tools.gates.code_style.check()`
 def evaluate_pre_tool_use_code_style(name: str, args: dict, payload: dict) -> str | None:
 	r = None
 	if name in ('write_file', 'edit_file'):
@@ -112,6 +126,7 @@ def evaluate_pre_tool_use_code_style(name: str, args: dict, payload: dict) -> st
 				errs = check_python_style_violations(rel, new_text, baseline_source=_git_head_text(repo_root, rel))
 				r = '; '.join(errs[:3]) if errs else None
 	return r
+# @used-by :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
 def verify_staged_code_style_ratchet(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	repo = Path(repo_root).resolve()
 	violations: list[str] = []

@@ -90,11 +90,16 @@ def _collect_actual_js_used_by(rel: str, hdr: dict, repo_index: dict, errs: list
 		else:
 			errs.append(f'XREF: {rel}:{eln} invalid external @used-by target {rval}')
 	return (actual, manual_ext)
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
 # @used-by :func:`_check_js_used_by()`
 # @used-by :func:`_sync_js_def_edit()`
 def _expected_js_used_by(computed: set[str], manual_ext: list[str], current_rel: str, repo_index: dict) -> list[str]:
 	refs = {format_js_ref(ck, current_rel, repo_index) for ck in computed}
-	refs.update(manual_ext)
+	refs.update((m for m in manual_ext if 'unused' != m.split()[0]))
+	if not refs:
+		refs.update(manual_ext)
 	return sorted(refs)
 # @used-by :func:`_sync_js_file_source()`
 def _sync_js_def_edit(finfo: dict, dinfo: dict, lines: list[str], repo_index: dict, used_by: dict[str, set[str]]) -> tuple[int, int, list[str]]:
@@ -172,5 +177,8 @@ def sync_js_repo(repo_root: Path, *, apply: bool=True, files: list[str] | None=N
 		if updated != finfo['source']:
 			changed.append(rel)
 			if apply:
-				(root / rel).write_text(updated, encoding='utf-8')
+				# 2026-11-26
+				# "Apply cross-reference annotations across Harness Python and JavaScript":
+				# https://github.com/dmitry-ai/harness/issues/305
+				(root / rel).write_text(updated, encoding='utf-8', newline='\n')
 	return {'applied': apply, 'changed_count': len(changed), 'changed_files': changed, 'file_count': len(target_rels), 'lang': 'js', 'repo': root.as_posix(), 'valid': True}

@@ -11,9 +11,21 @@ HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :func:`_seed_harness_git_repo()`
+# @used-by :meth:`RuntimeSnapshotTests.test_broken_head_rejected_by_validation_preserving_current()`
+# @used-by :meth:`RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
+# @used-by :meth:`RuntimeSnapshotTests.test_lkg_fallback_runs_previous_release_when_current_crashes()`
+# @used-by :meth:`RuntimeSnapshotTests.test_release_rotation_keeps_latest_five_and_retains_lkg()`
+# @used-by :meth:`RuntimeSnapshotTests.test_worktree_land_promotes_runtime_snapshot_after_merge()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return (proc.stdout or '').strip()
+# @used-by :meth:`RuntimeSnapshotTests.test_broken_head_rejected_by_validation_preserving_current()`
+# @used-by :meth:`RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
+# @used-by :meth:`RuntimeSnapshotTests.test_lkg_fallback_runs_previous_release_when_current_crashes()`
+# @used-by :meth:`RuntimeSnapshotTests.test_promote_exports_snapshot_surviving_live_tree_corruption_and_preserving_anchor()`
+# @used-by :meth:`RuntimeSnapshotTests.test_release_rotation_keeps_latest_five_and_retains_lkg()`
+# @used-by :meth:`RuntimeSnapshotTests.test_worktree_land_promotes_runtime_snapshot_after_merge()`
 def _seed_harness_git_repo(base: Path) -> Path:
 	repo = base / 'proj/\u2c0f/\u227b/\u2655/\u26ef'
 	(repo / 'scripts/agent_tools/gates').mkdir(parents=True, exist_ok=True)
@@ -52,6 +64,7 @@ def _seed_harness_git_repo(base: Path) -> Path:
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
 class RuntimeSnapshotTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_broken_head_rejected_by_validation_preserving_current(self) -> None:
 		from agent_tools.runtime_snapshot import promote_runtime_snapshot
 		with tempfile.TemporaryDirectory() as td:
@@ -78,6 +91,7 @@ class RuntimeSnapshotTests(unittest.TestCase):
 			self.assertFalse(bad_imp['promoted'])
 			ptr2 = json.loads((store / 'current.json').read_text(encoding='utf-8'))
 			self.assertEqual(ptr2['current'], sha1)
+	# @used-by :mod:`unittest`
 	def test_ensure_hooks_uses_deployed_immutable_git_hooks_dir(self) -> None:
 		from agent_tools.git_gate import GitRepoGate
 		from agent_tools.runtime_snapshot import effective_git_hooks_dir, promote_runtime_snapshot
@@ -103,6 +117,7 @@ class RuntimeSnapshotTests(unittest.TestCase):
 					os.environ.pop('HARNESS_RUNTIME_STORE', None)
 				else:
 					os.environ['HARNESS_RUNTIME_STORE'] = prev_env
+	# @used-by :mod:`unittest`
 	def test_lkg_fallback_runs_previous_release_when_current_crashes(self) -> None:
 		from agent_tools.runtime_snapshot import harness_hook_runner_source, promote_runtime_snapshot
 		with tempfile.TemporaryDirectory() as td:
@@ -139,6 +154,7 @@ class RuntimeSnapshotTests(unittest.TestCase):
 			finally:
 				os.close(r_fd)
 				os.close(w_fd)
+	# @used-by :mod:`unittest`
 	def test_promote_exports_snapshot_surviving_live_tree_corruption_and_preserving_anchor(self) -> None:
 		from agent_tools.runtime_snapshot import harness_hook_runner_source, promote_runtime_snapshot
 		with tempfile.TemporaryDirectory() as td:
@@ -166,6 +182,7 @@ class RuntimeSnapshotTests(unittest.TestCase):
 			lines = json.loads(aproc.stdout)
 			self.assertEqual(lines[0], repo.resolve().as_posix())
 			self.assertEqual(Path(lines[1]).resolve(), (store / 'releases' / sha / 'paths.json').resolve())
+	# @used-by :mod:`unittest`
 	def test_release_rotation_keeps_latest_five_and_retains_lkg(self) -> None:
 		from agent_tools.runtime_snapshot import promote_runtime_snapshot
 		with tempfile.TemporaryDirectory() as td:
@@ -184,6 +201,7 @@ class RuntimeSnapshotTests(unittest.TestCase):
 			self.assertLessEqual(len(remaining), 5)
 			self.assertIn(shas[-1], remaining)
 			self.assertIn(shas[-2], remaining)
+	# @used-by :mod:`unittest`
 	def test_worktree_land_promotes_runtime_snapshot_after_merge(self) -> None:
 		from agent_tools.worktree_flow import worktree_begin, worktree_land
 		with tempfile.TemporaryDirectory() as td:

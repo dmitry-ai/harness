@@ -17,6 +17,7 @@ for p in (SCRIPTS, TESTS_DIR):
 		sys.path.insert(0, str(p))
 from agent_tools.runtime_launchers import harness_hook_runner_source
 from test_tdd_pre_tool_use_perf import _seed_multicommit_transcript
+# @used-by :meth:`HookRunnerE2EBudgetTests.test_cold_start_runner_stays_within_25_percent_of_hooks_json_timeout()`
 def _configured_rules_gate_timeout() -> float:
 	data = json.loads((WT_ROOT / 'platforms/antigravity/hooks.json').read_text(encoding='utf-8'))
 	r: float | None = None
@@ -28,6 +29,7 @@ def _configured_rules_gate_timeout() -> float:
 	if None is r:
 		raise AssertionError('check_rules_and_server_gate.py timeout not found in platforms/antigravity/hooks.json')
 	return r
+# @used-by :meth:`HookRunnerE2EBudgetTests.test_cold_start_runner_stays_within_25_percent_of_hooks_json_timeout()`
 def _stage_snapshot_runner(base: Path) -> tuple[Path, Path]:
 	store = base / 'snap_store'
 	rel = store / 'releases/e2e_snap'
@@ -43,6 +45,7 @@ def _stage_snapshot_runner(base: Path) -> tuple[Path, Path]:
 # "Add cold-start harness_hook_runner budget test against hooks.json timeout":
 # https://github.com/dmitry-ai/harness/issues/254
 class HookRunnerE2EBudgetTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cold_start_runner_stays_within_25_percent_of_hooks_json_timeout(self) -> None:
 		timeout_s = _configured_rules_gate_timeout()
 		budget_s = 0.25 * timeout_s

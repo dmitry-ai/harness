@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # https://github.com/dmitry-ai/harness/issues/79
 from agent_tools.hook_runtime import ABBREVIATIONS, ABBR_RE, MULTI_SENT_RE, iter_turn_state_files, run_json_hook, scan_doc4_sentence_issues
 # 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
+# @used-by :func:`check_markdown_content()`
 def _check_doc_grounding_and_links(proj_root: Path, content: str, p_obj: Path) -> str | None:
 	from agent_tools.repo_link_gate import file_repo_link_issues, is_skipped_repo_link_doc
 	# 2026-11-24
@@ -21,6 +22,8 @@ def _check_doc_grounding_and_links(proj_root: Path, content: str, p_obj: Path) -
 # 2026-11-10
 # "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 # https://github.com/dmitry-ai/harness/issues/49
+# @used-by :func:`check_markdown_content()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
 	# 2026-11-24
 	# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
@@ -49,6 +52,7 @@ def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
+# @used-by :func:`main()`
 def _evaluate_payload(payload: dict) -> dict:
 	tool_call = payload.get('toolCall', {})
 	name, args = (tool_call.get('name', ''), tool_call.get('args', {}))
@@ -64,6 +68,8 @@ def _evaluate_payload(payload: dict) -> dict:
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :func:`check_markdown_content()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 def _infer_project_root(target: Path) -> Path:
 	# 2026-11-24
 	# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
@@ -89,17 +95,21 @@ def _infer_project_root(target: Path) -> Path:
 # 2026-11-24
 # "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
 # https://github.com/dmitry-ai/harness/issues/214
+# @used-by :func:`_check_doc_grounding_and_links()`
 def _format_grounding_issues(issues: list[str]) -> str:
 	unique = list(dict.fromkeys(issues))
 	return unique[0] if 1 == len(unique) else f'{len(unique)} grounding issues: ' + '; '.join(unique)
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`_evaluate_payload()`
+# @used-by :func:`check_markdown_content()`
 def _is_request_journal_file(norm_p: str) -> bool:
 	return '/req/' in norm_p or bool(re.search('(?:^|/)\\ua66e/(?:[^/]+/)?\\u227b/', norm_p))
 # 2026-11-24
 # "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
 # https://github.com/dmitry-ai/harness/issues/214
+# @used-by :func:`check_markdown_content()`
 def _is_scratch_draft_file(norm_p: str) -> bool:
 	return '/data/scratch/' in norm_p
 # 2026-11-10
@@ -108,6 +118,7 @@ def _is_scratch_draft_file(norm_p: str) -> bool:
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
+# @used-by :func:`_evaluate_payload()`
 def _resolve_markdown_content(name: str, args: dict, path: str):
 	if 'write_file' == name:
 		content = args.get('Content')
@@ -128,6 +139,12 @@ def _resolve_markdown_content(name: str, args: dict, path: str):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_evaluate_payload()`
+# @used-by :meth:`test_onboarding.InitializationTests.test_native_manifests_and_full_initial_port()`
+# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban()`
+# @used-by :meth:`test_scratch_slop_and_grounding_loc_m7.ScratchSlopAndGroundingLocM7Tests.test_non_scratch_md_reports_all_unique_grounding_issues_with_line_numbers_and_relpaths()`
+# @used-by :meth:`test_scratch_slop_and_grounding_loc_m7.ScratchSlopAndGroundingLocM7Tests.test_scratch_draft_defers_grounding_but_keeps_doc4_syntax_checks()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_parallel_turn_scratch_isolation_and_budget_gate()`
 def check_markdown_content(content, path=None):
 	r = None
 	if content and isinstance(content, str):
@@ -165,6 +182,7 @@ def check_markdown_content(content, path=None):
 # 2026-10-21
 # "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
 # https://github.com/dmitry-ai/harness/issues/14
+# @used-by unused
 def is_abbreviation_end(text):
 	return bool(ABBR_RE.search(text.rstrip()))
 # 2026-11-21
@@ -173,6 +191,29 @@ def is_abbreviation_end(text):
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
+# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :func:`check_markdown_content()`
+# @used-by :meth:`test_ask_question_clarifications_m8.AskQuestionClarificationsM8Tests.test_skill_and_turn_completion_docs_prohibit_ask_question_stop_gate_bypass()`
+# @used-by :meth:`test_cli_registry.CliRegistryTests.test_modular_docs_and_per_feature_test_rule_valid()`
+# @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests._assert_clean_doc()`
+# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_rules_doc_codifies_code4_size_ratchet()`
+# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_markdown_table_blocked_across_doc4_hook_linter_and_grounding()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_skill_rules_and_docs_codify_mandatory_separate_companion_tracks()`
+# @used-by :meth:`test_df_analysis_rules_contract.DfAnalysisRulesAndSkillContractTests.test_df_analysis_skill_discovered_by_native_profiles_and_lints_cleanly()`
+# @used-by :meth:`test_df_analysis_rules_contract.DfAnalysisRulesAndSkillContractTests.test_rules_adapters_and_docs_codify_df_analysis_and_pass_lint()`
+# @used-by :meth:`test_hook_unification.HookUnificationTests.test_doc4_scanner_supports_hook_and_workflow_modes()`
+# @used-by :meth:`test_issue_first_rules_contract.IssueFirstRulesAndDocsContractTests.test_rules_skill_and_docs_codify_issue_first_before_tdd_and_pass_lint()`
+# @used-by :meth:`test_landing_lease.LandingLeaseTests.test_exec4_documents_fifo_lease_and_swarm()`
+# @used-by :meth:`test_metadata_rules_contract.MetadataRulesAndDocsContractTests.test_rules_skill_and_docs_codify_json_metadata_headers_and_pass_lint()`
+# @used-by :meth:`test_perf_improvement_skill_contract.PerfImprovementSkillContractTests.test_adapters_and_readme_document_skill_and_perf_cli_and_pass_lint()`
+# @used-by :meth:`test_perf_improvement_skill_contract.PerfImprovementSkillContractTests.test_perf_improvement_skill_discovered_and_references_pass_lint()`
+# @used-by :meth:`test_repo_tags_docs.RepoTagsDocsTests.test_rules_and_docs_codify_daily_tagging_and_link6_within_budgets()`
+# @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_exec4_documents_wait_repo_wait_timeout_and_no_premature_user_escalation()`
+# @used-by :meth:`test_rules_architecture_m2.RulesArchitectureM2Tests.test_rules_have_zero_html_comments_valid_links_and_legacy_reference()`
+# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_rules_and_skill_codify_file6_banner_and_pass_lint()`
+# @used-by :meth:`test_shadow_replay_m3.ShadowReplayM3Tests.test_exec2_rules_and_readme_document_shadow_replay_gate()`
+# @used-by :meth:`test_tdd_rules_contract.TddRulesAndDocumentationContractTests.test_rules_and_docs_codify_tdd_contract_and_pass_lint_checks()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_exec5_documents_worktree_and_landing_only_host_mutations()`
 def markdown_slop_issues(content: str) -> list[str]:
 	return scan_doc4_sentence_issues(content, mode='hook')
 # 2026-10-21
@@ -181,6 +222,7 @@ def markdown_slop_issues(content: str) -> list[str]:
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
+# @used-by :mod:`check_markdown_slop`
 def main():
 	run_json_hook(_evaluate_payload)
 if '__main__' == __name__:

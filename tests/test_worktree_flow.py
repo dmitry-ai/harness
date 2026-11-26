@@ -18,9 +18,20 @@ import check_markdown_slop
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
 # https://github.com/dmitry-ai/harness/issues/165
 class WorktreeFlowTests(unittest.TestCase):
+	# @used-by :meth:`WorktreeFlowTests._init_repo()`
+	# @used-by :meth:`WorktreeFlowTests.test_isolated_temp_project_ignores_unrelated_host_worktree_cwd()`
+	# @used-by :meth:`WorktreeFlowTests.test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup()`
+	# @used-by :meth:`WorktreeFlowTests.test_two_parallel_worktrees_commit_and_land_with_single_test_run()`
+	# @used-by :meth:`WorktreeFlowTests.test_worktree_land_aborts_when_tests_fail()`
 	def _git(self, repo: Path, *args: str) -> str:
 		proc = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, check=True)
 		return (proc.stdout or '').strip()
+	# @used-by :meth:`WorktreeFlowTests.test_cli_worktree_begin_status_cleanup()`
+	# @used-by :meth:`WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
+	# @used-by :meth:`WorktreeFlowTests.test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo()`
+	# @used-by :meth:`WorktreeFlowTests.test_two_parallel_worktrees_commit_and_land_with_single_test_run()`
+	# @used-by :meth:`WorktreeFlowTests.test_worktree_land_aborts_when_tests_fail()`
+	# @used-by :meth:`WorktreeFlowTests.test_worktree_scoped_issue_first_ignores_dirty_main_checkout()`
 	def _init_repo(self, root: Path, *, with_tests: bool=True) -> Path:
 		repo = root / 'repo'
 		repo.mkdir(parents=True, exist_ok=True)
@@ -36,6 +47,7 @@ class WorktreeFlowTests(unittest.TestCase):
 		self._git(repo, 'add', '.')
 		self._git(repo, 'commit', '-m', 'init')
 		return repo
+	# @used-by :mod:`unittest`
 	def test_cli_worktree_begin_status_cleanup(self):
 		from agent_tools.upwork_project import main as cli_main
 		with tempfile.TemporaryDirectory() as td:
@@ -47,6 +59,7 @@ class WorktreeFlowTests(unittest.TestCase):
 			self.assertEqual(cli_main(['worktree-status', str(repo)]), 0)
 			self.assertEqual(cli_main(['worktree-cleanup', str(repo), str(wt_dir / 'demo-1')]), 0)
 			self.assertFalse((wt_dir / 'demo-1').exists())
+	# @used-by :mod:`unittest`
 	def test_exec5_documents_worktree_and_landing_only_host_mutations(self):
 		rule_doc = HARNESS_ROOT / 'rules/08-execution-and-tools.md'
 		text = rule_doc.read_text(encoding='utf-8')
@@ -54,6 +67,7 @@ class WorktreeFlowTests(unittest.TestCase):
 		self.assertEqual(check_markdown_slop.markdown_slop_issues(text), [])
 		for token in ('worktree-begin', 'worktree-land', 'build-native', 'install-global'):
 			self.assertIn(token, text)
+	# @used-by :mod:`unittest`
 	def test_origin_repo_slug_and_linked_worktree_detection(self):
 		from agent_tools.worktree_flow import is_linked_worktree, worktree_begin, worktree_cleanup
 		with tempfile.TemporaryDirectory() as td:
@@ -65,6 +79,7 @@ class WorktreeFlowTests(unittest.TestCase):
 			self.assertTrue(is_linked_worktree(wt))
 			self.assertEqual(origin_repo_slug(wt), 'owner/demo')
 			worktree_cleanup(repo, wt)
+	# @used-by :mod:`unittest`
 	def test_two_parallel_worktrees_commit_and_land_with_single_test_run(self):
 		from agent_tools.worktree_flow import worktree_begin, worktree_land
 		with tempfile.TemporaryDirectory() as td:
@@ -90,6 +105,7 @@ class WorktreeFlowTests(unittest.TestCase):
 			self.assertTrue((repo / 'b.txt').is_file())
 			self.assertFalse(wt_a.exists())
 			self.assertFalse(wt_b.exists())
+	# @used-by :mod:`unittest`
 	def test_worktree_land_aborts_when_tests_fail(self):
 		from agent_tools.landing_lease import lease_status
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup, worktree_land
@@ -107,6 +123,7 @@ class WorktreeFlowTests(unittest.TestCase):
 			self.assertEqual(self._git(repo, 'rev-parse', 'main'), main_before)
 			self.assertTrue(lease_status(repo, leases_dir=leases)['free'])
 			worktree_cleanup(repo, wt, force=True)
+	# @used-by :mod:`unittest`
 	def test_worktree_scoped_issue_first_ignores_dirty_main_checkout(self):
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
 		with tempfile.TemporaryDirectory() as td:
@@ -128,6 +145,7 @@ class WorktreeFlowTests(unittest.TestCase):
 	# 2026-11-24
 	# "Fix worktree scope resolution for new files in TDD classifier":
 	# https://github.com/dmitry-ai/harness/issues/188
+	# @used-by :mod:`unittest`
 	def test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup(self):
 		from agent_tools.tdd.classifier import resolve_code_scope
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
@@ -152,6 +170,7 @@ class WorktreeFlowTests(unittest.TestCase):
 	# 2026-11-24
 	# "Fix worktree scope resolution for new files in TDD classifier":
 	# https://github.com/dmitry-ai/harness/issues/188
+	# @used-by :mod:`unittest`
 	def test_isolated_temp_project_ignores_unrelated_host_worktree_cwd(self):
 		from agent_tools.issues.repo_locator import find_local_code_repo
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
@@ -176,6 +195,7 @@ class WorktreeFlowTests(unittest.TestCase):
 	# 2026-11-24
 	# "Fix worktree scope resolution for new files in TDD classifier":
 	# https://github.com/dmitry-ai/harness/issues/188
+	# @used-by :mod:`unittest`
 	def test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo(self):
 		from agent_tools.path_cache import resolve_code_anchor
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup

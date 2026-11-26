@@ -13,7 +13,8 @@ SCRIPTS = WT_ROOT / 'scripts'
 for p in (SCRIPTS,):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
-# @used-by :meth:`VerificationObservabilityTests.test_failed_shadow_replay_blocks_silent_reply_and_issue_close_and_passes_on_disclosure_or_rerun()`, :meth:`VerificationObservabilityTests.test_prepare_enforces_verification_observability_check()`
+# @used-by :meth:`VerificationObservabilityTests.test_failed_shadow_replay_blocks_silent_reply_and_issue_close_and_passes_on_disclosure_or_rerun()`
+# @used-by :meth:`VerificationObservabilityTests.test_prepare_enforces_verification_observability_check()`
 def _seed_obs_turn(base: Path, rows: list[dict], *, issue_actions: list[dict]=()) -> tuple[Path, str, Path, dict, dict]:
 	proj = base / 'proj'
 	(proj / '\ua616/data/turns').mkdir(parents=True)

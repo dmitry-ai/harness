@@ -8,6 +8,7 @@ from .storage import locked, replace_bytes
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
+# @used-by :func:`sync_block()`
 def _digest(data):
 	return hashlib.sha256(data).hexdigest()
 # 2026-10-17
@@ -16,6 +17,10 @@ def _digest(data):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.intake._index()`
+# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
+# @used-by :func:`agent_tools.knowledge.sync_website_card()`
+# @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
 def sync_block(root, target, key, content, position='after-title', *, check=False, source=None, attributes=None):
 	root = Path(root).resolve()
 	target = (root / target).resolve()
@@ -40,6 +45,7 @@ def sync_block(root, target, key, content, position='after-title', *, check=Fals
 	directory = pp.data_dir
 	receipt_path = pp.rendered_json
 	result = {'target': str(target), 'block': key}
+	# @used-by :func:`sync_block()`
 	def conflict(detail):
 		return {**result, 'status': 'conflict', 'detail': detail}
 	with nullcontext() if check else locked(directory / 'render.lock'):

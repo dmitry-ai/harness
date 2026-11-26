@@ -29,6 +29,7 @@ def _build_command_argv(command_spec: str, shadow_project: Path, shadow_launcher
 	mapped = [t.replace('{project}', str(shadow_project)).replace('{launcher}', l_str) for t in tokens]
 	return [sys.executable, str(HARNESS_PY), *mapped]
 # @used-by :func:`_stage_ag_from_receipt()`
+# @used-by :func:`_stage_folders_json()`
 def _copy_native_profile(src_file: Path, dst_file: Path, pairs: list[tuple[str, str]]) -> None:
 	dst_file.parent.mkdir(parents=True, exist_ok=True)
 	if src_file.is_file():
@@ -142,6 +143,7 @@ def _verify_shadow_command_post(shadow_project: Path, final_dir: Path, pre_snap:
 	else:
 		errors.extend(post_ver['errors'])
 # @used-by :func:`agent_tools.shadow_replay._run_shadow_mode()`
+# @used-by :mod:`agent_tools.shadow_replay_command`
 def execute_shadow_command(src_project: Path, shadow_project: Path, shadow_launcher: Path | None, shadow_daily: Path | None, shadow_root: Path, *, exec_rename_domain: str | None, command: str | None, checks: dict, verified: list[str], errors: list[str]) -> Path:
 	pairs = _path_pairs(((src_project, shadow_project),))
 	if exec_rename_domain:
@@ -150,6 +152,7 @@ def execute_shadow_command(src_project: Path, shadow_project: Path, shadow_launc
 		r = _run_generic_command(shadow_project, shadow_launcher, shadow_root, str(command or ''), checks, verified, errors)
 	return r
 # @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+# @used-by :mod:`agent_tools.shadow_replay_command`
 def persist_shadow_replay_receipt(ws_root: Path, src_project: Path, report: dict, *, exec_rename_domain: str | None, command: str | None) -> str | None:
 	r = None
 	if ws_root.resolve() != src_project.resolve():
@@ -160,10 +163,12 @@ def persist_shadow_replay_receipt(ws_root: Path, src_project: Path, report: dict
 		r = str(dest)
 	return r
 # @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+# @used-by :mod:`agent_tools.shadow_replay_command`
 def resolve_shadow_launcher(src_project: Path, launcher: str | Path | None) -> Path | None:
 	explicit = Path(launcher).resolve() if None is not launcher else None
 	return infer_launcher_root(src_project, _infer_daily_root(src_project, None), explicit)
 # @used-by :func:`agent_tools.shadow_replay._prepare_shadow_stage()`
+# @used-by :mod:`agent_tools.shadow_replay_command`
 def stage_command_shadow_copies(src_project: Path, src_launcher: Path | None, shadow_root: Path) -> tuple[Path, Path | None, dict[Path, Path], dict[str, Path], Path | None]:
 	daily = _infer_daily_root(src_project, None)
 	shadow_daily = shadow_root / 'proposals/daily' if None is not daily else None

@@ -16,6 +16,7 @@ from agent_tools.platforms import antigravity
 from agent_tools.tdd.events import _antigravity_segment_is_interrupted
 import check_stop_gate
 CID = 'be6873ea-5b72-4a7f-82bd-420b873f13f9'
+# @used-by :meth:`MultiturnHandoffStopGuardAndScheduleM1Tests.test_schedule_timers_and_stdout_prose_do_not_merge_completed_turn1_into_turn2()`
 def _wire(field: int, payload: bytes) -> bytes:
 	tag = (field << 3) | 2
 	out = bytearray()
@@ -34,6 +35,8 @@ def _wire(field: int, payload: bytes) -> bytes:
 		if not val:
 			break
 	return bytes(out) + payload
+# @used-by :meth:`MultiturnHandoffStopGuardAndScheduleM1Tests.test_handed_off_launcher_routes_turn2_followup_but_not_new_job_id()`
+# @used-by :meth:`MultiturnHandoffStopGuardAndScheduleM1Tests.test_stop_guard_breaks_loop_without_continuation_active_across_steps()`
 def _payload(cwd: Path, log_file: Path, *, cont: bool=False) -> dict:
 	return {
 		'hookEventName': 'Stop',
@@ -51,6 +54,7 @@ def _payload(cwd: Path, log_file: Path, *, cont: bool=False) -> dict:
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
 class MultiturnHandoffStopGuardAndScheduleM1Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_handed_off_launcher_routes_turn2_followup_but_not_new_job_id(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -82,6 +86,7 @@ class MultiturnHandoffStopGuardAndScheduleM1Tests(unittest.TestCase):
 			new_job_rows = rows[:2] + [{'step_index': 434, 'type': 'USER_INPUT', 'content': '/upwork-init https://upwork.com/jobs/~099999999999999999999'}]
 			matched_new = check_stop_gate._find_turn_state(launcher / '\ua616/data/turns', CID, 434, rows=new_job_rows)
 			self.assertIsNone(matched_new)
+	# @used-by :mod:`unittest`
 	def test_stop_guard_breaks_loop_without_continuation_active_across_steps(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -103,6 +108,7 @@ class MultiturnHandoffStopGuardAndScheduleM1Tests(unittest.TestCase):
 			log_file.write_text('\n'.join((json.dumps(r) for r in rows)) + '\n', encoding='utf-8')
 			r2 = check_stop_gate.evaluate_stop_payload(_payload(proj, log_file, cont=False), backend_override=backend)
 			self.assertEqual('allow', r2['decision'], r2)
+	# @used-by :mod:`unittest`
 	def test_schedule_timers_and_stdout_prose_do_not_merge_completed_turn1_into_turn2(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

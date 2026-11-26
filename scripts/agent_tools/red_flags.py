@@ -16,6 +16,7 @@ END = b'<!-- upwork-init:red-flags:end -->'
 # 2026-10-15
 # "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
 # https://github.com/dmitry-ai/harness/issues/5
+# @used-by :func:`agent_tools.analysis.analysis_issues()`
 def red_flag_issues(value, claims):
 	if 'red_flags' not in value:
 		r = []
@@ -53,6 +54,9 @@ def red_flag_issues(value, claims):
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`agent_tools.analysis.render_analysis()`
+# @used-by :func:`sync_project_red_flags()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_legacy_top_block_moves_to_final_first_level_section_without_losing_text()`
 def render_red_flags(value, *, project_card=False, analysis_rel='ꘖ/KB/Analysis.json'):
 	flags = value.get('red_flags', [])
 	if not flags:
@@ -74,6 +78,14 @@ def render_red_flags(value, *, project_card=False, analysis_rel='ꘖ/KB/Analysis
 # 2026-10-15
 # "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
 # https://github.com/dmitry-ai/harness/issues/5
+# @used-by :func:`agent_tools.analysis.publish_analysis()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_append_and_remove_preserve_newlines_bom_and_empty_cards()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_legacy_analysis_does_not_silently_clear_existing_risks()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_legacy_top_block_moves_to_final_first_level_section_without_losing_text()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_manual_section_heading_edits_are_preserved_as_conflicts()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_manual_warning_edits_and_malformed_markers_are_preserved_as_conflicts()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_no_flags_does_not_create_warning_or_change_original_card()`
+# @used-by :meth:`test_red_flags.RedFlagTests.test_unknown_duplicate_and_unsupported_basis_cannot_be_published()`
 def sync_project_red_flags(root, value):
 	from .analysis import digest, validate_analysis
 	# 2026-11-19

@@ -34,6 +34,8 @@ REPORT_CONTRACT = {'schema_version': REVIEW_SCHEMA, 'required_top_level_fields':
 # "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
 # https://github.com/dmitry-ai/harness/issues/73
 class ReviewClassifier:
+	# @used-by :func:`classification()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_classifier_has_significant_flags_and_post_finalize_synthetic_claims()`
 	def __init__(self, root, state, value, *, exclude_package=None):
 		self.exclude_package = exclude_package
 		self.is_finalized = 'complete' == state.get('stages', {}).get('finalize', {}).get('status')
@@ -43,6 +45,7 @@ class ReviewClassifier:
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :meth:`ReviewClassifier.classify()`
 	def _check_omitted_stage_claims(self, seen, previously_approved, risk):
 		from .claims import claim_digest
 		if not self.is_finalized:
@@ -50,6 +53,7 @@ class ReviewClassifier:
 			omitted = sorted(set(unreviewed) - seen)
 			if omitted and 'routine' == risk:
 				raise ValueError('Unjustified routine risk downgrade: unreviewed causes/misconceptions/methods claims in Analysis.json cannot be omitted from the review manifest (' + ', '.join(omitted) + ')')
+	# @used-by :meth:`ReviewClassifier.classify()`
 	def _evaluate_claim_risk(self, ident, claim, claim_section, restatement, reasons, required_flags):
 		material = 'significant' == claim.get('materiality') or claim.get('impact', {}).get('severity') in ('high', 'critical')
 		causal_section = claim_section in ('causes', 'misconceptions')
@@ -68,6 +72,7 @@ class ReviewClassifier:
 	# 2026-11-10
 	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 	# https://github.com/dmitry-ai/harness/issues/51
+	# @used-by :meth:`ReviewClassifier.classify()`
 	def _resolve_claim(self, item, risk, index, section_by_id):
 		from .claims import claim_digest, grounded_numbers_for_claim, standalone_numbers
 		ident = item['claim_id']
@@ -84,6 +89,7 @@ class ReviewClassifier:
 					raise ValueError(f'Response excerpt for {ident} contains numeric figures not grounded in the claim or its primary evidence: ' + ', '.join(ungrounded_nums))
 			r = (claim, section_by_id.get(ident), claim_digest(claim))
 		return r
+	# @used-by :meth:`ReviewClassifier.classify()`
 	def _validate_spec(self, spec):
 		if not isinstance(spec, dict) or spec.get('risk') not in ('routine', 'significant'):
 			raise ValueError('Explicit review spec risk routine/significant is required; no default risk')
@@ -98,6 +104,7 @@ class ReviewClassifier:
 		if any((not is_nonempty_text(x) for x in claim_ids)) or len(set(claim_ids)) != len(claim_ids):
 			raise ValueError('Review claim_ids must be unique existing claim IDs')
 		return (flags, claim_ids)
+	# @used-by :func:`classification()`
 	def classify(self, spec, response):
 		from .claims import claim_index, claim_locations
 		flags, claim_ids = self._validate_spec(spec)
@@ -128,6 +135,8 @@ class ReviewClassifier:
 		if not required_flags.issubset(flags):
 			raise ValueError('Task flags omit typed significant work: ' + ', '.join(sorted(required_flags - set(flags))))
 		return {'risk': spec['risk'], 'minimum_risk': minimum, 'risk_basis': spec['basis'], 'risk_reasons': reasons, 'request_scope': spec['request_scope'], 'claims': manifest, 'task_flags': flags, 'minimum_task_flags': sorted(required_flags)}
+	# @used-by :func:`agent_tools.text_review.prepare()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_classifier_has_significant_flags_and_post_finalize_synthetic_claims()`
 	@staticmethod
 	def has_significant_flags(claims, flags):
 		return any(('significant' == c.get('materiality') for c in claims)) or bool(set(flags) & TASK_FLAGS)
@@ -135,9 +144,25 @@ class ReviewClassifier:
 # "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
 # https://github.com/dmitry-ai/harness/issues/73
 class ReviewQuorumEvaluator:
+	# @used-by :func:`_approved_digests()`
+	# @used-by :func:`agent_tools.text_review.authorize()`
+	# @used-by :func:`agent_tools.text_review.prepare()`
+	# @used-by :func:`agent_tools.text_review.read_package()`
+	# @used-by :func:`approval_current()`
+	# @used-by :func:`authorize()`
+	# @used-by :func:`findings_closed()`
+	# @used-by :func:`has_unhandled_verdicts()`
+	# @used-by :func:`latest_for_subject()`
+	# @used-by :func:`prepare()`
+	# @used-by :func:`quorum_satisfied()`
+	# @used-by :func:`read_package()`
+	# @used-by :func:`significant_findings()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
 	def __init__(self, root, state):
 		self.root = Path(root).resolve()
 		self.state = state
+	# @used-by :func:`approval_current()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
 	def approval_current(self, approval, *, package_reader=None):
 		r = False
 		if isinstance(approval, dict):
@@ -157,6 +182,7 @@ class ReviewQuorumEvaluator:
 	# 2026-11-10
 	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 	# https://github.com/dmitry-ai/harness/issues/51
+	# @used-by :func:`_approved_digests()`
 	def approved_claim_digests(self, *, exclude_package=None):
 		from .claims import claim_index
 		from .workflow import evidence_paths, hashes
@@ -197,9 +223,22 @@ class ReviewQuorumEvaluator:
 					if all((cur_ev_hashes.get(s) == sha for s, sha in c_pairs if sha)):
 						r.add((cid, c['claim_sha256']))
 		return r
+	# @used-by :func:`agent_tools.text_review.authorize()`
+	# @used-by :func:`authorize()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approval_current()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approved_claim_digests()`
+	# @used-by :meth:`ReviewQuorumEvaluator.findings_closed()`
+	# @used-by :meth:`ReviewQuorumEvaluator.has_unhandled_verdicts()`
+	# @used-by :meth:`ReviewQuorumEvaluator.significant_findings()`
 	def entry_proof_current(self, entry):
 		from .workflow import receipt_current
 		return receipt_current(self.root, {'inputs': entry.get('proof', {})})
+	# @used-by :func:`agent_tools.text_review.authorize()`
+	# @used-by :func:`authorize()`
+	# @used-by :func:`findings_closed()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approval_current()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approved_claim_digests()`
+	# @used-by :meth:`ReviewQuorumEvaluator.has_unhandled_verdicts()`
 	def findings_closed(self, entry):
 		data = json.loads(inside(self.root, entry['report']).read_text(encoding='utf-8'))
 		statuses = {f['id']: f.get('status') for f in data['findings']}
@@ -211,6 +250,10 @@ class ReviewQuorumEvaluator:
 			saved = json.loads(inside(self.root, item['file']).read_text(encoding='utf-8'))
 			statuses[saved['finding_id']] = saved['status']
 		return r and all((status in ('resolved', 'rejected') for status in statuses.values()))
+	# @used-by :func:`has_unhandled_verdicts()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approval_current()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approved_claim_digests()`
+	# @used-by :meth:`ReviewQuorumEvaluator.select_authorized_group()`
 	def has_unhandled_verdicts(self, package, latest=None):
 		active = self.latest_for_subject(package) if None is latest else latest
 		ordered = {entry.get('id'): idx for idx, entry in enumerate(self.state['reviews'])}
@@ -221,6 +264,12 @@ class ReviewQuorumEvaluator:
 				r = True
 				break
 		return r
+	# @used-by :func:`agent_tools.review_alignment.resolve_package_review_mode()`
+	# @used-by :func:`latest_for_subject()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approval_current()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approved_claim_digests()`
+	# @used-by :meth:`ReviewQuorumEvaluator.has_unhandled_verdicts()`
+	# @used-by :meth:`ReviewQuorumEvaluator.select_authorized_group()`
 	def latest_for_subject(self, package):
 		r = {}
 		for entry in self.state['reviews']:
@@ -230,6 +279,10 @@ class ReviewQuorumEvaluator:
 	# 2026-11-06
 	# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
 	# https://github.com/dmitry-ai/harness/issues/47
+	# @used-by :func:`quorum_satisfied()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approval_current()`
+	# @used-by :meth:`ReviewQuorumEvaluator.approved_claim_digests()`
+	# @used-by :meth:`ReviewQuorumEvaluator.select_authorized_group()`
 	def quorum_satisfied(self, package, latest, eligible, *, allow_falsifier_or_cached=True) -> bool:
 		required = 1
 		if 'significant' == package['risk']:
@@ -244,6 +297,9 @@ class ReviewQuorumEvaluator:
 				if not has_escalation and (any(('falsifier' == item.get('review_mode') for item in eligible)) or all_merkle_cached):
 					required = 1
 		return len({item['reviewer_id'] for item in eligible}) >= required
+	# @used-by :func:`agent_tools.text_review.authorize()`
+	# @used-by :func:`authorize()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
 	def select_authorized_group(self, groups, *, allow_routine_self=True, allow_falsifier_or_cached=True):
 		r = None
 		for path, (package, reviews) in reversed(list(groups.items())):
@@ -255,6 +311,13 @@ class ReviewQuorumEvaluator:
 					r = (path, package, eligible)
 					break
 		return r
+	# @used-by :func:`agent_tools.review_alignment.resolve_package_review_mode()`
+	# @used-by :func:`agent_tools.text_review.prepare()`
+	# @used-by :func:`agent_tools.text_review.read_package()`
+	# @used-by :func:`prepare()`
+	# @used-by :func:`read_package()`
+	# @used-by :func:`significant_findings()`
+	# @used-by :meth:`ReviewQuorumEvaluator.quorum_satisfied()`
 	def significant_findings(self, subject):
 		r = False
 		for entry in self.state['reviews']:
@@ -268,6 +331,10 @@ class ReviewQuorumEvaluator:
 # "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
 # https://github.com/dmitry-ai/harness/issues/73
 class ReviewReportValidator:
+	# @used-by :func:`agent_tools.text_review._issues()`
+	# @used-by :func:`report_issues()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_report_validator_covers_falsifier_and_text_checks()`
+	# @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_validators_emit_actionable_hints()`
 	def __init__(self, package, *, candidate=None, text_checks=(), source_reviewer=None, require_envelope=False):
 		from .path_registry import canonicalize_root_dir
 		self.candidate = candidate
@@ -285,6 +352,7 @@ class ReviewReportValidator:
 	# 2026-11-13
 	# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 	# https://github.com/dmitry-ai/harness/issues/59
+	# @used-by :meth:`ReviewReportValidator._check_claim_reviews()`
 	def _check_alignment_and_outcome(self, ident, item, result, issues):
 		from .claims import source_numeric_tokens, standalone_numbers
 		alignment = item.get('test_alignment')
@@ -314,6 +382,7 @@ class ReviewReportValidator:
 				missing_nums = sorted(claim_nums - source_numeric_tokens(str(item.get('observed', '')) + '\n' + str((alignment or {}).get('tested_claim', ''))))
 				if missing_nums:
 					issues.append(f'{ident}: claim/response numeric figures {missing_nums} are not confirmed in reviewer observed/tested_claim')
+	# @used-by :meth:`ReviewReportValidator.validate()`
 	def _check_claim_reviews(self, data, issues):
 		if not isinstance(data.get('claim_reviews'), list):
 			issues.append('Per-claim review coverage is required')
@@ -343,6 +412,7 @@ class ReviewReportValidator:
 	# 2026-11-13
 	# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 	# https://github.com/dmitry-ai/harness/issues/59
+	# @used-by :meth:`ReviewReportValidator._check_falsifier()`
 	def _check_disproved_claim(self, dc, issues):
 		from .source_grounding import classify_provenance_tier, norm_quote_text, quote_segments_present
 		cid_val = dc.get('claim_id')
@@ -369,11 +439,13 @@ class ReviewReportValidator:
 	# 2026-11-24
 	# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 	# https://github.com/dmitry-ai/harness/issues/223
+	# @used-by :meth:`ReviewReportValidator.validate()`
 	def _check_envelope(self, data, issues):
 		issues.extend(envelope_issues(data, self.package, review_schema=REVIEW_SCHEMA, scopes=SCOPES, require_envelope=self.require_envelope))
 	# 2026-11-06
 	# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
 	# https://github.com/dmitry-ai/harness/issues/47
+	# @used-by :meth:`ReviewReportValidator.validate()`
 	def _check_falsifier(self, data, issues):
 		disproved = data.get('disproved_claims')
 		if not isinstance(disproved, list):
@@ -388,6 +460,7 @@ class ReviewReportValidator:
 				issues.append('Adversarial falsifier report with non-empty disproved_claims requires needs_changes')
 			if not disproved and 'needs_changes' == data.get('result') and (not data.get('findings')):
 				issues.append('Adversarial falsifier needs_changes verdict requires at least one disproved_claims entry or open finding')
+	# @used-by :meth:`ReviewReportValidator.validate()`
 	def _check_findings(self, data, issues):
 		findings = data.get('findings')
 		if not isinstance(findings, list):
@@ -415,6 +488,7 @@ class ReviewReportValidator:
 					issues.append('Finding claim_ids must refer to response manifest claims')
 				if finding.get('status') in ('resolved', 'rejected') and (not is_nonempty_text(finding.get('disposition')) or not finding.get('evidence')):
 					issues.append('Closed finding needs an authored disposition and evidence')
+	# @used-by :meth:`ReviewReportValidator.validate()`
 	def _check_text_checks(self, data, issues):
 		if self.text_checks:
 			for item in data.get('claim_reviews', []):
@@ -422,9 +496,16 @@ class ReviewReportValidator:
 					checks = item.get('text_checks')
 					if not isinstance(checks, dict) or any((not is_nonempty_text(checks.get(key)) for key in self.text_checks)):
 						issues.append(str(item.get('claim_id')) + ': assess source applicability, scope, role, relevance, deduplication and numerical provenance')
+	# @used-by :func:`record()`
+	# @used-by :meth:`ReviewReportValidator.validate()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_report_validator_covers_falsifier_and_text_checks()`
 	@staticmethod
 	def is_falsifier_report(data):
 		return 'falsifier' == data.get('review_mode') or ('disproved_claims' in data and 'claim_reviews' not in data)
+	# @used-by :func:`agent_tools.text_review._issues()`
+	# @used-by :func:`report_issues()`
+	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_report_validator_covers_falsifier_and_text_checks()`
+	# @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_validators_emit_actionable_hints()`
 	def validate(self, data):
 		r = []
 		self._check_envelope(data, r)
@@ -444,14 +525,52 @@ class ReviewReportValidator:
 		# https://github.com/dmitry-ai/harness/issues/217
 		from .schema_help import annotate_review_issues
 		return annotate_review_issues(r)
+# @used-by :func:`agent_tools.text_review.approval_integrity()`
+# @used-by :func:`agent_tools.text_review.authorize()`
+# @used-by :func:`agent_tools.text_review.prepare()`
+# @used-by :func:`agent_tools.text_review.read_package()`
+# @used-by :func:`authenticate_report()`
+# @used-by :func:`authorize()`
+# @used-by :func:`claim_merkle_hash()`
+# @used-by :func:`disposition()`
+# @used-by :func:`prepare()`
+# @used-by :func:`prepare_verdict_record()`
+# @used-by :func:`read_package_envelope()`
+# @used-by :func:`subject_digest()`
+# @used-by :func:`verify_entry_native_proof()`
+# @used-by :meth:`ReviewClassifier._resolve_claim()`
+# @used-by :meth:`ReviewQuorumEvaluator.approval_current()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_empty_manifest_package_cannot_pass_record_review()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_routine_package_cannot_bypass_computed_risk()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
+# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
 def digest(payload):
 	return hashlib.sha256(payload).hexdigest()
+# @used-by :mod:`agent_tools.review`
 def findings_closed(root, entry):
 	return ReviewQuorumEvaluator(root, {'reviews': []}).findings_closed(entry)
+# @used-by :mod:`agent_tools.review`
 def has_unhandled_verdicts(root, state, package, latest):
 	return ReviewQuorumEvaluator(root, state).has_unhandled_verdicts(package, latest)
+# @used-by :func:`agent_tools.text_review._source_reviews()`
+# @used-by :func:`agent_tools.text_review.prepare()`
+# @used-by :func:`prepare_verdict_record()`
+# @used-by :func:`resolve_addressed_reviews()`
+# @used-by :func:`update_verified_claims_cache()`
+# @used-by :meth:`ReviewClassifier._check_omitted_stage_claims()`
+# @used-by :meth:`ReviewClassifier._validate_spec()`
+# @used-by :meth:`ReviewClassifier.classify()`
+# @used-by :meth:`ReviewReportValidator.__init__()`
+# @used-by :meth:`ReviewReportValidator._check_alignment_and_outcome()`
+# @used-by :meth:`ReviewReportValidator._check_claim_reviews()`
+# @used-by :meth:`ReviewReportValidator._check_disproved_claim()`
+# @used-by :meth:`ReviewReportValidator._check_findings()`
+# @used-by :meth:`ReviewReportValidator._check_text_checks()`
+# @used-by :mod:`agent_tools.review`
 def is_nonempty_text(value):
 	return isinstance(value, str) and bool(value.strip())
+# @used-by :mod:`agent_tools.review`
 def latest_for_subject(state, package):
 	return ReviewQuorumEvaluator('.', state).latest_for_subject(package)
 _findings_closed = findings_closed
@@ -464,6 +583,8 @@ _unhandled_verdicts = has_unhandled_verdicts
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`compute_claim_merkle_delta()`
+# @used-by :func:`update_verified_claims_cache()`
 def load_verified_claims_cache(root) -> dict:
 	from .path_registry import project_paths
 	path = project_paths(root, exact_root=True).verified_claims_json
@@ -482,6 +603,10 @@ def load_verified_claims_cache(root) -> dict:
 # 2026-11-13
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
+# @used-by :func:`_claim_evidence_sources()`
+# @used-by :func:`claim_merkle_hash()`
+# @used-by :func:`update_verified_claims_cache()`
+# @used-by :meth:`ReviewQuorumEvaluator.approved_claim_digests()`
 def _claim_evidence_pairs(claim_id: str, index: dict, evidence_inputs: dict | None = None, _visited: set | None = None) -> list[tuple[str, str]]:
 	from .claims import collect_claim_closure
 	visited = set() if None is _visited else _visited
@@ -506,11 +631,14 @@ def _claim_evidence_pairs(claim_id: str, index: dict, evidence_inputs: dict | No
 							pairs[s] = sha
 		r = sorted(pairs.items())
 	return r
+# @used-by :func:`build_blind_verification_predicates()`
 def _claim_evidence_sources(claim_id: str, index: dict) -> list[str]:
 	return [s for s, _ in _claim_evidence_pairs(claim_id, index, {})]
 # 2026-11-06
 # "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
 # https://github.com/dmitry-ai/harness/issues/47
+# @used-by :func:`compute_claim_merkle_delta()`
+# @used-by :func:`update_verified_claims_cache()`
 def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> str:
 	ident = claim_entry.get('claim_id', '')
 	claim_obj = index.get(ident) or {}
@@ -531,6 +659,8 @@ def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> 
 # 2026-11-13
 # "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
 # https://github.com/dmitry-ai/harness/issues/62
+# @used-by :func:`prepare()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue47_merkle_cache_blind_predicates_and_falsifier_mode()`
 def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence_inputs: dict) -> dict:
 	from .claims import claim_index
 	index = claim_index(value)
@@ -558,6 +688,9 @@ def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence
 # 2026-11-21
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
+# @used-by :func:`agent_tools.text_review.read_package()`
+# @used-by :func:`read_package()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 def read_package_envelope(root, reference, *, expected_kind=None, error_msg='Invalid immutable review package'):
 	from .path_registry import canonicalize_root_dir, same_project_root
 	root_p = canonicalize_root_dir(root)
@@ -574,6 +707,8 @@ def read_package_envelope(root, reference, *, expected_kind=None, error_msg='Inv
 # 2026-11-13
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
+# @used-by :func:`agent_tools.text_review.record()`
+# @used-by :func:`record()`
 def resolve_addressed_reviews(root, data, package, independent, existing_reviews):
 	addresses = data.get('addresses_reviews', [])
 	if not isinstance(addresses, list):
@@ -595,6 +730,9 @@ def resolve_addressed_reviews(root, data, package, independent, existing_reviews
 # 2026-11-06
 # "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
 # https://github.com/dmitry-ai/harness/issues/47
+# @used-by :func:`authorize()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue47_merkle_cache_blind_predicates_and_falsifier_mode()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
 def update_verified_claims_cache(root, package: dict, value: dict | None = None) -> dict:
 	from .claims import claim_index
 	root_p = Path(root).resolve()
@@ -623,6 +761,8 @@ def update_verified_claims_cache(root, package: dict, value: dict | None = None)
 # 2026-11-06
 # "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
 # https://github.com/dmitry-ai/harness/issues/47
+# @used-by :func:`prepare()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue47_merkle_cache_blind_predicates_and_falsifier_mode()`
 def build_blind_verification_predicates(manifest: list[dict], value: dict) -> list[dict]:
 	from .claims import claim_index
 	index = claim_index(value)
@@ -639,12 +779,19 @@ def build_blind_verification_predicates(manifest: list[dict], value: dict) -> li
 			'question': f'Does the Tier 0 primary evidence directly entail or falsify the atomic statement for {ident}: "{clean_predicate}"?',
 		})
 	return r
+# @used-by :func:`disposition()`
+# @used-by :func:`prepare()`
 def _immutable(path, payload):
 	return write_immutable_bytes(path, payload, diff_error='Immutable review artifact differs; preserve the original and create a new attempt')
+# @used-by :func:`input_receipt()`
+# @used-by :func:`read_package()`
+# @uses :mod:`agent_tools.text_review`
 def _package_handler(kind):
 	if 'client_text' == kind and kind not in PACKAGE_HANDLERS:
 		importlib.import_module('.text_review', __package__)
 	return PACKAGE_HANDLERS.get(kind)
+# @used-by :func:`prepare()`
+# @used-by :func:`read_package()`
 def request_snapshot(state):
 	return [{'id': item['id'], 'text': item['text']} for item in state['requests']]
 # 2026-10-18
@@ -653,6 +800,11 @@ def request_snapshot(state):
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`authorize()`
+# @used-by :func:`prepare()`
+# @used-by :func:`read_package()`
+# @used-by :func:`update_verified_claims_cache()`
+# @used-by :meth:`ReviewQuorumEvaluator.approved_claim_digests()`
 def _analysis(root):
 	from .analysis import analysis_issues
 	from .evidence import evidence_issues
@@ -665,10 +817,18 @@ def _analysis(root):
 		raise ValueError('Resolve Analysis schema 3 and evidence diagnostics before preparing or accepting review')
 	r = value
 	return r
+# @used-by :meth:`ReviewClassifier.classify()`
 def _approved_digests(root, state, *, exclude_package=None):
 	return ReviewQuorumEvaluator(root, state).approved_claim_digests(exclude_package=exclude_package)
+# @used-by :func:`prepare()`
+# @used-by :func:`read_package()`
 def classification(root, state, spec, response, value, *, exclude_package=None):
 	return ReviewClassifier(root, state, value, exclude_package=exclude_package).classify(spec, response)
+# @used-by :func:`agent_tools.text_review.approval_integrity()`
+# @used-by :func:`agent_tools.text_review.authorize()`
+# @used-by :func:`authenticate_report()`
+# @used-by :func:`prepare_verdict_record()`
+# @used-by :mod:`agent_tools.review`
 def parse_report_object(text):
 	value = text.strip()
 	if value.startswith('```'):
@@ -690,6 +850,8 @@ _report_object = parse_report_object
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.workflow.prepare_review()`
+# @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
 def prepare(root, parent_id, spec, response):
 	from .workflow import load, hashes, kb_paths, evidence_paths, doc4_sentence_issues
 	from .source_grounding import discover_entity_tier0_sources, local_source_grounding_issues, sync_fact_ledger
@@ -740,6 +902,8 @@ def prepare(root, parent_id, spec, response):
 # 2026-11-13
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
+# @used-by :func:`agent_tools.text_review.record()`
+# @used-by :func:`record()`
 def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evidence=None, allow_self=True, expected_risk=None, package_reader=None, issue_checker=None, reviews_dir_fn=None, artifact_prefix_fn=None, diff_error='Immutable review artifact differs; preserve the original and create a new attempt'):
 	root_p = Path(root).resolve()
 	if not is_nonempty_text(parent_id) or (not is_nonempty_text(reviewer_id)):
@@ -776,6 +940,7 @@ def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evide
 			ev_items = finding['evidence'] if isinstance(finding['evidence'], list) else [finding['evidence']]
 			proof_paths += [inside(root_p, item).relative_to(root_p).as_posix() for item in ev_items]
 	return {'root': root_p, 'data': data, 'package': package, 'package_path': package_path, 'package_sha': package_sha, 'candidate': candidate, 'independent': independent, 'proof_paths': proof_paths, 'native': native, 'review_id': review_id, 'report_rel': report_rel, 'authored_rel': authored_rel}
+# @used-by unused
 def quorum_satisfied(root, state, package, latest, eligible, *, allow_falsifier_or_cached=True) -> bool:
 	return ReviewQuorumEvaluator(root, state).quorum_satisfied(package, latest, eligible, allow_falsifier_or_cached=allow_falsifier_or_cached)
 # 2026-10-20
@@ -784,15 +949,28 @@ def quorum_satisfied(root, state, package, latest, eligible, *, allow_falsifier_
 # 2026-11-24
 # "Prevent context compaction with schema-help CLI and staged analysis merge":
 # https://github.com/dmitry-ai/harness/issues/217
+# @used-by :func:`agent_tools.text_review.prepare()`
+# @used-by :func:`prepare()`
+# @used-by :func:`read_package_envelope()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 def subject_digest(package):
 	fields = ('project_root', 'job_id', 'requests', 'response', 'kb_inputs', 'evidence_inputs') if 'client_text' != package.get('kind') else ('project_root', 'job_id', 'requests', 'target', 'kb_inputs', 'evidence_inputs')
 	extra = {} if 'client_text' != package.get('kind') else {'response_sha256': package['response']['sha256'], 'baseline_sha256': package['baseline']['sha256']}
 	return digest(json_data({k: package[k] for k in fields} | extra))
+# @used-by unused
 def significant_findings(root, state, subject):
 	return ReviewQuorumEvaluator(root, state).significant_findings(subject)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`authorize()`
+# @used-by :func:`input_receipt()`
+# @used-by :func:`prepare_verdict_record()`
+# @used-by :func:`record()`
+# @used-by :meth:`ReviewQuorumEvaluator.approval_current()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_routine_package_cannot_bypass_computed_risk()`
+# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
+# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
 def read_package(root, package, *, state=None, require_current=True):
 	from .claims import claim_digest, claim_index
 	from .workflow import evidence_paths, hashes, kb_paths, load
@@ -829,6 +1007,11 @@ def read_package(root, package, *, state=None, require_current=True):
 # 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :func:`agent_tools.workflow.review_input()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_review_input_returns_neutral_report_contract_with_all_options()`
+# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
+# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_review_input_and_validator_expose_verbatim_target_claim_rule_and_diff()`
 def input_receipt(root, package):
 	import os
 	from .runtime import platform_name
@@ -842,16 +1025,25 @@ def input_receipt(root, package):
 	base_contract = handler['contract_factory']() if None is not handler and None is not handler.get('contract_factory') else dict(REPORT_CONTRACT)
 	contract = bind_contract_envelope(base_contract, package, pkg_sha, data.get('review_mode'))
 	return {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package, 'package_sha256': pkg_sha, 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'claim_targets': build_claim_targets(data.get('claims')), 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks', 'auto_tier0_evidence', 'merkle_delta', 'blind_verification_predicates', 'review_mode') if k in data}}
+# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
+# @used-by :mod:`agent_tools.text_review`
 def register_package_handler(kind, *, package_reader, contract_factory=None):
 	PACKAGE_HANDLERS[kind] = {'package_reader': package_reader, 'contract_factory': contract_factory}
 # 2026-11-24
 # "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
 # https://github.com/dmitry-ai/harness/issues/223
+# @used-by :func:`prepare_verdict_record()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue47_merkle_cache_blind_predicates_and_falsifier_mode()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_audit_target_must_equal_the_analysis_claim_and_irrelevant_test_is_unsupported()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report()`
+# @used-by :meth:`test_review_contract_package_and_paths_m6.ReviewContractPackageAndPathsM6Tests.test_report_contract_and_validator_require_package_envelope_keys()`
+# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_review_input_and_validator_expose_verbatim_target_claim_rule_and_diff()`
 def report_issues(data, package, *, candidate=None, require_envelope=False):
 	return ReviewReportValidator(package, candidate=candidate, require_envelope=require_envelope).validate(data)
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# @used-by :func:`prepare_verdict_record()`
 def authenticate_report(root, package, package_path, data, source_payload, *, parent_id, reviewer_id, native_evidence=None, allow_self=True):
 	independent = reviewer_id != parent_id
 	proof_paths = [package_path, package['response']['file']]
@@ -883,6 +1075,8 @@ def authenticate_report(root, package, package_path, data, source_payload, *, pa
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.workflow.record_review()`
+# @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
 def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=None, risk=None):
 	from .workflow import hashes, load, now, update
 	if 'AA' != role:
@@ -896,6 +1090,7 @@ def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=N
 	# "Enforce single falsifier review default and block duplicate send_message reports":
 	# https://github.com/dmitry-ai/harness/issues/226
 	report_mode = 'falsifier' if ReviewReportValidator.is_falsifier_report(data) else 'standard'
+	# @used-by :func:`record()`
 	def change(state):
 		read_package(root_p, prepared['package_path'], state=state)
 		if not any((item.get('id') == review_id for item in state['reviews'])):
@@ -904,6 +1099,7 @@ def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=N
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.workflow.record_review_disposition()`
 def disposition(root, review_id, finding_id, status, basis, evidence, parent_id):
 	from .workflow import load, hashes, update, now
 	from .platforms import adapter
@@ -923,6 +1119,7 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 	from .path_registry import project_paths
 	target = _immutable(project_paths(root, exact_root=True).evidence_dir / 'Reviews/Dispositions' / (digest(encoded) + '.json'), encoded)
 	relative = target.relative_to(root).as_posix()
+	# @used-by :func:`disposition()`
 	def change(current):
 		saved = next((r for r in current['reviews'] if r.get('id') == review_id))
 		saved.setdefault('dispositions', []).append({'file': relative, 'proof': hashes(root, [relative, *payload['evidence']])})
@@ -936,6 +1133,23 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 # 2026-11-04
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
+# @used-by :func:`agent_tools.blocked_report._authorize_workflow_errors()`
+# @used-by :func:`agent_tools.project_rename_verify._probe_review_auth()`
+# @used-by :func:`agent_tools.shadow_replay._run_review_stage()`
+# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._authorize_and_sync_workflow()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_answer()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor()`
+# @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
+# @used-by :meth:`test_issue44.TestIssue44.test_authorize_post_finalize_enforces_post_finalize_questions()`
+# @used-by :meth:`test_issue44.TestIssue44.test_authorize_post_finalize_enforces_request_scoped_questions()`
+# @used-by :meth:`test_issue44.TestIssue44.test_authorize_post_finalize_ignores_historical_questions()`
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_text_core_and_review_authorize_handle_metadata_prefixed_response()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.authorize()`
+# @used-by :meth:`test_review_contract.ReviewContractTests.test_legacy_review_and_analysis_cannot_authorize_new_answer()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_authorize_deduplicates_evidence_issues_across_check_project()`
 def authorize(root, state, *, response=None, package_path=None, request_ids=None):
 	from .workflow import check_project, questions_current
 	value = _analysis(root)
@@ -989,11 +1203,16 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 	path, package, eligible = selected
 	update_verified_claims_cache(root, package, value)
 	return {'package': path, 'package_sha256': digest(inside(root, path).read_bytes()), 'response_sha256': package['response']['sha256'], 'risk': package['risk'], 'review_ids': [item['id'] for item in eligible]}
+# @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.stage_statuses()`
 def approval_current(root, state, approval):
 	return ReviewQuorumEvaluator(root, state).approval_current(approval)
 # 2026-11-13
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
+# @used-by :func:`agent_tools.text_review.approval_integrity()`
+# @used-by :func:`agent_tools.text_review.authorize()`
+# @used-by :func:`authorize()`
 def verify_entry_native_proof(root, entry, *, error_msg='Saved report differs from the actual native authored final response'):
 	from .metrics import verify_native_proof
 	native = json.loads(inside(root, entry['native_evidence']).read_text(encoding='utf-8'))

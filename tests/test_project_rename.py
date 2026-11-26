@@ -18,10 +18,26 @@ for p in (SCRIPTS, TESTS):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
 HARNESS_PY = SCRIPTS / 'harness.py'
+# @used-by :func:`_run_harness()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
+# @used-by :func:`test_project_domain_drift._complete_review_and_prepare()`
+# @used-by :func:`test_project_domain_drift._prepare_pre_finalize_with_target()`
+# @used-by :meth:`ProjectRenameTests.test_rename_project_cli_and_kebab_rejection()`
+# @used-by :meth:`ProjectRenameTests.test_save_and_render_analysis_promote_domain_flag()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_finalize_rejects_provisional_topic_when_target_domain_resolved()`
 def _run_harness(base: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run([sys.executable, str(HARNESS_PY), *args], cwd=str(base), env=_iso_env(base / 'home'), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=60, check=False)
+# @used-by :meth:`ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
+# @used-by :meth:`ProjectRenameTests.test_rename_project_cleanup_integration()`
+# @used-by :meth:`ProjectRenameTests.test_rename_project_cli_and_kebab_rejection()`
+# @used-by :meth:`ProjectRenameTests.test_rename_project_rolls_back_on_collision_or_failure()`
+# @used-by :meth:`ProjectRenameTests.test_rename_project_updates_folder_indexes_registrations_rules_and_journal()`
+# @used-by :meth:`ProjectRenameTests.test_save_and_render_analysis_promote_domain_flag()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_check_project_allows_unidentified_low_confidence_multi_target_and_exempt()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_check_project_flags_domain_drift_on_folder_and_registration_mismatch()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_finalize_rejects_provisional_topic_when_target_domain_resolved()`
 def _init_provisional(base: Path, *, job_id: str='~022124567641351805598', topic: str='Magento & GA4') -> tuple[Path, Path]:
 	from agent_tools import upwork_project as up
 	from test_onboarding import source
@@ -29,6 +45,12 @@ def _init_provisional(base: Path, *, job_id: str='~022124567641351805598', topic
 	data = {**source(job_id), 'url': f'https://upwork.com/jobs/{job_id}'}
 	res = up.initialize_upwork_project(job_id, topic=topic, date_str='2026-11-23', daily_root=daily, extracted_data=data, register_native=False)
 	return (Path(res['project_dir']).resolve(), daily)
+# @used-by :func:`_seed_project_artifacts()`
+# @used-by :func:`test_project_domain_drift._prepare_pre_finalize_with_target()`
+# @used-by :meth:`ProjectRenameTests.test_save_and_render_analysis_promote_domain_flag()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_check_project_allows_unidentified_low_confidence_multi_target_and_exempt()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_check_project_flags_domain_drift_on_folder_and_registration_mismatch()`
+# @used-by :meth:`test_project_rename_verification.ProjectRenameVerificationTests.test_promote_domain_updates_sibling_init_launcher()`
 def _target_analysis(proj: Path, *, url: str | None='https://www.blueskypeptide.com/', prob: int=90) -> dict:
 	from agent_tools.analysis import SECTIONS
 	pj = json.loads((proj / '\ua616/project.json').read_text(encoding='utf-8'))
@@ -39,13 +61,21 @@ def _target_analysis(proj: Path, *, url: str | None='https://www.blueskypeptide.
 	desc = json.loads(snap.read_text(encoding='utf-8'))['description']
 	claim = {'id': 'H-SITE-1', 'essence': title, 'assessment_basis': 'Corroborated target website.', 'knowledge_type': 'hypothesis', 'verification_status': 'limited', 'scope': {'description': 'Saved job title.', 'sample': [ref], 'limitations': []}, 'properties': ['content'], 'missing_checks': ['Verify private storefront admin.'], 'derived_from': [], 'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive', 'impact': {'severity': 'unknown', 'basis': 'No commercial impact measured.', 'evidence_claim_ids': []}, 'probability_percent': prob, 'addresses': [], 'evidence': [{'id': 'E-SITE', 'kind': 'intake', 'source': ref, 'manifest': ref, 'source_sha256': snap_sha, 'quote': title, 'locator': {'type': 'json_pointer', 'value': '/title'}}, {'id': 'E-SITE-CON', 'kind': 'intake', 'source': ref, 'manifest': ref, 'source_sha256': snap_sha, 'quote': desc, 'locator': {'type': 'json_pointer', 'value': '/description'}}], 'for': [{'argument': 'Intake corroborates identity.', 'evidence_id': 'E-SITE'}], 'against': [{'argument': 'Description omits explicit domain URL.', 'evidence_id': 'E-SITE-CON'}]}
 	return {'schema_version': 3, 'facts': [], 'identity': [claim], **{s: [] for s in SECTIONS if 'identity' != s}, 'notes': {s: 'No conclusion established.' for s in SECTIONS}, 'red_flags': [], 'websites': [{'role': 'target', 'url': url, 'basis_id': 'H-SITE-1'}]}
+# @used-by :func:`_assert_renamed_registrations()`
+# @used-by :func:`_seed_dual_antigravity()`
 def _dual_ag_registrar(ag_dirs: dict[str, Path], folders: Path):
 	from agent_tools.platforms import antigravity
+	# @used-by :func:`_dual_ag_registrar()`
 	def _reg(root, label, day):
 		p0 = antigravity.register_antigravity_project(root, label, day, projects_dir=ag_dirs['A0'], folders_json_path=folders)
 		p6 = antigravity.register_antigravity_project(root, label, day, projects_dir=ag_dirs['A6'], folders_json_path=folders, preferred_id=p0['project_id'])
 		return {**p0, 'instances': {'A0': p0, 'A6': p6}}
 	return _reg
+# @used-by :func:`test_finalized_project_contract.seed_finalized_upwork_project()`
+# @used-by :meth:`ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
+# @used-by :meth:`ProjectRenameTests.test_rename_project_cleanup_integration()`
+# @used-by :meth:`ProjectRenameTests.test_rename_project_updates_folder_indexes_registrations_rules_and_journal()`
+# @used-by :meth:`test_shadow_replay_command.ShadowReplayCommandTests.test_shadow_replay_exec_rename_domain_isolated_and_writes_receipt()`
 def _seed_dual_antigravity(base: Path, proj: Path) -> tuple[dict[str, Path], Path, dict]:
 	from agent_tools import registration
 	folders = base / 'ag/folders.json'
@@ -61,6 +91,7 @@ def _seed_dual_antigravity(base: Path, proj: Path) -> tuple[dict[str, Path], Pat
 	native0['settings']['custom'] = 'keep-me'
 	pfile0.write_text(json.dumps(native0, ensure_ascii=False, indent=2), encoding='utf-8')
 	return (ag_dirs, folders, receipt)
+# @used-by :meth:`ProjectRenameTests.test_rename_project_updates_folder_indexes_registrations_rules_and_journal()`
 def _seed_project_artifacts(proj: Path) -> Path:
 	from agent_tools import journal
 	from agent_tools.analysis import publish_analysis, save_analysis
@@ -75,6 +106,7 @@ def _seed_project_artifacts(proj: Path) -> Path:
 	readme_posix = (proj / 'readme.md').as_posix()
 	draft_f.write_text(f'Ref [readme](<file:///{readme_posix}>).  \n', encoding='utf-8')
 	return journal.state_dir(jdir)
+# @used-by :meth:`ProjectRenameTests.test_rename_project_updates_folder_indexes_registrations_rules_and_journal()`
 def _assert_renamed_registrations(case: unittest.TestCase, new_proj: Path, ag_dirs: dict[str, Path], folders: Path, orig_pid: str, orig_fid: str) -> None:
 	from agent_tools import registration
 	for iid, pdir in ag_dirs.items():
@@ -90,6 +122,7 @@ def _assert_renamed_registrations(case: unittest.TestCase, new_proj: Path, ag_di
 	re_reg = registration.register_projects(new_proj, platform='antigravity', targets=['antigravity'], registrars={'antigravity': _dual_ag_registrar(ag_dirs, folders)})
 	case.assertTrue(re_reg['complete'], re_reg)
 	case.assertEqual('registered', re_reg['status'])
+# @used-by :meth:`ProjectRenameTests.test_rename_project_updates_folder_indexes_registrations_rules_and_journal()`
 def _assert_renamed_journal_and_state(case: unittest.TestCase, new_proj: Path, old_sdir: Path) -> None:
 	from agent_tools import admission, cli, journal, workflow
 	new_jdir = new_proj / '\ua66e'
@@ -104,6 +137,7 @@ def _assert_renamed_journal_and_state(case: unittest.TestCase, new_proj: Path, o
 	chk = workflow.check_project(new_proj)
 	case.assertTrue(chk['valid'], chk)
 class ProjectRenameTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_rename_project_cli_and_kebab_rejection(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -119,6 +153,7 @@ class ProjectRenameTests(unittest.TestCase):
 			self.assertEqual('1 - blueskypeptide.com', new_proj.name)
 			self.assertFalse(proj.exists())
 			self.assertTrue(new_proj.is_dir())
+	# @used-by :mod:`unittest`
 	def test_rename_project_rolls_back_on_collision_or_failure(self) -> None:
 		from agent_tools.project_rename import rename_project
 		with tempfile.TemporaryDirectory() as tmp:
@@ -135,6 +170,7 @@ class ProjectRenameTests(unittest.TestCase):
 					rename_project(proj, domain='blueskypeptide.com', daily_root=daily, register_native=False)
 			self.assertTrue(proj.is_dir())
 			self.assertFalse((proj.parent / '1 - blueskypeptide.com').exists())
+	# @used-by :mod:`unittest`
 	def test_rename_project_updates_folder_indexes_registrations_rules_and_journal(self) -> None:
 		from agent_tools.project_rename import rename_project
 		with tempfile.TemporaryDirectory() as tmp:
@@ -152,6 +188,7 @@ class ProjectRenameTests(unittest.TestCase):
 			self.assertIn('`blueskypeptide.com`', (new_proj / '.agents/rules/90-project.md').read_text(encoding='utf-8'))
 			_assert_renamed_registrations(self, new_proj, ag_dirs, folders, initial_reg['project_id'], initial_reg['folder_id'])
 			_assert_renamed_journal_and_state(self, new_proj, old_sdir)
+	# @used-by :mod:`unittest`
 	def test_save_and_render_analysis_promote_domain_flag(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -182,6 +219,7 @@ class ProjectRenameTests(unittest.TestCase):
 			self.assertEqual(0, p3.returncode, p3.stderr)
 			self.assertTrue(proj3.is_dir())
 	# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
+	# @used-by :mod:`unittest`
 	def test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage(self) -> None:
 		from agent_tools import path_registry, workflow
 		from agent_tools.platforms.trace_common import reviewer_isolation_issues

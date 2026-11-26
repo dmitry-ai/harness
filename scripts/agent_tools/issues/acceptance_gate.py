@@ -11,7 +11,8 @@ from ..git_gate import _NO_WINDOW, is_issue_tracked_code_repo, verify_repo_issue
 from ..path_registry import project_paths
 _REG_CMD_ADD_RE = re.compile(r'^\+\s*register_command\(', re.MULTILINE)
 _UPWORK_INIT_PREFIXES = ('skills/upwork-init/', 'scripts/agent_tools/project_rename', 'scripts/agent_tools/upwork_project.py', 'scripts/agent_tools/shadow_replay')
-# @used-by :func:`_commit_covered_by_receipt()`, :func:`_commit_requires_acceptance()`
+# @used-by :func:`_commit_covered_by_receipt()`
+# @used-by :func:`_commit_requires_acceptance()`
 def _git_read(code_repo: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(code_repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15, creationflags=_NO_WINDOW, check=False)
 # @used-by :func:`check_close_acceptance_receipt()`
@@ -58,6 +59,7 @@ def _load_acceptance_receipt(code_repo: Path, project_root: str | Path | None) -
 				continue
 	return r
 # @used-by :func:`check_close_readiness()`
+# @used-by :mod:`agent_tools.issues.acceptance_gate`
 def check_close_acceptance_receipt(code_repo: Path, repo: str, number: int, commit_sha: str, *, project_root: str | Path | None=None) -> str | None:
 	receipt = _load_acceptance_receipt(code_repo, project_root)
 	required, reason = _commit_requires_acceptance(code_repo, commit_sha)
@@ -73,6 +75,7 @@ def check_close_acceptance_receipt(code_repo: Path, repo: str, number: int, comm
 		r = f'EXEC-2 acceptance gate: missing passing shadow-replay receipt (\ua616/data/shadow-replay-receipt.json) for {reason} in {repo}#{number}; run passing shadow-replay before closing'
 	return r
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._check_close_commit_readiness()`
+# @used-by :mod:`agent_tools.issues.acceptance_gate`
 def check_close_readiness(workspace, args, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None, *, verify_fn=verify_repo_issue_ready_for_close, is_tracked_fn=is_issue_tracked_code_repo) -> tuple[Path | None, str | None, str]:
 	from ..addon_observability import check_close_companion_health
 	code_repo = workspace.find_local_code_repo(repo, project_root=project_root, source_files=consumable, repo_root=getattr(args, 'repo_root', None))

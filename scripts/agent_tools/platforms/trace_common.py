@@ -51,14 +51,18 @@ _WAIT_STUB_QUOTE_RE = re.compile(r'\u00ab[^\u00bb]{0,400}\u00bb')
 _WAIT_STUB_EN_RE = re.compile(r'(?i)(?:^|\n|\.\s+)\s*waiting\s+for\s+(?:the\s+)?(?:remaining\s+)?(?:\d+\s+)?(?:subagents?|background\s+tasks?|tasks?|commands?|test\s+runs?|tests?|suites?)\b[^\n]{0,140}\bto\s+(?:complete|finish)\b')
 _WAIT_STUB_RU_RE = re.compile(r'(?i)(?:^|\n|[.;]\s*)\s*(?:\u043e\u0436\u0438\u0434\u0430\u044e|\u0436\u0434\u0443)\s+(?:\u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438[\u044f\u044e]|\u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438[\u044f\u044e]|\u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438[\u044f\u044e]|\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442(?:\u0430|\u043e\u0432)?)\s+(?:\u043e\u0441\u0442\u0430\u0432\u0448\w*\s+|\u0444\u043e\u043d\u043e\u0432\w*\s+|\u043f\u043e\u043b\u043d\w*\s+)?(?:\d+\s+)?(?:\u0441\u0443\u0431-?\u0430\u0433\u0435\u043d\u0442\w*|\u0437\u0430\u0434\u0430\u0447\w*|\u043a\u043e\u043c\u0430\u043d\u0434\w*|\u043f\u0440\u043e\u0433\u043e\u043d\w*|\u0442\u0435\u0441\u0442\w*|\u043f\u0440\u043e\u0432\u0435\u0440\u043a\w*)')
 _WAIT_STUB_RU_BG_RE = re.compile(r'(?i)(?:^|\n)\s*(?:\u043f\u043e\u043b\u043d\u044b\u0439\s+\u043f\u0440\u043e\u0433\u043e\u043d|\u043f\u0440\u043e\u0433\u043e\u043d\s+\u0442\u0435\u0441\u0442\u043e\u0432|\u0444\u043e\u043d\u043e\u0432\u0430\u044f\s+\u0437\u0430\u0434\u0430\u0447\u0430|\u0437\u0430\u0434\u0430\u0447\u0430|\u043a\u043e\u043c\u0430\u043d\u0434\u0430)\b[^\n]{0,160}\b\u0437\u0430\u043f\u0443\u0449\u0435\u043d[\u0430\u043e]?\s+\u0432\s+\u0444\u043e\u043d\u0435\b')
+# @used-by :func:`summarize_token_records()`
 def _format_token_counts(known, unavailable):
 	return {field: {'known_sum': known[field], 'unreported_records': unavailable[field], 'complete_total': None if unavailable[field] else known[field]} for field in _TOKEN_FIELDS}
+# @used-by :func:`record_normalized_tool_effects()`
 def _has_kb_target(text):
 	s = str(text or '')
 	return any((tok in s for tok in _KB_PATH_TOKENS)) or '/kb/analysis.md' in s.replace('\\', '/').lower()
 # 2026-11-13
 # "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/52
+# @used-by :func:`partial_candidate_read_issues()`
+# @used-by :func:`reviewer_isolation_issues()`
 def _iter_normalized_tool_calls(rows):
 	rows_list = rows if isinstance(rows, list) else []
 	for pos, entry in enumerate(rows_list):
@@ -77,6 +81,7 @@ def _iter_normalized_tool_calls(rows):
 					if isinstance(call, dict):
 						args = parse_tool_args(call.get('args', {}))
 						yield (str(call.get('name') or ''), args, str(args.get('CommandLine') or ''), nxt_texts)
+# @used-by :func:`partial_candidate_read_issues()`
 def _merge_line_intervals(intervals):
 	r = []
 	for s_val, e_val in sorted(intervals):
@@ -88,6 +93,7 @@ def _merge_line_intervals(intervals):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`local_uri_to_path()`
 def _strip_win_extended_prefix(text):
 	r = text
 	if text.startswith('\\\\?\\UNC\\'):
@@ -98,6 +104,8 @@ def _strip_win_extended_prefix(text):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
+# @used-by :func:`agent_tools.platforms.codex.native_review_proof()`
 def build_native_review_proof(root, surface, parent_id, reviewer_id, agent_name, log_path, parent_log, raw_log_bytes, final_step, final_text, matched_prompts, rows, *, diff_error='Existing reviewer proof changed; preserve both and recheck native progress', extra_fields_fn=None, write=True):
 	from .request_binding import native_project_fields
 	bias_issues = collect_prompt_bias_issues(matched_prompts)
@@ -110,6 +118,7 @@ def build_native_review_proof(root, surface, parent_id, reviewer_id, agent_name,
 	digest = hashlib.sha256(raw_log_bytes).hexdigest()
 	proof = {'surface': surface, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'agent_name': agent_name, 'status': 'completed', 'native_log': str(log_path), 'parent_log': str(parent_log), 'native_log_sha256': digest, 'final_step': final_step, 'final_response_sha256': hashlib.sha256(final_text.encode('utf-8')).hexdigest(), 'final_response': final_text, **native_project_fields(root), **extra}
 	return persist_review_proof(root, reviewer_id, digest, final_text, proof, write=write, diff_error=diff_error)
+# @used-by :func:`build_native_review_proof()`
 def collect_prompt_bias_issues(prompts):
 	r = []
 	for prompt_text in prompts or ():
@@ -120,6 +129,8 @@ def collect_prompt_bias_issues(prompts):
 # 2026-11-13
 # "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
 # https://github.com/dmitry-ai/harness/issues/58
+# @used-by :func:`record_normalized_tool_effects()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_tdd_and_issue_first_check_skip_shell_violation_scanning()`
 def collect_shell_violations(cmd, step_idx, exec5_violations, http_violations, *, extra=None):
 	meta = extra or {}
 	bad = unflagged_git_read_commands(cmd)
@@ -131,6 +142,8 @@ def collect_shell_violations(cmd, step_idx, exec5_violations, http_violations, *
 # 2026-11-13
 # "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/64
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._collect_subagent_bfs()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._collect_subagent_bfs()`
 def collect_subagent_bfs(root_id, root_p, seeds, resolve_child, aa_violations, *, max_depth=4):
 	r = {root_id}
 	queued_pairs = set()
@@ -162,11 +175,16 @@ def collect_subagent_bfs(root_id, root_p, seeds, resolve_child, aa_violations, *
 				queued_pairs.add((grand_cid, child_cid))
 				queue.append((grand_cid, depth + 1, False, child_cid))
 	return r
+# @used-by :func:`agent_tools.platforms.antigravity.native_requests()`
+# @used-by :func:`agent_tools.platforms.codex.native_requests()`
 def current_turn_requests(selected, conversation_id, surface, error_msg, *, id_fmt='{cid}-{idx}', extra=None):
 	if not selected:
 		raise ValueError(error_msg)
 	meta = extra or {}
 	return [{'id': id_fmt.format(cid=conversation_id, idx=index), 'text': text, 'native_conversation_id': conversation_id, 'native_step': index, 'surface': surface, **meta, 'project_binding': binding} for index, text, binding in selected]
+# @used-by :func:`agent_tools.cleanup._resource_uri()`
+# @used-by :func:`agent_tools.path_registry._is_registered_single_project()`
+# @used-by :func:`agent_tools.platforms.antigravity.resource_uri()`
 def extract_resource_uri(res):
 	r = None
 	if isinstance(res, dict):
@@ -174,6 +192,8 @@ def extract_resource_uri(res):
 		if isinstance(cand, str) and cand.strip():
 			r = cand
 	return r
+# @used-by :func:`agent_tools.platforms.antigravity.native_executor_metadata()`
+# @used-by :func:`agent_tools.platforms.codex.native_executor_metadata()`
 def finalize_executor_checks(surface, role, conversation_id, parent_id, requested, observed, history, sources, detail, *, force_model_mismatch=False):
 	checks = {key: 'unverified' if not requested.get(key) or not observed.get(key) else 'verified' if requested[key] == observed[key] else 'mismatch' for key in ('model', 'effort')}
 	if force_model_mismatch:
@@ -189,11 +209,20 @@ def finalize_executor_checks(surface, role, conversation_id, parent_id, requeste
 # 2026-11-23
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._scan_segment()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
+# @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_denied_write_tool_call_is_excluded_from_tdd_events()`
+# @used-by :meth:`test_turn_completion.TraceCommonTests.test_iter_antigravity_subagents_and_kb_persistence_parity()`
 def init_turn_accumulator(*, extra=None):
 	return {'aa_partial_read_violations': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'checkpoint_steps': [], 'completion_service_steps': [], 'exec5_violations': [], 'file_reads': [], 'file_writes': [], 'http_fetch_violations': [], 'issue_first_events': [], 'kb_persistence_steps': [], 'subagent_steps': [], 'tdd_events': [], 'tool_records': [], 'tool_steps': [], 'touched_files': [], 'transcript_read_steps': [], **(extra or {})}
 # 2026-11-23
 # "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
 # https://github.com/dmitry-ai/harness/issues/166
+# @used-by :func:`agent_tools.completion._intermediate_or_language_issues()`
+# @used-by :func:`agent_tools.tdd.events._antigravity_segment_is_interrupted()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
+# @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_waiting_stub_classifier_handles_ru_en_and_avoids_false_positives()`
 def is_waiting_status_stub(text: str) -> bool:
 	r = False
 	raw = (text or '').strip()
@@ -202,6 +231,9 @@ def is_waiting_status_stub(text: str) -> bool:
 		if cleaned and (not re.search(r'(?m)^#{1,3}\s+', cleaned)) and 600 >= len(cleaned):
 			r = bool(_WAIT_STUB_EN_RE.search(cleaned) or _WAIT_STUB_RU_RE.search(cleaned) or _WAIT_STUB_RU_BG_RE.search(cleaned))
 	return r
+# @used-by :func:`agent_tools.platforms.antigravity._find_subagent_invocations()`
+# @used-by :func:`record_normalized_tool_effects()`
+# @used-by :meth:`test_turn_completion.TraceCommonTests.test_iter_antigravity_subagents_and_kb_persistence_parity()`
 def iter_antigravity_subagents(call):
 	r = []
 	if isinstance(call, dict) and 'invoke_subagent' == call.get('name'):
@@ -224,6 +256,11 @@ def iter_antigravity_subagents(call):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`agent_tools.cleanup.path_key()`
+# @used-by :func:`agent_tools.path_registry._is_registered_single_project()`
+# @used-by :func:`agent_tools.platforms.antigravity.folder_path()`
+# @used-by :func:`agent_tools.platforms.codex._local_path()`
+# @used-by :func:`check_pre_invocation._resolve_root()`
 def local_uri_to_path(value, *, require_absolute=False):
 	raw = os.fspath(value) if isinstance(value, os.PathLike) else value
 	if not isinstance(raw, str) or not raw:
@@ -242,11 +279,15 @@ def local_uri_to_path(value, *, require_absolute=False):
 	if require_absolute and (not Path(raw).is_absolute()):
 		raise ValueError('Workspace path must be absolute')
 	return Path(_strip_win_extended_prefix(str(Path(raw).resolve())))
+# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+# @used-by :func:`agent_tools.platforms.codex.native_tool_trace()`
 def make_tool_trace_event(event_id, step, output_step, name, arguments, result, successful, created_at, completed_at, sha_payload, *, namespace=None):
 	r = {'id': event_id, 'step': step, 'output_step': output_step, 'name': name, 'arguments': arguments, 'result': result, 'successful': successful, 'created_at': created_at, 'completed_at': completed_at, 'native_event_sha256': hashlib.sha256(json_data(sha_payload)).hexdigest()}
 	if None is not namespace:
 		r['namespace'] = namespace
 	return r
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._merge_pending()`
 def merge_turn_accumulators(items, *, allow_step_output_recovery=False):
 	first, last = (items[0], items[-1])
 	cp_steps = [s for item in items for s in item.get('checkpoint_steps', [])]
@@ -273,6 +314,27 @@ def merge_turn_accumulators(items, *, allow_step_output_recovery=False):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`agent_tools.cleanup._read_ag_rows()`
+# @used-by :func:`agent_tools.cleanup_lifecycle.load_codex_history_rows()`
+# @used-by :func:`agent_tools.journal_liveness.is_conversation_running_live()`
+# @used-by :func:`agent_tools.journal_sync_all._antigravity_summary_is_idle()`
+# @used-by :func:`agent_tools.meta.transcripts._read_ag_summary_row()`
+# @used-by :func:`agent_tools.perf.timesheet_common.read_summary_timestamps()`
+# @used-by :func:`agent_tools.platforms.antigravity._model_metadata()`
+# @used-by :func:`agent_tools.platforms.antigravity._native_inputs()`
+# @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
+# @used-by :func:`agent_tools.platforms.antigravity._query_step_model_ids()`
+# @used-by :func:`agent_tools.platforms.antigravity._read_current_conversation_title()`
+# @used-by :func:`agent_tools.platforms.antigravity._workspace_context()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+# @used-by :func:`agent_tools.platforms.antigravity_review_helpers._is_reviewer_in_flight()`
+# @used-by :func:`agent_tools.platforms.antigravity_review_helpers._probe_reviewer_final()`
+# @used-by :func:`agent_tools.platforms.codex._trace()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._collect_subagent_bfs()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._query_child_summary()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._index_profile_subagents()`
 @contextmanager
 def open_readonly_sqlite(db_path, *, guard=None, query_only=False, row_factory=None, timeout=None):
 	path = Path(db_path)
@@ -290,6 +352,26 @@ def open_readonly_sqlite(db_path, *, guard=None, query_only=False, row_factory=N
 		yield conn
 	finally:
 		conn.close()
+# @used-by :func:`_iter_normalized_tool_calls()`
+# @used-by :func:`agent_tools.cli_command_grounding._cmd_from_tool_call()`
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`agent_tools.doc5_context._cmd_from_call()`
+# @used-by :func:`agent_tools.metrics.summarize()`
+# @used-by :func:`agent_tools.perf.timesheet_ag._record_tool_call()`
+# @used-by :func:`agent_tools.perf.timesheet_codex._record_codex_call()`
+# @used-by :func:`agent_tools.platforms.antigravity._extract_subagent_uuids()`
+# @used-by :func:`agent_tools.platforms.antigravity._find_subagent_invocations()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+# @used-by :func:`agent_tools.platforms.clarifications._extract_question_texts()`
+# @used-by :func:`agent_tools.platforms.codex._extract_codex_target_subagents()`
+# @used-by :func:`agent_tools.platforms.codex._spawn()`
+# @used-by :func:`agent_tools.platforms.codex.native_review_proof()`
+# @used-by :func:`agent_tools.verification_observability._cmd_from_call()`
+# @used-by :func:`iter_antigravity_subagents()`
+# @used-by :func:`record_normalized_tool_effects()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
 def parse_tool_args(raw):
 	parsed = raw
 	if isinstance(raw, str):
@@ -298,6 +380,8 @@ def parse_tool_args(raw):
 		except ValueError:
 			parsed = {}
 	return parsed if isinstance(parsed, dict) else {}
+# @used-by :func:`collect_subagent_bfs()`
+# @used-by :func:`reviewer_isolation_issues()`
 def partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 	r = []
 	candidate_reads: dict[str, dict] = {}
@@ -354,6 +438,9 @@ def partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 # 2026-11-24
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
+# @used-by :func:`build_native_review_proof()`
+# @used-by :meth:`test_reused_reviewer_and_metadata_drift_m5.ReusedReviewerAndMetadataDriftM5Tests.test_tolerates_monotonic_same_model_metadata_append_and_rejects_model_change()`
+# @used-by :meth:`test_reused_reviewer_and_metadata_drift_m5.ReusedReviewerAndMetadataDriftM5Tests.test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention()`
 def persist_review_proof(root, reviewer_id, digest, final_text, proof, *, write=True, diff_error='Existing reviewer proof changed; preserve both and recheck native progress'):
 	from ..path_registry import project_paths
 	from .proof_metadata import reuse_equivalent_proof
@@ -370,6 +457,7 @@ def persist_review_proof(root, reviewer_id, digest, final_text, proof, *, write=
 		else:
 			write_immutable_bytes(target, json_data(proof), diff_error=diff_error)
 	return {'proof': target.relative_to(root_p).as_posix() if target.is_relative_to(root_p) else target.as_posix(), **proof}
+# @used-by :func:`collect_prompt_bias_issues()`
 def prompt_bias_issues(prompt_text):
 	if not isinstance(prompt_text, str) or not prompt_text.strip():
 		r = []
@@ -388,6 +476,17 @@ def prompt_bias_issues(prompt_text):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`agent_tools.meta.transcripts._read_ag_rows()`
+# @used-by :func:`agent_tools.platforms.antigravity._load_transcript_inputs()`
+# @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+# @used-by :func:`agent_tools.platforms.antigravity_review_helpers._probe_reviewer_final()`
+# @used-by :func:`agent_tools.platforms.antigravity_review_helpers.reviewer_assigned_package()`
+# @used-by :func:`check_pre_invocation._pre_flush_begin_context()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._resolve_subagent_child()`
 def read_jsonl_objects(source, *, partial_error=None):
 	text = source.decode('utf-8') if isinstance(source, (bytes, bytearray)) else Path(source).read_text(encoding='utf-8')
 	try:
@@ -400,6 +499,7 @@ def read_jsonl_objects(source, *, partial_error=None):
 # 2026-11-13
 # "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
 # https://github.com/dmitry-ai/harness/issues/58
+# @used-by :func:`record_normalized_tool_effects()`
 def record_canonical_path(root_p, step_idx, raw_path, is_read, file_reads, file_writes, touched_files):
 	cleaned = str(raw_path or '').strip()
 	if cleaned:
@@ -417,6 +517,13 @@ def record_canonical_path(root_p, step_idx, raw_path, is_read, file_reads, file_
 # 2026-11-13
 # "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/64
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_subagent_calls()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_denied_write_tool_call_is_excluded_from_tdd_events()`
+# @used-by :meth:`test_turn_completion.TraceCommonTests.test_iter_antigravity_subagents_and_kb_persistence_parity()`
 def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, acc, *, extra_violation=None, track_turn_steps=False, transcript_tokens=(), cmd_outputs=None, sub_step=None):
 	args = raw_args if isinstance(raw_args, dict) else parse_tool_args(raw_args)
 	scan_text = str(raw_cmd or '')
@@ -522,10 +629,16 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 		if ((is_shell and bool(_SERVICE_CMD_RE.search(scan_text))) or is_scratch_write) and step_idx not in acc['completion_service_steps']:
 			acc['completion_service_steps'].append(step_idx)
 	return tdd_cmd_event
+# @used-by :func:`agent_tools.platforms.antigravity.require_current_binding()`
+# @used-by :func:`agent_tools.platforms.codex.require_current_binding()`
 def require_turn_binding(selected, active, r, error_msg):
 	if not selected or not active:
 		raise ValueError(error_msg)
 	return r
+# @used-by :func:`build_native_review_proof()`
+# @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue47_partial_candidate_read_blocked()`
+# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
 def reviewer_isolation_issues(root, rows):
 	project_root = Path(root).resolve()
 	daily_root = next((p for p in project_root.parents if 'daily' == p.name), project_root.parent)
@@ -551,6 +664,8 @@ def reviewer_isolation_issues(root, rows):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`agent_tools.metrics.summarize()`
+# @used-by :func:`agent_tools.platforms.codex.summarize()`
 def summarize_token_records(events, bindings=None, *, extra=None, field_map=None, prefix=None, tools=None):
 	totals, missing = (Counter(), Counter())
 	generations, duplicates, phases = (0, 0, {})
@@ -574,6 +689,8 @@ def summarize_token_records(events, bindings=None, *, extra=None, field_map=None
 				missing[field] += 1
 				group['missing'][field] += 1
 	return {**(prefix or {}), 'generations': generations, 'duplicate_records_ignored': duplicates, 'tokens': _format_token_counts(totals, missing), 'tools': dict(tools or {}), 'phases': {stage: {'generations': g['generations'], 'tokens': _format_token_counts(g['known'], g['missing'])} for stage, g in phases.items()}, **(extra or {})}
+# @used-by :func:`merge_turn_accumulators()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._finalize_turn()`
 def summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb_steps, tr_steps, records, f_reads, f_writes, *, svc_steps=(), aa_part_errs=None, allow_step_output_recovery=False):
 	last_cp = max(cp_steps) if cp_steps else None
 	pre_cp_steps = [s for s in t_steps if None is not last_cp and s < last_cp]
@@ -617,6 +734,9 @@ def summarize_turn_activity(cp_steps, t_steps, sub_steps, aa_steps, af_steps, kb
 			cur_src_reads.update((rp.lower() for rp in reads_by_step.get(st, ()) if rp.lower().endswith('/kb/source.md')))
 			max_src_reads = max(max_src_reads, len(cur_src_reads))
 	return ({'occurred': bool(cp_steps), 'checkpoint_steps': cp_steps, 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_cp_steps, 'post_checkpoint_recovery_steps': post_cp_rec, 'recovered_in_trace': not cp_steps or not pre_cp_steps or bool(post_cp_rec), 'pre_checkpoint_records': pre_cp_records, 'pre_checkpoint_read_files': pre_cp_reads, 'post_checkpoint_read_files': post_cp_reads, 'post_checkpoint_written_files': post_cp_writes, 'evicted_unreread_files': evicted_unreread}, {'tool_step_count': len(t_steps), 'subagent_step_count': len(sub_steps), 'aa_subagent_step_count': len(aa_steps), 'aa_partial_read_violations': list(aa_part_errs or []), 'af_subagent_step_count': len(af_steps), 'kb_persistence_step_count': len(kb_steps), 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads})
+# @used-by :func:`agent_tools.platforms.antigravity.verify_native_proof()`
+# @used-by :func:`agent_tools.platforms.codex.verify_native_proof()`
+# @used-by :meth:`test_reused_reviewer_and_metadata_drift_m5.ReusedReviewerAndMetadataDriftM5Tests.test_tolerates_monotonic_same_model_metadata_append_and_rejects_model_change()`
 def verify_review_proof_core(root, native, r, fields, *, trace_error='Review proof differs from the current native trace', identity_error='Review proof has a different explicit project identity', allow_legacy_generation_model=False):
 	for field in fields:
 		if native.get(field) != r.get(field):

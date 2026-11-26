@@ -11,8 +11,10 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # 2026-11-24
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206
+# @used-by :func:`_poll_until_exit()`
 def _kill_watchdog_tree(proc: subprocess.Popen) -> None:
 	kill_process_tree(proc)
+# @used-by :func:`run_test_watchdog()`
 def _poll_until_exit(proc: subprocess.Popen, deadline: float) -> tuple[bool, int]:
 	timed_out = False
 	while None is proc.poll():
@@ -29,6 +31,7 @@ def _poll_until_exit(proc: subprocess.Popen, deadline: float) -> tuple[bool, int
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
+# @used-by :func:`run_watchdog_cli()`
 def run_test_watchdog(argv: list[str] | tuple[str, ...], *, timeout: float=DEFAULT_WATCHDOG_TIMEOUT, cwd: Path | str | None=None, env: dict[str, str] | None=None) -> dict:
 	cmd = [str(tok) for tok in argv if None is not tok]
 	if cmd and '--' == cmd[0]:
@@ -52,5 +55,6 @@ def run_test_watchdog(argv: list[str] | tuple[str, ...], *, timeout: float=DEFAU
 		sys.stderr.write(f'TIMEOUT: test command exceeded --timeout={eff_timeout:g}s ({elapsed:.3f}s); process tree terminated.\n')
 		sys.stderr.flush()
 	return {'ok': (not timed_out) and (0 == rc), 'timed_out': timed_out, 'exit_code': rc, 'timeout': eff_timeout, 'elapsed': elapsed, 'command': cmd}
+# @used-by :func:`agent_tools.cli_registry._exec_test_watchdog()`
 def run_watchdog_cli(args) -> dict:
 	return run_test_watchdog(list(args.cmd or ()), timeout=args.timeout, cwd=args.cwd)

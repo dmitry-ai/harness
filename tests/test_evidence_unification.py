@@ -11,12 +11,14 @@ from agent_tools import links, markdown_links, source_grounding
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
 class EvidenceUnificationTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_decode_file_uri_handles_windows_relative_and_remote(self):
 		self.assertEqual('C:/foo bar/baz.md', links.decode_file_uri('file:///C:/foo%20bar/baz.md#sec'))
 		self.assertEqual('C:/a/b.txt', links.decode_file_uri('file://localhost/C:/a/b.txt', reject_remote=True))
 		self.assertEqual('KB/note 1.md', links.decode_file_uri('KB/note%201.md#top'))
 		with self.assertRaises(ValueError):
 			links.decode_file_uri('file://remote-host/share/a.md', reject_remote=True)
+	# @used-by :mod:`unittest`
 	def test_evidence_loader_full_probe_and_bundle_modes(self):
 		from agent_tools import evidence_loader
 		with tempfile.TemporaryDirectory() as tmp:
@@ -44,6 +46,7 @@ class EvidenceUnificationTests(unittest.TestCase):
 			self.assertTrue(bundle['valid'])
 			self.assertIn('Doc Title', bundle['titles'])
 			self.assertIn('sec1', bundle['anchors'])
+	# @used-by :mod:`unittest`
 	def test_evidence_loader_rejects_empty_shell_bundle(self):
 		from agent_tools import evidence_loader
 		with tempfile.TemporaryDirectory() as tmp:
@@ -56,6 +59,7 @@ class EvidenceUnificationTests(unittest.TestCase):
 			bundle = evidence_loader.load_observation_bundle(obs_json, meta, max_bytes=1024 * 1024)
 			self.assertFalse(bundle['valid'])
 			self.assertIn('browser_check_required', bundle['reason'])
+	# @used-by :mod:`unittest`
 	def test_markdown_parser_and_inline_segments_shared(self):
 		md = markdown_links.parser(preserve_links=True)
 		tokens = md.parse('See [My Label](https://example.com/a%20b) and bare https://example.org/x')[1].children
@@ -64,6 +68,7 @@ class EvidenceUnificationTests(unittest.TestCase):
 		self.assertEqual([('link', 'https://example.com/a%20b', 'My Label')], link_segs)
 		self.assertEqual([('https://example.com/a%20b', 'My Label')], list(markdown_links.inline_links(tokens)))
 		self.assertIn('My Label', markdown_links.numeric_text('See [My Label](https://example.com/a) and [example.com](https://example.com/b)'))
+	# @used-by :mod:`unittest`
 	def test_standalone_source_hydration_uses_tier0_index(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			sample = Path(tmp) / 'solo.json'

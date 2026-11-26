@@ -8,24 +8,34 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # 2026-11-24
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
+# @used-by :func:`_parse_diff_changed_urls()`
 def _extract_diff_header_path(line: str) -> str:
 	raw = line[4:].split('\t', 1)[0].strip().replace('\\', '/')
 	return '' if '/dev/null' == raw else raw
 # 2026-11-24
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
+# @used-by :meth:`RepoReadCache._tracked_diff_urls()`
+# @used-by :meth:`RepoReadCache.dirty_referencing_issue()`
 def _file_urls(fpath: Path, extract_urls_fn) -> set[str]:
 	try:
 		r = set(extract_urls_fn(fpath.read_text(encoding='utf-8', errors='replace')))
 	except OSError:
 		r = set()
 	return r
+# @used-by :meth:`RepoReadCache._dirty_entries()`
+# @used-by :meth:`RepoReadCache._load_log()`
+# @used-by :meth:`RepoReadCache._tracked_diff_urls()`
+# @used-by :meth:`RepoReadCache.find_commit_for_issue()`
+# @used-by :meth:`RepoReadCache.latest_commit_urls_for_files()`
+# @used-by :meth:`RepoReadCache.upstream_unpushed()`
 def _git_read(repo: Path, args: list[str]) -> subprocess.CompletedProcess:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
 # 2026-11-24
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
+# @used-by :meth:`RepoReadCache.dirty_referencing_issue()`
 def _iter_untracked_files(resolved: Path, rel_path: str, suffixes: frozenset[str]) -> list[tuple[str, Path]]:
 	fpath = resolved / rel_path
 	if fpath.is_file():
@@ -38,6 +48,7 @@ def _iter_untracked_files(resolved: Path, rel_path: str, suffixes: frozenset[str
 # 2026-11-24
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
+# @used-by :meth:`RepoReadCache._tracked_diff_urls()`
 def _parse_diff_changed_urls(diff_text: str, extract_urls_fn) -> dict[str, set[str]]:
 	changed: dict[str, set[str]] = {}
 	cur_path, prev_minus = ('', '')
@@ -52,6 +63,7 @@ def _parse_diff_changed_urls(diff_text: str, extract_urls_fn) -> dict[str, set[s
 			if urls:
 				changed.setdefault(cur_path, set()).update(urls)
 	return changed
+# @used-by :meth:`RepoReadCache._load_log()`
 def _parse_log_index(raw_out: str, extract_urls_fn) -> tuple[dict[str, str], dict[str, list[str]], int]:
 	issue_to_sha: dict[str, str] = {}
 	file_to_urls: dict[str, list[str]] = {}
@@ -72,6 +84,8 @@ def _parse_log_index(raw_out: str, extract_urls_fn) -> tuple[dict[str, str], dic
 # 2026-11-24
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
+# @used-by :func:`_parse_porcelain_z()`
+# @used-by :meth:`RepoReadCache._dirty_entries()`
 def _parse_porcelain_z_entries(status_out: str) -> list[tuple[str, str]]:
 	entries = [e for e in (status_out or '').split('\x00') if e]
 	parsed: list[tuple[str, str]] = []
@@ -86,8 +100,10 @@ def _parse_porcelain_z_entries(status_out: str) -> list[tuple[str, str]]:
 			parsed.append((status_code, rel_path))
 		idx += 1
 	return parsed
+# @used-by :func:`agent_tools.repo_wait._dirty_files()`
 def _parse_porcelain_z(status_out: str) -> list[str]:
 	return [rel_path for _, rel_path in _parse_porcelain_z_entries(status_out)]
+# @used-by :meth:`RepoReadCache._key()`
 def _read_head_oid(repo: Path) -> str:
 	gdir = _resolve_git_dir(repo)
 	r = ''
@@ -102,6 +118,7 @@ def _read_head_oid(repo: Path) -> str:
 		else:
 			r = head_txt
 	return r
+# @used-by :func:`_read_ref_oid()`
 def _read_packed_ref(gdir: Path, ref_name: str) -> str:
 	r = ''
 	packed = gdir / 'packed-refs'
@@ -114,6 +131,7 @@ def _read_packed_ref(gdir: Path, ref_name: str) -> str:
 		except OSError:
 			r = ''
 	return r
+# @used-by :func:`_read_head_oid()`
 def _read_ref_oid(gdir: Path, ref_name: str) -> str:
 	ref_file = gdir / ref_name
 	r = ''
@@ -131,6 +149,7 @@ def _read_ref_oid(gdir: Path, ref_name: str) -> str:
 	if not r:
 		r = _read_packed_ref(gdir, ref_name)
 	return r
+# @used-by :func:`_read_head_oid()`
 def _resolve_git_dir(repo: Path) -> Path | None:
 	dot = repo / '.git'
 	r = None
@@ -149,6 +168,10 @@ def _resolve_git_dir(repo: Path) -> Path | None:
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
 class RepoReadCache:
+	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor.__init__()`
+	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
+	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
 	def __init__(self) -> None:
 		# 2026-11-24
 		# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
@@ -160,6 +183,8 @@ class RepoReadCache:
 	# 2026-11-24
 	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 	# https://github.com/dmitry-ai/harness/issues/196
+	# @used-by :meth:`RepoReadCache.dirty_paths()`
+	# @used-by :meth:`RepoReadCache.dirty_referencing_issue()`
 	def _dirty_entries(self, repo: Path) -> list[tuple[str, str]]:
 		key = self._key(repo)
 		cached = self._status_cache.get(key)
@@ -169,9 +194,15 @@ class RepoReadCache:
 			cached = _parse_porcelain_z_entries(raw)
 			self._status_cache[key] = cached
 		return cached
+	# @used-by :meth:`RepoReadCache._dirty_entries()`
+	# @used-by :meth:`RepoReadCache._load_log()`
+	# @used-by :meth:`RepoReadCache._tracked_diff_urls()`
+	# @used-by :meth:`RepoReadCache.upstream_unpushed()`
 	def _key(self, repo: Path) -> tuple[Path, str]:
 		resolved = Path(repo).resolve()
 		return (resolved, _read_head_oid(resolved))
+	# @used-by :meth:`RepoReadCache.find_commit_for_issue()`
+	# @used-by :meth:`RepoReadCache.latest_commit_urls_for_files()`
 	def _load_log(self, repo: Path, extract_urls_fn) -> tuple[dict[str, str], dict[str, list[str]], bool]:
 		key = self._key(repo)
 		cached = self._log_cache.get(key)
@@ -185,6 +216,7 @@ class RepoReadCache:
 	# 2026-11-24
 	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 	# https://github.com/dmitry-ai/harness/issues/196
+	# @used-by :meth:`RepoReadCache.dirty_referencing_issue()`
 	def _tracked_diff_urls(self, resolved: Path, tracked_rels: list[str], extract_urls_fn) -> dict[str, set[str]]:
 		if not tracked_rels:
 			r: dict[str, set[str]] = {}
@@ -204,11 +236,15 @@ class RepoReadCache:
 	# 2026-11-24
 	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 	# https://github.com/dmitry-ai/harness/issues/196
+	# @used-by :meth:`RepoReadCache.has_dirty_for_paths()`
 	def dirty_paths(self, repo: Path) -> list[str]:
 		return [rel_path for _, rel_path in self._dirty_entries(repo)]
 	# 2026-11-24
 	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 	# https://github.com/dmitry-ai/harness/issues/196
+	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
+	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
 	def dirty_referencing_issue(self, repo: Path, issue_url: str, suffixes: frozenset[str], extract_urls_fn) -> list[str]:
 		resolved = Path(repo).resolve()
 		entries = self._dirty_entries(resolved)
@@ -221,6 +257,7 @@ class RepoReadCache:
 				if issue_url in _file_urls(u_path, extract_urls_fn):
 					hits.append(u_rel)
 		return hits
+	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
 	def find_commit_for_issue(self, repo: Path, issue_url: str, extract_urls_fn) -> str:
 		issue_to_sha, _, complete = self._load_log(repo, extract_urls_fn)
 		r = issue_to_sha.get(issue_url, '')
@@ -234,10 +271,12 @@ class RepoReadCache:
 							r = sha_cand.strip()
 							break
 		return r
+	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
 	def has_dirty_for_paths(self, repo: Path, rel_paths: list[str]) -> bool:
 		dirty = self.dirty_paths(repo)
 		norms = [p.replace('\\', '/').lstrip('./') for p in rel_paths]
 		return any((d == n or (d.endswith('/') and n.startswith(d)) for d in dirty for n in norms))
+	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_latest_commits()`
 	def latest_commit_urls_for_files(self, repo: Path, rel_paths: list[str], extract_urls_fn) -> list[str]:
 		_, file_to_urls, complete = self._load_log(repo, extract_urls_fn)
 		found: list[str] = []
@@ -252,6 +291,8 @@ class RepoReadCache:
 				if cu not in found:
 					found.append(cu)
 		return found
+	# @used-by :func:`agent_tools.repo_tag_gate._has_upstream()`
+	# @used-by :meth:`RepoReadCache.verify_commit_pushed()`
 	def upstream_unpushed(self, repo: Path) -> tuple[bool, int]:
 		key = self._key(repo)
 		cached = self._upstream_cache.get(key)
@@ -265,6 +306,7 @@ class RepoReadCache:
 				cached = (True, int(raw_cnt) if raw_cnt.isdigit() else 0)
 			self._upstream_cache[key] = cached
 		return cached
+	# @used-by :func:`agent_tools.repo_tag_gate.finalize_commit_close_check()`
 	def verify_commit_pushed(self, repo: Path, commit_sha: str, issue_url: str) -> bool:
 		has_upstream, unpushed = self.upstream_unpushed(repo)
 		if has_upstream and 0 < unpushed:

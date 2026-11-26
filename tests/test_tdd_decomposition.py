@@ -10,6 +10,7 @@ HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :meth:`TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
 def _init_temp_git_repo(repo: Path) -> None:
 	for args in (
 		['git', 'init', '-q'],
@@ -21,6 +22,7 @@ def _init_temp_git_repo(repo: Path) -> None:
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
 class TddDecompositionTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_classifier_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import classifier
@@ -41,6 +43,7 @@ class TddDecompositionTests(unittest.TestCase):
 			self.assertEqual(repo, classifier.resolve_code_scope(repo / 'src/service.py'))
 			self.assertEqual(repo, classifier.resolve_code_scope(repo / 'tests/test_a.py'))
 			self.assertEqual(2, classifier.count_repo_test_files(repo))
+	# @used-by :mod:`unittest`
 	def test_commands_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import commands
@@ -63,6 +66,7 @@ class TddDecompositionTests(unittest.TestCase):
 			self.assertEqual([], commands.shell_code_write_targets('Set-Content -Path "tests/test_a.py" -Value "x=1"', cwd=repo))
 			self.assertEqual([(repo / 'tests/test_a.py').resolve()], commands.shell_write_targets('Set-Content -Path "tests/test_a.py" -Value "x=1"', cwd=repo))
 			self.assertEqual([(repo / 'tests/test_a.py').resolve()], commands.shell_test_delete_targets('rm tests/test_a.py', cwd=repo))
+	# @used-by :mod:`unittest`
 	def test_enforcement_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import enforcement
@@ -92,6 +96,7 @@ class TddDecompositionTests(unittest.TestCase):
 			self.assertTrue(any('TDD-COMMIT-GATE' in e for e in prod_only_errs))
 			(repo / 'tests/test_app.py').write_text(test_orig + '\tdef test_w(self):\n\t\tself.assertEqual(2, 2)\n', encoding='utf-8')
 			self.assertEqual([], enforcement.verify_staged_tdd_diff(repo, ['src/app.py', 'tests/test_app.py']))
+	# @used-by :mod:`unittest`
 	def test_evaluator_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import evaluator, events
@@ -117,6 +122,7 @@ class TddDecompositionTests(unittest.TestCase):
 				events.build_file_write_tdd_event(6, repo / 'app.py'),
 			]
 			self.assertFalse(evaluator.evaluate_tdd_events(after_commit, require_final_full_green=False)['verified'])
+	# @used-by :mod:`unittest`
 	def test_events_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import events
@@ -141,6 +147,7 @@ class TddDecompositionTests(unittest.TestCase):
 			self.assertEqual('test', extracted[0]['classification'])
 			self.assertTrue(extracted[1]['outcome']['is_failure'])
 			self.assertEqual('production', extracted[2]['classification'])
+	# @used-by :mod:`unittest`
 	def test_facade_and_package_exports_preserve_all_legacy_symbols(self) -> None:
 		from agent_tools import tdd, tdd_gate
 		required_facade = (
@@ -158,6 +165,7 @@ class TddDecompositionTests(unittest.TestCase):
 			self.assertTrue(hasattr(tdd_gate, sym), f'Missing tdd_gate export: {sym}')
 		for pub in tdd.__all__:
 			self.assertIs(getattr(tdd, pub), getattr(tdd_gate, pub))
+	# @used-by :mod:`unittest`
 	def test_outcomes_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import outcomes
@@ -177,6 +185,7 @@ class TddDecompositionTests(unittest.TestCase):
 			bg_res = outcomes.parse_command_outcome(f'Task id: bg-9\nLog: {log_p.as_uri()}\n')
 			self.assertEqual('bg-9', bg_res['background_task_id'])
 			self.assertTrue(bg_res['is_pass'])
+	# @used-by :mod:`unittest`
 	def test_ratchet_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import ratchet
@@ -194,6 +203,7 @@ class TddDecompositionTests(unittest.TestCase):
 		approval = ratchet.find_ratchet_approval('tests/test_a.py', turn_receipts=receipt)
 		self.assertIsNotNone(approval)
 		self.assertEqual([], ratchet.ratchet_diff_violations('tests/test_a.py', old_src, 'def test_a():\n\tpass\n', approval=approval))
+	# @used-by :mod:`unittest`
 	def test_substantive_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate
 		from agent_tools.tdd import substantive

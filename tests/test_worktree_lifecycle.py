@@ -15,9 +15,17 @@ from agent_tools.worktree_flow import worktree_begin, worktree_cleanup, worktree
 # "Remove landed worktrees by default and flag stale worktrees in worktree-status":
 # https://github.com/dmitry-ai/harness/issues/203
 class WorktreeLifecycleTests(unittest.TestCase):
+	# @used-by :meth:`WorktreeLifecycleTests._init_repo()`
+	# @used-by :meth:`WorktreeLifecycleTests.test_cli_worktree_land_default_removes_and_keep_preserves()`
+	# @used-by :meth:`WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
+	# @used-by :meth:`WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
 	def _git(self, repo: Path, *args: str) -> str:
 		proc = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
 		return (proc.stdout or '').strip()
+	# @used-by :meth:`WorktreeLifecycleTests.test_cli_worktree_land_default_removes_and_keep_preserves()`
+	# @used-by :meth:`WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
+	# @used-by :meth:`WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
+	# @used-by :meth:`WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
 	def _init_repo(self, root: Path) -> Path:
 		repo = root / 'repo'
 		repo.mkdir(parents=True)
@@ -31,6 +39,7 @@ class WorktreeLifecycleTests(unittest.TestCase):
 		self._git(repo, 'add', '.')
 		self._git(repo, 'commit', '-m', 'init')
 		return repo
+	# @used-by :mod:`unittest`
 	def test_cli_worktree_land_default_removes_and_keep_preserves(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -52,6 +61,7 @@ class WorktreeLifecycleTests(unittest.TestCase):
 			self.assertTrue(wt_keep.is_dir())
 			self.assertTrue((repo / 'keep.txt').is_file())
 			worktree_cleanup(repo, wt_keep, force=True)
+	# @used-by :mod:`unittest`
 	def test_worktree_land_removes_worktree_and_branch_by_default(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -76,6 +86,7 @@ class WorktreeLifecycleTests(unittest.TestCase):
 			self.assertFalse(res_keep['removed'], res_keep)
 			self.assertTrue(wt_kept.is_dir())
 			worktree_cleanup(repo, wt_kept, force=True)
+	# @used-by :mod:`unittest`
 	def test_worktree_status_flags_stale_behind_and_preserves_active_worktrees(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -109,6 +120,7 @@ class WorktreeLifecycleTests(unittest.TestCase):
 			self.assertEqual((0, 0), (by_path[fresh.as_posix()]['ahead'], by_path[fresh.as_posix()]['behind']))
 			for wt in (abandoned, active_dirty, active_ahead, fresh):
 				worktree_cleanup(repo, wt, force=True)
+	# @used-by :mod:`unittest`
 	def test_worktree_status_flags_missing_worktree_as_stale(self) -> None:
 		import shutil
 		with tempfile.TemporaryDirectory() as td:

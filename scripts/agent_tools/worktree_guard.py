@@ -98,6 +98,8 @@ def _unlink_strict(target: Path, is_dir: bool, errors: list[str]) -> None:
 	except OSError as exc:
 		errors.append(f'{target.as_posix()}: {exc}')
 # @used-by :func:`remove_worktree_fail_closed()`
+# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
+# @used-by :mod:`agent_tools.worktree_guard`
 def find_worktree_lock_holders(wt_path: Path, *, process_rows: list[dict[str, Any]] | None=None) -> list[dict[str, Any]]:
 	rows = process_rows if None is not process_rows else _query_win32_processes()
 	target_posix = _norm_posix(Path(wt_path).resolve())
@@ -111,6 +113,7 @@ def find_worktree_lock_holders(wt_path: Path, *, process_rows: list[dict[str, An
 			found.append(item)
 	return found
 # @used-by :func:`agent_tools.gates.git_write.check()`
+# @used-by :mod:`agent_tools.worktree_guard`
 def prohibited_worktree_remove_commands(command_line: str) -> list[str]:
 	r: list[str] = []
 	text = str(command_line or '')
@@ -120,12 +123,14 @@ def prohibited_worktree_remove_commands(command_line: str) -> list[str]:
 			break
 	return r
 # @used-by :func:`agent_tools.gates.worktree_isolation.check()`
+# @used-by :mod:`agent_tools.worktree_guard`
 def prohibited_worktree_shell_deletions(command_line: str) -> list[str]:
 	r: list[str] = []
 	if _has_managed_worktree_delete(str(command_line or '')):
 		r.append('EXEC-5: Direct shell/Python deletion of managed worktrees under `ꘖ/data/worktrees/` is prohibited; use `harness.py worktree-cleanup` so locked worktrees are diagnosed rather than silently suppressed.')
 	return r
 # @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
+# @used-by :mod:`agent_tools.worktree_guard`
 def remove_worktree_fail_closed(main_repo: Path, wt_path: Path, *, force: bool, git_exec_fn) -> dict[str, Any]:
 	git_err = ''
 	rem_errors: list[str] = []

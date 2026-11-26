@@ -3,17 +3,18 @@ from __future__ import annotations
 from pathlib import Path
 import re
 from .java_lex import count_top_args, match_delim
-from .java_tags import collect_file_java_uses, resolve_java_target
+from .java_tags import collect_file_java_uses, parse_javadoc_block, resolve_java_target
 # 2026-11-26
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
 _OBJECT_METHODS = frozenset({'clone', 'equals', 'finalize', 'hashCode', 'toString'})
 _PLUGIN_CLS_RE = re.compile(r'(?:implementation|class)\s*=\s*"([A-Za-z0-9_$.]+)"')
 # @used-by :func:`_add_external_entry_edges()`
-# @used-by :func:`_add_java_override_edges()`
 # @used-by :func:`_add_java_uses_edges()`
+# @used-by :func:`_add_see_override_edges()`
 # @used-by :func:`_link_fallback_unique_method()`
 # @used-by :func:`_link_java_method()`
+# @used-by :func:`_record_java_def_override()`
 def _add_java_edge(used_by: dict[str, set[str]], target_key: str, caller_key: str) -> None:
 	if target_key != caller_key:
 		used_by.setdefault(target_key, set()).add(caller_key)
@@ -33,16 +34,7 @@ def _add_external_entry_edges(repo_index: dict, used_by: dict[str, set[str]]) ->
 def _add_java_override_edges(repo_index: dict, used_by: dict[str, set[str]]) -> None:
 	for finfo in repo_index['files'].values():
 		for dinfo in finfo['defs']:
-			skey = dinfo['symbol_key']
-			ov = find_java_overridden_method(finfo, dinfo, repo_index)
-			if None is not ov:
-				if ov in repo_index['symbols']:
-					caller = dinfo['enclosing_res'] if dinfo['is_anon'] else skey
-					_add_java_edge(used_by, ov, caller)
-				if not dinfo['is_anon']:
-					_add_java_edge(used_by, skey, ov)
-			if dinfo['is_anon'] and dinfo['enclosing_res']:
-				_add_java_edge(used_by, skey, dinfo['enclosing_res'])
+			_record_java_def_override(finfo, dinfo, repo_index, used_by)
 # @used-by :func:`build_java_call_graph()`
 def _add_java_uses_edges(repo_index: dict, used_by: dict[str, set[str]]) -> None:
 	for finfo in repo_index['files'].values():
@@ -51,6 +43,16 @@ def _add_java_uses_edges(repo_index: dict, used_by: dict[str, set[str]]) -> None
 				ok, tkey = resolve_java_target(item['link_target'], finfo, repo_index)
 				if ok and None is not tkey and tkey in repo_index['symbols']:
 					_add_java_edge(used_by, tkey, item['caller_key'])
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
+# @used-by :func:`_record_java_def_override()`
+def _add_see_override_edges(finfo: dict, dinfo: dict, skey: str, repo_index: dict, used_by: dict[str, set[str]]) -> None:
+	hdr = parse_javadoc_block(finfo['lines'], dinfo['doc_anchor_line'], finfo['rel_path'])
+	for entry in hdr['see']:
+		ok, ref = resolve_java_target(entry['raw_value'], finfo, repo_index)
+		if ok and None is not ref:
+			_add_java_edge(used_by, skey, ref)
 # @used-by :func:`_scan_java_file()`
 def _collect_java_var_types(toks: list[tuple[str, str, int]], start: int, end: int, finfo: dict, repo_index: dict) -> dict[str, str]:
 	vtypes: dict[str, str] = {}
@@ -156,6 +158,22 @@ def _record_java_call(toks: list[tuple[str, str, int]], i: int, dinfo: dict, fin
 	elif '::' != prev:
 		if not _link_java_method(dinfo['type_fqn'], mname, argc, repo_index, caller_key, used_by):
 			_link_enclosing_or_static(dinfo, mname, argc, finfo, repo_index, caller_key, used_by)
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
+# @used-by :func:`_add_java_override_edges()`
+def _record_java_def_override(finfo: dict, dinfo: dict, repo_index: dict, used_by: dict[str, set[str]]) -> None:
+	skey = dinfo['symbol_key']
+	ov = find_java_overridden_method(finfo, dinfo, repo_index)
+	if None is not ov:
+		if ov in repo_index['symbols']:
+			_add_java_edge(used_by, ov, dinfo['enclosing_res'] if dinfo['is_anon'] else skey)
+		if not dinfo['is_anon']:
+			_add_java_edge(used_by, skey, ov)
+	elif dinfo['has_override'] and (not dinfo['is_anon']):
+		_add_see_override_edges(finfo, dinfo, skey, repo_index, used_by)
+	if dinfo['is_anon'] and dinfo['enclosing_res']:
+		_add_java_edge(used_by, skey, dinfo['enclosing_res'])
 # @used-by :func:`_record_java_call()`
 def _record_qualified_call(toks: list[tuple[str, str, int]], recv_i: int, mname: str, argc: int, dinfo: dict, finfo: dict, vtypes: dict[str, str], repo_index: dict, caller_key: str, used_by: dict[str, set[str]]) -> None:
 	recv = toks[recv_i][1]
@@ -238,7 +256,7 @@ def build_java_call_graph(repo_index: dict) -> dict[str, set[str]]:
 	_add_java_override_edges(repo_index, used_by)
 	_add_external_entry_edges(repo_index, used_by)
 	return used_by
-# @used-by :func:`_add_java_override_edges()`
+# @used-by :func:`_record_java_def_override()`
 # @used-by :func:`agent_tools.xref.java_sync._check_java_override()`
 # @used-by :func:`agent_tools.xref.java_sync._sync_java_def_edit()`
 def find_java_overridden_method(finfo: dict, dinfo: dict, repo_index: dict) -> str | None:

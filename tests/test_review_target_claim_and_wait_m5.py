@@ -1,5 +1,6 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+from typing import override
 import json
 from pathlib import Path
 import sqlite3
@@ -18,6 +19,8 @@ from agent_tools import cli_common, review, workflow as flow
 from agent_tools.platforms import antigravity
 from test_analysis_workflow import ProjectCase
 from test_continuation_binding import wire
+# @used-by :meth:`ReviewTargetClaimAndWaitM5Tests._setup_antigravity_reviewer()`
+# @used-by :meth:`ReviewTargetClaimAndWaitM5Tests.test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response()`
 def _exec_sql(db_path: Path, statements: list[tuple[str, tuple]]) -> None:
 	conn = sqlite3.connect(db_path)
 	try:
@@ -30,6 +33,12 @@ def _exec_sql(db_path: Path, statements: list[tuple[str, tuple]]) -> None:
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
 class ReviewTargetClaimAndWaitM5Tests(ProjectCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self) -> None:
 		super().setUp()
 		self.value = self.valid_review_analysis()
@@ -41,6 +50,7 @@ class ReviewTargetClaimAndWaitM5Tests(ProjectCase):
 		self.answer = 'Client task\n'
 		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task', 'novelty': 'new'}]
 		self.package = self.review_package(self.parent, self.answer, 'routine', self.manifest)
+	# @used-by :meth:`ReviewTargetClaimAndWaitM5Tests.test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response()`
 	def _setup_antigravity_reviewer(self) -> tuple[Path, Path, Path]:
 		backend = self.root / 'ag-home/.gemini/antigravity'
 		(backend / 'conversations').mkdir(parents=True)
@@ -69,6 +79,7 @@ class ReviewTargetClaimAndWaitM5Tests(ProjectCase):
 		c_db = backend / 'conversations' / f'{self.child}.db'
 		_exec_sql(c_db, [('CREATE TABLE steps(idx INTEGER,step_type INTEGER,status INTEGER)', ()), ('INSERT INTO steps VALUES(1,15,2)', ())])
 		return (backend, child_log, c_db)
+	# @used-by :mod:`unittest`
 	def test_review_input_and_validator_expose_verbatim_target_claim_rule_and_diff(self) -> None:
 		receipt = review.input_receipt(self.project, self.package['package'])
 		self.assertIn('claim_targets', receipt)
@@ -80,12 +91,14 @@ class ReviewTargetClaimAndWaitM5Tests(ProjectCase):
 		report['claim_reviews'][0]['test_alignment']['target_claim'] = 'The target client website is https://example.org/.'
 		issues = review.report_issues(report, self.package)
 		self.assertTrue(any(('target_claim' in e and expected_essence in e and 'The target client website' in e for e in issues)), issues)
+	# @used-by :mod:`unittest`
 	def test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response(self) -> None:
 		backend, child_log, c_db = self._setup_antigravity_reviewer()
 		with self.assertRaises(ValueError) as ctx:
 			antigravity.native_review_proof(self.project, self.parent, self.child, backend=backend, write=False, wait_timeout=0.0)
 		payload = cli_common.operation_error_payload(ctx.exception)
 		self.assertTrue(payload['retryable'], payload)
+		# @used-by :meth:`ReviewTargetClaimAndWaitM5Tests.test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response()`
 		def _finish_reviewer() -> None:
 			time.sleep(0.25)
 			child_log.write_text(child_log.read_text(encoding='utf-8') + json.dumps({'step_index': 2, 'type': 'PLANNER_RESPONSE', 'content': 'Reviewed'}) + '\n', encoding='utf-8')

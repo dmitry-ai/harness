@@ -21,6 +21,11 @@ from .workspace import IssueEvidenceWorkspace, _V2_CODE_RELS
 # "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
 # https://github.com/dmitry-ai/harness/issues/77
 class TurnIssueLifecycleAuditor:
+	# @used-by :func:`agent_tools.issue_lifecycle._check_multi_subtask_decomposition()`
+	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
+	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
+	# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
+	# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
 	def __init__(self, root: Path, turn: dict, turn_state: dict | None=None, response=None, *, workspace: IssueEvidenceWorkspace | None=None, linter: IssueMarkdownLinter | None=None) -> None:
 		self.root, self.turn, self.turn_state, self.response = (Path(root).resolve(), turn, turn_state, response)
 		self.workspace = workspace if None is not workspace else IssueEvidenceWorkspace()
@@ -36,6 +41,7 @@ class TurnIssueLifecycleAuditor:
 		# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 		# https://github.com/dmitry-ai/harness/issues/175
 		self.git_cache = RepoReadCache()
+	# @used-by :meth:`TurnIssueLifecycleAuditor._collect_repos_and_issues()`
 	def _bind_issue_repos(self) -> tuple[dict[Path, set[str]], dict[str, Path]]:
 		for info in self.turn_issues.values():
 			found = self.workspace.find_local_code_repo(info['repo'], project_root=self.root)
@@ -52,6 +58,7 @@ class TurnIssueLifecycleAuditor:
 						required_by_repo.setdefault(cand, set()).add(url)
 						self.repo_touched.setdefault(cand, set())
 		return (required_by_repo, repo_by_url)
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_turn_issue_evidence()`
 	def _check_comments_evidence(self, issue_url: str, slug: str, cids: list, container_text: str | None) -> None:
 		for cid in cids:
 			for cp in self.workspace.evidence_issue_files(self.root, slug, f'comment-{cid}.json', self.candidate_repos)[:1]:
@@ -64,6 +71,7 @@ class TurnIssueLifecycleAuditor:
 						self.violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} lint error ({err.get("code")}): {err.get("message")}')
 					for g_err in local_source_grounding_issues(self.root, c_body, doc_path=cp):
 						self.violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} grounding error: {g_err}')
+	# @used-by :meth:`TurnIssueLifecycleAuditor.audit()`
 	def _check_diagnostic_audit_filing(self) -> None:
 		resp = self.response
 		if isinstance(resp, str) and resp.strip() and self.workspace_code_repos and (not self.repo_touched):
@@ -73,6 +81,7 @@ class TurnIssueLifecycleAuditor:
 					ws_slug = self.workspace.origin_repo_slug(ws_repo)
 					if ws_slug and (not self._has_workspace_parent_issue(ws_slug, resp)):
 						self.violations.append(f'EXEC-5 / SCOPE-2: Diagnostic audit of {ws_slug} identifies repository defects (C-/H-) and remediation methods (M-) without recording a corresponding parent problem GitHub Issue via df_github_issue.py')
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_turn_issue_evidence()`
 	def _check_issue_file_evidence(self, issue_url: str, slug: str, num: int, info: dict, mutated: bool) -> str | None:
 		iss_files = self.workspace.evidence_issue_files(self.root, slug, f'issue-{num}.json', self.candidate_repos)
 		if not iss_files and mutated:
@@ -88,6 +97,8 @@ class TurnIssueLifecycleAuditor:
 			except (OSError, ValueError):
 				continue
 		return container_text
+	# @used-by :func:`agent_tools.issue_lifecycle._check_multi_subtask_decomposition()`
+	# @used-by :meth:`TurnIssueLifecycleAuditor.audit()`
 	def _check_multi_subtask_decomposition(self, committed_by_repo: dict[Path, set[str]], required_by_repo: dict[Path, set[str]]) -> None:
 		active_repos = [cr for cr, rels in sorted(self.repo_touched.items(), key=lambda x: str(x[0])) if rels or committed_by_repo.get(cr)]
 		if active_repos:
@@ -107,6 +118,7 @@ class TurnIssueLifecycleAuditor:
 					self._flag_unparented_multi_commits(slug, committed_urls)
 				self._flag_unclosed_completed_parents(code_repo, slug, parent_nums)
 			verify_multi_subtask_counts(impl_m_roots, per_repo, total_child_urls, self.violations)
+	# @used-by :meth:`TurnIssueLifecycleAuditor.audit()`
 	def _check_repo_commits_and_files(self, code_repo: Path, rel_paths: list[str], required_issues: set[str]) -> set[str]:
 		# 2026-11-24
 		# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
@@ -129,6 +141,7 @@ class TurnIssueLifecycleAuditor:
 			if existing_rels:
 				self._inspect_latest_commits(code_repo, existing_rels, required_issues, committed_urls)
 		return committed_urls
+	# @used-by :meth:`TurnIssueLifecycleAuditor.audit()`
 	def _check_turn_issue_evidence(self, repo_by_issue_url: dict[str, Path]) -> None:
 		for issue_url, info in sorted(self.turn_issues.items()):
 			slug, num = (info['repo'], int(info['number']))
@@ -140,6 +153,7 @@ class TurnIssueLifecycleAuditor:
 				self.checked_urls.add(issue_url)
 			container_text = self._check_issue_file_evidence(issue_url, slug, num, info, mutated)
 			self._check_comments_evidence(issue_url, slug, info.get('comment_ids') or [], container_text)
+	# @used-by :meth:`TurnIssueLifecycleAuditor.audit()`
 	def _collect_repos_and_issues(self) -> tuple[dict[Path, set[str]], dict[str, Path]]:
 		from ..path_registry import project_paths
 		self._collect_touched_repos()
@@ -156,6 +170,7 @@ class TurnIssueLifecycleAuditor:
 			if cand not in self.candidate_repos:
 				self.candidate_repos.append(cand)
 		return self._bind_issue_repos()
+	# @used-by :meth:`TurnIssueLifecycleAuditor._collect_repos_and_issues()`
 	def _collect_touched_repos(self) -> None:
 		for raw_p in self.turn.get('touched_files') or []:
 			if isinstance(raw_p, str) and raw_p.strip():
@@ -166,6 +181,7 @@ class TurnIssueLifecycleAuditor:
 						self.repo_touched.setdefault(resolved[0], set()).add(resolved[1])
 				except OSError:
 					continue
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_multi_subtask_decomposition()`
 	def _committed_parent_numbers(self, slug: str, committed_urls: set[str]) -> set[int]:
 		parents: set[int] = set()
 		for c_url in sorted(committed_urls):
@@ -175,12 +191,15 @@ class TurnIssueLifecycleAuditor:
 				if None is not pnum:
 					parents.add(pnum)
 		return parents
+	# @used-by :meth:`TurnIssueLifecycleAuditor._lint_saved_issue_obj()`
+	# @used-by :meth:`TurnIssueLifecycleAuditor._resolve_parent_number()`
 	def _extract_saved_parent(self, info: dict, iss_obj: dict, b_txt: str, slug: str) -> int | None:
 		pnum = info.get('parent_number')
 		if not isinstance(pnum, int) or isinstance(pnum, bool):
 			raw_p = iss_obj.get('parent_number')
 			pnum = raw_p if isinstance(raw_p, int) and (not isinstance(raw_p, bool)) else self.linter.extract_parent_number(b_txt, slug)
 		return pnum
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_multi_subtask_decomposition()`
 	def _flag_unclosed_completed_parents(self, code_repo: Path, slug: str, parent_nums: set[int]) -> None:
 		for pnum in sorted(parent_nums):
 			children = self.workspace.find_tracked_child_issues(slug, pnum, project_root=self.root, code_repo=code_repo)
@@ -189,12 +208,14 @@ class TurnIssueLifecycleAuditor:
 				p_state = self.workspace.evidence_issue_state(self.root, slug, pnum, self.candidate_repos) or (self.turn_issues.get(p_url) or {}).get('state') or 'open'
 				if 'closed' != p_state:
 					self.violations.append(f'EXEC-5 violation: parent issue {p_url} in {slug} remains {p_state} after all tracked child subtask issues are closed; close it via df_github_issue.py close')
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_multi_subtask_decomposition()`
 	def _flag_unparented_multi_commits(self, slug: str, committed_urls: set[str]) -> None:
 		for c_url in sorted(committed_urls):
 			c_info = self.turn_issues.get(c_url) or {}
 			if 'create' in set(c_info.get('actions') or ()) and c_info.get('repo', '').lower() == slug.lower():
 				if None is self._resolve_parent_number(c_info['repo'], int(c_info['number'])):
 					self.violations.append(f'EXEC-5 violation: multi-commit subtask issue {c_url} created in {slug} lacks a --parent link to a parent problem issue')
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_diagnostic_audit_filing()`
 	def _has_workspace_parent_issue(self, ws_slug: str, resp: str) -> bool:
 		r = any((info['repo'].lower() == ws_slug.lower() and (None is self._resolve_parent_number(info['repo'], int(info['number']), require_parent_evidence=False)) for info in self.turn_issues.values()))
 		if not r:
@@ -204,6 +225,7 @@ class TurnIssueLifecycleAuditor:
 					r = True
 					break
 		return r
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
 	def _inspect_latest_commits(self, code_repo: Path, existing_rels: list[str], required_issues: set[str], committed_urls: set[str]) -> None:
 		# 2026-11-24
 		# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
@@ -213,6 +235,9 @@ class TurnIssueLifecycleAuditor:
 			self.violations.append(f'Latest commit for {", ".join(existing_rels)} in {code_repo} does not reference a GitHub Issue URL')
 		required_issues.update(commit_urls)
 		committed_urls.update(commit_urls)
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
+	# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
+	# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
 	def _inspect_touched_code_file(self, code_repo: Path, rel: str, required_issues: set[str], committed_urls: set[str]) -> None:
 		# 2026-11-25
 		# "Add comment-only diff lexer exemption for top 20 repository languages":
@@ -234,6 +259,7 @@ class TurnIssueLifecycleAuditor:
 				if cu in self.turn_issues:
 					required_issues.add(cu)
 					committed_urls.add(cu)
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_issue_file_evidence()`
 	def _lint_saved_issue_obj(self, issue_url: str, slug: str, num: int, info: dict, iss_obj: dict, t_txt: str, b_txt: str, p: Path, mutated: bool) -> None:
 		pnum = self._extract_saved_parent(info, iss_obj, b_txt, slug)
 		if isinstance(pnum, int) and pnum != num and (not self.workspace.evidence_issue_files(self.root, slug, f'issue-{pnum}.json', self.candidate_repos)):
@@ -244,8 +270,13 @@ class TurnIssueLifecycleAuditor:
 			eff_p = pnum if isinstance(pnum, int) and pnum != num else None
 			self.violations.extend((f'GitHub issue {issue_url} body lint error ({err.get("code")}): {err.get("message")}' for err in self.linter.lint(b_txt, is_title=False, parent_number=eff_p, repo=slug, self_number=num)))
 			self.violations.extend((f'GitHub issue {issue_url} body grounding error: {g_err}' for g_err in local_source_grounding_issues(self.root, b_txt, doc_path=p)))
+	# @used-by :meth:`TurnIssueLifecycleAuditor._check_multi_subtask_decomposition()`
 	def _parent_linked_committed_urls(self, slug: str, req_urls: list[str], committed_urls: set[str]) -> list[str]:
 		return [c_url for c_url in req_urls if c_url in committed_urls and (parsed := parse_issue_url(c_url)) and parsed[0].lower() == slug.lower() and (None is not self._resolve_parent_number(parsed[0], parsed[1]))]
+	# @used-by :meth:`TurnIssueLifecycleAuditor._committed_parent_numbers()`
+	# @used-by :meth:`TurnIssueLifecycleAuditor._flag_unparented_multi_commits()`
+	# @used-by :meth:`TurnIssueLifecycleAuditor._has_workspace_parent_issue()`
+	# @used-by :meth:`TurnIssueLifecycleAuditor._parent_linked_committed_urls()`
 	def _resolve_parent_number(self, slug: str, num: int, *, require_parent_evidence: bool=True) -> int | None:
 		pnum = self.turn_issues.get(f'https://github.com/{slug}/issues/{int(num)}', {}).get('parent_number')
 		if not isinstance(pnum, int) or isinstance(pnum, bool):
@@ -260,6 +291,7 @@ class TurnIssueLifecycleAuditor:
 					pnum = self._extract_saved_parent({}, iss_obj, str(iss_obj.get('body') or ''), slug)
 					break
 		return pnum if isinstance(pnum, int) and pnum != int(num) and (not require_parent_evidence or self.workspace.evidence_issue_files(self.root, slug, f'issue-{pnum}.json', self.candidate_repos)) else None
+	# @used-by :meth:`TurnIssueLifecycleAuditor.audit()`
 	def _verify_required_repo_issues(self, code_repo: Path, req_set: set[str]) -> None:
 		for issue_url in sorted(req_set):
 			parsed = parse_issue_url(issue_url)
@@ -280,6 +312,8 @@ class TurnIssueLifecycleAuditor:
 				self.checked_urls.add(issue_url)
 				if 'closed' != eff_state:
 					self.violations.append(f'GitHub issue {issue_url} remains {eff_state}; close it via df_github_issue.py close after git push before answer-prepare')
+	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
+	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
 	def audit(self) -> dict:
 		required_by_repo, repo_by_url = self._collect_repos_and_issues()
 		committed_by_repo: dict[Path, set[str]] = {}
@@ -295,6 +329,8 @@ class TurnIssueLifecycleAuditor:
 	# 2026-11-24
 	# "Isolate per-conversation github_issues recording and turn-state filtering":
 	# https://github.com/dmitry-ai/harness/issues/195
+	# @used-by :func:`agent_tools.issue_lifecycle._collect_turn_issues()`
+	# @used-by :meth:`TurnIssueLifecycleAuditor._collect_repos_and_issues()`
 	@staticmethod
 	def collect_turn_issues(turn: dict, turn_state: dict | None, *, has_competing_open_turns: bool=False) -> dict[str, dict]:
 		turn_issues: dict[str, dict] = {}

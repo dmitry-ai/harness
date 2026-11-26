@@ -9,7 +9,7 @@ from .platforms.trace_common import parse_tool_args
 from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 _EXCLUDED_CLI_RE = re.compile(r'\b(?:pytest|unittest|run-tests|test-watchdog|perf-profile-tests|answer-check|answer-prepare|tdd-check|issue-first-check|analysis-check|rules-audit)\b', re.IGNORECASE)
 _HARNESS_CLI_RE = re.compile(r'(?:harness|upwork_project|df_github_issue|validate_step)\.py', re.IGNORECASE)
-# @used-by :func:`_earliest_cli_failure_step()`
+# @used-by :func:`_inspect_call_failure()`
 def _cmd_from_call(call: dict[str, Any]) -> str:
 	name = str(call.get('name') or '')
 	r = ''
@@ -17,7 +17,8 @@ def _cmd_from_call(call: dict[str, Any]) -> str:
 		args = parse_tool_args(call.get('args', call.get('arguments', {})))
 		r = str(args.get('CommandLine') or args.get('cmd') or args.get('command') or '')
 	return r
-# @used-by :func:`_earliest_cli_failure_step()`
+# @used-by :func:`_inspect_call_failure()`
+# @used-by :func:`_record_bg_cli_failures()`
 def _is_failed_cli_output(text: str) -> bool:
 	out = parse_command_outcome(text)
 	low = (text or '').lower()
@@ -75,6 +76,7 @@ def _has_post_failure_parent_issue(turn: dict[str, Any], fail_step: int) -> bool
 				break
 	return r
 # @used-by :func:`agent_tools.statements._detect_mode()`
+# @used-by :mod:`agent_tools.doc5_context`
 def detect_df_analysis_mode(text: str, blocks: list[dict], requests: list | tuple, mode: str, *, turn_context: dict | None, prob_head_re, req_cmd_fn, explicit_fn) -> str:
 	if mode in ('general', 'problem'):
 		r = mode
@@ -90,6 +92,7 @@ def detect_df_analysis_mode(text: str, blocks: list[dict], requests: list | tupl
 			r = 'general' if hyps or mets else 'none'
 	return r
 # @used-by :func:`detect_df_analysis_mode()`
+# @used-by :mod:`agent_tools.doc5_context`
 def turn_requires_doc5_problem_analysis(turn_context: dict | None) -> bool:
 	r = False
 	if isinstance(turn_context, dict):

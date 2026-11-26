@@ -16,7 +16,9 @@ import check_stop_gate
 from agent_tools import completion, journal, metadata, review, storage, text_core
 
 
+# @used-by :meth:`JournalMetadataIntegrationTests.test_antigravity_prepare_prepends_metadata_and_stop_gate_and_sync_accept_clean_chat_reply()`
 def _wire(field: int, payload: bytes) -> bytes:
+	# @used-by :func:`_wire()`
 	def _varint(val: int) -> bytes:
 		out = bytearray()
 		while 128 <= val:
@@ -31,6 +33,7 @@ def _wire(field: int, payload: bytes) -> bytes:
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
 class JournalMetadataIntegrationTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_antigravity_prepare_prepends_metadata_and_stop_gate_and_sync_accept_clean_chat_reply(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp)
@@ -134,6 +137,7 @@ class JournalMetadataIntegrationTests(unittest.TestCase):
 			self.assertEqual(synced['turns'][0]['completion_provenance'], 'prepared')
 			self.assertEqual(res_path.read_text(encoding='utf-8'), raw_saved)
 
+	# @used-by :mod:`unittest`
 	def test_codex_prepare_reprepare_and_unprepared_recovery_prepend_metadata(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp)
@@ -206,6 +210,7 @@ class JournalMetadataIntegrationTests(unittest.TestCase):
 			self.assertEqual(meta2['Agent']['Effort'], 'high')
 			self.assertEqual(meta2['Trace']['Turn']['Number'], 2)
 
+	# @used-by :mod:`unittest`
 	def test_text_core_and_review_authorize_handle_metadata_prefixed_response(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp)
@@ -241,11 +246,13 @@ class JournalMetadataIntegrationTests(unittest.TestCase):
 				auth = review.authorize(root, fake_state, response=prefixed)
 			self.assertEqual(auth['response_sha256'], body_sha)
 
+	# @used-by :mod:`unittest`
 	def test_resolve_project_identity_skips_user_registry_for_isolated_temp_dir(self):
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp) / 'isolated-temp-proj'
 			proj.mkdir()
 			calls = []
+			# @used-by :meth:`JournalMetadataIntegrationTests.test_resolve_project_identity_skips_user_registry_for_isolated_temp_dir()`
 			def _spy(*args, **kwargs):
 				calls.append((args, kwargs))
 				return {}

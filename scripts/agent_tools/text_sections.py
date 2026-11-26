@@ -13,25 +13,46 @@ TEXT_KINDS = ('article', 'proposal', 'letter')
 # "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
 # https://github.com/dmitry-ai/harness/issues/70
 class AddressedSection:
+	# @used-by :meth:`AddressedSection.span_dict()`
 	def descendants(self):
 		for child in self.children:
 			yield child
 			yield from child.descendants()
+	# @used-by :func:`agent_tools.article.parse_sections()`
+	# @used-by :func:`agent_tools.article.render()`
+	# @used-by :meth:`AddressedSection.key()`
 	@property
 	def dotted(self) -> str:
 		return '.'.join(map(str, self.number)) if self.number else self.name
+	# @used-by :func:`agent_tools.article.check_graph()`
+	# @used-by :func:`agent_tools.article.check_structure()`
+	# @used-by :func:`agent_tools.article.parse_sections()`
+	# @used-by :func:`agent_tools.article.render()`
+	# @used-by :func:`agent_tools.article.render_map()`
+	# @used-by :func:`agent_tools.article.to_source()`
+	# @used-by :func:`agent_tools.proposal._check_references()`
+	# @used-by :func:`agent_tools.proposal._check_sequence()`
+	# @used-by :func:`agent_tools.proposal.render()`
+	# @used-by :func:`assign_tree_numbers()`
+	# @used-by :func:`content_blocks()`
+	# @used-by :func:`mechanical_projection()`
+	# @used-by :func:`scope_blocks()`
 	@property
 	def key(self) -> str:
 		return f'{self.part}.{self.dotted}' if self.part and self.number else self.dotted
+	# @used-by :func:`agent_tools.article.check_graph()`
 	def lineage(self):
 		node = self
 		while node:
 			yield node
 			node = node.parent
+	# @used-by :func:`agent_tools.article.render_map()`
 	def span_dict(self) -> dict:
 		return {'start': self.line, 'end': self.end, 'subtree_end': max([self.end, *(c.end for c in self.descendants())])}
+# @used-by :func:`agent_tools.article.render()`
 def assign_tree_numbers(roots, findings):
 	numbers, mapping = ({}, {})
+	# @used-by :func:`assign_tree_numbers()`
 	def walk(nodes, prefix):
 		for index, node in enumerate(nodes, 1):
 			node.number = (*prefix, index)
@@ -43,6 +64,8 @@ def assign_tree_numbers(roots, findings):
 	for nodes in roots.values():
 		walk(nodes, ())
 	return (numbers, mapping)
+# @used-by :func:`agent_tools.article.render()`
+# @used-by :func:`agent_tools.proposal.render()`
 def build_render_report(mapping, numbered_re, external_changes, old_keys=None):
 	r = {'renumbered': [[k, v] for k, v in mapping.items() if k != v and numbered_re.fullmatch(k)], 'added': [k for k in mapping if not numbered_re.fullmatch(k)]}
 	if None is not old_keys:
@@ -50,10 +73,19 @@ def build_render_report(mapping, numbered_re, external_changes, old_keys=None):
 	if external_changes:
 		r['external_references_normalized'] = external_changes
 	return r
+# @used-by :func:`agent_tools.article.parse_keyed()`
+# @used-by :func:`agent_tools.article.parse_sections()`
+# @used-by :func:`agent_tools.proposal.parse_blocks()`
 def close_spans(nodes, lines):
 	last = lines[-1].no if lines else 0
 	for current, nxt in zip(nodes, [*nodes[1:], None]):
 		current.end = nxt.line - 1 if None is not nxt else last
+# @used-by :func:`agent_tools.text_claims.validate_map()`
+# @used-by :func:`scope_blocks()`
+# @used-by :meth:`test_text_core.SharedMechanicsTests.test_article_reexports_single_shared_implementation()`
+# @used-by :meth:`test_text_workflow.TextMapTests.test_article_grouping_node_does_not_duplicate_its_child_claim()`
+# @used-by :meth:`test_text_workflow.TextMapTests.test_map_includes_proposal_continuations_and_literal_evidence()`
+# @used-by :meth:`test_text_workflow.TextWorkspaceCase.manifest()`
 def content_blocks(text, kind):
 	if kind not in TEXT_KINDS:
 		raise ValueError('Choose article, proposal or letter')
@@ -76,11 +108,17 @@ def content_blocks(text, kind):
 				prose = '\n'.join((node.body if 'proposal' == kind and l.no == node.line else l.raw for l in own if 'prose' == l.kind))
 				r.append({'section': node.key, 'line': node.line, 'text': '\n'.join((l.raw for l in own)), 'prose': prose})
 	return r
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_text_core.SharedMechanicsTests.test_article_reexports_single_shared_implementation()`
 def keyed_engine(kind):
 	if kind not in ('article', 'proposal'):
 		raise ValueError('Keyed numbering is available for article or proposal; a letter preserves its own form')
 	from . import article, proposal
 	return proposal if 'proposal' == kind else article
+# @used-by :func:`agent_tools.article.check_proposal()`
+# @used-by :func:`agent_tools.article.lint_text()`
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 def lint_document(text, kind=None, path=None, profile=None, *, lang=None, lexicon=None, bans=None):
 	from . import article, proposal
 	resolved = kind or article.detect_kind(path, text)
@@ -90,9 +128,11 @@ def lint_document(text, kind=None, path=None, profile=None, *, lang=None, lexico
 		extra = {'link_style': profile['link_style']} if (profile or {}).get('link_style') else {}
 		r = article.lint_text(text, kind=resolved, lang=lang, path=path, lexicon=lexicon, bans=bans, **extra)
 	return r
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
 def mechanical_projection(text, kind, mode):
 	lines = scan(text)
 	identities = {str(s.key): str(i) for i, s in enumerate(parse_addressed(lines, kind))}
+	# @used-by :func:`mechanical_projection()`
 	def prose(value, current):
 		protected = '`+[^`]*`+|«[^»]*»|“[^”]*”|(?<!\\w)"[^"\\n]+"'
 		if 'renumber' == mode:
@@ -102,6 +142,7 @@ def mechanical_projection(text, kind, mode):
 			item = parts[i]
 			if 'links' == mode:
 				from .links import _bare_urls
+				# @used-by :func:`mechanical_projection()`
 				def link(match):
 					label, url = match.groups()
 					visible = unquote(re.sub('[*`]', '', label))
@@ -112,6 +153,7 @@ def mechanical_projection(text, kind, mode):
 			else:
 				item = normalize_external_refs(item)
 				item = ANCHOR_LINK.sub(lambda m: 'REF:' + identities.get(m[2].lstrip('§'), 'MISSING:' + m[2]), item)
+				# @used-by :func:`mechanical_projection()`
 				def ref(match):
 					if external_section_ref(item, match):
 						r = match.group()
@@ -134,6 +176,9 @@ def mechanical_projection(text, kind, mode):
 			continue
 		out.append((prose(line.raw, part_at(lines, line.no)) if 'prose' == line.kind else line.raw) + ending)
 	return ''.join(out)
+# @used-by :func:`content_blocks()`
+# @used-by :func:`mechanical_projection()`
+# @used-by :func:`scope_blocks()`
 def parse_addressed(lines, kind):
 	if 'article' == kind:
 		from .article import parse_sections
@@ -144,6 +189,10 @@ def parse_addressed(lines, kind):
 		from .proposal import parse_blocks
 		r = parse_blocks(lines)
 	return r
+# @used-by :func:`agent_tools.article.check_structure()`
+# @used-by :func:`agent_tools.article.render()`
+# @used-by :func:`agent_tools.article.to_source()`
+# @used-by :func:`mechanical_projection()`
 def part_at(lines, line_no):
 	r = ''
 	for line in lines:
@@ -154,10 +203,15 @@ def part_at(lines, line_no):
 			match = PART.match(text) if 1 == len(hashes) else None
 			r = match.group(1) if match else r
 	return r
+# @used-by :func:`agent_tools.proposal.render()`
+# @used-by :func:`agent_tools.proposal.to_source()`
 def reassemble_lines(template: str, lines: list[Line], values: list[str]) -> str:
 	chunks = template.splitlines(keepends=True)
 	return ''.join((value + chunk[len(line.raw):] for line, value, chunk in zip(lines, values, chunks)))
+# @used-by :func:`agent_tools.article.render()`
+# @used-by :func:`agent_tools.proposal.render()`
 def rewrite_keyed_prose(raw, line_no, mapping, findings, external_changes, *, format_ref, anchors=None, dangling_hint=''):
+	# @used-by :func:`rewrite_keyed_prose()`
 	def anchor_ref(match):
 		key = match.group(1)
 		if key in mapping:
@@ -166,6 +220,7 @@ def rewrite_keyed_prose(raw, line_no, mapping, findings, external_changes, *, fo
 			findings.append(Finding('error', 'KEY-DANGLING', line_no, f'#@{key} does not exist', raw[:80]))
 			r = match.group(0)
 		return r
+	# @used-by :func:`rewrite_keyed_prose()`
 	def replace_ref(match):
 		marks, start, end = match.group('marks', 'start', 'end')
 		suffix = ''
@@ -181,6 +236,7 @@ def rewrite_keyed_prose(raw, line_no, mapping, findings, external_changes, *, fo
 		else:
 			r = format_ref(marks, start, end) + suffix
 		return r
+	# @used-by :func:`rewrite_keyed_prose()`
 	def convert(value):
 		step = KEYED_REF.sub(replace_ref, value)
 		if None is not anchors:
@@ -190,6 +246,7 @@ def rewrite_keyed_prose(raw, line_no, mapping, findings, external_changes, *, fo
 			findings.append(Finding('error', 'KEY-SYNTAX', line_no, 'unparseable or unresolved keyed reference', r[:80]))
 		return r
 	return transform_prose(raw, convert)
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
 def scope_blocks(text, kind):
 	if 'letter' == kind:
 		r = content_blocks(text, kind)
@@ -205,6 +262,8 @@ def scope_blocks(text, kind):
 			output[key] = output.get(key, '') + raw
 		r = [{'section': k, 'text': v} for k, v in output.items()]
 	return r
+# @used-by :func:`agent_tools.article.check_graph()`
+# @used-by :func:`agent_tools.article.check_structure()`
 def section_at(sections, line_no):
 	r = None
 	for section in sections:
@@ -212,6 +271,8 @@ def section_at(sections, line_no):
 			break
 		r = section
 	return r
+# @used-by :func:`agent_tools.article.check_structure()`
+# @used-by :func:`agent_tools.proposal._check_references()`
 def validate_ref_range(start, end, known, findings, line_no, excerpt, *, order_key, order_rule='REF-RANGE', order_msg='range endpoints are in reverse document order', allow_same=False, check_dense=False, start_checked=False, end_prefix='§'):
 	if not start_checked and start and (start not in known):
 		findings.append(Finding('error', 'REF-DANGLING', line_no, f'§{start} does not exist', excerpt))

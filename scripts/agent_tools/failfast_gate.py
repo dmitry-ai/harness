@@ -42,6 +42,7 @@ _TARGET_SYNC_WAIT_MS = 10000
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
 _UNSAFE_WRAP_RE = re.compile(r'[$`><&|;(\r\n]')
+# @used-by :func:`_schedule_block_reason()`
 def _active_turn_run_command_tasks(transcript_path: str) -> tuple[bool, set[str], set[str]]:
 	explicit_schedule = False
 	all_tids: set[str] = set()
@@ -96,6 +97,7 @@ def _active_turn_run_command_tasks(transcript_path: str) -> tuple[bool, set[str]
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
+# @used-by :func:`evaluate_pre_tool_use_test_failfast()`
 def _apply_sync_wait(args: dict, overwrite: dict) -> None:
 	if True is not args.get('IsDaemon'):
 		wait_ms = _parse_wait_ms(args.get('WaitMsBeforeAsync'))
@@ -104,6 +106,7 @@ def _apply_sync_wait(args: dict, overwrite: dict) -> None:
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
+# @used-by :func:`evaluate_pre_tool_use_test_failfast()`
 def _apply_timeout_guard(cur: str, segs: list[str], is_single: bool) -> tuple[str | None, str]:
 	deny, out_cmd = (None, cur)
 	miss_t = [mt for seg in segs if None is not (mt := missing_timeout_guard(seg))]
@@ -117,6 +120,7 @@ def _apply_timeout_guard(cur: str, segs: list[str], is_single: bool) -> tuple[st
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
+# @used-by :func:`evaluate_pre_tool_use_test_failfast()`
 def _inject_missing_failfast(cmd: str, segs: list[str], is_single: bool) -> tuple[str | None, str]:
 	deny, cur = (None, cmd)
 	missing = [(seg, miss) for seg in segs if None is not (miss := missing_failfast_flag(seg))]
@@ -133,8 +137,10 @@ def _inject_missing_failfast(cmd: str, segs: list[str], is_single: bool) -> tupl
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
+# @used-by :func:`_apply_timeout_guard()`
 def _is_safe_watchdog_wrap(cmd: str) -> bool:
 	return not bool(_UNSAFE_WRAP_RE.search(_QUOTED_RE.sub('', cmd or '')))
+# @used-by :func:`_apply_sync_wait()`
 def _parse_wait_ms(raw) -> int | None:
 	r = None
 	if isinstance(raw, int) and (not isinstance(raw, bool)):
@@ -145,6 +151,7 @@ def _parse_wait_ms(raw) -> int | None:
 # 2026-11-24
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
+# @used-by :func:`evaluate_pre_tool_use_schedule()`
 def _schedule_block_reason(t_raw: str, args: dict, payload: dict) -> str | None:
 	explicit_schedule, all_tids, active_tids = _active_turn_run_command_tasks(t_raw)
 	r = None
@@ -161,6 +168,7 @@ def _schedule_block_reason(t_raw: str, args: dict, payload: dict) -> str | None:
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
+# @used-by :func:`_apply_timeout_guard()`
 def _wrap_watchdog_cmd(cmd: str) -> str:
 	return f'python "{_HARNESS_SCRIPT}" test-watchdog --timeout {_DEFAULT_WATCHDOG_TIMEOUT} {cmd.strip()}'
 # 2026-11-23
@@ -169,9 +177,17 @@ def _wrap_watchdog_cmd(cmd: str) -> str:
 # 2026-11-24
 # "Default upwork-init review to single falsifier and block subagent schedule timers":
 # https://github.com/dmitry-ai/harness/issues/215
+# @used-by :func:`agent_tools.gates.schedule_gate.check()`
+# @used-by :meth:`test_falsifier_and_schedule_subagent_gate_m8.FalsifierAndScheduleSubagentGateM8Tests.test_allows_schedule_after_subagent_finishes_or_on_explicit_slash_schedule()`
+# @used-by :meth:`test_falsifier_and_schedule_subagent_gate_m8.FalsifierAndScheduleSubagentGateM8Tests.test_blocks_one_shot_schedule_while_invoke_subagent_is_active()`
+# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_schedule_gate_blocks_after_send_message_and_ignores_task_sender()`
 def evaluate_pre_tool_use_schedule(name: str, args: dict, payload: dict) -> str | None:
 	is_one_shot = 'schedule' == name and (not args.get('CronExpression')) and (True is not args.get('IsDaemon')) and (None is not args.get('DurationSeconds'))
 	return _schedule_block_reason(str(payload.get('transcriptPath') or '').strip(), args, payload) if is_one_shot else None
+# @used-by :func:`check_rules_and_server_gate._apply_failfast()`
+# @used-by :meth:`test_pytest_xdist_runner.PytestXdistRunnerTests.test_classify_pytest_xdist_full_suite_and_filtered()`
+# @used-by :meth:`test_watchdog_and_timeout_gate.WatchdogAndTimeoutGateTests.test_non_test_command_mentioning_pytest_in_quoted_arg_is_ignored()`
+# @used-by :meth:`test_watchdog_and_timeout_gate.WatchdogAndTimeoutGateTests.test_pre_tool_use_normalizes_unbounded_unittest_and_pytest_and_denies_multi_segment()`
 def evaluate_pre_tool_use_test_failfast(name: str, args: dict) -> tuple[str | None, dict | None]:
 	deny_reason, overwrite = (None, {})
 	if 'run_command' == name:
@@ -191,6 +207,8 @@ def evaluate_pre_tool_use_test_failfast(name: str, args: dict) -> tuple[str | No
 			if None is deny_reason:
 				_apply_sync_wait(args, overwrite)
 	return (deny_reason, overwrite if overwrite else None)
+# @used-by :func:`_inject_missing_failfast()`
+# @used-by :func:`agent_tools.tdd.evaluator._collect_failfast_warnings()`
 def missing_failfast_flag(seg: str) -> tuple[str, str, re.Match] | None:
 	r = None
 	if isinstance(seg, str) and seg.strip():
@@ -212,6 +230,7 @@ def missing_failfast_flag(seg: str) -> tuple[str, str, re.Match] | None:
 # 2026-11-24
 # "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
 # https://github.com/dmitry-ai/harness/issues/205
+# @used-by :func:`_apply_timeout_guard()`
 def missing_timeout_guard(seg: str) -> tuple[str, str] | None:
 	r = None
 	if isinstance(seg, str) and seg.strip():

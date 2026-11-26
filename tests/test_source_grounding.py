@@ -13,6 +13,7 @@ from agent_tools import grounding_domains, source_grounding
 # "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
 # https://github.com/dmitry-ai/harness/issues/54
 class SourceGroundingRefactorTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_auditor_and_domain_rules_deduplicate_ledger_tuples(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp)
@@ -32,6 +33,7 @@ class SourceGroundingRefactorTests(unittest.TestCase):
 			self.assertEqual(['mem_total'], dom['metrics'])
 			self.assertEqual(['PLAN XL'], dom['plans_norm'])
 			self.assertEqual(['1465836'], dom['tickets'])
+	# @used-by :mod:`unittest`
 	def test_tier0_source_index_schema_upgrade_and_single_read(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp)
@@ -45,6 +47,7 @@ class SourceGroundingRefactorTests(unittest.TestCase):
 			idx = source_grounding.Tier0SourceIndex.for_root(root)
 			orig_read = Path.read_bytes
 			read_calls: list[str] = []
+			# @used-by :meth:`SourceGroundingRefactorTests.test_tier0_source_index_schema_upgrade_and_single_read()`
 			def tracked_read(self_path: Path) -> bytes:
 				if self_path.resolve() == ticket_src.resolve():
 					read_calls.append(self_path.name)
@@ -63,6 +66,7 @@ class SourceGroundingRefactorTests(unittest.TestCase):
 	# 2026-11-23
 	# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
 	# https://github.com/dmitry-ai/harness/issues/131
+	# @used-by :mod:`unittest`
 	def test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests(self) -> None:
 		from agent_tools import completion, runtime
 		self.assertEqual('ru', runtime.default_user_locale())

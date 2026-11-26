@@ -9,6 +9,7 @@ import subprocess
 from .git_gate import _NO_WINDOW, run_git_read
 from .repo_tags import pick_preferred_tag
 from .worktree_flow import git_config_file
+# @used-by :func:`verify_closing_commit_tag()`
 def _cached_local_tag_map(repo: Path, git_cache) -> dict[str, list[str]]:
 	resolved = Path(repo).resolve()
 	store = getattr(git_cache, '_local_tag_map_cache', None) if None is not git_cache else None
@@ -21,6 +22,7 @@ def _cached_local_tag_map(repo: Path, git_cache) -> dict[str, list[str]]:
 		if None is not store:
 			store[resolved] = cached
 	return cached
+# @used-by :func:`verify_closing_commit_tag()`
 def _cached_remote_tags(repo: Path, remote_target: str, git_cache) -> set[str]:
 	key = (Path(repo).resolve(), remote_target)
 	store = getattr(git_cache, '_remote_tags_cache', None) if None is not git_cache else None
@@ -33,12 +35,14 @@ def _cached_remote_tags(repo: Path, remote_target: str, git_cache) -> set[str]:
 		if None is not store:
 			store[key] = cached
 	return cached
+# @used-by :func:`verify_closing_commit_tag()`
 def _has_upstream(repo: Path, git_cache) -> bool:
 	if None is not git_cache:
 		r = bool(git_cache.upstream_unpushed(repo)[0])
 	else:
 		r = 0 == run_git_read(repo, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], check=False).returncode
 	return r
+# @used-by :func:`_read_remote_tags()`
 def _parse_ls_remote_tags(raw: str) -> set[str]:
 	tags: set[str] = set()
 	for line in (raw or '').splitlines():
@@ -48,6 +52,7 @@ def _parse_ls_remote_tags(raw: str) -> set[str]:
 			if not name.endswith('^{}'):
 				tags.add(name)
 	return tags
+# @used-by :func:`_cached_local_tag_map()`
 def _read_local_tag_map(repo: Path) -> dict[str, list[str]]:
 	proc = run_git_read(repo, ['for-each-ref', '--format=%(objectname)%09%(*objectname)%09%(refname:short)', 'refs/tags'], check=False)
 	by_sha: dict[str, list[str]] = {}
@@ -59,6 +64,7 @@ def _read_local_tag_map(repo: Path) -> dict[str, list[str]]:
 				if target_sha:
 					by_sha.setdefault(target_sha, []).append(parts[2].strip())
 	return by_sha
+# @used-by :func:`_cached_remote_tags()`
 def _read_remote_tags(repo: Path, remote_target: str) -> set[str]:
 	local_cand = Path(remote_target)
 	if local_cand.is_dir():
@@ -72,6 +78,7 @@ def _read_remote_tags(repo: Path, remote_target: str) -> set[str]:
 		except subprocess.TimeoutExpired:
 			r = set()
 	return r
+# @used-by :func:`verify_closing_commit_tag()`
 def _resolve_origin_push_target(repo: Path) -> str:
 	cfg_file = git_config_file(repo)
 	r = ''
@@ -85,10 +92,13 @@ def _resolve_origin_push_target(repo: Path) -> str:
 		except (OSError, configparser.Error):
 			r = ''
 	return r
+# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
 def finalize_commit_close_check(repo: Path, commit_sha: str, issue_url: str, git_cache) -> dict:
 	pushed = git_cache.verify_commit_pushed(repo, commit_sha, issue_url)
 	tag = verify_closing_commit_tag(repo, commit_sha, issue_url, git_cache=git_cache)
 	return {'verified': True, 'repo': str(repo), 'issue_url': issue_url, 'commit_sha': commit_sha, 'pushed': pushed, 'tag': tag}
+# @used-by :func:`finalize_commit_close_check()`
+# @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_verify_closing_commit_tag_reads_origin_from_config_without_git_config_spawn()`
 def verify_closing_commit_tag(repo: Path, commit_sha: str, issue_url: str, *, git_cache=None) -> str:
 	resolved = Path(repo).resolve()
 	tag_map = _cached_local_tag_map(resolved, git_cache)

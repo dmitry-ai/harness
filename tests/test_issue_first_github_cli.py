@@ -18,6 +18,8 @@ from agent_tools import github_issue
 import check_rules_and_server_gate as hook_gate
 
 
+# @used-by :meth:`IssueFirstGitHubCliTests.test_create_parent_issue_blocked_on_dirty_tree_while_open_parent_child_create_allowed()`
+# @used-by :meth:`IssueFirstGitHubCliTests.test_fetch_persists_open_issue_and_parent_evidence_and_rejects_pull_requests()`
 def _init_github_code_repo(proj: Path, slug: str) -> Path:
 	(proj / '_/ꘖ/data/scratch').mkdir(parents=True, exist_ok=True)
 	code = proj / 'code'
@@ -36,6 +38,7 @@ def _init_github_code_repo(proj: Path, slug: str) -> Path:
 # "Add fetch subcommand and Issue-First pre-flight guards to df_github_issue.py":
 # https://github.com/dmitry-ai/harness/issues/144
 class IssueFirstGitHubCliTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_fetch_persists_open_issue_and_parent_evidence_and_rejects_pull_requests(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -74,6 +77,7 @@ class IssueFirstGitHubCliTests(unittest.TestCase):
 				},
 			}
 
+			# @used-by :meth:`IssueFirstGitHubCliTests.test_fetch_persists_open_issue_and_parent_evidence_and_rejects_pull_requests()`
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				self.assertEqual(method, 'GET')
 				num = int(endpoint.rsplit('/', 1)[-1])
@@ -121,6 +125,7 @@ class IssueFirstGitHubCliTests(unittest.TestCase):
 				)
 			)
 
+	# @used-by :mod:`unittest`
 	def test_create_parent_issue_blocked_on_dirty_tree_while_open_parent_child_create_allowed(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -148,6 +153,7 @@ class IssueFirstGitHubCliTests(unittest.TestCase):
 			}
 			api_calls: list[tuple[str, str]] = []
 
+			# @used-by :meth:`IssueFirstGitHubCliTests.test_create_parent_issue_blocked_on_dirty_tree_while_open_parent_child_create_allowed()`
 			def fake_gh(endpoint, *, method='GET', payload=None, paginate=False):
 				api_calls.append((method, endpoint))
 				if 'POST' == method and endpoint.endswith('/issues'):

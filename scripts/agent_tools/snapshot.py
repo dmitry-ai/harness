@@ -10,6 +10,13 @@ from .storage import create_bytes, data_dir_for, locked, replace_bytes
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
+# @used-by :meth:`test_agent_tools.SnapshotTests.test_changed_previous_copy_is_not_silently_replaced()`
+# @used-by :meth:`test_agent_tools.SnapshotTests.test_current_bytes_preserved_once_per_turn()`
+# @used-by :meth:`test_agent_tools.UpworkProjectTests.test_agent_data_dir_prefers_vai_directory()`
+# @used-by :meth:`test_onboarding.IsolationTests.test_two_drafts_in_one_turn_have_distinct_archives()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
 def snapshot_draft(source: Path, turn: str) -> Path:
 	source = Path(source).resolve(strict=True)
 	if 'draft.md' != source.name:

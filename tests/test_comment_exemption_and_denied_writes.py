@@ -10,10 +10,13 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :meth:`CommentExemptionAndDeniedWritesTests.test_issue_first_skips_denied_writes_and_reads_background_task_issue_actions()`
+# @used-by :meth:`CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
 def _init_repo(repo: Path) -> None:
 	subprocess.run(['git', 'init', '-b', 'main'], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
 	subprocess.run(['git', 'config', 'user.email', 't@example.com'], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
 	subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+# @used-by :meth:`CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
 def _seed(repo: Path, rel: str, text: str) -> None:
 	p = repo / rel
 	p.parent.mkdir(parents=True, exist_ok=True)
@@ -24,6 +27,7 @@ def _seed(repo: Path, rel: str, text: str) -> None:
 # "Fix comment-only diff and denied-write gate false positives":
 # https://github.com/dmitry-ai/harness/issues/276
 class CommentExemptionAndDeniedWritesTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_issue_comment_gate_skips_body_misalignment_on_comment_only_diff(self) -> None:
 		from agent_tools import native_profiles
 		from agent_tools.issue_comment_gate import check_issue_comment_violations
@@ -35,6 +39,7 @@ class CommentExemptionAndDeniedWritesTests(unittest.TestCase):
 		self.assertTrue(any(('HEADER_DUMPED_ISSUE_COMMENT' in e for e in check_issue_comment_violations('a.py', bad_py, baseline_source=base_py))))
 		af_path = WT_ROOT / 'agents/af-worker.md'
 		self.assertEqual(native_profiles.shared_native_outputs(WT_ROOT)[af_path], af_path.read_text(encoding='utf-8'))
+	# @used-by :mod:`unittest`
 	def test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions(self) -> None:
 		from agent_tools.tdd.enforcement import evaluate_pre_tool_use_tdd, verify_staged_tdd_diff
 		from agent_tools.tdd.substantive import is_substantive_test_content
@@ -52,6 +57,7 @@ class CommentExemptionAndDeniedWritesTests(unittest.TestCase):
 			(repo / 'src/test/java/PlainHelper.java').write_text(edited, encoding='utf-8')
 			subprocess.run(['git', 'add', 'src/test/java/PlainHelper.java'], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
 			self.assertEqual([], verify_staged_tdd_diff(repo, ['src/test/java/PlainHelper.java'], use_index=True))
+	# @used-by :mod:`unittest`
 	def test_issue_first_skips_denied_writes_and_reads_background_task_issue_actions(self) -> None:
 		from agent_tools.issue_first_gate import evaluate_issue_first_events, extract_antigravity_issue_first_events
 		with tempfile.TemporaryDirectory() as td:

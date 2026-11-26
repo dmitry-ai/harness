@@ -35,6 +35,7 @@ from .trace_common import UUID_PATTERN, build_native_review_proof, collect_promp
 # 2026-11-18
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# @used-by :func:`_resolve_folders_json()`
 def _default_folders_json():
 	cfg_all = settings()
 	ag_key = platform_key_for_adapter('antigravity', cfg_all) or 'antigravity'
@@ -61,6 +62,8 @@ _INITIAL_ANTIGRAVITY_FOLDERS_JSON = ANTIGRAVITY_FOLDERS_JSON
 # 2026-11-18
 # "Fix runtime instance path derivation and store validation":
 # https://github.com/dmitry-ai/harness/issues/89
+# @used-by :func:`register()`
+# @used-by :func:`register_antigravity_project()`
 def _resolve_folders_json(folders_json_path=None, sp=None):
 	if None is not folders_json_path:
 		return Path(folders_json_path)
@@ -97,12 +100,30 @@ _BG_TASK_SENDER_RE = re.compile(r'\bsender=([A-Za-z0-9_./:-]+/task-\d+)\b', re.I
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# @used-by :func:`_native_invocation()`
+# @used-by :func:`_proof_paths()`
+# @used-by :func:`_request_scope()`
+# @used-by :func:`_workspace_context()`
+# @used-by :func:`discover_live_daemon()`
+# @used-by :func:`native_executor_metadata()`
+# @used-by :func:`native_requests()`
+# @used-by :func:`native_review_proof()`
+# @used-by :func:`native_tool_trace()`
+# @used-by :func:`require_current_binding()`
+# @used-by :func:`update_conversation_title()`
+# @used-by :meth:`AntigravityTurnScanner.__init__()`
 def _antigravity_paths(backend=None, *, instance=None, conversation_id=None):
 	try:
 		cfg = settings()
 	except (OSError, ValueError):
 		cfg = None
 	return resolve_antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id, config=cfg)
+# @used-by :func:`_load_transcript_inputs()`
+# @used-by :func:`_native_invocation()`
+# @used-by :func:`native_review_proof()`
+# @used-by :func:`native_tool_trace()`
+# @used-by :meth:`AntigravityTurnScanner._load_context()`
+# @used-by :meth:`AntigravityTurnScanner._resolve_subagent_child()`
 def _transcript_path(brain_dir, conversation_id):
 	logs_dir = Path(brain_dir) / conversation_id / '.system_generated/logs'
 	full_trace = logs_dir / 'transcript_full.jsonl'
@@ -112,6 +133,7 @@ def _transcript_path(brain_dir, conversation_id):
 # "Extract AntigravityTurnScanner class from native_answers in platforms/antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/55
 class AntigravityTurnScanner:
+	# @used-by :func:`native_answers()`
 	def __init__(self, root, conversation_id, *, backend=None, instance=None):
 		self.root = root
 		self.root_p = Path(root).resolve()
@@ -134,6 +156,8 @@ class AntigravityTurnScanner:
 		self.expected_job_id = None
 		self.workspace_root = None
 		self.row_by_step = {}
+	# @used-by :meth:`AntigravityTurnScanner._record_subagent_calls()`
+	# @used-by :meth:`AntigravityTurnScanner._scan_segment()`
 	def _collect_outputs(self, rows_slice, start_pos, *, step_idx=None, file_reads=None):
 		r = []
 		for cand in rows_slice[start_pos + 1:]:
@@ -157,6 +181,7 @@ class AntigravityTurnScanner:
 	# 2026-11-13
 	# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 	# https://github.com/dmitry-ai/harness/issues/64
+	# @used-by :meth:`AntigravityTurnScanner._scan_segment()`
 	def _collect_subagent_bfs(self, position, segment, seg):
 		r = {self.conversation_id}
 		if seg['subagent_steps']:
@@ -170,6 +195,7 @@ class AntigravityTurnScanner:
 			anchor = seg['subagent_steps'][-1]
 			r = collect_subagent_bfs(self.conversation_id, self.root_p, seeds, lambda cid, depth, hint, parent: self._resolve_subagent_child(cid, hint, parent, anchor, seg), seg['aa_partial_read_violations'])
 		return r
+	# @used-by :meth:`AntigravityTurnScanner._scan_segment()`
 	def _finalize_segment(self, start, end, segment, seg, visited_cids, seg_models=()):
 		last = segment[-1] if segment else {}
 		final_step = last.get('step_index')
@@ -227,6 +253,7 @@ class AntigravityTurnScanner:
 		seg_meta = build_segment_metadata(segment, seg_models, _configuration)
 		self.completed_turn_cids.update(visited_cids - {self.conversation_id})
 		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'request_timestamp': req_ts, 'response_timestamp': resp_ts, **seg_meta, **{k: v for k, v in seg.items() if k not in _SEGMENT_TRANSIENT_KEYS}}
+	# @used-by :meth:`AntigravityTurnScanner.scan()`
 	def _load_context(self):
 		from .request_binding import completion_project_id
 		# 2026-11-13
@@ -268,12 +295,14 @@ class AntigravityTurnScanner:
 	# 2026-11-25
 	# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
 	# https://github.com/dmitry-ai/harness/issues/234
+	# @used-by :meth:`AntigravityTurnScanner.scan()`
 	def _merge_pending(self, items):
 		from .clarifications import merge_segment_metadata
 		return merge_segment_metadata(merge_turn_accumulators(items, allow_step_output_recovery=True), items)
 	# 2026-11-07
 	# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 	# https://github.com/dmitry-ai/harness/issues/48
+	# @used-by :meth:`AntigravityTurnScanner._resolve_subagent_child()`
 	def _query_child_summary(self, child_cid, expected_parent):
 		child_agent_name, db_grandchildren, parent_mismatch = (None, [], False)
 		try:
@@ -295,6 +324,7 @@ class AntigravityTurnScanner:
 	# 2026-11-23
 	# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 	# https://github.com/dmitry-ai/harness/issues/146
+	# @used-by :meth:`AntigravityTurnScanner._resolve_subagent_child()`
 	def _record_subagent_calls(self, child_cid, c_rows, anchor_step, seg):
 		from ..tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 		sub_bg: dict[str, dict] = {}
@@ -315,6 +345,7 @@ class AntigravityTurnScanner:
 						if cev and cev.get('outcome', {}).get('background_task_id'):
 							sub_bg[cev['outcome']['background_task_id']] = cev
 		return ()
+	# @used-by :meth:`AntigravityTurnScanner._scan_segment()`
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
 		# 2026-11-24
 		# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
@@ -349,6 +380,7 @@ class AntigravityTurnScanner:
 			cev = record_normalized_tool_effects(self.root_p, step_idx, cname, raw_args, args_text, seg, track_turn_steps=True, cmd_outputs=matched)
 			if cev and cev.get('outcome', {}).get('background_task_id') and 'bg_tdd_index' in seg:
 				seg['bg_tdd_index'][cev['outcome']['background_task_id']] = cev
+	# @used-by :meth:`AntigravityTurnScanner._collect_subagent_bfs()`
 	def _resolve_subagent_child(self, child_cid, is_aa_hint, expected_parent, anchor_step, seg):
 		r = None
 		child_log = _transcript_path(self.paths['brain_dir'], child_cid)
@@ -362,6 +394,7 @@ class AntigravityTurnScanner:
 				except Exception:
 					r = ([], False, (), None)
 		return r
+	# @used-by :meth:`AntigravityTurnScanner.scan()`
 	def _scan_segment(self, position, start):
 		from ..tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 		end = self.boundaries[position + 1] if position + 1 < len(self.boundaries) else None
@@ -393,6 +426,7 @@ class AntigravityTurnScanner:
 					# https://github.com/dmitry-ai/harness/issues/34
 					self._record_tool_calls(step_idx, calls, self._collect_outputs(segment, pos, step_idx=step_idx, file_reads=seg['file_reads']), seg)
 		return self._finalize_segment(start, end, segment, seg, self._collect_subagent_bfs(position, segment, seg), seg_models)
+	# @used-by :func:`native_answers()`
 	def scan(self):
 		self._load_context()
 		grouped, pending = ([], [])
@@ -420,13 +454,24 @@ class AntigravityTurnScanner:
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# @used-by :func:`_project_item_matches_root()`
+# @used-by :func:`_project_roots()`
+# @used-by :func:`agent_tools.registration.validate_registration()`
 def resource_uri(res):
 	return extract_resource_uri(res)
+# @used-by :func:`_project_item_matches_root()`
+# @used-by :func:`_project_roots()`
+# @used-by :func:`_workspace_context()`
+# @used-by :func:`agent_tools.registration.validate_registration()`
 def folder_path(uri):
 	return local_uri_to_path(uri)
 # 2026-11-21
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
+# @used-by :func:`agent_tools.meta.identity._lookup_name_by_project_id()`
+# @used-by :func:`agent_tools.meta.identity._lookup_name_from_project_dirs()`
+# @used-by :func:`register()`
+# @used-by :func:`register_antigravity_project()`
 def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
 	from ..path_registry import same_project_root
 	resources = (item.get('projectResources') or {}).get('resources') or []
@@ -439,6 +484,17 @@ def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
 # 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
+# @used-by :func:`agent_tools.project_rename._build_ag_registrar()`
+# @used-by :func:`register()`
+# @used-by :func:`test_project_rename._dual_ag_registrar()`
+# @used-by :meth:`test_cleanup.CleanupTests.project()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
+# @used-by :meth:`test_onboarding.RegistrationTests.test_branch_is_reused_by_parent_and_date_with_other_assignments_preserved()`
+# @used-by :meth:`test_onboarding.RegistrationTests.test_existing_native_file_uri_is_matched_without_replacing_settings()`
+# @used-by :meth:`test_onboarding.RegistrationTests.test_missing_or_wrong_folders_store_does_not_publish_ungrouped_project()`
+# @used-by :meth:`test_onboarding.RegistrationTests.test_parallel_registration_retains_all_assignments()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.ag()`
 def register_antigravity_project(project_dir, domain_or_topic, date_str=None, projects_dir=ANTIGRAVITY_PROJECTS_DIR, folders_json_path=None, preferred_id=None):
 	root, projects = (Path(project_dir).resolve(), Path(projects_dir))
 	if date_str:
@@ -491,17 +547,26 @@ def register_antigravity_project(project_dir, domain_or_topic, date_str=None, pr
 			raise RuntimeError('Project folder assignment did not persist; retry registration')
 		r = {'project_id': ident, 'project_name': payload['name'], 'project_file': str(destination), 'folder_id': parent, 'folder_path': ' / '.join(branch), 'folders_file': str(folders)}
 	return r
+# @used-by :func:`native_executor_metadata()`
 def _apply_requested_config(requested, observed, raw_config, selection_kind, source):
 	cfg = _configuration(raw_config)
 	gen_match = _generation_matches_executor(observed['generation_model'], cfg['model'])
 	requested.update(cfg, executor_model=cfg['model'], generation_model=observed['generation_model'] if gen_match else None, selection=selection_kind, source=source)
 	if gen_match and observed['generation_model']:
 		requested['model'] = observed['generation_model']
+# @used-by :func:`_model_metadata()`
+# @used-by :func:`_native_inputs()`
+# @used-by :func:`_query_step_model_ids()`
+# @used-by :func:`native_review_proof()`
+# @used-by :func:`native_tool_trace()`
+# @used-by :meth:`AntigravityTurnScanner._load_context()`
 def _conversation_db_path(backend, conversation_id, *, error_msg='Exact native conversation UUID required', paths=None):
 	if not re.fullmatch('[a-f0-9-]{36}', conversation_id):
 		raise ValueError(error_msg)
 	conv_dir = Path(paths['conversations_dir']) if paths else Path(backend) / 'conversations'
 	return conv_dir / (conversation_id + '.db')
+# @used-by :func:`_decode_user_step_entry()`
+# @used-by :func:`_model_metadata()`
 def _wire_path(blob, path):
 	values = [blob]
 	for field in path:
@@ -521,6 +586,11 @@ def _wire_path(blob, path):
 		except UnicodeError:
 			pass
 	return r
+# @used-by :func:`_apply_requested_config()`
+# @used-by :func:`_model_metadata()`
+# @used-by :func:`agent_tools.meta.formatting._split_model_and_effort()`
+# @used-by :func:`native_executor_metadata()`
+# @used-by :meth:`AntigravityTurnScanner._finalize_segment()`
 def _configuration(value):
 	if not isinstance(value, str) or not value.strip():
 		r = {'model': None, 'effort': None}
@@ -531,6 +601,7 @@ def _configuration(value):
 # 2026-11-23
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
+# @used-by :func:`_decode_user_step_entry()`
 def _extract_user_step_meta(msg_fields):
 	has_items = False
 	seen_non_ws = False
@@ -566,6 +637,8 @@ def _extract_user_step_meta(msg_fields):
 				if matched_cmd:
 					break
 	return {'has_structured_items': True, 'slash_commands': slash_commands} if has_items else {}
+# @used-by :func:`_decode_user_step()`
+# @used-by :func:`_native_inputs()`
 def _decode_user_step_entry(payload, status, index, load_transcript):
 	r = None
 	meta = {}
@@ -600,8 +673,11 @@ def _decode_user_step_entry(payload, status, index, load_transcript):
 	if None is r:
 		raise ValueError('Exact native user text is unavailable; do not reconstruct it from summaries')
 	return (r, meta)
+# @used-by unused
 def _decode_user_step(payload, status, index, load_transcript):
 	return _decode_user_step_entry(payload, status, index, load_transcript)[0]
+# @used-by :func:`_decode_user_step_entry()`
+# @used-by :func:`native_review_proof()`
 def _extract_transcript_user_input(t_row):
 	r = None
 	if isinstance(t_row, dict):
@@ -617,6 +693,8 @@ def _extract_transcript_user_input(t_row):
 			if uris:
 				r = '\n'.join(uris)
 	return r
+# @used-by :func:`_native_invocation()`
+# @used-by :func:`native_review_proof()`
 def _find_subagent_invocations(parent_rows, child_id, agent_name, initial_prompt, *, require_inherit_error=None):
 	matches, extra_messages = ([], [])
 	for i, event in enumerate(parent_rows):
@@ -639,12 +717,15 @@ def _find_subagent_invocations(parent_rows, child_id, agent_name, initial_prompt
 # 2026-11-10
 # "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 # https://github.com/dmitry-ai/harness/issues/51
+# @used-by :func:`_apply_requested_config()`
+# @used-by :func:`native_executor_metadata()`
 def _generation_matches_executor(generation_model, executor_model):
 	r = False
 	if isinstance(generation_model, str) and generation_model.strip() and isinstance(executor_model, str) and executor_model.strip():
 		g_val, e_val = (generation_model.strip(), executor_model.strip())
 		r = g_val == e_val or g_val.startswith(e_val + '-')
 	return r
+# @used-by :func:`_native_inputs()`
 def _load_transcript_inputs(backend, conversation_id, *, paths=None):
 	brain_dir = Path(paths['brain_dir']) if paths else Path(backend) / 'brain'
 	t_path = _transcript_path(brain_dir, conversation_id)
@@ -655,6 +736,7 @@ def _load_transcript_inputs(backend, conversation_id, *, paths=None):
 		except (OSError, ValueError):
 			r = {}
 	return r
+# @used-by :func:`native_review_proof()`
 def _query_step_model_ids(backend, cid, *, step=None, paths=None):
 	r = set()
 	with open_readonly_sqlite(_conversation_db_path(backend, cid, paths=paths)) as connection:
@@ -669,6 +751,8 @@ def _query_step_model_ids(backend, cid, *, step=None, paths=None):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`agent_tools.meta.transcripts._resolve_ag_model_and_effort()`
+# @used-by :func:`native_executor_metadata()`
 def _model_metadata(backend, conversation_id, *, paths=None):
 	path = _conversation_db_path(backend, conversation_id, paths=paths)
 	history, sources = ({'generations': [], 'configurations': [], 'model_ids': []}, [])
@@ -691,6 +775,7 @@ def _model_metadata(backend, conversation_id, *, paths=None):
 	config = history['configurations'][-1]['value'] if history['configurations'] else None
 	configured = _configuration(config)
 	return ({'model': generation, 'generation_model': generation, 'executor_model': configured['model'], 'effort': configured['effort'], 'configuration': config, 'model_ids': sorted({item['value'] for item in history['model_ids']})}, history, sources)
+# @used-by :func:`native_executor_metadata()`
 def _native_invocation(backend, parent_id, conversation_id, role, *, paths=None):
 	resolved = paths or _antigravity_paths(backend=backend, conversation_id=conversation_id)
 	brain_dir = Path(resolved['brain_dir'])
@@ -713,6 +798,9 @@ def _native_invocation(backend, parent_id, conversation_id, role, *, paths=None)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.ag_read()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Unknown executor role')
@@ -747,6 +835,7 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 def native_tool_trace(root, request):
 	conversation_id = request.get('conversation_id', '')
 	if request.get('native_profile_home'):
@@ -797,6 +886,14 @@ def native_tool_trace(root, request):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`verify_native_proof()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_exact_native_workspace_allows_plain_continuation_and_independent_review()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+# @used-by :meth:`test_native_review_binding_m4.NativeReviewBindingM4Tests.test_native_review_proof_binds_launcher_chat_with_user_request_and_uses_native_meta()`
+# @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response()`
+# @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_antigravity_native_review_for_text_uses_actual_workspace_binding()`
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
 	# 2026-10-21
 	# "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
@@ -827,6 +924,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 	requested_model = invocation_sub['Model'].strip() if isinstance(invocation_sub.get('Model'), str) and invocation_sub['Model'].strip() else 'inherit'
 	is_inherit = 'inherit' == requested_model.lower()
 	resolved_inst = paths['instance'] or instance
+	# @used-by :func:`native_review_proof()`
 	def _extra():
 		# 2026-11-24
 		# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
@@ -849,7 +947,14 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_decode_user_step_entry()`
+# @used-by :func:`_extract_user_step_meta()`
+# @used-by :func:`_model_metadata()`
+# @used-by :func:`_query_step_model_ids()`
+# @used-by :func:`_wire_path()`
+# @used-by :func:`agent_tools.metrics.wire_fields()`
 def wire_fields(data):
+	# @used-by :func:`wire_fields()`
 	def number(offset):
 		value, shift = (0, 0)
 		while True:
@@ -883,6 +988,9 @@ def wire_fields(data):
 			offset += size
 		r.append((field, kind, value))
 	return r
+# @used-by :func:`_request_scope()`
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`AntigravityTurnScanner._load_context()`
 def _native_inputs(backend, conversation_id, *, paths=None, include_meta=False):
 	db_path = _conversation_db_path(backend, conversation_id, error_msg='Exact current native conversation UUID required', paths=paths)
 	with open_readonly_sqlite(db_path) as conn:
@@ -898,6 +1006,7 @@ def _native_inputs(backend, conversation_id, *, paths=None, include_meta=False):
 # 2026-10-31
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
+# @used-by :func:`_workspace_context()`
 def _project_roots(backend, project_id, *, paths=None):
 	r = []
 	if isinstance(project_id, str) and project_id.strip() and project_id not in ('outside-of-project', 'default-cli-project'):
@@ -911,6 +1020,8 @@ def _project_roots(backend, project_id, *, paths=None):
 			except Exception:
 				r = []
 	return r
+# @used-by :func:`_request_scope()`
+# @used-by :meth:`AntigravityTurnScanner._load_context()`
 def _workspace_context(backend, conversation_id, *, paths=None):
 	resolved = paths or _antigravity_paths(backend=backend, conversation_id=conversation_id)
 	file = Path(resolved['conversations_db'])
@@ -939,6 +1050,10 @@ def _workspace_context(backend, conversation_id, *, paths=None):
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# @used-by :func:`native_requests()`
+# @used-by :func:`require_current_binding()`
+# @used-by :meth:`AntigravityTurnScanner._load_context()`
+# @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_antigravity_scope_uses_workspace_only_for_text()`
 def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None, paths=None, contexts=None):
 	from .request_binding import native_project_id, scoped_inputs
 	job_id = identifier if None is not identifier else native_project_id(root)
@@ -949,11 +1064,25 @@ def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, i
 # 2026-11-21
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_exact_native_workspace_allows_plain_continuation_and_independent_review()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_foreign_or_multiple_native_workspaces_cannot_claim_identical_request()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_git_folder_project_id_fallback_and_relocated_root_canonicalization()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_legacy_job_mention_after_foreign_init_cannot_reactivate_old_project()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_status_five_compacted_step_recovers_nested_protobuf_and_transcript_fallback()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_text_root_labels_neither_break_valid_workspace_nor_claim_foreign_workspace()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 def native_requests(root, conversation_id, *, backend=None, instance=None):
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
 	selected, _, _ = _request_scope(root, conversation_id, backend, paths=paths)
 	return current_turn_requests(selected, conversation_id, 'antigravity-ui', 'Native Antigravity requests do not identify this project; open the chat in the exact project workspace or pass its /upwork-init URL')
+# @used-by :func:`native_review_proof()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_legacy_job_mention_after_foreign_init_cannot_reactivate_old_project()`
 def require_current_binding(root, conversation_id, *, backend=None, instance=None, inputs=None, until=None):
 	from .request_binding import format_binding_diagnostic, native_project_id
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
@@ -965,6 +1094,9 @@ def require_current_binding(root, conversation_id, *, backend=None, instance=Non
 # 2026-11-07
 # "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
 # https://github.com/dmitry-ai/harness/issues/48
+# @used-by :meth:`AntigravityTurnScanner._collect_subagent_bfs()`
+# @used-by :meth:`AntigravityTurnScanner._resolve_subagent_child()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_post_checkpoint_res_citation_and_issue48_recursive_subagent_aggregation()`
 def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 	r: list[str] = []
 	rows_list = rows_slice if isinstance(rows_slice, list) else []
@@ -1007,11 +1139,23 @@ def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 # 2026-11-13
 # "Extract AntigravityTurnScanner class from native_answers in platforms/antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/55
+# @used-by :func:`check_pre_invocation._binding_violation_message()`
+# @used-by :meth:`test_ask_question_clarifications_m8.AskQuestionClarificationsM8Tests.test_antigravity_scanner_and_turn_state_preserve_clarifications_without_breaking_user_turns()`
+# @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_post_checkpoint_res_citation_and_issue48_recursive_subagent_aggregation()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue48_antigravity_multiturn_subagent_isolation_mid_invocation()`
+# @used-by :meth:`test_multiturn_handoff_stop_guard_and_schedule_m1.MultiturnHandoffStopGuardAndScheduleM1Tests.test_schedule_timers_and_stdout_prose_do_not_merge_completed_turn1_into_turn2()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_unfinished_parallel_subagent_turn_merges_with_next_request_and_blocks_english_stub_on_russian_request()`
+# @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 def native_answers(root, conversation_id, *, backend=None, instance=None):
 	return AntigravityTurnScanner(root, conversation_id, backend=backend, instance=instance).scan()
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# @used-by :func:`_proof_backend()`
+# @used-by :func:`verify_native_proof()`
 def _proof_paths(native):
 	if not isinstance(native, dict):
 		raise ValueError('Native review proof must be a JSON object')
@@ -1032,6 +1176,7 @@ def _proof_paths(native):
 			return _antigravity_paths(backend=home_backend, conversation_id=cid)
 		raise ValueError('Saved Antigravity proof names an unconfigured or external log path')
 	return _antigravity_paths(conversation_id=cid)
+# @used-by unused
 def _proof_backend(native):
 	return Path(_proof_paths(native)['backend_dir'])
 # 2026-10-18
@@ -1040,6 +1185,8 @@ def _proof_backend(native):
 # 2026-11-24
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+# @used-by :meth:`test_reused_reviewer_and_metadata_drift_m5.ReusedReviewerAndMetadataDriftM5Tests.test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention()`
 def verify_native_proof(root, native, package=None):
 	from .antigravity_review_helpers import reviewer_assigned_package
 	paths = _proof_paths(native)
@@ -1050,6 +1197,15 @@ def verify_native_proof(root, native, package=None):
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
+# @used-by :func:`agent_tools.project_rename._build_ag_registrar()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
+# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
+# @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
 def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, folders_json_path=None):
 	if None is not projects_dir or None is not folders_json_path:
 		return register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=projects_dir or ANTIGRAVITY_PROJECTS_DIR, folders_json_path=_resolve_folders_json(folders_json_path))
@@ -1084,6 +1240,7 @@ def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, 
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
 _PBTXT_TITLE_RE = re.compile('(?:^|\\s)title\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"')
+# @used-by :func:`discover_live_daemon()`
 def _is_live_language_server_pid(pid: int) -> bool:
 	if int is not type(pid) or 1 > pid:
 		return False
@@ -1111,6 +1268,7 @@ def _is_live_language_server_pid(pid: int) -> bool:
 		return True
 	except OSError:
 		return False
+# @used-by :func:`update_conversation_title()`
 def discover_live_daemon(backend=None, *, instance=None, conversation_id=None, paths=None) -> dict | None:
 	resolved = paths or _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	daemon_dir = Path(resolved['daemon_dir']) if resolved.get('daemon_dir') else (Path(resolved['backend_dir']) / 'daemon')
@@ -1142,6 +1300,7 @@ def discover_live_daemon(backend=None, *, instance=None, conversation_id=None, p
 			continue
 		return {'pid': pid, 'http_port': eff_http, 'https_port': eff_https, 'csrf_token': csrf_token, 'ls_version': data.get('lsVersion'), 'discovery_file': str(path)}
 	return None
+# @used-by :func:`_read_current_conversation_title()`
 def _parse_pbtxt_title(text: str) -> str | None:
 	m = _PBTXT_TITLE_RE.search(text or '')
 	if not m:
@@ -1151,6 +1310,7 @@ def _parse_pbtxt_title(text: str) -> str | None:
 		return json.loads('"' + raw + '"')
 	except ValueError:
 		return raw
+# @used-by :func:`update_conversation_title()`
 def _read_current_conversation_title(paths: dict, conversation_id: str) -> tuple[str | None, str | None]:
 	db_title: str | None = None
 	ann_title: str | None = None
@@ -1173,6 +1333,8 @@ def _read_current_conversation_title(paths: dict, conversation_id: str) -> tuple
 		except OSError:
 			pass
 	return (db_title, ann_title)
+# @used-by :func:`agent_tools.completion._sync_antigravity_conversation_title()`
+# @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
 def update_conversation_title(conversation_id: str, title: str, *, backend=None, instance=None, paths=None, timeout: float=2.0) -> dict:
 	cid = str(conversation_id or '').strip().lower()
 	clean_title = str(title or '').strip()

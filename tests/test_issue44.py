@@ -17,6 +17,7 @@ from agent_tools import completion
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
 class TestIssue44(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_validate_kb_factual_note_clean(self):
 		clean_text = """# Dev-Server Research (2026-11-04)
 The development server is hosted at `https://ba53a028dc.nxcli.io/`.
@@ -26,6 +27,7 @@ The git branch `hyva-theme-install` was checked out on 2026-01-05.
 		issues = validate_kb_factual_note("Dev-Server-Research.md", clean_text)
 		self.assertEqual(issues, [])
 
+	# @used-by :mod:`unittest`
 	def test_validate_kb_factual_note_hypothesis_id(self):
 		text = """# Research Note
 We observe issue H-1 in the storefront.
@@ -33,6 +35,7 @@ We observe issue H-1 in the storefront.
 		issues = validate_kb_factual_note("Research.md", text)
 		self.assertTrue(any("Hypothesis/method identifier 'H-1' forbidden" in iss for iss in issues))
 
+	# @used-by :mod:`unittest`
 	def test_validate_kb_factual_note_analytical_heading(self):
 		text = """# Research Note
 ## Hypotheses
@@ -41,6 +44,7 @@ The theme is broken.
 		issues = validate_kb_factual_note("Research.md", text)
 		self.assertTrue(any("Analytical heading '## Hypotheses' forbidden" in iss for iss in issues))
 
+	# @used-by :mod:`unittest`
 	def test_validate_kb_factual_note_pro_con(self):
 		text = """# Research Note
 Arguments for: server is slow.
@@ -49,6 +53,7 @@ Arguments against: cache is disabled.
 		issues = validate_kb_factual_note("Research.md", text)
 		self.assertTrue(any("Structured pro/con arguments" in iss for iss in issues))
 
+	# @used-by :mod:`unittest`
 	def test_validate_kb_factual_note_root_cause(self):
 		text = """# Research Note
 The root cause is missing varnish configuration.
@@ -56,6 +61,7 @@ The root cause is missing varnish configuration.
 		issues = validate_kb_factual_note("Research.md", text)
 		self.assertTrue(any("Causal assertion 'root cause'" in iss for iss in issues))
 
+	# @used-by :mod:`unittest`
 	@patch('agent_tools.review._analysis')
 	def test_authorize_post_finalize_ignores_historical_questions(self, mock_analysis):
 		mock_analysis.return_value = {"schema_version": 3}
@@ -80,6 +86,7 @@ The root cause is missing varnish configuration.
 				authorize(root, state, response="Simple answer without H/M")
 			self.assertNotIn("Complete current research questions/gaps", str(cm.exception))
 
+	# @used-by :mod:`unittest`
 	@patch('agent_tools.review._analysis')
 	def test_authorize_post_finalize_enforces_post_finalize_questions(self, mock_analysis):
 		mock_analysis.return_value = {"schema_version": 3}
@@ -103,6 +110,7 @@ The root cause is missing varnish configuration.
 				authorize(root, state, response="Simple answer without H/M")
 			self.assertIn("Complete current research questions/gaps before publication", str(cm.exception))
 
+	# @used-by :mod:`unittest`
 	@patch('agent_tools.review._analysis')
 	def test_authorize_post_finalize_enforces_request_scoped_questions(self, mock_analysis):
 		mock_analysis.return_value = {"schema_version": 3}
@@ -127,6 +135,7 @@ The root cause is missing varnish configuration.
 				authorize(root, state, response="Simple answer without H/M", request_ids={"REQ-1"})
 			self.assertIn("Complete current research questions/gaps before publication", str(cm.exception))
 
+	# @used-by :mod:`unittest`
 	def test_completion_commands_has_reconcile_unprepared_delivery(self):
 		self.assertIn('reconcile-unprepared-delivery', completion.COMMANDS)
 

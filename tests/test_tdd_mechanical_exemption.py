@@ -21,8 +21,17 @@ OTHER_ISSUE_URL = 'https://github.com/example-org/legacy-app/issues/99'
 OLD_URL = 'https://upwork.com/fl/mage2pro'
 NEW_URL = 'https://github.com/dmitrii-fediuk'
 VALID_REASON = 'Bulk mechanical author profile URL replacement requested in user instruction 252 and tracked in issue #42.'
+# @used-by :func:`_init_repo()`
+# @used-by :func:`_seed_commit()`
+# @used-by :meth:`MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
+# @used-by :meth:`MechanicalExemptionTests.test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit()`
 def _git(*args: str) -> None:
 	subprocess.run(['git', *args], check=True, stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+# @used-by :meth:`MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
+# @used-by :meth:`MechanicalExemptionTests.test_cli_parser_dispatches_tdd_exempt_mechanical_with_turn_key()`
+# @used-by :meth:`MechanicalExemptionTests.test_cli_registration_and_validation_errors()`
+# @used-by :meth:`MechanicalExemptionTests.test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit()`
+# @used-by :meth:`MechanicalExemptionTests.test_pre_tool_use_allows_matching_mechanical_edit_and_denies_extraneous_edit()`
 def _init_repo(repo: Path, remote_url: str='https://github.com/example-org/legacy-app.git') -> None:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git('init', '-b', 'main', str(repo))
@@ -32,6 +41,9 @@ def _init_repo(repo: Path, remote_url: str='https://github.com/example-org/legac
 		f'[remote "origin"]\n\turl = {remote_url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n'
 	)
 	cfg.write_text(cfg.read_text(encoding='utf-8') + extra, encoding='utf-8')
+# @used-by :meth:`MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
+# @used-by :meth:`MechanicalExemptionTests.test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit()`
+# @used-by :meth:`MechanicalExemptionTests.test_pre_tool_use_allows_matching_mechanical_edit_and_denies_extraneous_edit()`
 def _seed_commit(repo: Path, rel: str, content: str) -> None:
 	target = repo / rel
 	target.parent.mkdir(parents=True, exist_ok=True)
@@ -42,6 +54,7 @@ def _seed_commit(repo: Path, rel: str, content: str) -> None:
 # "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 # https://github.com/dmitry-ai/harness/issues/239
 class MechanicalExemptionTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -63,6 +76,7 @@ class MechanicalExemptionTests(unittest.TestCase):
 			(repo / 'src/cfg.js').write_text(f"export const HOME = '{NEW_URL}';\nexport const X = 1;\n", encoding='utf-8')
 			res_bad = evaluate_tdd_events([ev], require_final_full_green=True, project_root=proj)
 			self.assertFalse(res_bad['verified'], res_bad)
+	# @used-by :mod:`unittest`
 	def test_cli_parser_dispatches_tdd_exempt_mechanical_with_turn_key(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -81,6 +95,7 @@ class MechanicalExemptionTests(unittest.TestCase):
 			self.assertTrue(handled)
 			self.assertTrue(res['valid'])
 			self.assertEqual('cli-turn-1', res['turn_key'])
+	# @used-by :mod:`unittest`
 	def test_cli_registration_and_validation_errors(self) -> None:
 		self.assertIn('tdd-exempt-mechanical', registered_commands())
 		self.assertFalse(validate_mechanical_reason('too short')[0])
@@ -99,6 +114,7 @@ class MechanicalExemptionTests(unittest.TestCase):
 				record_mechanical_exemption(proj, repo=repo, issue_url=ISSUE_URL, pattern=OLD_URL, replacement=OLD_URL, reason=VALID_REASON, turn_key='t1')
 			with self.assertRaises(ValueError):
 				record_mechanical_exemption(proj, repo=repo, issue_url='https://github.com/other/repo/issues/1', pattern=OLD_URL, replacement=NEW_URL, reason=VALID_REASON, turn_key='t1')
+	# @used-by :mod:`unittest`
 	def test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -120,6 +136,7 @@ class MechanicalExemptionTests(unittest.TestCase):
 			(repo / 'src/cfg.php').write_text(f"<?php\nreturn '{NEW_URL}';\n$extra = 1;\n", encoding='utf-8')
 			_git('-C', str(repo), 'add', 'src/cfg.php')
 			self.assertEqual(2, git_gate.run_git_hook('pre-commit', cwd=repo, agent_context=True))
+	# @used-by :mod:`unittest`
 	def test_matches_mechanical_recipe_strict_line_identity(self) -> None:
 		lit = {'ignore_case': False, 'is_regex': False, 'pattern': OLD_URL, 'replacement': NEW_URL}
 		rx = {'ignore_case': True, 'is_regex': True, 'pattern': r'https?://(?:www\.)?upwork\.com/fl/mage2pro', 'replacement': NEW_URL}
@@ -129,6 +146,7 @@ class MechanicalExemptionTests(unittest.TestCase):
 		self.assertFalse(matches_mechanical_recipe(f"a = '{OLD_URL}'\n", f"a = '{NEW_URL}'\nextra = 1\n", lit))
 		self.assertFalse(matches_mechanical_recipe(None, f"a = '{NEW_URL}'\n", lit))
 		self.assertFalse(matches_mechanical_recipe(f"a = '{OLD_URL}'\n", None, lit))
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_allows_matching_mechanical_edit_and_denies_extraneous_edit(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'

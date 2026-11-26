@@ -1,6 +1,7 @@
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import redirect_stdout
 from copy import deepcopy
+from typing import override
 import hashlib
 import io
 import json
@@ -21,9 +22,17 @@ import check_stop_gate
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
 class PathRegistryTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`unittest.TestCase.tearDown()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`unittest.TestCase.tearDown()`
+	@override
 	def tearDown(self):
 		pr.clear_registry_cache()
 		super().tearDown()
+	# @used-by :mod:`unittest`
 	def test_live_registry_and_runtime_contain_no_hardcoded_host_paths_outside_r_and_validate_five_overlays(self):
 		raw_runtime = json.loads((runtime.PRIMARY / 'runtime.json').read_text(encoding='utf-8'))
 		serialized_runtime = json.dumps(raw_runtime)
@@ -56,6 +65,7 @@ class PathRegistryTests(TemporaryCase):
 		for root_str, expected_profile in expected_projects.items():
 			self.assertIn(root_str, by_root)
 			self.assertEqual(by_root[root_str]['profile'], expected_profile)
+	# @used-by :mod:`unittest`
 	def test_apache_prefix_concatenation_windows_env_vars_globs_and_escapes(self):
 		vars_map = {
 			'WORK_ROOT': 'C:/work',
@@ -82,6 +92,7 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(pr.expand_template('//fileserver/share//a/../b/', vars_map, env=env), '//fileserver/share/b')
 		empty_env_res = pr.expand_template('%LOCALAPPDATA%/Sub', {}, env={})
 		self.assertTrue(empty_env_res.endswith('/AppData/Local/Sub'))
+	# @used-by :mod:`unittest`
 	def test_template_and_schema_error_paths_reject_cycles_unknowns_symlinks_and_conflicts(self):
 		with self.assertRaisesRegex(ValueError, 'Cyclic path template variable reference: A -> A'):
 			pr.expand_template('${A}', {'A': '${A}'})
@@ -124,6 +135,7 @@ class PathRegistryTests(TemporaryCase):
 		else:
 			with self.assertRaisesRegex(ValueError, 'Linked project paths.json overlay'):
 				pr.project_paths(sym_proj)
+	# @used-by :mod:`unittest`
 	def test_project_overlay_dag_cascades_and_remains_isolated_per_project(self):
 		proj_a = self.root / 'proj_a'
 		ext_client = self.root / 'external_client'
@@ -165,6 +177,7 @@ class PathRegistryTests(TemporaryCase):
 		self.assertTrue(git_gate.GitRepoGate(ext_code).is_issue_tracked())
 		self.assertEqual(pp_b.agent_dir, (proj_b / '\ua616').resolve())
 		self.assertIsNone(pp_b.path('custom_slot'))
+	# @used-by :mod:`unittest`
 	def test_live_five_projects_integration_across_harness_subsystems_and_cli(self):
 		harness_pp = pr.project_paths('C:/work/research/provision/code/AI/harness')
 		self.assertEqual(harness_pp.profile, 'v2_software')
@@ -246,6 +259,7 @@ class PathRegistryTests(TemporaryCase):
 		self.assertTrue(check_stop_gate._is_tracked_workspace(smokeday_client_code))
 		self.assertTrue(check_stop_gate._is_tracked_workspace(smokeday_server_code))
 		self.assertEqual(check_stop_gate._turns_dir(smokeday_client_code), smokeday_pp.turns_dir)
+	# @used-by :mod:`unittest`
 	def test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring(self):
 		self.assertEqual(
 			pr.expand_template('${B}/end', {'A': '$${LITERAL_VAR}', 'B': '${A}/mid'}),
@@ -278,6 +292,7 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(pp.var('DATA_DIR'), expected_data)
 		self.assertEqual(pp.path('sub_tool'), (proj.resolve() / '_rel_agent/data/sub/tool.exe'))
 		self.assertEqual(pp.tools['runner'], f'{expected_data}/sub/runner.exe')
+	# @used-by :mod:`unittest`
 	def test_mid_process_overlay_creation_and_edit_invalidate_reverse_links_and_stay_fast(self):
 		import time
 		disc = (self.root / 'disc_proj').resolve()
@@ -304,6 +319,7 @@ class PathRegistryTests(TemporaryCase):
 			storage.data_dir_for(perf_proj)
 		elapsed = time.perf_counter() - t0
 		self.assertLess(elapsed, 2.0, f'200 warm data_dir_for calls took {elapsed:.3f}s')
+	# @used-by :mod:`unittest`
 	def test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization(self):
 		from unittest.mock import patch
 		from agent_tools import completion, text_claims, text_diagnostics, text_workflow, workflow
@@ -419,6 +435,7 @@ class PathRegistryTests(TemporaryCase):
 	# 2026-11-20
 	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 	# https://github.com/dmitry-ai/harness/issues/103
+	# @used-by :mod:`unittest`
 	def test_v2_filesystem_auto_detection_journals_context_provenance_and_migration(self):
 		os_demo = Path('C:/work/clients/smokeday.com--new')
 		if os_demo.is_dir():
@@ -575,6 +592,7 @@ class PathRegistryTests(TemporaryCase):
 	# 2026-11-21
 	# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 	# https://github.com/dmitry-ai/harness/issues/108
+	# @used-by :mod:`unittest`
 	def test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts(self):
 		v1_upw = self.root / 'v1_upwork_legacy'
 		self.put('v1_upwork_legacy/\ua616/project.json', json.dumps({'job_id': '~012345'}))
@@ -631,6 +649,7 @@ class PathRegistryTests(TemporaryCase):
 	# 2026-11-21
 	# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
 	# https://github.com/dmitry-ai/harness/issues/115
+	# @used-by :mod:`unittest`
 	def test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6(self):
 		from contextlib import closing
 		import sqlite3
@@ -704,6 +723,7 @@ class PathRegistryTests(TemporaryCase):
 	# 2026-11-21
 	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 	# https://github.com/dmitry-ai/harness/issues/113
+	# @used-by :mod:`unittest`
 	def test_cross_root_relocation_workflow_completion_review_and_antigravity_registration(self):
 		from agent_tools import completion, metrics, research, review, text_workflow, workflow
 		from agent_tools.platforms import antigravity, codex, request_binding
@@ -926,6 +946,7 @@ class PathRegistryTests(TemporaryCase):
 	# 2026-11-22
 	# "Add declarative similar_projects registry groups and project overlay resolution":
 	# https://github.com/dmitry-ai/harness/issues/122
+	# @used-by :mod:`unittest`
 	def test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation(self):
 		rep = pr.paths_report(check=True)
 		self.assertTrue(rep['valid'], rep['issues'])
@@ -1000,6 +1021,7 @@ class PathRegistryTests(TemporaryCase):
 	# 2026-11-22
 	# "Register df-servers V2 root and relocation in paths.json":
 	# https://github.com/dmitry-ai/harness/issues/125
+	# @used-by :mod:`unittest`
 	def test_df_servers_relocation_and_nested_server_artifact_root(self):
 		old_root = Path(pr.var_value('DF_GIT_CODE_ROOT')) / '5.9.188.84'
 		new_root = Path(pr.var_value('DF_SERVERS_ROOT')).resolve()
@@ -1013,6 +1035,7 @@ class PathRegistryTests(TemporaryCase):
 	# 2026-11-23
 	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 	# https://github.com/dmitry-ai/harness/issues/132
+	# @used-by :mod:`unittest`
 	def test_is_tracked_workspace_supports_registered_single_projects_and_declarative_opt_outs(self):
 		proj_dir = (self.root / 'ag_projects').resolve()
 		proj_dir.mkdir(parents=True)

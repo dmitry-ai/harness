@@ -14,6 +14,7 @@ if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import completion, tdd_gate
 from agent_tools.platforms import antigravity, trace_common
+# @used-by :func:`_wire()`
 def _varint(val: int) -> bytes:
 	out = bytearray()
 	while True:
@@ -24,12 +25,14 @@ def _varint(val: int) -> bytes:
 		else:
 			out.append(b)
 			return bytes(out)
+# @used-by :meth:`BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
 def _wire(field_num: int, payload: bytes) -> bytes:
 	return _varint((field_num << 3) | 2) + _varint(len(payload)) + payload
 # 2026-11-23
 # "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
 # https://github.com/dmitry-ai/harness/issues/166
 class BackgroundWaitAndTddInheritanceTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_completed_prior_turn_does_not_bleed_tdd_events_into_unrelated_followup(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -57,6 +60,7 @@ class BackgroundWaitAndTddInheritanceTests(unittest.TestCase):
 			self.assertEqual(events, [])
 			res = tdd_gate.evaluate_tdd_events(events, require_final_full_green=True)
 			self.assertTrue(res['verified'], res)
+	# @used-by :mod:`unittest`
 	def test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -117,6 +121,7 @@ class BackgroundWaitAndTddInheritanceTests(unittest.TestCase):
 			tx.write_text(''.join((json.dumps(r, ensure_ascii=False) + '\n' for r in rows)), encoding='utf-8')
 			eval_after = tdd_gate.evaluate_tdd_events(tdd_gate.extract_antigravity_tdd_events(tx, cwd=code), require_final_full_green=True)
 			self.assertTrue(eval_after['verified'], eval_after)
+	# @used-by :mod:`unittest`
 	def test_waiting_stub_classifier_handles_ru_en_and_avoids_false_positives(self) -> None:
 		self.assertTrue(trace_common.is_waiting_status_stub('Waiting for the remaining 1 subagent to complete.'))
 		self.assertTrue(trace_common.is_waiting_status_stub('Subagent 1 finished. Waiting for background task task-12 to finish.'))

@@ -7,6 +7,11 @@ import re
 _CPP_RAW_RE = re.compile(r'R"([^\s()\\]{0,16})\(')
 _HEREDOC_START_RE = re.compile(r'<<<[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'|([A-Za-z_]\w*))')
 _SH_HEREDOC_RE = re.compile(r'<<(-?)[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'|([A-Za-z_]\w*))')
+# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_c_like()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_php()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_batch()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_hash_script()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_vbscript()`
 def finalize_line_tokens(raw_tokens: list[str]) -> tuple[str, ...]:
 	out: list[str] = []
 	for tok in raw_tokens:
@@ -18,6 +23,12 @@ def finalize_line_tokens(raw_tokens: list[str]) -> tuple[str, ...]:
 	if out and '\n' != out[-1]:
 		out.append('\n')
 	return tuple(out)
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_comment_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_block_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
+# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_step()`
+# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_step()`
 def scan_block_comment(src: str, pos: int, open_tok: str, close_tok: str, *, nested: bool=False) -> int:
 	n = len(src)
 	olen, clen = (len(open_tok), len(close_tok))
@@ -35,6 +46,7 @@ def scan_block_comment(src: str, pos: int, open_tok: str, close_tok: str, *, nes
 		else:
 			i += 1
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
 def scan_cpp_raw(src: str, pos: int) -> int:
 	m = _CPP_RAW_RE.match(src, pos)
 	if None is m:
@@ -44,6 +56,7 @@ def scan_cpp_raw(src: str, pos: int) -> int:
 		idx = src.find(end_marker, m.end())
 		r = -1 if -1 == idx else idx + len(end_marker)
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_special_step()`
 def scan_css_url(src: str, pos: int) -> int:
 	n = len(src)
 	i = pos + 4
@@ -55,6 +68,8 @@ def scan_css_url(src: str, pos: int) -> int:
 	else:
 		r = _scan_until_paren(src, i)
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
 def scan_heredoc(src: str, pos: int, *, php: bool=False) -> int:
 	pat = _HEREDOC_START_RE if php else _SH_HEREDOC_RE
 	m = pat.match(src, pos)
@@ -65,6 +80,9 @@ def scan_heredoc(src: str, pos: int, *, php: bool=False) -> int:
 		nl = src.find('\n', m.end())
 		r = -1 if -1 == nl else _find_heredoc_end(src, nl + 1, tag, php=php)
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_special_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
+# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_atom()`
 def scan_js_regex(src: str, pos: int) -> int:
 	i, n, in_cls, r = (pos + 1, len(src), False, -1)
 	while i < n and src[i] not in '\r\n':
@@ -78,6 +96,7 @@ def scan_js_regex(src: str, pos: int) -> int:
 			in_cls = True if '[' == ch else (False if ']' == ch and in_cls else in_cls)
 			i += 1
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_block_step()`
 def scan_line_block(src: str, pos: int, end_prefix: str) -> int:
 	n = len(src)
 	i, r = (pos, -1)
@@ -89,6 +108,13 @@ def scan_line_block(src: str, pos: int, end_prefix: str) -> int:
 			break
 		i = line_end
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_comment_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
+# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_step()`
+# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_step()`
 def scan_line_comment(src: str, pos: int, *, stop_tag: str='') -> int:
 	n = len(src)
 	nl = src.find('\n', pos)
@@ -98,6 +124,7 @@ def scan_line_comment(src: str, pos: int, *, stop_tag: str='') -> int:
 		if -1 != tag_idx:
 			end = tag_idx
 	return end
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
 def scan_ps_herestring(src: str, pos: int, quote: str) -> int:
 	nl = src.find('\n', pos + 2)
 	if -1 == nl:
@@ -107,6 +134,15 @@ def scan_ps_herestring(src: str, pos: int, quote: str) -> int:
 		idx = src.find(end_marker, nl)
 		r = -1 if -1 == idx else idx + len(end_marker)
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._scan_template_expr()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_quote_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
+# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_atom()`
+# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_atom()`
+# @used-by :func:`scan_css_url()`
 def scan_quoted(src: str, pos: int, quote: str, *, backslash: bool=True, doubled: bool=False, allow_nl: bool=True, backtick: bool=False) -> int:
 	n = len(src)
 	i, r = (pos + 1, -1)
@@ -126,6 +162,8 @@ def scan_quoted(src: str, pos: int, quote: str, *, backslash: bool=True, doubled
 		else:
 			i += 1
 	return r
+# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
+# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_atom()`
 def scan_triple_quote(src: str, pos: int, quote: str) -> int:
 	marker = quote * 3
 	i, n, r = (pos + 3, len(src), -1)
@@ -138,6 +176,7 @@ def scan_triple_quote(src: str, pos: int, quote: str) -> int:
 		else:
 			i += 1
 	return r
+# @used-by :func:`scan_heredoc()`
 def _find_heredoc_end(src: str, start: int, tag: str, *, php: bool) -> int:
 	i, n, r = (start, len(src), -1)
 	while i < n:
@@ -150,12 +189,14 @@ def _find_heredoc_end(src: str, start: int, tag: str, *, php: bool) -> int:
 			break
 		i = n if -1 == nl else nl + 1
 	return r
+# @used-by :func:`scan_js_regex()`
 def _scan_regex_flags(src: str, pos: int) -> int:
 	n = len(src)
 	i = pos
 	while i < n and src[i].isalpha():
 		i += 1
 	return i
+# @used-by :func:`scan_css_url()`
 def _scan_until_paren(src: str, pos: int) -> int:
 	n = len(src)
 	i, r = (pos, -1)

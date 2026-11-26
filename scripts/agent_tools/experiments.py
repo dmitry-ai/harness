@@ -23,9 +23,11 @@ class BrowserTraceInspector:
 	NUMBER_RE = re.compile('-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?')
 	TERMINALS = {'click': 'click', 'selectOption': 'select', 'fill': 'fill', 'press': 'press', 'goto': 'navigate', 'navigate': 'navigate', 'getSnapshot': 'read', 'getDOMSnapshot': 'read', 'getAXState': 'read', 'domSnapshot': 'read', 'getState': 'inspect', 'screenshot': 'read'}
 	TOKEN_RE = re.compile('\\s+|"(?:\\\\.|[^"\\\\\\r\\n])*"|\'(?:\\\\.|[^\'\\\\\\r\\n])*\'|/\\*[\\s\\S]*?\\*/|//[^\\n]*|[A-Za-z_$][\\w$]*|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?|[.(),:{}\\[\\];]')
+	# @used-by :meth:`BrowserTraceInspector.unconditional_calls()`
 	def __init__(self, tokens=None):
 		self.tokens = list(tokens or [])
 		self.index = 0
+	# @used-by :meth:`BrowserTraceInspector.event_browser_identity()`
 	@classmethod
 	def _extract_identity_dict(cls, value):
 		result, conflict = ({}, False)
@@ -39,6 +41,7 @@ class BrowserTraceInspector:
 					result[key] = values.pop()
 		r = None if conflict else result
 		return r
+	# @used-by :meth:`BrowserTraceInspector.event_browser_identity()`
 	@classmethod
 	def _iter_identity_objects(cls, value):
 		if isinstance(value, list):
@@ -60,6 +63,7 @@ class BrowserTraceInspector:
 					yield from cls._iter_identity_objects(value[key])
 			if value.get('type') in ('input_text', 'text') and isinstance(value.get('text'), str):
 				yield from cls._iter_identity_objects(value['text'])
+	# @used-by :meth:`BrowserTraceInspector.unconditional_calls()`
 	def _parse_call_chain(self):
 		self._take('await')
 		receiver = self._take()
@@ -90,6 +94,7 @@ class BrowserTraceInspector:
 		if self.index < len(self.tokens):
 			self._take(';')
 		return (receiver, action)
+	# @used-by :meth:`BrowserTraceInspector._parse_call_chain()`
 	def _parse_literal(self, depth=0):
 		if 20 < depth:
 			raise ValueError('Browser argument nesting exceeds supported grammar')
@@ -120,12 +125,15 @@ class BrowserTraceInspector:
 					self._take(',')
 		elif not (value.startswith(('"', "'")) or value in ('true', 'false', 'null') or self.NUMBER_RE.fullmatch(value)):
 			raise ValueError('Literal browser arguments required')
+	# @used-by :meth:`BrowserTraceInspector._parse_call_chain()`
+	# @used-by :meth:`BrowserTraceInspector._parse_literal()`
 	def _take(self, expected=None):
 		if self.index >= len(self.tokens) or (None is not expected and self.tokens[self.index] != expected):
 			raise ValueError('Unsupported browser syntax')
 		result = self.tokens[self.index]
 		self.index += 1
 		return result
+	# @used-by :meth:`BrowserTraceInspector.unconditional_calls()`
 	@classmethod
 	def _tokenize(cls, code):
 		tokens, position, ok = ([], 0, True)
@@ -140,6 +148,7 @@ class BrowserTraceInspector:
 				tokens.append(value)
 		r = tokens if ok else None
 		return r
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	@classmethod
 	def context_issues(cls, run, events, native_texts_fn):
 		method = run['requirement']['method']
@@ -177,6 +186,15 @@ class BrowserTraceInspector:
 				else:
 					r = []
 		return r
+	# @used-by :func:`_event_actions()`
+	# @used-by :meth:`BrowserTraceInspector.context_issues()`
+	# @used-by :meth:`BrowserTraceInspector.event_browser_identity()`
+	# @used-by :meth:`BrowserTraceInspector.native_geolocation()`
+	# @used-by :meth:`ExperimentRunValidator._check_admin_run()`
+	# @used-by :meth:`ExperimentRunValidator._check_browser_scenario_steps()`
+	# @used-by :meth:`ExperimentRunValidator._check_conditions()`
+	# @used-by :meth:`ExperimentRunValidator._check_serp_run()`
+	# @used-by :meth:`ExperimentRunValidator.evaluate_assertions()`
 	@classmethod
 	def event_actions(cls, event):
 		args = event.get('arguments') or {}
@@ -194,6 +212,9 @@ class BrowserTraceInspector:
 				else:
 					r = {action for _, action in cls.unconditional_calls(code)}
 		return r
+	# @used-by :func:`_event_browser_identity()`
+	# @used-by :meth:`BrowserTraceInspector.context_issues()`
+	# @used-by :meth:`ExperimentRunValidator.evaluate_assertions()`
 	@classmethod
 	def event_browser_identity(cls, event):
 		if not cls.event_actions(event):
@@ -221,6 +242,8 @@ class BrowserTraceInspector:
 							break
 					r = merged if not conflict and all((key in merged for key in ('browser_id', 'tab_id'))) else None
 		return r
+	# @used-by :meth:`BrowserTraceInspector.native_geolocation()`
+	# @used-by :meth:`ExperimentRunValidator._collector_artifact()`
 	@classmethod
 	def extract_verified_country(cls, data):
 		if not isinstance(data, dict):
@@ -229,9 +252,13 @@ class BrowserTraceInspector:
 			country = data.get('country_code') or data.get('country')
 			r = country if re.fullmatch('[A-Z]{2}', str(country)) and _text(data.get('ip')) else None
 		return r
+	# @used-by :meth:`BrowserTraceInspector.native_geolocation()`
+	# @used-by :meth:`ExperimentRunValidator._collector_artifact()`
 	@classmethod
 	def is_geo_url(cls, target):
 		return isinstance(target, str) and (urlsplit(target).hostname or '').casefold() in cls.GEO_HOSTS
+	# @used-by :meth:`ExperimentRunValidator._ingest_artifacts_and_trace()`
+	# @used-by :meth:`ExperimentRunValidator._verify_saved_artifacts()`
 	@classmethod
 	def native_geolocation(cls, event):
 		args = event.get('arguments', {})
@@ -245,11 +272,14 @@ class BrowserTraceInspector:
 			else:
 				r = next((country for data in iter_embedded_json_objects(event.get('result')) if (country := cls.extract_verified_country(data))), None)
 		return r
+	# @used-by :meth:`BrowserTraceInspector.event_actions()`
+	# @used-by :meth:`BrowserTraceInspector.event_browser_identity()`
 	@classmethod
 	def native_tool_name(cls, event):
 		name = str(event.get('name', '')).casefold().replace('.', '__')
 		namespace = str(event.get('namespace') or '').casefold().replace('.', '__')
 		return namespace + '__' + name if namespace and (not name.startswith(namespace + '__')) else name
+	# @used-by :meth:`BrowserTraceInspector.event_actions()`
 	@classmethod
 	def unconditional_calls(cls, code):
 		tokens = cls._tokenize(code)
@@ -272,6 +302,10 @@ class BrowserTraceInspector:
 # https://github.com/dmitry-ai/harness/issues/72
 class ExperimentPlanStore:
 	CLI_NAMES = ('harness.py', 'upwork_project.py')
+	# @used-by :func:`load_plan()`
+	# @used-by :func:`prepare_experiment()`
+	# @used-by :meth:`ExperimentRunValidator.load()`
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	def __init__(self, root):
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -279,6 +313,7 @@ class ExperimentPlanStore:
 		from .path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
 		self.root = self.pp.root
+	# @used-by :meth:`ExperimentPlanStore.preregistration_issues()`
 	@staticmethod
 	def _after_plan(value, prepared_at):
 		try:
@@ -288,6 +323,7 @@ class ExperimentPlanStore:
 		except (ValueError, TypeError, AttributeError):
 			r = False
 		return r
+	# @used-by :meth:`ExperimentPlanStore.preregistration_issues()`
 	def _is_plan_commit(self, run, event):
 		if True is not event.get('successful'):
 			r = False
@@ -302,6 +338,10 @@ class ExperimentPlanStore:
 				from .path_registry import same_project_root
 				r = any((1 == receipt.get('upwork_experiment_plan') and same_project_root(receipt.get('project_root'), self.root) and (receipt.get('plan') == run.get('plan')) and (receipt.get('plan_sha256') == run.get('plan_sha256')) and (receipt.get('requirement_sha256') == run.get('requirement_sha256')) for receipt in iter_embedded_json_objects(event.get('result'))))
 		return r
+	# @used-by :func:`load_plan()`
+	# @used-by :meth:`ExperimentPlanStore.prepare()`
+	# @used-by :meth:`ExperimentPlanStore.preregistration_issues()`
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	def load(self, reference):
 		path = inside(self.pp.kb_dir, reference)
 		base = self.pp.evidence_dir / 'Experiments/Plans'
@@ -313,6 +353,7 @@ class ExperimentPlanStore:
 			if plan.get('previous_plan_sha256') != digest(previous) or plan.get('revision') != previous['revision'] + 1:
 				raise ValueError('Plan revision chain changed')
 		return plan
+	# @used-by :func:`prepare_experiment()`
 	def prepare(self, requirement, *, amendment_of=None, amendment_reason=None):
 		issues = requirement_issues([requirement])
 		if issues:
@@ -333,6 +374,8 @@ class ExperimentPlanStore:
 		path = directory / 'plan.json'
 		create_bytes(path, json_data(plan))
 		return {'upwork_experiment_plan': 1, 'project_root': str(self.root), 'plan': path.relative_to(self.pp.kb_dir).as_posix(), 'plan_sha256': hashlib.sha256(path.read_bytes()).hexdigest(), **plan}
+	# @used-by :meth:`ExperimentRunValidator.load()`
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	def preregistration_issues(self, run, events=None):
 		plan, early = (None, None)
 		try:
@@ -377,6 +420,9 @@ class ExperimentPlanStore:
 class ExperimentRunValidator:
 	CONTEXT_FIELDS = {'session', 'egress', 'url_country', 'language', 'selected_country', 'currency', 'session_id', 'state_fingerprint'}
 	MODE_PATTERNS = {'incognito': '"(?:incognito|isIncognito)"\\s*:\\s*true', 'normal': '"(?:incognito|isIncognito)"\\s*:\\s*false', 'isolated': '"isolated"\\s*:\\s*true'}
+	# @used-by :func:`evaluate_assertions()`
+	# @used-by :meth:`ExperimentRunValidator.load()`
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	def __init__(self, root, run, contents=None):
 		self.root = Path(root).resolve() if None is not root else None
 		self.run = run
@@ -384,6 +430,7 @@ class ExperimentRunValidator:
 		self.artifacts = {item.get('id'): item for item in run.get('artifacts', []) if isinstance(item, dict)}
 		self.event_list = list(run.get('native_trace', {}).get('events', []))
 		self.events = {event.get('id'): event for event in self.event_list if isinstance(event, dict)}
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	def _check_admin_run(self):
 		issues = []
 		conditions = self.run.get('conditions', {})
@@ -393,6 +440,7 @@ class ExperimentRunValidator:
 		if not any((BrowserTraceInspector.event_actions(ev) & {'read', 'inspect'} and admin_url in json.dumps(ev.get('result'), ensure_ascii=False) for ev in self.events.values())):
 			issues.append('Admin observation needs native browser inspection; public documentation is not store configuration')
 		return issues
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	def _check_browser_scenario_steps(self):
 		issues = []
 		if not self.run['actual_steps']:
@@ -430,6 +478,7 @@ class ExperimentRunValidator:
 					issues.append('Declared browser state contains values absent from its raw native output')
 			issues += self._evidence_issues(step.get('evidence'), self.artifacts, 'Browser action')
 		return issues
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	def _check_conditions(self):
 		conditions = self.run.get('conditions', {})
 		if not isinstance(conditions, dict):
@@ -460,8 +509,10 @@ class ExperimentRunValidator:
 					issues.append('Browser IP geography must be measured in that native browser transport; a Python HTTP client can have different proxy/egress')
 			r = issues
 		return r
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	def _check_geolocation_run(self):
 		return ['Geolocation run needs a verified IP-country measurement'] if 'verified' != self.run.get('conditions', {}).get('egress', {}).get('verification') else []
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	def _check_run_header(self):
 		issues = requirement_issues([self.run.get('requirement')])
 		if 1 != self.run.get('schema_version') or 'experiment' != self.run.get('kind') or self.run.get('status') not in STATUSES:
@@ -473,6 +524,7 @@ class ExperimentRunValidator:
 		if not isinstance(self.run.get('actual_steps'), list):
 			issues.append('Actual performed steps must be a list')
 		return issues
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	def _check_serp_run(self):
 		issues = []
 		search = self.run.get('conditions', {}).get('search', {})
@@ -481,6 +533,8 @@ class ExperimentRunValidator:
 		if not any((BrowserTraceInspector.event_actions(ev) & {'read', 'inspect'} or (ev.get('name', '').casefold().split('.')[-1].split('__')[-1] in ('search_web', 'search_query', 'run') and ('search_query' in ev.get('arguments', {}) or 'query' in ev.get('arguments', {}))) for ev in self.events.values() if True is ev.get('successful'))):
 			issues.append('SERP run needs a recorded successful native search/browser result')
 		return issues
+	# @used-by :meth:`ExperimentRunValidator._ingest_artifacts_and_trace()`
+	# @used-by :meth:`ExperimentRunValidator._verify_saved_artifacts()`
 	@classmethod
 	def _collector_artifact(cls, root, item):
 		meta = load_observation(root, item['observation'])
@@ -495,9 +549,12 @@ class ExperimentRunValidator:
 			except (ValueError, TypeError, AttributeError):
 				pass
 		return (artifact, raw)
+	# @used-by :meth:`ExperimentRunValidator._check_browser_scenario_steps()`
+	# @used-by :meth:`ExperimentRunValidator._check_conditions()`
 	@staticmethod
 	def _evidence_issues(ids, artifacts, label):
 		return [label + ': recorded primary artifact IDs required'] if not isinstance(ids, list) or not ids or any((not isinstance(x, str) or x not in artifacts for x in ids)) else []
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	@classmethod
 	def _ingest_artifacts_and_trace(cls, root, run, raw_artifacts, trace_request):
 		if not isinstance(raw_artifacts, list):
@@ -549,6 +606,7 @@ class ExperimentRunValidator:
 					saved[-1].update(country=country, geolocation_verified=True, transport='native-browser')
 		run['artifacts'] = saved
 		return (saved, contents)
+	# @used-by :meth:`ExperimentRunValidator.load()`
 	def _verify_saved_artifacts(self, path):
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -589,6 +647,8 @@ class ExperimentRunValidator:
 					event = self.events.get(artifact['native_event_id'])
 					if not event or _result_bytes(event['result']) != self.contents[artifact['id']]:
 						raise ValueError('Saved native primary output differs from native authored tool result')
+	# @used-by :meth:`ExperimentRunValidator.load()`
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	def capabilities(self):
 		if self.run.get('status') not in ('verified', 'refuted'):
 			r = []
@@ -609,6 +669,9 @@ class ExperimentRunValidator:
 				found.add('ip_country')
 			r = sorted(found)
 		return r
+	# @used-by :func:`evaluate_assertions()`
+	# @used-by :meth:`ExperimentRunValidator.load()`
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	def evaluate_assertions(self):
 		assertions = self.run['requirement'].get('assertions', [])
 		results = []
@@ -639,6 +702,7 @@ class ExperimentRunValidator:
 		statuses = {item['status'] for item in results}
 		status = 'refuted' if 'refuted' in statuses else 'unverified' if not results or 'unverified' in statuses else 'verified'
 		return {'status': status, 'assertions': results, 'interpretation': 'Restricted predicates establish only the preregistered raw property; A.A checks semantic entailment and alternative explanations'}
+	# @used-by :func:`load_experiment()`
 	@classmethod
 	def load(cls, root, reference):
 		# 2026-11-19
@@ -668,8 +732,12 @@ class ExperimentRunValidator:
 		if issues or run.get('capabilities') != validator.capabilities():
 			raise ValueError('; '.join(issues or ['Experimental capabilities differ from recorded measurements']))
 		return run
+	# @used-by :meth:`ExperimentRunValidator._check_browser_scenario_steps()`
+	# @used-by :meth:`ExperimentRunValidator._check_conditions()`
+	# @used-by :meth:`ExperimentRunValidator.run_issues()`
 	def native_texts(self, ids):
 		return [self.events[nid] for ident in ids if isinstance(ident, str) and (nid := self.artifacts.get(ident, {}).get('native_event_id')) in self.events]
+	# @used-by :func:`record_experiment()`
 	@classmethod
 	def record(cls, root, specification, *, tool_trace=None):
 		# 2026-11-19
@@ -718,6 +786,8 @@ class ExperimentRunValidator:
 		target = directory / 'experiment.json'
 		create_bytes(target, json_data(run))
 		return {'experiment': target.relative_to(pp.kb_dir).as_posix(), 'experiment_sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'requirement_id': run['requirement']['id'], 'status': run['status'], 'capabilities': capabilities, 'limitation': run.get('limitation')}
+	# @used-by :meth:`ExperimentRunValidator.load()`
+	# @used-by :meth:`ExperimentRunValidator.record()`
 	def run_issues(self):
 		issues = self._check_run_header()
 		if not issues:
@@ -744,6 +814,7 @@ class ExperimentRunValidator:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :meth:`ExperimentRunValidator.evaluate_assertions()`
 def _compare(actual, operator, expected):
 	if 'contains' == operator:
 		if not isinstance(actual, str) or not isinstance(expected, str):
@@ -759,14 +830,22 @@ def _compare(actual, operator, expected):
 			equal = actual == expected
 		r = equal if 'equals' == operator else not equal
 	return r
+# @used-by :meth:`test_experiments.ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_namespaced_documented_dom_snapshot_is_read_only_and_keeps_strict_grammar()`
 def _event_actions(event):
 	return BrowserTraceInspector.event_actions(event)
+# @used-by :meth:`test_experiments.ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_namespaced_documented_dom_snapshot_is_read_only_and_keeps_strict_grammar()`
 def _event_browser_identity(event):
 	return BrowserTraceInspector.event_browser_identity(event)
+# @used-by :func:`_select_raw()`
 def _invalid_constant(value):
 	raise ValueError('Non-finite JSON number')
+# @used-by :meth:`ExperimentRunValidator._ingest_artifacts_and_trace()`
+# @used-by :meth:`ExperimentRunValidator._verify_saved_artifacts()`
 def _result_bytes(value):
 	return value.encode('utf-8') if isinstance(value, str) else json_data(value)
+# @used-by :meth:`ExperimentRunValidator.evaluate_assertions()`
 def _select_raw(raw, locator):
 	if 'text' != locator['type']:
 		r = resolve_pointer(json.loads(raw, parse_constant=_invalid_constant), locator['value'], decode_uri=False)
@@ -776,29 +855,96 @@ def _select_raw(raw, locator):
 			raise ValueError('Text locator absent')
 		r = locator['value'] or text
 	return r
+# @used-by :func:`requirement_issues()`
+# @used-by :func:`result_issues()`
+# @used-by :meth:`BrowserTraceInspector.extract_verified_country()`
+# @used-by :meth:`ExperimentPlanStore.prepare()`
+# @used-by :meth:`ExperimentRunValidator._check_admin_run()`
+# @used-by :meth:`ExperimentRunValidator._check_browser_scenario_steps()`
+# @used-by :meth:`ExperimentRunValidator._check_run_header()`
+# @used-by :meth:`ExperimentRunValidator._check_serp_run()`
+# @used-by :meth:`ExperimentRunValidator.record()`
 def _text(value):
 	return isinstance(value, str) and bool(value.strip())
+# @used-by :func:`result_issues()`
+# @used-by :meth:`ExperimentPlanStore.load()`
+# @used-by :meth:`ExperimentPlanStore.prepare()`
+# @used-by :meth:`ExperimentRunValidator.evaluate_assertions()`
+# @used-by :meth:`ExperimentRunValidator.load()`
+# @used-by :meth:`ExperimentRunValidator.record()`
 def digest(value):
 	return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+# @used-by unused
 def evaluate_assertions(run, contents):
 	return ExperimentRunValidator(None, run, contents).evaluate_assertions()
+# @used-by :func:`agent_tools.claims._primary_capabilities()`
+# @used-by :func:`result_issues()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_amended_expectation_requires_new_observation_and_retains_original()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_disconfirming_false_cannot_be_forced_to_verified()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_german_url_and_turkish_ip_remain_distinct_actual_conditions()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_missing_and_unparsable_measurements_are_unverified_not_refuted()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_modified_primary_bytes_or_plan_is_rejected()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_native_action_before_after_states_and_raw_predicate_can_verify_transition()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_positive_http_observation_is_verified_and_hashed()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_unavailable_run_preserves_gap_and_does_not_assert_property()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_unconditional_literal_action_with_locator_options_remains_supported()`
 def load_experiment(root, reference):
 	return ExperimentRunValidator.load(root, reference)
+# @used-by :meth:`test_experiments.ExperimentTests.test_modified_primary_bytes_or_plan_is_rejected()`
 def load_plan(root, reference):
 	return ExperimentPlanStore(root).load(reference)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`agent_tools.cli_domains._op_prepare_experiment()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.experiment_gap()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
+# @used-by :meth:`test_experiments.ExperimentTests.plan()`
 def prepare_experiment(root, requirement, *, amendment_of=None, amendment_reason=None):
 	return ExperimentPlanStore(root).prepare(requirement, amendment_of=amendment_of, amendment_reason=amendment_reason)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`agent_tools.cli_domains._op_record_experiment()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.experiment_gap()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
+# @used-by :meth:`test_experiments.ExperimentTests.run_record()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_before_snapshot_cannot_be_taken_from_action_after_output()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_browser_label_http_and_action_in_comment_are_not_interaction_proof()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_german_url_and_turkish_ip_remain_distinct_actual_conditions()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_native_action_before_after_states_and_raw_predicate_can_verify_transition()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_native_private_mode_requires_explicit_browser_context_inspection()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_no_cookies_does_not_prove_incognito()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_unconditional_literal_action_with_locator_options_remains_supported()`
 def record_experiment(root, specification, *, tool_trace=None):
 	return ExperimentRunValidator.record(root, specification, tool_trace=tool_trace)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :meth:`ExperimentPlanStore.load()`
+# @used-by :meth:`ExperimentPlanStore.prepare()`
+# @used-by :meth:`ExperimentRunValidator._check_run_header()`
+# @used-by :meth:`ExperimentRunValidator.record()`
+# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.add()`
+# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.contract_issues()`
+# @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_validators_emit_actionable_hints()`
 def requirement_issues(requirements):
 	issues, seen = ([], set())
 	if not isinstance(requirements, list) or not requirements:
@@ -841,6 +987,9 @@ def requirement_issues(requirements):
 	# https://github.com/dmitry-ai/harness/issues/217
 	from .schema_help import annotate_experiment_issues
 	return annotate_experiment_issues(r)
+# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.contract_issues()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_positive_http_observation_is_verified_and_hashed()`
+# @used-by :meth:`test_experiments.ExperimentTests.test_unavailable_run_preserves_gap_and_does_not_assert_property()`
 def result_issues(root, requirement, result):
 	if not isinstance(result, dict):
 		r = ['Property result object required']

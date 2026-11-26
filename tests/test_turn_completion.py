@@ -1,6 +1,7 @@
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from typing import override
 import json
 from pathlib import Path
 import sqlite3
@@ -19,6 +20,19 @@ from agent_tools.platforms import codex, antigravity
 # 2026-11-23
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
+# @used-by :meth:`AntigravityCompletionTests.test_idle_and_native_terminal_status_are_both_required()`
+# @used-by :meth:`CompletionCase.test_begin_reconciles_previous_delivery_in_the_same_foreground_call()`
+# @used-by :meth:`CompletionCase.test_changed_delivery_preserves_prepared_journal_and_native_conflict_bytes()`
+# @used-by :meth:`CompletionCase.test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite()`
+# @used-by :meth:`CompletionCase.test_foreground_integrity_check_detects_changed_journal_without_native_changes()`
+# @used-by :meth:`CompletionCase.test_foreground_integrity_check_preserves_a_deleted_completed_journal_file()`
+# @used-by :meth:`CompletionCase.test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange()`
+# @used-by :meth:`CompletionCase.test_prepare_readback_is_exact_but_delivery_requires_native_completion()`
+# @used-by :meth:`CompletionCase.test_recorded_receipt_identity_tampering_is_a_preserved_conflict()`
+# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
+# @used-by :meth:`CompletionCase.test_sync_respects_the_custom_journal_of_an_unprepared_turn()`
+# @used-by :meth:`CompletionCase.test_temporary_permission_failure_reading_actual_journal_retries_next_pass()`
+# @used-by :meth:`TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 def assert_journal_response_body(case, raw, expected):
 	text = raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw
 	expected_text = expected.decode('utf-8') if isinstance(expected, (bytes, bytearray)) else expected
@@ -27,7 +41,19 @@ def assert_journal_response_body(case, raw, expected):
 	case.assertIsNotNone(parsed_meta)
 	case.assertEqual(body, expected_text)
 	return parsed_meta
+# @used-by :meth:`AntigravityAddonsIntegrationTests.test_answer_check_detects_link5_doc4_verify1_and_exec5_without_disk_side_effects()`
+# @used-by :meth:`AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
+# @used-by :meth:`AntigravityAddonsIntegrationTests.test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass()`
+# @used-by :meth:`AntigravityAddonsIntegrationTests.test_pre_invocation_hook_idempotent_turn_begin_child_skip_terminate_and_dry_run()`
+# @used-by :meth:`AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
+# @used-by :meth:`AntigravityCompletionTests.setUp()`
+# @used-by :meth:`AntigravityCompletionTests.test_unfinished_parallel_subagent_turn_merges_with_next_request_and_blocks_english_stub_on_russian_request()`
+# @used-by :meth:`TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.fixture()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 def wire(field, payload):
+	# @used-by :func:`wire()`
 	def varint(value):
 		out = bytearray()
 		while value >= 128:
@@ -40,6 +66,10 @@ def wire(field, payload):
 # 2026-11-03
 # "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 # https://github.com/dmitry-ai/harness/issues/41
+# @used-by :meth:`AntigravityCompletionTests.test_prepared_completed_antigravity_tail_is_monotonic_and_read_only()`
+# @used-by :meth:`AntigravityCompletionTests.test_recovered_completed_antigravity_tail_is_not_retroactively_prepared()`
+# @used-by :meth:`CompletionCase.test_prepared_completed_codex_tail_is_monotonic_and_read_only()`
+# @used-by :meth:`CompletionCase.test_recovered_completed_codex_tail_is_not_retroactively_prepared()`
 def completed_tail_is_immutable(case, *, platform, backend, prepared):
 	kwargs = {'conversation': case.cid, 'platform': platform, 'backend': backend, 'watch': True}
 	response = 'Immutable completed tail'
@@ -76,6 +106,8 @@ def completed_tail_is_immutable(case, *, platform, backend, prepared):
 # 2026-11-20
 # "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 # https://github.com/dmitry-ai/harness/issues/105
+# @used-by :meth:`AntigravityCompletionTests.test_explicit_sync_preserves_real_antigravity_admission_scope()`
+# @used-by :meth:`CompletionCase.test_explicit_once_preserves_real_admission_scope_and_binding()`
 def foreground_sync_preserves_admitted_delivery(case, *, platform, backend):
 	case.finish('Foreground admission result')
 	first = completion.sync(case.project, case.cid, platform=platform, backend=backend)
@@ -90,6 +122,7 @@ def foreground_sync_preserves_admitted_delivery(case, *, platform, backend):
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
 class AnswerPreparationRunnerTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_gate_id_auto_clearing_and_resolve_journal_dir(self):
 		with tempfile.TemporaryDirectory() as temp:
 			base = Path(temp)
@@ -150,6 +183,7 @@ class AnswerPreparationRunnerTests(unittest.TestCase):
 	# 2026-11-21
 	# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 	# https://github.com/dmitry-ai/harness/issues/109
+	# @used-by :mod:`unittest`
 	def test_automatic_journal_only_upgrade_and_cli_subcommand(self):
 		from contextlib import redirect_stdout
 		from io import StringIO
@@ -202,6 +236,7 @@ class AnswerPreparationRunnerTests(unittest.TestCase):
 # "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
 # https://github.com/dmitry-ai/harness/issues/61
 class CodexTurnScannerTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_service_steps_parity_subagent_cache_and_bfs_depth_cap(self):
 		with tempfile.TemporaryDirectory() as temp:
 			base = Path(temp)
@@ -239,6 +274,7 @@ class CodexTurnScannerTests(unittest.TestCase):
 			orig_open = Path.open
 			child_names = {cid + '.jsonl' for cid in chain_ids}
 			opened_headers = []
+			# @used-by :meth:`CodexTurnScannerTests.test_service_steps_parity_subagent_cache_and_bfs_depth_cap()`
 			def tracked_open(self_p, mode='r', *a, **kw):
 				if 'r' == mode and self_p.name in child_names:
 					opened_headers.append(self_p.name)
@@ -254,6 +290,13 @@ class CodexTurnScannerTests(unittest.TestCase):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class CompletionCase(unittest.TestCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`unittest.TestCase.setUp()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`unittest.TestCase.setUp()`
+	@override
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
 		self.addCleanup(self.temp.cleanup)
@@ -266,10 +309,35 @@ class CompletionCase(unittest.TestCase):
 		self.path = self.home / 'sessions' / (self.cid + '.jsonl')
 		self.rows = [self.meta(), *self.turn_rows(self.turn, 'Check .agents.  \nExact.')]
 		self.write()
+	# @used-by :meth:`CompletionCase.setUp()`
+	# @used-by :meth:`CompletionCase.test_child_foreign_root_and_foreign_profile_never_create_user_pairs()`
 	def meta(self, *, root=None, child=False):
 		return {'type': 'session_meta', 'payload': {'id': self.cid, 'cwd': str(root or self.project), 'source': {'subagent': {'thread_spawn': {'parent_thread_id': str(uuid.uuid4())}}} if child else 'vscode'}}
+	# @used-by :meth:`CompletionCase.setUp()`
+	# @used-by :meth:`CompletionCase.test_begin_reconciles_previous_delivery_in_the_same_foreground_call()`
+	# @used-by :meth:`CompletionCase.test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite()`
+	# @used-by :meth:`CompletionCase.test_child_foreign_root_and_foreign_profile_never_create_user_pairs()`
+	# @used-by :meth:`CompletionCase.test_injected_user_context_is_excluded_and_steered_requests_are_both_saved()`
+	# @used-by :meth:`CompletionCase.test_same_words_in_two_native_turns_are_two_exchanges()`
+	# @used-by :meth:`CompletionCase.test_steering_during_begin_invalidates_the_prepared_request_snapshot()`
+	# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
+	# @used-by :meth:`CompletionCase.test_switching_active_native_turn_during_prepare_records_no_answer()`
+	# @used-by :meth:`CompletionCase.test_waiting_for_writer_lock_does_not_allow_a_stale_ready_result()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.fixture()`
 	def turn_rows(self, turn, text):
 		return [{'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn}}, {'type': 'turn_context', 'payload': {'turn_id': turn, 'cwd': str(self.project)}}, {'type': 'response_item', 'payload': {'type': 'message', 'role': 'user', 'internal_chat_message_metadata_passthrough': {'content_item_kinds': ['user.text'], 'turn_id': turn}, 'content': [{'type': 'input_text', 'text': text}]}}]
+	# @used-by :meth:`CompletionCase.finish()`
+	# @used-by :meth:`CompletionCase.setUp()`
+	# @used-by :meth:`CompletionCase.test_begin_reconciles_previous_delivery_in_the_same_foreground_call()`
+	# @used-by :meth:`CompletionCase.test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite()`
+	# @used-by :meth:`CompletionCase.test_child_foreign_root_and_foreign_profile_never_create_user_pairs()`
+	# @used-by :meth:`CompletionCase.test_codex_compaction_and_adhoc_http_fetch_gates()`
+	# @used-by :meth:`CompletionCase.test_partial_final_aborted_turn_and_commentary_are_not_delivery()`
+	# @used-by :meth:`CompletionCase.test_steering_during_begin_invalidates_the_prepared_request_snapshot()`
+	# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
+	# @used-by :meth:`CompletionCase.test_switching_active_native_turn_during_prepare_records_no_answer()`
+	# @used-by :meth:`CompletionCase.test_unflagged_git_read_in_active_turn_blocks_answer_prepare()`
+	# @used-by :meth:`CompletionCase.test_waiting_for_writer_lock_does_not_allow_a_stale_ready_result()`
 	def write(self):
 		self.path.write_text(''.join((json.dumps(row, ensure_ascii=False) + '\n' for row in self.rows)), encoding='utf-8')
 		connection = sqlite3.connect(self.home / 'state_5.sqlite')
@@ -277,25 +345,116 @@ class CompletionCase(unittest.TestCase):
 		connection.execute('INSERT OR REPLACE INTO threads VALUES(?,?,NULL)', (self.cid, str(self.path)))
 		connection.commit()
 		connection.close()
+	# @used-by :meth:`CompletionCase.assert_repeated_delivery_is_read_only()`
+	# @used-by :meth:`CompletionCase.registered_delivery()`
+	# @used-by :meth:`CompletionCase.test_begin_reconciles_previous_delivery_in_the_same_foreground_call()`
+	# @used-by :meth:`CompletionCase.test_begun_but_unprepared_turn_is_reported_as_late_recovery()`
+	# @used-by :meth:`CompletionCase.test_changed_delivery_preserves_prepared_journal_and_native_conflict_bytes()`
+	# @used-by :meth:`CompletionCase.test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite()`
+	# @used-by :meth:`CompletionCase.test_complete_group_metadata_tamper_does_not_pass_historical_identity()`
+	# @used-by :meth:`CompletionCase.test_concurrent_native_reconciliation_creates_one_pair()`
+	# @used-by :meth:`CompletionCase.test_explicit_external_journal_binding_is_preserved_during_native_sync()`
+	# @used-by :meth:`CompletionCase.test_injected_user_context_is_excluded_and_steered_requests_are_both_saved()`
+	# @used-by :meth:`CompletionCase.test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission()`
+	# @used-by :meth:`CompletionCase.test_matching_native_request_ids_reuse_an_existing_record_answer_group()`
+	# @used-by :meth:`CompletionCase.test_native_sync_recovers_a_completely_skipped_prepare_once()`
+	# @used-by :meth:`CompletionCase.test_old_exact_native_turn_receipts_are_not_duplicated()`
+	# @used-by :meth:`CompletionCase.test_partial_final_aborted_turn_and_commentary_are_not_delivery()`
+	# @used-by :meth:`CompletionCase.test_partial_jsonl_and_disagreeing_native_final_are_not_verified()`
+	# @used-by :meth:`CompletionCase.test_prepare_readback_is_exact_but_delivery_requires_native_completion()`
+	# @used-by :meth:`CompletionCase.test_recorded_receipt_identity_tampering_is_a_preserved_conflict()`
+	# @used-by :meth:`CompletionCase.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`CompletionCase.test_same_words_in_two_native_turns_are_two_exchanges()`
+	# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
+	# @used-by :meth:`CompletionCase.test_sync_respects_the_custom_journal_of_an_unprepared_turn()`
+	# @used-by :meth:`CompletionCase.test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair()`
 	def finish(self, text, *, turn=None, completed=True, event_text=None):
 		self.rows.append({'type': 'response_item', 'payload': {'type': 'message', 'role': 'assistant', 'status': 'completed', 'phase': 'final_answer', 'content': [{'type': 'output_text', 'text': text}]}})
 		if completed:
 			self.rows.append({'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': turn or self.turn, 'last_agent_message': text if None is event_text else event_text}})
 		self.write()
+	# @used-by :meth:`CompletionCase.test_begun_but_unprepared_turn_is_reported_as_late_recovery()`
+	# @used-by :meth:`CompletionCase.test_child_foreign_root_and_foreign_profile_never_create_user_pairs()`
+	# @used-by :meth:`CompletionCase.test_instruction_snapshot_inventories_sources_without_claiming_model_delivery()`
+	# @used-by :meth:`CompletionCase.test_ordinary_analysis_needs_no_article_or_fabricated_intake()`
+	# @used-by :meth:`CompletionCase.test_snapshot_upgrade_is_not_misreported_as_capture_at_the_turn_start()`
+	# @used-by :meth:`CompletionCase.test_sync_respects_the_custom_journal_of_an_unprepared_turn()`
 	def begin(self, **kw):
 		return completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=False, **kw)
+	# @used-by :meth:`CompletionCase.assert_repeated_delivery_is_read_only()`
+	# @used-by :meth:`CompletionCase.test_changed_delivery_preserves_prepared_journal_and_native_conflict_bytes()`
+	# @used-by :meth:`CompletionCase.test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite()`
+	# @used-by :meth:`CompletionCase.test_child_foreign_root_and_foreign_profile_never_create_user_pairs()`
+	# @used-by :meth:`CompletionCase.test_codex_compaction_and_adhoc_http_fetch_gates()`
+	# @used-by :meth:`CompletionCase.test_complete_group_metadata_tamper_does_not_pass_historical_identity()`
+	# @used-by :meth:`CompletionCase.test_explicit_external_journal_binding_is_preserved_during_native_sync()`
+	# @used-by :meth:`CompletionCase.test_external_journal_cannot_bypass_the_current_client_document_gate()`
+	# @used-by :meth:`CompletionCase.test_malformed_local_rule_registration_is_retained_as_an_inventory_error()`
+	# @used-by :meth:`CompletionCase.test_prepare_readback_is_exact_but_delivery_requires_native_completion()`
+	# @used-by :meth:`CompletionCase.test_repeated_answer_preparation_preserves_original_recording_time()`
+	# @used-by :meth:`CompletionCase.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`CompletionCase.test_steering_during_begin_invalidates_the_prepared_request_snapshot()`
+	# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
+	# @used-by :meth:`CompletionCase.test_switching_active_native_turn_during_prepare_records_no_answer()`
+	# @used-by :meth:`CompletionCase.test_tracked_initial_analysis_still_requires_answer_bound_approval()`
+	# @used-by :meth:`CompletionCase.test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair()`
+	# @used-by :meth:`CompletionCase.test_unflagged_git_read_in_active_turn_blocks_answer_prepare()`
+	# @used-by :meth:`CompletionCase.test_waiting_for_writer_lock_does_not_allow_a_stale_ready_result()`
 	def prepare(self, text, **kw):
 		return completion.prepare(self.project, text, self.cid, platform='codex', backend=self.home, watch=False, **kw)
+	# @used-by :meth:`CompletionCase.assert_repeated_delivery_is_read_only()`
+	# @used-by :meth:`CompletionCase.registered_delivery()`
+	# @used-by :meth:`CompletionCase.test_begun_but_unprepared_turn_is_reported_as_late_recovery()`
+	# @used-by :meth:`CompletionCase.test_changed_delivery_preserves_prepared_journal_and_native_conflict_bytes()`
+	# @used-by :meth:`CompletionCase.test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite()`
+	# @used-by :meth:`CompletionCase.test_child_foreign_root_and_foreign_profile_never_create_user_pairs()`
+	# @used-by :meth:`CompletionCase.test_complete_group_metadata_tamper_does_not_pass_historical_identity()`
+	# @used-by :meth:`CompletionCase.test_concurrent_native_reconciliation_creates_one_pair()`
+	# @used-by :meth:`CompletionCase.test_explicit_external_journal_binding_is_preserved_during_native_sync()`
+	# @used-by :meth:`CompletionCase.test_foreground_integrity_check_detects_changed_journal_without_native_changes()`
+	# @used-by :meth:`CompletionCase.test_foreground_integrity_check_preserves_a_deleted_completed_journal_file()`
+	# @used-by :meth:`CompletionCase.test_injected_user_context_is_excluded_and_steered_requests_are_both_saved()`
+	# @used-by :meth:`CompletionCase.test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission()`
+	# @used-by :meth:`CompletionCase.test_matching_native_request_ids_reuse_an_existing_record_answer_group()`
+	# @used-by :meth:`CompletionCase.test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange()`
+	# @used-by :meth:`CompletionCase.test_native_sync_recovers_a_completely_skipped_prepare_once()`
+	# @used-by :meth:`CompletionCase.test_old_exact_native_turn_receipts_are_not_duplicated()`
+	# @used-by :meth:`CompletionCase.test_partial_final_aborted_turn_and_commentary_are_not_delivery()`
+	# @used-by :meth:`CompletionCase.test_partial_jsonl_and_disagreeing_native_final_are_not_verified()`
+	# @used-by :meth:`CompletionCase.test_prepare_readback_is_exact_but_delivery_requires_native_completion()`
+	# @used-by :meth:`CompletionCase.test_recorded_receipt_identity_tampering_is_a_preserved_conflict()`
+	# @used-by :meth:`CompletionCase.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`CompletionCase.test_same_words_in_two_native_turns_are_two_exchanges()`
+	# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
+	# @used-by :meth:`CompletionCase.test_sync_respects_the_custom_journal_of_an_unprepared_turn()`
+	# @used-by :meth:`CompletionCase.test_temporary_permission_failure_reading_actual_journal_retries_next_pass()`
+	# @used-by :meth:`CompletionCase.test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair()`
 	def sync(self, **kw):
 		return completion.sync(self.project, self.cid, platform='codex', backend=self.home, **kw)
+	# @used-by :meth:`CompletionCase.test_begin_reconciles_previous_delivery_in_the_same_foreground_call()`
+	# @used-by :meth:`CompletionCase.test_changed_delivery_preserves_prepared_journal_and_native_conflict_bytes()`
+	# @used-by :meth:`CompletionCase.test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite()`
+	# @used-by :meth:`CompletionCase.test_foreground_integrity_check_preserves_a_deleted_completed_journal_file()`
+	# @used-by :meth:`CompletionCase.test_injected_user_context_is_excluded_and_steered_requests_are_both_saved()`
+	# @used-by :meth:`CompletionCase.test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange()`
+	# @used-by :meth:`CompletionCase.test_prepare_readback_is_exact_but_delivery_requires_native_completion()`
+	# @used-by :meth:`CompletionCase.test_recorded_receipt_identity_tampering_is_a_preserved_conflict()`
+	# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
+	# @used-by :meth:`CompletionCase.test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair()`
 	def saved(self, sub, step=1):
 		side = '≻' if sub in ('req', '≻') else '≺'
 		return journal.step_file(self.project / 'ꙮ' / side, step).read_bytes()
 	# 2026-11-03
 	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 	# https://github.com/dmitry-ai/harness/issues/41
+	# @used-by :meth:`CompletionCase.assert_repeated_delivery_is_read_only()`
+	# @used-by :meth:`CompletionCase.test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission()`
+	# @used-by :meth:`CompletionCase.test_repeated_answer_preparation_preserves_original_recording_time()`
+	# @used-by :meth:`CompletionCase.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
 	def project_snapshot(self):
 		return {path.relative_to(self.project).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in self.project.rglob('*') if path.is_file()}
+	# @used-by :meth:`CompletionCase.test_repeated_prepared_delivery_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`CompletionCase.test_repeated_recovered_delivery_preserves_all_domain_bytes_and_mtimes()`
 	def assert_repeated_delivery_is_read_only(self, *, prepared):
 		if prepared:
 			self.prepare('Stable native response')
@@ -305,12 +464,16 @@ class CompletionCase(unittest.TestCase):
 		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(completion, '_policy', return_value={'future_policy': 'must not replace historical grounds'}), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged domain state must not be replaced')):
 			self.assertEqual(self.sync(), first)
 		self.assertEqual(self.project_snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_repeated_prepared_delivery_preserves_all_domain_bytes_and_mtimes(self):
 		self.assert_repeated_delivery_is_read_only(prepared=True)
+	# @used-by :mod:`unittest`
 	def test_repeated_recovered_delivery_preserves_all_domain_bytes_and_mtimes(self):
 		self.assert_repeated_delivery_is_read_only(prepared=False)
+	# @used-by :mod:`unittest`
 	def test_explicit_once_preserves_real_admission_scope_and_binding(self):
 		foreground_sync_preserves_admitted_delivery(self, platform='codex', backend=self.home)
+	# @used-by :mod:`unittest`
 	def test_repeated_conflict_preserves_all_domain_bytes_and_mtimes(self):
 		self.prepare('Prepared original')
 		self.finish('Different native response')
@@ -320,6 +483,7 @@ class CompletionCase(unittest.TestCase):
 		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(completion, '_policy', return_value={'future_policy': 'preserve original'}), patch.object(storage.os, 'replace', side_effect=AssertionError('A repeated conflict must not be replaced')):
 			self.assertEqual(self.sync(), first)
 		self.assertEqual(self.project_snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_recorded_receipt_identity_tampering_is_a_preserved_conflict(self):
 		self.finish('Immutable receipt source')
 		self.sync()
@@ -331,6 +495,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertFalse(result['valid'])
 		self.assertIn('verified journal identity', result['turns'][0]['detail'])
 		assert_journal_response_body(self, self.saved('res'), b'Immutable receipt source')
+	# @used-by :mod:`unittest`
 	def test_complete_group_metadata_tamper_does_not_pass_historical_identity(self):
 		self.prepare('Bound group identity')
 		self.finish('Bound group identity')
@@ -344,6 +509,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertFalse(result['valid'])
 		self.assertIn('answer-group bytes changed', result['turns'][0]['detail'])
 		self.assertEqual(group_file.read_bytes(), changed)
+	# @used-by :mod:`unittest`
 	def test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission(self):
 		response = 'Legacy complete group'
 		native = completion._native(self.project, self.cid, platform='codex', backend=self.home)
@@ -366,6 +532,7 @@ class CompletionCase(unittest.TestCase):
 		before = self.project_snapshot()
 		self.assertEqual(self.sync(), result)
 		self.assertEqual(self.project_snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_repeated_answer_preparation_preserves_original_recording_time(self):
 		first = self.prepare('Stable prepared response')
 		before = self.project_snapshot()
@@ -373,16 +540,20 @@ class CompletionCase(unittest.TestCase):
 			second = self.prepare('Stable prepared response')
 		self.assertEqual(second['recorded_at'], first['recorded_at'])
 		self.assertEqual(self.project_snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_begin_and_prepare_cannot_register_or_start_a_daemon_even_with_legacy_watch_true(self):
 		begun = completion.begin(self.project, self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
 		prepared = completion.prepare(self.project, 'Explicit foreground answer', self.cid, platform='codex', backend=self.home, watch=True, watch_dir=self.root / 'unused daemon')
 		self.assertEqual(begun['execution_mode'], 'foreground-only')
 		self.assertTrue(prepared['ready'])
 		self.assertFalse((self.root / 'unused daemon').exists())
+	# @used-by :mod:`unittest`
 	def test_prepared_completed_codex_tail_is_monotonic_and_read_only(self):
 		completed_tail_is_immutable(self, platform='codex', backend=self.home, prepared=True)
+	# @used-by :mod:`unittest`
 	def test_recovered_completed_codex_tail_is_not_retroactively_prepared(self):
 		completed_tail_is_immutable(self, platform='codex', backend=self.home, prepared=False)
+	# @used-by :mod:`unittest`
 	def test_ordinary_analysis_needs_no_article_or_fabricated_intake(self):
 		result = self.begin()
 		state = json.loads((self.project / result['state']).read_text(encoding='utf-8'))
@@ -397,6 +568,7 @@ class CompletionCase(unittest.TestCase):
 	# 2026-10-24
 	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 	# https://github.com/dmitry-ai/harness/issues/17
+	# @used-by :mod:`unittest`
 	def test_unflagged_git_read_in_active_turn_blocks_answer_prepare(self):
 		self.rows.append({'type': 'response_item', 'payload': {'type': 'custom_tool_call', 'call_id': 'bad-git', 'name': 'exec', 'input': "await Promise.allSettled([exec_command({ cmd: 'git status --short' })]);"}})
 		self.write()
@@ -413,6 +585,7 @@ class CompletionCase(unittest.TestCase):
 	# 2026-10-31
 	# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
 	# https://github.com/dmitry-ai/harness/issues/28
+	# @used-by :mod:`unittest`
 	def test_unflagged_git_read_allows_env_assignment(self):
 		from agent_tools.git_gate import unflagged_git_read_commands
 		self.assertEqual(unflagged_git_read_commands('$env:GIT_OPTIONAL_LOCKS="0"; git status --short'), [])
@@ -422,6 +595,7 @@ class CompletionCase(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_codex_compaction_and_adhoc_http_fetch_gates(self):
 		self.rows.append({'type': 'response_item', 'payload': {'type': 'custom_tool_call', 'call_id': 'c-http', 'name': 'exec', 'input': "exec_command({ cmd: 'curl.exe https://df.tips/t/2722' })"}})
 		self.write()
@@ -437,6 +611,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(recovered['compaction_check']['verified'])
 		self.assertIn('2722: Real title', recovered['pre_checkpoint_records'][0]['outputs'][0])
 		self.assertTrue(self.prepare('Allowed after recover-checkpoint')['ready'])
+	# @used-by :mod:`unittest`
 	def test_instruction_snapshot_inventories_sources_without_claiming_model_delivery(self):
 		local = self.project / '.agents/rules/local.md'
 		local.parent.mkdir(parents=True)
@@ -455,6 +630,7 @@ class CompletionCase(unittest.TestCase):
 		self.begin()
 		reread = json.loads((self.project / result['state']).read_text(encoding='utf-8'))
 		self.assertEqual(reread['instruction_snapshot'], snapshot)
+	# @used-by :mod:`unittest`
 	def test_malformed_local_rule_registration_is_retained_as_an_inventory_error(self):
 		manifest = self.project / '.agents/rules.json'
 		manifest.parent.mkdir(parents=True)
@@ -465,6 +641,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(snapshot['errors'])
 		self.assertEqual(manifest.read_bytes(), b'{"entries":')
 		self.assertEqual(next((item['sha256'] for item in snapshot['sources'] if item['path'] == str(manifest.resolve()))), completion._hash(manifest.read_bytes()))
+	# @used-by :mod:`unittest`
 	def test_snapshot_upgrade_is_not_misreported_as_capture_at_the_turn_start(self):
 		result = self.begin()
 		path = self.project / result['state']
@@ -473,6 +650,7 @@ class CompletionCase(unittest.TestCase):
 		path.write_text(json.dumps(state), encoding='utf-8')
 		self.begin()
 		self.assertEqual(json.loads(path.read_text(encoding='utf-8'))['instruction_snapshot']['capture_stage'], 'existing-state-upgrade')
+	# @used-by :mod:`unittest`
 	def test_prepare_readback_is_exact_but_delivery_requires_native_completion(self):
 		text = 'Answer with Unicode ꘖ.\r\n  Spaces preserved.  '
 		result = self.prepare(text)
@@ -485,6 +663,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(delivered['delivery_verified'])
 		self.assertFalse(delivered['recovered_after_delivery'])
 		self.assertEqual(self.saved('req'), 'Check .agents.  \nExact.'.encode())
+	# @used-by :mod:`unittest`
 	def test_explicit_external_journal_binding_is_preserved_during_native_sync(self):
 		selected = self.root / 'user selected journal'
 		result = self.prepare('Selected journal response', journal_directory=selected)
@@ -494,6 +673,7 @@ class CompletionCase(unittest.TestCase):
 		self.finish('Selected journal response')
 		self.assertTrue(self.sync()['turns'][0]['delivery_verified'])
 		self.assertFalse((self.project / 'ꙮ').exists())
+	# @used-by :mod:`unittest`
 	def test_external_journal_cannot_bypass_the_current_client_document_gate(self):
 		target = self.project / 'proposal.md'
 		target.write_text('1. Current client text.', encoding='utf-8')
@@ -504,6 +684,7 @@ class CompletionCase(unittest.TestCase):
 		with self.assertRaisesRegex(ValueError, 'changed without a current apply receipt'):
 			self.prepare('Claiming completion without the document check', journal_directory=selected)
 		self.assertFalse((selected / 'res').exists())
+	# @used-by :mod:`unittest`
 	def test_sync_respects_the_custom_journal_of_an_unprepared_turn(self):
 		selected = self.root / 'selected journal'
 		self.begin(journal_directory=selected)
@@ -511,6 +692,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(self.sync()['valid'])
 		assert_journal_response_body(self, (selected / 'res/1.md').read_bytes(), b'Actual final without preparation')
 		self.assertFalse((self.project / 'ꙮ').exists())
+	# @used-by :mod:`unittest`
 	def test_native_sync_recovers_a_completely_skipped_prepare_once(self):
 		self.finish('Already delivered answer.\n')
 		first = self.sync()['turns'][0]
@@ -519,15 +701,18 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(again['recovered_after_delivery'])
 		self.assertEqual(again['journal_steps'], first['journal_steps'])
 		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
+	# @used-by :mod:`unittest`
 	def test_concurrent_native_reconciliation_creates_one_pair(self):
 		self.finish('One delivered response')
 		with ThreadPoolExecutor(max_workers=3) as pool:
 			results = list(pool.map(lambda _: self.sync(), range(3)))
 		self.assertEqual([r['turns'][0]['journal_steps'] for r in results], [[1], [1], [1]])
 		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
+	# @used-by :mod:`unittest`
 	def test_switching_active_native_turn_during_prepare_records_no_answer(self):
 		second = str(uuid.uuid4())
 		real = completion.begin
+		# @used-by :meth:`CompletionCase.test_switching_active_native_turn_during_prepare_records_no_answer()`
 		def switch(*args, **kwargs):
 			result = real(*args, **kwargs)
 			self.rows += self.turn_rows(second, 'New human request')
@@ -538,8 +723,10 @@ class CompletionCase(unittest.TestCase):
 			with self.assertRaisesRegex(ValueError, 'changed during preparation'):
 				self.prepare('Stale response')
 		self.assertFalse((self.project / 'ꙮ').exists())
+	# @used-by :mod:`unittest`
 	def test_steering_during_begin_invalidates_the_prepared_request_snapshot(self):
 		original = completion.begin
+		# @used-by :meth:`CompletionCase.test_steering_during_begin_invalidates_the_prepared_request_snapshot()`
 		def steer(*args, **kwargs):
 			result = original(*args, **kwargs)
 			self.rows.append(self.turn_rows(self.turn, 'New constraint during preparation')[2])
@@ -550,9 +737,11 @@ class CompletionCase(unittest.TestCase):
 			with self.assertRaisesRegex(ValueError, 'changed during preparation'):
 				self.prepare('Response to the earlier request')
 		self.assertFalse((self.project / 'ꙮ').exists())
+	# @used-by :mod:`unittest`
 	def test_waiting_for_writer_lock_does_not_allow_a_stale_ready_result(self):
 		original = completion.locked
 		calls = 0
+		# @used-by :meth:`CompletionCase.test_waiting_for_writer_lock_does_not_allow_a_stale_ready_result()`
 		@contextmanager
 		def switch_after_wait(*args, **kwargs):
 			nonlocal calls
@@ -566,8 +755,10 @@ class CompletionCase(unittest.TestCase):
 			with self.assertRaisesRegex(ValueError, 'changed during preparation'):
 				self.prepare('Stale response after waiting')
 		self.assertFalse((self.project / 'ꙮ').exists())
+	# @used-by :mod:`unittest`
 	def test_steering_during_journal_write_preserves_history_without_granting_readiness(self):
 		original = completion._record
+		# @used-by :meth:`CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
 		def steer(*args, **kwargs):
 			result = original(*args, **kwargs)
 			self.rows.append(self.turn_rows(self.turn, 'Late additional condition')[2])
@@ -586,6 +777,8 @@ class CompletionCase(unittest.TestCase):
 		self.assertFalse(result['valid'])
 		assert_journal_response_body(self, self.saved('res'), b'Already recorded original response')
 		self.assertEqual((self.project / result['turns'][0]['evidence']).read_bytes(), b'Response accounting for the late condition')
+	# @used-by :meth:`CompletionCase.test_tracked_initial_analysis_still_requires_answer_bound_approval()`
+	# @used-by :meth:`CompletionCase.test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair()`
 	def tracked(self):
 		native = codex.native_answers(self.project, self.cid, backend=self.home)
 		request = native['turns'][0]['requests'][0]
@@ -599,14 +792,17 @@ class CompletionCase(unittest.TestCase):
 		path.write_text(json.dumps(state), encoding='utf-8')
 		r = path
 		return r
+	# @used-by :mod:`unittest`
 	def test_tracked_initial_analysis_still_requires_answer_bound_approval(self):
 		self.tracked()
 		with patch('agent_tools.review.authorize', side_effect=ValueError('Need approved A.A review')):
 			with self.assertRaisesRegex(ValueError, 'approved A.A'):
 				self.prepare('Unapproved response')
 		self.assertFalse((self.project / 'ꙮ').exists())
+	# @used-by :mod:`unittest`
 	def test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair(self):
 		path = self.tracked()
+		# @used-by :meth:`CompletionCase.test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair()`
 		def update(root, event, change):
 			state = workflow.load(root)
 			change(state)
@@ -623,10 +819,12 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(saved['review_approval'], approval)
 		self.finish('Approved')
 		self.assertEqual(self.sync()['turns'][0]['journal_steps'], [1])
+	# @used-by :mod:`unittest`
 	def test_begun_but_unprepared_turn_is_reported_as_late_recovery(self):
 		self.begin()
 		self.finish('Answer.')
 		self.assertTrue(self.sync()['turns'][0]['recovered_after_delivery'])
+	# @used-by :mod:`unittest`
 	def test_changed_delivery_preserves_prepared_journal_and_native_conflict_bytes(self):
 		self.prepare('Prepared answer.')
 		self.finish('Different actually delivered answer.')
@@ -636,6 +834,7 @@ class CompletionCase(unittest.TestCase):
 		conflict = self.project / result['turns'][0]['evidence']
 		self.assertEqual(conflict.read_bytes(), 'Different actually delivered answer.'.encode())
 		self.assertEqual(self.sync()['turns'][0]['status'], 'conflict')
+	# @used-by :mod:`unittest`
 	def test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite(self):
 		self.prepare('Original')
 		# 2026-11-10
@@ -655,6 +854,7 @@ class CompletionCase(unittest.TestCase):
 		state = json.loads(next((self.project / 'ꘖ/data/turns').glob('*.json')).read_text(encoding='utf-8'))
 		self.assertEqual(state['uncovered_requests'][0]['text'], 'One more condition.')
 		self.assertEqual((self.project / result['turns'][0]['evidence']).read_bytes(), b'Response including the new condition')
+	# @used-by :mod:`unittest`
 	def test_same_words_in_two_native_turns_are_two_exchanges(self):
 		self.finish('Same')
 		second = str(uuid.uuid4())
@@ -662,6 +862,7 @@ class CompletionCase(unittest.TestCase):
 		self.finish('Same', turn=second)
 		result = self.sync()
 		self.assertEqual([x['journal_steps'] for x in result['turns']], [[1], [2]])
+	# @used-by :mod:`unittest`
 	def test_matching_native_request_ids_reuse_an_existing_record_answer_group(self):
 		native = codex.native_answers(self.project, self.cid, backend=self.home)
 		request = native['turns'][0]['requests'][0]
@@ -670,6 +871,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(self.sync()['turns'][0]['journal_steps'], [1])
 		self.assertFalse((self.project / 'ꙮ/1 - Analysis').exists())
 		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
+	# @used-by :mod:`unittest`
 	def test_old_exact_native_turn_receipts_are_not_duplicated(self):
 		journal.record_answer(self.project / 'ꙮ/1 - Analysis', ['Check .agents.  \nExact.'], 'Exact', self.turn)
 		self.finish('Exact')
@@ -678,6 +880,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertFalse(result['recovered_after_delivery'])
 		self.assertFalse(result['preparation_verified'])
 		self.assertEqual(result['completion_provenance'], 'existing_journal')
+	# @used-by :mod:`unittest`
 	def test_partial_final_aborted_turn_and_commentary_are_not_delivery(self):
 		self.rows.append({'type': 'response_item', 'payload': {'type': 'message', 'role': 'assistant', 'phase': 'commentary', 'content': [{'type': 'output_text', 'text': 'Working'}]}})
 		self.finish('Incomplete', completed=False)
@@ -686,6 +889,7 @@ class CompletionCase(unittest.TestCase):
 		self.write()
 		self.assertEqual(self.sync()['turns'], [])
 		self.assertFalse((self.project / 'ꙮ').exists())
+	# @used-by :mod:`unittest`
 	def test_partial_jsonl_and_disagreeing_native_final_are_not_verified(self):
 		with self.path.open('ab') as stream:
 			stream.write(b'{"partial":')
@@ -694,6 +898,7 @@ class CompletionCase(unittest.TestCase):
 		self.finish('Actual', event_text='Different')
 		with self.assertRaisesRegex(ValueError, 'disagree'):
 			self.sync()
+	# @used-by :mod:`unittest`
 	def test_child_foreign_root_and_foreign_profile_never_create_user_pairs(self):
 		self.rows[0] = self.meta(child=True)
 		self.write()
@@ -712,6 +917,7 @@ class CompletionCase(unittest.TestCase):
 		other.mkdir()
 		with self.assertRaisesRegex(ValueError, 'missing or ambiguous'):
 			completion.begin(self.project, self.cid, platform='codex', backend=other, watch=False)
+	# @used-by :mod:`unittest`
 	def test_injected_user_context_is_excluded_and_steered_requests_are_both_saved(self):
 		injected = self.turn_rows(self.turn, '<environment_context>injected</environment_context>')[2]
 		injected['payload']['internal_chat_message_metadata_passthrough']['content_item_kinds'] = ['environments.environment_context']
@@ -720,9 +926,14 @@ class CompletionCase(unittest.TestCase):
 		result = self.sync()['turns'][0]
 		self.assertEqual(result['journal_steps'], [1, 2])
 		self.assertEqual(self.saved('req', 2), 'Clarification.'.encode())
+	# @used-by :meth:`CompletionCase.test_foreground_integrity_check_detects_changed_journal_without_native_changes()`
+	# @used-by :meth:`CompletionCase.test_foreground_integrity_check_preserves_a_deleted_completed_journal_file()`
+	# @used-by :meth:`CompletionCase.test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange()`
+	# @used-by :meth:`CompletionCase.test_temporary_permission_failure_reading_actual_journal_retries_next_pass()`
 	def registered_delivery(self):
 		self.finish('Original native final')
 		self.assertTrue(self.sync()['valid'])
+	# @used-by :mod:`unittest`
 	def test_foreground_integrity_check_detects_changed_journal_without_native_changes(self):
 		self.registered_delivery()
 		native_before = self.path.read_bytes()
@@ -741,6 +952,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(restored['valid'])
 		self.assertTrue(restored['turns'][0]['recovered_after_delivery'])
 		self.assertEqual(restored['turns'][0]['completion_provenance'], 'recovered_native')
+	# @used-by :mod:`unittest`
 	def test_foreground_integrity_check_preserves_a_deleted_completed_journal_file(self):
 		self.registered_delivery()
 		request = self.project / 'ꙮ/≻/1–20/1.md'
@@ -750,6 +962,7 @@ class CompletionCase(unittest.TestCase):
 		self.assertFalse(request.exists())
 		assert_journal_response_body(self, self.saved('res'), b'Original native final')
 		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
+	# @used-by :mod:`unittest`
 	def test_missing_completed_group_receipt_cannot_create_a_duplicate_exchange(self):
 		self.registered_delivery()
 		groups = journal.state_dir(self.project / 'ꙮ') / 'answer-groups'
@@ -758,10 +971,12 @@ class CompletionCase(unittest.TestCase):
 		self.assertFalse(result['valid'])
 		assert_journal_response_body(self, self.saved('res'), b'Original native final')
 		self.assertEqual(len(journal.iter_side_step_files(self.project / 'ꙮ/≺')), 1)
+	# @used-by :mod:`unittest`
 	def test_temporary_permission_failure_reading_actual_journal_retries_next_pass(self):
 		self.registered_delivery()
 		response = self.project / 'ꙮ/≺/1–20/1.md'
 		original = Path.read_bytes
+		# @used-by :meth:`CompletionCase.test_temporary_permission_failure_reading_actual_journal_retries_next_pass()`
 		def unavailable(path):
 			if path == response:
 				raise PermissionError('Temporary denial of journal read')
@@ -778,6 +993,7 @@ class CompletionCase(unittest.TestCase):
 	# 2026-11-03
 	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 	# https://github.com/dmitry-ai/harness/issues/41
+	# @used-by :mod:`unittest`
 	def test_begin_reconciles_previous_delivery_in_the_same_foreground_call(self):
 		self.finish('Foreground reconciliation at next turn')
 		second = str(uuid.uuid4())
@@ -794,6 +1010,11 @@ class CompletionCase(unittest.TestCase):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class AntigravityCompletionTests(unittest.TestCase):
+	# @used-by :meth:`AntigravityCompletionTests.test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict()`
+	# @used-by :meth:`unittest.TestCase.setUp()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`unittest.TestCase.setUp()`
+	@override
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
 		self.addCleanup(self.temp.cleanup)
@@ -817,8 +1038,33 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c.commit()
 		c.close()
 		self.write()
+	# @used-by :meth:`AntigravityCompletionTests.finish()`
+	# @used-by :meth:`AntigravityCompletionTests.setUp()`
+	# @used-by :meth:`AntigravityCompletionTests.test_adhoc_http_fetch_in_shell_blocks_and_collect_http_persists()`
+	# @used-by :meth:`AntigravityCompletionTests.test_code_and_issue_lifecycle_gate_blocks_uncommitted_unpushed_and_open_issue_in_prepare()`
+	# @used-by :meth:`AntigravityCompletionTests.test_excessive_unpersisted_tool_steps_without_subagent_or_kb_write_blocks()`
+	# @used-by :meth:`AntigravityCompletionTests.test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache()`
+	# @used-by :meth:`AntigravityCompletionTests.test_kb_persistence_checks_target_path_not_scratch_content()`
+	# @used-by :meth:`AntigravityCompletionTests.test_mid_turn_checkpoint_blocks_until_recover_checkpoint()`
+	# @used-by :meth:`AntigravityCompletionTests.test_post_checkpoint_unreread_source_blocks_analysis_and_response()`
+	# @used-by :meth:`AntigravityCompletionTests.test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes()`
+	# @used-by :meth:`AntigravityCompletionTests.test_unfinished_parallel_subagent_turn_merges_with_next_request_and_blocks_english_stub_on_russian_request()`
+	# @used-by :meth:`AntigravityCompletionTests.test_unpersisted_source_reads_and_af_worker_cannot_bypass_substantive_review()`
 	def write(self):
 		self.path.write_text(''.join((json.dumps(row) + '\n' for row in self.rows)), encoding='utf-8')
+	# @used-by :meth:`AntigravityCompletionTests.assert_repeated_delivery_is_read_only()`
+	# @used-by :meth:`AntigravityCompletionTests.test_crlf_prepared_journal_and_system_message_subagent_completion_do_not_conflict()`
+	# @used-by :meth:`AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
+	# @used-by :meth:`AntigravityCompletionTests.test_idle_and_native_terminal_status_are_both_required()`
+	# @used-by :meth:`AntigravityCompletionTests.test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache()`
+	# @used-by :meth:`AntigravityCompletionTests.test_journal_sync_adopt_conflict_recovers_failed_turn()`
+	# @used-by :meth:`AntigravityCompletionTests.test_mid_turn_checkpoint_blocks_until_recover_checkpoint()`
+	# @used-by :meth:`AntigravityCompletionTests.test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict()`
+	# @used-by :meth:`AntigravityCompletionTests.test_partial_step_and_child_are_not_completed_public_answers()`
+	# @used-by :meth:`AntigravityCompletionTests.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`AntigravityCompletionTests.test_single_turn_conversation_with_minus_one_last_user_index_syncs()`
+	# @used-by :meth:`AntigravityCompletionTests.test_sync_rechecks_native_step_status_without_a_transcript_or_summary_change()`
+	# @used-by :meth:`AntigravityCompletionTests.test_unencoded_file_uri_accepted_in_prepare_and_reconciled_in_sync()`
 	def finish(self, content='Final ꘖ', *, idle=True, partial=False):
 		self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': content}]
 		c = sqlite3.connect(self.backend / 'conversations' / (self.cid + '.db'))
@@ -830,13 +1076,31 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c.commit()
 		c.close()
 		self.write()
+	# @used-by :meth:`AntigravityCompletionTests.assert_repeated_delivery_is_read_only()`
+	# @used-by :meth:`AntigravityCompletionTests.test_crlf_prepared_journal_and_system_message_subagent_completion_do_not_conflict()`
+	# @used-by :meth:`AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
+	# @used-by :meth:`AntigravityCompletionTests.test_idle_and_native_terminal_status_are_both_required()`
+	# @used-by :meth:`AntigravityCompletionTests.test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache()`
+	# @used-by :meth:`AntigravityCompletionTests.test_journal_sync_adopt_conflict_recovers_failed_turn()`
+	# @used-by :meth:`AntigravityCompletionTests.test_mid_turn_checkpoint_blocks_until_recover_checkpoint()`
+	# @used-by :meth:`AntigravityCompletionTests.test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict()`
+	# @used-by :meth:`AntigravityCompletionTests.test_partial_step_and_child_are_not_completed_public_answers()`
+	# @used-by :meth:`AntigravityCompletionTests.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`AntigravityCompletionTests.test_single_turn_conversation_with_minus_one_last_user_index_syncs()`
+	# @used-by :meth:`AntigravityCompletionTests.test_sync_rechecks_native_step_status_without_a_transcript_or_summary_change()`
+	# @used-by :meth:`AntigravityCompletionTests.test_unencoded_file_uri_accepted_in_prepare_and_reconciled_in_sync()`
 	def sync(self):
 		return completion.sync(self.project, self.cid, platform='antigravity', backend=self.backend)
 	# 2026-11-03
 	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 	# https://github.com/dmitry-ai/harness/issues/41
+	# @used-by :meth:`AntigravityCompletionTests.assert_repeated_delivery_is_read_only()`
+	# @used-by :meth:`AntigravityCompletionTests.test_repeated_antigravity_preparation_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`AntigravityCompletionTests.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
 	def project_snapshot(self):
 		return {path.relative_to(self.project).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in self.project.rglob('*') if path.is_file()}
+	# @used-by :meth:`AntigravityCompletionTests.test_repeated_prepared_delivery_preserves_all_domain_bytes_and_mtimes()`
+	# @used-by :meth:`AntigravityCompletionTests.test_repeated_recovered_delivery_preserves_all_domain_bytes_and_mtimes()`
 	def assert_repeated_delivery_is_read_only(self, *, prepared):
 		if prepared:
 			completion.prepare(self.project, 'Stable Antigravity response', self.cid, platform='antigravity', backend=self.backend)
@@ -846,10 +1110,13 @@ class AntigravityCompletionTests(unittest.TestCase):
 		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(completion, '_policy', return_value={'future_policy': 'preserve Antigravity grounds'}), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged Antigravity delivery must not be replaced')):
 			self.assertEqual(self.sync(), first)
 		self.assertEqual(self.project_snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_repeated_prepared_delivery_preserves_all_domain_bytes_and_mtimes(self):
 		self.assert_repeated_delivery_is_read_only(prepared=True)
+	# @used-by :mod:`unittest`
 	def test_repeated_recovered_delivery_preserves_all_domain_bytes_and_mtimes(self):
 		self.assert_repeated_delivery_is_read_only(prepared=False)
+	# @used-by :mod:`unittest`
 	def test_repeated_conflict_preserves_all_domain_bytes_and_mtimes(self):
 		completion.prepare(self.project, 'Antigravity prepared original', self.cid, platform='antigravity', backend=self.backend)
 		self.finish('Different Antigravity native response')
@@ -859,11 +1126,13 @@ class AntigravityCompletionTests(unittest.TestCase):
 		with patch.object(completion, '_now', return_value='2099-01-01T00:00:00+00:00'), patch.object(storage.os, 'replace', side_effect=AssertionError('An unchanged Antigravity conflict must not be replaced')):
 			self.assertEqual(self.sync(), first)
 		self.assertEqual(self.project_snapshot(), before)
+	# @used-by :mod:`unittest`
 	def test_antigravity_begin_and_prepare_never_register_or_start_background_work(self):
 		begun = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=True)
 		prepared = completion.prepare(self.project, 'Foreground Antigravity preparation', self.cid, platform='antigravity', backend=self.backend, watch=True)
 		self.assertEqual(begun['execution_mode'], 'foreground-only')
 		self.assertTrue(prepared['ready'])
+	# @used-by :mod:`unittest`
 	def test_repeated_antigravity_preparation_preserves_all_domain_bytes_and_mtimes(self):
 		first = completion.prepare(self.project, 'Stable Antigravity preparation', self.cid, platform='antigravity', backend=self.backend)
 		before = self.project_snapshot()
@@ -874,12 +1143,16 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-20
 	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 	# https://github.com/dmitry-ai/harness/issues/105
+	# @used-by :mod:`unittest`
 	def test_explicit_sync_preserves_real_antigravity_admission_scope(self):
 		foreground_sync_preserves_admitted_delivery(self, platform='antigravity', backend=self.backend)
+	# @used-by :mod:`unittest`
 	def test_prepared_completed_antigravity_tail_is_monotonic_and_read_only(self):
 		completed_tail_is_immutable(self, platform='antigravity', backend=self.backend, prepared=True)
+	# @used-by :mod:`unittest`
 	def test_recovered_completed_antigravity_tail_is_not_retroactively_prepared(self):
 		completed_tail_is_immutable(self, platform='antigravity', backend=self.backend, prepared=False)
+	# @used-by :mod:`unittest`
 	def test_idle_and_native_terminal_status_are_both_required(self):
 		self.finish(idle=False)
 		self.assertEqual(self.sync()['turns'], [])
@@ -890,6 +1163,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 		result = self.sync()['turns'][0]
 		self.assertTrue(result['delivery_verified'])
 		assert_journal_response_body(self, (self.project / 'ꙮ/≺/1–20/1.md').read_text(encoding='utf-8'), 'Final ꘖ')
+	# @used-by :mod:`unittest`
 	def test_partial_step_and_child_are_not_completed_public_answers(self):
 		self.finish(partial=True)
 		self.assertEqual(self.sync()['turns'], [])
@@ -899,6 +1173,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c.close()
 		with self.assertRaisesRegex(ValueError, 'child'):
 			self.sync()
+	# @used-by :mod:`unittest`
 	def test_sync_rechecks_native_step_status_without_a_transcript_or_summary_change(self):
 		self.finish(partial=True)
 		self.assertEqual(self.sync()['turns'], [])
@@ -910,6 +1185,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_mid_turn_checkpoint_blocks_until_recover_checkpoint(self):
 		self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'echo ok'}}]}, {'step_index': 2, 'type': 'GENERIC', 'content': '2722: Resolving Next.js interference'}, {'step_index': 3, 'type': 'CHECKPOINT', 'content': 'Compacted summary omitting 2722'}]
 		self.write()
@@ -932,6 +1208,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_adhoc_http_fetch_in_shell_blocks_and_collect_http_persists(self):
 		from agent_tools import research
 		self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'python -c "import urllib.request; urllib.request.urlopen(\'https://df.tips/tag/google-analytics.json\')"'}}]}]
@@ -945,6 +1222,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_external_article_link_requires_kb_grounding_and_matching_observed_title(self):
 		marker = self.project / 'ꘖ/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -968,6 +1246,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-31
 	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
 	# https://github.com/dmitry-ai/harness/issues/27
+	# @used-by :mod:`unittest`
 	def test_universal_source_kb_check_blocks_reddit_js_shell_unverified_short_links_missing_anchors_and_fake_quotes(self):
 		from agent_tools import research
 		self.assertFalse((self.project / 'ꘖ/project.json').exists())
@@ -993,6 +1272,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_unadopted_substantive_followup_in_tracked_project_cannot_bypass_review(self):
 		marker = self.project / 'ꘖ/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -1010,6 +1290,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_kb_persistence_checks_target_path_not_scratch_content(self):
 		self.rows.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'write_file', 'args': {'Path': 'ꘖ/data/scratch/answer.md', 'Content': 'Mentions ꘖ/KB and ꘖ\\KB.'}}]})
 		self.write()
@@ -1022,6 +1303,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_adopt_requests_isolates_foreign_answer_group_mismatch(self):
 		jdir = self.project / 'ꙮ/1 - Analysis'
 		(jdir / 'req').mkdir(parents=True, exist_ok=True)
@@ -1035,6 +1317,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_unencoded_file_uri_accepted_in_prepare_and_reconciled_in_sync(self):
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
 			completion.prepare(self.project, 'See [File](file:///C:/work/with%20space.md).', self.cid, platform='antigravity', backend=self.backend, watch=False)
@@ -1047,6 +1330,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_single_turn_conversation_with_minus_one_last_user_index_syncs(self):
 		c = sqlite3.connect(self.backend / 'conversation_summaries.db')
 		c.execute('UPDATE conversation_summaries SET last_user_input_step_index=-1')
@@ -1059,6 +1343,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-30
 	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 	# https://github.com/dmitry-ai/harness/issues/21
+	# @used-by :mod:`unittest`
 	def test_excessive_unpersisted_tool_steps_without_subagent_or_kb_write_blocks(self):
 		marker = self.project / 'ꘖ/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -1075,6 +1360,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-31
 	# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
 	# https://github.com/dmitry-ai/harness/issues/30
+	# @used-by :mod:`unittest`
 	def test_unfinished_parallel_subagent_turn_merges_with_next_request_and_blocks_english_stub_on_russian_request(self):
 		req1 = '\u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0434\u0432\u0435 \u0437\u0430\u0434\u0430\u0447\u0438 \u0432 \u0440\u0435\u043f\u043e\u0437\u0438\u0442\u043e\u0440\u0438\u0438.'
 		req2 = '\u041a\u0430\u043a\u043e\u0439 \u0441\u0442\u0430\u0442\u0443\u0441 \u043f\u043e \u0437\u0430\u0434\u0430\u0447\u0430\u043c?'
@@ -1111,6 +1397,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-10-31
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
+	# @used-by :mod:`unittest`
 	def test_code_and_issue_lifecycle_gate_blocks_uncommitted_unpushed_and_open_issue_in_prepare(self):
 		import subprocess
 		bare = self.root / 'remote.git'
@@ -1167,6 +1454,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-01
 	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 	# https://github.com/dmitry-ai/harness/issues/34
+	# @used-by :mod:`unittest`
 	def test_local_source_grounding_blocks_fabricated_quotes_identifiers_and_currencies(self):
 		src_dir = self.project / 'source/Nexcess/support/48401406/KB'
 		src_dir.mkdir(parents=True, exist_ok=True)
@@ -1193,6 +1481,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-01
 	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 	# https://github.com/dmitry-ai/harness/issues/34
+	# @used-by :mod:`unittest`
 	def test_post_checkpoint_unreread_source_blocks_analysis_and_response(self):
 		src_dir = self.project / 'source/Nexcess/support/48401406/KB'
 		src_dir.mkdir(parents=True, exist_ok=True)
@@ -1217,6 +1506,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-01
 	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 	# https://github.com/dmitry-ai/harness/issues/34
+	# @used-by :mod:`unittest`
 	def test_unpersisted_source_reads_and_af_worker_cannot_bypass_substantive_review(self):
 		marker = self.project / '\ua616/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -1239,6 +1529,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-02
 	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 	# https://github.com/dmitry-ai/harness/issues/36
+	# @used-by :mod:`unittest`
 	def test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict(self):
 		jdir = self.project / 'ꙮ/1 - Analysis'
 		(jdir / 'req').mkdir(parents=True, exist_ok=True)
@@ -1277,6 +1568,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-02
 	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 	# https://github.com/dmitry-ai/harness/issues/36
+	# @used-by :mod:`unittest`
 	def test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes(self):
 		import check_rules_and_server_gate as gate
 		self.assertIsNotNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437/req/36.md'}))
@@ -1300,6 +1592,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-02
 	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 	# https://github.com/dmitry-ai/harness/issues/36
+	# @used-by :mod:`unittest`
 	def test_crlf_prepared_journal_and_system_message_subagent_completion_do_not_conflict(self):
 		prepared = completion.prepare(self.project, 'Line 1\r\nLine 2\r\n', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
@@ -1310,6 +1603,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-02
 	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 	# https://github.com/dmitry-ai/harness/issues/37
+	# @used-by :mod:`unittest`
 	def test_universal_gates_m1_to_m6_for_external_writes_dict_issues_and_kb_mutations(self):
 		import check_rules_and_server_gate as gate
 		self.assertIsNotNone(gate.check_external_write_gate('run_command', {'CommandLine': 'gh issue create --repo smokeday-com/m --title T --body B'}))
@@ -1342,6 +1636,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-02
 	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 	# https://github.com/dmitry-ai/harness/issues/38
+	# @used-by :mod:`unittest`
 	def test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks(self):
 		import os
 		import subprocess
@@ -1422,6 +1717,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-03
 	# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 	# https://github.com/dmitry-ai/harness/issues/43
+	# @used-by :mod:`unittest`
 	def test_post_finalize_turn_with_adopted_request_skips_authorize_when_non_substantive(self):
 		pj = self.project / 'ꘖ/project.json'
 		pj.parent.mkdir(parents=True, exist_ok=True)
@@ -1449,6 +1745,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-03
 	# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 	# https://github.com/dmitry-ai/harness/issues/43
+	# @used-by :mod:`unittest`
 	def test_adopt_and_unadopt_requests_lifecycle(self):
 		pj = self.project / 'ꘖ/project.json'
 		pj.parent.mkdir(parents=True, exist_ok=True)
@@ -1479,6 +1776,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-03
 	# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 	# https://github.com/dmitry-ai/harness/issues/43
+	# @used-by :mod:`unittest`
 	def test_journal_sync_adopt_conflict_recovers_failed_turn(self):
 		pj = self.project / 'ꘖ/project.json'
 		pj.parent.mkdir(parents=True, exist_ok=True)
@@ -1501,6 +1799,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-10
 	# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 	# https://github.com/dmitry-ai/harness/issues/49
+	# @used-by :mod:`unittest`
 	def test_parallel_turn_scratch_isolation_and_budget_gate(self):
 		import argparse
 		from agent_tools.operations import _operation_input
@@ -1529,6 +1828,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-10
 	# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
 	# https://github.com/dmitry-ai/harness/issues/50
+	# @used-by :mod:`unittest`
 	def test_client_deliverable_grounding_and_evicted_step_output_gate(self):
 		from agent_tools.source_grounding import local_source_grounding_issues
 		deliverable = self.project / 'Letters/1.md'
@@ -1550,6 +1850,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 	# 2026-11-10
 	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
 	# https://github.com/dmitry-ai/harness/issues/51
+	# @used-by :mod:`unittest`
 	def test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache(self):
 		from agent_tools import source_grounding
 		pj = self.project / 'ꘖ/project.json'
@@ -1594,9 +1895,11 @@ class AntigravityCompletionTests(unittest.TestCase):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class CausalBasisTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'
 		self.assertTrue(unsupported_probability_claims(text))
+	# @used-by :mod:`unittest`
 	def test_quotes_code_negation_and_explicit_symmetric_prior_are_allowed(self):
 		bad = 'equal percentages mean there is no evidentiary basis'
 		for text in ['> ' + bad, '```text\n' + bad + '\n```', 'The source writes: «' + bad + '».', 'Absence of data does not mean equal probabilities.', 'Equal prior probabilities are given by the symmetric experiment condition.']:
@@ -1605,6 +1908,7 @@ class CausalBasisTests(unittest.TestCase):
 # "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
 # https://github.com/dmitry-ai/harness/issues/53
 class IssueLifecycleTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_mixed_multi_commit_closed_issues_and_open_backlog_issue(self):
 		import subprocess
 		from agent_tools import issue_lifecycle
@@ -1651,6 +1955,7 @@ class IssueLifecycleTests(unittest.TestCase):
 	# 2026-11-18
 	# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
 	# https://github.com/dmitry-ai/harness/issues/84
+	# @used-by :mod:`unittest`
 	def test_multi_subtask_parent_and_child_commits_enforced_in_lifecycle(self):
 		import subprocess
 		from agent_tools import issue_lifecycle
@@ -1716,6 +2021,7 @@ class IssueLifecycleTests(unittest.TestCase):
 	# 2026-11-18
 	# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
 	# https://github.com/dmitry-ai/harness/issues/87
+	# @used-by :mod:`unittest`
 	def test_post_audit_turn_isolation_diagnostic_parent_and_unclosed_parent_checks(self):
 		import subprocess
 		from agent_tools import issue_lifecycle
@@ -1787,6 +2093,7 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 	# 2026-11-13
 	# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 	# https://github.com/dmitry-ai/harness/issues/59
+	# @used-by :mod:`unittest`
 	def test_multi_segment_quote_and_thousand_grouped_numeric_tokens(self):
 		from agent_tools.claims import source_numeric_tokens
 		from agent_tools.response_grounding import ResponseEvidenceAuditor
@@ -1805,6 +2112,7 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 			self.assertEqual([], ResponseEvidenceAuditor(project, good, [{'text': 'Check'}]).validate())
 			errs = ResponseEvidenceAuditor(project, bad, [{'text': 'Check'}]).validate()
 			self.assertTrue(any(('Verbatim quote' in e for e in errs)), errs)
+	# @used-by :mod:`unittest`
 	def test_stage_isolation_extracts_refs_and_validates_observation_bundle(self):
 		from agent_tools.response_grounding import ResponseEvidenceAuditor
 		with tempfile.TemporaryDirectory() as temp:
@@ -1830,6 +2138,7 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 	# https://github.com/dmitry-ai/harness/issues/81
+	# @used-by :mod:`unittest`
 	def test_m2_m3_m5_response_grounding_markdown_stale_extraction_and_canonical_upwork_job_urls(self):
 		from agent_tools.response_grounding import ResponseEvidenceAuditor
 		with tempfile.TemporaryDirectory() as temp:
@@ -1867,6 +2176,7 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 # "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/64
 class TraceCommonTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_iter_antigravity_subagents_and_kb_persistence_parity(self):
 		from agent_tools.platforms import trace_common
 		str_call = {'name': 'invoke_subagent', 'args': json.dumps({'TypeName': 'self', 'Model': 'inherit', 'Prompt': 'Review package'})}
@@ -1884,6 +2194,7 @@ class TraceCommonTests(unittest.TestCase):
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
 class TurnJournalReconcilerTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_compacted_status5_steps_single_pass_authorize_and_group_helpers(self):
 		with tempfile.TemporaryDirectory() as temp:
 			base = Path(temp)
@@ -1923,6 +2234,7 @@ class TurnJournalReconcilerTests(unittest.TestCase):
 # "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 # https://github.com/dmitry-ai/harness/issues/41
 class WatcherLifecycleTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
 		with tempfile.TemporaryDirectory() as temp:
 			path = Path(temp) / 'unchanged.json'
@@ -1935,6 +2247,7 @@ class WatcherLifecycleTests(unittest.TestCase):
 	# 2026-11-20
 	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 	# https://github.com/dmitry-ai/harness/issues/105
+	# @used-by :mod:`unittest`
 	def test_retired_journal_watch_commands_are_removed(self):
 		self.assertNotIn('journal-watch', completion.COMMANDS)
 		self.assertNotIn('journal-unwatch', completion.COMMANDS)
@@ -1942,6 +2255,7 @@ class WatcherLifecycleTests(unittest.TestCase):
 # "Integrate declarative Antigravity addons health and sanctioning into Harness":
 # https://github.com/dmitry-ai/harness/issues/92
 class AntigravityAddonsIntegrationTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_sanctioned_addon_roots_and_cdp_bypass_gate(self):
 		import tempfile
 		from unittest.mock import patch
@@ -1989,6 +2303,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 	# 2026-11-19
 	# "Remove Antigravity addons runtime health probing from Harness":
 	# https://github.com/dmitry-ai/harness/issues/93
+	# @used-by :mod:`unittest`
 	def test_doctor_and_turn_begin_exclude_addons_health(self):
 		import importlib.util
 		import json
@@ -2056,6 +2371,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			(open_path.parent / (del_key + '.json')).write_text(json.dumps(del_state), encoding='utf-8')
 			_, kept = completion._state(proj, del_native, del_turn)
 			self.assertEqual(kept['addons_health'], legacy_health)
+	# @used-by :mod:`unittest`
 	def test_multi_subtask_decomposition_aggregates_across_repositories(self):
 		import json
 		import tempfile
@@ -2093,6 +2409,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 	# 2026-11-21
 	# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 	# https://github.com/dmitry-ai/harness/issues/116
+	# @used-by :mod:`unittest`
 	def test_pre_invocation_hook_idempotent_turn_begin_child_skip_terminate_and_dry_run(self):
 		from contextlib import closing
 		import os
@@ -2174,6 +2491,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 	# 2026-11-21
 	# "Add read-only answer-check pre-flight validation command to harness CLI":
 	# https://github.com/dmitry-ai/harness/issues/117
+	# @used-by :mod:`unittest`
 	def test_answer_check_detects_link5_doc4_verify1_and_exec5_without_disk_side_effects(self):
 		from contextlib import closing
 		import os
@@ -2293,6 +2611,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 	# 2026-11-21
 	# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
 	# https://github.com/dmitry-ai/harness/issues/119
+	# @used-by :mod:`unittest`
 	def test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass(self):
 		from contextlib import closing
 		import hashlib
@@ -2404,6 +2723,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 	# 2026-11-22
 	# "Auto-name Antigravity conversations from project journal step numbers":
 	# https://github.com/dmitry-ai/harness/issues/120
+	# @used-by :mod:`unittest`
 	def test_antigravity_journal_conversation_auto_titling_and_comma_append(self):
 		from contextlib import closing
 		from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -2433,8 +2753,10 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			rpc_calls: list[dict] = []
 			csrf_secret = 'csrf-token-issue-120'
 			class _MockLSHandler(BaseHTTPRequestHandler):
+				# @used-by :meth:`AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
 				def log_message(self, fmt, *args):
 					return
+				# @used-by :meth:`AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
 				def do_POST(self):
 					length = int(self.headers.get('Content-Length') or 0)
 					raw = self.rfile.read(length).decode('utf-8')
@@ -2465,6 +2787,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.addCleanup(server.server_close)
 			(backend / 'daemon' / 'hub_99999.json').write_text(json.dumps({'pid': 99999999, 'httpPort': 99999, 'csrfToken': 'dead'}), encoding='utf-8')
 			(backend / 'daemon' / f'hub_{port}.json').write_text(json.dumps({'pid': os.getpid(), 'httpPort': port, 'httpsPort': 0, 'lsVersion': '2.34.0', 'csrfToken': csrf_secret}), encoding='utf-8')
+			# @used-by :meth:`AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
 			def _add_conv(cid: str, text: str, *, parent: str='', title: str='Auto Slop Title', write_log: bool=False):
 				with closing(sqlite3.connect(summaries_db)) as c:
 					c.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?,?)', (cid, title, parent, json.dumps([proj.as_uri()]), 'CASCADE_RUN_STATUS_RUNNING', 1, 0, 0, 'self' if parent else ''))
@@ -2592,6 +2915,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 	# 2026-11-22
 	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
 	# https://github.com/dmitry-ai/harness/issues/123
+	# @used-by :mod:`unittest`
 	def test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption(self):
 		from contextlib import closing
 		import os
@@ -2630,6 +2954,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			with closing(sqlite3.connect(summaries_db)) as conn:
 				conn.execute('CREATE TABLE conversation_summaries(conversation_id TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
 				conn.commit()
+			# @used-by :meth:`AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
 			def _setup_conv(prompt_text: str):
 				cid = str(uuid.uuid4())
 				t_log = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
@@ -2644,6 +2969,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 					c.execute('INSERT INTO steps VALUES(0, 14, 3, 0, ?)', (wire(19, wire(2, prompt_text.encode('utf-8'))),))
 					c.commit()
 				return (cid, t_log, rows)
+			# @used-by :meth:`AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
 			def _commit_and_close_a(mod_path: Path, issue_num: int, val: int) -> None:
 				test_p = peer_a / 'code/tests/test_app.py'
 				test_p.parent.mkdir(parents=True, exist_ok=True)
@@ -2660,6 +2986,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			# 2026-11-23
 			# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 			# https://github.com/dmitry-ai/harness/issues/138
+			# @used-by :meth:`AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
 			def _append_tdd_rows(rows_list: list[dict], test_paths: list[Path], prod_paths: list[Path], issue_specs: list[tuple[str, int]] = ()) -> int:
 				st = max((r.get('step_index', 0) for r in rows_list), default=0) + 1
 				# 2026-11-23
@@ -2768,6 +3095,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 	# 2026-11-23
 	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 	# https://github.com/dmitry-ai/harness/issues/132
+	# @used-by :mod:`unittest`
 	def test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project(self):
 		from contextlib import closing
 		from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -2800,8 +3128,10 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			rpc_titles: list[tuple[str, str]] = []
 			csrf_secret = 'csrf-issue-132'
 			class _MockTitleHandler(BaseHTTPRequestHandler):
+				# @used-by :meth:`AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
 				def log_message(self, fmt, *args):
 					return
+				# @used-by :meth:`AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
 				def do_POST(self):
 					raw = self.rfile.read(int(self.headers.get('Content-Length') or 0)).decode('utf-8')
 					body = json.loads(raw) if raw.strip() else {}
@@ -2823,6 +3153,7 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.addCleanup(server.server_close)
 			self.addCleanup(server.shutdown)
 			(backend / 'daemon' / f'hub_{port}.json').write_text(json.dumps({'pid': os.getpid(), 'httpPort': port, 'httpsPort': 0, 'lsVersion': '2.34.0', 'csrfToken': csrf_secret}), encoding='utf-8')
+			# @used-by :meth:`AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
 			def _make_conv(ws: Path, prompt_text: str):
 				cid = str(uuid.uuid4())
 				with closing(sqlite3.connect(summaries_db)) as c:

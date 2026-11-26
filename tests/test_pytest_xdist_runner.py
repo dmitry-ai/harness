@@ -17,6 +17,7 @@ from agent_tools import failfast_gate, tdd_gate
 # "Enable parallel pytest-xdist full-suite execution and outcome parsing":
 # https://github.com/dmitry-ai/harness/issues/178
 class PytestXdistRunnerTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_classify_pytest_xdist_full_suite_and_filtered(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()
@@ -41,6 +42,7 @@ class PytestXdistRunnerTests(unittest.TestCase):
 				info_part = tdd_gate.classify_test_command(narrowed, scope_root=repo)
 				self.assertTrue(info_part['is_test_cmd'])
 				self.assertFalse(info_part['is_full_suite'])
+	# @used-by :mod:`unittest`
 	def test_conftest_adds_scripts_and_tests_paths_and_sets_default_no_fsync(self) -> None:
 		conftest_mod = importlib.import_module('conftest')
 		with patch.dict(os.environ, {}, clear=False):
@@ -54,6 +56,7 @@ class PytestXdistRunnerTests(unittest.TestCase):
 			paths_keep: list[str] = []
 			conftest_mod.configure_test_environment(sys_path=paths_keep, env=os.environ)
 			self.assertEqual('0', os.environ.get('HARNESS_TEST_NO_FSYNC'))
+	# @used-by :mod:`unittest`
 	def test_parse_command_outcome_handles_pytest_xdist_pass_fail_and_exit_code_5(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			t = Path(tmp).resolve()
@@ -76,6 +79,7 @@ class PytestXdistRunnerTests(unittest.TestCase):
 			self.assertEqual(1, fail_res['exit_code'])
 			self.assertTrue(fail_res['is_failure'])
 			self.assertFalse(fail_res['is_pass'])
+	# @used-by :mod:`unittest`
 	def test_tdd_state_machine_rejects_exit_5_red_and_accepts_xdist_full_green(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()

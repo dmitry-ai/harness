@@ -37,6 +37,7 @@ _TECH_MARKERS = ('app/code/', 'vendor/', '::', '### Problem', '## 1. Root Cause'
 # "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
 # https://github.com/dmitry-ai/harness/issues/77
 class IssueMarkdownLinter:
+	# @used-by :meth:`IssueMarkdownLinter.lint()`
 	@staticmethod
 	def _check_body_blocks(text: str, out: list[dict[str, Any]], *, check_structure_policy: bool, parent_number: int | None, repo: str | None, self_number: int | None) -> None:
 		in_fence = False
@@ -61,6 +62,7 @@ class IssueMarkdownLinter:
 		for repo_err in chat_repo_link_issues(text):
 			out.append({'code': 'REPO_LINK_FORBIDDEN', 'message': repo_err})
 		IssueMarkdownLinter._check_body_policy(text, out, check_structure_policy=check_structure_policy, parent_number=parent_number, repo=repo, self_number=self_number)
+	# @used-by :meth:`IssueMarkdownLinter._check_body_blocks()`
 	@staticmethod
 	def _check_body_policy(text: str, out: list[dict[str, Any]], *, check_structure_policy: bool, parent_number: int | None, repo: str | None, self_number: int | None) -> None:
 		if 150 <= len(text) and '`' not in text and any((k in text for k in _TECH_MARKERS)):
@@ -71,6 +73,7 @@ class IssueMarkdownLinter:
 			m_roots = IssueMarkdownLinter.extract_unlinked_m_subtasks(text, self_number=self_number, parent_number=parent_number)
 			if 2 <= len(m_roots):
 				out.append({'code': 'BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', 'message': f'Issue body bundles multiple autonomous remediation subtasks ({", ".join(m_roots)}); document the original problem in a parent issue and create a separate child issue (--parent <N>) with its own commit for each autonomous subtask'})
+	# @used-by :meth:`IssueMarkdownLinter.lint()`
 	@staticmethod
 	def _check_encoding_and_patterns(text: str, out: list[dict[str, Any]]) -> None:
 		if '\ufeff' in text:
@@ -86,6 +89,7 @@ class IssueMarkdownLinter:
 		for view_key, pat, code_name, msg in _PATTERN_RULES:
 			if pat.search(views[view_key]):
 				out.append({'code': code_name, 'message': msg})
+	# @used-by :meth:`IssueMarkdownLinter.has_enumerated_slop_title()`
 	@staticmethod
 	def _clause_has_triple_enumeration(clause: str) -> bool:
 		c = clause.strip()
@@ -99,6 +103,7 @@ class IssueMarkdownLinter:
 				rest = _TITLE_INTRO_PREP_RE.sub('', c, count=1)
 			r = 2 <= rest.count(',') or bool(_TITLE_OXFORD_TRIPLE_RE.search(rest)) or bool(_TITLE_NON_OXFORD_TRIPLE_RE.search(rest))
 		return r
+	# @used-by :meth:`IssueMarkdownLinter.extract_unlinked_m_subtasks()`
 	@staticmethod
 	def _collect_m_subtask_groups(clean: str) -> dict[str, list[str]]:
 		by_root: dict[str, list[str]] = {}
@@ -113,6 +118,8 @@ class IssueMarkdownLinter:
 			else:
 				cur_root = None
 		return by_root
+	# @used-by :func:`agent_tools.github_issue.body_references_parent_issue()`
+	# @used-by :meth:`IssueMarkdownLinter._check_body_policy()`
 	@staticmethod
 	def body_references_parent(body: str, repo: str | None, parent_number: int) -> bool:
 		clean = IssueMarkdownLinter.strip_fenced_blocks(body)
@@ -120,6 +127,10 @@ class IssueMarkdownLinter:
 		url_hit = bool(repo and re.search(f'https://github\\.com/{re.escape(repo)}/issues/{pnum}(?![0-9])', clean, re.I))
 		r = url_hit or bool(re.search(f'(?<![A-Za-z0-9_/])#{pnum}\\b', clean))
 		return r
+	# @used-by :func:`agent_tools.github_issue.extract_parent_issue_number()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
+	# @used-by :func:`agent_tools.issues.workspace._parse_parent_from_issue_dict()`
+	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._build_issue_record()`
 	@staticmethod
 	def extract_parent_number(body: str, repo: str | None=None) -> int | None:
 		clean = IssueMarkdownLinter.strip_fenced_blocks(body)
@@ -129,6 +140,8 @@ class IssueMarkdownLinter:
 		else:
 			r = int(m.group(2) or m.group(3))
 		return r
+	# @used-by :func:`agent_tools.github_issue.extract_unlinked_m_subtask_roots()`
+	# @used-by :meth:`IssueMarkdownLinter._check_body_policy()`
 	@staticmethod
 	def extract_unlinked_m_subtasks(body: str, *, self_number: int | None=None, parent_number: int | None=None) -> list[str]:
 		by_root = IssueMarkdownLinter._collect_m_subtask_groups(IssueMarkdownLinter.strip_fenced_blocks(body))
@@ -146,6 +159,7 @@ class IssueMarkdownLinter:
 			distinct_slots = len(all_child_refs) + (1 if unlinked else 0)
 			r = unlinked if 2 <= len(unlinked) else list(by_root) if distinct_slots < len(by_root) else []
 		return r
+	# @used-by :meth:`IssueMarkdownLinter.has_enumerated_slop_title()`
 	@staticmethod
 	def _has_backtick_enumeration(text: str) -> bool:
 		r = False
@@ -155,6 +169,8 @@ class IssueMarkdownLinter:
 				r = True
 				break
 		return r
+	# @used-by :func:`agent_tools.github_issue.has_enumerated_slop_title()`
+	# @used-by :meth:`IssueMarkdownLinter.lint()`
 	@staticmethod
 	def has_enumerated_slop_title(title: str) -> bool:
 		s = ' '.join((title or '').strip().split())
@@ -171,6 +187,12 @@ class IssueMarkdownLinter:
 			if not r:
 				r = any((IssueMarkdownLinter._clause_has_triple_enumeration(part) for part in re.split('\\s*(?::|\\u2014|--)\\s*', s)))
 		return r
+	# @used-by :func:`agent_tools.issues.repo_commands._audit_repo_comments()`
+	# @used-by :func:`agent_tools.issues.repo_commands._audit_repo_issues()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
+	# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_markdown_table_blocked_across_doc4_hook_linter_and_grounding()`
+	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
+	# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban()`
 	def lint(self, text: str, *, is_title: bool=False, target_locale: str='en-US', container_text: str | None=None, check_structure_policy: bool=True, parent_number: int | None=None, repo: str | None=None, self_number: int | None=None) -> list[dict[str, Any]]:
 		r: list[dict[str, Any]] = []
 		if not isinstance(text, str) or not text.strip():
@@ -183,9 +205,11 @@ class IssueMarkdownLinter:
 				self._check_body_blocks(text, r, check_structure_policy=check_structure_policy, parent_number=parent_number, repo=repo, self_number=self_number)
 			r.extend(verify_target_locale(text, target_locale=target_locale, container_text=container_text, is_title=is_title))
 		return r
+	# @used-by :func:`agent_tools.github_issue.normalize_newlines()`
 	@staticmethod
 	def normalize_newlines(text: str) -> str:
 		return text.replace('\r\n', '\n').replace('\r', '\n')
+	# @used-by :meth:`IssueMarkdownLinter.parse_parent_arg()`
 	@staticmethod
 	def _parse_parent_str(s: str, repo: str | None, raw_parent) -> int:
 		m_num, m_url = (re.fullmatch('#?(\\d+)', s), _PARENT_ARG_URL_RE.fullmatch(s))
@@ -200,6 +224,8 @@ class IssueMarkdownLinter:
 		if 0 >= val:
 			raise ValueError(f'Invalid --parent issue number: {raw_parent}')
 		return val
+	# @used-by :func:`agent_tools.github_issue.parse_parent_issue_arg()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
 	@staticmethod
 	def parse_parent_arg(raw_parent: str | int | None, repo: str | None=None) -> int | None:
 		if None is raw_parent or (isinstance(raw_parent, str) and not raw_parent.strip()):
@@ -211,6 +237,9 @@ class IssueMarkdownLinter:
 		else:
 			r = IssueMarkdownLinter._parse_parent_str(str(raw_parent).strip(), repo, raw_parent)
 		return r
+	# @used-by :func:`agent_tools.github_issue.read_utf8_no_bom_file()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
+	# @used-by :func:`agent_tools.issues.service_helpers.resolve_title()`
 	@staticmethod
 	def read_utf8_no_bom_file(path_str: str) -> tuple[Path, bytes, str]:
 		path = Path(path_str).resolve()
@@ -223,14 +252,23 @@ class IssueMarkdownLinter:
 			raise ValueError(f'File {path} is not valid UTF-8: {exc}') from exc
 		r = (path, raw, text)
 		return r
+	# @used-by :meth:`IssueMarkdownLinter.body_references_parent()`
+	# @used-by :meth:`IssueMarkdownLinter.extract_parent_number()`
+	# @used-by :meth:`IssueMarkdownLinter.extract_unlinked_m_subtasks()`
 	@staticmethod
 	def strip_fenced_blocks(text: str) -> str:
 		return _FENCED_RE.sub('', text or '')
+	# @used-by :func:`agent_tools.github_issue._validate_repo()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_audit_repo()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_transfer_repo()`
 	@staticmethod
 	def validate_repo(repo: str) -> str:
 		if not REPO_RE.match(repo or ''):
 			raise ValueError(f'Invalid GitHub repository "{repo}"; expected "owner/repo"')
 		return repo
+	# @used-by :func:`agent_tools.issues.repo_commands.run_transfer_repo()`
 	@staticmethod
 	def validate_slug_part(value: str, label: str) -> str:
 		val = (value or '').strip()

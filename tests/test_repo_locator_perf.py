@@ -1,6 +1,7 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from typing import override
 from unittest.mock import patch
 import json
 import os
@@ -13,6 +14,9 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools import path_registry
 from agent_tools.issues import repo_locator
 from agent_tools.issues.workspace import IssueEvidenceWorkspace
+# @used-by :meth:`RepoLocatorPerformanceTests.test_find_local_code_repo_discovers_direct_similar_project_peer_locally()`
+# @used-by :meth:`RepoLocatorPerformanceTests.test_find_tracked_child_issues_passes_code_repo_without_rescanning()`
+# @used-by :meth:`RepoLocatorPerformanceTests.test_pruned_walk_skips_heavy_dirs_and_respects_ttl_cache_and_reset()`
 def _make_git_config(repo_dir: Path, slug: str) -> Path:
 	cfg = repo_dir / '.git/config'
 	cfg.parent.mkdir(parents=True, exist_ok=True)
@@ -22,8 +26,16 @@ def _make_git_config(repo_dir: Path, slug: str) -> Path:
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
 class RepoLocatorPerformanceTests(unittest.TestCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`unittest.TestCase.tearDown()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`unittest.TestCase.tearDown()`
+	@override
 	def tearDown(self) -> None:
 		path_registry.clear_registry_cache()
+	# @used-by :mod:`unittest`
 	def test_find_local_code_repo_discovers_direct_similar_project_peer_locally(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -37,6 +49,7 @@ class RepoLocatorPerformanceTests(unittest.TestCase):
 			with patch.object(repo_locator, '_search_registry_and_roots', side_effect=AssertionError('must not scan global roots')):
 				found = repo_locator.find_local_code_repo('acme/peer-b', project_root=peer_a)
 			self.assertEqual(code_b, found)
+	# @used-by :mod:`unittest`
 	def test_find_local_code_repo_isolates_temp_project_from_host_search_roots(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'isolated_proj'
@@ -44,6 +57,7 @@ class RepoLocatorPerformanceTests(unittest.TestCase):
 			with patch.object(repo_locator, '_search_registry_and_roots', side_effect=AssertionError('must not scan host roots for temp project')):
 				found = repo_locator.find_local_code_repo('nonexistent-org/missing-repo', project_root=proj)
 			self.assertIsNone(found)
+	# @used-by :mod:`unittest`
 	def test_find_tracked_child_issues_passes_code_repo_without_rescanning(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -55,6 +69,7 @@ class RepoLocatorPerformanceTests(unittest.TestCase):
 			with patch.object(ws, 'find_local_code_repo', side_effect=AssertionError('must reuse explicit code_repo')):
 				children = ws.find_tracked_child_issues('acme/demo', 10, project_root=proj, code_repo=code)
 			self.assertEqual([20], [c['number'] for c in children])
+	# @used-by :mod:`unittest`
 	def test_pruned_walk_skips_heavy_dirs_and_respects_ttl_cache_and_reset(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve() / 'search_root'
@@ -64,6 +79,7 @@ class RepoLocatorPerformanceTests(unittest.TestCase):
 			_make_git_config(root / 'a/b/c/d/e/f/g/h/i/too_deep', 'acme/too-deep')
 			walk_calls: list[str] = []
 			real_walk = os.walk
+			# @used-by :meth:`RepoLocatorPerformanceTests.test_pruned_walk_skips_heavy_dirs_and_respects_ttl_cache_and_reset()`
 			def spy_walk(top, *args, **kwargs):
 				walk_calls.append(str(top))
 				return real_walk(top, *args, **kwargs)

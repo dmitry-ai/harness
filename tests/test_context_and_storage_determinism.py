@@ -17,6 +17,7 @@ from agent_tools.storage import locked
 # "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
 # https://github.com/dmitry-ai/harness/issues/158
 class ContextAndStorageDeterminismTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_generate_accepts_explicit_now_for_deterministic_timestamp(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -30,6 +31,7 @@ class ContextAndStorageDeterminismTests(unittest.TestCase):
 			self.assertIn('Generated: 2026-11-23T12:34:56+00:00', out_content)
 			self.assertEqual(out_content, expected_content)
 			self.assertEqual(out_sources, expected_sources)
+	# @used-by :mod:`unittest`
 	def test_locked_concurrent_fresh_files_succeed_without_permission_error(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -37,6 +39,7 @@ class ContextAndStorageDeterminismTests(unittest.TestCase):
 				lock_path = base / f'race-{idx}.lock'
 				barrier = threading.Barrier(6)
 				counter = [0]
+				# @used-by :meth:`ContextAndStorageDeterminismTests.test_locked_concurrent_fresh_files_succeed_without_permission_error()`
 				def _worker(p: Path=lock_path, b: threading.Barrier=barrier, c: list[int]=counter) -> int:
 					b.wait()
 					with locked(p, timeout=10):
@@ -49,6 +52,7 @@ class ContextAndStorageDeterminismTests(unittest.TestCase):
 					results = list(pool.map(lambda _: _worker(), range(6)))
 				self.assertEqual(sorted(results), [1, 2, 3, 4, 5, 6])
 				self.assertEqual(counter[0], 6)
+	# @used-by :mod:`unittest`
 	def test_locked_create_on_held_zero_byte_lock_waits_without_permission_error(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			lock_path = Path(tmp).resolve() / 'zero.lock'
@@ -56,6 +60,7 @@ class ContextAndStorageDeterminismTests(unittest.TestCase):
 			held = threading.Event()
 			errors: list[BaseException] = []
 			order: list[str] = []
+			# @used-by :meth:`ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`
 			def _holder() -> None:
 				try:
 					with locked(lock_path, timeout=5, create=False):

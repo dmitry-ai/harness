@@ -16,10 +16,13 @@ from .turn_routing import resolve_active_turn_state
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
 NOT_RUN_STAGES = ('live_llm_generation', 'live_upwork_browser_capture', 'live_antigravity_rpc_title_sync')
+# @used-by :func:`_run_pre_invocation()`
+# @used-by :func:`_run_stop_gate()`
 def _ensure_scripts_path() -> None:
 	scripts_dir = str(Path(__file__).resolve().parents[1])
 	if scripts_dir not in sys.path:
 		sys.path.insert(0, scripts_dir)
+# @used-by :func:`_run_finalize_stage()`
 def _execute_finalize_reply(shadow_project: Path, reply_p: Path, checks: dict, verified: list[str], errors: list[str]) -> None:
 	try:
 		reply_rel = reply_p.resolve().relative_to(shadow_project.resolve()).as_posix()
@@ -35,6 +38,7 @@ def _execute_finalize_reply(shadow_project: Path, reply_p: Path, checks: dict, v
 	except (OSError, ValueError) as exc:
 		checks['stage_finalize'] = {'status': 'failed', 'error': str(exc)}
 		errors.append(f'stage_finalize: {exc}')
+# @used-by :func:`_run_shadow_mode()`
 def _execute_replay_pipeline(shadow_project: Path, shadow_launcher: Path | None, shadow_root: Path, cid: str, platform: str, backend_dir: Path, native_tx: Path | None, response_file: Path | None, checks: dict, verified: list[str], errors: list[str]) -> None:
 	_run_pre_invocation(shadow_launcher or shadow_project, shadow_launcher, cid, native_tx, backend_dir, checks, verified, errors)
 	_run_turn_begin(shadow_project, cid, platform, backend_dir, checks, verified, errors)
@@ -47,6 +51,8 @@ def _execute_replay_pipeline(shadow_project: Path, shadow_launcher: Path | None,
 	_run_stop_gate(shadow_project, 'stop_gate_project', cid, stop_tx, backend_dir, checks, verified, errors)
 	if None is not shadow_launcher:
 		_run_stop_gate(shadow_launcher, 'stop_gate_launcher', cid, stop_tx, backend_dir, checks, verified, errors)
+# @used-by :func:`_load_candidate()`
+# @used-by :func:`_run_finalize_stage()`
 def _find_reply_path(shadow_project: Path, cid: str) -> Path | None:
 	turns_dir = project_paths(shadow_project, exact_root=True).turns_dir
 	state = resolve_active_turn_state(turns_dir, cid, 10**9) if turns_dir.is_dir() else None
@@ -59,6 +65,7 @@ def _find_reply_path(shadow_project: Path, cid: str) -> Path | None:
 		ids = get_existing_step_ids(jdir) if jdir.is_dir() else []
 		r = step_file(journal_pair_dirs(jdir)[1], max(ids), directory=jdir) if ids else None
 	return r
+# @used-by :func:`_execute_replay_pipeline()`
 def _load_candidate(shadow_project: Path, shadow_root: Path, response_file: Path | None, cid: str) -> tuple[Path | None, str]:
 	if None is not response_file:
 		body = strip_leading_metadata_header(Path(response_file).read_bytes().decode('utf-8-sig'))
@@ -69,6 +76,7 @@ def _load_candidate(shadow_project: Path, shadow_root: Path, response_file: Path
 	if None is not dest:
 		dest.write_bytes(body.encode('utf-8'))
 	return (dest, body)
+# @used-by :func:`_run_shadow_mode()`
 def _resolve_native_paths(cid: str, backend: Path | None) -> tuple[Path, Path | None]:
 	resolved = resolve_antigravity_paths(backend=backend, conversation_id=cid)
 	backend_dir = Path(resolved['backend_dir']).resolve()
@@ -77,6 +85,7 @@ def _resolve_native_paths(cid: str, backend: Path | None) -> tuple[Path, Path | 
 	comp_t = logs_dir / 'transcript.jsonl'
 	tx = full_t if full_t.is_file() else (comp_t if comp_t.is_file() else None)
 	return (backend_dir, tx)
+# @used-by :func:`_execute_replay_pipeline()`
 def _run_answer_check(shadow_project: Path, cand_path: Path | None, cid: str, platform: str, backend: Path, checks: dict, verified: list[str], errors: list[str]) -> None:
 	if None is cand_path:
 		errors.append('answer_check: No candidate response file or prepared journal reply found')
@@ -92,6 +101,7 @@ def _run_answer_check(shadow_project: Path, cand_path: Path | None, cid: str, pl
 		except (OSError, ValueError) as exc:
 			checks['answer_check'] = {'valid': False, 'error': str(exc)}
 			errors.append(f'answer_check: {exc}')
+# @used-by :func:`_execute_replay_pipeline()`
 def _run_answer_prepare(shadow_project: Path, cand_path: Path | None, cid: str, platform: str, backend: Path, checks: dict, verified: list[str], errors: list[str]) -> dict | None:
 	r = None
 	if None is not cand_path:
@@ -106,6 +116,7 @@ def _run_answer_prepare(shadow_project: Path, cand_path: Path | None, cid: str, 
 			checks['answer_prepare'] = {'ready': False, 'error': str(exc)}
 			errors.append(f'answer_prepare: {exc}')
 	return r
+# @used-by :func:`_execute_replay_pipeline()`
 def _run_finalize_stage(shadow_project: Path, prep_res: dict | None, cid: str, checks: dict, verified: list[str], errors: list[str]) -> None:
 	wf_path = shadow_project / '\ua616/data/workflow.json'
 	if wf_path.is_file():
@@ -119,6 +130,7 @@ def _run_finalize_stage(shadow_project: Path, prep_res: dict | None, cid: str, c
 				errors.append('stage_finalize: Missing prepared journal reply file')
 			else:
 				_execute_finalize_reply(shadow_project, reply_p, checks, verified, errors)
+# @used-by :func:`_execute_replay_pipeline()`
 def _run_pre_invocation(target_root: Path, shadow_launcher: Path | None, cid: str, native_tx: Path | None, backend: Path, checks: dict, verified: list[str], errors: list[str]) -> None:
 	_ensure_scripts_path()
 	import check_pre_invocation
@@ -133,6 +145,7 @@ def _run_pre_invocation(target_root: Path, shadow_launcher: Path | None, cid: st
 		errors.append(f'pre_invocation failed (termination={res.get("terminationBehavior")}, launcher_orphans_created={orphans})')
 	else:
 		verified.append('pre_invocation')
+# @used-by :func:`_execute_replay_pipeline()`
 def _run_review_stage(shadow_project: Path, cand_body: str, checks: dict, verified: list[str], errors: list[str]) -> None:
 	wf_path = shadow_project / '\ua616/data/workflow.json'
 	if wf_path.is_file():
@@ -145,6 +158,7 @@ def _run_review_stage(shadow_project: Path, cand_body: str, checks: dict, verifi
 			except (OSError, ValueError) as exc:
 				checks['review_authorization'] = {'authorized': False, 'error': str(exc)}
 				errors.append(f'review_authorization: {exc}')
+# @used-by :func:`_execute_replay_pipeline()`
 def _run_stop_gate(target_root: Path, stage_name: str, cid: str, stop_tx: Path | None, backend: Path, checks: dict, verified: list[str], errors: list[str]) -> None:
 	_ensure_scripts_path()
 	import check_stop_gate
@@ -158,6 +172,7 @@ def _run_stop_gate(target_root: Path, stage_name: str, cid: str, stop_tx: Path |
 			verified.append(stage_name)
 		else:
 			errors.append(f"{stage_name} blocked: {res.get('reason') or res}")
+# @used-by :func:`_execute_replay_pipeline()`
 def _run_turn_begin(shadow_project: Path, cid: str, platform: str, backend: Path, checks: dict, verified: list[str], errors: list[str]) -> None:
 	try:
 		res = completion.begin(shadow_project, cid, platform=platform, backend=backend)
@@ -170,10 +185,12 @@ def _run_turn_begin(shadow_project: Path, cid: str, platform: str, backend: Path
 	except (OSError, ValueError) as exc:
 		checks['turn_begin'] = {'error': str(exc)}
 		errors.append(f'turn_begin: {exc}')
+# @used-by :func:`run_shadow_replay()`
 def _remap_staged_copies(src_project: Path, shadow_project: Path, src_launcher: Path | None, shadow_launcher: Path | None, old_states: dict[str, Path]) -> None:
 	remap_shadow_state(src_project, shadow_project, old_state=old_states['project'])
 	if None is not src_launcher and None is not shadow_launcher:
 		remap_shadow_state(src_launcher, shadow_launcher, extra_pairs=((src_project, shadow_project),), old_state=old_states['launcher'])
+# @used-by :func:`_prepare_shadow_stage()`
 def _stage_shadow_copies(src_project: Path, src_launcher: Path | None, shadow_root: Path) -> tuple[Path, Path | None, dict[Path, Path], dict[str, Path]]:
 	shadow_project = shadow_root / 'project'
 	clone_project_tree(src_project, shadow_project, hardlink_evidence=True)
@@ -204,6 +221,7 @@ def _run_shadow_mode(src_project: Path, shadow_project: Path, shadow_launcher: P
 	else:
 		backend_dir, native_tx = _resolve_native_paths(cid, Path(backend).resolve() if None is not backend else None)
 		_execute_replay_pipeline(shadow_project, shadow_launcher, shadow_root, cid, platform, backend_dir, native_tx, Path(response_file).resolve() if None is not response_file else None, checks, verified, errors)
+# @used-by :func:`agent_tools.cli_registry._exec_shadow_replay()`
 def run_shadow_replay(project: str | Path, conversation_id: str | None=None, *, launcher: str | Path | None=None, workspace: str | Path | None=None, platform: str='antigravity', backend: str | Path | None=None, response_file: str | Path | None=None, keep: bool=False, exec_rename_domain: str | None=None, command: str | None=None) -> dict:
 	src_project = Path(project).resolve()
 	command_mode = bool(exec_rename_domain or command)

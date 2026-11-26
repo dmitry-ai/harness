@@ -4,6 +4,10 @@
 // https://github.com/dmitry-ai/harness/issues/80
 const OFFSCREEN_PATH = 'offscreen.html';
 let creatingOffscreen = null;
+/**
+ * @used-by browser_extension/manifest.json
+ * @used-by {@link import('./sw.js')}
+ */
 async function setupOffscreenDocument() {
 	const offscreenUrl = chrome.runtime.getURL(OFFSCREEN_PATH);
 	const existing = await chrome.runtime.getContexts({
@@ -28,6 +32,11 @@ async function setupOffscreenDocument() {
 		creatingOffscreen = null;
 	}
 }
+/**
+ * @used-by browser_extension/manifest.json
+ * @used-by {@link import('./offscreen.js')} (globalThis.__harnessBroker)
+ * @used-by {@link import('./sw.js')}
+ */
 async function dispatchBrokerAction(message) {
 	const action = message && 'string' === typeof message.action ? message.action : 'ping';
 	if ('ping' === action) {

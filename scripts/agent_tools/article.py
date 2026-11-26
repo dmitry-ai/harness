@@ -38,6 +38,8 @@ class Section(AddressedSection):
 # 2026-11-14
 # "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
 # https://github.com/dmitry-ai/harness/issues/70
+# @used-by :func:`parse_keyed()`
+# @used-by :func:`parse_sections()`
 def _iter_headings(lines: list[Line]):
 	part = ''
 	for index, line in enumerate(lines):
@@ -49,6 +51,8 @@ def _iter_headings(lines: list[Line]):
 		else:
 			match = PART.match(text)
 			part = match.group(1) if match else part
+# @used-by :func:`agent_tools.text_sections.lint_document()`
+# @used-by :func:`lint_text()`
 def detect_kind(path: Path | None, text: str) -> str:
 	# 2026-11-20
 	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
@@ -61,6 +65,11 @@ def detect_kind(path: Path | None, text: str) -> str:
 		if path.parent.name in ('res', '\u227a') or (is_bucket_dir_name(path.parent.name) and path.parent.parent.name in ('res', '\u227a')):
 			return 'response'
 	return 'article'
+# @used-by :func:`agent_tools.text_sections.parse_addressed()`
+# @used-by :func:`lint_text()`
+# @used-by :func:`render()`
+# @used-by :func:`render_map()`
+# @used-by :func:`to_source()`
 def parse_sections(lines: list[Line], findings: list[Finding] | None=None):
 	findings = findings if None is not findings else []
 	r, by_key, roots = ([], {}, {})
@@ -88,6 +97,8 @@ def parse_sections(lines: list[Line], findings: list[Finding] | None=None):
 		r.append(section)
 	_close(r, lines)
 	return r
+# @used-by :func:`render()`
+# @used-by :func:`render_map()`
 def parse_keyed(lines: list[Line], findings: list[Finding]):
 	sections, roots = ([], {})
 	for _, line, level, text, part in _iter_headings(lines):
@@ -110,6 +121,8 @@ def parse_keyed(lines: list[Line], findings: list[Finding]):
 		sections.append(section)
 	_close(sections, lines)
 	return (sections, roots)
+# @used-by :func:`lint_text()`
+# @used-by :func:`render()`
 def check_structure(lines, sections, findings):
 	parts = [m.group(1) for line in lines if 'heading' == line.kind and '#' == HEADING.match(line.raw).group(1) for m in (PART.match(HEADING.match(line.raw).group(2)),) if m]
 	if ['I', 'II'] != parts:
@@ -180,6 +193,7 @@ def check_structure(lines, sections, findings):
 		if re.search('§§?@|\\]\\(#@', visible):
 			findings.append(Finding('error', 'KEY-UNRENDERED', line.no, 'unrendered keyed reference remains in the numbered article', line.raw[:80]))
 	check_group_counts(lines, sections, findings)
+# @used-by :func:`check_structure()`
 def check_group_counts(lines, sections, findings):
 	for section in sections:
 		match = re.search('\\((\\d+)(?:\\s+[^()]*)?\\)\\s*$', section.title or '')
@@ -195,6 +209,7 @@ def check_group_counts(lines, sections, findings):
 				actual = sum((int(child.group(1)) for child in child_counts))
 		if None is not actual and actual != expected:
 			findings.append(Finding('error', 'GROUP-COUNT', section.line, f'heading declares {expected} objects, displayed group contains {actual}', section.title or ''))
+# @used-by :func:`lint_text()`
 def check_graph(lines, sections, findings):
 	if not {'I', 'II'} <= {s.part for s in sections}:
 		return
@@ -275,6 +290,7 @@ def check_graph(lines, sections, findings):
 		changed = not additions <= grounded
 		grounded.update(additions)
 	counter, stack, on_stack, indexes, low = (0, [], set(), {}, {})
+	# @used-by :func:`check_graph()`
 	def visit(key):
 		nonlocal counter
 		indexes[key] = low[key] = counter
@@ -301,8 +317,11 @@ def check_graph(lines, sections, findings):
 	for key in refs:
 		if key not in indexes:
 			visit(key)
+# @used-by unused
 def check_proposal(lines, findings):
 	findings.extend(lint_document('\n'.join((line.raw for line in lines)), 'proposal', lexicon=[], bans=[]))
+# @used-by :func:`lint_text()`
+# @used-by :meth:`test_source_admission.LinkPresentationTests.findings()`
 def check_link_style(lines, findings, link_style):
 	if 'formatted' != link_style:
 		return
@@ -333,6 +352,20 @@ def check_link_style(lines, findings, link_style):
 		for match in re.finditer('https?://[^\\s<>]+', line.raw):
 			if not any((start <= match.start() < end for start, end in protected)):
 				findings.append(Finding('error', 'LINK-BARE', line.no, 'the selected article profile requires formatted external links', match.group(0)))
+# @used-by :func:`agent_tools.text_sections.lint_document()`
+# @used-by :meth:`test_df_article.LexiconAndProjectionTests.test_conditional_recommendation_must_branch_from_part_two_diagnostic_step()`
+# @used-by :meth:`test_df_article.LexiconAndProjectionTests.test_trailing_conditional_recommendation_is_flagged()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_keyed_view_round_trip_changes_only_normalizations()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_reference_article_has_no_errors_and_only_known_warnings()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_render_renumbers_references_and_reports_removed_sections()`
+# @used-by :meth:`test_df_article.SlopDetectionTests.assertFlags()`
+# @used-by :meth:`test_df_article.SlopDetectionTests.test_enumerating_title_case_heading()`
+# @used-by :meth:`test_df_article.SlopDetectionTests.test_orphan_analysis_paragraph_is_reported()`
+# @used-by :meth:`test_df_article.SlopDetectionTests.test_project_bans_are_discovered_from_the_project_root()`
+# @used-by :meth:`test_df_article.SlopDetectionTests.test_proposal_references_and_markdown_links()`
+# @used-by :meth:`test_df_article.SlopDetectionTests.test_structure_errors()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.lint()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_formatted_link_style_is_explicit_and_preserves_literals()`
 def lint_text(text: str, *, kind: str | None=None, lang: str | None=None, path: Path | None=None, lexicon=None, bans=None, link_style=None) -> list[Finding]:
 	kind = kind or detect_kind(path, text)
 	if 'proposal' == kind:
@@ -350,6 +383,16 @@ def lint_text(text: str, *, kind: str | None=None, lang: str | None=None, path: 
 		check_prose(lines, kind, lang or detect_language(text), findings, load_lexicon() if None is lexicon else lexicon, find_bans(path) if None is bans else bans)
 		r = sorted(findings, key=lambda f: (f.line, 'error' != f.severity, f.rule))
 	return r
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_deleted_premise_blocks_rendering_until_dependents_are_resolved()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_external_document_spacing_preserves_its_number_and_literal_examples()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_keyed_view_round_trip_changes_only_normalizations()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_render_renumbers_references_and_reports_removed_sections()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_bare_article_reference_is_converted_or_diagnosed()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_literals_quotes_and_urls_are_not_rewritten()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_mixed_anchor_style_follows_keys_when_renumbering()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_reference_range_checks_both_ends_and_order()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_section_sign_anchors_survive_source_render_without_previous()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_valid_range_is_renumbered_and_generic_links_are_preserved()`
 def to_source(text: str) -> str:
 	lines = scan(text)
 	sections = parse_sections(lines, [])
@@ -373,6 +416,7 @@ def to_source(text: str) -> str:
 			out.append(line.raw)
 		else:
 			current = part_at(lines, line.no)
+			# @used-by :func:`to_source()`
 			def replace(match):
 				label, target = match.groups()
 				key = aliases.get(target, target.removeprefix('§'))
@@ -388,6 +432,7 @@ def to_source(text: str) -> str:
 						endpoint = f'{end_part}.{parsed.group(4)}' if end_part else parsed.group(4)
 						r = f'{marks}@{key}-@{endpoint}'
 				return r
+			# @used-by :func:`to_source()`
 			def bare(match):
 				if external_section_ref(match.string, match):
 					r = match.group(0)
@@ -404,6 +449,19 @@ def to_source(text: str) -> str:
 				return r
 			out.append(transform_prose(line.raw, lambda value: BARE_REF.sub(bare, ANCHOR_LINK.sub(replace, value))))
 	return '\n'.join(out) + ('\n' if text.endswith('\n') else '')
+# @used-by :func:`render_map()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_deleted_premise_blocks_rendering_until_dependents_are_resolved()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_external_document_spacing_preserves_its_number_and_literal_examples()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_keyed_view_round_trip_changes_only_normalizations()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_new_keys_are_numbered_by_position()`
+# @used-by :meth:`test_df_article.ReferenceArticleTests.test_render_renumbers_references_and_reports_removed_sections()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_bare_article_reference_is_converted_or_diagnosed()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_literals_quotes_and_urls_are_not_rewritten()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_mixed_anchor_style_follows_keys_when_renumbering()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_reference_range_checks_both_ends_and_order()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_render_mapping_exposes_keys_and_spans_without_polluting_report()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_section_sign_anchors_survive_source_render_without_previous()`
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_valid_range_is_renumbered_and_generic_links_are_preserved()`
 def render(source: str, previous: str | None=None):
 	lines = scan(source)
 	findings: list[Finding] = []
@@ -445,9 +503,11 @@ def render(source: str, previous: str | None=None):
 			out.append(line.raw)
 			continue
 		current = part_at(lines, line.no)
+		# @used-by :func:`render()`
 		def label(anchor):
 			part, _, number = anchor.partition('.') if re.match('^[IVXLC]+\\.', anchor) else ('', '', anchor)
 			return number if part == current else anchor
+		# @used-by :func:`render()`
 		def format_ref(marks, start, end):
 			left = label(mapping[start])
 			return f'[{marks}{left}-{label(mapping[end])}](#{anchors[start]})' if end else f'[{marks}{left}](#{anchors[start]})'
@@ -459,12 +519,14 @@ def render(source: str, previous: str | None=None):
 	check_structure(rendered_lines, parse_sections(rendered_lines), reference_findings)
 	findings.extend((f for f in reference_findings if f.rule in ('REF-DANGLING', 'REF-LABEL', 'REF-RANGE', 'REF-BARE', 'KEY-UNRENDERED', 'ANCHOR-DUP')))
 	return (markdown, report, findings)
+# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_render_mapping_exposes_keys_and_spans_without_polluting_report()`
 def render_map(source: str, markdown: str | None=None):
 	source_sections, _ = parse_keyed(scan(source), [])
 	if None is markdown:
 		markdown, _, _ = render(source)
 	rendered = parse_sections(scan(markdown))
 	return [{'key': original.name, 'number': current.key, 'part': current.part, 'anchor': current.anchor, 'source': original.span_dict(), 'rendered': current.span_dict()} for original, current in zip(source_sections, rendered)]
+# @used-by :mod:`df_article`
 def main(argv=None) -> int:
 	from .text_cli import main as common_main
 	return common_main(argv, default_kind='article')

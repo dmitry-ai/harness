@@ -19,11 +19,16 @@ class GitHubIssueService:
 	# 2026-11-24
 	# "Isolate per-conversation github_issues recording and turn-state filtering":
 	# https://github.com/dmitry-ai/harness/issues/195
+	# @used-by :func:`agent_tools.github_issue._service()`
+	# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_close_blocks_antigravity_addons_when_companion_unhealthy()`
+	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_service_cmd_close_routes_through_module_gh_api_and_checks_readback()`
+	# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_close_blocks_on_unhealthy_repo_health_command()`
 	def __init__(self, *, api_fn=None, linter: IssueMarkdownLinter | None=None, workspace: IssueEvidenceWorkspace | None=None, conversation_id: str | None=None) -> None:
 		self._api = api_fn if None is not api_fn else gh_api_call
 		self.linter = linter if None is not linter else IssueMarkdownLinter()
 		self.workspace = workspace if None is not workspace else IssueEvidenceWorkspace()
 		self._conversation_id = conversation_id
+	# @used-by :meth:`GitHubIssueService._verify_mutation_readback()`
 	def _build_mutation_success_payload(self, action: str, repo: str, id_key: str, ident: Any, kind: str, fetched: dict[str, Any], remote_body: str, removed: list[str], parent_number: int | None, extra_out: Any) -> dict[str, Any]:
 		out: dict[str, Any] = {'ok': True, 'action': action, 'repo': repo, id_key: ident, 'html_url': fetched.get('html_url'), 'verified': True, 'body_chars': len(remote_body), 'consumed_files': removed}
 		if 'issue' == kind:
@@ -36,9 +41,11 @@ class GitHubIssueService:
 			out.update(extra_out)
 		return out
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	# @used-by :meth:`GitHubIssueService._verify_close_prereqs()`
 	def _check_close_commit_readiness(self, args: argparse.Namespace, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> tuple[Path | None, str | None, str]:
 		# 2026-11-26 "Require passing shadow-replay acceptance receipt in df_github_issue close gate": https://github.com/dmitry-ai/harness/issues/291
 		return check_close_readiness(self.workspace, args, repo, number, consumable, project_root, verify_fn=verify_repo_issue_ready_for_close, is_tracked_fn=is_issue_tracked_code_repo)
+	# @used-by :meth:`GitHubIssueService.cmd_edit()`
 	def _edit_parent_only(self, repo: str, number: int, parent_num: int, target_locale: str, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> int:
 		fetched = self._api(f'repos/{repo}/issues/{number}', method='GET')
 		remote_title, remote_body = (fetched.get('title') or '', fetched.get('body') or '')
@@ -57,10 +64,12 @@ class GitHubIssueService:
 			dump_json({'ok': True, 'action': 'edit', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'parent_number': int(parent_num), 'parent_url': f'https://github.com/{repo}/issues/{int(parent_num)}', 'sub_issue_linked': linked, 'body_chars': len(remote_body), 'consumed_files': []})
 			r = 0
 		return r
+	# @used-by :meth:`GitHubIssueService.cmd_create()`
 	def _execute_create(self, args: argparse.Namespace, repo: str, title: str, body: str, eff_parent: int | None, consumable: list[tuple[Path, bytes]], target_locale: str, project_root: str | Path | None) -> int:
 		payload = build_create_payload(args, title, body)
 		state: dict[str, Any] = {'body': body, 'prepended': False}
 		no_meta = bool(getattr(args, 'no_metadata', False))
+		# @used-by :meth:`GitHubIssueService._execute_create()`
 		def _write_issue() -> int:
 			if None is not eff_parent:
 				self.verify_and_persist_parent_issue(consumable, repo, eff_parent, project_root=project_root, require_open=True)
@@ -69,6 +78,7 @@ class GitHubIssueService:
 			if not no_meta:
 				self._prepend_issue_metadata(repo, num, created, body, project_root, consumable, state)
 			return num
+		# @used-by :meth:`GitHubIssueService._execute_create()`
 		def _after_create(_ident: int, fetched: dict[str, Any]) -> dict[str, Any] | None:
 			extra: dict[str, Any] = {}
 			if state['prepended']:
@@ -77,6 +87,7 @@ class GitHubIssueService:
 				extra['sub_issue_linked'] = self.try_link_sub_issue(repo, eff_parent, fetched.get('id'))
 			return extra or None
 		return self.run_verified_mutation(action='create', repo=repo, consumable=consumable, target_locale=target_locale, container_text=None, expected_title=title, expected_body=body, expected_body_fn=lambda _i: state['body'], write_fn=_write_issue, read_fn=lambda num: self._api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=eff_parent, post_write_fn=_after_create)
+	# @used-by :meth:`GitHubIssueService.cmd_edit()`
 	def _execute_edit(self, args: argparse.Namespace, repo: str, number: int, title: str | None, body: str | None, parent_num: int | None, active_parent: int | None, eff_parent: int | None, consumable: list[tuple[Path, bytes]], target_locale: str, project_root: str | Path | None) -> int:
 		if None is not parent_num and None is body:
 			remote_body = self._api(f'repos/{repo}/issues/{number}', method='GET').get('body') or ''
@@ -86,6 +97,7 @@ class GitHubIssueService:
 				return 2
 		container_text = self.workspace.load_saved_issue_container_text(consumable, repo, number, project_root=project_root)
 		payload = {k: v for k, v in (('title', title), ('body', body), ('state', args.state)) if None is not v}
+		# @used-by :meth:`GitHubIssueService._execute_edit()`
 		def _write_edit() -> int:
 			if None is not active_parent:
 				self.verify_and_persist_parent_issue(consumable, repo, active_parent, self_number=number, project_root=project_root)
@@ -93,6 +105,7 @@ class GitHubIssueService:
 			return number
 		after = (lambda _i, fetched: {'sub_issue_linked': self.try_link_sub_issue(repo, active_parent, fetched.get('id'))}) if None is not active_parent else None
 		return self.run_verified_mutation(action='edit', repo=repo, consumable=consumable, target_locale=target_locale, container_text=container_text, expected_title=title, expected_body=body, write_fn=_write_edit, read_fn=lambda num: self._api(f'repos/{repo}/issues/{num}', method='GET'), kind='issue', id_key='number', consume_input=args.consume_input, project_root=project_root, parent_number=eff_parent, self_number=number, post_write_fn=after)
+	# @used-by :meth:`GitHubIssueService.cmd_close()`
 	def _finalize_close(self, args: argparse.Namespace, repo: str, number: int, comment_id: int | None, code_repo: Path | None, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> int:
 		self._api(f'repos/{repo}/issues/{number}', method='PATCH', payload={'state': 'closed', 'state_reason': args.reason})
 		fetched = self._api(f'repos/{repo}/issues/{number}', method='GET')
@@ -113,6 +126,7 @@ class GitHubIssueService:
 			dump_json(out)
 			r = 0
 		return r
+	# @used-by :meth:`GitHubIssueService.verify_and_persist_parent_issue()`
 	def _load_cached_parent_issue(self, source_files: list[tuple[Path, bytes]], repo: str, pnum: int, project_root: str | Path | None) -> dict[str, Any] | None:
 		r, safe_repo = (None, repo.replace('/', '__'))
 		for gh_root, _ in self.workspace.resolve_issue_targets(source_files, repo, project_root=project_root):
@@ -126,11 +140,13 @@ class GitHubIssueService:
 				except (OSError, ValueError):
 					continue
 		return r
+	# @used-by :meth:`GitHubIssueService._verify_mutation_readback()`
 	def _mutation_readback_check(self, remote_title: str, remote_body: str, expected_title: str | None, eff_expected_body: str | None, target_locale: str, container_text: str | None, eff_struct: bool, parent_number: int | None, repo: str, eff_self: int | None) -> tuple[bool, list, list]:
 		pt_errs = self.linter.lint(remote_title, is_title=True, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_struct) if None is not expected_title else []
 		pb_errs = self.linter.lint(remote_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_struct, parent_number=parent_number, repo=repo, self_number=eff_self) if None is not eff_expected_body else []
 		exact = (None is expected_title or self.linter.normalize_newlines(remote_title) == self.linter.normalize_newlines(expected_title)) and (None is eff_expected_body or self.linter.normalize_newlines(remote_body) == self.linter.normalize_newlines(eff_expected_body))
 		return (exact, pt_errs, pb_errs)
+	# @used-by :meth:`GitHubIssueService.cmd_edit()`
 	def _parse_edit_inputs(self, args: argparse.Namespace, repo: str, number: int, parent_num: int | None, consumable: list[tuple[Path, bytes]]) -> tuple[str | None, str | None]:
 		if None is not parent_num and int(parent_num) == int(number):
 			raise ValueError(f'Issue #{number} cannot reference itself as --parent')
@@ -141,6 +157,7 @@ class GitHubIssueService:
 		if None is title and None is body and (None is args.state) and (None is parent_num):
 			raise ValueError('At least one of --title/--title-file, --body-file, --state, or --parent must be provided')
 		return (title, body)
+	# @used-by :meth:`GitHubIssueService.cmd_close()`
 	def _post_close_comment(self, repo: str, number: int, comment_body: str, target_locale: str, container_text: str | None, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> tuple[bool, int | None]:
 		created = self._api(f'repos/{repo}/issues/{number}/comments', method='POST', payload={'body': comment_body})
 		comment_id = created['id']
@@ -155,6 +172,7 @@ class GitHubIssueService:
 		else:
 			dump_json({'ok': False, 'action': 'close', 'stage': 'post_flight_comment_readback', 'repo': repo, 'number': number, 'comment_id': comment_id})
 		return (ok, comment_id)
+	# @used-by :meth:`GitHubIssueService._execute_create()`
 	def _prepend_issue_metadata(self, repo: str, num: int, created: dict[str, Any], body: str, project_root: str | Path | None, consumable: list[tuple[Path, bytes]], state: dict[str, Any]) -> None:
 		from ..metadata import build_github_issue_metadata, extract_leading_metadata_header, prepend_metadata_header
 		existing_meta, _ = extract_leading_metadata_header(body)
@@ -164,6 +182,7 @@ class GitHubIssueService:
 			prefixed = prepend_metadata_header(body, meta_obj)
 			self._api(f'repos/{repo}/issues/{num}', method='PATCH', payload={'body': prefixed})
 			state['body'], state['prepended'] = (prefixed, True)
+	# @used-by :meth:`GitHubIssueService.cmd_close()`
 	def _verify_close_prereqs(self, args: argparse.Namespace, repo: str, number: int, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, project_root: str | Path | None) -> tuple[str | None, Path | None, int | None]:
 		comment_body, c_errors = (None, [])
 		if args.comment_file:
@@ -181,6 +200,7 @@ class GitHubIssueService:
 		else:
 			err_rc = None
 		return (comment_body, code_repo, err_rc)
+	# @used-by :meth:`GitHubIssueService.run_verified_mutation()`
 	def _verify_mutation_readback(self, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, eff_expected_body: str | None, kind: str, id_key: str, ident: Any, fetched: dict[str, Any], consume_input: bool, project_root: str | Path | None, parent_number: int | None, self_number: int | None, eff_struct: bool, post_write_fn) -> int:
 		remote_title, remote_body = (fetched.get('title') or '', fetched.get('body') or '')
 		eff_self = self_number if None is not self_number else ident if 'issue' == kind and isinstance(ident, int) else None
@@ -199,8 +219,13 @@ class GitHubIssueService:
 			dump_json(post_out)
 			r = 2
 		return r
+	# @used-by :func:`agent_tools.github_issue.cmd_audit_repo()`
 	def cmd_audit_repo(self, args: argparse.Namespace) -> int:
 		return run_audit_repo(self._api, self.linter, args)
+	# @used-by :func:`agent_tools.github_issue.cmd_close()`
+	# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_close_blocks_antigravity_addons_when_companion_unhealthy()`
+	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_service_cmd_close_routes_through_module_gh_api_and_checks_readback()`
+	# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_close_blocks_on_unhealthy_repo_health_command()`
 	def cmd_close(self, args: argparse.Namespace) -> int:
 		repo, number, consumable = (self.linter.validate_repo(args.repo), args.issue, [])
 		target_locale, project_root = (getattr(args, 'target_locale', 'en-US') or 'en-US', getattr(args, 'project_root', None))
@@ -212,6 +237,7 @@ class GitHubIssueService:
 			comment_ok, comment_id = self._post_close_comment(repo, number, comment_body, target_locale, container_text, consumable, project_root) if None is not comment_body else (True, None)
 			r = 2 if not comment_ok else self._finalize_close(args, repo, number, comment_id, code_repo, consumable, project_root)
 		return r
+	# @used-by :func:`agent_tools.github_issue.cmd_comment()`
 	def cmd_comment(self, args: argparse.Namespace) -> int:
 		repo = self.linter.validate_repo(args.repo)
 		b_path, b_raw, body = self.linter.read_utf8_no_bom_file(args.body_file)
@@ -223,6 +249,7 @@ class GitHubIssueService:
 			dump_json({'ok': False, 'action': 'comment', 'stage': 'idempotent_comment_gate', 'repo': repo, 'issue': args.issue, 'existing_comment_ids': existing_cids, 'error': f'EXEC-5 / SCOPE-2: Issue #{args.issue} already has tracked comment(s) {existing_cids} in KB/Evidence/GitHub; use --comment-id {existing_cids[-1]} to update the existing comment in place instead of posting a duplicate comment (or pass --allow-additional-comment if explicitly instructed)'})
 			r = 2
 		else:
+			# @used-by :meth:`GitHubIssueService.cmd_comment()`
 			def _write_comment() -> int:
 				if None is not args.comment_id:
 					res = self._api(f'repos/{repo}/issues/comments/{args.comment_id}', method='PATCH', payload={'body': body})
@@ -233,6 +260,7 @@ class GitHubIssueService:
 				return res['id']
 			r = self.run_verified_mutation(action='comment', repo=repo, consumable=consumable, target_locale=target_locale, container_text=container_text, expected_title=None, expected_body=body, write_fn=_write_comment, read_fn=lambda cid: self._api(f'repos/{repo}/issues/comments/{cid}', method='GET'), kind='comment', id_key='comment_id', consume_input=args.consume_input, project_root=project_root)
 		return r
+	# @used-by :func:`agent_tools.github_issue.cmd_create()`
 	def cmd_create(self, args: argparse.Namespace) -> int:
 		repo, consumable = (self.linter.validate_repo(args.repo), [])
 		target_locale, project_root = (getattr(args, 'target_locale', 'en-US') or 'en-US', getattr(args, 'project_root', None))
@@ -250,6 +278,7 @@ class GitHubIssueService:
 		else:
 			r = self._execute_create(args, repo, title, body, eff_parent, consumable, target_locale, project_root)
 		return r
+	# @used-by :func:`agent_tools.github_issue.cmd_edit()`
 	def cmd_edit(self, args: argparse.Namespace) -> int:
 		repo, number, consumable = (self.linter.validate_repo(args.repo), args.issue, [])
 		target_locale, project_root = (getattr(args, 'target_locale', 'en-US') or 'en-US', getattr(args, 'project_root', None))
@@ -265,14 +294,20 @@ class GitHubIssueService:
 		else:
 			r = self._execute_edit(args, repo, number, title, body, parent_num, active_parent, eff_parent, consumable, target_locale, project_root)
 		return r
+	# @used-by :func:`agent_tools.github_issue.cmd_fetch()`
 	def cmd_fetch(self, args: argparse.Namespace) -> int:
 		from .repo_commands import run_fetch
 		return run_fetch(self, args)
+	# @used-by :func:`agent_tools.github_issue.cmd_lint()`
 	def cmd_lint(self, args: argparse.Namespace) -> int:
 		from .repo_commands import run_lint
 		return run_lint(self.linter, args)
+	# @used-by :func:`agent_tools.github_issue.cmd_transfer_repo()`
 	def cmd_transfer_repo(self, args: argparse.Namespace) -> int:
 		return run_transfer_repo(self._api, self.linter, self.workspace, args)
+	# @used-by :meth:`GitHubIssueService._execute_create()`
+	# @used-by :meth:`GitHubIssueService._execute_edit()`
+	# @used-by :meth:`GitHubIssueService.cmd_comment()`
 	def run_verified_mutation(self, *, action: str, repo: str, consumable: list[tuple[Path, bytes]], target_locale: str, container_text: str | None, expected_title: str | None, expected_body: str | None, write_fn, read_fn, kind: str, id_key: str, consume_input: bool, project_root: str | Path | None, parent_number: int | None=None, self_number: int | None=None, check_structure_policy: bool=True, post_write_fn=None, expected_body_fn=None) -> int:
 		eff_struct = check_structure_policy and ('comment' != kind)
 		t_errs = self.linter.lint(expected_title, is_title=True, target_locale=target_locale, container_text=container_text, check_structure_policy=eff_struct) if None is not expected_title else []
@@ -284,6 +319,9 @@ class GitHubIssueService:
 			ident = write_fn()
 			r = self._verify_mutation_readback(action, repo, consumable, target_locale, container_text, expected_title, expected_body_fn(ident) if None is not expected_body_fn else expected_body, kind, id_key, ident, read_fn(ident), consume_input, project_root, parent_number, self_number, eff_struct, post_write_fn)
 		return r
+	# @used-by :meth:`GitHubIssueService._edit_parent_only()`
+	# @used-by :meth:`GitHubIssueService._execute_create()`
+	# @used-by :meth:`GitHubIssueService._execute_edit()`
 	def try_link_sub_issue(self, repo: str, parent_number: int, child_id: Any) -> bool:
 		r = False
 		if isinstance(child_id, int) and (not isinstance(child_id, bool)) and 0 < child_id:
@@ -293,6 +331,10 @@ class GitHubIssueService:
 			except RuntimeError:
 				r = False
 		return r
+	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
+	# @used-by :meth:`GitHubIssueService._edit_parent_only()`
+	# @used-by :meth:`GitHubIssueService._execute_create()`
+	# @used-by :meth:`GitHubIssueService._execute_edit()`
 	def verify_and_persist_parent_issue(self, source_files: list[tuple[Path, bytes]], repo: str, parent_number: int, *, self_number: int | None=None, project_root: str | Path | None=None, require_open: bool=False) -> dict[str, Any]:
 		pnum = int(parent_number)
 		if None is not self_number and pnum == int(self_number):

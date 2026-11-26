@@ -20,6 +20,7 @@ _UUID_RE = re.compile(r'[a-f0-9-]{36}')
 # 2026-11-24
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
+# @used-by :func:`apply_continuation_guard()`
 def _evaluate_continuation_reentry(gfile: Path, fp: str, last_user_step: int, last_step: int | None, prev: dict[str, Any], decision: dict, payload: dict, *, session_id: str='', matched_state: dict | None=None, emergency_ctx: dict[str, Any] | None=None) -> dict:
 	exec_raw = payload.get('executionNum')
 	exec_num = exec_raw if isinstance(exec_raw, int) and (not isinstance(exec_raw, bool)) else 0
@@ -34,6 +35,7 @@ def _evaluate_continuation_reentry(gfile: Path, fp: str, last_user_step: int, la
 		_save_guard(gfile, {'fingerprint': fp, 'last_user_step': last_user_step, 'last_step': last_step, 'unchanged_count': 1, 'total_count': prev_total + 1})
 		r = decision
 	return r
+# @used-by :func:`apply_continuation_guard()`
 def _failure_fingerprint(matched_state: dict | None, decision: dict, last_user_step: int) -> str:
 	st = matched_state if isinstance(matched_state, dict) else {}
 	rc = st.get('readiness_check') if isinstance(st.get('readiness_check'), dict) else {}
@@ -46,6 +48,7 @@ def _failure_fingerprint(matched_state: dict | None, decision: dict, last_user_s
 		str(last_user_step),
 	]
 	return hashlib.sha256('\x1f'.join(parts).encode('utf-8')).hexdigest()
+# @used-by :func:`apply_continuation_guard()`
 def _guard_file_path(t_dir: Path, session_id: str, last_user_step: int, matched_state: dict | None) -> Path:
 	raw_key = str((matched_state or {}).get('key') or f'{session_id}-{last_user_step}')
 	safe_key = re.sub(r'[^A-Za-z0-9_.-]+', '_', raw_key).strip('_') or 'stop'
@@ -53,10 +56,12 @@ def _guard_file_path(t_dir: Path, session_id: str, last_user_step: int, matched_
 # 2026-11-24
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
+# @used-by :func:`apply_continuation_guard()`
 def _is_continuation_reentry(payload: dict, prev: dict[str, Any], last_user_step: int, last_step: int | None) -> bool:
 	same_turn = bool(prev) and (prev.get('last_user_step') in (None, last_user_step))
 	step_advanced = same_turn and isinstance(last_step, int) and isinstance(prev.get('last_step'), int) and (last_step > prev['last_step'])
 	return bool(payload.get('continuationActive')) or step_advanced
+# @used-by :func:`apply_continuation_guard()`
 def _load_guard(path: Path) -> dict[str, Any]:
 	r: dict[str, Any] = {}
 	if path.is_file():
@@ -70,18 +75,22 @@ def _load_guard(path: Path) -> dict[str, Any]:
 # 2026-11-24
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
+# @used-by :func:`apply_continuation_guard()`
 def _max_segment_step(segment: list[dict] | None, last_user_step: int) -> int | None:
 	r = None
 	if None is not segment:
 		steps = [row['step_index'] for row in segment if isinstance(row, dict) and isinstance(row.get('step_index'), int)]
 		r = max(steps) if steps else last_user_step
 	return r
+# @used-by :func:`_evaluate_continuation_reentry()`
+# @used-by :func:`apply_continuation_guard()`
 def _save_guard(path: Path, data: dict[str, Any]) -> None:
 	try:
 		path.parent.mkdir(parents=True, exist_ok=True)
 		replace_bytes(path, (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 	except OSError:
 		pass
+# @used-by :func:`apply_continuation_guard()`
 def _unlink_guard(path: Path) -> None:
 	try:
 		path.unlink(missing_ok=True)
@@ -90,6 +99,7 @@ def _unlink_guard(path: Path) -> None:
 # 2026-11-24
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
+# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
 def apply_continuation_guard(t_dir: Path, session_id: str, last_user_step: int, matched_state: dict | None, decision: dict, payload: dict, *, segment: list[dict] | None=None, emergency_ctx: dict[str, Any] | None=None) -> dict:
 	gfile = _guard_file_path(t_dir, session_id, last_user_step, matched_state)
 	if 'continue' != decision.get('decision'):
@@ -108,6 +118,7 @@ def apply_continuation_guard(t_dir: Path, session_id: str, last_user_step: int, 
 			# https://github.com/dmitry-ai/harness/issues/255
 			r = _evaluate_continuation_reentry(gfile, fp, last_user_step, last_step, prev, decision, payload, session_id=session_id, matched_state=matched_state, emergency_ctx=emergency_ctx)
 	return r
+# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
 def extract_stop_context(payload: dict) -> tuple[str, str, str]:
 	t_path_raw = str(payload.get('transcriptPath') or '').strip()
 	cwd_raw = str(payload.get('cwd') or '').strip()
@@ -127,6 +138,7 @@ def extract_stop_context(payload: dict) -> tuple[str, str, str]:
 # 2026-11-25
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
+# @used-by :func:`agent_tools.turn_routing._handoff_rank()`
 def handoff_matches_user_step(st: dict, rows: list[dict], last_user_step: int, *, user_text: str | None=None) -> bool:
 	from .platforms.request_binding import _extract_leading_upwork_init_ids
 	r = True
@@ -138,6 +150,7 @@ def handoff_matches_user_step(st: dict, rows: list[dict], last_user_step: int, *
 			if new_ids and target_job not in new_ids:
 				r = False
 	return r
+# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
 def is_journal_opt_out(payload: dict, rows: list[dict], last_user_step: int, matched_state: dict | None) -> bool:
 	if isinstance(matched_state, dict) and False is matched_state.get('journal_required'):
 		r = True

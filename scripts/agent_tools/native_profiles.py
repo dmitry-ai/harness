@@ -1,6 +1,7 @@
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import nullcontext
 from copy import deepcopy
+from typing import override
 import hashlib
 import json
 import os
@@ -27,17 +28,70 @@ END = '<!-- harness:native-loader:end -->'
 PURPOSES = {'AA': 'Independent substantive review of the five stages and KB consistency.', 'AF': 'Collection and extraction of evidence for an assigned question.'}
 _linked = is_linked_path
 _linked_ancestor = has_linked_ancestor
+# @used-by :func:`_antigravity_plan()`
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`_direct_link_matches_target()`
+# @used-by :func:`_execute()`
+# @used-by :func:`_is_relocated_owned_link()`
+# @used-by :func:`_link_matches_target()`
+# @used-by :func:`_link_target_path()`
+# @used-by :func:`_profile_state()`
+# @used-by :func:`_relocated_primaries()`
+# @used-by :func:`_retire_profile_roles()`
+# @used-by :func:`_retire_profile_skills()`
+# @used-by :func:`_retire_shared_roles()`
+# @used-by :func:`_role_identity()`
+# @used-by :func:`_shared_plan()`
+# @used-by :func:`install_native_profiles()`
+# @used-by :meth:`_ManagedLink.__init__()`
+# @used-by :meth:`_Plan.file()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
 def _absolute(path):
 	return Path(os.path.abspath(path))
+# @used-by :func:`_antigravity_plan()`
+# @used-by :func:`_apply()`
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`_retire_profile_roles()`
+# @used-by :func:`_retire_shared_roles()`
+# @used-by :func:`_role_config()`
+# @used-by :func:`_shared_plan()`
+# @used-by :func:`retire_owned_project_projections()`
 def _hash(data):
 	return hashlib.sha256(data).hexdigest()
+# @used-by :func:`_antigravity_plan()`
+# @used-by :func:`_apply()`
+# @used-by :func:`retire_owned_project_projections()`
+# @used-by :func:`shared_native_outputs()`
+# @used-by :meth:`_ManagedLink.backup_payload()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
 def _json(data):
 	return (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+# @used-by :func:`_antigravity_plan()`
+# @used-by :func:`_directory_link()`
+# @used-by :func:`_model_fields()`
+# @used-by :func:`_role_values()`
+# @used-by :func:`install_native_profiles()`
+# @used-by :func:`shared_native_outputs()`
 def _configuration(primary):
 	path = Path(primary) / 'runtime.json'
 	return settings(path) if path.is_file() else settings()
+# @used-by :func:`_plan_codex_link()`
+# @used-by :func:`_retire_profile_roles()`
+# @used-by :func:`_retire_profile_skills()`
+# @used-by :meth:`_ManagedLink.restore_retired()`
+# @used-by :meth:`_ManagedLink.verify_before_create()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_removed_skill_retires_alias_without_deleting_canonical_directory()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_does_not_touch_unselected_profile_or_forget_ownership()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def _exists(path):
 	return os.path.lexists(path)
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`_link_matches_target()`
+# @used-by :func:`_manifest()`
+# @used-by :meth:`_ManagedLink.verify_created()`
 def _same_path(first, second):
 	return Path(first).resolve() == Path(second).resolve()
 # 2026-11-20
@@ -46,6 +100,12 @@ def _same_path(first, second):
 # 2026-11-20
 # "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
 # https://github.com/dmitry-ai/harness/issues/106
+# @used-by :func:`_direct_link_matches_target()`
+# @used-by :func:`_is_relocated_owned_link()`
+# @used-by :func:`_link_matches_target()`
+# @used-by :func:`_plan_codex_link()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
 def _link_target_path(path):
 	raw = os.readlink(path)
 	if raw.startswith(('\\\\?\\', '\\??\\')):
@@ -55,11 +115,13 @@ def _link_target_path(path):
 # 2026-11-20
 # "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
 # https://github.com/dmitry-ai/harness/issues/106
+# @used-by :func:`_codex_plan()`
 def _direct_link_matches_target(path, target):
 	return _linked(path) and os.path.normcase(str(_link_target_path(path))) == os.path.normcase(str(_absolute(target)))
 # 2026-11-20
 # "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
 # https://github.com/dmitry-ai/harness/issues/106
+# @used-by :func:`_codex_plan()`
 def _is_relocated_owned_link(path, prior_target, current_target, relocated_targets):
 	if not isinstance(prior_target, str):
 		return False
@@ -74,6 +136,10 @@ def _is_relocated_owned_link(path, prior_target, current_target, relocated_targe
 # 2026-11-20
 # "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
 # https://github.com/dmitry-ai/harness/issues/100
+# @used-by :func:`_remove_link()`
+# @used-by :func:`_retire_profile_roles()`
+# @used-by :func:`_retire_profile_skills()`
+# @used-by :meth:`_ManagedLink.verify_retired()`
 def _link_matches_target(path, target):
 	try:
 		if _same_path(path, target):
@@ -84,11 +150,25 @@ def _link_matches_target(path, target):
 # 2026-11-20
 # "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
 # https://github.com/dmitry-ai/harness/issues/100
+# @used-by :func:`_antigravity_plan()`
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`_manifest()`
+# @used-by :func:`_retire_profile_skills()`
+# @used-by :func:`_retire_shared_roles()`
+# @used-by :func:`_role_identity()`
+# @used-by :func:`_shared_plan()`
 def _relocated_primaries(primary):
 	from .path_registry import relocated_harness_code_dirs
 	return tuple((_absolute(p) for p in relocated_harness_code_dirs(primary=primary)))
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`_profile_agents()`
 def _normalized(text):
 	return text.replace('\r\n', '\n').replace('/scripts/upwork_project.py', '/scripts/harness.py').replace('via upwork_project.py git-read', 'via harness.py git-read').replace('run upwork_project.py build-native', 'run harness.py build-native').strip()
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`legacy_project_projection_paths()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_skill_rules_and_docs_codify_mandatory_separate_companion_tracks()`
+# @used-by :meth:`test_df_analysis_rules_contract.DfAnalysisRulesAndSkillContractTests.test_df_analysis_skill_discovered_by_native_profiles_and_lints_cleanly()`
+# @used-by :meth:`test_perf_improvement_skill_contract.PerfImprovementSkillContractTests.test_perf_improvement_skill_discovered_and_references_pass_lint()`
 def _skills(primary):
 	r = {}
 	for path in sorted((Path(primary) / 'skills').glob('*/SKILL.md')):
@@ -97,6 +177,12 @@ def _skills(primary):
 			raise ValueError(f'Shared skill needs name and description: {path}')
 		r[path.parent.name] = (path, metadata)
 	return r
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`_retire_profile_roles()`
+# @used-by :func:`legacy_project_projection_paths()`
+# @used-by :func:`shared_native_outputs()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.legacy_codex()`
 def _role_values(primary):
 	config = _configuration(primary)['platforms'].get('codex') or {}
 	roles = config.get('roles') or {}
@@ -104,10 +190,19 @@ def _role_values(primary):
 	if any(not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', name) for _, name, _, _ in values) or len({name for _, name, _, _ in values}) != len(values):
 		raise ValueError('Native role identifiers must be distinct safe filenames')
 	return values
+# @used-by :func:`_legacy_role()`
+# @used-by :func:`shared_native_outputs()`
 def _model_fields(primary, role):
 	config = _configuration(primary)['platforms'].get('codex') or {}
 	value = (config.get('roles') or {})[role]
 	return '' if 'parent' == config.get('subagents', {}).get('selection') or value.get('selection') in ('parent', 'inherit') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
+# @used-by :func:`_shared_plan()`
+# @used-by :func:`agent_tools.configuration.build_native()`
+# @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests.test_general_rule_passes_doctor_native_bootstrap_and_lint()`
+# @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_comment_gate_skips_body_misalignment_on_comment_only_diff()`
+# @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
+# @used-by :meth:`test_rules_architecture_m2.RulesArchitectureM2Tests.test_codex_adapter_and_bootstrap_match_three_layer_rules()`
+# @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_shared_native_outputs_af_worker_includes_file_handoff_contract()`
 def shared_native_outputs(primary=PRIMARY):
 	# 2026-11-24
 	# "Fix worktree scope resolution for new files in TDD classifier":
@@ -149,6 +244,8 @@ def shared_native_outputs(primary=PRIMARY):
 			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(canon / "agents/worker.md").as_posix()}  '
 			r[primary / f'platforms/codex/agents/{name}.toml'] = f'# Generated from runtime.json and agents/worker.md; do not edit.\n# {ISSUE}\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + _model_fields(primary, role) + f'developer_instructions = {json.dumps(instructions)}\n'
 	return r
+# @used-by :func:`_codex_plan()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.legacy_codex()`
 def _legacy_skill(name, primary):
 	path = Path(primary) / f'skills/{name}/SKILL.md'
 	description = _frontmatter(path).get('description', '')
@@ -167,12 +264,17 @@ def _legacy_skill(name, primary):
 		# https://github.com/dmitry-ai/harness/issues/89
 		r += 'Determine the active UI platform from the conversation; a normal run cleans all enabled environment instances configured in runtime.json.  \n'
 	return r
+# @used-by :func:`_codex_plan()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.legacy_codex()`
 def _legacy_role(primary, role, name, purpose):
 	instructions = f'Role: {role}.  \n{purpose}  \n' + _loader(Path(primary)) + f'\nAlso read the worker protocol: {(Path(primary) / "agents/worker.md").as_posix()}  '
 	return f'# Generated from runtime.json and agents/worker.md; do not edit.\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + _model_fields(primary, role) + f'developer_instructions = {json.dumps(instructions, ensure_ascii=False)}\n'
+# @used-by :func:`_codex_plan()`
+# @used-by :func:`_profile_agents()`
 def _compact_loader(primary):
 	bootstrap = Path(primary) / 'platforms/codex/AGENTS.md'
 	return f'{START}\n# Codex: Harness\n\nRead and execute the shared Codex bootstrap [AGENTS.md](<{bootstrap.as_posix()}>) before doing any work.  \nIt applies in every new chat and every child subagent.  \n{END}\n'
+# @used-by :func:`_codex_plan()`
 def _profile_agents(text, primary, owned):
 	wanted = _compact_loader(primary)
 	marker = '# Codex: Upwork\n'
@@ -191,8 +293,34 @@ def _profile_agents(text, primary, owned):
 		match = re.search('(?m)^# Codex: Upwork\\r?\\n', text)
 		r = text[:match.start()] + wanted
 	return r
+# @used-by :func:`_apply()`
+# @used-by :func:`_load_state()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_replacement_during_skill_rollback_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_former_config_role_block_without_receipt_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_new_link_failure_rolls_back_existing_profile_files()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_link_failure_restores_retired_roles_and_config()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_rename_failure_restores_retired_link_definition_and_receipt()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unknown_prior_link_record_is_preserved_during_skill_rename()`
 def _state_path(primary):
 	return data_dir_for(primary) / 'native-profiles' / 'ownership.json'
+# @used-by :func:`build_shared_native()`
+# @used-by :func:`install_native_profiles()`
+# @used-by :func:`retire_owned_project_projections()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_edited_obsolete_role_link_blocks_rename_without_orphaning_ownership()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_former_config_role_block_without_receipt_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_project_retirement_requires_exact_ownership_and_keeps_unrelated_files()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_rename_keeps_unselected_profile_and_shared_target_owned()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_rename_retires_only_owned_links_and_shared_definition()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_does_not_touch_unselected_profile_or_forget_ownership()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unknown_prior_link_record_is_preserved_during_skill_rename()`
+# @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
 def _load_state(primary):
 	path = _state_path(primary)
 	data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'schema_version': 1, 'shared': {}, 'profiles': {}, 'backups': {}}
@@ -203,6 +331,12 @@ def _load_state(primary):
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
 class _ApplyFailure(ValueError):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :func:`_apply()`
+	# @see :meth:`ValueError.__init__()`
+	@override
 	def __init__(self, error, rollback, backups, recovery=None):
 		super().__init__(f'{error}; rollback {rollback["status"]}' + (f'; recovery receipt: {recovery}' if recovery else ''))
 		self.rollback, self.backups, self.recovery = (rollback, backups, recovery)
@@ -210,14 +344,21 @@ class _ApplyFailure(ValueError):
 # "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/71
 class _ManagedLink:
+	# @used-by :func:`_codex_plan()`
+	# @used-by :func:`_plan_codex_link()`
+	# @used-by :func:`_retire_profile_roles()`
+	# @used-by :func:`_retire_profile_skills()`
+	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def __init__(self, path, target, kind, *, label='skill', legacy_dir=False):
 		self.path = _absolute(path)
 		self.target = target if isinstance(target, str) and kind in ('directory-junction', 'directory-symlink') else Path(target)
 		self.kind = kind
 		self.label = label
 		self.legacy_dir = legacy_dir
+	# @used-by :func:`_apply()`
 	def backup_payload(self):
 		return _json(self.identity_dict())
+	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def create(self, primary):
 		if _linked_ancestor(self.path, include_self=False):
 			raise ValueError(f'Linked {self.label} parent directory appeared before creation; preserved: {self.path}')
@@ -227,17 +368,28 @@ class _ManagedLink:
 			_file_link(self.target, self.path, primary)
 		else:
 			_directory_link(self.target, self.path, primary)
+	# @used-by :func:`_apply()`
+	# @used-by :meth:`_ManagedLink.backup_payload()`
+	# @used-by :meth:`_ManagedLink.restore_retired()`
+	# @used-by :meth:`_ManagedLink.retire()`
+	# @used-by :meth:`_ManagedLink.verify_retired()`
+	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def identity_dict(self):
 		target = os.readlink(self.path) if 'file-symlink' == self.kind else str(self.target)
 		return {'kind': self.kind, 'target': target}
+	# @used-by :meth:`_Plan.readonly_issues()`
+	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def readonly_issue(self, *, retired=False):
 		if retired:
 			message = 'Obsolete owned role file link needs retirement' if 'file-symlink' == self.kind else 'Obsolete owned skill directory link needs retirement'
 		else:
 			message = f'Shared role file link is missing: {self.target}' if 'file-symlink' == self.kind else f'Shared skill directory link is missing: {self.target}'
 		return {'file': str(self.path), 'message': message}
+	# @used-by :func:`_rollback()`
+	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def remove_created(self):
 		_remove_link(self.path, self.target)
+	# @used-by :func:`_rollback()`
 	def restore_retired(self, primary):
 		if 'file-symlink' == self.kind:
 			if _exists(self.path) or _linked_ancestor(self.path, include_self=False):
@@ -248,11 +400,13 @@ class _ManagedLink:
 				raise ValueError('Obsolete skill destination changed before rollback; preserved')
 			_restore_directory_link(self.path, self.identity_dict(), primary)
 			self.verify_retired()
+	# @used-by :func:`_apply()`
 	def retire(self):
 		if 'file-symlink' == self.kind:
 			_remove_link(self.path, self.target)
 		else:
 			_retire_directory_link(self.path, self.identity_dict())
+	# @used-by :func:`_verify()`
 	def verify_before_create(self, files, retired_links=()):
 		if _linked_ancestor(self.path, include_self=False):
 			raise ValueError(f'Linked {self.label} parent directory appeared during migration; preserved: {self.path}')
@@ -266,6 +420,8 @@ class _ManagedLink:
 				raise ValueError(f'Legacy skill directory changed during migration; preserved: {self.path}')
 		elif _exists(self.path):
 			raise ValueError(f'Skill destination appeared during migration; preserved: {self.path}')
+	# @used-by :func:`_apply()`
+	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def verify_created(self):
 		if 'file-symlink' == self.kind:
 			target = Path(self.target)
@@ -273,12 +429,17 @@ class _ManagedLink:
 				raise ValueError(f'New role link failed read-back verification: {self.path}')
 		elif not self.path.is_dir() or (not _same_path(self.path, self.target)):
 			raise ValueError(f'New skill link failed read-back verification: {self.path}')
+	# @used-by :func:`_verify()`
+	# @used-by :meth:`_ManagedLink.restore_retired()`
 	def verify_retired(self):
 		if 'file-symlink' != self.kind:
 			_verify_retired_directory_link(self.path, self.identity_dict())
 		elif _linked_ancestor(self.path, include_self=False) or not self.path.is_symlink() or (not _link_matches_target(self.path, self.target)):
 			raise ValueError(f'Obsolete role link changed during migration; preserved: {self.path}')
 class _Plan:
+	# @used-by :func:`build_shared_native()`
+	# @used-by :func:`install_native_profiles()`
+	# @used-by :func:`retire_owned_project_projections()`
 	def __init__(self):
 		self.details = {}
 		self.files = {}
@@ -288,6 +449,19 @@ class _Plan:
 		self.removed_shared = set()
 		self.retired_links = {}
 		self.shared = {}
+	# @used-by :func:`_antigravity_plan()`
+	# @used-by :func:`_codex_plan()`
+	# @used-by :func:`_plan_codex_link()`
+	# @used-by :func:`_retire_shared_roles()`
+	# @used-by :func:`_shared_plan()`
+	# @used-by :func:`agent_tools.cli.main()`
+	# @used-by :func:`agent_tools.cli_domains._op_source_ref()`
+	# @used-by :func:`agent_tools.cli_registry._exec_xref_check()`
+	# @used-by :func:`agent_tools.cli_registry._exec_xref_sync()`
+	# @used-by :func:`agent_tools.completion.execute()`
+	# @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
+	# @used-by :func:`agent_tools.repo_tags.run_repo_tag_cli()`
+	# @used-by :func:`retire_owned_project_projections()`
 	def file(self, path, after):
 		path = _absolute(path)
 		if _linked_ancestor(path):
@@ -298,12 +472,30 @@ class _Plan:
 			before = path.read_bytes() if path.exists() else None
 			if before != after:
 				self.files[path] = (before, after)
+	# @used-by :func:`_antigravity_plan()`
+	# @used-by :func:`_codex_plan()`
+	# @used-by :func:`_plan_codex_link()`
+	# @used-by :func:`_retire_profile_roles()`
+	# @used-by :func:`_retire_profile_skills()`
+	# @used-by :func:`_retire_shared_roles()`
+	# @used-by :func:`_shared_plan()`
+	# @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
+	# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
+	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
+	# @used-by :func:`retire_owned_project_projections()`
+	# @used-by :meth:`_Plan.file()`
+	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_close()`
+	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_comment()`
+	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_edit()`
 	def issue(self, path, message):
 		self.issues.append({'file': str(path), 'message': message})
+	# @used-by :func:`_execute()`
 	def readonly_issues(self):
 		active = [link.readonly_issue() for link in self.managed_links.values()]
 		retired = [link.readonly_issue(retired=True) for link in self.retired_links.values()]
 		return self.issues + [{'file': str(path), 'message': 'Native connection is missing, stale or requires owned legacy retirement'} for path in self.files] + active + retired
+# @used-by :func:`build_shared_native()`
+# @used-by :func:`install_native_profiles()`
 def _shared_plan(plan, primary, state):
 	primary = _absolute(primary)
 	relocated = _relocated_primaries(primary)
@@ -328,10 +520,12 @@ def _shared_plan(plan, primary, state):
 			continue
 		plan.file(path, payload)
 		plan.shared[str(path)] = _hash(payload)
+# @used-by :func:`_retire_profile_roles()`
 def _role_identity(path, target, home, primary):
 	path, target = (_absolute(path), _absolute(target))
 	valid_targets = {_absolute(cand) / 'platforms/codex/agents' / path.name for cand in (primary, *_relocated_primaries(primary))}
 	return path.parent == _absolute(home) / 'agents' and '.toml' == path.suffix and bool(re.fullmatch('[A-Za-z0-9_-]+', path.stem)) and (target in valid_targets)
+# @used-by :func:`_codex_plan()`
 def _retire_profile_roles(plan, profile, previous, home, primary, state):
 	wanted = {_absolute(home) / f'agents/{name}.toml' for _, name, _, _ in _role_values(primary)}
 	prior = previous.get('role_targets', {})
@@ -355,14 +549,24 @@ def _retire_profile_roles(plan, profile, previous, home, primary, state):
 						plan.retired_links[path] = _ManagedLink(path, target, 'file-symlink', label='obsolete role')
 					if str(path) not in profile['retired']:
 						profile['retired'].append(str(path))
+# @used-by :func:`_plan_codex_link()`
+# @used-by :func:`_retire_profile_skills()`
+# @used-by :func:`_verify_retired_directory_link()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_under_linked_parent_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
 def _directory_link_identity(path):
 	return {'kind': 'directory-junction' if bool(getattr(path, 'is_junction', lambda: False)()) else 'directory-symlink', 'target': os.readlink(path)}
+# @used-by :func:`_retire_directory_link()`
+# @used-by :meth:`_ManagedLink.verify_retired()`
 def _verify_retired_directory_link(path, identity):
 	if _linked_ancestor(path, include_self=False) or not _linked(path) or _directory_link_identity(path) != identity:
 		raise ValueError(f'Obsolete skill link changed during migration; preserved: {path}')
+# @used-by :meth:`_ManagedLink.retire()`
 def _retire_directory_link(path, identity):
 	_verify_retired_directory_link(path, identity)
 	path.rmdir() if 'directory-junction' == identity['kind'] else path.unlink()
+# @used-by :func:`_codex_plan()`
 def _retire_profile_skills(plan, profile, previous, home, primary, skills):
 	wanted = {_absolute(home) / 'skills' / name for name in skills}
 	prior = previous.get('links', {})
@@ -391,6 +595,8 @@ def _retire_profile_skills(plan, profile, previous, home, primary, skills):
 						plan.retired_links[path] = _ManagedLink(path, identity['target'], identity['kind'], label='obsolete skill')
 					if str(path) not in profile['retired']:
 						profile['retired'].append(str(path))
+# @used-by :func:`build_shared_native()`
+# @used-by :func:`install_native_profiles()`
 def _retire_shared_roles(plan, primary, state):
 	profiles = {**state.get('profiles', {}), **plan.profiles}
 	if not any(('codex' == profile.get('platform') and 'file-links' != profile.get('role_registration') for profile in profiles.values())):
@@ -411,6 +617,7 @@ def _retire_shared_roles(plan, primary, state):
 			if path.exists():
 				plan.file(path, None)
 			plan.removed_shared.add(str(path))
+# @used-by :func:`_antigravity_plan()`
 def _manifest(payload, kind, config, primary):
 	if not isinstance(payload, dict):
 		raise ValueError('Discovery manifest must be a JSON object; preserved')
@@ -447,9 +654,12 @@ def _manifest(payload, kind, config, primary):
 		new_inherits.append({'path': shared.as_posix()})
 	r['inherits'] = new_inherits
 	return r
+# @used-by :func:`_antigravity_plan()`
+# @used-by :func:`_codex_plan()`
 def _profile_state(state, name, path):
 	previous = state.get('profiles', {}).get(name, {})
 	return previous if previous.get('path') == str(_absolute(path)) else {}
+# @used-by :func:`install_native_profiles()`
 def _antigravity_plan(plan, name, config, primary, state):
 	# 2026-11-20
 	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
@@ -557,6 +767,8 @@ def _antigravity_plan(plan, name, config, primary, state):
 		except (ValueError, OSError) as exc:
 			plan.issue(mcp_json, str(exc))
 	plan.profiles[name] = profile
+# @used-by :func:`_role_config()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
 def _legacy_role_config(text, definitions):
 	data = tomllib.loads(text) if text.strip() else {}
 	agents = data.get('agents', {})
@@ -572,6 +784,7 @@ def _legacy_role_config(text, definitions):
 		text += ('' if not text or text.endswith('\n\n') else '\n' if text.endswith('\n') else '\n\n') + f'# Shared Harness roles; {ISSUE}\n' + '\n'.join(additional)
 		tomllib.loads(text)
 	return text
+# @used-by :func:`_codex_plan()`
 def _role_config(text, definitions, previous, state, path, primary):
 	data = tomllib.loads(text) if text.strip() else {}
 	agents = data.get('agents', {})
@@ -621,6 +834,7 @@ def _role_config(text, definitions, previous, state, path, primary):
 		if any((name in remaining.get('agents', {}) for name in definitions)):
 			raise ValueError('Same-name role tables outside the owned installer block are preserved')
 	return r
+# @used-by :func:`_codex_plan()`
 def _plan_codex_link(plan, profile, link, active_valid, active_error, retire_path, legacy_valid, legacy_error, relocated_valid=lambda: False):
 	path = link.path
 	profile['links'][str(path)] = str(link.target)
@@ -649,6 +863,7 @@ def _plan_codex_link(plan, profile, link, active_valid, active_error, retire_pat
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`_codex_plan()`
 def _disable_codex_bundled_chrome_plugin(text):
 	data = tomllib.loads(text) if text.strip() else {}
 	plugins = data.get('plugins')
@@ -661,6 +876,7 @@ def _disable_codex_bundled_chrome_plugin(text):
 	if False is not verify.get('plugins', {}).get('chrome@openai-bundled', {}).get('enabled'):
 		raise ValueError('Disabling plugins."chrome@openai-bundled" did not parse as false; preserved')
 	return updated
+# @used-by :func:`install_native_profiles()`
 def _codex_plan(plan, name, home, primary, state):
 	home = _absolute(home)
 	previous = _profile_state(state, name, home)
@@ -705,12 +921,31 @@ def _codex_plan(plan, name, home, primary, state):
 		relocated_role_targets = {_absolute(rc / f'platforms/codex/agents/{agent}.toml') for rc in relocated}
 		_plan_codex_link(plan, profile, _ManagedLink(role_path, role_target, 'file-symlink', label='role'), lambda p=role_path, t=role_target: p.is_symlink() and p.is_file() and _same_path(p, t) and _direct_link_matches_target(p, t) and (p.read_bytes() == t.read_bytes()), 'Role link points to a different or missing file; preserved', role_path, lambda p=role_path, rl=role, ag=agent, pr=purpose: p.is_file() and _normalized(p.read_text(encoding='utf-8-sig')) == _normalized(_legacy_role(primary, rl, ag, pr)), 'Legacy role differs from its exact generated template; preserved', relocated_valid=lambda p=role_path, pt=prior_role_target, t=role_target, rts=relocated_role_targets: p.is_symlink() and _is_relocated_owned_link(p, pt, t, rts))
 	plan.profiles[name] = profile
+# @used-by :func:`_directory_link()`
+# @used-by :func:`_file_link()`
+# @used-by :func:`_restore_directory_link()`
 def _prepare_link_parent(path, label, action='creation'):
 	if _linked_ancestor(path, include_self=False):
 		raise ValueError(f'Linked {label} parent directory appeared before {action}; preserved: {path}')
 	path.parent.mkdir(parents=True, exist_ok=True)
 	if _linked_ancestor(path, include_self=False):
 		raise ValueError(f'Linked {label} parent directory appeared before {action}; preserved: {path}')
+# @used-by :func:`_restore_directory_link()`
+# @used-by :meth:`_ManagedLink.create()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_new_link_failure_rolls_back_existing_profile_files()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_under_linked_parent_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_project_retirement_skips_a_linked_source_directory()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_parent_link_injected_immediately_before_creation_cannot_escape()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_parent_link_injected_during_backup_is_preserved_without_escape()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_parent_link_injected_immediately_before_creation_cannot_escape()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unknown_prior_link_record_is_preserved_during_skill_rename()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_wrong_skill_link_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_wrong_target_obsolete_skill_link_is_preserved()`
 def _directory_link(target, path, primary):
 	_prepare_link_parent(path, 'skill')
 	if 'nt' != os.name:
@@ -720,19 +955,34 @@ def _directory_link(target, path, primary):
 		result = subprocess.run([node, '-e', "require('node:fs').symlinkSync(process.argv[1],process.argv[2],'junction')", str(target), str(path)], capture_output=True, text=True, timeout=15)
 		if result.returncode:
 			raise OSError(f'Directory junction creation failed: {result.stderr.strip()}')
+# @used-by :meth:`_ManagedLink.create()`
+# @used-by :meth:`_ManagedLink.restore_retired()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_changed_created_link_does_not_stop_other_guarded_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_link_failure_restores_retired_roles_and_config()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_parent_link_injected_immediately_before_creation_cannot_escape()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_rename_failure_restores_retired_link_definition_and_receipt()`
 def _file_link(target, path, primary):
 	_prepare_link_parent(path, 'role')
 	path.symlink_to(target, target_is_directory=False)
+# @used-by :meth:`_ManagedLink.restore_retired()`
 def _restore_directory_link(path, identity, primary):
 	if 'directory-junction' == identity['kind']:
 		_directory_link(identity['target'], path, primary)
 	else:
 		_prepare_link_parent(path, 'obsolete skill', 'restoration')
 		path.symlink_to(identity['target'], target_is_directory=True)
+# @used-by :meth:`_ManagedLink.remove_created()`
+# @used-by :meth:`_ManagedLink.retire()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_dangling_directory_symlink_skill_is_retired()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_manually_replaced_obsolete_skill_directory_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_wrong_target_obsolete_skill_link_is_preserved()`
 def _remove_link(path, target):
 	if _linked_ancestor(path, include_self=False) or not _linked(path) or (not _link_matches_target(path, target)):
 		raise ValueError(f'Created link changed before rollback; preserved: {path}')
 	path.rmdir() if bool(getattr(path, 'is_junction', lambda: False)()) else path.unlink()
+# @used-by :func:`_apply()`
 def _verify(plan):
 	for path, (before, _) in plan.files.items():
 		if _linked_ancestor(path) or (path.read_bytes() if path.is_file() else None) != before:
@@ -741,10 +991,16 @@ def _verify(plan):
 		link.verify_before_create(plan.files, plan.retired_links)
 	for link in plan.retired_links.values():
 		link.verify_retired()
+# @used-by :func:`_apply()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_preimage_change_is_preserved_before_application()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_parent_link_injected_during_backup_is_preserved_without_escape()`
 def _backup(primary, state, path, payload):
 	backup, digest = store_content_backup(data_dir_for(primary) / 'native-profiles/backups', path, payload)
 	state.setdefault('backups', {})[str(path) + ':' + digest] = str(backup)
 	return str(backup)
+# @used-by :func:`_apply()`
 def _rollback(plan, applied, created_links, retired_links, primary):
 	issues, restored = ([], [])
 	for link in reversed(created_links):
@@ -775,6 +1031,7 @@ def _rollback(plan, applied, created_links, retired_links, primary):
 		except (ValueError, OSError, subprocess.SubprocessError) as exc:
 			issues.append({'file': str(link.path), 'message': str(exc)})
 	return {'status': 'partial' if issues else 'complete', 'restored': restored, 'issues': issues}
+# @used-by :func:`_execute()`
 def _apply(plan, primary, state):
 	receipt = _state_path(primary)
 	receipt_before = receipt.read_bytes() if receipt.exists() else None
@@ -844,6 +1101,9 @@ def _apply(plan, primary, state):
 					break
 				parent = parent.parent
 	return {'written': [str(path) for path, (_, value) in plan.files.items() if None is not value], 'removed': [str(path) for path, (_, value) in plan.files.items() if None is value] + [str(path) for path in plan.retired_links], 'linked': [str(path) for path in plan.managed_links], 'backups': backups}
+# @used-by :func:`build_shared_native()`
+# @used-by :func:`install_native_profiles()`
+# @used-by :func:`retire_owned_project_projections()`
 def _execute(plan, primary, state, *, check=False):
 	issues = plan.readonly_issues() if check else plan.issues
 	result = {'valid': not issues, 'issues': issues, 'profiles': deepcopy(plan.profiles), 'verification': 'filesystem-only', 'written': [], 'removed': [], 'linked': [], 'backups': []}
@@ -862,6 +1122,10 @@ def _execute(plan, primary, state, *, check=False):
 		global_issues = [issue for issue in result['issues'] if not any(_absolute(issue['file']).is_relative_to(Path(item['path'])) for item in result['profiles'].values())]
 		profile.update(config=str(base), valid=not local and not global_issues, issues=[*global_issues, *local], written=[path for path in result['written'] if _absolute(path).is_relative_to(base)], removed=[path for path in result['removed'] if _absolute(path).is_relative_to(base)], link_targets=profile.pop('links', {}), links=[path for path in result['linked'] if _absolute(path).is_relative_to(base)], **plan.details.get(name, {}))
 	return result
+# @used-by :func:`agent_tools.configuration.build_native()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_shared_manual_edit_is_preserved()`
 def build_shared_native(primary=PRIMARY, *, check=False):
 	primary = Path(primary).resolve()
 	with nullcontext() if check else locked(data_dir_for(primary) / 'native-profiles/install.lock'):
@@ -878,6 +1142,21 @@ def build_shared_native(primary=PRIMARY, *, check=False):
 # 2026-11-24
 # "Manage Harness ephemeral Git exclusions in install-global and doctor":
 # https://github.com/dmitry-ai/harness/issues/198
+# @used-by :func:`agent_tools.upwork_project._install_profile_customizations()`
+# @used-by :func:`agent_tools.upwork_project.check_global_customizations()`
+# @used-by :func:`agent_tools.upwork_project.install_global_customizations()`
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_doctor_reports_and_validates_global_git_ignore()`
+# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_install_global_check_and_apply_preserve_user_rules_and_are_idempotent()`
+# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_isolated_synthetic_primary_skips_host_git_ignore_mutation()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_all_disabled_and_claude_code_only_environment_without_antigravity_or_codex()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.install()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_v2_unicode_primary_generates_ascii_hook_runner_upgrades_legacy_hooks_and_runs_via_cmd_exe()`
+# @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
 def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMARY, config_dirs=None, codex_homes=None, git_ignore_path=None):
 	primary = Path(primary).resolve()
 	config = _configuration(primary)
@@ -926,10 +1205,18 @@ def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMAR
 		# https://github.com/dmitry-ai/harness/issues/198
 		from .git_ignore import finalize_install_result
 		return finalize_install_result(_execute(plan, primary, state, check=check), all_declared, names, primary, check=check, git_ignore_path=git_ignore_path)
+# @used-by :func:`agent_tools.configuration.build_native()`
+# @used-by :func:`agent_tools.configuration.configure_codex_project()`
+# @used-by :func:`retire_owned_project_projections()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_edited_project_projection_blocks_all_retirements()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_project_retirement_requires_exact_ownership_and_keeps_unrelated_files()`
 def legacy_project_projection_paths(root, primary=PRIMARY):
 	root = Path(root).resolve()
 	paths = [root / f'.agents/skills/{name}/SKILL.md' for name in _skills(primary)] + [root / f'.codex/agents/{name}.toml' for _, name, _, _ in _role_values(primary)]
 	return [path for path in paths if not _linked_ancestor(path)]
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_edited_project_projection_blocks_all_retirements()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_project_retirement_requires_exact_ownership_and_keeps_unrelated_files()`
+# @used-by :meth:`test_native_profiles.NativeProfileTests.test_project_retirement_skips_a_linked_source_directory()`
 def retire_owned_project_projections(root, *, check=False, primary=PRIMARY):
 	root, primary = (Path(root).resolve(), Path(primary).resolve())
 	receipt, _, previous = load_project_receipt(root)

@@ -1,4 +1,5 @@
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+from typing import override
 import json
 import shutil
 import tomllib
@@ -11,6 +12,12 @@ from agent_tools import configuration, runtime
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class AgentsLoaderTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.primary = self.root / 'canonical'
@@ -21,10 +28,20 @@ class AgentsLoaderTests(TemporaryCase):
 		for relative in ('runtime.json', 'platforms/codex.md', 'skills/upwork-init/SKILL.md', 'agents/worker.md'):
 			shutil.copyfile(runtime.PRIMARY / relative, self.primary / relative)
 		self.output = self.root / 'workspace'
+	# @used-by :meth:`AgentsLoaderTests.test_check_detects_missing_guidance_without_writing_and_build_repairs_it()`
+	# @used-by :meth:`AgentsLoaderTests.test_edit_to_generated_guidance_blocks_other_pending_configuration_updates()`
+	# @used-by :meth:`AgentsLoaderTests.test_existing_unowned_guidance_is_preserved_without_partial_installation()`
+	# @used-by :meth:`AgentsLoaderTests.test_guidance_uses_current_canonical_loader_without_copying_rule_bodies()`
+	# @used-by :meth:`AgentsLoaderTests.test_new_source_path_updates_guidance_and_existing_toml_together()`
 	def build(self, *, check=False):
 		return configuration.build_native(self.output, primary=self.primary, check=check)
+	# @used-by :meth:`AgentsLoaderTests.test_check_detects_missing_guidance_without_writing_and_build_repairs_it()`
+	# @used-by :meth:`AgentsLoaderTests.test_edit_to_generated_guidance_blocks_other_pending_configuration_updates()`
+	# @used-by :meth:`AgentsLoaderTests.test_existing_unowned_guidance_is_preserved_without_partial_installation()`
+	# @used-by :meth:`AgentsLoaderTests.test_new_source_path_updates_guidance_and_existing_toml_together()`
 	def snapshot(self):
 		return {p.relative_to(self.output).as_posix(): p.read_bytes() for p in self.output.rglob('*') if p.is_file() and 'ꘖ/data/native-config.lock' != p.relative_to(self.output).as_posix()}
+	# @used-by :mod:`unittest`
 	def test_guidance_uses_current_canonical_loader_without_copying_rule_bodies(self):
 		rule = self.primary / 'rules/90-loader-test.md'
 		rule.write_text('CANONICAL BODY MUST STAY IN ITS SOURCE\n', encoding='utf-8')
@@ -54,6 +71,7 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertIn('--no-optional-locks', loader)
 		receipt = json.loads((self.output / 'ꘖ/data/native-config.json').read_text(encoding='utf-8'))
 		self.assertEqual(receipt[str(guidance.resolve())], configuration._digest(guidance.read_bytes()))
+	# @used-by :mod:`unittest`
 	def test_check_detects_missing_guidance_without_writing_and_build_repairs_it(self):
 		self.assertTrue(self.build()['valid'])
 		guidance = self.output / 'AGENTS.md'
@@ -68,6 +86,7 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertEqual(guidance.read_bytes(), wanted)
 		self.assertTrue(self.build(check=True)['valid'])
 		self.assertEqual(self.build()['written'], [])
+	# @used-by :mod:`unittest`
 	def test_existing_unowned_guidance_is_preserved_without_partial_installation(self):
 		self.output.mkdir()
 		guidance = self.output / 'AGENTS.md'
@@ -77,6 +96,7 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertEqual(self.snapshot(), before)
 		self.assertFalse((self.primary / 'agents/af-worker.md').exists())
+	# @used-by :mod:`unittest`
 	def test_edit_to_generated_guidance_blocks_other_pending_configuration_updates(self):
 		self.assertTrue(self.build()['valid'])
 		guidance = self.output / 'AGENTS.md'
@@ -87,6 +107,7 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertEqual(self.snapshot(), before)
 		self.assertTrue(any((item['file'] == str(guidance.resolve()) for item in result['issues'])))
+	# @used-by :mod:`unittest`
 	def test_new_source_path_updates_guidance_and_existing_toml_together(self):
 		self.assertTrue(self.build()['valid'])
 		rule = self.primary / 'rules/91-new.md'
@@ -102,6 +123,7 @@ class AgentsLoaderTests(TemporaryCase):
 	# 2026-10-24
 	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 	# https://github.com/dmitry-ai/harness/issues/17
+	# @used-by :mod:`unittest`
 	def test_read_git_and_git_shim_and_unflagged_detector(self):
 		from agent_tools import git_gate
 		import git_shim
@@ -126,6 +148,7 @@ class AgentsLoaderTests(TemporaryCase):
 	# 2026-10-31
 	# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 	# https://github.com/dmitry-ai/harness/issues/26
+	# @used-by :mod:`unittest`
 	def test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message(self):
 		from agent_tools import git_gate
 		import git_shim
@@ -188,6 +211,7 @@ class AgentsLoaderTests(TemporaryCase):
 	# 2026-11-14
 	# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
 	# https://github.com/dmitry-ai/harness/issues/67
+	# @used-by :mod:`unittest`
 	def test_shell_audit_inspector_and_single_pass_repo_gate_commit(self):
 		import subprocess
 		from unittest.mock import patch
@@ -233,6 +257,7 @@ class AgentsLoaderTests(TemporaryCase):
 			gate.verify_issue_workflow(['mod.py', 'tests/test_mod.py'], message='# https://github.com/dmitry-ai/harness/issues/67')
 		calls = []
 		orig_check = git_gate.GitRepoGate.check_commit
+		# @used-by :meth:`AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 		def spy_check(inst, paths, *, message=None):
 			calls.append((inst.root, list(paths), message))
 			return orig_check(inst, paths, message=message)

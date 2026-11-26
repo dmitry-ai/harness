@@ -20,22 +20,28 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _RAN_RE = re.compile(r'(?m)^Ran\s+(\d+)\s+tests?\s+in\s+')
 _SKIP_DIRS = frozenset({'.git', '__pycache__', 'node_modules', 'venv', '.venv', '\ua616', '\ua66e', '\U0001f56e'})
 _SKIPPED_RE = re.compile(r'\bskipped=(\d+)\b')
+# @used-by :func:`run_test_suite()`
 def _default_workers() -> int:
 	return min(max(2, (os.cpu_count() or 4) // 2), 8)
 # 2026-11-24
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206
+# @used-by :func:`_run_module_worker()`
+# @used-by :func:`_terminate_active()`
 def _kill_process_tree(proc: subprocess.Popen) -> None:
 	kill_process_tree(proc)
+# @used-by :func:`discover_test_modules()`
 def _module_matches_filters(mod: Path, base_dir: Path, filters: list[str]) -> bool:
 	rel = mod.relative_to(base_dir).as_posix().lower()
 	name = mod.name.lower()
 	stem = mod.stem.lower()
 	return any((f in (rel, name, stem) or rel.endswith('/' + f) for f in filters))
+# @used-by :func:`_run_module_worker()`
 def _parse_unittest_counts(text: str) -> tuple[int, int]:
 	ran = sum((int(m.group(1)) for m in _RAN_RE.finditer(text or '')))
 	skipped = sum((int(m.group(1)) for m in _SKIPPED_RE.finditer(text or '')))
 	return (ran, skipped)
+# @used-by :func:`discover_test_modules()`
 def _resolve_tests_dir(raw_dir: Path | str | None) -> Path:
 	base = Path(raw_dir).resolve() if None is not raw_dir else (Path(__file__).resolve().parents[2] / 'tests').resolve()
 	if not base.is_dir():
@@ -44,6 +50,7 @@ def _resolve_tests_dir(raw_dir: Path | str | None) -> Path:
 	if sub_tests.is_dir() and (not any(base.glob('test_*.py'))):
 		base = sub_tests.resolve()
 	return base
+# @used-by :func:`run_test_suite()`
 def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_timeout: float, stop_event: threading.Event, active_lock: threading.Lock, active_procs: set[subprocess.Popen]) -> dict:
 	rel = mod_path.relative_to(top_dir).as_posix()
 	if stop_event.is_set():
@@ -89,11 +96,14 @@ def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_
 		status = 'timeout' if timed_out else 'cancelled' if cancelled else 'passed' if 0 == rc else 'failed'
 		r = {'module': rel, 'status': status, 'returncode': rc, 'elapsed': elapsed, 'tests': tests, 'skipped': skipped, 'output': output}
 	return r
+# @used-by :func:`run_test_suite()`
 def _terminate_active(active_lock: threading.Lock, active_procs: set[subprocess.Popen]) -> None:
 	with active_lock:
 		procs = list(active_procs)
 	for proc in procs:
 		_kill_process_tree(proc)
+# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
+# @used-by :func:`run_test_suite()`
 def discover_test_modules(tests_dir: Path | str | None=None, *, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> tuple[Path, list[Path]]:
 	base = _resolve_tests_dir(tests_dir)
 	found: list[Path] = []
@@ -105,6 +115,7 @@ def discover_test_modules(tests_dir: Path | str | None=None, *, pattern: str='te
 		found = [m for m in found if _module_matches_filters(m, base, norm_filters)]
 	ordered = sorted(found, key=lambda p: (-p.stat().st_size, p.relative_to(base).as_posix()))
 	return (base, ordered)
+# @used-by :func:`agent_tools.cli_registry._format_run_tests()`
 def format_text_report(report: dict) -> str:
 	lines: list[str] = []
 	for item in report.get('results') or []:
@@ -131,6 +142,7 @@ def format_text_report(report: dict) -> str:
 			parts.append(f"timeouts={report['timed_out_modules']}")
 		lines.append(f"FAILED ({', '.join(parts) or 'error'})")
 	return '\n'.join(lines) + '\n'
+# @used-by :func:`agent_tools.cli_registry._exec_run_tests()`
 def run_test_suite(tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, failfast: bool=True, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> dict:
 	base, ordered = discover_test_modules(tests_dir, pattern=pattern, modules=modules)
 	if not ordered:

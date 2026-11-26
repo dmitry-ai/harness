@@ -1,5 +1,6 @@
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
+from typing import override
 import io
 import json
 from types import SimpleNamespace
@@ -20,11 +21,23 @@ class PublicationLifecycleTests(ProjectCase):
 	# 2026-10-18
 	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 	# https://github.com/dmitry-ai/harness/issues/10
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
+	# @used-by :meth:`PublicationLifecycleTests.test_invalid_consumption_scope_fails_before_analysis_changes()`
+	# @used-by :meth:`PublicationLifecycleTests.test_new_analysis_cannot_finish_with_an_unpublished_website_card()`
+	# @used-by :meth:`PublicationLifecycleTests.test_stdin_analysis_and_owned_scratch_inputs_leave_no_permanent_candidate()`
+	# @used-by :meth:`PublicationLifecycleTests.test_website_and_red_flags_have_stable_order_and_preserve_manual_edits()`
+	# @used-by :meth:`PublicationLifecycleTests.test_website_requires_valid_url_and_identity_basis()`
+	# @see :meth:`test_analysis_workflow.ProjectCase.valid_analysis()`
+	@override
 	def valid_analysis(self):
 		value = v3_analysis(self.project, super().valid_analysis())
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
 		r = value
 		return r
+	# @used-by :mod:`unittest`
 	def test_creation_publishes_supplied_site_and_reinit_keeps_the_card(self):
 		from agent_tools.upwork_project import initialize_upwork_project
 		hypothesis = {**claim('H-SITE-1'), 'website_url': 'https://example.org/'}
@@ -43,6 +56,7 @@ class PublicationLifecycleTests(ProjectCase):
 		previous = card.read_bytes()
 		initialize_upwork_project(data['job_id'], **kwargs)
 		self.assertEqual(card.read_bytes(), previous)
+	# @used-by :mod:`unittest`
 	def test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata(self):
 		value = self.valid_analysis()
 		value['identity'] = [claim('H-SITE-1')]
@@ -73,6 +87,7 @@ class PublicationLifecycleTests(ProjectCase):
 		value['identity'][0]['essence'] += ' New contradictory evidence.'
 		self.assertEqual(sync_website_card(self.project, value)['status'], 'conflict')
 		self.assertEqual(card.read_bytes(), current)
+	# @used-by :mod:`unittest`
 	def test_website_requires_valid_url_and_identity_basis(self):
 		value = self.valid_analysis()
 		value['identity'] = [claim('H-SITE-1')]
@@ -82,6 +97,7 @@ class PublicationLifecycleTests(ProjectCase):
 			self.assertTrue(analysis_issues(candidate))
 		for malformed in ({'websites': [{'url': 123, 'role': 'target', 'basis_id': 'H-SITE-1'}]}, {'identity': None, 'websites': [{'url': None, 'role': 'target', 'basis_id': []}]}):
 			self.assertTrue(analysis_issues({**value, **malformed}))
+	# @used-by :mod:`unittest`
 	def test_new_analysis_cannot_finish_with_an_unpublished_website_card(self):
 		value = self.valid_analysis()
 		value['identity'] = [claim('H-SITE-1')]
@@ -96,6 +112,7 @@ class PublicationLifecycleTests(ProjectCase):
 		path.write_text(json.dumps(value), encoding='utf-8')
 		publish_analysis(path)
 		self.assertNotIn('project.website', {x['code'] for x in workflow.check_project(self.project)['issues']})
+	# @used-by :mod:`unittest`
 	def test_stdin_analysis_and_owned_scratch_inputs_leave_no_permanent_candidate(self):
 		value = self.valid_analysis()
 		source = self.project / 'ꘖ/KB/Analysis.json'
@@ -110,6 +127,7 @@ class PublicationLifecycleTests(ProjectCase):
 		args.candidate, args.consume_input, args.expected_sha256 = (scratch.relative_to(self.project).as_posix(), True, result['sha256'])
 		operations.execute(args)
 		self.assertFalse(scratch.exists())
+	# @used-by :mod:`unittest`
 	def test_website_and_red_flags_have_stable_order_and_preserve_manual_edits(self):
 		value = self.valid_analysis()
 		value['identity'] = [claim('H-SITE-1')]
@@ -139,6 +157,7 @@ class PublicationLifecycleTests(ProjectCase):
 		changed = card.read_bytes()
 		self.assertEqual(publish_analysis(path)['status'], 'conflict')
 		self.assertEqual(card.read_bytes(), changed)
+	# @used-by :mod:`unittest`
 	def test_invalid_consumption_scope_fails_before_analysis_changes(self):
 		value = self.valid_analysis()
 		source = self.project / 'ꘖ/KB/Analysis.json'
@@ -149,6 +168,7 @@ class PublicationLifecycleTests(ProjectCase):
 			operations.execute(args)
 		self.assertEqual(source.read_bytes(), original)
 		self.assertTrue(candidate.exists())
+	# @used-by :mod:`unittest`
 	def test_failed_or_changed_input_is_retained(self):
 		path = self.put_project('ꘖ/data/scratch/plan.json', '{}')
 		args = SimpleNamespace(project=self.project, consume_input=True)
@@ -157,6 +177,7 @@ class PublicationLifecycleTests(ProjectCase):
 		path.write_bytes(b'USER CHANGE')
 		operations._consumed(args, path, b'{}', {'complete': True})
 		self.assertEqual(path.read_bytes(), b'USER CHANGE')
+	# @used-by :mod:`unittest`
 	def test_collect_receipt_preserves_plan_after_input_is_consumed(self):
 		path = self.put_project('ꘖ/data/scratch/plan.json', '{"requests": []}')
 		args = SimpleNamespace(command='collect', project=self.project, plan=path, output='ꘖ/KB/Evidence/report.json', consume_input=True)
@@ -167,12 +188,14 @@ class PublicationLifecycleTests(ProjectCase):
 		source = receipts[str(self.project / args.output)]['source']
 		self.assertEqual(source['plan'], {'requests': []})
 		self.assertEqual(source['kind'], 'collection-plan')
+	# @used-by :mod:`unittest`
 	def test_progress_is_replaced_without_archiving_derived_navigation(self):
 		state = workflow.load(self.project)
 		workflow.publish_progress(self.project, state)
 		state['questions']['Q'] = {'id': 'Q', 'question': 'Q?', 'status': 'pending', 'done_when': 'Done'}
 		workflow.publish_progress(self.project, state)
 		self.assertFalse((self.project / 'ꘖ/data/render-history').exists())
+	# @used-by :mod:`unittest`
 	def test_collector_retains_totals_and_only_32_recent_diagnostics(self):
 		path = self.project / 'ꘖ/data/research-metrics.json'
 		path.write_text(json.dumps([{'cached': True}, {'cached': False, 'error': 'old failure'}]))

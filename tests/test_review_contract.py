@@ -4,6 +4,7 @@ from contextlib import redirect_stdout
 from io import BytesIO, StringIO
 from pathlib import Path
 from types import SimpleNamespace
+from typing import override
 from unittest.mock import patch
 import hashlib
 import json
@@ -18,6 +19,12 @@ from agent_tools.research import json_data
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class ReviewContractTests(ProjectCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.value = self.valid_review_analysis()
@@ -25,16 +32,51 @@ class ReviewContractTests(ProjectCase):
 		flow.resume(self.project, 'review contract fixture', 'Show the saved client title.')
 		self.answer = 'Client task\n'
 		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'}]
+	# @used-by :meth:`ReviewContractTests.test_answer_change_and_new_request_need_new_review_even_without_kb_change()`
+	# @used-by :meth:`ReviewContractTests.test_audit_must_explain_falsifiability_and_compare_raw_criteria()`
+	# @used-by :meth:`ReviewContractTests.test_audit_target_must_equal_the_analysis_claim_and_irrelevant_test_is_unsupported()`
+	# @used-by :meth:`ReviewContractTests.test_causal_property_forces_significant_even_when_labeled_descriptive_routine()`
+	# @used-by :meth:`ReviewContractTests.test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review()`
+	# @used-by :meth:`ReviewContractTests.test_finalize_rejects_changed_journal_answer_after_approved_stage_receipts()`
+	# @used-by :meth:`ReviewContractTests.test_handwritten_empty_manifest_package_cannot_pass_record_review()`
+	# @used-by :meth:`ReviewContractTests.test_handwritten_routine_package_cannot_bypass_computed_risk()`
+	# @used-by :meth:`ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
+	# @used-by :meth:`ReviewContractTests.test_needs_changes_and_open_findings_persist_and_parent_disposition_cannot_approve()`
+	# @used-by :meth:`ReviewContractTests.test_new_parent_cannot_self_approve_unchanged_answer_rejected_by_native_reviewer()`
+	# @used-by :meth:`ReviewContractTests.test_official_distributor_is_not_established_by_contains_lunos_proxy()`
+	# @used-by :meth:`ReviewContractTests.test_original_report_proof_is_immutable_when_input_filename_is_reused()`
+	# @used-by :meth:`ReviewContractTests.test_parent_cannot_replace_authored_needs_changes_with_an_approved_json()`
+	# @used-by :meth:`ReviewContractTests.test_per_claim_audit_is_required_and_qualified_gap_can_pass()`
+	# @used-by :meth:`ReviewContractTests.test_relabeling_same_answer_cannot_hide_an_independent_rejection()`
+	# @used-by :meth:`ReviewContractTests.test_restatement_is_routine_only_after_two_approved_exact_versions_and_no_new_evidence()`
+	# @used-by :meth:`ReviewContractTests.test_review_input_returns_neutral_report_contract_with_all_options()`
+	# @used-by :meth:`ReviewContractTests.test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report()`
+	# @used-by :meth:`ReviewContractTests.test_routine_fact_approves_and_exact_answer_is_recorded()`
+	# @used-by :meth:`ReviewContractTests.test_significant_self_finding_requires_two_independent_authored_followups()`
 	def package(self, *, risk='routine', novelty='new'):
 		manifest = [{**self.manifest[0], 'novelty': novelty}]
 		r = self.review_package(self.parent, self.answer, risk, manifest)
 		return r
+	# @used-by :meth:`ReviewContractTests.test_answer_change_and_new_request_need_new_review_even_without_kb_change()`
+	# @used-by :meth:`ReviewContractTests.test_causal_property_forces_significant_even_when_labeled_descriptive_routine()`
+	# @used-by :meth:`ReviewContractTests.test_finalize_rejects_changed_journal_answer_after_approved_stage_receipts()`
+	# @used-by :meth:`ReviewContractTests.test_needs_changes_and_open_findings_persist_and_parent_disposition_cannot_approve()`
+	# @used-by :meth:`ReviewContractTests.test_new_parent_cannot_self_approve_unchanged_answer_rejected_by_native_reviewer()`
+	# @used-by :meth:`ReviewContractTests.test_routine_fact_approves_and_exact_answer_is_recorded()`
+	# @used-by :meth:`ReviewContractTests.test_significant_self_finding_requires_two_independent_authored_followups()`
 	def self_record(self, package, *, result='approved', findings=None):
 		report = self.review_report(package, self_review=True, result=result, findings=findings)
 		with patch('agent_tools.platforms.adapter'):
 			flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent)
 		r = report
 		return r
+	# @used-by :meth:`ReviewContractTests.test_causal_property_forces_significant_even_when_labeled_descriptive_routine()`
+	# @used-by :meth:`ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
+	# @used-by :meth:`ReviewContractTests.test_new_parent_cannot_self_approve_unchanged_answer_rejected_by_native_reviewer()`
+	# @used-by :meth:`ReviewContractTests.test_parent_cannot_replace_authored_needs_changes_with_an_approved_json()`
+	# @used-by :meth:`ReviewContractTests.test_relabeling_same_answer_cannot_hide_an_independent_rejection()`
+	# @used-by :meth:`ReviewContractTests.test_restatement_is_routine_only_after_two_approved_exact_versions_and_no_new_evidence()`
+	# @used-by :meth:`ReviewContractTests.test_significant_self_finding_requires_two_independent_authored_followups()`
 	def native_record(self, package, reviewer=None, *, report=None, actual=None):
 		reviewer = reviewer or str(uuid.uuid4())
 		report = report or self.review_report(package)
@@ -45,11 +87,23 @@ class ReviewContractTests(ProjectCase):
 			flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=reviewer, native_evidence=path.relative_to(self.project).as_posix())
 		r = native
 		return r
+	# @used-by :meth:`ReviewContractTests.test_answer_change_and_new_request_need_new_review_even_without_kb_change()`
+	# @used-by :meth:`ReviewContractTests.test_causal_property_forces_significant_even_when_labeled_descriptive_routine()`
+	# @used-by :meth:`ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
+	# @used-by :meth:`ReviewContractTests.test_needs_changes_and_open_findings_persist_and_parent_disposition_cannot_approve()`
+	# @used-by :meth:`ReviewContractTests.test_new_parent_cannot_self_approve_unchanged_answer_rejected_by_native_reviewer()`
+	# @used-by :meth:`ReviewContractTests.test_official_distributor_is_not_established_by_contains_lunos_proxy()`
+	# @used-by :meth:`ReviewContractTests.test_original_report_proof_is_immutable_when_input_filename_is_reused()`
+	# @used-by :meth:`ReviewContractTests.test_per_claim_audit_is_required_and_qualified_gap_can_pass()`
+	# @used-by :meth:`ReviewContractTests.test_relabeling_same_answer_cannot_hide_an_independent_rejection()`
+	# @used-by :meth:`ReviewContractTests.test_significant_self_finding_requires_two_independent_authored_followups()`
 	def authorize(self, response=None):
+		# @used-by :meth:`ReviewContractTests.authorize()`
 		def verified(root, native, package=None):
 			return native
 		with patch('agent_tools.metrics.verify_native_proof', side_effect=verified):
 			return review.authorize(self.project, flow.load(self.project), response=response or self.answer)
+	# @used-by :mod:`unittest`
 	def test_routine_fact_approves_and_exact_answer_is_recorded(self):
 		package = self.package()
 		self.self_record(package)
@@ -60,6 +114,7 @@ class ReviewContractTests(ProjectCase):
 		# https://github.com/dmitry-ai/harness/issues/109
 		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_bytes(), self.answer.encode())
 		self.assertEqual(flow.load(self.project)['requests'][-1]['response_prepared']['review_approval']['package'], package['package'])
+	# @used-by :mod:`unittest`
 	def test_answer_change_and_new_request_need_new_review_even_without_kb_change(self):
 		package = self.package()
 		self.self_record(package)
@@ -70,12 +125,14 @@ class ReviewContractTests(ProjectCase):
 		self.assertEqual(before, flow.hashes(self.project, flow.kb_paths(self.project)))
 		with self.assertRaisesRegex(ValueError, 'current requests'):
 			self.authorize()
+	# @used-by :mod:`unittest`
 	def test_missing_risk_basis_or_manifest_is_rejected(self):
 		with self.assertRaisesRegex(ValueError, 'Explicit'):
 			flow.prepare_review(self.project, self.parent, None, self.answer)
 		spec = {'risk': 'routine', 'basis': '', 'request_scope': 'Current task', 'claim_ids': [], 'claims': []}
 		with self.assertRaisesRegex(ValueError, 'basis'):
 			flow.prepare_review(self.project, self.parent, spec, self.answer)
+	# @used-by :mod:`unittest`
 	def test_causal_property_forces_significant_even_when_labeled_descriptive_routine(self):
 		claim = self.value['identity'][0]
 		claim.update(verification_status='limited', missing_checks=['Perform a discriminating experiment.'], properties=['content', 'causality'])
@@ -91,6 +148,7 @@ class ReviewContractTests(ProjectCase):
 			self.authorize()
 		self.native_record(package)
 		self.assertEqual(self.authorize()['risk'], 'significant')
+	# @used-by :mod:`unittest`
 	def test_restatement_is_routine_only_after_two_approved_exact_versions_and_no_new_evidence(self):
 		claim = self.value['identity'][0]
 		claim.update(category='pricing')
@@ -107,6 +165,7 @@ class ReviewContractTests(ProjectCase):
 		self.put_project('ꘖ/KB/Evidence/new-observation.txt', 'New conflicting evidence')
 		with self.assertRaisesRegex(ValueError, 'routine risk downgrade'):
 			self.package(novelty='restatement')
+	# @used-by :mod:`unittest`
 	def test_parent_cannot_replace_authored_needs_changes_with_an_approved_json(self):
 		package = self.package()
 		approved = self.review_report(package)
@@ -116,6 +175,7 @@ class ReviewContractTests(ProjectCase):
 		with self.assertRaisesRegex(ValueError, 'actual native reviewer verdict'):
 			self.native_record(package, report=approved, actual=rejected)
 		self.assertEqual(flow.load(self.project)['reviews'], [])
+	# @used-by :mod:`unittest`
 	def test_needs_changes_and_open_findings_persist_and_parent_disposition_cannot_approve(self):
 		package = self.package()
 		finding = {'id': 'A-1', 'claim_ids': ['F-TITLE'], 'severity': 'minor', 'description': 'The proposed interpretation is unsupported.', 'status': 'open'}
@@ -133,6 +193,7 @@ class ReviewContractTests(ProjectCase):
 		self.assertEqual(len(flow.load(self.project)['reviews']), 2)
 		self.assertEqual((self.project / entry['report']).read_bytes(), original)
 		self.authorize()
+	# @used-by :mod:`unittest`
 	def test_per_claim_audit_is_required_and_qualified_gap_can_pass(self):
 		package = self.package()
 		report = self.review_report(package, self_review=True)
@@ -146,6 +207,7 @@ class ReviewContractTests(ProjectCase):
 		with patch('agent_tools.platforms.adapter'):
 			flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent)
 		self.authorize()
+	# @used-by :mod:`unittest`
 	def test_legacy_review_and_analysis_cannot_authorize_new_answer(self):
 		self.valid_analysis()
 		state = flow.load(self.project)
@@ -153,6 +215,7 @@ class ReviewContractTests(ProjectCase):
 		with self.assertRaisesRegex(ValueError, 'schema 3'):
 			review.authorize(self.project, state, response=self.answer)
 		self.assertIn('stages', flow.status(self.project))
+	# @used-by :mod:`unittest`
 	def test_original_report_proof_is_immutable_when_input_filename_is_reused(self):
 		package = self.package()
 		report = self.review_report(package, self_review=True)
@@ -164,6 +227,7 @@ class ReviewContractTests(ProjectCase):
 		path.write_text('{"result":"needs_changes"}')
 		self.assertEqual((self.project / entry['report']).read_bytes(), original)
 		self.authorize()
+	# @used-by :mod:`unittest`
 	def test_finalize_rejects_changed_journal_answer_after_approved_stage_receipts(self):
 		self.put_project('ꘖ/KB/Evidence/init.json', '{}')
 		self.put_project('ꘖ/KB/Evidence/research.json', '{}')
@@ -182,6 +246,7 @@ class ReviewContractTests(ProjectCase):
 		reply.write_bytes((self.answer + 'Unreviewed addition.').encode())
 		with self.assertRaises(ValueError):
 			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
+	# @used-by :mod:`unittest`
 	def test_handwritten_routine_package_cannot_bypass_computed_risk(self):
 		self.value['identity'][0]['category'] = 'pricing'
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
@@ -192,6 +257,7 @@ class ReviewContractTests(ProjectCase):
 		path = self.put_project(f'ꘖ/KB/Evidence/Reviews/{review.digest(payload)}-inputs.json', payload)
 		with self.assertRaisesRegex(ValueError, 'routine risk downgrade'):
 			review.read_package(self.project, path.relative_to(self.project).as_posix())
+	# @used-by :mod:`unittest`
 	def test_relabeling_same_answer_cannot_hide_an_independent_rejection(self):
 		first = self.package()
 		rejected = self.review_report(first, result='needs_changes')
@@ -210,6 +276,7 @@ class ReviewContractTests(ProjectCase):
 		self.native_record(second, report=approved)
 		self.authorize()
 		self.assertEqual(json.loads((self.project / prior['report']).read_bytes())['result'], 'needs_changes')
+	# @used-by :mod:`unittest`
 	def test_significant_self_finding_requires_two_independent_authored_followups(self):
 		first = self.package()
 		finding = {'id': 'A-MATERIAL', 'claim_ids': ['F-TITLE'], 'severity': 'significant', 'description': 'The interpretation needs an independent material review.', 'status': 'open'}
@@ -225,6 +292,7 @@ class ReviewContractTests(ProjectCase):
 			self.authorize()
 		self.native_record(significant, report=approved)
 		self.authorize()
+	# @used-by :mod:`unittest`
 	def test_task_flags_cannot_omit_typed_work_or_silently_default(self):
 		spec = {'risk': 'routine', 'basis': 'Literal title only.', 'request_scope': 'Current request.', 'claim_ids': [], 'claims': []}
 		with self.assertRaisesRegex(ValueError, 'task_flags'):
@@ -234,6 +302,7 @@ class ReviewContractTests(ProjectCase):
 		spec.update(risk='significant', task_flags=[], claim_ids=['F-TITLE'], claims=self.manifest)
 		with self.assertRaisesRegex(ValueError, 'Task flags omit'):
 			flow.prepare_review(self.project, self.parent, spec, self.answer)
+	# @used-by :mod:`unittest`
 	def test_audit_must_explain_falsifiability_and_compare_raw_criteria(self):
 		package = self.package()
 		report = self.review_report(package, self_review=True)
@@ -241,6 +310,10 @@ class ReviewContractTests(ProjectCase):
 		report['claim_reviews'][0].pop('raw_vs_criteria')
 		with patch('agent_tools.platforms.adapter'), self.assertRaisesRegex(ValueError, 'falsification'):
 			flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent)
+	# @used-by :meth:`ReviewContractTests.test_cli_exact_candidate_and_report_support_stdin_without_implicit_risk()`
+	# @used-by :meth:`ReviewContractTests.test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap()`
+	# @see :meth:`test_agent_tools.TemporaryCase.cli()`
+	@override
 	def cli(self, arguments, payload=None):
 		from agent_tools.upwork_project import main
 		stream = StringIO()
@@ -250,6 +323,7 @@ class ReviewContractTests(ProjectCase):
 		self.assertEqual(code, 0, result)
 		r = result
 		return r
+	# @used-by :mod:`unittest`
 	def test_cli_exact_candidate_and_report_support_stdin_without_implicit_risk(self):
 		spec = {'risk': 'routine', 'task_flags': [], 'basis': 'Literal title only.', 'request_scope': 'Current request.', 'claim_ids': ['F-TITLE'], 'claims': self.manifest}
 		source = self.put_project('ꘖ/data/review-spec.json', json.dumps(spec))
@@ -264,6 +338,7 @@ class ReviewContractTests(ProjectCase):
 		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
 		# https://github.com/dmitry-ai/harness/issues/109
 		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_bytes(), exact)
+	# @used-by :mod:`unittest`
 	def test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap(self):
 		requirement = self.experiment_requirement()
 		question = {'id': 'Q-CONTENT', 'question': 'Inspect source content.', 'impact': 'Limits attribution.', 'done_when': 'Saved response or explicit gap.', 'inputs': ['ꘖ/project.json'], 'outputs': ['ꘖ/KB/Evidence/question-report.json'], 'requirements': [requirement]}
@@ -277,6 +352,7 @@ class ReviewContractTests(ProjectCase):
 		saved = flow.load(self.project)
 		self.assertEqual(saved['questions']['Q-CONTENT']['status'], 'gap')
 		self.assertTrue(flow.questions_current(self.project, saved))
+	# @used-by :mod:`unittest`
 	def test_official_distributor_is_not_established_by_contains_lunos_proxy(self):
 		claim = self.value['identity'][0]
 		claim.update(essence='The site is an official distributor of Lunos.', knowledge_type='hypothesis', verification_status='limited', missing_checks=['Confirm distributor status with the manufacturer.'])
@@ -292,6 +368,7 @@ class ReviewContractTests(ProjectCase):
 		with patch('agent_tools.platforms.adapter'):
 			flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent)
 		self.authorize()
+	# @used-by :mod:`unittest`
 	def test_audit_target_must_equal_the_analysis_claim_and_irrelevant_test_is_unsupported(self):
 		package = self.package()
 		report = self.review_report(package, self_review=True)
@@ -300,6 +377,7 @@ class ReviewContractTests(ProjectCase):
 		self.assertTrue(any(('test_alignment' in issue for issue in review.report_issues(report, package))))
 		alignment.update(target_claim=package['claims'][0]['essence'], relationship='irrelevant')
 		self.assertTrue(any(('irrelevant test' in issue for issue in review.report_issues(report, package))))
+	# @used-by :mod:`unittest`
 	def test_new_parent_cannot_self_approve_unchanged_answer_rejected_by_native_reviewer(self):
 		first = self.package()
 		rejected = self.review_report(first, result='needs_changes')
@@ -318,11 +396,13 @@ class ReviewContractTests(ProjectCase):
 		self.self_record(second)
 		with self.assertRaisesRegex(ValueError, 'answer-bound'):
 			self.authorize()
+	# @used-by :mod:`unittest`
 	def test_empty_manifest_cannot_omit_the_entire_pricing_analysis(self):
 		self.value['identity'][0]['category'] = 'pricing'
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
 		with self.assertRaisesRegex(ValueError, 'nonempty claim_ids'):
 			self.review_package(self.parent, self.answer, 'routine', claims=[])
+	# @used-by :mod:`unittest`
 	def test_handwritten_empty_manifest_package_cannot_pass_record_review(self):
 		original = self.package()
 		forged = {k: v for k, v in original.items() if k not in ('package', 'package_sha256')}
@@ -337,6 +417,7 @@ class ReviewContractTests(ProjectCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report(self):
 		self.answer = 'Client task with 13 items.\n'
 		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task with 13 items.'}]
@@ -358,6 +439,7 @@ class ReviewContractTests(ProjectCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_review_input_returns_neutral_report_contract_with_all_options(self):
 		package = self.package()
 		receipt = review.input_receipt(self.project, package['package'])
@@ -368,6 +450,7 @@ class ReviewContractTests(ProjectCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review(self):
 		from agent_tools.claims import claim_digest
 		fact = self.value['identity'][0]
@@ -389,6 +472,7 @@ class ReviewContractTests(ProjectCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e9_e10_e11_prepare_review_rejects_empty_red_flags_finalize_notes_and_doc4_multi_sentence_lines(self):
 		self.value['red_flags'] = []
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
@@ -402,6 +486,7 @@ class ReviewContractTests(ProjectCase):
 	# 2026-10-19
 	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 	# https://github.com/dmitry-ai/harness/issues/12
+	# @used-by :mod:`unittest`
 	def test_e12_check_project_flags_unsynced_client_identity_in_kb_project_md(self):
 		claim = self.value['identity'][0]
 		claim['essence'] = 'The client and website owner is Jean Pierre.'
@@ -418,6 +503,7 @@ class ReviewContractTests(ProjectCase):
 	# 2026-11-13
 	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 	# https://github.com/dmitry-ai/harness/issues/63
+	# @used-by :mod:`unittest`
 	def test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts(self):
 		from agent_tools.storage import read_addressed_json, write_immutable_bytes
 		claim = self.value['identity'][0]
@@ -447,6 +533,9 @@ class ReviewContractTests(ProjectCase):
 # "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
 # https://github.com/dmitry-ai/harness/issues/73
 class ReviewDecompositionTests(ProjectCase):
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.value = self.valid_review_analysis()
@@ -454,6 +543,7 @@ class ReviewDecompositionTests(ProjectCase):
 		flow.resume(self.project, 'decomposition fixture', 'Show the saved client title.')
 		self.answer = 'Client task\n'
 		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'}]
+	# @used-by :mod:`unittest`
 	def test_classifier_has_significant_flags_and_post_finalize_synthetic_claims(self):
 		self.assertFalse(review.ReviewClassifier.has_significant_flags([{'materiality': 'routine'}], []))
 		self.assertTrue(review.ReviewClassifier.has_significant_flags([{'materiality': 'significant'}], []))
@@ -465,8 +555,10 @@ class ReviewDecompositionTests(ProjectCase):
 		classified = cls.classify(spec, self.answer)
 		self.assertEqual('routine', classified['risk'])
 		self.assertEqual('F-POST-1', classified['claims'][0]['claim_id'])
+	# @used-by :mod:`unittest`
 	def test_package_handler_registry_dispatches_custom_kind(self):
 		calls = []
+		# @used-by :meth:`ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
 		def fake_reader(root, pkg, *, require_current=True):
 			calls.append((Path(root).resolve(), pkg, require_current))
 			return {'kind': 'custom_test_kind', 'job_id': '~021', 'parent_id': self.parent, 'kb_inputs': {}, 'evidence_inputs': {}, 'requests': [], 'response': {'file': 'x', 'sha256': '0' * 64}, 'claims': [], 'risk': 'routine'}
@@ -479,6 +571,7 @@ class ReviewDecompositionTests(ProjectCase):
 		receipt = review.input_receipt(self.project, pkg_rel)
 		self.assertTrue(receipt['report_contract']['custom_contract'])
 		self.assertEqual(2, len(calls))
+	# @used-by :mod:`unittest`
 	def test_quorum_evaluator_selects_authorized_group_and_checks_approval_current(self):
 		spec = {'risk': 'routine', 'task_flags': [], 'basis': 'Literal title.', 'request_scope': 'Current request.', 'claim_ids': ['F-TITLE'], 'claims': self.manifest}
 		package = flow.prepare_review(self.project, self.parent, spec, self.answer)
@@ -493,6 +586,7 @@ class ReviewDecompositionTests(ProjectCase):
 		self.assertIsNone(evaluator.select_authorized_group({package['package']: (pkg_data, state['reviews'])}, allow_routine_self=False))
 		approval = {'package': package['package'], 'package_sha256': package['package_sha256'], 'review_ids': [state['reviews'][0]['id']]}
 		self.assertTrue(evaluator.approval_current(approval))
+	# @used-by :mod:`unittest`
 	def test_report_validator_covers_falsifier_and_text_checks(self):
 		spec = {'risk': 'routine', 'task_flags': [], 'basis': 'Literal title.', 'request_scope': 'Current request.', 'claim_ids': ['F-TITLE'], 'claims': self.manifest}
 		package = flow.prepare_review(self.project, self.parent, spec, self.answer)

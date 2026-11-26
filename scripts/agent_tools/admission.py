@@ -5,22 +5,39 @@ import json
 from pathlib import Path
 from .storage import create_bytes, data_dir_for
 _SEAL = object()
+# @used-by :func:`binding()`
+# @used-by :func:`capture()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def _bytes(value):
 	return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')) + '\n').encode('utf-8')
+# @used-by :func:`binding()`
+# @used-by :func:`capture()`
+# @used-by :func:`verify()`
 def _digest(value):
 	return hashlib.sha256(value).hexdigest()
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.journal.record_answer()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
+# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def binding(directory, requests, response, turn, request_ids):
 	return {'journal': str(Path(directory).resolve()), 'turn': turn, 'request_ids': request_ids, 'requests_sha256': _digest(_bytes(requests)), 'response_sha256': _digest(response.encode('utf-8'))}
 # 2026-11-03
 # "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 # https://github.com/dmitry-ai/harness/issues/41
 class PublicationAdmission:
+	# @used-by :func:`capture()`
 	def __init__(self, reference, identity, *, seal=None):
 		if seal is not _SEAL:
 			raise ValueError('Publication admission requires the current strict gate')
 		self.reference = deepcopy(reference)
 		self.identity = deepcopy(identity)
 		self._seal = seal
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`agent_tools.journal.record_answer()`
+# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 def capture(paths, requests, response, identity):
 	from .text_workflow import gate_requests
 	results = gate_requests(paths, requests, response, capture=True)
@@ -42,6 +59,7 @@ def capture(paths, requests, response, identity):
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`verify()`
 def _same_binding(saved: dict | None, current: dict) -> bool:
 	if not isinstance(saved, dict) or set(saved) != set(current):
 		return False
@@ -52,6 +70,7 @@ def _same_binding(saved: dict | None, current: dict) -> bool:
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`verify()`
 def _resolve_proof_file(raw_file: str, journal_dir: str) -> Path:
 	path = Path(raw_file)
 	if path.is_file():
@@ -65,6 +84,10 @@ def _resolve_proof_file(raw_file: str, journal_dir: str) -> Path:
 			if canonicalize_root_dir(old_anc) == canonicalize_root_dir(new_anc):
 				return cand
 	return path
+# @used-by :func:`agent_tools.completion._record()`
+# @used-by :func:`require_current()`
+# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def verify(reference, identity):
 	from .text_workflow import verify_integrity
 	if not isinstance(reference, dict) or reference.get('schema_version') != 1 or not isinstance(reference.get('file'), str) or not Path(reference['file']).is_absolute():
@@ -85,6 +108,7 @@ def verify(reference, identity):
 	for graph in proof['integrity']:
 		verify_integrity(graph)
 	return {'status': 'verified', 'scope': 'original_publication_admission'}
+# @used-by :func:`agent_tools.journal.record_answer()`
 def require_current(capability, identity):
 	if not isinstance(capability, PublicationAdmission) or capability._seal is not _SEAL or capability.identity != identity:
 		raise ValueError('A current proof-bound publication admission capability is required')

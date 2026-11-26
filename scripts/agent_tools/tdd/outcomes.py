@@ -33,6 +33,7 @@ _ZERO_TESTS_RE = re.compile(
 	r'|\b0\s+tests?\s+passed,\s*0\s+failed\b'
 	r'|[\u2139i]\s+tests\s+0\b)'
 )
+# @used-by :func:`parse_command_outcome()`
 def _collect_log_candidates(bg_log_path: str | None, task_log_paths: list[Path] | None) -> list[Path]:
 	r: list[Path] = [Path(bg_log_path)] if bg_log_path else []
 	for lp in task_log_paths or ():
@@ -40,12 +41,14 @@ def _collect_log_candidates(bg_log_path: str | None, task_log_paths: list[Path] 
 		if p_obj not in r:
 			r.append(p_obj)
 	return r
+# @used-by :func:`parse_command_outcome()`
 def _extract_bg_meta(combined: str) -> tuple[str | None, str | None]:
 	tids = extract_bg_task_ids(combined)
 	bg_tid = tids[0] if tids else None
 	m_log = _BG_TASK_LOG_RE.search(combined)
 	lp = _uri_to_local_path(m_log.group(1)) if m_log else None
 	return (bg_tid, str(lp) if None is not lp else None)
+# @used-by :func:`parse_command_outcome()`
 def _header_exit_code(parts: list[str]) -> int | None:
 	r = None
 	for part in parts:
@@ -54,6 +57,8 @@ def _header_exit_code(parts: list[str]) -> int | None:
 		if m_hdr:
 			r = int(m_hdr.group(1) or m_hdr.group(2))
 	return r
+# @used-by :func:`_infer_from_log_files()`
+# @used-by :func:`parse_command_outcome()`
 def _infer_exit_code_from_log_text(text: str) -> int | None:
 	r = None
 	if text:
@@ -67,6 +72,7 @@ def _infer_exit_code_from_log_text(text: str) -> int | None:
 		elif _NODE_FAIL_LOG_RE.search(text):
 			r = 1
 	return r
+# @used-by :func:`parse_command_outcome()`
 def _infer_from_log_files(log_candidates: list[Path]) -> tuple[int | None, str]:
 	exit_code = None
 	extra = ''
@@ -82,6 +88,7 @@ def _infer_from_log_files(log_candidates: list[Path]) -> tuple[int | None, str]:
 		except OSError:
 			continue
 	return (exit_code, extra)
+# @used-by :func:`_infer_exit_code_from_log_text()`
 def _is_pass_log_text(text: str) -> bool:
 	return bool(
 		(re.search(r'(?m)^Ran\s+\d+\s+tests?\s+in\s+\d', text) and re.search(r'(?m)^OK(?:\s|\(|$)', text))
@@ -92,6 +99,9 @@ def _is_pass_log_text(text: str) -> bool:
 		or (re.search(r'(?m)^(?:=+\s+[^=\n]*\b)?[1-9]\d*\s+passed\b', text) and (not re.search(r'(?i)\b[1-9]\d*\s+(?:failed|errors?)\b', text)))
 		or (re.search(r'[\u2139i]\s+fail\s+0\b', text) and re.search(r'[\u2139i]\s+tests\s+[1-9]\d*\b', text))
 	)
+# @used-by :func:`_extract_bg_meta()`
+# @used-by :func:`agent_tools.issue_first_bg._bg_fin_outputs()`
+# @used-by :func:`agent_tools.issue_first_bg._register_bg_issue_tasks()`
 def _uri_to_local_path(uri: str) -> Path | None:
 	raw = (uri or '').strip()
 	if not raw:
@@ -110,6 +120,10 @@ def _uri_to_local_path(uri: str) -> Path | None:
 # 2026-11-24
 # "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
 # https://github.com/dmitry-ai/harness/issues/224
+# @used-by :func:`_extract_bg_meta()`
+# @used-by :func:`agent_tools.issue_first_bg._register_bg_issue_tasks()`
+# @used-by :func:`agent_tools.tdd.events._track_bg_command_outputs()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
 def extract_bg_task_ids(text: str) -> list[str]:
 	r: list[str] = []
 	header = _BG_HEADER_SPLIT_RE.split(text or '', maxsplit=1)[0]
@@ -122,6 +136,26 @@ def extract_bg_task_ids(text: str) -> list[str]:
 # 2026-11-24
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
+# @used-by :func:`agent_tools.cli_command_grounding._is_passing_output()`
+# @used-by :func:`agent_tools.cli_command_grounding._record_call_outcome()`
+# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`agent_tools.doc5_context._inspect_call_failure()`
+# @used-by :func:`agent_tools.doc5_context._is_failed_cli_output()`
+# @used-by :func:`agent_tools.tdd.events._record_bg_task_completion()`
+# @used-by :func:`agent_tools.tdd.events.build_command_tdd_event()`
+# @used-by :func:`agent_tools.verification_observability._classify_shadow_output()`
+# @used-by :func:`agent_tools.verification_observability._inspect_shadow_call()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_subagent_calls()`
+# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._scan_segment()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
+# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`test_pytest_xdist_runner.PytestXdistRunnerTests.test_parse_command_outcome_handles_pytest_xdist_pass_fail_and_exit_code_5()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_outcomes_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_chronological_tdd_state_machine_and_commit_reset()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_hardening_header_exit_code_indirect_source_read_and_index_blob()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_parse_command_outcome_sync_codex_and_background_task_log()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def parse_command_outcome(outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None) -> dict:
 	parts = [outputs] if isinstance(outputs, str) else [str(o) for o in (outputs or ()) if o]
 	combined = '\n'.join(parts)

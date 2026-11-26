@@ -56,7 +56,7 @@ def _expand_spec(raw_spec: dict[str, Any], reg) -> dict[str, Any]:
 		if isinstance(vals, list):
 			out[key] = [_expand_token(str(v), reg) for v in vals]
 	return out
-# @used-by :func:`run_repo_health_check()`
+# @used-by :func:`_interpret_health_proc()`
 def _parse_health_state(stdout: str) -> str:
 	r = ''
 	text = (stdout or '').strip()
@@ -139,6 +139,7 @@ def _interpret_health_proc(proc: subprocess.CompletedProcess, eff: dict[str, Any
 		r = {'ok': False, 'skipped': False, 'state': state or 'error', 'exit_code': proc.returncode, 'error': detail[:600]}
 	return r
 # @used-by :func:`agent_tools.worktree_flow._land_under_lease()`
+# @used-by :mod:`agent_tools.polyglot_land`
 def dirty_blocking_main_files(main_repo: Path, branch: str) -> list[str]:
 	from .addon_observability import is_live_runtime_data_file
 	raw = GitRepoGate(main_repo).git('status', '--porcelain').decode('utf-8', errors='replace')
@@ -151,6 +152,7 @@ def dirty_blocking_main_files(main_repo: Path, branch: str) -> list[str]:
 	return r
 # @used-by :func:`run_polyglot_land_tests()`
 # @used-by :func:`run_repo_health_check()`
+# @used-by :mod:`agent_tools.polyglot_land`
 def resolve_repo_verification_spec(main_repo: Path, wt_path: Path | None=None, *, slug: str | None=None) -> dict[str, Any] | None:
 	from .issues.workspace import IssueEvidenceWorkspace
 	reg = load_registry()
@@ -164,6 +166,8 @@ def resolve_repo_verification_spec(main_repo: Path, wt_path: Path | None=None, *
 				break
 	return found if None is not found else (_auto_node_spec(wt_path) if None is not wt_path else None)
 # @used-by :func:`agent_tools.worktree_flow._run_land_tests()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_host_state_mutation_fails_closed_while_heartbeat_timestamp_is_ignored()`
+# @used-by :mod:`agent_tools.polyglot_land`
 def run_polyglot_land_tests(main_repo: Path, wt_path: Path, *, spec: dict[str, Any] | None=None) -> tuple[bool, dict[str, Any] | None]:
 	eff = spec if None is not spec else resolve_repo_verification_spec(main_repo, wt_path)
 	if None is eff or (not eff.get('test_command')):
@@ -186,6 +190,8 @@ def run_polyglot_land_tests(main_repo: Path, wt_path: Path, *, spec: dict[str, A
 	return r
 # @used-by :func:`agent_tools.addon_observability.check_close_companion_health()`
 # @used-by :func:`agent_tools.worktree_flow._post_merge_checks()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
+# @used-by :mod:`agent_tools.polyglot_land`
 def run_repo_health_check(code_repo: Path, *, slug: str | None=None, spec: dict[str, Any] | None=None, force: bool=False) -> dict[str, Any]:
 	eff = spec if None is not spec else resolve_repo_verification_spec(code_repo, slug=slug)
 	if None is eff or (not eff.get('health_command')):

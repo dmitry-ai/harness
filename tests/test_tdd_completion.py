@@ -23,6 +23,7 @@ import check_pre_invocation
 import check_stop_gate
 
 
+# @used-by :func:`_wire()`
 def _varint(val: int) -> bytes:
 	out = bytearray()
 	while True:
@@ -35,6 +36,7 @@ def _varint(val: int) -> bytes:
 			return bytes(out)
 
 
+# @used-by :func:`_setup_antigravity_conv()`
 def _wire(field_num: int, payload: bytes) -> bytes:
 	return _varint((field_num << 3) | 2) + _varint(len(payload)) + payload
 
@@ -45,6 +47,7 @@ def _wire(field_num: int, payload: bytes) -> bytes:
 _TEMPLATE_CACHE: dict[int, tuple[tempfile.TemporaryDirectory, Path, Path]] = {}
 
 
+# @used-by :func:`_init_project_with_git_code()`
 def _build_template_project(issue_num: int) -> tuple[Path, Path]:
 	if issue_num not in _TEMPLATE_CACHE:
 		td = tempfile.TemporaryDirectory()
@@ -88,6 +91,10 @@ def _build_template_project(issue_num: int) -> tuple[Path, Path]:
 # 2026-11-24
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green()`
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_cli_ratchet_ok_and_tdd_check_commands()`
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_codex_apply_patch_and_exec_command_tdd_gate()`
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_sync_preserves_legacy_delivered_turn_bytes_without_tdd_check()`
 def _init_project_with_git_code(root: Path, *, issue_num: int = 42) -> tuple[Path, Path, Path]:
 	t_proj, t_bare = _build_template_project(issue_num)
 	proj = root / 'proj'
@@ -100,6 +107,9 @@ def _init_project_with_git_code(root: Path, *, issue_num: int = 42) -> tuple[Pat
 	return (proj, code, bare)
 
 
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green()`
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_cli_ratchet_ok_and_tdd_check_commands()`
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_sync_preserves_legacy_delivered_turn_bytes_without_tdd_check()`
 def _setup_antigravity_conv(base: Path, proj: Path, prompt_text: str) -> tuple[Path, Path, str, Path, list[dict]]:
 	ag_home = base / 'ag_home'
 	backend = ag_home / '.gemini/antigravity'
@@ -122,6 +132,7 @@ def _setup_antigravity_conv(base: Path, proj: Path, prompt_text: str) -> tuple[P
 	return (ag_home, backend, cid, t_log, rows)
 
 
+# @used-by :meth:`TddTurnCompletionAndCliTests.test_codex_apply_patch_and_exec_command_tdd_gate()`
 def _setup_codex_conv(base: Path, proj: Path, prompt_text: str, extra_rows: list[dict]) -> tuple[Path, str, Path]:
 	codex_home = base / 'codex_home'
 	sess_dir = codex_home / 'sessions/2026/11/23'
@@ -155,6 +166,7 @@ def _setup_codex_conv(base: Path, proj: Path, prompt_text: str, extra_rows: list
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
 class TddTurnCompletionAndCliTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -229,6 +241,7 @@ class TddTurnCompletionAndCliTests(unittest.TestCase):
 			)
 			self.assertEqual(stop_ok['decision'], 'allow', stop_ok)
 
+	# @used-by :mod:`unittest`
 	def test_codex_apply_patch_and_exec_command_tdd_gate(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -301,6 +314,7 @@ class TddTurnCompletionAndCliTests(unittest.TestCase):
 			self.assertTrue(prep_ok['ready'])
 			self.assertTrue(prep_ok['tdd_check']['verified'])
 
+	# @used-by :mod:`unittest`
 	def test_cli_ratchet_ok_and_tdd_check_commands(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -355,6 +369,7 @@ class TddTurnCompletionAndCliTests(unittest.TestCase):
 	# 2026-11-23
 	# "Preserve historical delivered turn bytes when tdd_check is absent":
 	# https://github.com/dmitry-ai/harness/issues/140
+	# @used-by :mod:`unittest`
 	def test_sync_preserves_legacy_delivered_turn_bytes_without_tdd_check(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

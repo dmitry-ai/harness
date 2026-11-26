@@ -10,6 +10,9 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :meth:`RulesAuditTests.test_detects_broken_links_blind_references_drift_and_skill_leakage()`
+# @used-by :meth:`RulesAuditTests.test_detects_budget_html_comment_and_cross_platform_codex_leaks()`
+# @used-by :meth:`RulesAuditTests.test_pre_tool_use_rules_budget_and_doctor_and_pre_commit_enforce_limits()`
 def _seed_harness(root: Path, rules: dict[str, str], *, codex_md: str='# Codex\nUse `answer-<turn_key>.md`.  \n', skill_md: str='', ws_agents: str | None=None) -> tuple[Path, Path]:
 	ws = root / 'ws'
 	prim = ws / 'code'
@@ -32,6 +35,7 @@ def _seed_harness(root: Path, rules: dict[str, str], *, codex_md: str='# Codex\n
 # "Add deterministic rules-audit CLI and aggregate budget enforcement":
 # https://github.com/dmitry-ai/harness/issues/244
 class RulesAuditTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cli_rules_audit_and_semantic_brief_and_live_harness_green(self) -> None:
 		from agent_tools import upwork_project
 		proc = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'rules-audit', '--primary', str(WT_ROOT), '--format', 'json'], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=30, check=False)
@@ -51,6 +55,7 @@ class RulesAuditTests(unittest.TestCase):
 		self.assertIn('rules_audit', doc)
 		self.assertTrue(doc['rules_audit']['valid'], doc['rules_audit'])
 		self.assertEqual(0, doc['rules_audit']['issue_count'])
+	# @used-by :mod:`unittest`
 	def test_detects_broken_links_blind_references_drift_and_skill_leakage(self) -> None:
 		from agent_tools.rules_audit import audit_rules
 		dup_block = '```bash\npython scripts/harness.py run-tests tests --module-timeout 300\npython scripts/harness.py doctor --platform codex\npython scripts/harness.py build-native --check\n```\n'
@@ -74,6 +79,7 @@ class RulesAuditTests(unittest.TestCase):
 			drift_details = ' '.join((item['detail'] for item in rep['issues'] if 'INSTRUCTION_DRIFT' == item['code']))
 			self.assertIn('answer.md', drift_details)
 			self.assertIn('always_on', drift_details)
+	# @used-by :mod:`unittest`
 	def test_detects_budget_html_comment_and_cross_platform_codex_leaks(self) -> None:
 		from agent_tools.rules_audit import audit_rules
 		filler = ('Keep rules concise and actionable for every session.  \n' * 85)
@@ -103,6 +109,7 @@ class RulesAuditTests(unittest.TestCase):
 			self.assertNotIn('rules/11-md.md', html_files)
 			proc = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'rules-audit', '--primary', str(prim), '--workspace', str(ws)], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=30, check=False)
 			self.assertEqual(2, proc.returncode, proc.stderr)
+	# @used-by :mod:`unittest`
 	def test_doctor_and_rules_audit_default_to_active_checkout_rules(self) -> None:
 		from agent_tools import rules_manifest, upwork_project
 		doc = upwork_project.doctor()
@@ -117,6 +124,7 @@ class RulesAuditTests(unittest.TestCase):
 		rep = json.loads(proc.stdout)
 		self.assertEqual(WT_ROOT.resolve().as_posix(), rep['primary'])
 		self.assertTrue(rep['valid'], rep)
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_rules_budget_and_doctor_and_pre_commit_enforce_limits(self) -> None:
 		from agent_tools import staged_gates, upwork_project
 		from agent_tools.gates import rules_budget

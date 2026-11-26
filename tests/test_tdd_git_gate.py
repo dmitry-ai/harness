@@ -25,6 +25,9 @@ _REPO_TEMPLATE: list[tuple[tempfile.TemporaryDirectory, Path]] = []
 # 2026-11-24
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
+# @used-by :meth:`TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
+# @used-by :meth:`TddGitGateTests.test_doc_only_agent_commit_allowed_without_tests()`
+# @used-by :meth:`TddGitGateTests.test_ratchet_enforced_on_staged_test_edits_and_unlocked_by_ratchet_ok()`
 def _init_repo(repo: Path) -> None:
 	if not _REPO_TEMPLATE:
 		td = tempfile.TemporaryDirectory()
@@ -41,6 +44,7 @@ def _init_repo(repo: Path) -> None:
 # "Enforce TDD test coverage and ratchet in Git pre-commit gate":
 # https://github.com/dmitry-ai/harness/issues/137
 class TddGitGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_agent_commit_requires_behavioral_test_for_production_code(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'repo'
@@ -98,6 +102,7 @@ class TddGitGateTests(unittest.TestCase):
 			committed = git_gate.commit(repo, ['src/calc.py', 'tests/test_calc.py'], ISSUE_URL, execute=True)
 			self.assertEqual(committed, ['src/calc.py', 'tests/test_calc.py'])
 
+	# @used-by :mod:`unittest`
 	def test_ratchet_enforced_on_staged_test_edits_and_unlocked_by_ratchet_ok(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve() / 'proj'
@@ -140,6 +145,7 @@ class TddGitGateTests(unittest.TestCase):
 			self.assertEqual(git_gate.run_git_hook('pre-commit', cwd=repo, agent_context=True), 0)
 			self.assertEqual(git_gate.check_commit(repo, ['tests/test_core.py']), ['tests/test_core.py'])
 
+	# @used-by :mod:`unittest`
 	def test_doc_only_agent_commit_allowed_without_tests(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'docs_repo'

@@ -13,6 +13,9 @@ _EMPTY_TRANSCRIPT_KEYS = ('request_timestamp', 'response_timestamp', 'model', 'e
 # "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 # https://github.com/dmitry-ai/harness/issues/239
 _SKIP_STATE_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _ag_transcript_file(ag_paths: dict[str, Any] | None, conversation_id: str) -> Path | None:
 	if not isinstance(ag_paths, dict) or not ag_paths.get('brain_dir'):
 		r: Path | None = None
@@ -22,6 +25,7 @@ def _ag_transcript_file(ag_paths: dict[str, Any] | None, conversation_id: str) -
 		compact_t = logs / 'transcript.jsonl'
 		r = full_t.resolve() if full_t.is_file() else (compact_t.resolve() if compact_t.is_file() else full_t.resolve())
 	return r
+# @used-by :func:`_extract_codex_transcript_info()`
 def _apply_codex_context(obj: dict[str, Any], state: dict[str, Any], turn_id: str | None) -> None:
 	if 'turn_context' == obj.get('type'):
 		payload = obj.get('payload') if isinstance(obj.get('payload'), dict) else {}
@@ -31,6 +35,7 @@ def _apply_codex_context(obj: dict[str, Any], state: dict[str, Any], turn_id: st
 			state['last_ctx'] = (m_val, e_val)
 			if turn_id and payload.get('turn_id') == turn_id:
 				state['matched_ctx'] = (m_val, e_val)
+# @used-by :func:`_extract_codex_transcript_info()`
 def _apply_codex_event(idx: int, obj: dict[str, Any], info: dict[str, Any], turn_ids: list[str], turn_id: str | None, start_step: int | None, final_step: int | None) -> None:
 	kind = obj.get('type')
 	payload = obj.get('payload') if isinstance(obj.get('payload'), dict) else {}
@@ -43,8 +48,15 @@ def _apply_codex_event(idx: int, obj: dict[str, Any], info: dict[str, Any], turn
 		info['response_timestamp'] = ts
 	if 'event_msg' == kind and 'task_complete' == payload.get('type') and turn_id and payload.get('turn_id') == turn_id and ts:
 		info['response_timestamp'] = ts
+# @used-by :func:`_extract_ag_transcript_info()`
+# @used-by :func:`_extract_codex_transcript_info()`
 def _empty_transcript_info() -> dict[str, Any]:
 	return dict.fromkeys(_EMPTY_TRANSCRIPT_KEYS, None)
+# @used-by :func:`_resolve_ag_model_and_effort()`
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_transcripts_submodule_parses_antigravity_codex_and_turn_state()`
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _extract_ag_transcript_info(transcript_path: str | Path | None, *, start_step: int | None=None, end_step: int | None=None, final_step: int | None=None) -> dict[str, Any]:
 	info = _empty_transcript_info()
 	tp = Path(transcript_path) if transcript_path else None
@@ -55,6 +67,10 @@ def _extract_ag_transcript_info(transcript_path: str | Path | None, *, start_ste
 				_record_ag_row(row, info, state, start_step, end_step, final_step)
 		_finalize_ag_info(info, state, start_step)
 	return info
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_transcripts_submodule_parses_antigravity_codex_and_turn_state()`
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _extract_codex_transcript_info(rollout_path: str | Path | None, *, turn_id: str | None=None, start_step: int | None=None, final_step: int | None=None) -> dict[str, Any]:
 	info = _empty_transcript_info()
 	rp = Path(rollout_path) if rollout_path else None
@@ -72,6 +88,10 @@ def _extract_codex_transcript_info(rollout_path: str | Path | None, *, turn_id: 
 		if chosen:
 			info['model'], info['effort'] = _split_model_and_effort(chosen[0], chosen[1])
 	return info
+# @used-by :func:`agent_tools.meta.builders._apply_issue_state_details()`
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_transcripts_submodule_parses_antigravity_codex_and_turn_state()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _extract_turn_steps_from_state(state: dict[str, Any]) -> list[int]:
 	r: list[int] = []
 	for slot in ('prepared', 'journal_record', 'delivery'):
@@ -84,6 +104,7 @@ def _extract_turn_steps_from_state(state: dict[str, Any]) -> list[int]:
 	if not r and isinstance(state.get('reserved_journal_steps'), list):
 		r = sorted({st for st in state['reserved_journal_steps'] if int is type(st) and 1 <= st})
 	return r
+# @used-by :func:`_extract_ag_transcript_info()`
 def _finalize_ag_info(info: dict[str, Any], state: dict[str, list[Any]], start_step: int | None) -> None:
 	user_steps = state['user_steps']
 	if None is not start_step and user_steps:
@@ -95,6 +116,10 @@ def _finalize_ag_info(info: dict[str, Any], state: dict[str, list[Any]], start_s
 	chosen_model = state['slice_models'][-1] if state['slice_models'] else (state['all_models'][-1] if state['all_models'] else None)
 	if chosen_model:
 		info['model'], info['effort'] = _split_model_and_effort(chosen_model)
+# @used-by :func:`agent_tools.meta.builders._find_issue_state_pair()`
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_transcripts_submodule_parses_antigravity_codex_and_turn_state()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _find_turn_state_for_conversation(turns_dir: Path, conversation_id: str) -> tuple[Path, dict[str, Any]] | None:
 	r: tuple[Path, dict[str, Any]] | None = None
 	if turns_dir.is_dir() and conversation_id:
@@ -105,6 +130,8 @@ def _find_turn_state_for_conversation(turns_dir: Path, conversation_id: str) -> 
 			candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
 			r = (candidates[0][2], candidates[0][3])
 	return r
+# @used-by :func:`_extract_codex_transcript_info()`
+# @used-by :func:`_read_ag_rows()`
 def _iter_indexed_jsonl_dicts(path: Path) -> list[tuple[int, dict[str, Any]]]:
 	r: list[tuple[int, dict[str, Any]]] = []
 	try:
@@ -120,6 +147,11 @@ def _iter_indexed_jsonl_dicts(path: Path) -> list[tuple[int, dict[str, Any]]]:
 			if isinstance(obj, dict):
 				r.append((idx, obj))
 	return r
+# @used-by :func:`agent_tools.issues.turn_scope._fallback_env_session()`
+# @used-by :func:`agent_tools.meta.builders._detect_env_platform()`
+# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_transcripts_submodule_parses_antigravity_codex_and_turn_state()`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _parse_antigravity_source_metadata(env: dict[str, str]) -> tuple[str | None, int | None]:
 	raw = str(env.get('ANTIGRAVITY_SOURCE_METADATA') or '').strip()
 	try:
@@ -131,6 +163,7 @@ def _parse_antigravity_source_metadata(env: dict[str, str]) -> tuple[str | None,
 	sidx = tool_obj.get('stepIndex')
 	step_idx = sidx if int is type(sidx) and 0 <= sidx else None
 	return (cid, step_idx)
+# @used-by :func:`_extract_ag_transcript_info()`
 def _read_ag_rows(tp: Path) -> list[Any]:
 	try:
 		from ..platforms.trace_common import read_jsonl_objects
@@ -138,6 +171,9 @@ def _read_ag_rows(tp: Path) -> list[Any]:
 	except Exception:
 		r = [obj for _, obj in _iter_indexed_jsonl_dicts(tp)]
 	return r
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _read_ag_summary_row(ag_paths: dict[str, Any] | None, conversation_id: str) -> dict[str, Any] | None:
 	r: dict[str, Any] | None = None
 	db_p = Path(ag_paths['conversations_db']) if isinstance(ag_paths, dict) and ag_paths.get('conversations_db') else None
@@ -150,6 +186,7 @@ def _read_ag_summary_row(ag_paths: dict[str, Any] | None, conversation_id: str) 
 		except (OSError, sqlite3.Error):
 			r = None
 	return r
+# @used-by :func:`_extract_ag_transcript_info()`
 def _record_ag_row(row: dict[str, Any], info: dict[str, Any], state: dict[str, list[Any]], start_step: int | None, end_step: int | None, final_step: int | None) -> None:
 	sidx = row.get('step_index')
 	rtype = row.get('type')
@@ -165,6 +202,7 @@ def _record_ag_row(row: dict[str, Any], info: dict[str, Any], state: dict[str, l
 		state['all_models'].append(raw_m)
 		if isinstance(sidx, int) and (None is start_step or sidx > start_step) and (None is end_step or sidx < end_step):
 			state['slice_models'].append(raw_m)
+# @used-by :func:`_apply_codex_event()`
 def _record_codex_task_started(payload: dict[str, Any], ts: str | None, info: dict[str, Any], turn_ids: list[str], turn_id: str | None) -> None:
 	tid = payload.get('turn_id')
 	if isinstance(tid, str) and tid:
@@ -172,6 +210,9 @@ def _record_codex_task_started(payload: dict[str, Any], ts: str | None, info: di
 			turn_ids.append(tid)
 		if turn_id == tid and ts and None is info['request_timestamp']:
 			info['request_timestamp'] = ts
+# @used-by :mod:`agent_tools.meta.builders`
+# @used-by :mod:`agent_tools.meta`
+# @used-by :mod:`agent_tools.metadata`
 def _resolve_ag_model_and_effort(ag_paths: dict[str, Any] | None, conversation_id: str, *, transcript_path: str | Path | None=None, start_step: int | None=None, end_step: int | None=None) -> tuple[str | None, str | None]:
 	t_info = _extract_ag_transcript_info(transcript_path, start_step=start_step, end_step=end_step)
 	model, effort = (t_info.get('model'), t_info.get('effort'))
@@ -187,6 +228,7 @@ def _resolve_ag_model_and_effort(ag_paths: dict[str, Any] | None, conversation_i
 		except Exception:
 			pass
 	return (model, effort)
+# @used-by :func:`_find_turn_state_for_conversation()`
 def _turn_state_candidate(sf: Path, cid_low: str) -> tuple[int, int, Path, dict[str, Any]] | None:
 	r: tuple[int, int, Path, dict[str, Any]] | None = None
 	if not sf.name.endswith(_SKIP_STATE_SUFFIXES):

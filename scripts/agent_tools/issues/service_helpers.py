@@ -12,6 +12,7 @@ from .workspace import IssueEvidenceWorkspace, _SKIP_TURN_SUFFIXES
 # 2026-11-24
 # "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
 # https://github.com/dmitry-ai/harness/issues/77
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._execute_create()`
 def build_create_payload(args: argparse.Namespace, title: str, body: str) -> dict[str, Any]:
 	payload: dict[str, Any] = {'title': title, 'body': body}
 	if getattr(args, 'label', None):
@@ -25,6 +26,9 @@ def build_create_payload(args: argparse.Namespace, title: str, body: str) -> dic
 	if None is not getattr(args, 'milestone', None):
 		payload['milestone'] = args.milestone
 	return payload
+# @used-by :func:`agent_tools.github_issue._dirty_issue_first_files()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_create()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_dirty_issue_first_excludes_live_runtime_data_only()`
 def dirty_issue_first_files(workspace: IssueEvidenceWorkspace, repo: str, *, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, repo_root: str | Path | None=None) -> list[str]:
 	code_repo = workspace.find_local_code_repo(repo, project_root=project_root, source_files=source_files, repo_root=repo_root)
 	r: list[str] = []
@@ -33,6 +37,7 @@ def dirty_issue_first_files(workspace: IssueEvidenceWorkspace, repo: str, *, pro
 		if 0 == proc.returncode and proc.stdout:
 			r = _parse_dirty_porcelain(code_repo, proc.stdout)
 	return r
+# @used-by :func:`dirty_issue_first_files()`
 def _is_isolated_temp_root(code_repo: Path, project_root: str | Path | None) -> bool:
 	r = False
 	if None is not project_root and str(project_root).strip():
@@ -41,6 +46,7 @@ def _is_isolated_temp_root(code_repo: Path, project_root: str | Path | None) -> 
 		if ('/temp/' in pr_low or '/tmp/' in pr_low) and (not code_repo.is_relative_to(pr)) and (not pr.is_relative_to(code_repo)):
 			r = True
 	return r
+# @used-by :func:`dirty_issue_first_files()`
 def _parse_dirty_porcelain(code_repo: Path, stdout: bytes) -> list[str]:
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 	from ..addon_observability import is_live_runtime_data_file
@@ -58,6 +64,7 @@ def _parse_dirty_porcelain(code_repo: Path, stdout: bytes) -> list[str]:
 			if rel_path not in dirty:
 				dirty.append(rel_path)
 	return sorted(dirty)
+# @used-by :func:`gh_api_call()`
 def _decode_gh_stdout(raw_out: str, paginate: bool) -> Any:
 	if not raw_out.strip():
 		r: Any = None
@@ -69,6 +76,8 @@ def _decode_gh_stdout(raw_out: str, paginate: bool) -> Any:
 			merged.extend(obj) if isinstance(obj, list) else merged.append(obj)
 		r = merged
 	return r
+# @used-by :func:`agent_tools.github_issue._gh_api()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.__init__()`
 def gh_api_call(endpoint: str, *, method: str='GET', payload: dict[str, Any] | None=None, paginate: bool=False, runner=None) -> Any:
 	cmd = ['gh', 'api', endpoint]
 	if 'GET' != method:
@@ -85,6 +94,7 @@ def gh_api_call(endpoint: str, *, method: str='GET', payload: dict[str, Any] | N
 		err_msg = proc.stderr.decode('utf-8', errors='replace').strip() or proc.stdout.decode('utf-8', errors='replace').strip()
 		raise RuntimeError(f'gh api {method} {endpoint} failed (exit {proc.returncode}): {err_msg}')
 	return _decode_gh_stdout(proc.stdout.decode('utf-8'), paginate)
+# @used-by :func:`pending_similar_peer_slugs()`
 def _recorded_open_turn_repos(turn_dirs: list[Path]) -> set[str]:
 	recorded: set[str] = set()
 	for tdir in turn_dirs:
@@ -100,6 +110,7 @@ def _recorded_open_turn_repos(turn_dirs: list[Path]) -> set[str]:
 			if isinstance(tdata, dict) and 'open' == tdata.get('status'):
 				_collect_recorded_repos_from_turn(tdata, recorded)
 	return recorded
+# @used-by :func:`_recorded_open_turn_repos()`
 def _collect_recorded_repos_from_turn(tdata: dict[str, Any], recorded: set[str]) -> None:
 	gh_raw = tdata.get('github_issues') or {}
 	items = gh_raw.values() if isinstance(gh_raw, dict) else gh_raw if isinstance(gh_raw, list) else ()
@@ -111,6 +122,8 @@ def _collect_recorded_repos_from_turn(tdata: dict[str, Any], recorded: set[str])
 			r_slug = str(item.get('repo') or '').strip().lower()
 			if r_slug and (acts & {'create', 'edit', 'comment'}):
 				recorded.add(r_slug)
+# @used-by :func:`agent_tools.github_issue._pending_similar_peer_slugs()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._finalize_close()`
 def pending_similar_peer_slugs(workspace: IssueEvidenceWorkspace, code_repo: Path | None, *, repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]]=()) -> list[str]:
 	r: list[str] = []
 	if None is not code_repo:
@@ -127,6 +140,7 @@ def pending_similar_peer_slugs(workspace: IssueEvidenceWorkspace, code_repo: Pat
 				recorded = _recorded_open_turn_repos(turn_dirs)
 				r = [s for s in peer_slugs if s.lower() not in recorded]
 	return r
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._prepend_issue_metadata()`
 def resolve_metadata_project_root(workspace: IssueEvidenceWorkspace, repo: str, project_root: str | Path | None, consumable: list[tuple[Path, bytes]]) -> Path | None:
 	if None is not project_root and str(project_root).strip():
 		r: Path | None = Path(project_root).resolve()
@@ -145,6 +159,9 @@ def resolve_metadata_project_root(workspace: IssueEvidenceWorkspace, repo: str, 
 			except (OSError, ValueError):
 				r = Path.cwd().resolve()
 	return r
+# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._parse_edit_inputs()`
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_create()`
 def resolve_title(args: argparse.Namespace, consumable: list[tuple[Path, bytes]]) -> str | None:
 	if getattr(args, 'title_file', None):
 		t_path, t_raw, t_text = IssueMarkdownLinter.read_utf8_no_bom_file(args.title_file)

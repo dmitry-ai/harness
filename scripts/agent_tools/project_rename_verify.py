@@ -8,7 +8,8 @@ from . import journal
 from .journal_integrity import journal_validation_errors
 from .path_registry import project_paths
 from .project_rename_state import _path_pairs
-# @used-by :func:`capture_pre_rename_snapshot()`, :func:`verify_post_rename()`
+# @used-by :func:`capture_pre_rename_snapshot()`
+# @used-by :func:`verify_post_rename()`
 def _check_config_status(root: Path) -> tuple[bool, list]:
 	from .upwork_project import check_configuration
 	try:
@@ -17,7 +18,8 @@ def _check_config_status(root: Path) -> tuple[bool, list]:
 	except (OSError, ValueError) as exc:
 		r = (False, [{'message': str(exc)}])
 	return r
-# @used-by :func:`capture_pre_rename_snapshot()`, :func:`verify_post_rename()`
+# @used-by :func:`_verify_journal_regression()`
+# @used-by :func:`capture_pre_rename_snapshot()`
 def _collect_journal_errors(root: Path) -> list[str]:
 	jdir = journal.resolve_journal_dir(root)
 	errs: list[str] = []
@@ -43,7 +45,8 @@ def _launcher_stale_files(launcher_root: Path | None, old_root: Path, new_root: 
 				if any((n in blob for n in needles)):
 					stale.append(sf.name)
 	return stale
-# @used-by :func:`capture_pre_rename_snapshot()`, :func:`verify_post_rename()`
+# @used-by :func:`capture_pre_rename_snapshot()`
+# @used-by :func:`verify_post_rename()`
 def _probe_review_auth(root: Path, wf_state: dict) -> tuple[bool, str | None]:
 	from . import review
 	if not wf_state.get('reviews'):
@@ -55,7 +58,8 @@ def _probe_review_auth(root: Path, wf_state: dict) -> tuple[bool, str | None]:
 		except (OSError, ValueError) as exc:
 			r = (False, str(exc))
 	return r
-# @used-by :func:`capture_pre_rename_snapshot()`, :func:`verify_post_rename()`
+# @used-by :func:`capture_pre_rename_snapshot()`
+# @used-by :func:`verify_post_rename()`
 def _probe_workflow(root: Path) -> tuple[dict | None, dict[str, str]]:
 	from . import workflow
 	wf_path = project_paths(root, exact_root=True).workflow_json
@@ -86,6 +90,8 @@ def _verify_stage_regression(pre_stages: dict[str, str], post_stages: dict[str, 
 		if 'complete' == prev and 'complete' != cur:
 			errors.append(f'workflow stage regression: {stage} degraded from complete to {cur}')
 # @used-by :func:`agent_tools.project_rename.rename_project()`
+# @used-by :func:`agent_tools.shadow_replay_command._run_generic_command()`
+# @used-by :mod:`agent_tools.project_rename_verify`
 def capture_pre_rename_snapshot(old_root: Path) -> dict:
 	wf_state, stages = _probe_workflow(old_root)
 	has_reviews = bool(wf_state and wf_state.get('reviews'))
@@ -93,6 +99,8 @@ def capture_pre_rename_snapshot(old_root: Path) -> dict:
 	cfg_ok, _ = _check_config_status(old_root)
 	return {'workflow_stages': stages, 'has_reviews': has_reviews, 'review_auth_ok': rev_ok, 'configure_valid': cfg_ok, 'journal_errors': _collect_journal_errors(old_root)}
 # @used-by :func:`agent_tools.project_rename.rename_project()`
+# @used-by :func:`agent_tools.shadow_replay_command.resolve_shadow_launcher()`
+# @used-by :mod:`agent_tools.project_rename_verify`
 def infer_launcher_root(old_root: Path, daily_root: Path | None, launcher_root: Path | None) -> Path | None:
 	if None is not launcher_root:
 		r: Path | None = Path(launcher_root).resolve()
@@ -102,7 +110,9 @@ def infer_launcher_root(old_root: Path, daily_root: Path | None, launcher_root: 
 	else:
 		r = None
 	return r
-# @used-by :func:`agent_tools.project_rename.rename_project()`, :func:`agent_tools.shadow_replay_command._verify_shadow_command_post()`
+# @used-by :func:`agent_tools.project_rename._apply_rename_mutations()`
+# @used-by :func:`agent_tools.shadow_replay_command._verify_shadow_command_post()`
+# @used-by :mod:`agent_tools.project_rename_verify`
 def verify_post_rename(old_root: Path, new_root: Path, pre: dict, *, launcher_root: Path | None=None) -> dict:
 	errors: list[str] = []
 	post_wf, post_stages = _probe_workflow(new_root)

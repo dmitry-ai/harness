@@ -2,6 +2,10 @@
 // 2026-11-16
 // "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 // https://github.com/dmitry-ai/harness/issues/80
+/**
+ * @used-by browser_extension/offscreen.html
+ * @uses {@link import('./sw.js')} (dispatchBrokerAction)
+ */
 globalThis.__harnessBroker = async (payload) => {
 	const response = await chrome.runtime.sendMessage(payload || { action: 'ping' });
 	return response;

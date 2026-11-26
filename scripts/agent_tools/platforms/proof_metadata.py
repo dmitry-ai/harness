@@ -6,6 +6,8 @@ from pathlib import Path
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
 _VOLATILE_META_KEYS = frozenset({'metadata_sources', 'observation_history', 'observed', 'requested'})
+# @used-by :func:`_history_equivalent()`
+# @used-by :func:`executor_metadata_equivalent()`
 def _dict_prefix_match(saved: object, live: object, *, same_values: bool) -> bool:
 	r = False
 	if isinstance(saved, list) and isinstance(live, list) and len(live) >= len(saved) and live[:len(saved)] == saved:
@@ -16,6 +18,7 @@ def _dict_prefix_match(saved: object, live: object, *, same_values: bool) -> boo
 			live_vals = {item.get('value') for item in live if isinstance(item, dict)}
 			r = saved_vals == live_vals
 	return r
+# @used-by :func:`executor_metadata_equivalent()`
 def _history_equivalent(saved_h: object, live_h: object) -> bool:
 	if saved_h == live_h:
 		r = True
@@ -24,6 +27,7 @@ def _history_equivalent(saved_h: object, live_h: object) -> bool:
 	else:
 		r = False
 	return r
+# @used-by :func:`executor_metadata_equivalent()`
 def _project_section(saved_sec: object, live_sec: object, *, project_keys: bool) -> bool:
 	if not project_keys:
 		r = saved_sec == live_sec
@@ -32,6 +36,8 @@ def _project_section(saved_sec: object, live_sec: object, *, project_keys: bool)
 	else:
 		r = saved_sec == live_sec
 	return r
+# @used-by :func:`agent_tools.platforms.trace_common.verify_review_proof_core()`
+# @used-by :func:`proof_semantically_equivalent()`
 def executor_metadata_equivalent(saved: object, live: object, *, allow_legacy_generation_model: bool=False) -> bool:
 	if saved == live:
 		r = True
@@ -47,6 +53,7 @@ def executor_metadata_equivalent(saved: object, live: object, *, allow_legacy_ge
 		hist_ok = _history_equivalent(saved.get('observation_history'), live.get('observation_history'))
 		r = stable_ok and obs_ok and req_ok and src_ok and hist_ok
 	return r
+# @used-by :func:`reuse_equivalent_proof()`
 def proof_semantically_equivalent(saved: object, live: object) -> bool:
 	r = False
 	if isinstance(saved, dict) and isinstance(live, dict):
@@ -54,6 +61,7 @@ def proof_semantically_equivalent(saved: object, live: object) -> bool:
 		live_rest = {k: v for k, v in live.items() if 'executor_metadata' != k}
 		r = saved_rest == live_rest and executor_metadata_equivalent(saved.get('executor_metadata'), live.get('executor_metadata'), allow_legacy_generation_model=True)
 	return r
+# @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
 def reuse_equivalent_proof(target: Path, proof: dict) -> dict | None:
 	r = None
 	if target.is_file():

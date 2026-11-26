@@ -19,6 +19,7 @@ import check_markdown_slop
 # "Codify mandatory pre-TDD Issue-First workflow in Harness rules and documentation":
 # https://github.com/dmitry-ai/harness/issues/147
 class IssueFirstRulesAndDocsContractTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_rules_skill_and_docs_codify_issue_first_before_tdd_and_pass_lint(self) -> None:
 		rule_doc = HARNESS_ROOT / 'rules/08-execution-and-tools.md'
 		skill_doc = HARNESS_ROOT / 'skills/df-github-issue/SKILL.md'
@@ -53,6 +54,7 @@ class IssueFirstRulesAndDocsContractTests(unittest.TestCase):
 		for token in ('issue-first-check', 'fetch', 'EXEC-5-ISSUE-FIRST-GATE'):
 			self.assertIn(token, readme_text, f'Missing Issue-First term {token!r} in scripts/README-agent-tools.md')
 
+	# @used-by :mod:`unittest`
 	def test_cli_help_exposes_issue_first_check_and_github_fetch(self) -> None:
 		p_root = subprocess.run(
 			[sys.executable, str(SCRIPT_DIR / 'harness.py'), '--help'],

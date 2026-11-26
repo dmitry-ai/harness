@@ -12,6 +12,7 @@ _HTML_OPEN_RE = re.compile(r'<\?(?:php\b|=)?', re.IGNORECASE)
 _REGEX_PREV_CHARS = frozenset('=([{,;:!?&|^~+-*/%<>')
 _REGEX_PREV_WORDS = frozenset({'await', 'case', 'delete', 'do', 'else', 'in', 'instanceof', 'new', 'of', 'return', 'throw', 'typeof', 'void', 'yield'})
 _WORD_RE = re.compile(r'[A-Za-z0-9_$]+')
+# @used-by :func:`_c_like_special_step()`
 def _c_like_comment_step(src: str, i: int, cfg: dict, comments: list[str]) -> int:
 	r = -2
 	if cfg.get('line_slash') and src.startswith('//', i):
@@ -22,6 +23,7 @@ def _c_like_comment_step(src: str, i: int, cfg: dict, comments: list[str]) -> in
 		if 0 <= r:
 			comments.append(src[i:r])
 	return r
+# @used-by :func:`lex_c_like()`
 def _c_like_special_step(src: str, i: int, cfg: dict, tokens: list[str], comments: list[str]) -> int:
 	c_end = _c_like_comment_step(src, i, cfg, comments)
 	if -2 != c_end:
@@ -33,6 +35,7 @@ def _c_like_special_step(src: str, i: int, cfg: dict, tokens: list[str], comment
 	else:
 		r = _c_like_string_step(src, i, cfg, tokens)
 	return r
+# @used-by :func:`_c_like_special_step()`
 def _c_like_string_step(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 	ch = src[i]
 	end = -2
@@ -47,10 +50,14 @@ def _c_like_string_step(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 	elif '`' == ch and cfg.get('template_tick'):
 		end = _scan_template_literal(src, i)
 	return _emit_slice(src, i, end, tokens)
+# @used-by :func:`_c_like_special_step()`
+# @used-by :func:`_c_like_string_step()`
+# @used-by :func:`_php_code_step()`
 def _emit_slice(src: str, i: int, end: int, out: list[str]) -> int:
 	if 0 <= end:
 		out.append(src[i:end])
 	return end
+# @used-by :func:`lex_php()`
 def _lex_php_body(src: str, start: int, tokens: list[str], comments: list[str]) -> tuple[int, bool]:
 	i, n, ok = (start, len(src), True)
 	while i < n and ok:
@@ -67,6 +74,7 @@ def _lex_php_body(src: str, start: int, tokens: list[str], comments: list[str]) 
 			else:
 				i = scan_word_or_char(src, i, tokens) if -2 == nxt else nxt
 	return (i, ok)
+# @used-by :func:`_lex_php_body()`
 def _php_code_step(src: str, i: int, tokens: list[str], comments: list[str]) -> int:
 	ch = src[i]
 	if src.startswith('//', i) or ('#' == ch and (not src.startswith('#[', i))):
@@ -80,6 +88,7 @@ def _php_code_step(src: str, i: int, tokens: list[str], comments: list[str]) -> 
 	else:
 		r = -2
 	return r
+# @used-by :func:`lex_php()`
 def _php_html_segment(src: str, pos: int, end: int, tokens: list[str], comments: list[str]) -> bool:
 	i, ok = (pos, True)
 	while i < end:
@@ -97,6 +106,7 @@ def _php_html_segment(src: str, pos: int, end: int, tokens: list[str], comments:
 		comments.append(src[c_idx:c_end + 3])
 		i = c_end + 3
 	return ok
+# @used-by :func:`_scan_template_literal()`
 def _scan_template_expr(src: str, pos: int) -> int:
 	i, n, depth, r = (pos, len(src), 1, -1)
 	while i < n:
@@ -117,6 +127,8 @@ def _scan_template_expr(src: str, pos: int) -> int:
 		else:
 			i += 1
 	return r
+# @used-by :func:`_c_like_string_step()`
+# @used-by :func:`_scan_template_expr()`
 def _scan_template_literal(src: str, pos: int) -> int:
 	i, n, r = (pos + 1, len(src), -1)
 	while i < n:
@@ -133,9 +145,14 @@ def _scan_template_literal(src: str, pos: int) -> int:
 		else:
 			i += 1
 	return r
+# @used-by :func:`_c_like_special_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
+# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_atom()`
 def can_start_regex(tokens: list[str]) -> bool:
 	prev = next((t for t in reversed(tokens) if '\n' != t), '')
 	return (not prev) or prev in _REGEX_PREV_WORDS or prev[-1] in _REGEX_PREV_CHARS
+# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_hash_script()`
+# @used-by :func:`lex_c_like()`
 def consume_shebang(source: str, tokens: list[str], enabled: bool) -> int:
 	r = 0
 	if enabled and source.startswith('#!'):
@@ -143,6 +160,8 @@ def consume_shebang(source: str, tokens: list[str], enabled: bool) -> int:
 		r = len(source) if -1 == nl else nl
 		tokens.extend((source[:r], '\n'))
 	return r
+# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_c_like(source: str, cfg: dict) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	n, tokens, comments, ok = (len(source), [], [], True)
 	i = consume_shebang(source, tokens, bool(cfg.get('shebang_code')))
@@ -158,6 +177,8 @@ def lex_c_like(source: str, cfg: dict) -> tuple[tuple[str, ...], tuple[str, ...]
 			ok = -1 != nxt
 			i = scan_word_or_char(source, i, tokens) if -2 == nxt else nxt
 	return (finalize_line_tokens(tokens), tuple(comments)) if ok else None
+# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_php(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	i, n, tokens, comments, ok = (0, len(source), [], [], True)
 	while i < n and ok:
@@ -169,6 +190,8 @@ def lex_php(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 		tokens.append(m_open.group(0).lower())
 		i, ok = _lex_php_body(source, m_open.end(), tokens, comments)
 	return (finalize_line_tokens(tokens), tuple(comments)) if ok else None
+# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_python(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	tokens: list[str] = []
 	comments: list[str] = []
@@ -185,6 +208,11 @@ def lex_python(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	except (tokenize.TokenError, IndentationError):
 		r = None
 	return r
+# @used-by :func:`_lex_php_body()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_hash_script()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_sql()`
+# @used-by :func:`lex_c_like()`
 def scan_word_or_char(src: str, i: int, tokens: list[str]) -> int:
 	m = _WORD_RE.match(src, i)
 	if None is not m:

@@ -16,6 +16,7 @@ import check_markdown_slop
 # "Add deterministic FIFO repository landing lease with reactive wait":
 # https://github.com/dmitry-ai/harness/issues/163
 class LandingLeaseTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_acquire_and_release_lifecycle(self):
 		from agent_tools.landing_lease import acquire_lease, lease_status, release_lease
 		with tempfile.TemporaryDirectory() as td:
@@ -35,6 +36,7 @@ class LandingLeaseTests(unittest.TestCase):
 			r2_next = acquire_lease(repo, 'agent-b', wait=False, leases_dir=leases_dir)
 			self.assertTrue(r2_next['acquired'])
 			release_lease(repo, 'agent-b', leases_dir=leases_dir)
+	# @used-by :mod:`unittest`
 	def test_cli_land_acquire_status_release(self):
 		from agent_tools.upwork_project import main as cli_main
 		with tempfile.TemporaryDirectory() as td:
@@ -43,6 +45,7 @@ class LandingLeaseTests(unittest.TestCase):
 			self.assertEqual(cli_main(['land-acquire', str(repo), '--owner', 'cli-owner', '--ttl', '60']), 0)
 			self.assertEqual(cli_main(['land-status', str(repo)]), 0)
 			self.assertEqual(cli_main(['land-release', str(repo), '--owner', 'cli-owner']), 0)
+	# @used-by :mod:`unittest`
 	def test_exec4_documents_fifo_lease_and_swarm(self):
 		rule_doc = HARNESS_ROOT / 'rules/08-execution-and-tools.md'
 		text = rule_doc.read_text(encoding='utf-8')
@@ -50,6 +53,7 @@ class LandingLeaseTests(unittest.TestCase):
 		self.assertEqual(check_markdown_slop.markdown_slop_issues(text), [])
 		self.assertIn('land-acquire', text)
 		self.assertIn('swarm', text)
+	# @used-by :mod:`unittest`
 	def test_fifo_ordering_prevents_starvation(self):
 		from agent_tools.landing_lease import acquire_lease, release_lease
 		with tempfile.TemporaryDirectory() as td:
@@ -62,6 +66,7 @@ class LandingLeaseTests(unittest.TestCase):
 			order.append('agent-1')
 			self.assertFalse(acquire_lease(repo, 'agent-2', wait=False, leases_dir=leases_dir)['acquired'])
 			self.assertFalse(acquire_lease(repo, 'agent-3', wait=False, leases_dir=leases_dir)['acquired'])
+			# @used-by :meth:`LandingLeaseTests.test_fifo_ordering_prevents_starvation()`
 			def _waiter(name: str, poll: float) -> None:
 				res = acquire_lease(repo, name, wait=True, timeout=10.0, poll_interval=poll, leases_dir=leases_dir)
 				self.assertTrue(res['acquired'])
@@ -78,6 +83,7 @@ class LandingLeaseTests(unittest.TestCase):
 			t2.join(timeout=8.0)
 			t3.join(timeout=8.0)
 			self.assertEqual(order, ['agent-1', 'agent-2', 'agent-3'])
+	# @used-by :mod:`unittest`
 	def test_stale_dead_pid_and_expired_ttl_evicted(self):
 		from agent_tools.landing_lease import acquire_lease, release_lease
 		with tempfile.TemporaryDirectory() as td:
@@ -93,6 +99,7 @@ class LandingLeaseTests(unittest.TestCase):
 			r_after = acquire_lease(repo, 'next-agent', wait=False, leases_dir=leases_dir)
 			self.assertTrue(r_after['acquired'])
 			release_lease(repo, 'next-agent', leases_dir=leases_dir)
+	# @used-by :mod:`unittest`
 	def test_wait_timeout_cleans_up_queue_entry(self):
 		from agent_tools.landing_lease import acquire_lease, lease_status, release_lease
 		with tempfile.TemporaryDirectory() as td:

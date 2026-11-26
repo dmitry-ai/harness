@@ -1,5 +1,6 @@
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
+from typing import override
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +19,13 @@ from agent_tools.platforms.request_binding import native_project_id, scoped_inpu
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class TextNativeBindingTests(unittest.TestCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`unittest.TestCase.setUp()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`unittest.TestCase.setUp()`
+	@override
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
 		self.addCleanup(self.temp.cleanup)
@@ -29,8 +37,11 @@ class TextNativeBindingTests(unittest.TestCase):
 		self.identity = {'schema_version': 1, 'kind': 'client_text_workspace', 'project_root': str(self.root.resolve()), 'id': text_project_id(self.root)}
 		self.write_marker(self.identity)
 		self.parent, self.child = (str(uuid.uuid4()), str(uuid.uuid4()))
+	# @used-by :meth:`TextNativeBindingTests.setUp()`
+	# @used-by :meth:`TextNativeBindingTests.test_internal_identity_is_explicit_and_validated_without_creating_upwork_state()`
 	def write_marker(self, value):
 		self.marker.write_text(json.dumps(value), encoding='utf-8')
+	# @used-by :mod:`unittest`
 	def test_internal_identity_is_explicit_and_validated_without_creating_upwork_state(self):
 		self.assertEqual(native_project_id(self.root), self.identity['id'])
 		self.assertTrue(native_project_id(self.root).startswith('text-'))
@@ -42,6 +53,7 @@ class TextNativeBindingTests(unittest.TestCase):
 		self.marker.unlink()
 		with self.assertRaises(ValueError):
 			native_project_id(self.root)
+	# @used-by :mod:`unittest`
 	def test_existing_real_job_identity_wins_and_invalid_job_file_cannot_fall_back(self):
 		project = self.root / 'ꘖ/project.json'
 		original = b'{"job_id":"~02123456","custom":"keep"}\n'
@@ -54,6 +66,7 @@ class TextNativeBindingTests(unittest.TestCase):
 	# 2026-11-21
 	# "Remove text-based explicit-project-root override from request binding":
 	# https://github.com/dmitry-ai/harness/issues/112
+	# @used-by :mod:`unittest`
 	def test_internal_id_or_text_root_never_substitutes_for_actual_cwd(self):
 		identifier = self.identity['id']
 		for msg in ('Reference ' + identifier, f'Write an article.\nProject root: `{self.root}`', f'Продолжай.\nКорень проекта: `{self.root}`'):
@@ -74,6 +87,8 @@ class TextNativeBindingTests(unittest.TestCase):
 		selected_foreign, active_foreign, _ = scoped_inputs(self.root, identifier, [(1, '/upwork-init https://upwork.com/jobs/~0299999')], [(0, str(self.base), 'native-cwd')])
 		self.assertEqual(selected_foreign, [])
 		self.assertFalse(active_foreign)
+	# @used-by :meth:`TextNativeBindingTests.test_codex_native_review_for_text_has_no_fabricated_upwork_job()`
+	# @used-by :meth:`TextNativeBindingTests.test_codex_requests_preserve_exact_text_without_analysis_project()`
 	def codex_fixture(self, cwd=None, request='  Exact article request.  '):
 		home = self.base / 'codex-home'
 		(home / 'sessions').mkdir(parents=True, exist_ok=True)
@@ -95,6 +110,8 @@ class TextNativeBindingTests(unittest.TestCase):
 		connection.close()
 		r = home
 		return r
+	# @used-by :meth:`TextNativeBindingTests.test_antigravity_native_review_for_text_uses_actual_workspace_binding()`
+	# @used-by :meth:`TextNativeBindingTests.test_antigravity_scope_uses_workspace_only_for_text()`
 	def antigravity_fixture(self):
 		backend = self.base / 'antigravity'
 		(backend / 'conversations').mkdir(parents=True)
@@ -118,6 +135,7 @@ class TextNativeBindingTests(unittest.TestCase):
 			log.write_text('\n'.join((json.dumps(row) for row in rows)), encoding='utf-8')
 		r = backend
 		return r
+	# @used-by :mod:`unittest`
 	def test_codex_requests_preserve_exact_text_without_analysis_project(self):
 		home = self.codex_fixture()
 		requests = codex.native_requests(self.root, self.parent, backend=home)
@@ -139,6 +157,7 @@ class TextNativeBindingTests(unittest.TestCase):
 	# 2026-11-21
 	# "Remove text-based explicit-project-root override from request binding":
 	# https://github.com/dmitry-ai/harness/issues/112
+	# @used-by :mod:`unittest`
 	def test_antigravity_scope_uses_workspace_only_for_text(self):
 		backend = self.antigravity_fixture()
 		foreign_mention = f'Exact article request.\nProject root: `{self.base}`'
@@ -153,6 +172,7 @@ class TextNativeBindingTests(unittest.TestCase):
 			selected, active, _ = antigravity._request_scope(self.root, self.parent, backend, inputs=[(0, msg)])
 			self.assertEqual(selected, [])
 			self.assertFalse(active)
+	# @used-by :mod:`unittest`
 	def test_codex_native_review_for_text_has_no_fabricated_upwork_job(self):
 		home = self.codex_fixture()
 		proof = codex.native_review_proof(self.root, self.parent, self.child, backend=home, write=False)
@@ -164,6 +184,7 @@ class TextNativeBindingTests(unittest.TestCase):
 		self.codex_fixture(cwd=self.base)
 		with self.assertRaises(ValueError):
 			codex.native_review_proof(self.root, self.parent, self.child, backend=home, write=False)
+	# @used-by :mod:`unittest`
 	def test_antigravity_native_review_for_text_uses_actual_workspace_binding(self):
 		backend = self.antigravity_fixture()
 		proof = antigravity.native_review_proof(self.root, self.parent, self.child, backend=backend, write=False)

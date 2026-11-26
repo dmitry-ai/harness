@@ -30,6 +30,8 @@ _BETA_SRC = (
 	'\tdef test_skipped(self):\n'
 	'\t\tself.fail("unreachable")\n'
 )
+# @used-by :meth:`PerfProfileTestsSuiteTests.test_cli_perf_profile_tests_help_json_output_and_text_format()`
+# @used-by :meth:`PerfProfileTestsSuiteTests.test_profile_test_suite_measures_files_tests_popen_sleep_and_cprofile()`
 def _write_demo_suite(base: Path) -> Path:
 	tests_dir = base / 'tests'
 	tests_dir.mkdir(parents=True, exist_ok=True)
@@ -40,6 +42,7 @@ def _write_demo_suite(base: Path) -> Path:
 # "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
 # https://github.com/dmitry-ai/harness/issues/192
 class PerfProfileTestsSuiteTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_cli_perf_profile_tests_help_json_output_and_text_format(self) -> None:
 		p_help = subprocess.run([sys.executable, str(SCRIPT_DIR / 'harness.py'), 'perf-profile-tests', '--help'], capture_output=True, text=True, encoding='utf-8', check=True)
 		for flag in ('--workers', '--module', '--cprofile', '--top', '--output', '--format'):
@@ -55,6 +58,7 @@ class PerfProfileTestsSuiteTests(unittest.TestCase):
 			saved = json.loads(out_json.read_text(encoding='utf-8'))
 			self.assertEqual(2, saved['total_files'])
 			self.assertEqual(3, saved['total_tests'])
+	# @used-by :mod:`unittest`
 	def test_profile_test_suite_measures_files_tests_popen_sleep_and_cprofile(self) -> None:
 		from agent_tools.perf.suite_profiler import profile_test_suite
 		with tempfile.TemporaryDirectory() as td:

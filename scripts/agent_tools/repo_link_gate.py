@@ -14,6 +14,8 @@ GITHUB_BLOB_TREE_RE = re.compile(r'^https://github\.com/(?P<owner>[A-Za-z0-9_.-]
 _LINE_FRAG_RE = re.compile(r'^L(\d+)(?:-L?(\d+))?$')
 _SKIP_STAGED_RE = re.compile(r'(?:^|/)(?:\ua66e|req|res|evidence|plans|scratch)/', re.I)
 _WIN_DRIVE_RE = re.compile(r'^[A-Za-z]:[/\\]')
+# @used-by :func:`chat_repo_link_issues()`
+# @used-by :func:`file_repo_link_issues()`
 def _authored_targets(content: str) -> list[str]:
 	from .links import HTMLReferences
 	from .markdown_links import parser as md_parser
@@ -27,10 +29,12 @@ def _authored_targets(content: str) -> list[str]:
 		elif 0 == quote_depth:
 			_collect_block_targets(block, targets, html)
 	return list(dict.fromkeys(targets + html.links))
+# @used-by :func:`_validate_github_object()`
 def _cat_file_type(repo: Path, ref: str, rel_path: str) -> str | None:
 	spec = f'{ref}:{rel_path}' if rel_path else f'{ref}^{{tree}}'
 	proc = run_git_read(repo, ['-c', 'core.quotepath=false', 'cat-file', '-t', spec], check=False)
 	return proc.stdout.decode('utf-8', errors='replace').strip() if 0 == proc.returncode else None
+# @used-by :func:`_authored_targets()`
 def _collect_block_targets(block, targets: list[str], html) -> None:
 	from .links import _document_urls
 	if 'html_block' == block.type:
@@ -44,6 +48,9 @@ def _collect_block_targets(block, targets: list[str], html) -> None:
 			html.feed(tok.content)
 		elif 'text' == tok.type:
 			targets.extend(_document_urls(tok.content))
+# @used-by :func:`_validate_file_uri()`
+# @used-by :func:`_validate_relative_cross_repo()`
+# @used-by :func:`file_repo_link_issues()`
 def _enclosing_github_repo(target: Path) -> tuple[Path | None, str | None]:
 	abs_p = Path(os.path.abspath(str(target)))
 	r: tuple[Path | None, str | None] = (None, None)
@@ -54,6 +61,8 @@ def _enclosing_github_repo(target: Path) -> tuple[Path | None, str | None]:
 				r = (anc.resolve(), slug)
 			break
 	return r
+# @used-by :func:`_validate_file_uri()`
+# @used-by :func:`_validate_relative_cross_repo()`
 def _is_gitignored(repo: Path, rel_path: str) -> bool:
 	clean = rel_path.strip('/')
 	if not clean or '.' == clean:
@@ -64,9 +73,13 @@ def _is_gitignored(repo: Path, rel_path: str) -> bool:
 		proc = run_git_read(repo, ['check-ignore', '-q', '--', clean], check=False)
 		r = 0 == proc.returncode
 	return r
+# @used-by :func:`_validate_github_object()`
+# @used-by :func:`resolve_local_github_blob()`
 def _load_blob_text(repo: Path, ref: str, rel_path: str) -> str | None:
 	proc = run_git_read(repo, ['-c', 'core.quotepath=false', 'show', f'{ref}:{rel_path}'], check=False)
 	return proc.stdout.decode('utf-8', errors='replace') if 0 == proc.returncode else None
+# @used-by :func:`_validate_github_url()`
+# @used-by :func:`resolve_local_github_blob()`
 def _parse_github_ref_url(url: str) -> dict | None:
 	m = GITHUB_BLOB_TREE_RE.fullmatch((url or '').strip())
 	if None is m:
@@ -75,6 +88,7 @@ def _parse_github_ref_url(url: str) -> dict | None:
 		owner, repo_name = (m.group('owner'), m.group('repo'))
 		r = {'slug': f'{owner}/{repo_name}', 'kind': m.group('kind').lower(), 'ref': unquote(m.group('ref')), 'path': unquote(m.group('path') or '').strip('/'), 'fragment': unquote(m.group('fragment') or '').strip()}
 	return r
+# @used-by :func:`verify_staged_repo_links()`
 def _read_staged_markdown(repo_root: Path, rel: str, use_index: bool) -> str | None:
 	if use_index:
 		proc = run_git_read(repo_root, ['-c', 'core.quotepath=false', 'show', f':{rel}'], check=False)
@@ -83,8 +97,11 @@ def _read_staged_markdown(repo_root: Path, rel: str, use_index: bool) -> str | N
 		fp = repo_root / rel
 		r = fp.read_text(encoding='utf-8', errors='replace') if fp.is_file() else None
 	return r
+# @used-by :func:`_validate_github_url()`
+# @used-by :func:`resolve_local_github_blob()`
 def _repo_has_tag(repo: Path, tag: str) -> bool:
 	return 0 == run_git_read(repo, ['show-ref', '--verify', '--quiet', f'refs/tags/{tag}'], check=False).returncode
+# @used-by :func:`_validate_github_object()`
 def _validate_blob_anchor(url: str, rel_path: str, blob_text: str, fragment: str) -> list[str]:
 	r: list[str] = []
 	if fragment:
@@ -97,6 +114,7 @@ def _validate_blob_anchor(url: str, rel_path: str, blob_text: str, fragment: str
 		else:
 			r = _validate_doc_or_json_anchor(url, rel_path, blob_text, fragment)
 	return r
+# @used-by :func:`_validate_blob_anchor()`
 def _validate_doc_or_json_anchor(url: str, rel_path: str, blob_text: str, fragment: str) -> list[str]:
 	suffix = Path(rel_path).suffix.lower()
 	r: list[str] = []
@@ -111,6 +129,8 @@ def _validate_doc_or_json_anchor(url: str, rel_path: str, blob_text: str, fragme
 		except (KeyError, ValueError, IndexError, TypeError):
 			r.append(f'LINK-6: Missing JSON pointer #{fragment} in {url}')
 	return r
+# @used-by :func:`chat_repo_link_issues()`
+# @used-by :func:`file_repo_link_issues()`
 def _validate_file_uri(href: str) -> list[str]:
 	from .markdown_links import decode_file_uri
 	raw = decode_file_uri(href)
@@ -125,6 +145,7 @@ def _validate_file_uri(href: str) -> list[str]:
 				suffix = '' if '.' == rel else f'/{rel}'
 				r.append(f'LINK-6: Prohibited file:/// link to GitHub repository file ({slug}{suffix}): use a tagged GitHub URL https://github.com/{slug}/{kind}/<tag>{suffix} instead of {href}')
 	return r
+# @used-by :func:`_validate_github_url()`
 def _validate_github_object(url: str, local_repo: Path, info: dict) -> list[str]:
 	slug, kind, ref, rel_path, frag = (info['slug'], info['kind'], info['ref'], info['path'], info['fragment'])
 	obj_type = _cat_file_type(local_repo, ref, rel_path)
@@ -143,6 +164,8 @@ def _validate_github_object(url: str, local_repo: Path, info: dict) -> list[str]
 		blob_text = _load_blob_text(local_repo, ref, rel_path)
 		r = [] if None is blob_text else _validate_blob_anchor(url, rel_path, blob_text, frag)
 	return r
+# @used-by :func:`chat_repo_link_issues()`
+# @used-by :func:`file_repo_link_issues()`
 def _validate_github_url(url: str, root: Path | None) -> list[str]:
 	info = _parse_github_ref_url(url)
 	if None is info:
@@ -157,6 +180,7 @@ def _validate_github_url(url: str, root: Path | None) -> list[str]:
 		else:
 			r = _validate_github_object(url, local_repo, info)
 	return r
+# @used-by :func:`file_repo_link_issues()`
 def _validate_relative_cross_repo(href: str, doc_path: Path, doc_repo: Path | None) -> list[str]:
 	clean = (href or '').strip()
 	parsed = urlsplit(clean)
@@ -173,6 +197,8 @@ def _validate_relative_cross_repo(href: str, doc_path: Path, doc_repo: Path | No
 					suffix = '' if '.' == rel else f'/{rel}'
 					r.append(f'LINK-6: Cross-repository relative link {href} targets {slug}{suffix}; use a tagged GitHub URL https://github.com/{slug}/{kind}/<tag>{suffix}')
 	return r
+# @used-by :func:`agent_tools.links.chat_reply_link_issues()`
+# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
 def chat_repo_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 	errors: list[str] = []
 	for href in _authored_targets(content):
@@ -182,6 +208,9 @@ def chat_repo_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 		elif low.startswith('https://github.com/'):
 			errors.extend(_validate_github_url(href, root))
 	return list(dict.fromkeys(errors))
+# @used-by :func:`agent_tools.links.validate_file()`
+# @used-by :func:`check_markdown_slop._check_doc_grounding_and_links()`
+# @used-by :func:`verify_staged_repo_links()`
 def file_repo_link_issues(doc_path: Path, content: str, *, repo_root: Path | None=None) -> list[str]:
 	doc_p = Path(doc_path).resolve()
 	doc_repo, _ = _enclosing_github_repo(doc_p)
@@ -196,6 +225,7 @@ def file_repo_link_issues(doc_path: Path, content: str, *, repo_root: Path | Non
 		else:
 			errors.extend(_validate_relative_cross_repo(href, doc_p, doc_repo))
 	return list(dict.fromkeys(errors))
+# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.validate()`
 def hydrate_local_repo_urls(auditor) -> set[str]:
 	local_urls: set[str] = set()
 	for url in dict.fromkeys(auditor.authored_urls):
@@ -207,9 +237,13 @@ def hydrate_local_repo_urls(auditor) -> set[str]:
 				auditor.observed_texts.setdefault(nu, []).append(resolved[1])
 				local_urls.add(nu)
 	return local_urls
+# @used-by :func:`check_markdown_slop._check_doc_grounding_and_links()`
+# @used-by :func:`verify_staged_repo_links()`
 def is_skipped_repo_link_doc(path: Path | str) -> bool:
 	norm = '/' + str(path).replace('\\', '/').lower().lstrip('/')
 	return bool(_SKIP_STAGED_RE.search(norm)) or '/data/scratch/' in norm
+# @used-by :func:`agent_tools.grounding_helpers._collect_local_repo_ext_entries()`
+# @used-by :func:`hydrate_local_repo_urls()`
 def resolve_local_github_blob(root: Path | None, url: str) -> tuple[str, str] | None:
 	info = _parse_github_ref_url(url)
 	r: tuple[str, str] | None = None
@@ -221,6 +255,7 @@ def resolve_local_github_blob(root: Path | None, url: str) -> tuple[str, str] | 
 			if None is not text:
 				r = (f'{slug}@{ref}:{rel_path}', text)
 	return r
+# @used-by :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
 def verify_staged_repo_links(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	violations: list[str] = []
 	for rel in staged_paths:

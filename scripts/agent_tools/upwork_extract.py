@@ -1,4 +1,5 @@
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+from typing import override
 import asyncio
 from datetime import datetime, timezone
 import hashlib
@@ -29,10 +30,15 @@ _PAGE_STATE_EXPR = UPWORK_PAGE_STATE_EXPR
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`download_attachment()`
+# @used-by :func:`select_tab()`
 def upwork_host(url):
 	parsed = urlsplit(url)
 	r = 'https' == parsed.scheme and (not parsed.username) and (not parsed.password) and (parsed.port in (None, 443)) and ('upwork.com' == parsed.hostname or (parsed.hostname or '').endswith('.upwork.com'))
 	return r
+# @used-by :func:`download_attachment()`
+# @used-by :meth:`agent_tools.knowledge.AttachmentInventory._register_bytes()`
+# @used-by :meth:`test_onboarding.AttachmentTests.test_paths_cannot_escape_or_use_windows_special_names()`
 def attachment_path(directory: Path, filename: str) -> Path:
 	if not filename or filename in ('.', '..') or re.search('[\\\\/:\\x00-\\x1f<>"|?*]', filename) or filename.endswith((' ', '.')) or re.match('(?i)^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\.|$)', filename):
 		raise ValueError(f'Unsafe attachment filename: {filename!r}')
@@ -41,6 +47,13 @@ def attachment_path(directory: Path, filename: str) -> Path:
 		raise ValueError('Attachment path escapes its directory')
 	return target
 class SafeRedirect(urllib.request.HTTPRedirectHandler):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`test_onboarding.AttachmentTests.test_redirect_cannot_keep_credentials_on_another_host()`
+	# @used-by :meth:`urllib.request.HTTPRedirectHandler.redirect_request()`
+	# @see :meth:`urllib.request.HTTPRedirectHandler.redirect_request()`
+	@override
 	def redirect_request(self, req, fp, code, msg, headers, newurl):
 		if 'https' != urlsplit(newurl).scheme:
 			raise ValueError('Attachment redirect must use HTTPS')
@@ -49,6 +62,9 @@ class SafeRedirect(urllib.request.HTTPRedirectHandler):
 			for key in ('Cookie', 'Authorization'):
 				result.remove_header(key)
 		return result
+# @used-by :func:`extract_upwork_job()`
+# @used-by :meth:`test_onboarding.AttachmentTests.test_cookie_domain_and_path_boundaries()`
+# @used-by :meth:`test_onboarding.AttachmentTests.test_unrelated_initial_host_rejected_before_network()`
 def download_attachment(attachment, directory: Path, cookies=(), user_agent='UpworkOnboarding/2'):
 	target = attachment_path(directory, attachment['fileName'])
 	url = urljoin('https://www.upwork.com', attachment['uri'])
@@ -78,12 +94,18 @@ def download_attachment(attachment, directory: Path, cookies=(), user_agent='Upw
 		raise FileExistsError(f'Different attachment already exists: {target}')
 	return {'path': str(target), 'filename': target.name, 'sha256': hashlib.sha256(payload).hexdigest(), 'bytes': len(payload)}
 class RPC:
+	# @used-by :meth:`test_onboarding.RPCTests.test_events_and_unrelated_responses_do_not_complete_call()`
+	# @used-by :meth:`test_onboarding.RPCTests.test_unresponsive_browser_has_bounded_diagnostic()`
 	def __init__(self, websocket, timeout=30):
 		self.websocket, self.timeout, self.next_id = (websocket, timeout, 0)
+	# @used-by :meth:`RPC.evaluate()`
+	# @used-by :meth:`test_onboarding.RPCTests.test_events_and_unrelated_responses_do_not_complete_call()`
+	# @used-by :meth:`test_onboarding.RPCTests.test_unresponsive_browser_has_bounded_diagnostic()`
 	async def call(self, method, **params):
 		self.next_id += 1
 		ident = self.next_id
 		await self.websocket.send(json.dumps({'id': ident, 'method': method, 'params': params}))
+		# @used-by :meth:`RPC.call()`
 		async def receive():
 			while True:
 				message = json.loads(await self.websocket.recv())
@@ -95,11 +117,15 @@ class RPC:
 			return await asyncio.wait_for(receive(), timeout=self.timeout)
 		except TimeoutError as exc:
 			raise TimeoutError(f'CDP {method} did not respond within {self.timeout}s') from exc
+	# @used-by unused
 	async def evaluate(self, expression):
 		result = await self.call('Runtime.evaluate', expression=expression, awaitPromise=True, returnByValue=True)
 		if result.get('exceptionDetails'):
 			raise RuntimeError(f"Browser evaluation failed: {result['exceptionDetails']}")
 		return result.get('result', {}).get('value')
+# @used-by :func:`extract_upwork_job()`
+# @used-by :meth:`test_onboarding.AttachmentTests.test_access_denied_and_unloaded_pages_are_not_job_captures()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 def decode_page(page, job_id):
 	if not isinstance(page, dict):
 		raise ValueError('Browser page state is unavailable')
@@ -116,11 +142,14 @@ def decode_page(page, job_id):
 			raise ValueError('Selected tab has no Upwork source data; it may be unloaded or use an unsupported page format')
 		raise ValueError('Selected page data does not match the requested job ID')
 	return r
+# @used-by :func:`extract_upwork_job()`
+# @used-by :meth:`test_onboarding.AttachmentTests.test_tab_selection_requires_exact_job_or_explicit_id()`
 def select_tab(tabs, job_id, tab_id=None):
 	candidates = [t for t in tabs if 'page' == t.get('type') and upwork_host(t.get('url', ''))]
 	if tab_id:
 		candidates = [t for t in candidates if t.get('id') == tab_id]
 	else:
+		# @used-by :func:`select_tab()`
 		def matches(tab):
 			path = urlsplit(tab['url']).path
 			try:
@@ -135,6 +164,7 @@ def select_tab(tabs, job_id, tab_id=None):
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`extract_upwork_job()`
 def _eval_session(mux, session_id, expression, *, await_promise=False, read_only=False, timeout_ms=25000):
 	params = {'expression': expression, 'returnByValue': True}
 	if await_promise:
@@ -148,6 +178,8 @@ def _eval_session(mux, session_id, expression, *, await_promise=False, read_only
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2b_zero_extension_sentinel_skips_discarded_tabs_never_enumerates_cookies_and_guards_upwork_extract()`
 def extract_upwork_job(url_or_id, cdp_port=9222, fetch_related=True, attachments_dir=None, tab_id=None, *, session_id=None, config=None, http_get=None, cdp_call=None):
 	from .text_browser import CDPSession, GuardedCDP, _checked_ws, _query_target_infos, discover_cdp_browser, preflight
 	job_id = normalize_job_id(url_or_id)

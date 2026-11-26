@@ -12,6 +12,9 @@ from .storage import data_dir_for
 # "Extract SourceDiagnosticsScanner class from diagnose_sources in text_diagnostics.py":
 # https://github.com/dmitry-ai/harness/issues/68
 class SourceDiagnosticsScanner:
+	# @used-by :func:`diagnose_sources()`
+	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_class_methods_and_wrapper_parity()`
+	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_detects_missing_manifest_target_and_invalid_receipt()`
 	def __init__(self, root, *, platform=None, profile=None, config=None, primary=PRIMARY):
 		if None is root or (not str(root).strip()):
 			raise ValueError('An explicit project root is required')
@@ -28,6 +31,15 @@ class SourceDiagnosticsScanner:
 		self.by_path: dict[str, dict] = {}
 		self.conflicts: list[dict] = []
 		self.native_declarations: list[dict] = []
+	# @used-by :meth:`SourceDiagnosticsScanner._apply_native_toml_data()`
+	# @used-by :meth:`SourceDiagnosticsScanner._discover_references()`
+	# @used-by :meth:`SourceDiagnosticsScanner._inspect_native_fallbacks()`
+	# @used-by :meth:`SourceDiagnosticsScanner._inspect_native_toml()`
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_ancestry_scope()`
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_canonical_sources()`
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_discovery_manifests()`
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_manifest_entry()`
+	# @used-by :meth:`SourceDiagnosticsScanner._verify_projection_receipt()`
 	def _add_source(self, path, kind: str, via: str, *, required: bool=False) -> dict:
 		resolved = Path(path).expanduser().resolve()
 		key = str(resolved)
@@ -47,6 +59,7 @@ class SourceDiagnosticsScanner:
 				self._populate_source_metadata(resolved, item)
 			r = item
 		return r
+	# @used-by :meth:`SourceDiagnosticsScanner._inspect_native_toml()`
 	def _apply_native_toml_data(self, native: Path, item: dict, data: dict, scope: Path | None) -> None:
 		instructions = data.get('developer_instructions')
 		fallbacks = data.get('project_doc_fallback_filenames', [])
@@ -63,6 +76,7 @@ class SourceDiagnosticsScanner:
 			self._add_source(Path(ref), 'native-loader-reference', str(native), required=True)
 		if None is not scope:
 			self._inspect_native_fallbacks(native, scope, fallbacks)
+	# @used-by :meth:`SourceDiagnosticsScanner.run()`
 	def _check_native_overrides(self) -> None:
 		local_native = [item for item in self.native_declarations if not item.get('configured_profile')]
 		if 1 < len(local_native):
@@ -70,6 +84,7 @@ class SourceDiagnosticsScanner:
 		global_native = [item for item in self.native_declarations if item.get('configured_profile')]
 		if 1 < len({item['developer_instructions_sha256'] for item in global_native}):
 			self._record_issue('PROFILE-INSTRUCTIONS-DIFFER', self.primary, 'Configured profile instructions differ; they are separate candidates, not combined effective instructions', 'warning')
+	# @used-by :meth:`SourceDiagnosticsScanner.run()`
 	def _check_rule_and_skill_divergence(self) -> None:
 		canonical_rules = {Path(item['path']).name: item for item in self.sources if 'canonical-rule' == item['kind']}
 		for item in self.sources:
@@ -84,6 +99,7 @@ class SourceDiagnosticsScanner:
 				named_skills.setdefault(name, []).append(item)
 		for name, cands in named_skills.items():
 			self._check_skill_candidates(name, cands)
+	# @used-by :meth:`SourceDiagnosticsScanner._check_rule_and_skill_divergence()`
 	def _check_skill_candidates(self, name: str, candidates: list[dict]) -> None:
 		canonical = [v for v in candidates if 'canonical-skill' == v['kind']]
 		if canonical:
@@ -93,6 +109,7 @@ class SourceDiagnosticsScanner:
 				refs = [v for v in candidates if cand['path'] in v['configured_via']]
 				if cand.get('sha256') != canonical[0].get('sha256') and (not any((ref['path'] == canonical[0]['path'] for ref in refs))):
 					self._record_issue('SKILL-DIVERGENCE', cand['path'], f'Skill {name} has a separate local body instead of a reference to its canonical source', 'warning')
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_ancestry_scope()`
 	def _discover_references(self, path: Path, kind: str) -> None:
 		item = self.by_path[str(path.resolve())]
 		if item.get('exists'):
@@ -103,12 +120,15 @@ class SourceDiagnosticsScanner:
 						self._add_source(target, kind, str(path), required=True)
 			except (OSError, UnicodeError) as exc:
 				self._record_issue('UNREADABLE-REFERENCE', path, str(exc))
+	# @used-by :meth:`SourceDiagnosticsScanner._apply_native_toml_data()`
 	def _inspect_native_fallbacks(self, native: Path, scope: Path, filenames: list) -> None:
 		for filename in filenames:
 			if not isinstance(filename, str) or Path(filename).name != filename:
 				self._record_issue('UNSUPPORTED-DOC-SELECTOR', native, 'Fallback document name is not a simple filename')
 			elif (scope / filename).is_file():
 				self._add_source(scope / filename, 'native-project-document', str(native))
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_ancestry_scope()`
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_codex_profiles()`
 	def _inspect_native_toml(self, native: Path, via: str, *, scope: Path | None=None, profile_name: str | None=None) -> None:
 		item = self._add_source(native, 'native-codex-config', via)
 		if profile_name:
@@ -119,6 +139,7 @@ class SourceDiagnosticsScanner:
 				self._apply_native_toml_data(native, item, data, scope)
 			except (OSError, ValueError, UnicodeError, TypeError) as exc:
 				self._record_issue('INVALID-NATIVE-CONFIG', native, str(exc))
+	# @used-by :meth:`SourceDiagnosticsScanner._add_source()`
 	def _populate_source_metadata(self, resolved: Path, item: dict) -> None:
 		try:
 			raw = resolved.read_bytes()
@@ -131,11 +152,25 @@ class SourceDiagnosticsScanner:
 				item['selection'] = 'declared-always-on' if 'always_on' == meta.get('trigger') else 'conditional-or-manual' if meta.get('trigger') else 'unspecified'
 		except (OSError, ValueError, UnicodeError) as exc:
 			self._record_issue('UNREADABLE-SOURCE', resolved, str(exc))
+	# @used-by :meth:`SourceDiagnosticsScanner._add_source()`
+	# @used-by :meth:`SourceDiagnosticsScanner._check_native_overrides()`
+	# @used-by :meth:`SourceDiagnosticsScanner._check_rule_and_skill_divergence()`
+	# @used-by :meth:`SourceDiagnosticsScanner._check_skill_candidates()`
+	# @used-by :meth:`SourceDiagnosticsScanner._discover_references()`
+	# @used-by :meth:`SourceDiagnosticsScanner._inspect_native_fallbacks()`
+	# @used-by :meth:`SourceDiagnosticsScanner._inspect_native_toml()`
+	# @used-by :meth:`SourceDiagnosticsScanner._populate_source_metadata()`
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_discovery_manifests()`
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_manifest_entry()`
+	# @used-by :meth:`SourceDiagnosticsScanner._verify_projection_receipt()`
 	def _record_issue(self, code: str, path, message: str, severity: str='error') -> None:
 		self.conflicts.append({'code': code, 'path': str(path), 'message': message, 'severity': severity})
+	# @used-by :meth:`SourceDiagnosticsScanner._apply_native_toml_data()`
+	# @used-by :meth:`SourceDiagnosticsScanner._discover_references()`
 	def _referenced_paths(self, text: str) -> list[str]:
 		values = re.findall('\\]\\(<([^>]+)>\\)', text) + re.findall('^\\s*-\\s+((?:[A-Za-z]:[/\\\\]|/)[^\\r\\n]+)', text, re.M)
 		return list(dict.fromkeys(values))
+	# @used-by :meth:`SourceDiagnosticsScanner.run()`
 	def _scan_ancestry_scope(self, scope: Path) -> None:
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -153,6 +188,7 @@ class SourceDiagnosticsScanner:
 			if (scope / filename).is_file():
 				self._add_source(scope / filename, 'native-project-document', f'optional-discovery:{scope}')
 		self._verify_projection_receipt(scope)
+	# @used-by :meth:`SourceDiagnosticsScanner.run()`
 	def _scan_canonical_sources(self) -> None:
 		self._add_source(self.primary / 'runtime.json', 'canonical-runtime', 'runtime.PRIMARY', required=True)
 		for path in sorted((self.primary / 'rules').glob('*.md')):
@@ -171,6 +207,7 @@ class SourceDiagnosticsScanner:
 	# 2026-11-18
 	# "Externalize agent environments and per-instance system paths into runtime.json":
 	# https://github.com/dmitry-ai/harness/issues/86
+	# @used-by :meth:`SourceDiagnosticsScanner.run()`
 	def _scan_codex_profiles(self) -> None:
 		codex_cfg = self.config.get('platforms', {}).get('codex', {})
 		all_insts = extract_platform_instances(codex_cfg, platform='codex', include_disabled=True)
@@ -185,6 +222,7 @@ class SourceDiagnosticsScanner:
 	# 2026-11-14
 	# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 	# https://github.com/dmitry-ai/harness/issues/71
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_ancestry_scope()`
 	def _scan_discovery_manifests(self, scope: Path, agents: Path) -> None:
 		for category in DISCOVERY_KINDS:
 			manifest = agents / f'{category}.json'
@@ -201,6 +239,7 @@ class SourceDiagnosticsScanner:
 	# 2026-11-14
 	# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
 	# https://github.com/dmitry-ai/harness/issues/71
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_discovery_manifests()`
 	def _scan_manifest_entry(self, agents: Path, manifest: Path, category: str, entry) -> None:
 		target, has_extra = resolve_manifest_entry(agents, entry)
 		if None is target:
@@ -215,6 +254,7 @@ class SourceDiagnosticsScanner:
 				for path in sorted(target.rglob(pattern)):
 					if path.is_file():
 						self._add_source(path, f'configured-{category}', str(manifest), required=True)
+	# @used-by :meth:`SourceDiagnosticsScanner._scan_ancestry_scope()`
 	def _verify_projection_receipt(self, scope: Path) -> None:
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -233,6 +273,9 @@ class SourceDiagnosticsScanner:
 						self._record_issue('PROJECTION-DRIFT', path, 'Projection differs from its publication receipt; no file was changed')
 			except (OSError, ValueError, UnicodeError) as exc:
 				self._record_issue('INVALID-RECEIPT', receipt_path, str(exc))
+	# @used-by :func:`diagnose_sources()`
+	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_class_methods_and_wrapper_parity()`
+	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_detects_missing_manifest_target_and_invalid_receipt()`
 	def run(self) -> dict:
 		self._scan_canonical_sources()
 		self._scan_codex_profiles()
@@ -248,5 +291,13 @@ class SourceDiagnosticsScanner:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
+# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_class_methods_and_wrapper_parity()`
+# @used-by :meth:`test_text_diagnostics.TextDiagnosticsTests.report()`
+# @used-by :meth:`test_text_diagnostics.TextDiagnosticsTests.test_explicit_root_required_and_sibling_not_discovered()`
+# @used-by :meth:`test_text_diagnostics.TextDiagnosticsTests.test_profile_instructions_are_separate_candidates_without_guessing_active_account()`
 def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=PRIMARY):
 	return SourceDiagnosticsScanner(root, platform=platform, profile=profile, config=config, primary=primary).run()

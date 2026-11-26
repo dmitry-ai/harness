@@ -276,6 +276,7 @@ _VALID_GENERAL_EN = """# Analysis
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
 class DfAnalysisGatesTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_analysis_check_cli_validates_problem_and_rejects_broken_input(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -290,6 +291,7 @@ class DfAnalysisGatesTests(unittest.TestCase):
 			bad_p = subprocess.run([sys.executable, cli, 'analysis-check', str(root), '--response-file', str(bad_file), '--mode', 'problem'], capture_output=True, text=True, encoding='utf-8', check=False)
 			self.assertEqual(2, bad_p.returncode)
 			self.assertFalse(json.loads(bad_p.stdout)['valid'])
+	# @used-by :mod:`unittest`
 	def test_documentation_link_requires_anchor_when_observation_has_anchors(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve()
@@ -308,6 +310,7 @@ class DfAnalysisGatesTests(unittest.TestCase):
 			self.assertEqual([], ResponseEvidenceAuditor(proj, with_exc, []).validate())
 			non_doc = f'See [Release Notes]({blog_url}).'
 			self.assertEqual([], ResponseEvidenceAuditor(proj, non_doc, []).validate())
+	# @used-by :mod:`unittest`
 	def test_general_df_analysis_requires_multiple_hypotheses_methods_and_template_fields(self) -> None:
 		reqs = [{'text': '/df-analysis Analyze build latency'}]
 		self.assertEqual([], df_analysis.validate_df_analysis(_VALID_GENERAL_EN, requests=reqs, mode='auto'))
@@ -320,6 +323,7 @@ class DfAnalysisGatesTests(unittest.TestCase):
 		self.assertTrue(any('against' in e.lower() for e in errs_fields), errs_fields)
 		self.assertTrue(any('%' in e for e in errs_fields), errs_fields)
 		self.assertEqual([], df_analysis.validate_df_analysis('Задача выполнена успешно.  \n', requests=[{'text': 'Fix typo'}], mode='auto'))
+	# @used-by :mod:`unittest`
 	def test_markdown_table_blocked_across_doc4_hook_linter_and_grounding(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve()
@@ -337,6 +341,7 @@ class DfAnalysisGatesTests(unittest.TestCase):
 			self.assertTrue(any('Markdown table' in e for e in aud_errs), aud_errs)
 			chk = completion.check_answer(proj, table_doc)
 			self.assertFalse(chk['valid'])
+	# @used-by :mod:`unittest`
 	def test_problem_analysis_auto_triggers_and_enforces_all_five_sections(self) -> None:
 		self.assertEqual([], df_analysis.validate_df_analysis(_VALID_PROBLEM_RU, mode='auto'))
 		no_issue_key = _VALID_PROBLEM_RU.replace('\t"Issue": "https://github.com/dmitry-ai/harness/issues/181",\n', '')

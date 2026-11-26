@@ -90,11 +90,17 @@ def _collect_actual_used_by(rel: str, mod: str, hdr: dict, repo_index: dict, err
 		else:
 			errs.append(f'XREF: {rel}:{eln} invalid external @used-by target {rval}')
 	return (actual_refs, manual_ext)
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
 # @used-by :func:`_check_used_by_tags()`
 # @used-by :func:`_sync_def_edit()`
 def _expected_used_by_lines(computed: set[tuple[str, str]], manual_ext: list[str], current_module: str) -> list[str]:
 	refs = {format_ref(ckey, ckind, current_module) for ckey, ckind in computed}
-	refs.update(manual_ext)
+	non_unused = [m for m in manual_ext if 'unused' != m.split()[0]]
+	refs.update(non_unused)
+	if not refs:
+		refs.update(manual_ext)
 	return sorted(refs)
 # @used-by :func:`_check_override_contract()`
 # @used-by :func:`_sync_def_edit()`
@@ -108,6 +114,11 @@ def _insert_typing_override_import(lines: list[str]) -> list[str]:
 		insert_at = 0
 		for idx, ln in enumerate(lines):
 			s = ln.strip()
+			# 2026-11-26
+			# "Apply cross-reference annotations across Harness Python and JavaScript":
+			# https://github.com/dmitry-ai/harness/issues/305
+			if s.startswith(('# @used-by', '# @uses', '# @see')):
+				break
 			if s.startswith('#') or s.startswith('from __future__ import'):
 				insert_at = idx + 1
 			elif s.startswith('from '):
@@ -217,5 +228,8 @@ def sync_python_repo(repo_root: Path, *, apply: bool=True, files: list[str] | No
 		if updated != finfo['source']:
 			changed.append(rel)
 			if apply:
-				(root / rel).write_text(updated, encoding='utf-8')
+				# 2026-11-26
+				# "Apply cross-reference annotations across Harness Python and JavaScript":
+				# https://github.com/dmitry-ai/harness/issues/305
+				(root / rel).write_text(updated, encoding='utf-8', newline='\n')
 	return {'applied': apply, 'changed_count': len(changed), 'changed_files': changed, 'file_count': len(target_rels), 'lang': 'python', 'repo': root.as_posix(), 'valid': True}

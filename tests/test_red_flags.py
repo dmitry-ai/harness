@@ -1,5 +1,6 @@
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
+from typing import override
 import hashlib
 import json
 from pathlib import Path
@@ -16,6 +17,12 @@ from agent_tools.red_flags import START, END, sync_project_red_flags
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class RedFlagTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.original = b'\xef\xbb\xbf# Project\r\nhttps://upwork.com/jobs/~021234567890\r\n\r\n# Notes\r\nKeep all of my notes.\r\n'
@@ -31,6 +38,7 @@ class RedFlagTests(TemporaryCase):
 		# https://github.com/dmitry-ai/harness/issues/10
 		self.value = v3_analysis(self.root, self.value)
 		self.source = self.put('ꘖ/KB/Analysis.json', json.dumps(self.value, ensure_ascii=False))
+	# @used-by :mod:`unittest`
 	def test_both_risks_precede_technical_analysis_and_are_duplicated_in_card(self):
 		result = publish_analysis(self.source)
 		self.assertEqual(result['status'], 'published')
@@ -50,6 +58,7 @@ class RedFlagTests(TemporaryCase):
 		updated = self.card.read_bytes()
 		self.assertTrue(updated.startswith(self.original))
 		self.assertTrue(updated.rstrip().endswith(END))
+	# @used-by :mod:`unittest`
 	def test_each_risk_can_be_shown_alone_without_combination_warning(self):
 		for flag in self.value['red_flags']:
 			value = deepcopy(self.value)
@@ -57,17 +66,20 @@ class RedFlagTests(TemporaryCase):
 			report = render_analysis(value)
 			self.assertIn('Red Flags — 1', report)
 			self.assertNotIn('Both Red Flags simultaneously', report)
+	# @used-by :mod:`unittest`
 	def test_suspected_intermediary_is_not_reported_as_confirmed(self):
 		self.value['red_flags'][0]['status'] = 'suspected'
 		report = render_analysis(self.value)
 		self.assertIn('Status: hypothesis', report)
 		self.assertIn('intermediation is currently a hypothesis', report)
 		self.assertNotIn('Status: confirmed', report)
+	# @used-by :mod:`unittest`
 	def test_no_flags_does_not_create_warning_or_change_original_card(self):
 		self.value['red_flags'] = []
 		self.assertNotIn('Red Flags', render_analysis(self.value))
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'unchanged')
 		self.assertEqual(self.card.read_bytes(), self.original)
+	# @used-by :mod:`unittest`
 	def test_repeated_render_preserves_new_user_notes_and_does_not_duplicate_block(self):
 		publish_analysis(self.source)
 		self.card.write_bytes(self.card.read_bytes() + b'Another note.\r\n')
@@ -79,6 +91,7 @@ class RedFlagTests(TemporaryCase):
 		previous = self.card.read_bytes()
 		self.assertEqual(publish_analysis(self.source)['project_card']['status'], 'unchanged')
 		self.assertEqual(self.card.read_bytes(), previous)
+	# @used-by :mod:`unittest`
 	def test_legacy_top_block_moves_to_final_first_level_section_without_losing_text(self):
 		from agent_tools.red_flags import render_red_flags
 		newline = b'\r\n'
@@ -94,6 +107,7 @@ class RedFlagTests(TemporaryCase):
 		self.assertEqual(updated.count('# Red Flags'.encode()), 1)
 		self.assertLess(updated.index('# Red Flags'.encode()), updated.index(START))
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'unchanged')
+	# @used-by :mod:`unittest`
 	def test_append_and_remove_preserve_newlines_bom_and_empty_cards(self):
 		for original in (b'', b'\xef\xbb\xbf', b'# Project', b'# Project\n', b'# Project\n\n', b'\xef\xbb\xbf# Project\r\n\r\n\r\n'):
 			with self.subTest(original=original):
@@ -104,12 +118,14 @@ class RedFlagTests(TemporaryCase):
 				self.assertTrue(self.card.read_bytes().endswith(END + newline))
 				sync_project_red_flags(self.root, {**self.value, 'red_flags': []})
 				self.assertEqual(self.card.read_bytes(), original)
+	# @used-by :mod:`unittest`
 	def test_manual_section_heading_edits_are_preserved_as_conflicts(self):
 		sync_project_red_flags(self.root, self.value)
 		self.card.write_bytes(self.card.read_bytes().replace(b'# Red Flags', b'# My assessment', 1))
 		changed = self.card.read_bytes()
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'conflict')
 		self.assertEqual(self.card.read_bytes(), changed)
+	# @used-by :mod:`unittest`
 	def test_resolved_risks_update_both_surfaces_and_keep_original_card_history(self):
 		publish_analysis(self.source)
 		self.value['red_flags'] = [self.value['red_flags'][0]]
@@ -124,6 +140,7 @@ class RedFlagTests(TemporaryCase):
 		self.assertEqual(self.card.read_bytes(), self.original)
 		self.assertNotIn('Red Flags', self.source.with_suffix('.md').read_text(encoding='utf-8'))
 		self.assertIn(self.original, [p.read_bytes() for p in (self.root / 'ꘖ/data/red-flags-history').glob('*.md')])
+	# @used-by :mod:`unittest`
 	def test_legacy_analysis_does_not_silently_clear_existing_risks(self):
 		sync_project_red_flags(self.root, self.value)
 		previous = self.card.read_bytes()
@@ -131,6 +148,7 @@ class RedFlagTests(TemporaryCase):
 		self.assertEqual(analysis_issues(self.value), [])
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'unassessed')
 		self.assertEqual(self.card.read_bytes(), previous)
+	# @used-by :mod:`unittest`
 	def test_manual_warning_edits_and_malformed_markers_are_preserved_as_conflicts(self):
 		sync_project_red_flags(self.root, self.value)
 		self.card.write_bytes(self.card.read_bytes().replace(b'The agency hires', b'My edited assessment'))
@@ -141,6 +159,7 @@ class RedFlagTests(TemporaryCase):
 		malformed = self.card.read_bytes()
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'conflict')
 		self.assertEqual(self.card.read_bytes(), malformed)
+	# @used-by :mod:`unittest`
 	def test_unknown_duplicate_and_unsupported_basis_cannot_be_published(self):
 		mutations = [lambda value: value.update(red_flags={}), lambda value: value['red_flags'].append(None), lambda value: value['red_flags'][0].update(id='UNKNOWN'), lambda value: value['red_flags'].append(deepcopy(value['red_flags'][0])), lambda value: value['red_flags'][0].update(status='unresolved'), lambda value: value['red_flags'][0].update(summary=''), lambda value: value['red_flags'][0].update(basis_ids=['MISSING']), lambda value: value['red_flags'][0].update(basis_ids=['M-1'])]
 		for mutate in mutations:
@@ -151,6 +170,7 @@ class RedFlagTests(TemporaryCase):
 				with self.assertRaises(ValueError):
 					sync_project_red_flags(self.root, value)
 				self.assertEqual(self.card.read_bytes(), self.original)
+	# @used-by :mod:`unittest`
 	def test_standalone_input_never_updates_project_card(self):
 		standalone = self.put('standalone.json', json.dumps(self.value))
 		# 2026-10-18
@@ -160,6 +180,7 @@ class RedFlagTests(TemporaryCase):
 			publish_analysis(standalone)
 		self.assertFalse(standalone.with_suffix('.md').exists())
 		self.assertEqual(self.card.read_bytes(), self.original)
+	# @used-by :mod:`unittest`
 	def test_both_cli_entrypoints_sync_card_and_return_conflicts(self):
 		for command in ('render-analysis', 'validate-analysis'):
 			with self.subTest(command=command):

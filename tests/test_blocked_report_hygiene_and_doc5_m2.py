@@ -1,5 +1,6 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+from typing import override
 import json
 from pathlib import Path
 import sqlite3
@@ -156,6 +157,12 @@ DOC5_HARNESS_BLOCKER = (
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225
 class BlockedReportHygieneAndDoc5M2Tests(ProjectCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_analysis_workflow.ProjectCase.setUp()`
+	@override
 	def setUp(self) -> None:
 		super().setUp()
 		self.valid_review_analysis()
@@ -184,6 +191,7 @@ class BlockedReportHygieneAndDoc5M2Tests(ProjectCase):
 		log.write_text(json.dumps({'step_index': 0, 'type': 'USER_INPUT', 'content': self.req_text}) + '\n', encoding='utf-8')
 		flow.adopt_requests(self.project, self.cid, backend=self.backend, platform='antigravity')
 		self.put_project('\ua616/data/continuation.md', '# Continuation\n\n\u0411\u043b\u043e\u043a\u0435\u0440: \u043b\u043e\u0436\u043d\u043e\u0435 \u0441\u0440\u0430\u0431\u0430\u0442\u044b\u0432\u0430\u043d\u0438\u0435 ISSUE-FIRST-GATE \u0432 Harness.\n')
+	# @used-by :mod:`unittest`
 	def test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5(self) -> None:
 		fake_if = {'verified': False, 'repos': {}, 'violations': ['EXEC-5 ISSUE-FIRST-GATE: fake.js']}
 		fake_tdd = {'verified': False, 'scopes': {}, 'violations': ['EXEC-2 TDD-RED-GATE: fake.js']}
@@ -199,6 +207,7 @@ class BlockedReportHygieneAndDoc5M2Tests(ProjectCase):
 		self.assertIn('blocked_hygiene_diagnostics', saved_state)
 		self.assertIn('issue_first', saved_state['blocked_hygiene_diagnostics'])
 		self.assertIn('tdd', saved_state['blocked_hygiene_diagnostics'])
+	# @used-by :mod:`unittest`
 	def test_blocked_report_still_rejects_client_claim_ids_inside_doc5(self) -> None:
 		pp = project_paths(self.project)
 		smuggled_client = DOC5_HARNESS_BLOCKER + '\n## H-CAUSE-1: Client GA4 bug\n'

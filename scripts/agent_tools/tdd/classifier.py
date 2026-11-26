@@ -50,6 +50,7 @@ _TEST_HELPER_FILENAMES = frozenset({
 	# 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
 	'assertions.java', 'assertions.hpp',
 })
+# @used-by :func:`count_repo_test_files()`
 def _count_dir_tests(dp: Path, filenames: list[str], cap: int) -> int:
 	r = 0
 	for fn in filenames:
@@ -58,6 +59,7 @@ def _count_dir_tests(dp: Path, filenames: list[str], cap: int) -> int:
 			if cap <= r:
 				break
 	return r
+# @used-by :func:`resolve_code_scope()`
 def _find_git_ancestor(start_dir: Path) -> Path | None:
 	r = None
 	for anc in (start_dir, *start_dir.parents):
@@ -65,6 +67,7 @@ def _find_git_ancestor(start_dir: Path) -> Path | None:
 			r = anc
 			break
 	return r
+# @used-by :func:`resolve_code_scope()`
 def _find_marker_ancestor(start_dir: Path) -> Path | None:
 	r = None
 	for anc in (start_dir, *start_dir.parents):
@@ -72,6 +75,8 @@ def _find_marker_ancestor(start_dir: Path) -> Path | None:
 			r = anc
 			break
 	return r
+# @used-by :func:`agent_tools.tdd.comment_diff.detect_comment_language()`
+# @used-by :func:`is_software_code_file()`
 def _has_shebang(path: Path, content: str | None=None) -> bool:
 	r = False
 	if isinstance(content, str):
@@ -84,6 +89,7 @@ def _has_shebang(path: Path, content: str | None=None) -> bool:
 		except OSError:
 			pass
 	return r
+# @used-by :func:`_find_marker_ancestor()`
 def _is_project_marker_dir(anc: Path) -> bool:
 	r = any((anc / m).exists() for m in _PROJECT_MARKER_FILES) or (anc / '\ua616').is_dir() or (anc / '.agents').is_dir()
 	if not r:
@@ -92,14 +98,31 @@ def _is_project_marker_dir(anc: Path) -> bool:
 		except OSError:
 			pass
 	return r
+# @used-by :func:`agent_tools.tdd.evaluator._command_matches_scope()`
+# @used-by :func:`agent_tools.tdd.ratchet._match_ratchet_target()`
+# @used-by :func:`resolve_code_scope()`
 def _norm_posix(path: str | Path) -> str:
 	return str(path).replace('\\', '/')
+# @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
+# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
+# @used-by :func:`agent_tools.tdd.commands.shell_write_targets()`
+# @used-by :func:`agent_tools.tdd.enforcement._eval_pre_write()`
+# @used-by :func:`agent_tools.tdd.enforcement._staged_entry_texts()`
+# @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_classifier_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_universal_code_vs_test_vs_non_code_classification()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def classify_code_path(path: str | Path, *, content: str | None=None) -> str:
 	if not is_software_code_file(path, content=content):
 		r = 'non_code'
 	else:
 		r = 'test' if is_test_file(path, content=content) else 'production'
 	return r
+# @used-by :func:`agent_tools.tdd.commands.classify_test_command()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_classifier_module_behavior_and_parity()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def count_repo_test_files(scope_root: Path | None) -> int:
 	r = 0
 	if None is not scope_root:
@@ -111,6 +134,10 @@ def count_repo_test_files(scope_root: Path | None) -> int:
 				if 2 <= r:
 					break
 	return r
+# @used-by :func:`classify_code_path()`
+# @used-by :func:`is_test_file()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def is_software_code_file(path: str | Path, *, content: str | None=None) -> bool:
 	p = Path(str(path))
 	parts_low = [part.lower() for part in p.parts]
@@ -122,6 +149,16 @@ def is_software_code_file(path: str | Path, *, content: str | None=None) -> bool
 		is_hook = (not suffix) and name_low in _GIT_HOOK_SCRIPT_NAMES and any(seg in ('git_hooks', 'hooks') for seg in parts_low[:-1])
 		r = suffix in SOFTWARE_CODE_SUFFIXES or name_low in _EXTENSIONLESS_CODE_NAMES or is_hook or ((not suffix) and _has_shebang(p, content=content))
 	return r
+# @used-by :func:`_count_dir_tests()`
+# @used-by :func:`agent_tools.code_size_gate._limits_for_path()`
+# @used-by :func:`agent_tools.subprocess_hygiene_gate.is_subprocess_hygiene_target()`
+# @used-by :func:`agent_tools.tdd.commands._single_test_file_in_args()`
+# @used-by :func:`agent_tools.tdd.commands.shell_test_delete_targets()`
+# @used-by :func:`agent_tools.tdd.substantive._ast_expr_contains_code_literal()`
+# @used-by :func:`agent_tools.tdd.substantive._nonpy_source_text_issues()`
+# @used-by :func:`classify_code_path()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def is_test_file(path: str | Path, *, content: str | None=None) -> bool:
 	if not is_software_code_file(path, content=content):
 		r = False
@@ -134,6 +171,7 @@ def is_test_file(path: str | Path, *, content: str | None=None) -> bool:
 # 2026-11-24
 # "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
 # https://github.com/dmitry-ai/harness/issues/173
+# @used-by :func:`resolve_code_scope()`
 def _resolve_deleted_worktree_scope(p: Path) -> Path | None:
 	from ..path_registry import project_paths
 	parts, r = (p.parts, None)
@@ -149,6 +187,18 @@ def _resolve_deleted_worktree_scope(p: Path) -> Path | None:
 			r = next((cr for cr in uniq if (cr / rel).exists()), uniq[0] if 1 == len(uniq) else None)
 			break
 	return r
+# @used-by :func:`agent_tools.tdd.enforcement._eval_pre_code_write()`
+# @used-by :func:`agent_tools.tdd.enforcement._eval_shell_prod_writes()`
+# @used-by :func:`agent_tools.tdd.enforcement._eval_shell_test_deletes()`
+# @used-by :func:`agent_tools.tdd.evaluator._cwd_matches_scope()`
+# @used-by :func:`agent_tools.tdd.evaluator._resolve_event_target_scopes()`
+# @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_classifier_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_resolve_code_scope_normalizes_git_and_non_git_test_dirs()`
+# @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_resolve_code_scope_maps_deleted_worktree_to_main_code_repo()`
+# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def resolve_code_scope(path: str | Path) -> Path:
 	raw = normalize_host_path(path)
 	try:

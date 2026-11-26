@@ -34,6 +34,15 @@ from .upwork_data import extract_upwork_job_url_id
 # https://github.com/dmitry-ai/harness/issues/56
 class ResponseEvidenceAuditor:
 	# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+	# @used-by :func:`response_source_and_kb_issues()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_completion_and_grounding_match_chat_reply_link_policy()`
+	# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_documentation_link_requires_anchor_when_observation_has_anchors()`
+	# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_markdown_table_blocked_across_doc4_hook_linter_and_grounding()`
+	# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_grounding_accepts_verified_local_repo_tagged_url_and_blocks_fabrications()`
+	# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_analysis_check_and_answer_check_enforce_file6_banner()`
+	# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_m2_m3_m5_response_grounding_markdown_stale_extraction_and_canonical_upwork_job_urls()`
+	# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_multi_segment_quote_and_thousand_grouped_numeric_tokens()`
+	# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_stage_isolation_extracts_refs_and_validates_observation_bundle()`
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None):
 		self.root, self.response, self.requests, self.touched_files, self.turn, self.native = (Path(root).resolve(), response, requests, touched_files, turn, native)
 		# 2026-11-25
@@ -53,6 +62,7 @@ class ResponseEvidenceAuditor:
 		self.observed_anchors: dict[str, set[str]] = {}
 		self.observed_texts: dict[str, list[str]] = {}
 		self.invalid_observations: dict[str, str] = {}
+	# @used-by :meth:`ResponseEvidenceAuditor.validate()`
 	def _check_external_refs(self) -> None:
 		for label, href in self.authored_links:
 			if _is_descriptive_title_label(label, href):
@@ -87,6 +97,7 @@ class ResponseEvidenceAuditor:
 				if not quote_segments_present(q_raw, obs_blob, 15):
 					preview = ' '.join(q_raw.split())[:80]
 					self.errors.append(f'VERIFY-1 / LINK-1: Verbatim quote \u00ab{preview}\u00bb attributed to {href} is absent from the saved observation in \ua616/KB/Evidence')
+	# @used-by :meth:`ResponseEvidenceAuditor.validate()`
 	def _check_kb_membership(self) -> None:
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -117,6 +128,7 @@ class ResponseEvidenceAuditor:
 				tk = _discourse_topic_key(nu)
 				if nu not in kb_urls and (not tk or tk not in kb_topics):
 					self.errors.append(f'KB-1 / KB-3: External URL in response is missing from \ua616/KB modules/Analysis.json (record verified sources in \ua616/KB before answer-prepare): {u}')
+	# @used-by :meth:`ResponseEvidenceAuditor.validate()`
 	def _check_local_grounding(self) -> None:
 		grounding_cache: dict = {}
 		for iss in local_source_grounding_issues(self.root, self.response, observed_texts=self.observed_texts, cache=grounding_cache):
@@ -140,6 +152,7 @@ class ResponseEvidenceAuditor:
 								self.errors.append(msg)
 				except OSError:
 					pass
+	# @used-by :meth:`ResponseEvidenceAuditor.validate()`
 	def _collect_client_urls(self) -> None:
 		# 2026-11-16
 		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
@@ -183,6 +196,8 @@ class ResponseEvidenceAuditor:
 			for u in self.authored_urls:
 				if extract_upwork_job_url_id(u) == jid:
 					self.client_urls.add(_norm_url(u))
+	# @used-by :meth:`ResponseEvidenceAuditor.validate()`
+	# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_stage_isolation_extracts_refs_and_validates_observation_bundle()`
 	def _extract_markdown_refs(self) -> None:
 		parser = markdown_parser()
 		quote_depth = 0
@@ -232,6 +247,7 @@ class ResponseEvidenceAuditor:
 							self.attributed_quotes.append((ext_in_block[0], gq))
 						for bq in re.findall('`"([^"\\n]{25,})"`', block.content):
 							self.attributed_quotes.append((ext_in_block[0], bq))
+	# @used-by :meth:`ResponseEvidenceAuditor.validate()`
 	def _ingest_evidence_files(self) -> None:
 		needs_ev_scan = any((_is_descriptive_title_label(label, href) or ((urlsplit(href).hostname or '').lower() not in ('localhost', '127.0.0.1', '::1') and _norm_url(href) not in self.client_urls) for label, href in self.authored_links)) or any((_norm_url(href) not in self.client_urls for href, _ in self.attributed_quotes))
 		ev_dirs: list[Path] = []
@@ -262,6 +278,8 @@ class ResponseEvidenceAuditor:
 									self._ingest_json_observations(data, host)
 					except (OSError, ValueError):
 						continue
+	# @used-by :meth:`ResponseEvidenceAuditor._ingest_evidence_files()`
+	# @used-by :meth:`ResponseEvidenceAuditor._ingest_observation_bundle()`
 	def _ingest_json_observations(self, parsed: dict, default_host: str) -> None:
 		if isinstance(parsed, dict):
 			u = parsed.get('url') or parsed.get('html_url')
@@ -312,6 +330,7 @@ class ResponseEvidenceAuditor:
 	# 2026-11-23
 	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 	# https://github.com/dmitry-ai/harness/issues/76
+	# @used-by :meth:`ResponseEvidenceAuditor._ingest_evidence_files()`
 	def _ingest_observation_bundle(self, jfile: Path, data: dict) -> None:
 		bundle = load_observation_bundle(jfile, data, max_bytes=MAX_BYTES)
 		if None is not bundle['json_payload']:
@@ -334,6 +353,14 @@ class ResponseEvidenceAuditor:
 					self.observed_anchors.setdefault(nu, set()).update(bundle['anchors'])
 				if bundle['texts']:
 					self.observed_texts.setdefault(nu, []).extend(bundle['texts'])
+	# @used-by :func:`response_source_and_kb_issues()`
+	# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_documentation_link_requires_anchor_when_observation_has_anchors()`
+	# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_markdown_table_blocked_across_doc4_hook_linter_and_grounding()`
+	# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_grounding_accepts_verified_local_repo_tagged_url_and_blocks_fabrications()`
+	# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_analysis_check_and_answer_check_enforce_file6_banner()`
+	# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_m2_m3_m5_response_grounding_markdown_stale_extraction_and_canonical_upwork_job_urls()`
+	# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_multi_segment_quote_and_thousand_grouped_numeric_tokens()`
+	# @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_stage_isolation_extracts_refs_and_validates_observation_bundle()`
 	def validate(self) -> list[str]:
 		self._extract_markdown_refs()
 		if self.authored_urls:
@@ -350,9 +377,14 @@ class ResponseEvidenceAuditor:
 		# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
 		self.errors.extend(response_turn_gate_issues(self.root, self.response, requests=self.requests, turn=self.turn, native=self.native))
 		return self.errors
+# @used-by :meth:`ResponseEvidenceAuditor._check_external_refs()`
+# @used-by :meth:`ResponseEvidenceAuditor._check_kb_membership()`
+# @used-by :meth:`ResponseEvidenceAuditor._ingest_observation_bundle()`
 def _discourse_topic_key(url: str):
 	m = re.match('^https?://([^/:?#]+)/t/(?:[^/?#]+/)?(\\d+)(?:$|[/?#])', url.strip(), re.I)
 	return (m.group(1).lower(), m.group(2)) if m else None
+# @used-by :meth:`ResponseEvidenceAuditor._check_external_refs()`
+# @used-by :meth:`ResponseEvidenceAuditor._ingest_evidence_files()`
 def _is_descriptive_title_label(label: str, href: str) -> bool:
 	text = (label or '').strip()
 	if not text or text.lower().startswith(('http://', 'https://', 'file:')):
@@ -365,8 +397,15 @@ def _is_descriptive_title_label(label: str, href: str) -> bool:
 			words = re.findall('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u04510-9]{2,}', text)
 			r = not (len(text.split()) < 3 or len(words) < 3 or len(text) < 15)
 	return r
+# @used-by :meth:`ResponseEvidenceAuditor._check_external_refs()`
+# @used-by :meth:`ResponseEvidenceAuditor._check_kb_membership()`
+# @used-by :meth:`ResponseEvidenceAuditor._collect_client_urls()`
+# @used-by :meth:`ResponseEvidenceAuditor._ingest_evidence_files()`
+# @used-by :meth:`ResponseEvidenceAuditor._ingest_json_observations()`
+# @used-by :meth:`ResponseEvidenceAuditor._ingest_observation_bundle()`
 def _norm_url(url: str) -> str:
 	return urldefrag(url.strip())[0].rstrip('/')
+# @used-by :meth:`ResponseEvidenceAuditor._check_external_refs()`
 def _titles_compatible(claimed: str, observed: str) -> bool:
 	c_tokens = [w for w in re.findall('[a-z\\u0430-\\u044f\\u04510-9]+', claimed.lower()) if 3 <= len(w)]
 	o_tokens = [w for w in re.findall('[a-z\\u0430-\\u044f\\u04510-9]+', observed.lower()) if 3 <= len(w)]
@@ -379,5 +418,9 @@ def _titles_compatible(claimed: str, observed: str) -> bool:
 		r = 0.6 <= len(c_set & set(o_tokens)) / max(1, len(c_set))
 	return r
 # 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._check_source_grounding()`
+# @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
 def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> list[str]:
 	return ResponseEvidenceAuditor(root, response, requests, touched_files=touched_files, turn=turn, native=native).validate()

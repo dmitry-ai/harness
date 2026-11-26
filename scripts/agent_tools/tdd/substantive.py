@@ -39,6 +39,8 @@ _SOURCE_TEXT_NONPY_READ_RE = re.compile(
 _TEMP_PATH_HINT_RE = re.compile(
 	r'(?i)(?:^|[/\\._-])(?:tmp|temp|tmpdir|tmp_path|sandbox|fixture|fixtures|sample|samples|mock|mocks|generated|out|output|dist|build|work|td|proj|project|repo|code_repo|scratch|harness_hook_runner)(?:$|[/\\._-])'
 )
+# @used-by :func:`_collect_repo_anchor_vars()`
+# @used-by :func:`_collect_var_code_lits()`
 def _assign_targets_and_value(node: ast.AST) -> tuple[list[str], ast.AST] | None:
 	r = None
 	if isinstance(node, ast.Assign):
@@ -46,6 +48,9 @@ def _assign_targets_and_value(node: ast.AST) -> tuple[list[str], ast.AST] | None
 	elif isinstance(node, ast.AnnAssign) and None is not node.value and isinstance(node.target, ast.Name):
 		r = ([node.target.id], node.value)
 	return r
+# @used-by :func:`_check_direct_read_call()`
+# @used-by :func:`_check_wrapper_call()`
+# @used-by :func:`_collect_var_code_lits()`
 def _ast_expr_contains_code_literal(node: ast.AST) -> str | None:
 	r = None
 	for sub in ast.walk(node):
@@ -55,6 +60,8 @@ def _ast_expr_contains_code_literal(node: ast.AST) -> str | None:
 				r = m.group(0)
 				break
 	return r
+# @used-by :func:`_collect_repo_anchor_vars()`
+# @used-by :func:`_has_repo_anchor()`
 def _ast_expr_uses_repo_anchor(node: ast.AST) -> bool:
 	r = False
 	for sub in ast.walk(node):
@@ -62,6 +69,10 @@ def _ast_expr_uses_repo_anchor(node: ast.AST) -> bool:
 			r = True
 			break
 	return r
+# @used-by :func:`_check_direct_read_call()`
+# @used-by :func:`_check_wrapper_call()`
+# @used-by :func:`_collect_read_wrapper_params()`
+# @used-by :func:`_collect_var_code_lits()`
 def _ast_expr_uses_temp_base(node: ast.AST) -> bool:
 	r = False
 	for sub in ast.walk(node):
@@ -69,6 +80,7 @@ def _ast_expr_uses_temp_base(node: ast.AST) -> bool:
 			r = True
 			break
 	return r
+# @used-by :func:`_eval_py_call_node()`
 def _check_direct_read_call(node: ast.Call, var_code_lits: dict[str, str], repo_anchor_vars: set[str], p_name: str, lineno: int | None) -> str | None:
 	r = None
 	target_expr = _read_or_open_target(node)
@@ -79,6 +91,7 @@ def _check_direct_read_call(node: ast.Call, var_code_lits: dict[str, str], repo_
 		if None is not lit and ((not _ast_expr_uses_temp_base(target_expr)) or _has_repo_anchor(target_expr, repo_anchor_vars)):
 			r = f'Behavioral test violation in {p_name}:{lineno}: test reads production source file "{lit}" as text instead of executing its behavior.'
 	return r
+# @used-by :func:`_eval_py_call_node()`
 def _check_wrapper_call(node: ast.Call, read_wrappers: dict[str, set[int]], repo_anchor_vars: set[str], p_name: str, lineno: int | None) -> str | None:
 	r = None
 	fn = node.func
@@ -92,6 +105,7 @@ def _check_wrapper_call(node: ast.Call, read_wrappers: dict[str, set[int]], repo
 					r = f'Behavioral test violation in {p_name}:{lineno}: helper "{fn_name}" reads production source file "{w_lit}" as text instead of executing its behavior.'
 					break
 	return r
+# @used-by :func:`_collect_read_wrappers()`
 def _collect_read_wrapper_params(fn_node: ast.AST, repo_anchor_vars: set[str]) -> set[int]:
 	param_names = [a.arg for a in fn_node.args.args]
 	r: set[int] = set()
@@ -104,6 +118,7 @@ def _collect_read_wrapper_params(fn_node: ast.AST, repo_anchor_vars: set[str]) -
 					if p_name in used_names:
 						r.add(p_idx)
 	return r
+# @used-by :func:`_py_source_text_issues()`
 def _collect_read_wrappers(tree: ast.AST, repo_anchor_vars: set[str]) -> dict[str, set[int]]:
 	r: dict[str, set[int]] = {}
 	for node in ast.walk(tree):
@@ -112,6 +127,7 @@ def _collect_read_wrappers(tree: ast.AST, repo_anchor_vars: set[str]) -> dict[st
 			if matched:
 				r[node.name] = matched
 	return r
+# @used-by :func:`_py_source_text_issues()`
 def _collect_repo_anchor_vars(tree: ast.AST) -> set[str]:
 	r: set[str] = set()
 	for node in ast.walk(tree):
@@ -119,6 +135,7 @@ def _collect_repo_anchor_vars(tree: ast.AST) -> set[str]:
 		if None is not pair and _ast_expr_uses_repo_anchor(pair[1]):
 			r.update(pair[0])
 	return r
+# @used-by :func:`_py_source_text_issues()`
 def _collect_var_code_lits(tree: ast.AST, repo_anchor_vars: set[str]) -> dict[str, str]:
 	r: dict[str, str] = {}
 	for node in ast.walk(tree):
@@ -129,6 +146,7 @@ def _collect_var_code_lits(tree: ast.AST, repo_anchor_vars: set[str]) -> dict[st
 				for name in pair[0]:
 					r[name] = lit_v
 	return r
+# @used-by :func:`_py_source_text_issues()`
 def _eval_py_call_node(node: ast.Call, p_name: str, var_code_lits: dict[str, str], read_wrappers: dict[str, set[int]], repo_anchor_vars: set[str]) -> list[str]:
 	r: list[str] = []
 	lineno = getattr(node, 'lineno', None)
@@ -143,8 +161,13 @@ def _eval_py_call_node(node: ast.Call, p_name: str, var_code_lits: dict[str, str
 		if None is not d_err:
 			r.append(d_err)
 	return r
+# @used-by :func:`_check_direct_read_call()`
+# @used-by :func:`_check_wrapper_call()`
+# @used-by :func:`_collect_read_wrapper_params()`
+# @used-by :func:`_collect_var_code_lits()`
 def _has_repo_anchor(expr: ast.AST, repo_anchor_vars: set[str]) -> bool:
 	return _ast_expr_uses_repo_anchor(expr) or any(isinstance(sub, ast.Name) and sub.id in repo_anchor_vars for sub in ast.walk(expr))
+# @used-by :func:`source_text_assertion_issues()`
 def _nonpy_source_text_issues(p_name: str, added_lines: list[str] | tuple[str, ...]) -> list[str]:
 	r: list[str] = []
 	for idx, raw_line in enumerate(added_lines or (), 1):
@@ -157,6 +180,7 @@ def _nonpy_source_text_issues(p_name: str, added_lines: list[str] | tuple[str, .
 				if (not is_test_file(lit)) and (not _TEMP_PATH_HINT_RE.search(lit)):
 					r.append(f'Behavioral test violation in {p_name} (added line {idx}): test reads production source file "{lit}" as text instead of executing its behavior.')
 	return r
+# @used-by :func:`is_substantive_test_content()`
 def _py_has_ast_assertion(content: str) -> bool:
 	r = False
 	try:
@@ -169,6 +193,7 @@ def _py_has_ast_assertion(content: str) -> bool:
 	except SyntaxError:
 		pass
 	return r
+# @used-by :func:`source_text_assertion_issues()`
 def _py_source_text_issues(p_name: str, full_content: str, added_line_numbers: set[int] | None) -> list[str] | None:
 	r: list[str] | None = None
 	try:
@@ -186,6 +211,8 @@ def _py_source_text_issues(p_name: str, full_content: str, added_line_numbers: s
 				if None is added_line_numbers or None is lineno or lineno in added_line_numbers:
 					r.extend(_eval_py_call_node(node, p_name, var_code_lits, read_wrappers, repo_anchor_vars))
 	return r
+# @used-by :func:`_check_direct_read_call()`
+# @used-by :func:`_collect_read_wrapper_params()`
 def _read_or_open_target(call: ast.Call) -> ast.AST | None:
 	fn = call.func
 	is_read = isinstance(fn, ast.Attribute) and fn.attr in ('read_text', 'read_bytes')
@@ -197,6 +224,13 @@ def _read_or_open_target(call: ast.Call) -> ast.AST | None:
 	else:
 		r = None
 	return r
+# @used-by :func:`agent_tools.tdd.enforcement._eval_pre_test_write()`
+# @used-by :func:`agent_tools.tdd.enforcement._verify_staged_test_file()`
+# @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_substantive_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_behavioral_test_guard_catches_source_text_and_wrappers_without_false_positives()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def is_substantive_test_content(path: str | Path, content: str) -> tuple[bool, str | None]:
 	p = Path(str(path))
 	if not isinstance(content, str) or not content.strip():
@@ -211,6 +245,13 @@ def is_substantive_test_content(path: str | Path, content: str) -> tuple[bool, s
 			has_assert = bool(_ASSERTION_LINE_RE.search(content)) or ('.py' == p.suffix.lower() and _py_has_ast_assertion(content))
 			r = (True, None) if has_assert else (False, f'Test file {p.name} contains no verifiable assertions or expectations (assertionless test stubs are prohibited).')
 	return r
+# @used-by :func:`agent_tools.tdd.enforcement._eval_pre_test_write()`
+# @used-by :func:`agent_tools.tdd.enforcement._verify_staged_test_file()`
+# @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_substantive_module_behavior_and_parity()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_behavioral_test_guard_catches_source_text_and_wrappers_without_false_positives()`
+# @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_hardening_header_exit_code_indirect_source_read_and_index_blob()`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
 def source_text_assertion_issues(path: str | Path, added_lines: list[str] | tuple[str, ...], *, full_content: str | None=None, added_line_numbers: set[int] | None=None) -> list[str]:
 	p = Path(str(path))
 	r: list[str] | None = None

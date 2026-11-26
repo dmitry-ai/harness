@@ -2,6 +2,7 @@
 from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
+import builtins
 import importlib
 import re
 import sys
@@ -9,7 +10,10 @@ import sys
 # "Implement Python AST cross-reference analyzer and sync CLI":
 # https://github.com/dmitry-ai/harness/issues/287
 _BARE_PY_TARGET_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_.]*(?:\(\))?$')
-_EXTERNAL_RUNNERS = frozenset({'CLI', 'cli', 'pre-commit', 'pytest', 'python', 'unittest'})
+# 2026-11-26
+# "Apply cross-reference annotations across Harness Python and JavaScript":
+# https://github.com/dmitry-ai/harness/issues/305
+_EXTERNAL_RUNNERS = frozenset({'CLI', 'cli', 'pre-commit', 'pytest', 'python', 'unittest', 'unused'})
 _SPHINX_RE = re.compile(r'^:(?:py:)?(attr|class|const|data|deco|exc|func|meth|mod|obj|type):`([^`\n]+)`(.*)$')
 _TAG_RE = re.compile(r'^#\s*@(used-by|uses|see)\s+(.+?)\s*$')
 # @used-by :func:`collect_file_uses()`
@@ -191,6 +195,9 @@ def resolve_stdlib_symbol(dotted: str) -> bool:
 	if parts:
 		if parts[0] in sys.stdlib_module_names or 'builtins' == parts[0]:
 			r = _probe_stdlib_parts(parts)
-		elif hasattr(__builtins__ if isinstance(__builtins__, dict) else __builtins__, parts[0]):
+		# 2026-11-26
+		# "Apply cross-reference annotations across Harness Python and JavaScript":
+		# https://github.com/dmitry-ai/harness/issues/305
+		elif hasattr(builtins, parts[0]):
 			r = _probe_stdlib_parts(['builtins', *parts])
 	return r

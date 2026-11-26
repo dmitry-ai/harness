@@ -63,8 +63,16 @@ _NEGATIVE_CASES = (
 	('unterminated_block', 'src/app.js', f'/* {OLD_URL}\nconst a = 1;\n', f'/* {NEW_URL}\nconst a = 1;\n'),
 	('invalid_python_syntax', 'src/app.py', f'# {OLD_URL}\n"unterminated\n', f'# {NEW_URL}\n"unterminated\n'),
 )
+# @used-by :func:`_init_repo()`
+# @used-by :func:`_seed_commit()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
 def _git(*args: str) -> None:
 	subprocess.run(['git', *args], check=True, stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+# @used-by :meth:`CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_evaluator_skips_tdd_red_and_full_gates_for_comment_only_write()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_pre_tool_use_allows_comment_only_edit_and_denies_code_edit()`
 def _init_repo(repo: Path, remote_url: str | None=None) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git('init', '-b', 'main', str(repo))
@@ -73,6 +81,10 @@ def _init_repo(repo: Path, remote_url: str | None=None) -> None:
 	if None is not remote_url:
 		extra += f'[remote "origin"]\n\turl = {remote_url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n'
 	cfg.write_text(cfg.read_text(encoding='utf-8') + extra, encoding='utf-8')
+# @used-by :meth:`CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_evaluator_skips_tdd_red_and_full_gates_for_comment_only_write()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
+# @used-by :meth:`CommentOnlyExemptionTests.test_pre_tool_use_allows_comment_only_edit_and_denies_code_edit()`
 def _seed_commit(repo: Path, rel: str, content: str) -> None:
 	target = repo / rel
 	target.parent.mkdir(parents=True, exist_ok=True)
@@ -83,6 +95,7 @@ def _seed_commit(repo: Path, rel: str, content: str) -> None:
 # "Add comment-only diff lexer exemption for top 20 repository languages":
 # https://github.com/dmitry-ai/harness/issues/238
 class CommentOnlyExemptionTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve() / 'proj'
@@ -99,6 +112,7 @@ class CommentOnlyExemptionTests(unittest.TestCase):
 			comm_set: set[str] = set()
 			aud._inspect_touched_code_file(repo, 'site.js', req_set, comm_set)
 			self.assertEqual([], aud.violations)
+	# @used-by :mod:`unittest`
 	def test_comment_only_diffs_accepted_for_all_20_languages(self) -> None:
 		self.assertEqual(20, len(COMMENT_LEXER_LANGUAGES))
 		seen: set[str] = set()
@@ -107,6 +121,7 @@ class CommentOnlyExemptionTests(unittest.TestCase):
 			self.assertTrue(is_comment_only_diff(rel, old_txt, new_txt), f'Expected comment-only for {rel}')
 			seen.add(expected_lang)
 		self.assertEqual(set(COMMENT_LEXER_LANGUAGES), seen)
+	# @used-by :mod:`unittest`
 	def test_evaluator_skips_tdd_red_and_full_gates_for_comment_only_write(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'repo'
@@ -119,6 +134,7 @@ class CommentOnlyExemptionTests(unittest.TestCase):
 			(repo / 'src/app.php').write_text(f"<?php\nreturn '{NEW_URL}';\n", encoding='utf-8')
 			res_code = evaluate_tdd_events([ev], require_final_full_green=True)
 			self.assertFalse(res_code['verified'], res_code)
+	# @used-by :mod:`unittest`
 	def test_git_gate_allows_comment_only_commit_and_blocks_code_change(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'ext_repo'
@@ -136,11 +152,13 @@ class CommentOnlyExemptionTests(unittest.TestCase):
 			self.assertEqual(2, git_gate.run_git_hook('pre-commit', cwd=repo, agent_context=True))
 			with self.assertRaisesRegex(ValueError, 'TDD-COMMIT-GATE|Issue URL'):
 				git_gate.check_commit(repo, ['site.js', 'app.php'], message=ISSUE_URL)
+	# @used-by :mod:`unittest`
 	def test_non_comment_and_edge_cases_fail_closed(self) -> None:
 		self.assertFalse(is_comment_only_diff('src/app.py', None, '# new file\n'))
 		self.assertFalse(is_comment_only_diff('src/app.py', '# old\n', None))
 		for label, rel, old_txt, new_txt in _NEGATIVE_CASES:
 			self.assertFalse(is_comment_only_diff(rel, old_txt, new_txt), f'Expected fail-closed for {label} ({rel})')
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_allows_comment_only_edit_and_denies_code_edit(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'repo'

@@ -36,8 +36,11 @@ class ProposalBlock(AddressedSection):
 	gap: str = ' '
 	part: str = ''
 	children: list = field(default_factory=list)
+# @used-by :func:`parse_blocks()`
 def _lines(value: str | list[Line]) -> list[Line]:
 	return scan(value) if isinstance(value, str) else value
+# @used-by :func:`parse_blocks()`
+# @used-by :func:`render()`
 def _parent_name(name: str, known: Mapping[str, ProposalBlock]) -> str | None:
 	segments = name.split('.')
 	if 1 == len(segments):
@@ -46,6 +49,11 @@ def _parent_name(name: str, known: Mapping[str, ProposalBlock]) -> str | None:
 		parent = '.'.join(segments[:-1])
 		r = '.'.join(segments[:-2]) if parent not in known and '0' == segments[-2] and ('.'.join(segments[:-2]) in known) else parent
 	return r
+# @used-by :func:`agent_tools.text_sections.parse_addressed()`
+# @used-by :func:`lint_text()`
+# @used-by :func:`render()`
+# @used-by :func:`to_source()`
+# @used-by :mod:`agent_tools.proposal`
 def parse_blocks(value: str | list[Line], findings: list[Finding] | None=None, *, keyed: bool=False) -> list[ProposalBlock]:
 	lines = _lines(value)
 	findings = findings if None is not findings else []
@@ -78,9 +86,12 @@ def parse_blocks(value: str | list[Line], findings: list[Finding] | None=None, *
 	return r
 parse_sections = parse_blocks
 parse = parse_blocks
+# @used-by :func:`_check_references()`
+# @used-by :func:`render()`
 def _number_refs(raw: str):
 	author = author_text(raw)
 	return (match for match in REF.finditer(author) if not external_section_ref(author, match))
+# @used-by :func:`lint_text()`
 def _check_sequence(blocks, findings, profile):
 	groups = {}
 	for block in blocks:
@@ -100,6 +111,8 @@ def _check_sequence(blocks, findings, profile):
 		if ordinal != expected:
 			findings.append(Finding('error', 'PROPOSAL-SEQ', block.line, f'§{block.key} breaks the sequence (expected {expected} at this level)'))
 		siblings.append(ordinal)
+# @used-by :func:`lint_text()`
+# @used-by :func:`render()`
 def _check_references(lines, blocks, findings, profile):
 	known = {block.key for block in blocks} | {str(n) for n in profile.get('reference_targets', [])}
 	for line in lines:
@@ -117,6 +130,7 @@ def _check_references(lines, blocks, findings, profile):
 			validate_ref_range(start, end, known, findings, line.no, match.group(0), order_key=lambda k: tuple(map(int, k.split('.'))), order_rule='PROPOSAL-RANGE-ORDER', order_msg='range endpoints must be in document order', check_dense=True)
 		if KEY_REF.search(author_text(line.raw)):
 			findings.append(Finding('error', 'KEY-UNRENDERED', line.no, 'render keyed references before using the proposal', line.raw))
+# @used-by :func:`lint_text()`
 def _format_checks(lines, findings, profile):
 	seen_urls = {}
 	for line in lines:
@@ -146,6 +160,11 @@ def _format_checks(lines, findings, profile):
 				seen_urls[url] = line.no
 			else:
 				findings.append(Finding('error', 'PROPOSAL-DUP-URL', line.no, f'URL already used at line {seen_urls[url]}; cite its § point', url))
+# @used-by :func:`agent_tools.text_sections.lint_document()`
+# @used-by :func:`test_df_proposal.lint()`
+# @used-by :meth:`test_df_proposal.ProposalLintTests.test_owner_subject_uses_shared_lexicon_and_preserves_quotations()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_reordering_changes_local_refs_but_preserves_the_external_paragraph()`
+# @used-by :meth:`test_text_integration.TextBoundaryTests.test_application_hashing_is_distinct_from_service_fingerprints()`
 def lint_text(text: str, *, kind: str | None=None, lang: str | None=None, path: Path | None=None, lexicon=None, bans=None, profile: Mapping | None=None) -> list[Finding]:
 	if kind not in (None, 'proposal'):
 		raise ValueError('proposal.lint_text accepts only kind=proposal')
@@ -165,6 +184,12 @@ def lint_text(text: str, *, kind: str | None=None, lang: str | None=None, path: 
 	check_prose(lines, 'proposal', lang or detect_language(text), r, lexicon if None is not lexicon else load_lexicon(), bans if None is not bans else find_bans(Path(path) if path else None))
 	check_code(lines, r)
 	return r
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_explicit_external_codes_and_standards_are_not_internal_points()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_external_spacing_normalization_preserves_quoted_examples_and_code()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_literals_in_ascii_quotation_and_markdown_url_remain_unchanged()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_reordering_changes_local_refs_but_preserves_the_external_paragraph()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_reordering_moves_child_references_and_keeps_prose()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_round_trip_preserves_all_wording_quotes_code_zero_prefaces_and_newlines()`
 def to_source(text: str) -> str:
 	lines = scan(text)
 	by_line = {block.line: block for block in parse_blocks(lines)}
@@ -175,7 +200,9 @@ def to_source(text: str) -> str:
 			block = by_line[line.no]
 			raw = f'{block.prefix}@{block.name}{block.gap}{block.body}'
 		if 'prose' == line.kind:
+			# @used-by :func:`to_source()`
 			def replace(segment):
+				# @used-by :func:`to_source()`
 				def ref(match):
 					if external_section_ref(segment, match):
 						r = match.group()
@@ -187,6 +214,18 @@ def to_source(text: str) -> str:
 			raw = transform_prose(raw, replace)
 		out.append(raw)
 	return _reassemble(text, lines, out)
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_both_range_boundaries_renumber_and_reversed_range_fails()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_children_cannot_be_left_behind_after_moving_a_sibling()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_deleted_referenced_point_blocks_render()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_duplicate_and_missing_parent_keys_are_errors()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_explicit_external_codes_and_standards_are_not_internal_points()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_external_spacing_normalization_preserves_quoted_examples_and_code()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_literals_in_ascii_quotation_and_markdown_url_remain_unchanged()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_new_descriptive_keys_assign_numbers_without_article_headings()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_numbers_in_keyed_body_cannot_silently_rebind()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_reordering_changes_local_refs_but_preserves_the_external_paragraph()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_reordering_moves_child_references_and_keeps_prose()`
+# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_round_trip_preserves_all_wording_quotes_code_zero_prefaces_and_newlines()`
 def render(source: str, previous: str | None=None):
 	lines = scan(source)
 	findings: list[Finding] = []
@@ -241,6 +280,12 @@ def render(source: str, previous: str | None=None):
 	final_lines = scan(rendered)
 	_check_references(final_lines, parse_blocks(final_lines), findings, {})
 	return (rendered, report, findings)
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_df_proposal.ProposalFieldTests.test_aggregate_room_cannot_hide_one_oversized_field()`
+# @used-by :meth:`test_df_proposal.ProposalFieldTests.test_browser_character_length_cannot_undercount_astral_unicode()`
+# @used-by :meth:`test_df_proposal.ProposalFieldTests.test_limits_count_exact_text_including_urls_and_newlines()`
+# @used-by :meth:`test_df_proposal.ProposalFieldTests.test_missing_field_and_unconfirmed_limit_are_distinct_errors()`
+# @used-by :meth:`test_df_proposal.ProposalFieldTests.test_zero_or_noninteger_limit_is_not_accepted_as_configuration()`
 def lint_fields(fields: Mapping[str, str], limits: Mapping[str, int], *, count_mode: str='utf16') -> list[Finding]:
 	if count_mode not in ('utf16', 'unicode'):
 		raise ValueError('character count mode must be utf16 or unicode')

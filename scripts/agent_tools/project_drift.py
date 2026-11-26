@@ -11,8 +11,10 @@ from .project_rename import resolve_promotable_target_domain
 _CLIENT_NAME_RE = re.compile('(?:client|author|artist|owner|customer|founder|\\u043a\\u043b\\u0438\\u0435\\u043d\\u0442|\\u0430\\u0432\\u0442\\u043e\\u0440|\\u0445\\u0443\\u0434\\u043e\\u0436\\u043d\\u0438\\u043a|\\u0432\\u043b\\u0430\\u0434\\u0435\\u043b\\u0435\\u0446|\\u0437\\u0430\\u043a\\u0430\\u0437\\u0447\\u0438\\u043a|\\u043e\\u0441\\u043d\\u043e\\u0432\\u0430\\u0442\\u0435\\u043b\\u044c)[^.]{0,40}?\\b[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{1,25}\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{1,25}\\b', re.IGNORECASE)
 _NAME_UNKNOWN_RE = re.compile('#\\s*1\\.1\\s+(?:Name|\\u0418\\u043c\\u044f)\\s*\\r?\\n\\s*(?:unknown|\\u043d\\u0435\\u0438\\u0437\\u0432\\u0435\\u0441\\u0442\\u043d\\u043e)\\b', re.IGNORECASE)
 _REG_SUFFIX_RE = re.compile(r'\s+-\s+U\.P\.\d{4}\.\d{2}\.\d{2}$')
+# @used-by :func:`_kb_identity_mismatch_issues()`
 def _established_client_identity(value: dict) -> bool:
 	return any((isinstance(c, dict) and ('verified' == c.get('verification_status') or 80 <= (c.get('probability_percent') or 0)) and _CLIENT_NAME_RE.search(c.get('essence') or '') for c in value.get('identity') or ()))
+# @used-by :func:`analysis_card_sync_issues()`
 def _kb_identity_mismatch_issues(pp, value: dict) -> list[dict]:
 	r: list[dict] = []
 	if _established_client_identity(value):
@@ -21,6 +23,9 @@ def _kb_identity_mismatch_issues(pp, value: dict) -> list[dict]:
 				rel_proj = pp.rel_to_root(proj_file)
 				r.append(problem('kb.identity_mismatch', rel_proj, f'Established client identity in Analysis.json is not synced to {rel_proj} (# 1.1 Name is still unknown)', file=proj_file))
 	return r
+# @used-by :func:`_registered_title_mismatches()`
+# @used-by :func:`domain_drift_issues()`
+# @used-by :func:`require_no_domain_drift_for_finalize()`
 def _load_json_dict(path: Path) -> dict | None:
 	r = None
 	if path.is_file():
@@ -31,6 +36,7 @@ def _load_json_dict(path: Path) -> dict | None:
 		except (OSError, ValueError):
 			r = None
 	return r
+# @used-by :func:`domain_drift_issues()`
 def _registered_title_mismatches(pp, expected_domain: str) -> list[str]:
 	r: list[str] = []
 	data = _load_json_dict(pp.registrations_json)
@@ -42,6 +48,7 @@ def _registered_title_mismatches(pp, expected_domain: str) -> list[str]:
 				if pname and _REG_SUFFIX_RE.sub('', pname).strip().casefold() != exp_low:
 					r.append(f'{plat}:{pname}')
 	return r
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`
 def analysis_card_sync_issues(pp, value: dict) -> list[dict]:
 	from .knowledge import sync_website_card
 	r: list[dict] = []
@@ -52,6 +59,8 @@ def analysis_card_sync_issues(pp, value: dict) -> list[dict]:
 	r.extend(_kb_identity_mismatch_issues(pp, value))
 	r.extend(domain_drift_issues(pp.root, value))
 	return r
+# @used-by :func:`analysis_card_sync_issues()`
+# @used-by :func:`require_no_domain_drift_for_finalize()`
 def domain_drift_issues(root: Path | str, analysis_value: dict) -> list[dict]:
 	pp = project_paths(root, exact_root=True)
 	pj = _load_json_dict(pp.project_json)
@@ -67,6 +76,7 @@ def domain_drift_issues(root: Path | str, analysis_value: dict) -> list[dict]:
 				msg = f'Project {actual} disagrees with resolved target domain "{expected}" ({basis_id}); run harness.py rename-project "{pp.root.as_posix()}" --domain {expected} or set domain_drift_exempt in \ua616/project.json'
 				r.append(problem('project.domain_drift', pp.rel_to_root(pp.project_json), msg, file=pp.project_json))
 	return r
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
 def require_no_domain_drift_for_finalize(root: Path | str) -> None:
 	pp = project_paths(root, exact_root=True)
 	value = _load_json_dict(pp.kb_dir / 'Analysis.json')
@@ -77,6 +87,7 @@ def require_no_domain_drift_for_finalize(root: Path | str) -> None:
 	scratch_dir = pp.scratch_dir
 	if scratch_dir.is_dir() and any((p.is_file() for p in scratch_dir.rglob('*'))):
 		raise ValueError('Clean or consume all temporary files in \ua616/data/scratch before finalizing')
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`
 def require_stage_project_valid(root: Path | str, check_fn, base_msg: str) -> None:
 	chk = check_fn(root)
 	if not chk['valid']:

@@ -13,6 +13,8 @@ HARNESS_SCRIPT = SCRIPT_DIR / 'harness.py'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import tdd_gate
+# @used-by :meth:`ParallelTestRunnerTests.test_fail_fast_cancels_slow_sibling_processes_quickly()`
+# @used-by :meth:`ParallelTestRunnerTests.test_module_timeout_terminates_hung_worker_and_fails_fast()`
 def _is_pid_alive(pid: int) -> bool:
 	r = False
 	if 0 < pid:
@@ -30,6 +32,7 @@ def _is_pid_alive(pid: int) -> bool:
 # "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
 # https://github.com/dmitry-ai/harness/issues/160
 class ParallelTestRunnerTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_classify_test_command_recognizes_harness_run_tests_full_and_filtered(self) -> None:
 		full_cmd = f'python "{HARNESS_SCRIPT}" run-tests "C:/demo/tests" --workers 4 --module-timeout 120'
 		full_info = tdd_gate.classify_test_command(full_cmd)
@@ -62,6 +65,7 @@ class ParallelTestRunnerTests(unittest.TestCase):
 			res = tdd_gate.evaluate_tdd_events(events, require_final_full_green=True)
 			self.assertTrue(res['verified'], res)
 			self.assertEqual(res['scopes'][str(repo)]['last_full_green_step'], 4)
+	# @used-by :mod:`unittest`
 	def test_cli_run_tests_executes_modules_in_parallel_with_lpt_ordering(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			tdir = Path(tmp).resolve() / 'tests'
@@ -81,6 +85,7 @@ class ParallelTestRunnerTests(unittest.TestCase):
 			self.assertEqual(data['total_tests'], 3)
 			self.assertEqual(data['scheduled_order'][0], 'test_heavy.py')
 			self.assertLess(elapsed, 4.0)
+	# @used-by :mod:`unittest`
 	def test_fail_fast_cancels_slow_sibling_processes_quickly(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			tdir = Path(tmp).resolve() / 'tests'
@@ -97,6 +102,7 @@ class ParallelTestRunnerTests(unittest.TestCase):
 			if pid_file.is_file():
 				time.sleep(0.2)
 				self.assertFalse(_is_pid_alive(int(pid_file.read_text(encoding='utf-8').strip())))
+	# @used-by :mod:`unittest`
 	def test_module_timeout_terminates_hung_worker_and_fails_fast(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			tdir = Path(tmp).resolve() / 'tests'
@@ -112,6 +118,7 @@ class ParallelTestRunnerTests(unittest.TestCase):
 			if pid_file.is_file():
 				time.sleep(0.2)
 				self.assertFalse(_is_pid_alive(int(pid_file.read_text(encoding='utf-8').strip())))
+	# @used-by :mod:`unittest`
 	def test_no_failfast_collects_all_module_failures(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			tdir = Path(tmp).resolve() / 'tests'
@@ -123,6 +130,7 @@ class ParallelTestRunnerTests(unittest.TestCase):
 			data = json.loads(proc.stdout)
 			self.assertFalse(data['ok'])
 			self.assertEqual(data['failed_modules'], 2)
+	# @used-by :mod:`unittest`
 	def test_linked_worktree_scope_accepts_full_suite_green_on_main_repo(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

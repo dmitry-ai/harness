@@ -6,9 +6,11 @@ import json
 from .timesheet_ag import analyze_antigravity_rows
 from .timesheet_codex import analyze_codex_rows
 from .timesheet_common import format_timesheet_text, load_jsonl_rows, read_summary_timestamps, resolve_trace_source
+# @used-by :func:`build_timesheet()`
 def _detect_surface(rows: list[dict[str, Any]]) -> str:
 	first = rows[0] if rows else {}
 	return 'codex' if 'session_meta' == first.get('type') or ('timestamp' in first and 'payload' in first) else 'antigravity'
+# @used-by :func:`build_timesheet()`
 def _infer_conversation_id(surface: str, rows: list[dict[str, Any]], trace_path: Path, explicit: str | None) -> str | None:
 	if explicit:
 		r: str | None = explicit
@@ -20,6 +22,7 @@ def _infer_conversation_id(surface: str, rows: list[dict[str, Any]], trace_path:
 	else:
 		r = None
 	return r
+# @used-by :func:`build_timesheet()`
 def _slice_rows(surface: str, rows: list[dict[str, Any]], start_step: int | None, end_step: int | None) -> list[dict[str, Any]]:
 	if None is start_step and None is end_step:
 		r = rows
@@ -33,6 +36,12 @@ def _slice_rows(surface: str, rows: list[dict[str, Any]], start_step: int | None
 # 2026-11-24
 # "Add harness perf-timesheet CLI for deterministic turn chronometry":
 # https://github.com/dmitry-ai/harness/issues/191
+# @used-by :func:`run_perf_timesheet_cli()`
+# @used-by :meth:`test_perf_timesheet.PerfTimesheetTests.test_antigravity_parallel_tool_calls_match_bg_task_result()`
+# @used-by :meth:`test_perf_timesheet.PerfTimesheetTests.test_antigravity_timesheet_computes_chronometry_switches_checkpoints_and_bg_waits()`
+# @used-by :meth:`test_perf_timesheet.PerfTimesheetTests.test_codex_rollout_timesheet_and_step_slicing()`
+# @used-by :mod:`agent_tools.perf.timesheet`
+# @used-by :mod:`agent_tools.perf`
 def build_timesheet(trace_path: str | Path, *, conversation_id: str | None=None, summary_db: str | Path | None=None, turn_start_step: int | None=None, turn_end_step: int | None=None, top_gaps_limit: int=10) -> dict[str, Any]:
 	tp = Path(trace_path).resolve()
 	digest, all_rows = load_jsonl_rows(tp)
@@ -45,6 +54,8 @@ def build_timesheet(trace_path: str | Path, *, conversation_id: str | None=None,
 		u_ts, m_ts = read_summary_timestamps(Path(summary_db) if summary_db else None, cid)
 		body = analyze_antigravity_rows(rows, last_user_ts=u_ts, last_mod_ts=m_ts, top_gaps_limit=top_gaps_limit)
 	return {'schema_version': 1, 'valid': True, 'surface': surface, 'conversation_id': cid, 'trace_file': tp.as_posix(), 'trace_sha256': digest, 'step_count': len(rows), 'slice': {'start_step': turn_start_step, 'end_step': turn_end_step}, **body}
+# @used-by :func:`agent_tools.cli_registry._exec_perf_timesheet()`
+# @used-by :mod:`agent_tools.perf.timesheet`
 def run_perf_timesheet_cli(args) -> dict[str, Any]:
 	src = resolve_trace_source(trace=args.trace, conversation=args.conversation, project=args.project, journal_step=args.journal_step, instance=args.instance, platform=args.platform, summary_db=args.summary_db, turn_start_step=args.turn_start_step)
 	report = build_timesheet(src['trace_path'], conversation_id=src['conversation_id'], summary_db=src['summary_db'], turn_start_step=src['turn_start_step'], turn_end_step=args.turn_end_step, top_gaps_limit=args.top_gaps)

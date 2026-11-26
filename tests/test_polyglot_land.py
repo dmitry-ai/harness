@@ -21,17 +21,18 @@ from agent_tools.worktree_flow import worktree_begin, worktree_cleanup, worktree
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # @used-by :class:`PolyglotLandTests`
 class PolyglotLandTests(unittest.TestCase):
-	# @used-by :meth:`PolyglotLandTests._init_node_repo`
-	# @used-by :meth:`PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands`
-	# @used-by :meth:`PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error`
-	# @used-by :meth:`PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only`
+	# @used-by :meth:`PolyglotLandTests._init_node_repo()`
+	# @used-by :meth:`PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
+	# @used-by :meth:`PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
+	# @used-by :meth:`PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
 	def _git(self, repo: Path, *args: str) -> str:
 		proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True, creationflags=_NO_WINDOW)
 		return (proc.stdout or '').strip()
-	# @used-by :meth:`PolyglotLandTests.test_close_blocks_on_unhealthy_repo_health_command`
-	# @used-by :meth:`PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands`
-	# @used-by :meth:`PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error`
-	# @used-by :meth:`PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only`
+	# @used-by :meth:`PolyglotLandTests.test_close_blocks_on_unhealthy_repo_health_command()`
+	# @used-by :meth:`PolyglotLandTests.test_host_state_mutation_fails_closed_while_heartbeat_timestamp_is_ignored()`
+	# @used-by :meth:`PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
+	# @used-by :meth:`PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
+	# @used-by :meth:`PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
 	def _init_node_repo(self, root: Path, *, slug: str='owner/node-demo', test_script: str='node --test demo.test.js') -> Path:
 		proj = root / 'proj'
 		repo = proj / 'code'

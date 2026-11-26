@@ -5,7 +5,7 @@ from __future__ import annotations
 # https://github.com/dmitry-ai/harness/issues/225
 _BLOCKED_REPORT_DEFERRED_GATES = frozenset({'code_lifecycle', 'issue_first', 'tdd'})
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
-# @used-by :data:`ANSWER_GATES`
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _addon_observability_messages(ctx: dict) -> list[str]:
 	chk = ctx.get('addon_obs_chk')
 	if None is chk and None is not ctx.get('root'):
@@ -13,6 +13,7 @@ def _addon_observability_messages(ctx: dict) -> list[str]:
 		chk = evaluate_addon_observability(ctx['root'], ctx.get('native'), ctx.get('turn'), ctx.get('value'), ctx.get('response'))
 		ctx['addon_obs_chk'] = chk
 	return [] if (chk or {}).get('verified', True) else [str(chk['detail'])]
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _compaction_messages(ctx: dict) -> list[str]:
 	msgs: list[str] = []
 	comp = ctx['comp_chk']
@@ -20,15 +21,18 @@ def _compaction_messages(ctx: dict) -> list[str]:
 		unreread = comp.get('unreread_analysis_sources') or []
 		msgs.append(('COMPACT-1 / KB-3 violation in active turn: analysis.md written after CHECKPOINT without re-reading evicted sibling source.md: ' + ', '.join(unreread)) if unreread else 'COMPACT-1 / KB-3 violation in active turn: context compaction (CHECKPOINT) occurred after tool calls without post-checkpoint recovery; run recover-checkpoint or inspect transcript_full.jsonl before answer-prepare')
 	return msgs
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _delegation_messages(ctx: dict) -> list[str]:
 	del_chk = ctx['del_chk']
 	msgs: list[str] = []
 	if 'primary' == ctx['role'] and (not del_chk.get('verified', True)):
 		msgs.append(f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={del_chk.get('tool_step_count', 0)}, max_streak={del_chk.get('max_unpersisted_step_streak', 0)} > {del_chk.get('max_unpersisted_steps', 40)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence")
 	return msgs
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _evicted_messages(ctx: dict) -> list[str]:
 	ev = ctx['evicted_cited']
 	return ['COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(ev)] if ev else []
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _exec5_messages(ctx: dict) -> list[str]:
 	chk = ctx['exec5_chk']
 	if chk.get('verified', True):
@@ -40,11 +44,12 @@ def _exec5_messages(ctx: dict) -> list[str]:
 # 2026-11-25
 # "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 # https://github.com/dmitry-ai/harness/issues/251
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _hook_crash_messages(ctx: dict) -> list[str]:
 	chk = ctx.get('hook_crash_chk') or {}
 	return [] if chk.get('verified', True) else [str(chk.get('detail') or 'DOC-5 / EXEC-5 hook_crash_check: unhandled JSON hook failure in active turn')]
 # 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
-# @used-by :data:`ANSWER_GATES`
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _verification_obs_messages(ctx: dict) -> list[str]:
 	chk = ctx.get('verification_observability_chk')
 	if None is chk and None is not ctx.get('root'):
@@ -52,6 +57,7 @@ def _verification_obs_messages(ctx: dict) -> list[str]:
 		chk = evaluate_verification_observability(ctx['root'], ctx.get('native'), ctx.get('turn') or ctx.get('turn_obj'), ctx.get('value') or ctx.get('value_obj'), ctx.get('response'))
 		ctx['verification_observability_chk'] = chk
 	return [] if (chk or {}).get('verified', True) else [str(chk.get('detail') or 'EXEC-2 / VERIFY-4 verification_observability_check: unresolved shadow-replay failure in active turn')]
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _http_messages(ctx: dict) -> list[str]:
 	chk = ctx['http_chk']
 	if chk.get('verified', True):
@@ -60,9 +66,11 @@ def _http_messages(ctx: dict) -> list[str]:
 		cmds = [cmd for item in chk.get('violations') or [] for cmd in item.get('commands', [])]
 		r = ['KB-3 / EXEC-1 violation in active turn (ad-hoc HTTP fetch in shell without persistent Evidence collection): ' + '; '.join(cmds)]
 	return r
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _lifecycle_messages(ctx: dict) -> list[str]:
 	chk = ctx['lifecycle_chk']
 	return [] if chk.get('verified', True) else [f'EXEC-5 violation in active turn (code/issue lifecycle incomplete): {v}' for v in chk.get('violations') or []]
+# @used-by :mod:`agent_tools.gates.answer_checks`
 def _partial_read_messages(ctx: dict) -> list[str]:
 	p_viols = ctx['del_chk'].get('aa_partial_read_violations') or []
 	return ['REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(p_viols)] if p_viols else []
@@ -94,6 +102,7 @@ ANSWER_GATES = (
 	('tdd', 'turn.tdd', lambda c: [] if c['tdd_chk'].get('verified', True) else list(c['tdd_chk'].get('violations') or [])),
 	('workflow', 'turn.workflow', lambda c: list(c['wf_errs'])),
 )
+# @used-by :func:`run_answer_gates()`
 def _build_checks_map(ctx: dict) -> dict[str, bool]:
 	# 2026-11-25
 	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
@@ -104,6 +113,9 @@ def _build_checks_map(ctx: dict) -> dict[str, bool]:
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
+# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :meth:`test_gate_registry.GateRegistryTests.test_answer_gates_collect_issues_and_checks_map()`
+# @used-by :mod:`agent_tools.gates`
 def run_answer_gates(ctx: dict) -> tuple[list[dict], dict[str, bool]]:
 	issues: list[dict] = []
 	seen: set[str] = set()

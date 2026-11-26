@@ -6,6 +6,11 @@ import re
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.completion._prepare_once()`
+# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :func:`agent_tools.knowledge.validate_kb_factual_note()`
+# @used-by :meth:`test_turn_completion.CausalBasisTests.test_observed_ignorance_to_equal_probability_error_is_rejected()`
+# @used-by :meth:`test_turn_completion.CausalBasisTests.test_quotes_code_negation_and_explicit_symmetric_prior_are_allowed()`
 def unsupported_probability_claims(text):
 	from .text_core import scan
 	lines = [line for line in scan(text) if 'prose' == line.kind]

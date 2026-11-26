@@ -13,6 +13,8 @@ PRIORITY = 70
 # https://github.com/dmitry-ai/harness/issues/187
 TOOLS = frozenset({'read_file'})
 MAX_UNPERSISTED_SOURCE_READS = 10
+# @used-by :func:`agent_tools.gates.browser_mcp._turn_has_background_mcp_new_page()`
+# @used-by :func:`check()`
 def _parse_call_args(raw) -> dict:
 	r = raw if isinstance(raw, dict) else {}
 	if isinstance(raw, str):
@@ -25,8 +27,11 @@ def _parse_call_args(raw) -> dict:
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
+# @used-by :func:`agent_tools.gates.browser_mcp._turn_has_background_mcp_new_page()`
+# @used-by :func:`check()`
 def _recent_segment_rows(t_path: Path) -> list[dict]:
 	return read_last_user_segment(t_path)[2]
+# @used-by :func:`check()`
 def _update_streak(streak: set[str], cname: str, cargs: dict) -> None:
 	if 'invoke_subagent' == cname:
 		streak.clear()
@@ -38,6 +43,7 @@ def _update_streak(streak: set[str], cname: str, cargs: dict) -> None:
 		rpath = (cargs.get('Path') or '').replace('\\', '/').lower()
 		if rpath.endswith('/kb/source.md'):
 			streak.add(rpath)
+# @used-by :func:`agent_tools.gates._load_builtin_entry()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	r = None
 	target = (args.get('Path') or '').replace('\\', '/').lower() if 'read_file' == name else ''

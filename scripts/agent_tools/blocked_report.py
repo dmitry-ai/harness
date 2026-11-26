@@ -15,6 +15,7 @@ _DOC5_SECTIONS_RE = re.compile(r'(?m)^#\s+([1-4])\b')
 _FENCED_RE = re.compile(r'```[\s\S]*?```')
 _HM_CLAIM_RE = re.compile(r'\b(?:H|M)-(?:[A-Za-z0-9]+-)*\d+\b')
 _STAGE_HEADING_RE = re.compile(r'(?im)^#{1,3}\s+(?:\d+\.\s+)?(?:client identification|client concerns|possible misconceptions|causes of the problem|solution methods|\u0438\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f\s+\u043a\u043b\u0438\u0435\u043d\u0442\u0430|\u0447\u0442\u043e\s+\u0432\u043e\u043b\u043d\u0443\u0435\u0442|\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u044b\u0435\s+\u0437\u0430\u0431\u043b\u0443\u0436\u0434\u0435\u043d\u0438\u044f|\u043f\u0440\u0438\u0447\u0438\u043d\u044b\s+\u043f\u0440\u043e\u0431\u043b\u0435\u043c\w*|\u043c\u0435\u0442\u043e\u0434\u044b\s+\u0440\u0435\u0448\u0435\u043d\u0438\u044f)\b')
+# @used-by :func:`_standard_workflow_errors()`
 def _authorize_workflow_errors(root_p: Path, pp, wf_state: dict, wf_ids: set, wf_cov: set, is_fin: bool, substantive_hm: bool, requests_list: list, response: str, *, conversation_id: str | None=None) -> list[str]:
 	errs: list[str] = []
 	if wf_cov and wf_cov != wf_ids:
@@ -32,6 +33,7 @@ def _authorize_workflow_errors(root_p: Path, pp, wf_state: dict, wf_ids: set, wf
 		# https://github.com/dmitry-ai/harness/issues/232
 		errs.extend(pending_workflow_alignment_issues(wf_state, conversation_id, wf_ids))
 	return errs
+# @used-by :func:`blocked_report_issues()`
 def _continuation_blocker_issue(cont_path: Path) -> str | None:
 	r = None
 	if not cont_path.is_file():
@@ -47,11 +49,13 @@ def _continuation_blocker_issue(cont_path: Path) -> str | None:
 # 2026-11-24
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225
+# @used-by :func:`blocked_report_issues()`
 def _is_doc5_blocker_analysis(response: str) -> bool:
 	txt = response or ''
 	has_meta = bool(_DOC5_HEADER_RE.search(txt)) and ('"Issue"' in txt or '"Source Project"' in txt)
 	has_sections = 4 <= len(set(_DOC5_SECTIONS_RE.findall(txt)))
 	return has_meta and has_sections
+# @used-by :func:`evaluate_check_workflow_errors()`
 def _standard_workflow_errors(root_p: Path, pp, response: str, requests_list: list, turn_obj: dict, value_obj: dict, del_chk: dict, *, factual_kb_fn, is_deliv_fn) -> list[str]:
 	from .workflow import load
 	wf_state = load(root_p)
@@ -69,6 +73,7 @@ def _standard_workflow_errors(root_p: Path, pp, response: str, requests_list: li
 	# https://github.com/dmitry-ai/harness/issues/232
 	wf_errs.extend(_authorize_workflow_errors(root_p, pp, wf_state, wf_ids, wf_cov, is_fin, substantive_hm, requests_list, response, conversation_id=value_obj.get('conversation_id')))
 	return wf_errs
+# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._audit_workflow_scope()`
 def audit_runner_workflow_scope(runner, *, factual_kb_fn, is_deliv_fn) -> None:
 	if runner.blocked_report:
 		issues = blocked_report_issues(runner.pp, runner.response, workflow_exists=runner.workflow_path.exists(), is_finalized=runner.is_finalized)
@@ -86,6 +91,9 @@ def audit_runner_workflow_scope(runner, *, factual_kb_fn, is_deliv_fn) -> None:
 			raise ValueError('Adopt all exact current requests before preparing a tracked analysis response')
 		if not runner.wf_covered and runner.pp.project_json.is_file() and (not any((re.search('(?:^|\\s)/df-(?:article|proposal)\\b', req.get('text', '')) for req in runner.turn['requests']))) and (not runner.is_finalized or runner.has_substantive_hm):
 			runner._fail_gate('workflow_adoption', 'REVIEW-3 / REVIEW-4: Adopt current requests (adopt-requests) and complete review authorization before preparing a substantive response in a tracked Upwork project')
+# @used-by :func:`audit_runner_workflow_scope()`
+# @used-by :func:`evaluate_check_workflow_errors()`
+# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_still_rejects_client_claim_ids_inside_doc5()`
 def blocked_report_issues(pp, response: str, *, workflow_exists: bool, is_finalized: bool) -> list[str]:
 	issues: list[str] = []
 	if not workflow_exists or is_finalized:
@@ -104,6 +112,7 @@ def blocked_report_issues(pp, response: str, *, workflow_exists: bool, is_finali
 	if _STAGE_HEADING_RE.search(prose):
 		issues.append('REVIEW-3 blocked-report: five-stage analysis sections are prohibited in --blocked-report; complete A.A review authorization instead')
 	return issues
+# @used-by :func:`agent_tools.completion.check_answer()`
 def evaluate_check_workflow_errors(root_p: Path, pp, role: str, response: str, requests_list: list, turn_obj: dict, value_obj: dict, del_chk: dict, *, blocked_report: bool, journal_directory, factual_kb_fn, is_deliv_fn, dir_fn) -> list[str]:
 	wf_errs: list[str] = []
 	if 'primary' == role and blocked_report:
@@ -135,6 +144,7 @@ def _run_runner_audits(runner) -> None:
 # 2026-11-24
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225
+# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._check_turn_hygiene()`
 def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn) -> None:
 	# 2026-11-25
 	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
@@ -160,6 +170,8 @@ def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn
 # 2026-11-25
 # "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
 # https://github.com/dmitry-ai/harness/issues/232
+# @used-by :func:`_authorize_workflow_errors()`
+# @used-by :func:`prepare_and_sync_authorized_workflow()`
 def pending_workflow_alignment_issues(wf_state: dict, conversation_id: str | None, wf_identifiers: set, *, response_sha: str | None=None, allow_reprepare: bool=False) -> list[str]:
 	errs: list[str] = []
 	reqs = wf_state.get('requests') or []
@@ -172,17 +184,20 @@ def pending_workflow_alignment_issues(wf_state: dict, conversation_id: str | Non
 # 2026-11-25
 # "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
 # https://github.com/dmitry-ai/harness/issues/232
+# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._authorize_and_sync_workflow()`
 def prepare_and_sync_authorized_workflow(runner, approval: dict, now_fn) -> None:
 	align_errs = pending_workflow_alignment_issues(runner.wf_state, runner.native['conversation_id'], runner.wf_identifiers, response_sha=runner.sha, allow_reprepare=runner.allow_reprepare)
 	if align_errs:
 		runner._fail_gate('review_authorize', '; '.join(align_errs))
 	runner._record_journal_entry()
 	sync_authorized_workflow_requests(runner, approval, now_fn)
+# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._authorize_and_sync_workflow()`
 def record_blocked_report_entry(runner) -> None:
 	runner._record_journal_entry()
 	runner.value['completion_kind'] = 'blocked_report'
 	if isinstance(runner.value.get('prepared'), dict):
 		runner.value['prepared']['completion_kind'] = 'blocked_report'
+# @used-by :func:`prepare_and_sync_authorized_workflow()`
 def sync_authorized_workflow_requests(runner, approval: dict, now_fn) -> None:
 	pending = {req['id'] for req in runner.wf_state['requests'] if not req.get('response_prepared') and (req.get('native_conversation_id') in (None, runner.native['conversation_id']) or req['id'] in runner.wf_identifiers)}
 	if pending:
@@ -195,6 +210,7 @@ def sync_authorized_workflow_requests(runner, approval: dict, now_fn) -> None:
 		if not runner.allow_reprepare:
 			raise ValueError('Tracked analysis requests already have different prepared response bytes')
 		from .workflow import update
+		# @used-by :func:`sync_authorized_workflow_requests()`
 		def update_reprepared(s):
 			for req in s.get('requests', []):
 				if req['id'] in runner.wf_identifiers:

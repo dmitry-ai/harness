@@ -1,6 +1,7 @@
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
+from typing import override
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,12 @@ from agent_tools.platforms import antigravity, codex
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class RegistrationTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.project = Path(up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.root / 'daily', extracted_data=source(), register_native=False)['project_dir'])
@@ -37,19 +44,48 @@ class RegistrationTests(TemporaryCase):
 		self.folders.parent.mkdir(parents=True)
 		self.folders.write_text('{"folders":[],"projectFolderMap":{}}', encoding='utf-8')
 		self.calls = []
+	# @used-by :meth:`RegistrationTests.run_registration()`
+	# @used-by :meth:`RegistrationTests.test_intent_is_saved_before_native_call_and_interrupted_attempt_remains()`
+	# @used-by :meth:`RegistrationTests.test_legacy_success_and_direct_save_keep_native_identity_after_failure()`
+	# @used-by :meth:`RegistrationTests.test_pending_secondary_does_not_gate_active_and_pending_active_does()`
+	# @used-by :meth:`RegistrationTests.test_secondary_failure_keeps_current_ready_and_previous_success()`
+	# @used-by :meth:`RegistrationTests.test_shared_id_without_selected_profile_native_id_is_not_success()`
+	# @used-by :meth:`RegistrationTests.test_workflow_registration_status_exposes_all_targets_and_pending_targets()`
+	# @used-by :meth:`RegistrationTests.test_wrong_roots_or_folder_are_not_reported_as_registered()`
 	def ag(self, root, label, day):
 		self.calls.append('antigravity')
 		r = antigravity.register_antigravity_project(root, label, day, projects_dir=self.native_projects, folders_json_path=self.folders)
 		return r
+	# @used-by :meth:`RegistrationTests.run_registration()`
+	# @used-by :meth:`RegistrationTests.test_pending_secondary_does_not_gate_active_and_pending_active_does()`
+	# @used-by :meth:`RegistrationTests.test_shared_id_without_selected_profile_native_id_is_not_success()`
+	# @used-by :meth:`RegistrationTests.test_single_success_only_calls_the_selected_adapter()`
+	# @used-by :meth:`RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
+	# @used-by :meth:`RegistrationTests.test_workflow_registration_status_exposes_all_targets_and_pending_targets()`
+	# @used-by :meth:`RegistrationTests.test_wrong_roots_or_folder_are_not_reported_as_registered()`
 	def cx(self, root, label, day):
 		self.calls.append('codex')
 		_, _, _, expected = registration._expected(root, label, day)
 		r = {**expected, 'surface': 'codex-ui', 'shared_id': 'shared', 'folder_id': 'folder', 'profile': 'C2', 'profiles': {'C1': {'project_id': 'c1', 'ready': True}, 'C2': {'project_id': 'c2', 'ready': True}}, 'complete': True, 'status': 'registered'}
 		return r
+	# @used-by :meth:`RegistrationTests.test_both_entry_platforms_register_both_with_active_flat_compatibility()`
+	# @used-by :meth:`RegistrationTests.test_git_only_resource_does_not_collide_when_cwd_equals_project_root()`
+	# @used-by :meth:`RegistrationTests.test_intent_is_saved_before_native_call_and_interrupted_attempt_remains()`
+	# @used-by :meth:`RegistrationTests.test_manual_native_name_conflict_preserves_name_and_records_expected_actual()`
+	# @used-by :meth:`RegistrationTests.test_repeat_preserves_native_ids_and_manual_native_fields()`
+	# @used-by :meth:`RegistrationTests.test_secondary_failure_keeps_current_ready_and_previous_success()`
 	def run_registration(self, platform='antigravity', **kwargs):
 		return registration.register_projects(self.project, platform=platform, registrars={'antigravity': self.ag, 'codex': self.cx}, **kwargs)
+	# @used-by :meth:`RegistrationTests.test_both_entry_platforms_register_both_with_active_flat_compatibility()`
+	# @used-by :meth:`RegistrationTests.test_intent_is_saved_before_native_call_and_interrupted_attempt_remains()`
+	# @used-by :meth:`RegistrationTests.test_legacy_success_and_direct_save_keep_native_identity_after_failure()`
+	# @used-by :meth:`RegistrationTests.test_secondary_failure_keeps_current_ready_and_previous_success()`
+	# @used-by :meth:`RegistrationTests.test_single_adapter_entry_point_preserves_failure_semantics_and_receipt()`
+	# @used-by :meth:`RegistrationTests.test_single_success_only_calls_the_selected_adapter()`
+	# @used-by :meth:`RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 	def saved(self):
 		return json.loads((self.project / 'ꘖ/data/registrations.json').read_text(encoding='utf-8'))
+	# @used-by :mod:`unittest`
 	def test_both_entry_platforms_register_both_with_active_flat_compatibility(self):
 		for platform in ('antigravity', 'codex'):
 			self.calls.clear()
@@ -63,6 +99,7 @@ class RegistrationTests(TemporaryCase):
 			self.assertEqual(result['root_paths'], [str(self.project)])
 			self.assertEqual(set(result['registrations']), {'antigravity', 'codex'})
 			self.assertTrue(all((record['complete'] for record in self.saved().values())))
+	# @used-by :mod:`unittest`
 	def test_repeat_preserves_native_ids_and_manual_native_fields(self):
 		first = self.run_registration()
 		record = Path(first['project_file'])
@@ -76,8 +113,10 @@ class RegistrationTests(TemporaryCase):
 		self.assertEqual(json.loads(record.read_text())['settings']['custom'], 'user setting')
 		self.assertEqual(second['attempts'], 2)
 		self.assertEqual(len(second['attempt_history']), 2)
+	# @used-by :mod:`unittest`
 	def test_secondary_failure_keeps_current_ready_and_previous_success(self):
 		self.run_registration()
+		# @used-by :meth:`RegistrationTests.test_secondary_failure_keeps_current_ready_and_previous_success()`
 		def offline(*args):
 			raise RuntimeError('Secondary UI is offline')
 		result = registration.register_projects(self.project, platform='antigravity', registrars={'antigravity': self.ag, 'codex': offline})
@@ -89,7 +128,9 @@ class RegistrationTests(TemporaryCase):
 		self.assertTrue(secondary['last_success']['profiles']['C2']['ready'])
 		self.assertEqual(secondary['intent']['root_paths'], [str(self.project)])
 		self.assertEqual(self.saved()['codex']['error']['message'], 'Secondary UI is offline')
+	# @used-by :mod:`unittest`
 	def test_pending_secondary_does_not_gate_active_and_pending_active_does(self):
+		# @used-by :meth:`RegistrationTests.test_pending_secondary_does_not_gate_active_and_pending_active_does()`
 		def pending(*args):
 			result = self.cx(*args)
 			result['complete'] = False
@@ -101,6 +142,7 @@ class RegistrationTests(TemporaryCase):
 			self.assertEqual(result['complete'], complete)
 			self.assertFalse(result['all_registered'])
 			self.assertEqual(result['registrations']['codex']['status'], 'pending')
+	# @used-by :mod:`unittest`
 	def test_manual_native_name_conflict_preserves_name_and_records_expected_actual(self):
 		result = self.run_registration()
 		record = Path(result['project_file'])
@@ -115,8 +157,10 @@ class RegistrationTests(TemporaryCase):
 		self.assertEqual(result['actual']['project_name'], 'User renamed this project')
 		self.assertEqual(record.read_bytes(), before)
 		self.assertEqual(result['last_success']['project_name'], 'Topic - U.P.2026.10.15')
+	# @used-by :mod:`unittest`
 	def test_wrong_roots_or_folder_are_not_reported_as_registered(self):
 		for field, value in [('root_paths', [str(self.root)]), ('folder_path', 'Elsewhere')]:
+			# @used-by :meth:`RegistrationTests.test_wrong_roots_or_folder_are_not_reported_as_registered()`
 			def wrong(*args):
 				result = self.cx(*args)
 				result[field] = value
@@ -126,7 +170,9 @@ class RegistrationTests(TemporaryCase):
 			self.assertFalse(result['complete'])
 			self.assertEqual(result['status'], 'conflict')
 			self.assertTrue(result['registrations']['antigravity']['complete'])
+	# @used-by :mod:`unittest`
 	def test_intent_is_saved_before_native_call_and_interrupted_attempt_remains(self):
+		# @used-by :meth:`RegistrationTests.test_intent_is_saved_before_native_call_and_interrupted_attempt_remains()`
 		def interrupted(*args):
 			saved = self.saved()['codex']
 			self.assertEqual(saved['status'], 'attempting')
@@ -140,12 +186,14 @@ class RegistrationTests(TemporaryCase):
 		saved_attempt = next((item for item in result['attempt_history'] if item['id'] == initial))
 		self.assertEqual(saved_attempt['intent']['root_paths'], [str(self.project)])
 		self.assertNotIn('finished_at', saved_attempt)
+	# @used-by :mod:`unittest`
 	def test_single_adapter_entry_point_preserves_failure_semantics_and_receipt(self):
 		with patch.object(codex, 'register', side_effect=RuntimeError('Unavailable')):
 			with self.assertRaisesRegex(RuntimeError, 'Unavailable'):
 				registration.register_project(self.project, platform='codex')
 		self.assertEqual(set(self.saved()), {'codex'})
 		self.assertEqual(self.saved()['codex']['status'], 'error')
+	# @used-by :mod:`unittest`
 	def test_legacy_success_and_direct_save_keep_native_identity_after_failure(self):
 		legacy = self.ag(self.project, 'Topic', '2026-10-15')
 		path = self.project / 'ꘖ/data/registrations.json'
@@ -156,13 +204,16 @@ class RegistrationTests(TemporaryCase):
 		self.assertNotIn('project_id', failed)
 		self.assertEqual(failed['last_success']['project_id'], legacy['project_id'])
 		self.assertEqual(self.saved()['antigravity'], failed)
+	# @used-by :mod:`unittest`
 	def test_single_success_only_calls_the_selected_adapter(self):
 		with patch.object(codex, 'register', side_effect=self.cx), patch.object(antigravity, 'register', side_effect=AssertionError('Another application must not be called')):
 			result = registration.register_project(self.project, platform='codex')
 		self.assertTrue(result['complete'])
 		self.assertEqual(set(self.saved()), {'codex'})
 		self.assertEqual(result['profiles']['C2']['project_id'], 'c2')
+	# @used-by :mod:`unittest`
 	def test_shared_id_without_selected_profile_native_id_is_not_success(self):
+		# @used-by :meth:`RegistrationTests.test_shared_id_without_selected_profile_native_id_is_not_success()`
 		def missing_profile(*args):
 			result = self.cx(*args)
 			del result['profiles']['C2']['project_id']
@@ -171,14 +222,17 @@ class RegistrationTests(TemporaryCase):
 		result = registration.register_projects(self.project, platform='codex', registrars={'antigravity': self.ag, 'codex': missing_profile})
 		self.assertFalse(result['complete'])
 		self.assertEqual(result['status'], 'conflict')
+	# @used-by :mod:`unittest`
 	def test_slow_previous_success_does_not_erase_a_newer_failed_attempt(self):
 		began, release = (threading.Event(), threading.Event())
+		# @used-by :meth:`RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 		def slow(*args):
 			began.set()
 			if not release.wait(timeout=5):
 				raise TimeoutError('Test registration was not released')
 			r = self.cx(*args)
 			return r
+		# @used-by :meth:`RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 		def failed(*args):
 			raise RuntimeError('Newer attempt failed')
 		with ThreadPoolExecutor(max_workers=1) as pool:
@@ -198,6 +252,7 @@ class RegistrationTests(TemporaryCase):
 	# 2026-10-25
 	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 	# https://github.com/dmitry-ai/harness/issues/17
+	# @used-by :mod:`unittest`
 	def test_git_only_resource_does_not_collide_when_cwd_equals_project_root(self):
 		self.native_projects.mkdir(parents=True, exist_ok=True)
 		(self.native_projects / 'git-only.json').write_text(json.dumps({'id': 'git-only', 'name': 'U.I.2026.10.22', 'projectResources': {'resources': [{'gitFolder': {'folderUri': 'file:///c:/other'}}]}}), encoding='utf-8')
@@ -212,8 +267,10 @@ class RegistrationTests(TemporaryCase):
 	# 2026-10-25
 	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
 	# https://github.com/dmitry-ai/harness/issues/17
+	# @used-by :mod:`unittest`
 	def test_workflow_registration_status_exposes_all_targets_and_pending_targets(self):
 		from agent_tools import workflow
+		# @used-by :meth:`RegistrationTests.test_workflow_registration_status_exposes_all_targets_and_pending_targets()`
 		def pending(*args):
 			res = self.cx(*args)
 			res['complete'] = False
@@ -229,6 +286,9 @@ class RegistrationTests(TemporaryCase):
 		self.assertTrue(status['targets']['antigravity']['complete'])
 		self.assertFalse(status['targets']['codex']['complete'])
 class RegistrationProfileTests(TemporaryCase):
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.config = deepcopy(runtime.settings())
@@ -239,6 +299,7 @@ class RegistrationProfileTests(TemporaryCase):
 		self.env = patch.dict(os.environ, {}, clear=True)
 		self.env.start()
 		self.addCleanup(self.env.stop)
+	# @used-by :mod:`unittest`
 	def test_registration_only_fallback_does_not_relax_native_evidence_profile(self):
 		self.assertEqual(runtime.registration_profile_name(), 'C2')
 		with self.assertRaises(ValueError):
@@ -249,6 +310,7 @@ class RegistrationProfileTests(TemporaryCase):
 			self.assertEqual(runtime.registration_profile_name(), 'C1')
 		with patch.dict(os.environ, {'UPWORK_CODEX_PROFILE': 'C1'}):
 			self.assertEqual(runtime.registration_profile_name(), 'C1')
+	# @used-by :mod:`unittest`
 	def test_explicit_unknown_profile_or_unrecognized_home_never_uses_fallback(self):
 		with patch.dict(os.environ, {'CODEX_HOME': str(self.root / 'unknown')}):
 			with self.assertRaises(ValueError):
@@ -258,6 +320,7 @@ class RegistrationProfileTests(TemporaryCase):
 		self.config['platforms']['codex']['registration_profile'] = 'unknown'
 		with self.assertRaises(ValueError):
 			runtime.registration_profile_name()
+	# @used-by :mod:`unittest`
 	def test_codex_adapter_uses_fallback_and_rejects_wrong_native_name_without_rename(self):
 		self.root.mkdir(exist_ok=True)
 		expected = registration._expected(self.root, 'Topic', '2026-10-15')[3]

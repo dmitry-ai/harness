@@ -2,6 +2,8 @@
 from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urldefrag
+# @used-by :func:`audit_active_block()`
+# @used-by :func:`build_active_corpus_cached()`
 def _assemble_corpus(infos: list[dict], ext_entries: list[tuple[str, str, set[str]]]) -> tuple[list[dict], str, str, set[str]]:
 	raw_parts: list[str] = []
 	norm_parts: list[str] = []
@@ -18,6 +20,7 @@ def _assemble_corpus(infos: list[dict], ext_entries: list[tuple[str, str, set[st
 			norm_parts.append(norm)
 		ev_nums.update(nums)
 	return (infos, '\n'.join(raw_parts), ' '.join(norm_parts), ev_nums)
+# @used-by :func:`build_active_corpus_cached()`
 def _load_ext_url_entry(bucket: dict, nu: str, norm_fn, num_fn) -> tuple[str, str, set[str]]:
 	r = bucket['urls'].get(nu)
 	if None is r:
@@ -26,6 +29,7 @@ def _load_ext_url_entry(bucket: dict, nu: str, norm_fn, num_fn) -> tuple[str, st
 		r = (raw, norm_fn(raw) if raw else '', num_fn(raw) if raw else set())
 		bucket['urls'][nu] = r
 	return r
+# @used-by :func:`build_active_corpus_cached()`
 def _norm_ext_urls(active_exts: list[str]) -> tuple[str, ...]:
 	seen: list[str] = []
 	for u in active_exts:
@@ -35,6 +39,7 @@ def _norm_ext_urls(active_exts: list[str]) -> tuple[str, ...]:
 			if nu not in seen:
 				seen.append(nu)
 	return tuple(seen)
+# @used-by :func:`build_active_corpus_cached()`
 def _obs_bucket(cache: dict, observed_texts: dict | None) -> dict:
 	store = cache.setdefault('__obs_buckets__', {})
 	oid = 0 if None is observed_texts else id(observed_texts)
@@ -43,6 +48,7 @@ def _obs_bucket(cache: dict, observed_texts: dict | None) -> dict:
 		bucket = {'obs': observed_texts, 'urls': {}, 'corpora': {}}
 		store[oid] = bucket
 	return bucket
+# @used-by :func:`audit_block_lines()`
 def _tag_new_errors(errors: list[str], start_idx: int, line_no: int | None) -> None:
 	if None is not line_no:
 		suffix = f' (line {line_no})'
@@ -50,6 +56,7 @@ def _tag_new_errors(errors: list[str], start_idx: int, line_no: int | None) -> N
 			if '(line ' not in errors[idx]:
 				errors[idx] = errors[idx] + suffix
 # 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
+# @used-by :func:`audit_active_block()`
 def _collect_local_repo_ext_entries(auditor, active_exts: list[str], norm_fn, num_fn) -> tuple[list[tuple[str, str, set[str]]], list[str]]:
 	from .repo_link_gate import resolve_local_github_blob
 	entries: list[tuple[str, str, set[str]]] = []
@@ -62,6 +69,7 @@ def _collect_local_repo_ext_entries(auditor, active_exts: list[str], norm_fn, nu
 				labels.append(label)
 				entries.append((raw, norm_fn(raw) if raw else '', num_fn(raw) if raw else set()))
 	return (entries, labels)
+# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._audit_block()`
 def audit_active_block(auditor, block, filtered_locals: list[Path], ext_urls: list[str], active_primary: list[Path], norm_fn, num_fn) -> None:
 	if active_primary:
 		infos, combined_raw, combined_norm, ev_nums, src_label = auditor._build_active_corpus(filtered_locals, ext_urls, active_primary)
@@ -77,6 +85,7 @@ def audit_active_block(auditor, block, filtered_locals: list[Path], ext_urls: li
 # 2026-11-24
 # "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
 # https://github.com/dmitry-ai/harness/issues/214
+# @used-by :func:`audit_active_block()`
 def audit_block_lines(auditor, block, infos: list[dict], combined_raw: str, combined_norm: str, ev_nums: set[str], src_label: str) -> None:
 	bmap = getattr(block, 'map', None)
 	base_line = (int(bmap[0]) + 1) if isinstance(bmap, (list, tuple)) and bmap else None
@@ -96,6 +105,7 @@ def audit_block_lines(auditor, block, infos: list[dict], combined_raw: str, comb
 # 2026-11-24
 # "Cache normalized text and numeric tokens in source_grounding active corpus":
 # https://github.com/dmitry-ai/harness/issues/216
+# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._build_active_corpus()`
 def build_active_corpus_cached(auditor, active_locals: list[Path], active_exts: list[str], active_primary: list[Path], norm_fn, num_fn) -> tuple[list[dict], str, str, set[str], str]:
 	norm_exts = _norm_ext_urls(active_exts)
 	bucket = _obs_bucket(auditor.cache, auditor.observed_texts)

@@ -16,10 +16,15 @@ from agent_tools.tdd_gate import classify_test_command
 # "Add parallel fail-fast test runner and worktree-aware TDD support":
 # https://github.com/dmitry-ai/harness/issues/159
 class ParallelRunnerTests(unittest.TestCase):
+	# @used-by :meth:`ParallelRunnerTests.test_discover_orders_heaviest_modules_first()`
+	# @used-by :meth:`ParallelRunnerTests.test_parallel_runner_failfast_kills_slow_siblings()`
+	# @used-by :meth:`ParallelRunnerTests.test_parallel_runner_module_timeout_terminates_stalled_worker()`
+	# @used-by :meth:`ParallelRunnerTests.test_parallel_runner_passes_all_modules_via_cli()`
 	def _write_module(self, root: Path, name: str, body: str) -> Path:
 		path = root / name
 		path.write_text(body, encoding='utf-8')
 		return path
+	# @used-by :mod:`unittest`
 	def test_classify_run_tests_full_and_filtered(self):
 		full_cmd = 'python "C:/work/harness/scripts/harness.py" run-tests "C:/work/harness/tests" --workers 4'
 		res_full = classify_test_command(full_cmd)
@@ -33,6 +38,7 @@ class ParallelRunnerTests(unittest.TestCase):
 		res_alias = classify_test_command(alias_cmd)
 		self.assertTrue(res_alias['is_test_cmd'])
 		self.assertTrue(res_alias['is_full_suite'])
+	# @used-by :mod:`unittest`
 	def test_context_generate_accepts_fixed_now(self):
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td)
@@ -45,6 +51,7 @@ class ParallelRunnerTests(unittest.TestCase):
 			self.assertTrue(target.is_file())
 			self.assertEqual(c_gen, c_asm)
 			self.assertEqual(set(s_gen), set(s_asm))
+	# @used-by :mod:`unittest`
 	def test_discover_orders_heaviest_modules_first(self):
 		from agent_tools.parallel_runner import discover_test_modules
 		with tempfile.TemporaryDirectory() as td:
@@ -55,6 +62,7 @@ class ParallelRunnerTests(unittest.TestCase):
 			self.assertEqual([p.stem for p in ordered], ['test_small', 'test_big'])
 			by_size = discover_test_modules(root)
 			self.assertEqual([p.stem for p in by_size], ['test_big', 'test_small'])
+	# @used-by :mod:`unittest`
 	def test_parallel_runner_failfast_kills_slow_siblings(self):
 		from agent_tools.parallel_runner import run_parallel_tests
 		with tempfile.TemporaryDirectory() as td:
@@ -67,6 +75,7 @@ class ParallelRunnerTests(unittest.TestCase):
 			self.assertFalse(res['ok'])
 			self.assertEqual(res['failed_module'], 'test_a_fast_fail')
 			self.assertLess(elapsed, 8.0)
+	# @used-by :mod:`unittest`
 	def test_parallel_runner_module_timeout_terminates_stalled_worker(self):
 		from agent_tools.parallel_runner import run_parallel_tests
 		with tempfile.TemporaryDirectory() as td:
@@ -79,6 +88,7 @@ class ParallelRunnerTests(unittest.TestCase):
 			self.assertTrue(res['timed_out'])
 			self.assertEqual(res['failed_module'], 'test_hang')
 			self.assertLess(elapsed, 6.0)
+	# @used-by :mod:`unittest`
 	def test_parallel_runner_passes_all_modules_via_cli(self):
 		from agent_tools.upwork_project import main as cli_main
 		with tempfile.TemporaryDirectory() as td:
@@ -87,10 +97,12 @@ class ParallelRunnerTests(unittest.TestCase):
 			self._write_module(root, 'test_two.py', 'import unittest\nclass T2(unittest.TestCase):\n\tdef test_ok(self):\n\t\tself.assertTrue(True)\n')
 			rc = cli_main(['run-tests', str(root), '--workers', '2', '--module-timeout', '15'])
 			self.assertEqual(rc, 0)
+	# @used-by :mod:`unittest`
 	def test_storage_locked_concurrent_threads_no_permission_error(self):
 		with tempfile.TemporaryDirectory() as td:
 			lock_file = Path(td) / 'race.lock'
 			counter = {'n': 0}
+			# @used-by :meth:`ParallelRunnerTests.test_storage_locked_concurrent_threads_no_permission_error()`
 			def worker(_idx):
 				for _ in range(15):
 					with locked(lock_file, timeout=10):

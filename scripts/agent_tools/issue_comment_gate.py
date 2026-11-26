@@ -20,6 +20,7 @@ _SUPPORTED_SUFFIXES = frozenset({
 })
 _VBS_CMT_RE = re.compile(r'^(?:\'|rem\b)', re.I)
 _XML_SUFFIXES = frozenset({'.html', '.xml'})
+# @used-by :func:`_construct_span()`
 def _brace_span(lines: list[str], start_line: int) -> tuple[int, int, str]:
 	first = lines[start_line - 1].rstrip()
 	if first.endswith(';') and '{' not in first:
@@ -28,6 +29,7 @@ def _brace_span(lines: list[str], start_line: int) -> tuple[int, int, str]:
 		end_line, seen = _scan_brace_end(lines, start_line)
 		r = (start_line, end_line, 'block' if seen else 'stmt')
 	return r
+# @used-by :func:`_check_diff_issue_lines()`
 def _build_py_spans(source: str) -> tuple[dict[int, tuple[int, int, str]], dict[int, list[tuple[int, int]]]]:
 	spans: dict[int, tuple[int, int, str]] = {}
 	class_methods: dict[int, list[tuple[int, int]]] = {}
@@ -39,6 +41,7 @@ def _build_py_spans(source: str) -> tuple[dict[int, tuple[int, int, str]], dict[
 		for node in ast.walk(tree):
 			_record_py_node(node, spans, class_methods)
 	return (spans, class_methods)
+# @used-by :func:`_check_diff_issue_lines()`
 def _check_added_issue_line(rel_label: str, ln: int, cur_lines: list[str], cur_scan: dict, diff_info: dict, py_info: tuple, suffix: str) -> str | None:
 	r: str | None = None
 	changed_code, del_anchors = (diff_info['changed_code'], diff_info['del_anchors'])
@@ -52,6 +55,7 @@ def _check_added_issue_line(rel_label: str, ln: int, cur_lines: list[str], cur_s
 		elif changed_code or del_anchors:
 			r = _check_body_placement(rel_label, ln, nxt, cur_lines, changed_code, del_anchors, py_info, suffix)
 	return r
+# @used-by :func:`check_issue_comment_violations()`
 def _check_author_headers(rel_label: str, cur_scan: dict, base_scan: dict | None) -> list[str]:
 	errs: list[str] = []
 	cur_auth = cur_scan['author_lines']
@@ -63,6 +67,7 @@ def _check_author_headers(rel_label: str, cur_scan: dict, base_scan: dict | None
 	if cur_out and base_out < len(cur_out):
 		errs.append(f'ISSUE-COMMENT-GATE (AUTHOR_OUTSIDE_HEADER): Author line in {rel_label} at line(s) {cur_out[:5]} appears below the file header; keep author line once at the top of the file')
 	return errs
+# @used-by :func:`_check_added_issue_line()`
 def _check_body_placement(rel_label: str, ln: int, nxt: int | None, cur_lines: list[str], changed_code: set[int], del_anchors: set[int], py_info: tuple, suffix: str) -> str | None:
 	r: str | None = None
 	if None is nxt:
@@ -77,6 +82,7 @@ def _check_body_placement(rel_label: str, ln: int, nxt: int | None, cur_lines: l
 		elif 'class' == kind and st not in changed_code:
 			r = _check_class_scope(rel_label, ln, st, en, changed_code, py_info[1])
 	return r
+# @used-by :func:`_check_body_placement()`
 def _check_class_scope(rel_label: str, ln: int, st: int, en: int, changed_code: set[int], class_methods: dict[int, list[tuple[int, int]]]) -> str | None:
 	r: str | None = None
 	methods = class_methods.get(st, ())
@@ -85,6 +91,7 @@ def _check_class_scope(rel_label: str, ln: int, st: int, en: int, changed_code: 
 	if 2 <= len(methods) and 1 == len(touched) and (not outside):
 		r = f'ISSUE-COMMENT-GATE (MISPLACED_ISSUE_COMMENT): Issue URL comment at {rel_label}:{ln} sits on class header while only method at line {touched[0][0]} changed; place it at the modified block or method header'
 	return r
+# @used-by :func:`check_issue_comment_violations()`
 def _check_diff_issue_lines(rel_label: str, source: str, base_lines: list[str], cur_lines: list[str], base_scan: dict, cur_scan: dict, suffix: str) -> list[str]:
 	from .tdd.comment_diff import is_comment_only_diff
 	errs: list[str] = []
@@ -101,6 +108,7 @@ def _check_diff_issue_lines(rel_label: str, source: str, base_lines: list[str], 
 				if None is not err:
 					errs.append(err)
 	return errs
+# @used-by :func:`_check_added_issue_line()`
 def _check_header_placement(rel_label: str, ln: int, nxt: int, cur_lines: list[str], changed_code: set[int], del_anchors: set[int], py_info: tuple, suffix: str, *, comment_only: bool=False) -> str | None:
 	r: str | None = None
 	direct = nxt in changed_code or any((1 >= abs(d - nxt) for d in del_anchors))
@@ -111,6 +119,8 @@ def _check_header_placement(rel_label: str, ln: int, nxt: int, cur_lines: list[s
 		if not in_unit:
 			r = f'ISSUE-COMMENT-GATE (HEADER_DUMPED_ISSUE_COMMENT): Issue URL comment at {rel_label}:{ln} is dumped in the file header above unchanged line {nxt}; place it immediately before the modified block or function/method header'
 	return r
+# @used-by :func:`_check_body_placement()`
+# @used-by :func:`_check_header_placement()`
 def _construct_span(lines: list[str], start_line: int, suffix: str, py_spans: dict[int, tuple[int, int, str]]) -> tuple[int, int, str]:
 	if suffix in ('.py', '.pyi') and start_line in py_spans:
 		r = py_spans[start_line]
@@ -121,6 +131,7 @@ def _construct_span(lines: list[str], start_line: int, suffix: str, py_spans: di
 	else:
 		r = (start_line, start_line, 'stmt')
 	return r
+# @used-by :func:`_check_diff_issue_lines()`
 def _diff_changes(base_lines: list[str], cur_lines: list[str], base_scan: dict, cur_scan: dict) -> dict:
 	changed_code: set[int] = set()
 	added_issue: set[int] = set()
@@ -136,6 +147,7 @@ def _diff_changes(base_lines: list[str], cur_lines: list[str], base_scan: dict, 
 		if tag in ('delete', 'replace') and any((bl in base_scan['code_lines'] for bl in range(i1 + 1, i2 + 1))):
 			del_anchors.add(min(max(1, j1 + 1), max(1, len(cur_lines))))
 	return {'added_issue': added_issue, 'changed_code': changed_code, 'del_anchors': del_anchors}
+# @used-by :func:`_resolve_comment_target()`
 def _find_git_root(path: Path) -> Path | None:
 	r = None
 	for anc in (path.parent, *path.parent.parents):
@@ -143,6 +155,7 @@ def _find_git_root(path: Path) -> Path | None:
 			r = anc
 			break
 	return r
+# @used-by :func:`_is_pure_comment_line()`
 def _is_line_comment_prefix(s: str, suffix: str) -> bool:
 	if suffix in _HASH_SUFFIXES:
 		r = s.startswith('#')
@@ -157,6 +170,7 @@ def _is_line_comment_prefix(s: str, suffix: str) -> bool:
 	else:
 		r = s.startswith('//') and '.css' != suffix and suffix not in _XML_SUFFIXES
 	return r
+# @used-by :func:`_scan_lines()`
 def _is_pure_comment_line(line: str, suffix: str, in_block: bool) -> tuple[bool, bool]:
 	s = line.lstrip('\ufeff').strip()
 	if in_block:
@@ -168,6 +182,7 @@ def _is_pure_comment_line(line: str, suffix: str, in_block: bool) -> tuple[bool,
 	else:
 		r = (_is_line_comment_prefix(s, suffix), False)
 	return r
+# @used-by :func:`_check_added_issue_line()`
 def _next_code_line(start_ln: int, code_lines: set[int], total: int) -> int | None:
 	r = None
 	for cand in range(start_ln + 1, total + 1):
@@ -175,6 +190,7 @@ def _next_code_line(start_ln: int, code_lines: set[int], total: int) -> int | No
 			r = cand
 			break
 	return r
+# @used-by :func:`_build_py_spans()`
 def _record_py_node(node: ast.AST, spans: dict[int, tuple[int, int, str]], class_methods: dict[int, list[tuple[int, int]]]) -> None:
 	if isinstance(node, _PY_DEF_TYPES):
 		decs = [int(d.lineno) for d in getattr(node, 'decorator_list', ())]
@@ -187,6 +203,7 @@ def _record_py_node(node: ast.AST, spans: dict[int, tuple[int, int, str]], class
 	elif isinstance(node, _PY_BLOCK_TYPES):
 		st = int(node.lineno)
 		spans.setdefault(st, (st, int(getattr(node, 'end_lineno', st) or st), 'block'))
+# @used-by :func:`evaluate_pre_tool_use_issue_comment()`
 def _resolve_comment_target(args: dict, payload: dict) -> tuple[Path | None, Path, str] | None:
 	raw_p = str(args.get('Path') or '').strip()
 	r = None
@@ -200,6 +217,7 @@ def _resolve_comment_target(args: dict, payload: dict) -> tuple[Path | None, Pat
 			if not rel.casefold().startswith(('\ua616/', '\ua66e/', '.git/')):
 				r = (repo, target, rel)
 	return r
+# @used-by :func:`_brace_span()`
 def _scan_brace_end(lines: list[str], start_line: int) -> tuple[int, bool]:
 	depth, seen, end_line = (0, False, start_line)
 	for idx in range(start_line - 1, len(lines)):
@@ -212,6 +230,7 @@ def _scan_brace_end(lines: list[str], start_line: int) -> tuple[int, bool]:
 		if (not seen) and idx >= start_line:
 			break
 	return (end_line, seen)
+# @used-by :func:`check_issue_comment_violations()`
 def _scan_lines(lines: list[str], suffix: str) -> dict:
 	st = {'author_lines': [], 'code_lines': set(), 'header_end': 0, 'issue_lines': {}, 'seen_code': False}
 	in_block = False
@@ -223,6 +242,7 @@ def _scan_lines(lines: list[str], suffix: str) -> dict:
 		elif s:
 			_scan_record_code(st, idx, raw, s, suffix)
 	return st
+# @used-by :func:`_scan_lines()`
 def _scan_record_code(st: dict, idx: int, raw: str, s: str, suffix: str) -> None:
 	if (not st['seen_code']) and 1 == idx and _PREAMBLE_RE.match(s):
 		st['header_end'] = idx
@@ -232,6 +252,7 @@ def _scan_record_code(st: dict, idx: int, raw: str, s: str, suffix: str) -> None
 		t_urls = _trailing_comment_urls(raw, suffix)
 		if t_urls:
 			st['issue_lines'][idx] = t_urls
+# @used-by :func:`_scan_lines()`
 def _scan_record_comment(st: dict, idx: int, raw: str) -> None:
 	if _AUTHOR_RE.search(raw):
 		st['author_lines'].append(idx)
@@ -240,6 +261,7 @@ def _scan_record_comment(st: dict, idx: int, raw: str) -> None:
 		st['issue_lines'][idx] = urls
 	if not st['seen_code']:
 		st['header_end'] = idx
+# @used-by :func:`_scan_record_code()`
 def _trailing_comment_urls(line: str, suffix: str) -> list[str]:
 	r: list[str] = []
 	if 'https://github.com/' in line and '/issues/' in line:
@@ -251,6 +273,7 @@ def _trailing_comment_urls(line: str, suffix: str) -> list[str]:
 				if r:
 					break
 	return r
+# @used-by :func:`_construct_span()`
 def _xml_span(lines: list[str], start_line: int) -> tuple[int, int, str]:
 	m = re.match(r'^\s*<([A-Za-z_][\w:.-]*)\b', lines[start_line - 1])
 	end_line, kind = (start_line, 'stmt')
@@ -266,6 +289,13 @@ def _xml_span(lines: list[str], start_line: int) -> tuple[int, int, str]:
 # 2026-11-26
 # "Add PreToolUse and pre-commit gate for issue-comment placement":
 # https://github.com/dmitry-ai/harness/issues/273
+# @used-by :func:`evaluate_pre_tool_use_issue_comment()`
+# @used-by :func:`verify_staged_issue_comment_placement()`
+# @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_comment_gate_skips_body_misalignment_on_comment_only_diff()`
+# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_allows_block_adjacent_function_header_trailing_and_new_file_comments()`
+# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_rejects_duplicate_and_out_of_header_author_lines()`
+# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_rejects_header_dumped_and_misplaced_issue_comments_across_languages()`
+# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_supports_xml_css_and_rejects_coarse_class_header_for_single_method_edit()`
 def check_issue_comment_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	p = Path(path)
 	suffix = p.suffix.lower()
@@ -280,6 +310,7 @@ def check_issue_comment_violations(path: str | Path, source: str, *, baseline_so
 		if None is not base_scan and base_scan['code_lines']:
 			errs.extend(_check_diff_issue_lines(rel_label, source, base_lines, cur_lines, base_scan, cur_scan, suffix))
 	return errs
+# @used-by :func:`agent_tools.gates.issue_comment.check()`
 def evaluate_pre_tool_use_issue_comment(name: str, args: dict, payload: dict) -> str | None:
 	r = None
 	if name in ('write_file', 'edit_file'):
@@ -292,6 +323,7 @@ def evaluate_pre_tool_use_issue_comment(name: str, args: dict, payload: dict) ->
 				errs = check_issue_comment_violations(rel, new_text, baseline_source=base)
 				r = '; '.join(errs[:3]) if errs else None
 	return r
+# @used-by :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
 def verify_staged_issue_comment_placement(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 	repo = Path(repo_root).resolve()
 	violations: list[str] = []

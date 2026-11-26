@@ -58,6 +58,8 @@ class AnswerPreparationRunner:
 	# 2026-11-24
 	# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 	# https://github.com/dmitry-ai/harness/issues/213
+	# @used-by :func:`_prepare_once()`
+	# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
 	def __init__(self, root, response, result, native, turn, *, blocked_report=False):
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -78,6 +80,7 @@ class AnswerPreparationRunner:
 		self.is_finalized = False
 		self.has_substantive_hm = False
 		self.admission_check = None
+	# @used-by :meth:`AnswerPreparationRunner.run()`
 	def _audit_workflow_scope(self):
 		if self.workflow_path.exists():
 			from .workflow import load
@@ -96,6 +99,7 @@ class AnswerPreparationRunner:
 	# 2026-11-14
 	# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 	# https://github.com/dmitry-ai/harness/issues/60
+	# @used-by :meth:`AnswerPreparationRunner.run()`
 	def _authorize_and_sync_workflow(self):
 		# 2026-11-24
 		# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
@@ -111,6 +115,7 @@ class AnswerPreparationRunner:
 		elif self.is_finalized and (not self.has_substantive_hm):
 			self._record_journal_entry()
 			from .workflow import update
+			# @used-by :meth:`AnswerPreparationRunner._authorize_and_sync_workflow()`
 			def change(s):
 				for req in s.get('requests', []):
 					if req['id'] in self.wf_identifiers and (not req.get('response_prepared') or self.allow_reprepare):
@@ -130,17 +135,20 @@ class AnswerPreparationRunner:
 	# 2026-11-21
 	# "Add read-only answer-check pre-flight validation command to harness CLI":
 	# https://github.com/dmitry-ai/harness/issues/117
+	# @used-by :meth:`AnswerPreparationRunner._check_turn_hygiene()`
 	def _check_evicted_citations(self):
 		unreread_cited = _find_evicted_cited_files(self.root, self.pp, self.result['turn_key'], self.value['compaction_check'], self.response)
 		if unreread_cited:
 			detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
 			self._fail_gate('evicted_citations', detail, extra={'cited_files': unreread_cited})
 	# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+	# @used-by :meth:`AnswerPreparationRunner.run()`
 	def _check_source_grounding(self):
 		source_issues = response_source_and_kb_issues(self.root, self.response, self.turn['requests'], touched_files=self.turn.get('touched_files'), turn=self.turn, native=self.native)
 		self.value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
 		if source_issues:
 			self._fail_gate('source_grounding', '; '.join(source_issues))
+	# @used-by :meth:`AnswerPreparationRunner.run()`
 	def _check_turn_hygiene(self):
 		if not self.value['exec5_check']['verified']:
 			commands = [cmd for item in self.value['exec5_check']['violations'] for cmd in item.get('commands', [])]
@@ -181,6 +189,18 @@ class AnswerPreparationRunner:
 		aa_part_errs = self.value['delegation_check'].get('aa_partial_read_violations') or []
 		if aa_part_errs:
 			self._fail_gate('aa_partial_read', 'REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(aa_part_errs))
+	# @used-by :func:`agent_tools.addon_observability.check_runner_addon_observability()`
+	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
+	# @used-by :func:`agent_tools.blocked_report.evaluate_runner_code_hygiene()`
+	# @used-by :func:`agent_tools.blocked_report.prepare_and_sync_authorized_workflow()`
+	# @used-by :func:`agent_tools.hook_crash_audit.check_runner_hook_crashes()`
+	# @used-by :func:`agent_tools.verification_observability.check_runner_verification_observability()`
+	# @used-by :meth:`AnswerPreparationRunner._authorize_and_sync_workflow()`
+	# @used-by :meth:`AnswerPreparationRunner._check_evicted_citations()`
+	# @used-by :meth:`AnswerPreparationRunner._check_source_grounding()`
+	# @used-by :meth:`AnswerPreparationRunner._check_turn_hygiene()`
+	# @used-by :meth:`AnswerPreparationRunner._record_journal_entry()`
+	# @used-by :meth:`AnswerPreparationRunner.run()`
 	def _fail_gate(self, gate_id, detail, *, admission_failed=False, status=None, extra=None, cause=None):
 		if admission_failed:
 			self.value['admission_failure'] = {'detail': detail, 'checked_at': _now()}
@@ -195,12 +215,16 @@ class AnswerPreparationRunner:
 			raise ValueError(detail)
 		else:
 			raise cause
+	# @used-by :func:`agent_tools.blocked_report.prepare_and_sync_authorized_workflow()`
+	# @used-by :func:`agent_tools.blocked_report.record_blocked_report_entry()`
+	# @used-by :meth:`AnswerPreparationRunner._authorize_and_sync_workflow()`
 	def _record_journal_entry(self):
 		try:
 			self.value['prepared'], self.admission_check = _record(self.root, self.native, self.turn, self.response, self.value['journal'], existing=None if self.allow_reprepare else _recorded(self.value), allow_reprepare=self.allow_reprepare)
 		except (OSError, ValueError) as exc:
 			self._fail_gate('journal_admission', str(exc), admission_failed=True, cause=exc)
 		self.value.pop('admission_failure', None)
+	# @used-by :meth:`AnswerPreparationRunner.run()`
 	def _verify_delivered_fast_path(self):
 		if 'delivered' != self.value['status']:
 			r = None
@@ -216,6 +240,8 @@ class AnswerPreparationRunner:
 			recorded, admission_check = _record(self.root, self.native, self.turn, self.response, self.value['journal'], existing=recorded, purpose='observation')
 			r = {**self.result, **recorded, 'ready': True, 'status': 'delivered', 'delivery_verified': True, 'preparation_verified': self.value['delivery'].get('preparation_verified', False), 'admission_verification': admission_check}
 		return r
+	# @used-by :func:`_prepare_once()`
+	# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
 	def run(self):
 		delivered = self._verify_delivered_fast_path()
 		if None is not delivered:
@@ -258,6 +284,9 @@ class AnswerPreparationRunner:
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
 class TurnJournalReconciler:
+	# @used-by :func:`sync()`
+	# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+	# @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 	def __init__(self, root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, preloaded_native=None):
 		if int is not type(from_step) or 0 > from_step:
 			raise ValueError('Native from-step must be a nonnegative integer')
@@ -270,6 +299,7 @@ class TurnJournalReconciler:
 		self.from_step = from_step
 		self.journal_directory = journal_directory
 		self.adopt_conflict = adopt_conflict
+	# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
 	def _build_delivery(self, value, turn, recorded, sha, provenance, preparation_verified):
 		delivery = {**recorded, 'verified': True, 'source_file': self.native['source_file'], 'final_step': turn['final_step'], 'completion_step': turn['completion_step'], 'native_response_sha256': sha, 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'exec5_check': value['exec5_check']}
 		previous_delivery = value.get('delivery') or {}
@@ -282,6 +312,7 @@ class TurnJournalReconciler:
 			delivery['verified_at'] = _now()
 			r = delivery
 		return r
+	# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
 	def _cleanup_adopted_conflict(self, value):
 		value.pop('admission_failure', None)
 		# 2026-11-03
@@ -298,6 +329,7 @@ class TurnJournalReconciler:
 					conflict_file.unlink()
 				except OSError:
 					pass
+	# @used-by :meth:`TurnJournalReconciler.run()`
 	def _reconcile_turn(self, turn):
 		path, value = _state(self.root, self.native, turn, recovered=True, allow_extended=True, journal_directory=self.journal_directory)
 		# 2026-11-23
@@ -365,6 +397,7 @@ class TurnJournalReconciler:
 	# 2026-11-20
 	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 	# https://github.com/dmitry-ai/harness/issues/105
+	# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
 	def _prune_delivered_checkpoint_recovery(self, key: str) -> None:
 		import shutil
 		folder = _folder(self.root)
@@ -377,8 +410,10 @@ class TurnJournalReconciler:
 				rec_file.unlink()
 			except OSError:
 				pass
+	# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
 	def _record_conflict(self, path, value, turn, response, detail, *, retryable=False):
 		return _conflict(self.root, path, value, self.native, turn, response, detail, retryable=retryable)
+	# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
 	def _resolve_effective_response(self, value, turn, response, sha):
 		effective_response, conflict_detail = (response, None)
 		if not value['prepared']:
@@ -400,6 +435,9 @@ class TurnJournalReconciler:
 			elif not self.adopt_conflict:
 				conflict_detail = 'Prepared and delivered response bytes differ'
 		return (effective_response, conflict_detail)
+	# @used-by :func:`sync()`
+	# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+	# @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 	def run(self):
 		if not self.native['primary']:
 			raise ValueError('A child executor has no primary user journal to synchronize')
@@ -442,12 +480,71 @@ class TurnJournalReconciler:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_instruction_snapshot()`
+# @used-by :func:`_new()`
+# @used-by :func:`_persist()`
+# @used-by :func:`_record()`
+# @used-by :func:`_write_compaction_index_file()`
+# @used-by :func:`handoff_launcher_turn()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`recover_turn_violation()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :meth:`AnswerPreparationRunner._authorize_and_sync_workflow()`
+# @used-by :meth:`AnswerPreparationRunner._fail_gate()`
+# @used-by :meth:`AnswerPreparationRunner.run()`
+# @used-by :meth:`TurnJournalReconciler._build_delivery()`
+# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
 def _now():
 	return datetime.now(timezone.utc).isoformat()
+# @used-by :func:`_build_compaction_file_index()`
+# @used-by :func:`_conflict()`
+# @used-by :func:`_group()`
+# @used-by :func:`_instruction_snapshot()`
+# @used-by :func:`_key()`
+# @used-by :func:`_matches_recorded_response()`
+# @used-by :func:`_policy()`
+# @used-by :func:`_prepare_once()`
+# @used-by :func:`_record()`
+# @used-by :func:`begin()`
+# @used-by :func:`check_answer()`
+# @used-by :meth:`AnswerPreparationRunner.__init__()`
+# @used-by :meth:`AnswerPreparationRunner._verify_delivered_fast_path()`
+# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_instruction_snapshot_inventories_sources_without_claiming_model_delivery()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_malformed_local_rule_registration_is_retained_as_an_inventory_error()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_tracked_prepare_preserves_finalizer_receipt_without_duplicate_pair()`
 def _hash(value):
 	return hashlib.sha256(value).hexdigest()
+# @used-by :func:`_key()`
+# @used-by :func:`_persist()`
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`_prepare_once()`
+# @used-by :func:`_write_compaction_index_file()`
+# @used-by :func:`begin()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_cli_issue_first_check_read_only_and_legacy_delivered_immutability()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_sync_preserves_legacy_delivered_turn_bytes_without_tdd_check()`
 def _json(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+# @used-by :func:`_budget_status()`
+# @used-by :func:`_compaction_status()`
+# @used-by :func:`_group()`
+# @used-by :func:`_persist()`
+# @used-by :func:`_record()`
+# @used-by :func:`_state()`
+# @used-by :func:`_violation_recovery()`
+# @used-by :func:`begin()`
+# @used-by :func:`conversation_journal_steps()`
+# @used-by :func:`handoff_launcher_turn()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :func:`sync()`
+# @used-by :func:`sync_conversation_title()`
+# @used-by :meth:`TurnJournalReconciler.run()`
 def _read(path):
 	value = json.loads(path.read_bytes().decode('utf-8'))
 	if not isinstance(value, dict):
@@ -459,6 +556,28 @@ def _read(path):
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
+# @used-by :func:`_budget_status()`
+# @used-by :func:`_compaction_status()`
+# @used-by :func:`_conflict()`
+# @used-by :func:`_journal_lock()`
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`_record()`
+# @used-by :func:`_state()`
+# @used-by :func:`_turn_lock()`
+# @used-by :func:`_violation_recovery()`
+# @used-by :func:`_write_compaction_index_file()`
+# @used-by :func:`begin()`
+# @used-by :func:`conversation_journal_steps()`
+# @used-by :func:`handoff_launcher_turn()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :func:`sync()`
+# @used-by :func:`sync_conversation_title()`
+# @used-by :meth:`TurnJournalReconciler._prune_delivered_checkpoint_recovery()`
+# @used-by :meth:`TurnJournalReconciler.run()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
 def _folder(root):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -472,11 +591,21 @@ def _folder(root):
 # 2026-11-10
 # "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 # https://github.com/dmitry-ai/harness/issues/49
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`_prepare_once()`
+# @used-by :func:`agent_tools.stop_emergency_capture.maybe_emergency_capture_journal()`
+# @used-by :func:`begin()`
+# @used-by :func:`handoff_launcher_turn()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :meth:`TurnJournalReconciler.run()`
 def _turn_lock(root, key):
 	return _folder(root) / f'turn-{key}.lock'
 # 2026-11-10
 # "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 # https://github.com/dmitry-ai/harness/issues/49
+# @used-by :meth:`TurnJournalReconciler.run()`
 def _journal_lock(root):
 	return _folder(root) / 'journal.lock'
 # 2026-10-23
@@ -485,6 +614,19 @@ def _journal_lock(root):
 # 2026-11-13
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
+# @used-by :func:`_conflict()`
+# @used-by :func:`_new()`
+# @used-by :func:`_record()`
+# @used-by :func:`_state()`
+# @used-by :func:`begin()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`conversation_journal_steps()`
+# @used-by :func:`handoff_launcher_turn()`
+# @used-by :func:`sync()`
+# @used-by :func:`sync_conversation_title()`
+# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
+# @used-by :meth:`TurnJournalReconciler._resolve_effective_response()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
 def _directory(root, selected=None):
 	return journal.resolve_journal_dir(root, selected)
 # 2026-10-23
@@ -493,6 +635,27 @@ def _directory(root, selected=None):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_group()`
+# @used-by :func:`_new()`
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`_prepare_once()`
+# @used-by :func:`_record()`
+# @used-by :func:`_state()`
+# @used-by :func:`_unchanged()`
+# @used-by :func:`agent_tools.stop_emergency_capture.maybe_emergency_capture_journal()`
+# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
+# @used-by :func:`begin()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`issue_first_check_turn()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :func:`tdd_check_turn()`
+# @used-by :meth:`TurnJournalReconciler.run()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_doctor_and_turn_begin_exclude_addons_health()`
 def _key(native, turn):
 	identity = [native['platform'], native['native_backend'], native['conversation_id'], turn['turn_id']]
 	# 2026-11-24
@@ -505,6 +668,26 @@ def _key(native, turn):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`_prepare_once()`
+# @used-by :func:`_unchanged()`
+# @used-by :func:`agent_tools.stop_emergency_capture.maybe_emergency_capture_journal()`
+# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
+# @used-by :func:`begin()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`issue_first_check_turn()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :func:`sync_conversation_title()`
+# @used-by :func:`tdd_check_turn()`
+# @used-by :func:`test_turn_completion.completed_tail_is_immutable()`
+# @used-by :meth:`TurnJournalReconciler.__init__()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_tdd_and_issue_first_check_skip_shell_violation_scanning()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission()`
 def _native(root, conversation=None, *, platform=None, backend=None):
 	platform = platform_name(platform)
 	conversation = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == platform else None)
@@ -523,11 +706,14 @@ def _native(root, conversation=None, *, platform=None, backend=None):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
 def _policy():
 	return {ident: {'source': relative, 'anchor': anchor, 'sha256': _hash((PRIMARY / relative).read_bytes()), 'requirement': RULE_REQUIREMENTS[ident]} for ident, (relative, anchor) in RULES.items()}
 # 2026-11-02
 # "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 # https://github.com/dmitry-ai/harness/issues/36
+# @used-by :func:`_recoverable_step_status()`
 def _violation_recovery(root, key):
 	if None is root or not key:
 		return {}
@@ -547,11 +733,17 @@ def _violation_recovery(root, key):
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
+# @used-by :func:`check_answer()`
 def _exec5_status(turn, root=None, key=None):
 	return _recoverable_step_status(turn, 'exec5_violations', 'covered_exec5_steps', root, key)
 # 2026-11-13
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
+# @used-by :func:`check_answer()`
+# @used-by :meth:`AnswerPreparationRunner._audit_workflow_scope()`
+# @used-by :mod:`agent_tools.completion`
 def _factual_kb_note_issues(root, turn):
 	from .knowledge import validate_kb_factual_note
 	# 2026-11-19
@@ -585,12 +777,22 @@ def _factual_kb_note_issues(root, turn):
 # 2026-11-23
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`issue_first_check_turn()`
+# @used-by :meth:`AnswerPreparationRunner._check_turn_hygiene()`
 def _issue_first_status(root, turn):
 	from .issue_first_gate import evaluate_issue_first_events
 	return evaluate_issue_first_events(list(turn.get('issue_first_events') or []), requests=list(turn.get('requests') or []), project_root=root)
 # 2026-11-23
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`tdd_check_turn()`
+# @used-by :meth:`AnswerPreparationRunner._check_turn_hygiene()`
 def _tdd_status(root, turn):
 	from .tdd_gate import evaluate_tdd_events
 	# 2026-11-25
@@ -600,6 +802,7 @@ def _tdd_status(root, turn):
 # 2026-11-25
 # "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 # https://github.com/dmitry-ai/harness/issues/251
+# @used-by :func:`check_answer()`
 def _hook_crash_status(root, native, turn, value, response):
 	from .hook_crash_audit import evaluate_hook_crash_check
 	return evaluate_hook_crash_check(root, native, turn, value, response)
@@ -650,6 +853,7 @@ GATE_SPECS = (
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`_state()`
 def _gate_resolved(root, turn, value):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -669,11 +873,19 @@ def _gate_resolved(root, turn, value):
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
+# @used-by :func:`check_answer()`
 def _http_fetch_status(turn, root=None, key=None):
 	return _recoverable_step_status(turn, 'http_fetch_violations', 'covered_http_fetch_steps', root, key)
 # 2026-10-30
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_client_deliverable_grounding_and_evicted_step_output_gate()`
 def _compaction_status(root, key, turn):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -737,6 +949,8 @@ def _compaction_status(root, key, turn):
 # 2026-11-21
 # "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
 # https://github.com/dmitry-ai/harness/issues/119
+# @used-by :func:`_write_compaction_index_file()`
+# @used-by :func:`recover_checkpoint()`
 def _build_compaction_file_index(root: Path, pre_reads: list[str], post_reads: list[str], evicted_unreread: list[str]) -> list[dict]:
 	ev_set = {str(p).replace('\\', '/').lower() for p in (evicted_unreread or ())}
 	post_set = {str(p).replace('\\', '/').lower() for p in (post_reads or ())}
@@ -777,6 +991,9 @@ def _build_compaction_file_index(root: Path, pre_reads: list[str], post_reads: l
 # 2026-11-21
 # "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
 # https://github.com/dmitry-ai/harness/issues/119
+# @used-by :func:`begin()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :meth:`AnswerPreparationRunner.run()`
 def _write_compaction_index_file(root: Path, key: str, turn: dict, comp_check: dict, *, step_records: list[dict] | None = None) -> str:
 	rec_dir = _folder(root) / f'{key}-recovery'
 	rec_dir.mkdir(parents=True, exist_ok=True)
@@ -818,6 +1035,9 @@ def _write_compaction_index_file(root: Path, key: str, turn: dict, comp_check: d
 # 2026-11-21
 # "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
 # https://github.com/dmitry-ai/harness/issues/119
+# @used-by :func:`begin()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :meth:`AnswerPreparationRunner.run()`
 def _compact_compaction_check(comp_check: dict, *, index_file: str | None = None) -> dict:
 	occurred = bool(comp_check.get('occurred'))
 	eff_idx = (index_file if None is not index_file else comp_check.get('index_file')) if occurred else None
@@ -852,6 +1072,9 @@ DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS = 3
 # 2026-10-30
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
+# @used-by :func:`check_answer()`
 def _delegation_status(root, turn):
 	del_info = dict(turn.get('delegation') or {})
 	tool_steps = int(del_info.get('tool_step_count') or 0)
@@ -896,6 +1119,8 @@ BUDGET_WINDOW_5H_MAX_STEPS = 400
 # 2026-11-10
 # "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 # https://github.com/dmitry-ai/harness/issues/49
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
 def _budget_status(root, turn):
 	comp = dict(turn.get('compaction') or {})
 	del_info = dict(turn.get('delegation') or {})
@@ -935,6 +1160,9 @@ def _budget_status(root, turn):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 def _instruction_snapshot(root, native, *, stage):
 	from .configuration import _project_rule_paths
 	# 2026-11-19
@@ -1002,6 +1230,9 @@ def _instruction_snapshot(root, native, *, stage):
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
+# @used-by :func:`_compaction_status()`
+# @used-by :func:`check_answer()`
+# @used-by :meth:`AnswerPreparationRunner._audit_workflow_scope()`
 def _is_client_deliverable_path(path_text, root=None) -> bool:
 	norm = str(path_text).replace('\\', '/').lower()
 	if '/\ua616/' in norm or '/\ua66e/' in norm:
@@ -1023,6 +1254,8 @@ def _is_client_deliverable_path(path_text, root=None) -> bool:
 # 2026-11-22
 # "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
 # https://github.com/dmitry-ai/harness/issues/123
+# @used-by :func:`_new()`
+# @used-by :func:`_state()`
 def _similar_projects_metadata(root: Path) -> tuple[list[str], list[str]]:
 	from .issue_lifecycle import similar_project_repo_slugs
 	from .path_registry import canonicalize_root_dir, load_registry, project_paths
@@ -1031,6 +1264,7 @@ def _similar_projects_metadata(root: Path) -> tuple[list[str], list[str]]:
 	pp = project_paths(canon_root, registry=reg, exact_root=True)
 	peers: list[Path] = []
 	seen_peers: set[str] = set()
+	# @used-by :func:`_similar_projects_metadata()`
 	def _push_peer(p: Path) -> None:
 		cp = canonicalize_root_dir(p, registry=reg)
 		if cp == canon_root:
@@ -1076,6 +1310,9 @@ def _similar_projects_metadata(root: Path) -> tuple[list[str], list[str]]:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_state()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -1120,6 +1357,19 @@ def _new(root, native, turn, *, recovered=False, journal_directory=None):
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`_conflict()`
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`begin()`
+# @used-by :func:`handoff_launcher_turn()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :meth:`AnswerPreparationRunner._fail_gate()`
+# @used-by :meth:`AnswerPreparationRunner.run()`
+# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
+# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
 def _persist(path, value):
 	if path.exists() and _read(path) == value:
 		return
@@ -1128,6 +1378,7 @@ def _persist(path, value):
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`recover_turn_violation()`
 def _persist_turn_recovery(root, conversation, suffix, build_receipt, *, platform=None, backend=None, clear_admission=False):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -1155,6 +1406,8 @@ def _persist_turn_recovery(root, conversation, suffix, build_receipt, *, platfor
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
+# @used-by :func:`_exec5_status()`
+# @used-by :func:`_http_fetch_status()`
 def _recoverable_step_status(turn, violations_key, covered_key, root=None, key=None):
 	violations = list(turn.get(violations_key) or [])
 	rec = _violation_recovery(root, key) if violations else {}
@@ -1167,6 +1420,7 @@ def _recoverable_step_status(turn, violations_key, covered_key, root=None, key=N
 # 2026-11-21
 # "Remove text-based explicit-project-root override from request binding":
 # https://github.com/dmitry-ai/harness/issues/112
+# @used-by :func:`_state()`
 def _same_saved_request(old_req, cur_req, root):
 	if old_req == cur_req:
 		return True
@@ -1194,6 +1448,17 @@ def _same_saved_request(old_req, cur_req, root):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`begin()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :meth:`AnswerPreparationRunner.__init__()`
+# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
+# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_doctor_and_turn_begin_exclude_addons_health()`
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -1359,6 +1624,18 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_persist_turn_recovery()`
+# @used-by :func:`_prepare_once()`
+# @used-by :func:`_unchanged()`
+# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
+# @used-by :func:`begin()`
+# @used-by :func:`check_answer()`
+# @used-by :func:`issue_first_check_turn()`
+# @used-by :func:`ratchet_ok()`
+# @used-by :func:`recover_checkpoint()`
+# @used-by :func:`similar_project_exempt()`
+# @used-by :func:`tdd_check_turn()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
 def _active(native):
 	if not native['primary']:
 		r = None
@@ -1378,6 +1655,9 @@ def _active(native):
 # 2026-11-22
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
+# @used-by :func:`_sync_antigravity_conversation_title()`
+# @used-by :func:`agent_tools.meta.blocks._conversation_label()`
+# @used-by :func:`sync_conversation_title()`
 def format_conversation_journal_title(steps) -> str:
 	ordered = sorted({st for st in (steps or ()) if int is type(st) and 1 <= st})
 	return ', '.join((str(st) for st in ordered))
@@ -1387,6 +1667,11 @@ def format_conversation_journal_title(steps) -> str:
 # 2026-11-26
 # "Harden follow-up launcher handoff and journal reservation integrity":
 # https://github.com/dmitry-ai/harness/issues/269
+# @used-by :func:`_record()`
+# @used-by :func:`_sync_antigravity_conversation_title()`
+# @used-by :func:`agent_tools.meta.blocks._resolve_conversation_steps()`
+# @used-by :func:`sync_conversation_title()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
 def conversation_journal_steps(root, journal_directory, conversation_id: str) -> list[int]:
 	from .journal_integrity import collect_conversation_journal_steps
 	from .path_registry import canonicalize_root_dir
@@ -1400,6 +1685,10 @@ def conversation_journal_steps(root, journal_directory, conversation_id: str) ->
 # 2026-11-22
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
+# @used-by :func:`begin()`
+# @used-by :func:`sync_conversation_title()`
+# @used-by :meth:`AnswerPreparationRunner.run()`
+# @used-by :meth:`TurnJournalReconciler.run()`
 def _sync_antigravity_conversation_title(root, native: dict, journal_directory=None, *, dry_run: bool=False) -> dict | None:
 	if not isinstance(native, dict) or (not native.get('primary')):
 		return None
@@ -1423,6 +1712,8 @@ def _sync_antigravity_conversation_title(root, native: dict, journal_directory=N
 # 2026-11-22
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
+# @used-by :func:`execute()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
 def sync_conversation_title(root, conversation=None, *, platform=None, backend=None, journal_directory=None, dry_run: bool=False) -> dict:
 	from .path_registry import canonicalize_root_dir
 	root_p = canonicalize_root_dir(root)
@@ -1459,6 +1750,9 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 # 2026-11-26
 # "Harden follow-up launcher handoff and journal reservation integrity":
 # https://github.com/dmitry-ai/harness/issues/269
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`begin()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation()`
 def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id=None) -> list[dict]:
 	from .journal_integrity import collect_handed_off_conversations, turn_matches_handoff
 	from .path_registry import canonicalize_root_dir, same_project_root
@@ -1526,6 +1820,44 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 # 2026-11-21
 # "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 # https://github.com/dmitry-ai/harness/issues/116
+# @used-by :func:`_prepare_once()`
+# @used-by :func:`agent_tools.shadow_replay._run_turn_begin()`
+# @used-by :func:`check_pre_invocation.evaluate_pre_invocation_payload()`
+# @used-by :func:`execute()`
+# @used-by :func:`test_finalized_project_contract._seed_pre_review()`
+# @used-by :func:`test_stop_emergency_capture_and_foreign_sync._reserve_foreign()`
+# @used-by :func:`test_turn_completion.completed_tail_is_immutable()`
+# @used-by :meth:`test_ask_question_clarifications_m8.AskQuestionClarificationsM8Tests.test_antigravity_scanner_and_turn_state_preserve_clarifications_without_breaking_user_turns()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
+# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_idle_prepared_turn_transitions_to_delivered_via_foreign_sync_and_all_open_without_mutating_journal()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
+# @used-by :meth:`test_stop_emergency_capture_and_foreign_sync.StopEmergencyCaptureAndForeignSyncTests.test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running()`
+# @used-by :meth:`test_stop_emergency_capture_and_foreign_sync.StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
+# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_automatic_journal_only_upgrade_and_cli_subcommand()`
+# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_doctor_and_turn_begin_exclude_addons_health()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_pre_invocation_hook_idempotent_turn_begin_child_skip_terminate_and_dry_run()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_antigravity_begin_and_prepare_never_register_or_start_background_work()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_journal_sync_adopt_conflict_recovers_failed_turn()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_kb_persistence_checks_target_path_not_scratch_content()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_parallel_turn_scratch_isolation_and_budget_gate()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_post_finalize_turn_with_adopted_request_skips_authorize_when_non_substantive()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_universal_gates_m1_to_m6_for_external_writes_dict_issues_and_kb_mutations()`
+# @used-by :meth:`test_turn_completion.CompletionCase.begin()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_begin_and_prepare_cannot_register_or_start_a_daemon_even_with_legacy_watch_true()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_begin_reconciles_previous_delivery_in_the_same_foreground_call()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_child_foreign_root_and_foreign_profile_never_create_user_pairs()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_steering_during_begin_invalidates_the_prepared_request_snapshot()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_switching_active_native_turn_during_prepare_records_no_answer()`
 def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, dry_run=False):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -1657,6 +1989,12 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 # 2026-11-21
 # "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
 # https://github.com/dmitry-ai/harness/issues/119
+# @used-by :func:`execute()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_post_checkpoint_res_citation_and_issue48_recursive_subagent_aggregation()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_mid_turn_checkpoint_blocks_until_recover_checkpoint()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_post_checkpoint_unreread_source_blocks_analysis_and_response()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_codex_compaction_and_adhoc_http_fetch_gates()`
 def recover_checkpoint(root, conversation=None, *, platform=None, backend=None, dry_run=False):
 	if dry_run:
 		from .path_registry import canonicalize_root_dir
@@ -1748,6 +2086,10 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None, 
 # 2026-11-02
 # "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
 # https://github.com/dmitry-ai/harness/issues/36
+# @used-by :func:`execute()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes()`
 def recover_turn_violation(root, conversation=None, *, reason=None, platform=None, backend=None):
 	# 2026-11-25
 	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
@@ -1757,6 +2099,8 @@ def recover_turn_violation(root, conversation=None, *, reason=None, platform=Non
 # 2026-11-22
 # "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
 # https://github.com/dmitry-ai/harness/issues/123
+# @used-by :func:`execute()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
 def similar_project_exempt(root, peer, reason, conversation=None, *, platform=None, backend=None):
 	from .issue_lifecycle import similar_project_repo_slugs
 	from .path_registry import canonicalize_root_dir, load_registry, project_paths
@@ -1768,6 +2112,7 @@ def similar_project_exempt(root, peer, reason, conversation=None, *, platform=No
 	pp = project_paths(root_p, registry=reg, exact_root=True)
 	allowed_peers: list[Path] = []
 	seen_keys: set[str] = set()
+	# @used-by :func:`similar_project_exempt()`
 	def _add_allowed(p: Path) -> None:
 		cp = canonicalize_root_dir(p, registry=reg)
 		if cp == root_p:
@@ -1829,6 +2174,7 @@ def similar_project_exempt(root, peer, reason, conversation=None, *, platform=No
 # 2026-11-23
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
+# @used-by :func:`execute()`
 def ratchet_ok(root, file_path, reason, conversation=None, *, platform=None, backend=None):
 	from .path_registry import canonicalize_root_dir
 	from .tdd_gate import validate_ratchet_reason
@@ -1864,6 +2210,9 @@ def ratchet_ok(root, file_path, reason, conversation=None, *, platform=None, bac
 # 2026-11-23
 # "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
 # https://github.com/dmitry-ai/harness/issues/138
+# @used-by :func:`execute()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_tdd_check_reports_uncovered_added_function()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_tdd_and_issue_first_check_skip_shell_violation_scanning()`
 def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
 	from .path_registry import canonicalize_root_dir
 	from .source_grounding import read_only_grounding
@@ -1888,6 +2237,8 @@ def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
 # 2026-11-23
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
+# @used-by :func:`execute()`
+# @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_tdd_and_issue_first_check_skip_shell_violation_scanning()`
 def issue_first_check_turn(root, conversation=None, *, platform=None, backend=None):
 	from .path_registry import canonicalize_root_dir
 	from .source_grounding import read_only_grounding
@@ -1923,6 +2274,8 @@ _find_orphan_or_overwritten_steps = journal.find_orphan_or_overwritten_steps
 # 2026-11-23
 # "Prepend JSON metadata headers to new journal responses":
 # https://github.com/dmitry-ai/harness/issues/151
+# @used-by :meth:`AnswerPreparationRunner._check_turn_hygiene()`
+# @used-by :meth:`AnswerPreparationRunner._verify_delivered_fast_path()`
 def _matches_recorded_response(recorded, raw_response: str, raw_sha: str) -> bool:
 	if not isinstance(recorded, dict):
 		return False
@@ -1950,6 +2303,8 @@ def _matches_recorded_response(recorded, raw_response: str, raw_sha: str) -> boo
 # 2026-11-10
 # "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 # https://github.com/dmitry-ai/harness/issues/49
+# @used-by :func:`_record()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_legacy_complete_group_without_turn_state_exposes_proof_gap_without_readmission()`
 def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 	key = 'native-' + _key(native, turn)
 	legacy = turn['turn_id']
@@ -2025,6 +2380,12 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`_conflict()`
+# @used-by :func:`begin()`
+# @used-by :func:`handoff_launcher_turn()`
+# @used-by :meth:`AnswerPreparationRunner._record_journal_entry()`
+# @used-by :meth:`AnswerPreparationRunner._verify_delivered_fast_path()`
+# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
 def _recorded(value):
 	return next((receipt for receipt in (value.get('prepared'), value.get('journal_record'), value.get('delivery')) if isinstance(receipt, dict) and 'journal_steps' in receipt), None)
 # 2026-10-31
@@ -2033,6 +2394,10 @@ def _recorded(value):
 # 2026-11-13
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
+# @used-by :func:`_record()`
+# @used-by :func:`check_answer()`
+# @used-by :meth:`AnswerPreparationRunner._check_turn_hygiene()`
+# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests()`
 def _intermediate_or_language_issues(requests, response: str) -> list[str]:
 	# 2026-11-23
 	# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
@@ -2053,6 +2418,7 @@ def _intermediate_or_language_issues(requests, response: str) -> list[str]:
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
+# @used-by :func:`_record()`
 def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str, *, kind: str) -> bool:
 	if saved_str == current_str:
 		return True
@@ -2090,6 +2456,10 @@ def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str
 # 2026-11-10
 # "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 # https://github.com/dmitry-ai/harness/issues/49
+# @used-by :meth:`AnswerPreparationRunner._record_journal_entry()`
+# @used-by :meth:`AnswerPreparationRunner._verify_delivered_fast_path()`
+# @used-by :meth:`TurnJournalReconciler._reconcile_turn()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_steering_during_journal_write_preserves_history_without_granting_readiness()`
 def _record(root, native, turn, response, directory, *, existing=None, purpose='publication', allow_reprepare=False):
 	if purpose not in ('publication', 'observation'):
 		raise ValueError('Choose publication admission or historical observation')
@@ -2231,6 +2601,7 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :meth:`AnswerPreparationRunner.run()`
 def _unchanged(root, native, turn):
 	latest = _native(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'])
 	current = _active(latest)
@@ -2239,6 +2610,7 @@ def _unchanged(root, native, turn):
 # 2026-11-13
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
+# @used-by :mod:`agent_tools.completion`
 def _workflow_gate_resolved(root_p, turn, kind):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -2261,6 +2633,8 @@ def _workflow_gate_resolved(root_p, turn, kind):
 # 2026-11-21
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
+# @used-by :func:`check_answer()`
+# @used-by :meth:`AnswerPreparationRunner._check_evicted_citations()`
 def _find_evicted_cited_files(root: Path, pp, turn_key: str | None, compaction_check: dict, response: str) -> list[str]:
 	unreread_cited: list[str] = []
 	if compaction_check.get('occurred') and compaction_check.get('evicted_unreread_files'):
@@ -2291,6 +2665,7 @@ def _find_evicted_cited_files(root: Path, pp, turn_key: str | None, compaction_c
 # 2026-11-21
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
+# @used-by :func:`_response_link_issues()`
 def _authored_nonquote_hrefs(content: str) -> list[str]:
 	from .links import HTMLReferences, _bare_urls
 	from .source_grounding import markdown_parser
@@ -2321,6 +2696,8 @@ def _authored_nonquote_hrefs(content: str) -> list[str]:
 # 2026-11-21
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
+# @used-by :func:`check_answer()`
+# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_completion_and_grounding_match_chat_reply_link_policy()`
 def _response_link_issues(root_p: Path, response: str, *, response_path: Path | None = None, scratch_dir: Path | None = None) -> list[str]:
 	from urllib.parse import unquote, urldefrag, urlsplit
 	# 2026-11-25
@@ -2418,6 +2795,9 @@ def _response_link_issues(root_p: Path, response: str, *, response_path: Path | 
 # 2026-11-21
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
+# @used-by :func:`check_answer()`
+# @used-by :func:`issue_first_check_turn()`
+# @used-by :func:`tdd_check_turn()`
 def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 	if native.get('turns'):
 		return native['turns'][-1]
@@ -2525,6 +2905,29 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 # 2026-11-24
 # "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 # https://github.com/dmitry-ai/harness/issues/213
+# @used-by :func:`agent_tools.shadow_replay._run_answer_check()`
+# @used-by :func:`execute()`
+# @used-by :func:`test_contract_invariants._run_parity_defect_case()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal()`
+# @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
+# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
+# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests.test_blocked_report_records_journal_without_closing_workflow_or_allowing_finalize()`
+# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests.test_blocked_report_rejects_analytical_hm_claims_and_five_stage_content()`
+# @used-by :meth:`test_cli_command_grounding.CliCommandGroundingTests.test_answer_check_blocks_unverified_and_allows_shadow_replay_or_disclaimer()`
+# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_markdown_table_blocked_across_doc4_hook_linter_and_grounding()`
+# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_four_separate_problem_analyses_validated_independently_ru_and_en()`
+# @used-by :meth:`test_doc5_context_trigger.Doc5ContextTriggerTests.test_active_turn_cli_failure_plus_new_parent_issue_forces_doc5_four_tracks()`
+# @used-by :meth:`test_doc5_context_trigger.Doc5ContextTriggerTests.test_planned_child_issue_turn_with_tdd_red_failure_does_not_force_doc5()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
+# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_grounding_accepts_verified_local_repo_tagged_url_and_blocks_fabrications()`
+# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_analysis_check_and_answer_check_enforce_file6_banner()`
+# @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_answer_check_enforces_hook_crash_gate()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_codex_apply_patch_and_exec_command_tdd_gate()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_answer_check_detects_link5_doc4_verify1_and_exec5_without_disk_side_effects()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
+# @used-by :meth:`test_verification_observability.VerificationObservabilityTests.test_failed_shadow_replay_blocks_silent_reply_and_issue_close_and_passes_on_disclosure_or_rerun()`
 def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None, blocked_report=False):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 candidate response is required')
@@ -2606,6 +3009,7 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 # 2026-11-24
 # "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 # https://github.com/dmitry-ai/harness/issues/213
+# @used-by :func:`prepare()`
 def _prepare_once(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, blocked_report=False):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 final response is required')
@@ -2636,6 +3040,58 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 # 2026-11-24
 # "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
 # https://github.com/dmitry-ai/harness/issues/213
+# @used-by :func:`agent_tools.shadow_replay._run_answer_prepare()`
+# @used-by :func:`execute()`
+# @used-by :func:`test_contract_invariants._run_parity_defect_case()`
+# @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
+# @used-by :func:`test_turn_completion.completed_tail_is_immutable()`
+# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal()`
+# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
+# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests.test_blocked_report_records_journal_without_closing_workflow_or_allowing_finalize()`
+# @used-by :meth:`test_blocked_report_m2.BlockedReportM2Tests.test_blocked_report_rejects_analytical_hm_claims_and_five_stage_content()`
+# @used-by :meth:`test_cli_command_grounding.CliCommandGroundingTests.test_prepare_rejects_unverified_cli_recommendation()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.deliver()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_failed_semantic_admission_is_not_granted_by_a_later_valid_apply()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_new_admission_still_rejects_aged_sources_and_cannot_recover_failed_gate()`
+# @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_post_checkpoint_res_citation_and_issue48_recursive_subagent_aggregation()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_all_open_syncs_idle_prepared_turn()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_idle_prepared_turn_transitions_to_delivered_via_foreign_sync_and_all_open_without_mutating_journal()`
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_antigravity_prepare_prepends_metadata_and_stop_gate_and_sync_accept_clean_chat_reply()`
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_codex_prepare_reprepare_and_unprepared_recovery_prepend_metadata()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
+# @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_answer_prepare_wait_timeout_retries_transient_lock_and_recovers()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_codex_apply_patch_and_exec_command_tdd_gate()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.assert_repeated_delivery_is_read_only()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adhoc_http_fetch_in_shell_blocks_and_collect_http_persists()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_antigravity_begin_and_prepare_never_register_or_start_background_work()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_code_and_issue_lifecycle_gate_blocks_uncommitted_unpushed_and_open_issue_in_prepare()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_crlf_prepared_journal_and_system_message_subagent_completion_do_not_conflict()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_excessive_unpersisted_tool_steps_without_subagent_or_kb_write_blocks()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_external_article_link_requires_kb_grounding_and_matching_observed_title()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_local_source_grounding_blocks_fabricated_quotes_identifiers_and_currencies()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_mid_turn_checkpoint_blocks_until_recover_checkpoint()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_post_checkpoint_unreread_source_blocks_analysis_and_response()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_post_finalize_turn_with_adopted_request_skips_authorize_when_non_substantive()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_repeated_antigravity_preparation_preserves_all_domain_bytes_and_mtimes()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_repeated_conflict_preserves_all_domain_bytes_and_mtimes()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_unadopted_substantive_followup_in_tracked_project_cannot_bypass_review()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_unencoded_file_uri_accepted_in_prepare_and_reconciled_in_sync()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_unfinished_parallel_subagent_turn_merges_with_next_request_and_blocks_english_stub_on_russian_request()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_universal_gates_m1_to_m6_for_external_writes_dict_issues_and_kb_mutations()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_universal_source_kb_check_blocks_reddit_js_shell_unverified_short_links_missing_anchors_and_fake_quotes()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_unpersisted_source_reads_and_af_worker_cannot_bypass_substantive_review()`
+# @used-by :meth:`test_turn_completion.CompletionCase.prepare()`
+# @used-by :meth:`test_turn_completion.CompletionCase.test_begin_and_prepare_cannot_register_or_start_a_daemon_even_with_legacy_watch_true()`
+# @used-by :meth:`test_verification_observability.VerificationObservabilityTests.test_prepare_enforces_verification_observability_check()`
 def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, wait_timeout: float=0.0, wait_poll: float=1.0, blocked_report: bool=False):
 	from .repo_wait import run_with_transient_wait
 	return run_with_transient_wait(Path(root), lambda: _prepare_once(root, response, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory, blocked_report=blocked_report), wait_timeout=wait_timeout, poll_interval=wait_poll)
@@ -2645,6 +3101,9 @@ def prepare(root, response, conversation=None, *, platform=None, backend=None, w
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :meth:`TurnJournalReconciler._record_conflict()`
+# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_conflict_recording_and_reconciliation_prune_terminal_reservations()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
 def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -2681,11 +3140,41 @@ _strip_local_file_scheme = journal.strip_local_file_scheme
 # 2026-11-26
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
+# @used-by :func:`begin()`
+# @used-by :func:`execute()`
+# @used-by :func:`reconcile_unprepared_delivery()`
+# @used-by :func:`test_turn_completion.foreground_sync_preserves_admitted_delivery()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.assert_stable()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.deliver()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_failed_semantic_admission_is_not_granted_by_a_later_valid_apply()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_legacy_record_has_visible_proof_gap_and_unchanged_history()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_new_admission_still_rejects_aged_sources_and_cannot_recover_failed_gate()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_proof_evidence_review_document_and_journal_changes_remain_conflicts()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_real_pre_change_legacy_conflict_remains_conflict_permanently()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_real_pre_change_legacy_record_reports_legacy_proof_gap_and_remains_stable()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_reconciliation_receipt_tampering_or_deletion_remains_conflict()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_replaying_an_older_applied_target_is_not_a_later_legitimate_revision()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_selected_review_entry_mutation_or_deletion_remains_conflict()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unreconciled_target_edit_temporary_conflict_preserves_original_delivery_provenance()`
+# @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_cli_issue_first_check_read_only_and_legacy_delivered_immutability()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_all_open_syncs_idle_prepared_turn()`
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_antigravity_prepare_prepends_metadata_and_stop_gate_and_sync_accept_clean_chat_reply()`
+# @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_codex_prepare_reprepare_and_unprepared_recovery_prepend_metadata()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
+# @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict()`
+# @used-by :meth:`test_stop_emergency_capture_and_foreign_sync.StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
+# @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_sync_preserves_legacy_delivered_turn_bytes_without_tdd_check()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass()`
+# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.sync()`
+# @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_journal_sync_adopt_conflict_recovers_failed_turn()`
+# @used-by :meth:`test_turn_completion.CompletionCase.sync()`
 def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, all_open=False, _preloaded_native=None):
 	return sync_all_open(root, journal_directory=journal_directory, adopt_conflict=adopt_conflict, from_step=from_step, folder_fn=_folder, dir_fn=_directory, read_fn=_read, sync_fn=sync) if all_open else TurnJournalReconciler(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=adopt_conflict, preloaded_native=_preloaded_native).run()
 # 2026-11-04
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
+# @used-by :func:`execute()`
 def reconcile_unprepared_delivery(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None):
 	return sync(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=True)
 # 2026-10-23
@@ -2697,6 +3186,8 @@ def reconcile_unprepared_delivery(root, conversation=None, *, platform=None, bac
 # 2026-11-20
 # "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 # https://github.com/dmitry-ai/harness/issues/105
+# @used-by :func:`agent_tools.operations.add_parsers()`
+# @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict()`
 def add_parser_arguments(parser, command):
 	from .cli_common import add_arg_specs
 	specs = [('project', {'type': Path}), ('--conversation', {'help': 'Actual current native conversation UUID; Codex can use CODEX_THREAD_ID'})]
@@ -2767,6 +3258,8 @@ def add_parser_arguments(parser, command):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.operations.execute()`
+# @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict()`
 def execute(args):
 	if 'turn-begin' == args.command:
 		# 2026-11-21

@@ -1,6 +1,7 @@
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from copy import deepcopy
 from datetime import datetime, timezone
+from typing import override
 import json
 from pathlib import Path
 import sqlite3
@@ -20,6 +21,13 @@ from agent_tools.platforms import codex
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class ExperimentTests(unittest.TestCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`unittest.TestCase.setUp()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`unittest.TestCase.setUp()`
+	@override
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
 		self.addCleanup(self.temp.cleanup)
@@ -28,14 +36,65 @@ class ExperimentTests(unittest.TestCase):
 		self.home.mkdir()
 		self.cid = str(uuid.uuid4())
 		self.requirement = {'id': 'R-CONTENT', 'claim': 'The received JSON says the link exists', 'property': 'content', 'alternatives': ['The link is absent in the received response'], 'method': 'http', 'scope': {'objects': ['https://example.invalid/de-de']}, 'conditions': {}, 'expected': 'present is true', 'falsification': 'present is false', 'discriminating_test': 'Read the exact JSON field; parse failures are inconclusive', 'completion_criterion': 'Save one raw response and its measured field', 'assertions': [{'id': 'A-PRESENT', 'artifact_id': 'raw', 'locator': {'type': 'json_pointer', 'value': '/present'}, 'operator': 'equals', 'expected': True, 'disconfirming': {'operator': 'equals', 'expected': False}}]}
+	# @used-by :func:`agent_tools.operations._execute_collect()`
+	# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+	# @used-by :meth:`ExperimentTests.test_amended_expectation_requires_new_observation_and_retains_original()`
+	# @used-by :meth:`ExperimentTests.test_authored_positive_json_cannot_replace_contrary_primary_response()`
+	# @used-by :meth:`ExperimentTests.test_before_snapshot_cannot_be_taken_from_action_after_output()`
+	# @used-by :meth:`ExperimentTests.test_browser_label_http_and_action_in_comment_are_not_interaction_proof()`
+	# @used-by :meth:`ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
+	# @used-by :meth:`ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
+	# @used-by :meth:`ExperimentTests.test_disconfirming_false_cannot_be_forced_to_verified()`
+	# @used-by :meth:`ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
+	# @used-by :meth:`ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+	# @used-by :meth:`ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
+	# @used-by :meth:`ExperimentTests.test_free_form_manual_test_cannot_be_verified_without_raw_predicates()`
+	# @used-by :meth:`ExperimentTests.test_german_url_and_turkish_ip_remain_distinct_actual_conditions()`
+	# @used-by :meth:`ExperimentTests.test_missing_and_unparsable_measurements_are_unverified_not_refuted()`
+	# @used-by :meth:`ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+	# @used-by :meth:`ExperimentTests.test_modified_primary_bytes_or_plan_is_rejected()`
+	# @used-by :meth:`ExperimentTests.test_native_action_before_after_states_and_raw_predicate_can_verify_transition()`
+	# @used-by :meth:`ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
+	# @used-by :meth:`ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
+	# @used-by :meth:`ExperimentTests.test_native_private_mode_requires_explicit_browser_context_inspection()`
+	# @used-by :meth:`ExperimentTests.test_no_cookies_does_not_prove_incognito()`
+	# @used-by :meth:`ExperimentTests.test_positive_http_observation_is_verified_and_hashed()`
+	# @used-by :meth:`ExperimentTests.test_preregistration_precedes_real_observation_not_result_write()`
+	# @used-by :meth:`ExperimentTests.test_supplied_requirement_cannot_rewrite_test_or_expected_after_run()`
+	# @used-by :meth:`ExperimentTests.test_unavailable_run_preserves_gap_and_does_not_assert_property()`
+	# @used-by :meth:`ExperimentTests.test_unconditional_literal_action_with_locator_options_remains_supported()`
+	# @used-by :meth:`ExperimentTests.test_wayse_style_saved_json_read_is_not_new_native_browser_execution()`
 	def plan(self, requirement=None, **kwargs):
 		self.last_plan = exp.prepare_experiment(self.root, requirement or self.requirement, **kwargs)
 		r = self.last_plan
 		return r
+	# @used-by :meth:`ExperimentTests.test_amended_expectation_requires_new_observation_and_retains_original()`
+	# @used-by :meth:`ExperimentTests.test_authored_positive_json_cannot_replace_contrary_primary_response()`
+	# @used-by :meth:`ExperimentTests.test_disconfirming_false_cannot_be_forced_to_verified()`
+	# @used-by :meth:`ExperimentTests.test_free_form_manual_test_cannot_be_verified_without_raw_predicates()`
+	# @used-by :meth:`ExperimentTests.test_missing_and_unparsable_measurements_are_unverified_not_refuted()`
+	# @used-by :meth:`ExperimentTests.test_modified_primary_bytes_or_plan_is_rejected()`
+	# @used-by :meth:`ExperimentTests.test_positive_http_observation_is_verified_and_hashed()`
+	# @used-by :meth:`ExperimentTests.test_preregistration_precedes_real_observation_not_result_write()`
+	# @used-by :meth:`ExperimentTests.test_supplied_requirement_cannot_rewrite_test_or_expected_after_run()`
 	def observe(self, value, **kwargs):
 		return research.collect(self.root, 'https://example.invalid/de-de', max_age=0, fetcher=lambda url, *args: research.Response(url, 200, 'application/json', json.dumps(value).encode()), **kwargs)
+	# @used-by :meth:`ExperimentTests.test_amended_expectation_requires_new_observation_and_retains_original()`
+	# @used-by :meth:`ExperimentTests.test_authored_positive_json_cannot_replace_contrary_primary_response()`
+	# @used-by :meth:`ExperimentTests.test_disconfirming_false_cannot_be_forced_to_verified()`
+	# @used-by :meth:`ExperimentTests.test_free_form_manual_test_cannot_be_verified_without_raw_predicates()`
+	# @used-by :meth:`ExperimentTests.test_missing_and_unparsable_measurements_are_unverified_not_refuted()`
+	# @used-by :meth:`ExperimentTests.test_modified_primary_bytes_or_plan_is_rejected()`
+	# @used-by :meth:`ExperimentTests.test_positive_http_observation_is_verified_and_hashed()`
+	# @used-by :meth:`ExperimentTests.test_preregistration_precedes_real_observation_not_result_write()`
+	# @used-by :meth:`ExperimentTests.test_supplied_requirement_cannot_rewrite_test_or_expected_after_run()`
+	# @used-by :meth:`ExperimentTests.test_unavailable_run_preserves_gap_and_does_not_assert_property()`
+	# @used-by :meth:`ExperimentTests.test_wayse_style_saved_json_read_is_not_new_native_browser_execution()`
 	def run_record(self, plan, observation=None, status='verified', **kwargs):
 		return exp.record_experiment(self.root, {'plan': plan['plan'], 'plan_sha256': plan['plan_sha256'], 'status': status, 'conditions': {}, 'actual_steps': [], 'artifacts': [{'id': 'raw', 'observation': observation['observation']}] if observation else [], 'actual_result': 'Interpretation of the separately saved raw result', **kwargs})
+	# @used-by :mod:`unittest`
 	def test_positive_http_observation_is_verified_and_hashed(self):
 		plan = self.plan()
 		result = self.run_record(plan, self.observe({'present': True}))
@@ -44,6 +103,7 @@ class ExperimentTests(unittest.TestCase):
 		self.assertIn('content', run['capabilities'])
 		self.assertNotIn('interaction', run['capabilities'])
 		self.assertEqual(exp.result_issues(self.root, self.requirement, result), [])
+	# @used-by :mod:`unittest`
 	def test_disconfirming_false_cannot_be_forced_to_verified(self):
 		plan = self.plan()
 		observation = self.observe({'present': False})
@@ -51,6 +111,7 @@ class ExperimentTests(unittest.TestCase):
 			self.run_record(plan, observation)
 		result = self.run_record(plan, observation, 'refuted')
 		self.assertEqual(exp.load_experiment(self.root, result['experiment'])['evaluation']['status'], 'refuted')
+	# @used-by :mod:`unittest`
 	def test_missing_and_unparsable_measurements_are_unverified_not_refuted(self):
 		plan = self.plan()
 		for value in ({'different_field': False}, 'not an object'):
@@ -60,12 +121,14 @@ class ExperimentTests(unittest.TestCase):
 					self.run_record(plan, observation, verdict)
 			result = self.run_record(plan, observation, 'unverified', limitation='Field absent or cannot be parsed')
 			self.assertEqual(exp.load_experiment(self.root, result['experiment'])['evaluation']['status'], 'unverified')
+	# @used-by :mod:`unittest`
 	def test_preregistration_precedes_real_observation_not_result_write(self):
 		old = self.observe({'present': True})
 		plan = self.plan()
 		with self.assertRaisesRegex(ValueError, 'after this exact plan'):
 			self.run_record(plan, old)
 		self.run_record(plan, self.observe({'present': True}))
+	# @used-by :mod:`unittest`
 	def test_amended_expectation_requires_new_observation_and_retains_original(self):
 		first = self.plan()
 		old = self.observe({'present': False})
@@ -79,6 +142,7 @@ class ExperimentTests(unittest.TestCase):
 		self.run_record(second, self.observe({'present': False}))
 		self.assertEqual(exp.load_experiment(self.root, original['experiment'])['status'], 'refuted')
 		self.assertTrue((self.root / 'ꘖ/KB' / first['plan']).is_file())
+	# @used-by :mod:`unittest`
 	def test_supplied_requirement_cannot_rewrite_test_or_expected_after_run(self):
 		plan = self.plan()
 		observation = self.observe({'present': False})
@@ -86,10 +150,12 @@ class ExperimentTests(unittest.TestCase):
 		changed['expected'] = 'Whatever was received'
 		with self.assertRaisesRegex(ValueError, 'preregistered'):
 			self.run_record(plan, observation, 'refuted', requirement=changed)
+	# @used-by :mod:`unittest`
 	def test_unavailable_run_preserves_gap_and_does_not_assert_property(self):
 		result = self.run_record(self.plan(), status='unavailable', limitation='Authorized browser unavailable')
 		self.assertEqual(exp.result_issues(self.root, self.requirement, result), [])
 		self.assertEqual(exp.load_experiment(self.root, result['experiment'])['capabilities'], [])
+	# @used-by :mod:`unittest`
 	def test_free_form_manual_test_cannot_be_verified_without_raw_predicates(self):
 		requirement = deepcopy(self.requirement)
 		requirement.pop('assertions')
@@ -98,6 +164,7 @@ class ExperimentTests(unittest.TestCase):
 		with self.assertRaisesRegex(ValueError, 'deterministic'):
 			self.run_record(plan, observation)
 		self.run_record(plan, observation, 'unverified', limitation='A.A must assess semantic entailment')
+	# @used-by :mod:`unittest`
 	def test_modified_primary_bytes_or_plan_is_rejected(self):
 		plan = self.plan()
 		result = self.run_record(plan, self.observe({'present': True}))
@@ -112,12 +179,14 @@ class ExperimentTests(unittest.TestCase):
 		plan_path.write_text(json.dumps(changed))
 		with self.assertRaises(ValueError):
 			exp.load_plan(self.root, plan['plan'])
+	# @used-by :mod:`unittest`
 	def test_wayse_style_saved_json_read_is_not_new_native_browser_execution(self):
 		plan = self.plan()
 		saved = self.root / 'ga4_saved.json'
 		saved.write_text('{"present":true}')
 		with self.assertRaisesRegex(ValueError, 'actual kind|after this exact plan'):
 			self.run_record(plan, artifacts=[{'id': 'raw', 'path': 'ga4_saved.json', 'role': 'browser'}])
+	# @used-by :mod:`unittest`
 	def test_cache_distinguishes_network_country_language_and_session_state(self):
 		headers = {'Accept-Language': 'de-DE'}
 		base = {'session': {'mode': 'unknown'}, 'egress': {'country': 'TR'}, 'url_country': 'DE', 'language': 'de', 'session_id': 'tab-A', 'state_fingerprint': 'before'}
@@ -129,6 +198,7 @@ class ExperimentTests(unittest.TestCase):
 	# 2026-10-20
 	# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 	# https://github.com/dmitry-ai/harness/issues/13
+	# @used-by :mod:`unittest`
 	def test_dom_is_fresh_and_never_proves_click(self):
 		from test_text_browser import dom_fixture
 		guard, native = dom_fixture(self.root, 'https://example.invalid/de-de', 'tab-A', '<p>EUR</p>')
@@ -137,12 +207,31 @@ class ExperimentTests(unittest.TestCase):
 		self.assertEqual(len([call for call in native.calls if 'Runtime.evaluate' == call[1]]), 2)
 		self.assertNotEqual(first['observation'], second['observation'])
 		self.assertNotIn('interaction', research.observation_capabilities(first))
+	# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+	# @used-by :meth:`ExperimentTests.test_before_snapshot_cannot_be_taken_from_action_after_output()`
+	# @used-by :meth:`ExperimentTests.test_browser_label_http_and_action_in_comment_are_not_interaction_proof()`
+	# @used-by :meth:`ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
+	# @used-by :meth:`ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
+	# @used-by :meth:`ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
+	# @used-by :meth:`ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+	# @used-by :meth:`ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
+	# @used-by :meth:`ExperimentTests.test_german_url_and_turkish_ip_remain_distinct_actual_conditions()`
+	# @used-by :meth:`ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+	# @used-by :meth:`ExperimentTests.test_native_action_before_after_states_and_raw_predicate_can_verify_transition()`
+	# @used-by :meth:`ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
+	# @used-by :meth:`ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
+	# @used-by :meth:`ExperimentTests.test_native_private_mode_requires_explicit_browser_context_inspection()`
+	# @used-by :meth:`ExperimentTests.test_no_cookies_does_not_prove_incognito()`
+	# @used-by :meth:`ExperimentTests.test_unconditional_literal_action_with_locator_options_remains_supported()`
 	def native_fixture(self, include_geo=False, action_code=None, incognito=None):
 		identity = {'browser_id': 'browser-A', 'tab_id': 'TAB-A', 'context_id': 'CTX-A', 'session_id': 'SESSION-A'}
 		states = {'before': {**identity, 'url': 'https://example.invalid/de-de', 'currency': 'EUR', 'language': 'de', 'selected_country': 'DE'}, 'after': {**identity, 'url': 'https://example.invalid/products/one', 'currency': 'GBP', 'language': 'en', 'selected_country': 'GB'}}
 		if None is not incognito:
 			states['before']['incognito'] = incognito
 		rows = [{'type': 'session_meta', 'payload': {'id': self.cid, 'source': 'vscode'}}]
+		# @used-by :meth:`ExperimentTests.native_fixture()`
 		def append(ident, code, output, name='mcp__cua_repl.js'):
 			now = datetime.now(timezone.utc).isoformat(timespec='microseconds')
 			rows.extend([{'timestamp': now, 'type': 'response_item', 'payload': {'type': 'function_call', 'name': name, 'call_id': ident, 'arguments': json.dumps({'code': code})}}, {'timestamp': now, 'type': 'response_item', 'payload': {'type': 'function_call_output', 'call_id': ident, 'output': output}}])
@@ -165,37 +254,105 @@ class ExperimentTests(unittest.TestCase):
 		connection.close()
 		r = (states, {'surface': 'codex-ui', 'conversation_id': self.cid, 'call_ids': ids, 'native_profile_home': str(self.home)})
 		return r
+	# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+	# @used-by :meth:`ExperimentTests.test_before_snapshot_cannot_be_taken_from_action_after_output()`
+	# @used-by :meth:`ExperimentTests.test_browser_label_http_and_action_in_comment_are_not_interaction_proof()`
+	# @used-by :meth:`ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
+	# @used-by :meth:`ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
+	# @used-by :meth:`ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
+	# @used-by :meth:`ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+	# @used-by :meth:`ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
+	# @used-by :meth:`ExperimentTests.test_german_url_and_turkish_ip_remain_distinct_actual_conditions()`
+	# @used-by :meth:`ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+	# @used-by :meth:`ExperimentTests.test_native_action_before_after_states_and_raw_predicate_can_verify_transition()`
+	# @used-by :meth:`ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
+	# @used-by :meth:`ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
+	# @used-by :meth:`ExperimentTests.test_native_private_mode_requires_explicit_browser_context_inspection()`
+	# @used-by :meth:`ExperimentTests.test_no_cookies_does_not_prove_incognito()`
+	# @used-by :meth:`ExperimentTests.test_unconditional_literal_action_with_locator_options_remains_supported()`
 	def browser_requirement(self, conditions=None):
 		requirement = deepcopy(self.requirement)
 		requirement.update(id='R-CURRENCY', claim='Click changes visible EUR to GBP in this session', property='currency_transition', method='browser_scenario', conditions=conditions or {})
 		requirement['assertions'] = [{'id': 'A-CURRENCY', 'artifact_id': 'after', 'locator': {'type': 'json_pointer', 'value': '/currency'}, 'operator': 'equals', 'expected': 'GBP', 'disconfirming': {'operator': 'equals', 'expected': 'EUR'}}]
 		r = requirement
 		return r
+	# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+	# @used-by :meth:`ExperimentTests.test_before_snapshot_cannot_be_taken_from_action_after_output()`
+	# @used-by :meth:`ExperimentTests.test_browser_label_http_and_action_in_comment_are_not_interaction_proof()`
+	# @used-by :meth:`ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
+	# @used-by :meth:`ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
+	# @used-by :meth:`ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
+	# @used-by :meth:`ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+	# @used-by :meth:`ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
+	# @used-by :meth:`ExperimentTests.test_german_url_and_turkish_ip_remain_distinct_actual_conditions()`
+	# @used-by :meth:`ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+	# @used-by :meth:`ExperimentTests.test_native_action_before_after_states_and_raw_predicate_can_verify_transition()`
+	# @used-by :meth:`ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
+	# @used-by :meth:`ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
+	# @used-by :meth:`ExperimentTests.test_native_private_mode_requires_explicit_browser_context_inspection()`
+	# @used-by :meth:`ExperimentTests.test_no_cookies_does_not_prove_incognito()`
+	# @used-by :meth:`ExperimentTests.test_unconditional_literal_action_with_locator_options_remains_supported()`
 	def browser_spec(self, plan, states, trace, conditions=None):
 		return {'plan': plan['plan'], 'plan_sha256': plan['plan_sha256'], 'status': 'verified', 'conditions': conditions or {}, 'native_trace': trace, 'artifacts': [{'id': key, 'native_event_id': key if 'before' == key else 'click', 'role': key} for key in ('before', 'after')], 'actual_result': 'Visible state changed in the recorded session only', 'actual_steps': [{'action': 'click', 'native_event_id': 'click', 'evidence': ['after'], 'before': {**states['before'], 'evidence': ['before']}, 'after': {**states['after'], 'evidence': ['after']}}]}
+	# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+	# @used-by :meth:`ExperimentTests.test_before_snapshot_cannot_be_taken_from_action_after_output()`
+	# @used-by :meth:`ExperimentTests.test_browser_label_http_and_action_in_comment_are_not_interaction_proof()`
+	# @used-by :meth:`ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
+	# @used-by :meth:`ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
+	# @used-by :meth:`ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
+	# @used-by :meth:`ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+	# @used-by :meth:`ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
+	# @used-by :meth:`ExperimentTests.test_german_url_and_turkish_ip_remain_distinct_actual_conditions()`
+	# @used-by :meth:`ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+	# @used-by :meth:`ExperimentTests.test_native_action_before_after_states_and_raw_predicate_can_verify_transition()`
+	# @used-by :meth:`ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
+	# @used-by :meth:`ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
+	# @used-by :meth:`ExperimentTests.test_native_private_mode_requires_explicit_browser_context_inspection()`
+	# @used-by :meth:`ExperimentTests.test_no_cookies_does_not_prove_incognito()`
+	# @used-by :meth:`ExperimentTests.test_unconditional_literal_action_with_locator_options_remains_supported()`
 	def native_selected(self):
 		return patch.object(codex, 'platform_settings', return_value={'homes': {'C2': str(self.home)}})
+	# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
+	# @used-by :meth:`ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
+	# @used-by :meth:`ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
+	# @used-by :meth:`ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
+	# @used-by :meth:`ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
+	# @used-by :meth:`ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
+	# @used-by :meth:`ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
+	# @used-by :meth:`ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
+	# @used-by :meth:`ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
 	def rewrite_native(self, change):
 		path = self.home / 'sessions' / (self.cid + '.jsonl')
 		rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
 		change(rows)
 		path.write_text('\n'.join((json.dumps(row) for row in rows)) + '\n', encoding='utf-8')
+	# @used-by :mod:`unittest`
 	def test_native_action_before_after_states_and_raw_predicate_can_verify_transition(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
 		with self.native_selected():
 			result = exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
 			self.assertIn('currency_transition', exp.load_experiment(self.root, result['experiment'])['capabilities'])
+	# @used-by :mod:`unittest`
 	def test_browser_label_http_and_action_in_comment_are_not_interaction_proof(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture(action_code='await tab.getState(); // .click()')
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'actual UI action|Actual UI action'):
 			exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
+	# @used-by :mod:`unittest`
 	def test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
 		codes = ['if (false) { await tab.playwright.getByRole("link").click(); } await tab.getState()', 'for (let i = 0; i < 0; i++) { await tab.playwright.getByRole("link").click(); } await tab.getState()', 'async function hidden() { await tab.playwright.getByRole("link").click(); } await tab.getState()', 'const example = "await tab.playwright.getByRole(\'link\').click()"; await tab.getState()', 'await tab.getState(); false && await tab.playwright.getByRole("link").click()', 'await tab.playwright.getByRole("link").click(); await otherTab.getState()', 'await tab.playwright.getByRole("link").click(); await tab.playwright.getByRole("link").click()']
 		for code in codes:
+			# @used-by :meth:`ExperimentTests.test_false_branch_loops_definitions_and_dynamic_scripts_never_prove_executed_click()`
 			def mutate(rows):
 				for row in rows:
 					payload = row.get('payload', {})
@@ -204,6 +361,7 @@ class ExperimentTests(unittest.TestCase):
 			self.rewrite_native(mutate)
 			with self.subTest(code=code), self.native_selected(), self.assertRaisesRegex(ValueError, 'Actual UI action'):
 				exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
+	# @used-by :mod:`unittest`
 	def test_unconditional_literal_action_with_locator_options_remains_supported(self):
 		code = "await tab.playwright.getByRole('link', {name: 'Item', exact: true}).click(); await tab.getState();"
 		plan = self.plan(self.browser_requirement())
@@ -211,9 +369,11 @@ class ExperimentTests(unittest.TestCase):
 		with self.native_selected():
 			result = exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
 			self.assertIn('interaction', exp.load_experiment(self.root, result['experiment'])['capabilities'])
+	# @used-by :mod:`unittest`
 	def test_explicit_native_primitives_with_same_context_remain_supported(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_explicit_native_primitives_with_same_context_remain_supported()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -224,9 +384,11 @@ class ExperimentTests(unittest.TestCase):
 		with self.native_selected():
 			result = exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
 			self.assertIn('currency_transition', exp.load_experiment(self.root, result['experiment'])['capabilities'])
+	# @used-by :mod:`unittest`
 	def test_native_before_and_action_in_different_browser_tabs_are_rejected(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -239,9 +401,11 @@ class ExperimentTests(unittest.TestCase):
 		self.rewrite_native(mutate)
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'identities differ'):
 			exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
+	# @used-by :mod:`unittest`
 	def test_conflicting_native_action_parameter_and_output_identity_is_unknown(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_conflicting_native_action_parameter_and_output_identity_is_unknown()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -251,9 +415,11 @@ class ExperimentTests(unittest.TestCase):
 		self.rewrite_native(mutate)
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'identity is unknown'):
 			exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
+	# @used-by :mod:`unittest`
 	def test_missing_native_identity_cannot_be_repaired_by_declared_session(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -268,9 +434,11 @@ class ExperimentTests(unittest.TestCase):
 			spec.update(status='unverified', limitation='Native tab/context identity could not be established')
 			result = exp.record_experiment(self.root, spec)
 			self.assertEqual(exp.load_experiment(self.root, result['experiment'])['capabilities'], [])
+	# @used-by :mod:`unittest`
 	def test_context_or_session_difference_is_rejected_even_for_same_tab_ids(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -279,9 +447,11 @@ class ExperimentTests(unittest.TestCase):
 		self.rewrite_native(mutate)
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'identities differ'):
 			exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
+	# @used-by :mod:`unittest`
 	def test_egress_must_be_measured_in_the_actual_action_browser_context(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture(include_geo=True)
+		# @used-by :meth:`ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -293,9 +463,11 @@ class ExperimentTests(unittest.TestCase):
 		spec['artifacts'].append({'id': 'geo', 'role': 'geolocation', 'native_event_id': 'geo'})
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'identities differ'):
 			exp.record_experiment(self.root, spec)
+	# @used-by :mod:`unittest`
 	def test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -316,9 +488,11 @@ class ExperimentTests(unittest.TestCase):
 	# 2026-11-14
 	# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
 	# https://github.com/dmitry-ai/harness/issues/72
+	# @used-by :mod:`unittest`
 	def test_canonical_harness_cli_plan_commit_receipt_is_supported(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_canonical_harness_cli_plan_commit_receipt_is_supported()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -328,10 +502,12 @@ class ExperimentTests(unittest.TestCase):
 		with self.native_selected():
 			result = exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
 			self.assertEqual(exp.load_experiment(self.root, result['experiment'])['status'], 'verified')
+	# @used-by :mod:`unittest`
 	def test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity(self):
 		from agent_tools.metrics import native_tool_trace
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
+		# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
 		def mutate(rows):
 			for row in rows:
 				payload = row.get('payload', {})
@@ -357,12 +533,14 @@ class ExperimentTests(unittest.TestCase):
 			saved = exp.load_experiment(self.root, result['experiment'])
 			self.assertEqual(saved['capabilities'], [])
 			self.assertEqual(next((item for item in saved['native_trace']['events'] if 'before' == item['id']))['namespace'], 'mcp__cua_repl')
+	# @used-by :mod:`unittest`
 	def test_namespaced_documented_dom_snapshot_is_read_only_and_keeps_strict_grammar(self):
 		event = {'name': 'js', 'namespace': 'mcp__cua_repl', 'successful': True, 'arguments': {'code': 'await qualityProbeTab.domSnapshot();'}, 'result': []}
 		self.assertEqual(exp._event_actions(event), {'read'})
 		self.assertIsNone(exp._event_browser_identity(event))
 		event['arguments']['code'] = 'if (false) { await qualityProbeTab.domSnapshot(); }'
 		self.assertEqual(exp._event_actions(event), set())
+	# @used-by :mod:`unittest`
 	def test_before_snapshot_cannot_be_taken_from_action_after_output(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
@@ -370,18 +548,21 @@ class ExperimentTests(unittest.TestCase):
 		spec['actual_steps'][0]['before']['evidence'] = ['after']
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'Before state'):
 			exp.record_experiment(self.root, spec)
+	# @used-by :mod:`unittest`
 	def test_no_cookies_does_not_prove_incognito(self):
 		conditions = {'session': {'mode': 'incognito', 'verification': 'verified', 'evidence': ['before']}}
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'Incognito'):
 			exp.record_experiment(self.root, self.browser_spec(plan, states, trace, conditions))
+	# @used-by :mod:`unittest`
 	def test_native_private_mode_requires_explicit_browser_context_inspection(self):
 		conditions = {'session': {'mode': 'incognito', 'verification': 'verified', 'evidence': ['before']}}
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture(incognito=True)
 		with self.native_selected():
 			exp.record_experiment(self.root, self.browser_spec(plan, states, trace, conditions))
+	# @used-by :mod:`unittest`
 	def test_german_url_and_turkish_ip_remain_distinct_actual_conditions(self):
 		planned = {'url_country': 'DE', 'egress': {'country': 'TR'}}
 		plan = self.plan(self.browser_requirement(planned))
@@ -397,16 +578,19 @@ class ExperimentTests(unittest.TestCase):
 			spec['conditions']['egress']['country'] = 'DE'
 			with self.assertRaisesRegex(ValueError, 'geolocation|preregistered'):
 				exp.record_experiment(self.root, spec)
+	# @used-by :mod:`unittest`
 	def test_supplied_native_events_are_rejected(self):
 		from agent_tools.metrics import native_tool_trace
 		with self.assertRaisesRegex(ValueError, 'supplied events'):
 			native_tool_trace(self.root, {'surface': 'codex-ui', 'conversation_id': self.cid, 'events': []})
+	# @used-by :mod:`unittest`
 	def test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()
 		trace['call_ids'].remove('plan-commit')
 		with self.native_selected(), self.assertRaisesRegex(ValueError, 'plan commitment receipt'):
 			exp.record_experiment(self.root, self.browser_spec(plan, states, trace))
+	# @used-by :mod:`unittest`
 	def test_authored_positive_json_cannot_replace_contrary_primary_response(self):
 		requirement = deepcopy(self.requirement)
 		requirement['assertions'][0]['artifact_id'] = 'authored'
@@ -415,6 +599,7 @@ class ExperimentTests(unittest.TestCase):
 		(self.root / 'authored.json').write_text('{"present":true}')
 		with self.assertRaisesRegex(ValueError, 'verdict contradicts'):
 			self.run_record(plan, observation, artifacts=[{'id': 'raw', 'observation': observation['observation']}, {'id': 'authored', 'path': 'authored.json'}])
+	# @used-by :mod:`unittest`
 	def test_observation_kind_alone_never_grants_extra_capabilities(self):
 		self.assertEqual(research.observation_capabilities({'kind': 'browser', 'method': 'GET', 'status': 200}), set())
 		self.assertNotIn('interaction', research.observation_capabilities({'kind': 'dom', 'method': 'READ_DOM'}))

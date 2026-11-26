@@ -83,6 +83,7 @@ _LAZY_EXPORTS = {
 	'evaluate_pre_tool_use_test_failfast': ('agent_tools.failfast_gate', 'evaluate_pre_tool_use_test_failfast'),
 	'run_pre_tool_gates': ('agent_tools.gates', 'run_pre_tool_gates'),
 }
+# @used-by :mod:`check_rules_and_server_gate`
 def __getattr__(name: str):
 	target = _LAZY_EXPORTS.get(name)
 	if None is target:
@@ -91,6 +92,7 @@ def __getattr__(name: str):
 # 2026-11-23
 # "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
 # https://github.com/dmitry-ai/harness/issues/162
+# @used-by :func:`_evaluate_payload()`
 def _apply_failfast(name: str, args: dict, decision: dict) -> dict:
 	r = decision
 	if 'run_command' == name and 'allow' == decision.get('decision'):
@@ -104,11 +106,18 @@ def _apply_failfast(name: str, args: dict, decision: dict) -> dict:
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
+# @used-by :func:`main()`
+# @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_service_finalization_passes_under_blocked_tdd_and_shell_bypass_is_denied()`
+# @used-by :meth:`test_tdd_pre_tool_use_perf.TddPreToolUsePerfTests.test_code_and_test_writes_stay_o1_subprocesses_across_25_committed_files()`
+# @used-by :meth:`test_tdd_pre_tool_use_perf.TddPreToolUsePerfTests.test_non_code_write_and_non_writing_command_spawn_zero_subprocesses()`
 def _evaluate_payload(payload: dict) -> dict:
 	from agent_tools.gates import run_pre_tool_gates
 	tool_call = payload.get('toolCall', {})
 	name, args = (tool_call.get('name', ''), tool_call.get('args', {}))
 	return _apply_failfast(name, args, run_pre_tool_gates(name, args, payload))
+# @used-by :func:`test_issue_first_pre_tool_use._run_hook()`
+# @used-by :func:`test_tdd_pre_tool_use._run_hook()`
+# @used-by :mod:`check_rules_and_server_gate`
 def main():
 	run_json_hook(_evaluate_payload)
 # 2026-10-31

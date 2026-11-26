@@ -14,6 +14,7 @@ from agent_tools.upwork_data import DocxMarkdownExtractor, PdfMarkdownExtractor,
 # "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
 # https://github.com/dmitry-ai/harness/issues/65
 class UpworkDataExtractorTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_docx_extractor_tables_fields_numbering_and_heading_normalization(self):
 		stream = io.BytesIO()
 		doc_xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body><w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Audit Scope</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Heading3"/></w:pPr><w:r><w:t>Tracking Goals</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Metric</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Target</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:p><w:r><w:t>Purchase</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>100%</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>Intro - </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText>HYPERLINK "https://loom.com/share/abc123"</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>Watch Video Overview</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:body></w:document>'
@@ -26,6 +27,7 @@ class UpworkDataExtractorTests(unittest.TestCase):
 		self.assertIn('## Tracking Goals', md)
 		self.assertIn('- Metric: Purchase; Target: 100%', md)
 		self.assertIn('1. Intro - [Watch Video Overview](https://loom.com/share/abc123)', md)
+	# @used-by :mod:`unittest`
 	def test_pdf_extractor_xml_layout_and_raw_stream_ligature_fallback(self):
 		xml_sample = '<pdf2xml><page number="1"><fontspec id="0" size="12" family="Helvetica"/><fontspec id="1" size="16" family="Helvetica-Bold"/><text top="40" left="50" height="18" font="1">Phase 1: Overview</text><text top="80" left="50" height="14" font="0">•</text><text top="80" left="70" height="14" font="1">Goal:</text><text top="80" left="115" height="14" font="0">Fix <a href="https://example.org/checkout">checkout</a> server-</text><text top="98" left="70" height="14" font="0">side pipeline.</text></page></pdf2xml>'
 		with patch.object(PdfMarkdownExtractor, '_run_poppler', return_value=xml_sample):
@@ -40,6 +42,7 @@ class UpworkDataExtractorTests(unittest.TestCase):
 		with patch('agent_tools.upwork_data._find_poppler_tool', return_value=None):
 			md_raw = PdfMarkdownExtractor(raw_pdf).extract()
 		self.assertEqual('offer', md_raw)
+	# @used-by :mod:`unittest`
 	def test_shared_table_bullet_rows_across_markdown_and_csv(self):
 		self.assertEqual(['- Channel: Web; Events: 42'], format_table_bullet_rows([[' Web ', ' 42 ']], ['Channel', 'Events']))
 		self.assertEqual('- Channel: Web; Events: 42', sanitize_kb_markdown('| Channel | Events |\n| --- | --- |\n| Web | 42 |'))

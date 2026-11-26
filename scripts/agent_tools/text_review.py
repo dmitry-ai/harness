@@ -20,6 +20,8 @@ from .text_workflow import _folder, operation, refresh_check
 # https://github.com/dmitry-ai/harness/issues/26
 SCOPES = ('format', 'scope', 'evidence', 'relevance', 'kb_consistency', 'response')
 TEXT_CHECKS = ('role_and_coverage', 'source_applicability', 'scope_alignment', 'goal_relevance', 'semantic_deduplication', 'numeric_provenance')
+# @used-by :func:`prepare()`
+# @used-by :mod:`agent_tools.text_review`
 def report_contract():
 	value = deepcopy(REPORT_CONTRACT)
 	value['required_scope'] = list(SCOPES)
@@ -31,6 +33,12 @@ def report_contract():
 	value['source_reviews'] = {'required_when': 'The package has external source_checks', 'fields': ['url', 'receipt', 'assessment', 'outcome'], 'outcome': ['supported', 'unsupported'], 'instruction': 'Assess every cited external URL against a verified source receipt and its exact quote/anchor/edition; a reviewer may supply its own candidate-bound receipt.'}
 	value['instruction'] = 'Review the exact request, baseline, diff and candidate. Check every substantive statement, including those labelled nonfactual. Test the actual claim, quantifier and scope; give a counterexample. Distinguish product documentation from this site, historical from current measurements, purpose from motive. Read saved primary bytes and fetch primary sources when necessary. Network access is allowed. Do not edit the document, KB, package or previous verdicts. Return one authored JSON report; no default verdict.'
 	return value
+# @used-by :func:`approval_integrity()`
+# @used-by :func:`authorize()`
+# @used-by :func:`prepare()`
+# @used-by :func:`read_package()`
+# @used-by :func:`record()`
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
 def _state(root):
 	path = _folder(root) / 'reviews.json'
 	value = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'schema_version': 1, 'reviews': []}
@@ -40,6 +48,9 @@ def _state(root):
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_text_integration.TextReviewTests.package()`
+# @used-by :meth:`test_text_integration.TextReviewTests.test_same_rejected_subject_cannot_be_reset_by_a_new_operation_path()`
 def prepare(root, check, parent_id, spec=None):
 	from .platforms.request_binding import native_project_fields
 	root_p, spec_d = (Path(root).resolve(), spec or {})
@@ -70,6 +81,10 @@ def prepare(root, check, parent_id, spec=None):
 	# https://github.com/dmitry-ai/harness/issues/63
 	path = write_immutable_bytes(_folder(root_p) / 'reviews' / (digest(raw) + '-inputs.json'), raw, diff_error='Immutable text review artifact differs')
 	return {**value, 'package': path.relative_to(root_p).as_posix(), 'package_sha256': digest(raw), 'required_independent_reviewers': 2 if 'significant' == value['risk'] else 1, 'report_contract': report_contract()}
+# @used-by :func:`approval_integrity()`
+# @used-by :func:`authorize()`
+# @used-by :func:`record()`
+# @used-by :mod:`agent_tools.text_review`
 def read_package(root, reference, *, require_current=True, applied=False):
 	# 2026-11-13
 	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
@@ -94,6 +109,12 @@ def read_package(root, reference, *, require_current=True, applied=False):
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
+# @used-by :func:`_issues()`
+# @used-by :func:`record()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_reviewer_approval_needs_a_receipt_bound_assessment_for_each_url()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_reviewer_can_collect_its_own_equal_bytes_without_invalidating_the_author()`
 def _source_reviews(root, data, package, candidate):
 	from .text_sources import read_source_check
 	required = {read_source_check(root, candidate, ref)['url'] for ref in package.get('source_checks', [])}
@@ -117,12 +138,20 @@ def _source_reviews(root, data, package, candidate):
 # 2026-11-14
 # "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
 # https://github.com/dmitry-ai/harness/issues/73
+# @used-by :func:`approval_integrity()`
+# @used-by :func:`authorize()`
+# @used-by :func:`record()`
 def _issues(data, package, candidate, *, root=None):
 	reviewer = (lambda d, p: _source_reviews(root, d, p, candidate)) if None is not root else None
 	return ReviewReportValidator(package, candidate=candidate, text_checks=TEXT_CHECKS, source_reviewer=reviewer).validate(data)
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.check_and_review()`
+# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_full_native_review_fixture_requires_and_preserves_source_assessments()`
+# @used-by :meth:`test_text_integration.TextReviewTests.record_fixture()`
+# @used-by :meth:`test_text_integration.TextReviewTests.test_parent_cannot_authorize_its_own_text()`
 def record(root, report, *, parent_id, reviewer_id, native_evidence):
 	from .workflow import hashes, now
 	root_r = Path(root).resolve()
@@ -147,6 +176,10 @@ def record(root, report, *, parent_id, reviewer_id, native_evidence):
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
+# @used-by :func:`agent_tools.text_cli.main()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
+# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_aged_real_source_and_nested_semantic_approval_preserve_both_platforms()`
 def authorize(root, check, *, applied=False):
 	root_p, state = (Path(root).resolve(), _state(root))
 	# 2026-11-14
@@ -182,6 +215,8 @@ def authorize(root, check, *, applied=False):
 # 2026-11-03
 # "Replace persistent journal daemon with foreground-only idempotent reconciliation":
 # https://github.com/dmitry-ai/harness/issues/41
+# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.applied_integrity()`
+# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_historical_successor_lineage_preserves_history_when_later_reviewer_trace_is_unverified()`
 def approval_integrity(root, approval, *, versioned_inputs=(), require_live_proof=True):
 	root_p = Path(root).resolve()
 	if not isinstance(approval, dict) or not isinstance(approval.get('review_ids'), list):

@@ -14,6 +14,7 @@ from agent_tools import storage
 # "Deduplicate historical admission fixtures and guard optional temp fsync":
 # https://github.com/dmitry-ai/harness/issues/177
 class StorageFsyncGuardTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_fsync_runs_by_default_and_when_env_is_zero(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -28,6 +29,7 @@ class StorageFsyncGuardTests(unittest.TestCase):
 					storage.replace_bytes(base / 'b.bin', b'beta')
 					self.assertEqual(1, spy_zero.call_count)
 					self.assertEqual(b'beta', (base / 'b.bin').read_bytes())
+	# @used-by :mod:`unittest`
 	def test_fsync_skipped_inside_tempdir_when_env_is_one(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			target = Path(tmp).resolve() / 'fast.bin'
@@ -36,6 +38,7 @@ class StorageFsyncGuardTests(unittest.TestCase):
 					storage.replace_bytes(target, b'fast-payload')
 					self.assertEqual(0, spy.call_count)
 					self.assertEqual(b'fast-payload', target.read_bytes())
+	# @used-by :mod:`unittest`
 	def test_fsync_still_runs_outside_tempdir_even_when_env_is_one(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

@@ -10,6 +10,7 @@ from .workspace import IssueEvidenceWorkspace
 # 2026-11-24
 # "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
 # https://github.com/dmitry-ai/harness/issues/77
+# @used-by :func:`run_audit_repo()`
 def _audit_repo_comments(api_fn, linter: IssueMarkdownLinter, repo: str, target_locale: str, containers: dict[int, str]) -> tuple[list[dict[str, Any]], int]:
 	raw_comments = api_fn(f'repos/{repo}/issues/comments?per_page=100', method='GET', paginate=True) or []
 	corrupted: list[dict[str, Any]] = []
@@ -19,6 +20,7 @@ def _audit_repo_comments(api_fn, linter: IssueMarkdownLinter, repo: str, target_
 		if c_errs:
 			corrupted.append({'comment_id': c['id'], 'issue_number': issue_num, 'html_url': c.get('html_url'), 'body_errors': c_errs})
 	return (corrupted, len(raw_comments))
+# @used-by :func:`run_audit_repo()`
 def _audit_repo_issues(linter: IssueMarkdownLinter, issues: list[dict[str, Any]], target_locale: str, strict: bool) -> tuple[list[dict[str, Any]], dict[int, str]]:
 	corrupted, containers = ([], {})
 	for iss in issues:
@@ -28,6 +30,7 @@ def _audit_repo_issues(linter: IssueMarkdownLinter, issues: list[dict[str, Any]]
 		if t_errs or b_errs:
 			corrupted.append({'number': iss['number'], 'title': iss.get('title'), 'html_url': iss.get('html_url'), 'title_errors': t_errs, 'body_errors': b_errs})
 	return (corrupted, containers)
+# @used-by :func:`run_transfer_repo()`
 def _poll_transferred_repo(api_fn, target_repo: str, max_attempts: int, delay_s: float) -> dict[str, Any] | None:
 	r = None
 	for attempt in range(max_attempts):
@@ -41,6 +44,7 @@ def _poll_transferred_repo(api_fn, target_repo: str, max_attempts: int, delay_s:
 		if attempt + 1 < max_attempts and 0 < delay_s:
 			time.sleep(delay_s)
 	return r
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_audit_repo()`
 def run_audit_repo(api_fn, linter: IssueMarkdownLinter, args: argparse.Namespace) -> int:
 	repo = linter.validate_repo(args.repo)
 	target_locale = getattr(args, 'target_locale', 'en-US') or 'en-US'
@@ -52,6 +56,7 @@ def run_audit_repo(api_fn, linter: IssueMarkdownLinter, args: argparse.Namespace
 	valid = not corrupted_issues and (not corrupted_comments)
 	dump_json({'valid': valid, 'repo': repo, 'issue_count': len(issues), 'comment_count': c_count, 'corrupted_issue_count': len(corrupted_issues), 'corrupted_comment_count': len(corrupted_comments), 'corrupted_issues': corrupted_issues, 'corrupted_comments': corrupted_comments})
 	return 0 if valid else 2
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_fetch()`
 def run_fetch(service, args: argparse.Namespace) -> int:
 	repo, number, project_root = (service.linter.validate_repo(args.repo), int(args.issue), getattr(args, 'project_root', None))
 	fetched = service._api(f'repos/{repo}/issues/{number}', method='GET')
@@ -69,6 +74,7 @@ def run_fetch(service, args: argparse.Namespace) -> int:
 		out.update(parent_number=int(eff_parent), parent_url=f'https://github.com/{repo}/issues/{int(eff_parent)}')
 	dump_json(out)
 	return 0
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_lint()`
 def run_lint(linter: IssueMarkdownLinter, args: argparse.Namespace) -> int:
 	consumable: list = []
 	target_locale = getattr(args, 'target_locale', 'en-US') or 'en-US'
@@ -80,6 +86,7 @@ def run_lint(linter: IssueMarkdownLinter, args: argparse.Namespace) -> int:
 	valid = not title_errors and (not body_errors)
 	dump_json({'valid': valid, 'title_errors': title_errors, 'body_errors': body_errors})
 	return 0 if valid else 2
+# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_transfer_repo()`
 def run_transfer_repo(api_fn, linter: IssueMarkdownLinter, workspace: IssueEvidenceWorkspace, args: argparse.Namespace) -> int:
 	repo = linter.validate_repo(args.repo)
 	new_owner = linter.validate_slug_part(args.new_owner, 'new_owner')

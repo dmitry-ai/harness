@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
+from typing import override
 import cProfile
 import json
 import os
@@ -14,8 +15,10 @@ import unittest
 # "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
 # https://github.com/dmitry-ai/harness/issues/192
 _STAT_KEYS = ('popen_count', 'popen_s', 'git_count', 'git_s', 'python_count', 'python_s', 'other_proc_count', 'other_proc_s', 'sleep_count', 'sleep_s')
+# @used-by :func:`run_module_profile()`
 def _blank_stats() -> dict[str, Any]:
 	return {k: 0 if k.endswith('_count') else 0.0 for k in _STAT_KEYS}
+# @used-by :func:`_install_hooks()`
 def _classify_proc_args(args: Any) -> str:
 	first = args[0] if isinstance(args, (list, tuple)) and args else (str(args or '').split()[0] if str(args or '').strip() else '')
 	low = Path(str(first).strip('"\'')).name.lower()
@@ -26,8 +29,11 @@ def _classify_proc_args(args: Any) -> str:
 	else:
 		r = 'other_proc'
 	return r
+# @used-by :func:`run_module_profile()`
+# @used-by :meth:`_TimedResult.stopTest()`
 def _diff_stats(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
 	return {k: (after[k] - before[k]) if k.endswith('_count') else round(max(0.0, after[k] - before[k]), 4) for k in _STAT_KEYS}
+# @used-by :func:`run_module_profile()`
 def _extract_cprofile(prof: cProfile.Profile, top_n: int) -> list[dict[str, Any]]:
 	st = pstats.Stats(prof)
 	rows = []
@@ -35,14 +41,17 @@ def _extract_cprofile(prof: cProfile.Profile, top_n: int) -> list[dict[str, Any]
 		rows.append({'file': Path(fname).as_posix() if fname else '', 'line': int(lineno), 'func': str(func), 'ncalls': int(nc), 'tottime': round(float(tt), 5), 'cumtime': round(float(ct), 5)})
 	rows.sort(key=lambda item: (-item['cumtime'], -item['tottime']))
 	return rows[:max(1, int(top_n))]
+# @used-by :func:`run_module_profile()`
 def _install_hooks(stats: dict[str, Any]) -> tuple[Any, Any]:
 	orig_popen, orig_sleep = (subprocess.Popen, time.sleep)
 	class _TrackedPopen(orig_popen):
+		# @used-by :func:`_install_hooks()`
 		def __init__(self, args, *a, **kw):
 			self._perf_cat = _classify_proc_args(args)
 			self._perf_t0 = time.perf_counter()
 			self._perf_done = False
 			super().__init__(args, *a, **kw)
+		# @used-by :func:`_install_hooks()`
 		def _perf_finish(self) -> None:
 			if not self._perf_done:
 				self._perf_done = True
@@ -51,16 +60,19 @@ def _install_hooks(stats: dict[str, Any]) -> tuple[Any, Any]:
 				stats['popen_s'] += dt
 				stats[f'{self._perf_cat}_count'] += 1
 				stats[f'{self._perf_cat}_s'] += dt
+		# @used-by :func:`_install_hooks()`
 		def communicate(self, *a, **kw):
 			try:
 				return super().communicate(*a, **kw)
 			finally:
 				self._perf_finish()
+		# @used-by :func:`_install_hooks()`
 		def wait(self, *a, **kw):
 			try:
 				return super().wait(*a, **kw)
 			finally:
 				self._perf_finish()
+	# @used-by :func:`_install_hooks()`
 	def _tracked_sleep(secs: float) -> None:
 		t0 = time.perf_counter()
 		try:
@@ -72,6 +84,12 @@ def _install_hooks(stats: dict[str, Any]) -> tuple[Any, Any]:
 	time.sleep = _tracked_sleep
 	return (orig_popen, orig_sleep)
 class _TimedResult(unittest.TestResult):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :func:`run_module_profile()`
+	# @see :meth:`unittest.TestResult.__init__()`
+	@override
 	def __init__(self, stats: dict[str, Any], rel_file: str) -> None:
 		super().__init__()
 		self._stats = stats
@@ -80,25 +98,41 @@ class _TimedResult(unittest.TestResult):
 		self._snap: dict[str, Any] = {}
 		self._status = 'ok'
 		self.records: list[dict[str, Any]] = []
+	# @used-by :meth:`unittest.TestResult.addError()`
+	# @see :meth:`unittest.TestResult.addError()`
+	@override
 	def addError(self, test, err) -> None:
 		self._status = 'error'
 		super().addError(test, err)
+	# @used-by :meth:`unittest.TestResult.addFailure()`
+	# @see :meth:`unittest.TestResult.addFailure()`
+	@override
 	def addFailure(self, test, err) -> None:
 		self._status = 'fail'
 		super().addFailure(test, err)
+	# @used-by :meth:`unittest.TestResult.addSkip()`
+	# @see :meth:`unittest.TestResult.addSkip()`
+	@override
 	def addSkip(self, test, reason) -> None:
 		self._status = 'skip'
 		super().addSkip(test, reason)
+	# @used-by :meth:`unittest.TestResult.startTest()`
+	# @see :meth:`unittest.TestResult.startTest()`
+	@override
 	def startTest(self, test) -> None:
 		self._status = 'ok'
 		self._t0 = time.perf_counter()
 		self._snap = dict(self._stats)
 		super().startTest(test)
+	# @used-by :meth:`unittest.TestResult.stopTest()`
+	# @see :meth:`unittest.TestResult.stopTest()`
+	@override
 	def stopTest(self, test) -> None:
 		super().stopTest(test)
 		dt = round(max(0.0, time.perf_counter() - self._t0), 4)
 		delta = _diff_stats(self._snap, self._stats)
 		self.records.append({'test_id': test.id(), 'file': self._rel_file, 'status': self._status, 'dur_s': dt, **delta})
+# @used-by :mod:`agent_tools.perf.suite_worker`
 def main(argv: list[str] | None=None) -> int:
 	args = list(sys.argv[1:] if None is argv else argv)
 	mod_p, top_p, out_p = (Path(args[0]).resolve(), Path(args[1]).resolve(), Path(args[2]).resolve())
@@ -109,6 +143,7 @@ def main(argv: list[str] | None=None) -> int:
 	data = run_module_profile(mod_p, top_p, cprofile_top=cp_top)
 	out_p.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
 	return 0
+# @used-by :func:`main()`
 def run_module_profile(mod_path: Path, top_dir: Path, *, cprofile_top: int=0) -> dict[str, Any]:
 	rel = mod_path.relative_to(top_dir).as_posix()
 	stats = _blank_stats()

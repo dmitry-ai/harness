@@ -15,6 +15,10 @@ if str(SCRIPT_DIR) not in sys.path:
 from agent_tools import issue_first_gate, shell_audit, tdd_gate
 
 
+# @used-by :meth:`IssueFirstGateCoreTests.test_chronological_state_machine_enforces_parent_issue_before_tests_and_code()`
+# @used-by :meth:`IssueFirstGateCoreTests.test_evaluate_pre_tool_use_issue_first_blocks_spoofing_and_enforces_live_order()`
+# @used-by :meth:`IssueFirstGateCoreTests.test_resolve_issue_first_target_distinguishes_github_backed_local_and_metadata_paths()`
+# @used-by :meth:`IssueFirstGateCoreTests.test_user_input_seeding_accepts_referenced_open_evidence_and_rejects_closed_or_unreferenced()`
 def _init_git_repo(repo: Path, *, remote_url: str | None = None) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
 	subprocess.run(['git', 'init', str(repo)], check=True, capture_output=True)
@@ -24,6 +28,8 @@ def _init_git_repo(repo: Path, *, remote_url: str | None = None) -> None:
 		subprocess.run(['git', '-C', str(repo), 'remote', 'add', 'origin', remote_url], check=True, capture_output=True)
 
 
+# @used-by :meth:`IssueFirstGateCoreTests.test_chronological_state_machine_enforces_parent_issue_before_tests_and_code()`
+# @used-by :meth:`IssueFirstGateCoreTests.test_user_input_seeding_accepts_referenced_open_evidence_and_rejects_closed_or_unreferenced()`
 def _write_issue_evidence(proj_root: Path, slug: str, number: int, *, state: str = 'open', parent_number: int | None = None) -> Path:
 	safe = slug.replace('/', '__')
 	ev_dir = proj_root / 'ꘖ/KB/Evidence/GitHub' / safe
@@ -52,6 +58,7 @@ def _write_issue_evidence(proj_root: Path, slug: str, number: int, *, state: str
 # "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
 # https://github.com/dmitry-ai/harness/issues/143
 class IssueFirstGateCoreTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_resolve_issue_first_target_distinguishes_github_backed_local_and_metadata_paths(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -108,6 +115,7 @@ class IssueFirstGateCoreTests(unittest.TestCase):
 			plain.mkdir()
 			self.assertIsNone(issue_first_gate.resolve_issue_first_target(plain / 'script.py'))
 
+	# @used-by :mod:`unittest`
 	def test_shell_write_targets_detects_test_production_and_doc_writes(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'repo'
@@ -125,6 +133,7 @@ class IssueFirstGateCoreTests(unittest.TestCase):
 			self.assertEqual(tdd_gate.shell_write_targets(cmd_doc, cwd=repo), [(repo / 'rules/08.md').resolve()])
 			self.assertEqual(tdd_gate.shell_write_targets(cmd_redir, cwd=repo), [(repo / 'tests/test_other.js').resolve()])
 
+	# @used-by :mod:`unittest`
 	def test_extract_issue_actions_recognizes_fetch_and_anti_spoofing_command_check(self) -> None:
 		fetch_out = json.dumps({
 			'ok': True,
@@ -162,6 +171,7 @@ class IssueFirstGateCoreTests(unittest.TestCase):
 		):
 			self.assertFalse(issue_first_gate.is_df_github_issue_command(bad_cmd), bad_cmd)
 
+	# @used-by :mod:`unittest`
 	def test_chronological_state_machine_enforces_parent_issue_before_tests_and_code(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -174,6 +184,7 @@ class IssueFirstGateCoreTests(unittest.TestCase):
 			_write_issue_evidence(proj, 'acme/demo', 10, state='open')
 			_write_issue_evidence(proj, 'acme/demo', 11, state='open', parent_number=10)
 
+			# @used-by :meth:`IssueFirstGateCoreTests.test_chronological_state_machine_enforces_parent_issue_before_tests_and_code()`
 			def _cw(step: int, rel: str, cls: str = 'test') -> dict:
 				return {
 					'kind': 'code_write',
@@ -185,6 +196,7 @@ class IssueFirstGateCoreTests(unittest.TestCase):
 					'classification': cls,
 				}
 
+			# @used-by :meth:`IssueFirstGateCoreTests.test_chronological_state_machine_enforces_parent_issue_before_tests_and_code()`
 			def _ia(step: int, action: str, number: int, *, state: str | None = None, parent_number: int | None = None) -> dict:
 				ev = {
 					'kind': 'issue_action',
@@ -293,6 +305,7 @@ class IssueFirstGateCoreTests(unittest.TestCase):
 			)
 			self.assertTrue(r9_open['verified'], r9_open)
 
+	# @used-by :mod:`unittest`
 	def test_user_input_seeding_accepts_referenced_open_evidence_and_rejects_closed_or_unreferenced(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -345,6 +358,7 @@ class IssueFirstGateCoreTests(unittest.TestCase):
 			)
 			self.assertTrue(res_num['verified'], res_num)
 
+	# @used-by :mod:`unittest`
 	def test_evaluate_pre_tool_use_issue_first_blocks_spoofing_and_enforces_live_order(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

@@ -19,6 +19,7 @@ from agent_tools import tdd_gate
 # "Implement universal TDD verification engine in agent_tools/tdd_gate.py":
 # https://github.com/dmitry-ai/harness/issues/135
 class TddGateCoreTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_universal_code_vs_test_vs_non_code_classification(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -95,6 +96,7 @@ class TddGateCoreTests(unittest.TestCase):
 					f'Expected non_code for {rel}',
 				)
 
+	# @used-by :mod:`unittest`
 	def test_resolve_code_scope_normalizes_git_and_non_git_test_dirs(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -111,6 +113,7 @@ class TddGateCoreTests(unittest.TestCase):
 			self.assertEqual(tdd_gate.resolve_code_scope(standalone / 'src/app.py'), standalone)
 			self.assertEqual(tdd_gate.resolve_code_scope(standalone / 'app.py'), standalone)
 
+	# @used-by :mod:`unittest`
 	def test_test_command_detection_full_suite_vs_single_and_rigged_rejection(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()
@@ -183,6 +186,7 @@ class TddGateCoreTests(unittest.TestCase):
 				info = tdd_gate.classify_test_command(rigged, scope_root=repo)
 				self.assertTrue(info['rigged_failure'], f'Must flag rigged failure: {rigged}')
 
+	# @used-by :mod:`unittest`
 	def test_parse_command_outcome_sync_codex_and_background_task_log(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			t = Path(tmp).resolve()
@@ -229,6 +233,7 @@ class TddGateCoreTests(unittest.TestCase):
 			self.assertTrue(bg_res['is_pass'])
 			self.assertEqual(bg_res['exit_code'], 0)
 
+	# @used-by :mod:`unittest`
 	def test_chronological_tdd_state_machine_and_commit_reset(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve()
@@ -344,6 +349,7 @@ class TddGateCoreTests(unittest.TestCase):
 			res7 = tdd_gate.evaluate_tdd_events(ev_two_cycles, require_final_full_green=True)
 			self.assertTrue(res7['verified'], res7)
 
+	# @used-by :mod:`unittest`
 	def test_ratchet_diff_guard_and_ratchet_ok_validation(self) -> None:
 		old_py = (
 			'import unittest\n'
@@ -412,6 +418,7 @@ class TddGateCoreTests(unittest.TestCase):
 			ok_b, _ = tdd_gate.validate_ratchet_reason(bad_reason)
 			self.assertFalse(ok_b, f'Expected rejection for vague reason: {bad_reason}')
 
+	# @used-by :mod:`unittest`
 	def test_behavioral_test_guard_catches_source_text_and_wrappers_without_false_positives(self) -> None:
 		# Direct Python source-text grep -> REJECTED
 		bad_py = (
@@ -498,6 +505,7 @@ class TddGateCoreTests(unittest.TestCase):
 		)
 		self.assertTrue(ok_real, err_real)
 
+	# @used-by :mod:`unittest`
 	def test_shell_code_write_targets_and_ratchet_issue_evidence(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -551,6 +559,7 @@ class TddGateCoreTests(unittest.TestCase):
 				)
 			)
 
+	# @used-by :mod:`unittest`
 	def test_extract_antigravity_tdd_events_handles_compact_and_full_transcripts(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			t = Path(tmp).resolve()
@@ -584,6 +593,7 @@ class TddGateCoreTests(unittest.TestCase):
 			self.assertTrue(res['verified'], res)
 			self.assertEqual(res['scopes'][str(repo)]['state'], 'GREEN_IMPLEMENTING')
 
+	# @used-by :mod:`unittest`
 	def test_hardening_header_exit_code_indirect_source_read_and_index_blob(self) -> None:
 		# 1. Header exit code must NOT be overridden by stdout/JSON containing "Command exited with code ..."
 		nested_json_pass = (

@@ -17,6 +17,7 @@ import check_stop_gate
 CID = 'be6873ea-5b72-4a7f-82bd-420b873f13f9'
 JOB_1 = '022124567641351805598'
 JOB_2 = '099999999999999999999'
+# @used-by :func:`_build_ag_env()`
 def _wire(field: int, payload: bytes) -> bytes:
 	out = bytearray()
 	for val in ((field << 3) | 2, len(payload)):
@@ -27,6 +28,11 @@ def _wire(field: int, payload: bytes) -> bytes:
 			if not val:
 				break
 	return bytes(out) + payload
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_pre_invocation_allows_new_job_in_launcher_instead_of_routing()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_pre_invocation_fast_exits_on_same_turn1_handed_off_step()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_pre_invocation_routes_turn2_handed_off_to_daily_without_launcher_orphan()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_stop_gate_deterministic_priority_prevents_alphabetical_shadowing()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_stop_gate_ignores_launcher_orphan_open_when_handed_off_matches()`
 def _build_ag_env(base: Path, ws_root: Path, turn1_text: str, turn2_text: str, *, turn2_reply: str='') -> tuple[Path, Path]:
 	backend = base / 'ag_backend'
 	(backend / 'conversations').mkdir(parents=True, exist_ok=True)
@@ -53,6 +59,8 @@ def _build_ag_env(base: Path, ws_root: Path, turn1_text: str, turn2_text: str, *
 			conn.execute('INSERT INTO steps VALUES(450, 15, 3, 0, NULL)')
 		conn.commit()
 	return (backend, log_file)
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_stop_gate_deterministic_priority_prevents_alphabetical_shadowing()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_stop_gate_ignores_launcher_orphan_open_when_handed_off_matches()`
 def _stop_payload(cwd: Path, log_file: Path) -> dict:
 	return {
 		'hookEventName': 'Stop',
@@ -66,6 +74,11 @@ def _stop_payload(cwd: Path, log_file: Path) -> dict:
 		'continuationActive': False,
 		'executionNum': 0,
 	}
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_pre_invocation_allows_new_job_in_launcher_instead_of_routing()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_pre_invocation_fast_exits_on_same_turn1_handed_off_step()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_pre_invocation_routes_turn2_handed_off_to_daily_without_launcher_orphan()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_stop_gate_deterministic_priority_prevents_alphabetical_shadowing()`
+# @used-by :meth:`TurnRoutingAndHandoffM6Tests.test_stop_gate_ignores_launcher_orphan_open_when_handed_off_matches()`
 def _setup_launcher_and_daily(base: Path) -> tuple[Path, Path]:
 	launcher = base / 'proposals/init'
 	daily = base / 'proposals/daily/2026/11/23/1 - magento-nextjs-ga4-reporting'
@@ -81,6 +94,7 @@ def _setup_launcher_and_daily(base: Path) -> tuple[Path, Path]:
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
 class TurnRoutingAndHandoffM6Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_pre_invocation_allows_new_job_in_launcher_instead_of_routing(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -90,6 +104,7 @@ class TurnRoutingAndHandoffM6Tests(unittest.TestCase):
 			msg = str(((out.get('injectSteps') or [{}])[0].get('systemMessage') or {}).get('systemMessage') or '')
 			self.assertIn(launcher.as_posix(), msg, out)
 			self.assertEqual([], list((daily / '\ua616/data/turns').glob('*.json')))
+	# @used-by :mod:`unittest`
 	def test_pre_invocation_fast_exits_on_same_turn1_handed_off_step(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -103,6 +118,7 @@ class TurnRoutingAndHandoffM6Tests(unittest.TestCase):
 			out = check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': CID, 'cwd': str(launcher), 'transcriptPath': str(log_file), 'invocationNum': 1}, backend_override=backend)
 			self.assertEqual({}, out)
 			self.assertEqual([], list((daily / '\ua616/data/turns').glob('*.json')))
+	# @used-by :mod:`unittest`
 	def test_pre_invocation_routes_turn2_handed_off_to_daily_without_launcher_orphan(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -119,6 +135,7 @@ class TurnRoutingAndHandoffM6Tests(unittest.TestCase):
 			self.assertEqual(1, len(daily_turns))
 			self.assertEqual(434, json.loads(daily_turns[0].read_text(encoding='utf-8'))['native_start_step'])
 			self.assertEqual({}, check_pre_invocation.evaluate_pre_invocation_payload({'conversationId': CID, 'cwd': str(launcher), 'transcriptPath': str(log_file)}, backend_override=backend))
+	# @used-by :mod:`unittest`
 	def test_stop_gate_deterministic_priority_prevents_alphabetical_shadowing(self) -> None:
 		from agent_tools.turn_routing import resolve_active_turn_state
 		with tempfile.TemporaryDirectory() as tmp:
@@ -139,6 +156,7 @@ class TurnRoutingAndHandoffM6Tests(unittest.TestCase):
 			self.assertEqual('6f7be571e32c539377281da738e4fb213fb504c8', picked['key'])
 			res = check_stop_gate.evaluate_stop_payload(_stop_payload(daily, log_file), backend_override=backend)
 			self.assertEqual('allow', res['decision'], res)
+	# @used-by :mod:`unittest`
 	def test_stop_gate_ignores_launcher_orphan_open_when_handed_off_matches(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

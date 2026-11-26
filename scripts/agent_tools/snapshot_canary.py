@@ -96,6 +96,9 @@ _CANARY_PROBE = (
 	'\telapsed = time.perf_counter() - t0\n'
 	"\tprint(json.dumps({'elapsed': round(elapsed, 4), 'subprocesses': calls[0]}))\n"
 )
+# @used-by :func:`agent_tools.runtime_snapshot._validate_staged_release()`
+# @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_live_worktree_passes_pre_tool_use_canary()`
+# @used-by :mod:`agent_tools.snapshot_canary`
 def run_pre_tool_use_canary(staging: Path, *, max_seconds: float=CANARY_MAX_SECONDS, max_subprocesses: int=CANARY_MAX_SUBPROCESSES, committed_files: int=CANARY_COMMITTED_FILES) -> tuple[bool, str]:
 	proc = subprocess.run(
 		[sys.executable, '-I', '-c', _CANARY_PROBE, str(Path(staging).resolve()), str(max_seconds), str(max_subprocesses), str(committed_files)],

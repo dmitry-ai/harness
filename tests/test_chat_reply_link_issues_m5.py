@@ -21,6 +21,7 @@ from test_analysis_workflow import NativeReviewTests, ProjectCase
 # "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 # https://github.com/dmitry-ai/harness/issues/230
 class ChatReplyLinkIssuesM5Tests(ProjectCase):
+	# @used-by :mod:`unittest`
 	def test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded(self) -> None:
 		ev = self.put_project('\ua616/KB/Evidence/HTTP/abc/response.bin', b'ok')
 		good_uri = f'file:///{ev.resolve().as_posix()}'
@@ -31,6 +32,7 @@ class ChatReplyLinkIssuesM5Tests(ProjectCase):
 		bad_md = f'Encoded link: [response.bin]({bad_uri}) and [doc](https://example.com/%D0%BF%D1%80%D0%B8%D0%BC%D0%B5%D1%80).  \n'
 		bad_errs = links.chat_reply_link_issues(bad_md)
 		self.assertTrue(any('LINK-5:' in e for e in bad_errs), bad_errs)
+	# @used-by :mod:`unittest`
 	def test_completion_and_grounding_match_chat_reply_link_policy(self) -> None:
 		ev = self.put_project('\ua616/KB/Evidence/note.txt', 'hello')
 		good_uri = f'file:///{ev.resolve().as_posix()}'
@@ -42,6 +44,7 @@ class ChatReplyLinkIssuesM5Tests(ProjectCase):
 		self.assertTrue(any('LINK-5:' in e for e in completion._response_link_issues(self.project, bad_md)))
 		bad_auditor = ResponseEvidenceAuditor(self.project, bad_md, [])
 		self.assertTrue(any('LINK-5:' in e for e in bad_auditor.errors))
+	# @used-by :mod:`unittest`
 	def test_finalize_stage_accepts_unencoded_file_uri_chat_links(self) -> None:
 		value = self.valid_review_analysis()
 		publish_owned(self.project / '\ua616/KB/Analysis.md', render_analysis(value))

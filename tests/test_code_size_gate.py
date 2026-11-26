@@ -16,16 +16,24 @@ import check_markdown_slop
 # "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
 # https://github.com/dmitry-ai/harness/issues/161
 class CodeSizeGateTests(unittest.TestCase):
+	# @used-by :meth:`CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
+	# @used-by :meth:`CodeSizeGateTests.test_legacy_ratchet_allows_holding_or_shrinking_blocks_growth()`
+	# @used-by :meth:`CodeSizeGateTests.test_new_file_and_function_limits_and_test_soft_limits()`
+	# @used-by :meth:`CodeSizeGateTests.test_override_decorator_and_typing_import_excluded_from_sloc()`
+	# @used-by :meth:`CodeSizeGateTests.test_pre_tool_use_gate_rejects_oversized_python_write()`
 	def _make_func(self, name: str, body_lines: int) -> str:
 		lines = [f'def {name}(x):']
 		for i in range(max(1, body_lines - 1)):
 			lines.append(f'\tx = x + {i}')
 		lines.append('\treturn x')
 		return '\n'.join(lines) + '\n'
+	# @used-by :meth:`CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
+	# @used-by :meth:`CodeSizeGateTests.test_pre_tool_use_gate_rejects_oversized_python_write()`
 	def _make_git_repo(self, root: Path) -> None:
 		subprocess.run(['git', '-C', str(root), 'init'], capture_output=True, check=True)
 		subprocess.run(['git', '-C', str(root), 'config', 'user.email', 'test@example.com'], capture_output=True, check=True)
 		subprocess.run(['git', '-C', str(root), 'config', 'user.name', 'Test'], capture_output=True, check=True)
+	# @used-by :mod:`unittest`
 	def test_comments_docstrings_and_declarative_tables_excluded_from_sloc(self):
 		from agent_tools.code_size_gate import analyze_python_source, check_python_size_violations
 		table_lines = '\n'.join([f"\t'k{i}': {i}," for i in range(40)])
@@ -41,6 +49,7 @@ class CodeSizeGateTests(unittest.TestCase):
 		self.assertLessEqual(metrics['functions']['helper']['sloc'], 5)
 		errs = check_python_size_violations(Path('scripts/mod.py'), src)
 		self.assertEqual(errs, [])
+	# @used-by :mod:`unittest`
 	def test_git_pre_commit_blocks_oversized_python_file(self):
 		with tempfile.TemporaryDirectory() as td:
 			repo = Path(td)
@@ -56,6 +65,7 @@ class CodeSizeGateTests(unittest.TestCase):
 			with self.assertRaises(ValueError) as ctx:
 				gate.verify_code_size_ratchet(['scripts/huge.py', 'tests/test_huge.py'], use_index=True)
 			self.assertIn('SLOC', str(ctx.exception))
+	# @used-by :mod:`unittest`
 	def test_legacy_ratchet_allows_holding_or_shrinking_blocks_growth(self):
 		from agent_tools.code_size_gate import check_python_size_violations
 		base_src = self._make_func('legacy_fn', 30)
@@ -66,6 +76,7 @@ class CodeSizeGateTests(unittest.TestCase):
 		self.assertEqual(check_python_size_violations(Path('scripts/old.py'), shrunk_src, baseline_source=base_src), [])
 		grown_errs = check_python_size_violations(Path('scripts/old.py'), grown_src, baseline_source=base_src)
 		self.assertTrue(any(('ratchet' in e.lower() or 'legacy_fn' in e for e in grown_errs)))
+	# @used-by :mod:`unittest`
 	def test_mccabe_complexity_and_semicolon_anti_gaming(self):
 		from agent_tools.code_size_gate import check_python_size_violations
 		branchy = (
@@ -88,6 +99,7 @@ class CodeSizeGateTests(unittest.TestCase):
 		self.assertTrue(any((';' in e or 'semicolon' in e.lower() for e in errs_s)))
 		safe_str = "def ok():\n\treturn 'a; b; c'\n"
 		self.assertEqual(check_python_size_violations(Path('scripts/ok.py'), safe_str), [])
+	# @used-by :mod:`unittest`
 	def test_new_file_and_function_limits_and_test_soft_limits(self):
 		from agent_tools.code_size_gate import check_python_size_violations
 		big_fn = self._make_func('oversized', 22)
@@ -101,6 +113,7 @@ class CodeSizeGateTests(unittest.TestCase):
 	# 2026-11-26
 	# "Codify navigable cross-reference standards and override SLOC exemption":
 	# https://github.com/dmitry-ai/harness/issues/286
+	# @used-by :mod:`unittest`
 	def test_override_decorator_and_typing_import_excluded_from_sloc(self):
 		from agent_tools.code_size_gate import analyze_python_source, check_python_size_violations
 		base_src = 'class Base:\n\tdef run(self):\n\t\treturn 1\nclass Sub(Base):\n\tdef run(self):\n\t\treturn 2\n'
@@ -119,6 +132,7 @@ class CodeSizeGateTests(unittest.TestCase):
 		big_base = ''.join((self._make_func(f'fn_{i}', 10) for i in range(32))) + base_src
 		big_ov = 'from typing import override\n' + ''.join((self._make_func(f'fn_{i}', 10) for i in range(32))) + ov_src.replace('from typing import override\n', '')
 		self.assertEqual(check_python_size_violations(Path('scripts/legacy.py'), big_ov, baseline_source=big_base), [])
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_gate_rejects_oversized_python_write(self):
 		import check_rules_and_server_gate as gate_mod
 		with tempfile.TemporaryDirectory() as td:
@@ -131,6 +145,7 @@ class CodeSizeGateTests(unittest.TestCase):
 			ok_err = gate_mod.check_code_size_gate('write_file', {'Path': str(target), 'Content': self._make_func('tiny', 5)}, {'cwd': str(repo)})
 			self.assertIsNone(ok_err)
 			self.assertTrue(callable(gate_mod.check_schedule_gate))
+	# @used-by :mod:`unittest`
 	def test_rules_doc_codifies_code4_size_ratchet(self):
 		rule_doc = HARNESS_ROOT / 'rules/11-code-formatting.md'
 		text = rule_doc.read_text(encoding='utf-8')

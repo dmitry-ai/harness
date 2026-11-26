@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 _SETTINGS_CACHE: dict[tuple, tuple[dict, Path | None, tuple | None]] = {}
 _DERIVED_CACHE: dict[tuple, Any] = {}
 _SKIP_SHELL_VIOLATIONS: ContextVar[bool] = ContextVar('harness_skip_shell_violations', default=False)
+# @used-by :func:`_compute_browser_perimeter()`
 def _collect_one_session(sess: dict, ports: set[int], profile_dirs: set[str], active_port_files: set[str]) -> None:
 	for ep_key in ('endpoint', 'fallback_endpoint'):
 		ep_val = sess.get(ep_key)
@@ -27,12 +28,14 @@ def _collect_one_session(sess: dict, ports: set[int], profile_dirs: set[str], ac
 	prof_path = prof.get('path') if isinstance(prof, dict) else None
 	if isinstance(prof_path, str) and prof_path.strip():
 		profile_dirs.add(prof_path.strip().replace('\\', '/').rstrip('/').casefold())
+# @used-by :func:`cached_addon_roots()`
 def _compute_addon_roots(cfg_all: dict, expand_fn) -> tuple[Path, ...]:
 	roots: list[Path] = []
 	for plat_cfg in ((cfg_all or {}).get('platforms') or {}).values():
 		if isinstance(plat_cfg, dict):
 			_extract_platform_addon_roots(plat_cfg, expand_fn, roots)
 	return tuple(dict.fromkeys(roots))
+# @used-by :func:`cached_browser_perimeter()`
 def _compute_browser_perimeter(cfg: dict) -> dict:
 	ports: set[int] = set()
 	profile_dirs: set[str] = set()
@@ -48,6 +51,7 @@ def _compute_browser_perimeter(cfg: dict) -> dict:
 			if isinstance(sess, dict):
 				_collect_one_session(sess, ports, profile_dirs, active_port_files)
 	return {'ports': sorted(ports), 'profile_dirs': sorted(profile_dirs), 'active_port_files': sorted(active_port_files)}
+# @used-by :func:`load_cached_settings()`
 def _copy_json(value: Any) -> Any:
 	if isinstance(value, dict):
 		r = {k: _copy_json(v) for k, v in value.items()}
@@ -56,8 +60,10 @@ def _copy_json(value: Any) -> Any:
 	else:
 		r = value
 	return r
+# @used-by :func:`load_cached_settings_readonly()`
 def _env_digest() -> tuple[tuple[str, str], ...]:
 	return tuple(sorted(os.environ.items()))
+# @used-by :func:`_compute_addon_roots()`
 def _extract_platform_addon_roots(plat_cfg: dict, expand_fn, roots: list[Path]) -> None:
 	addons_cfg = plat_cfg.get('addons')
 	code_dir = addons_cfg.get('code_dir') if isinstance(addons_cfg, dict) else None
@@ -69,6 +75,8 @@ def _extract_platform_addon_roots(plat_cfg: dict, expand_fn, roots: list[Path]) 
 			if 'code' == anc.name.lower() and (anc.parent / '_').is_dir():
 				roots.append(anc)
 				break
+# @used-by :func:`_load_uncached_settings()`
+# @used-by :func:`load_cached_settings_readonly()`
 def _file_stat_key(path: Path | None) -> tuple | None:
 	r = None
 	if None is not path:
@@ -78,6 +86,7 @@ def _file_stat_key(path: Path | None) -> tuple | None:
 		except OSError:
 			r = None
 	return r
+# @used-by :func:`_safe_default_readonly()`
 def _load_default_readonly(runtime_mod) -> tuple[tuple | None, dict]:
 	if runtime_mod.settings is not runtime_mod._UNPATCHED_SETTINGS:
 		r = (None, runtime_mod.settings())
@@ -85,6 +94,7 @@ def _load_default_readonly(runtime_mod) -> tuple[tuple | None, dict]:
 		rt_file = runtime_mod.default_runtime_file(runtime_mod.PRIMARY, runtime_mod._CODE_ANCHOR, runtime_mod.DEFAULT_REGISTRY_FILE)
 		r = load_cached_settings_readonly(rt_file, runtime_mod._validate_runtime)
 	return r
+# @used-by :func:`load_cached_settings_readonly()`
 def _load_uncached_settings(runtime_file: Path, validate_fn) -> tuple[dict, Path | None, tuple | None]:
 	from .path_registry import load_registry
 	raw = json.loads(runtime_file.read_text(encoding='utf-8-sig'))
@@ -96,17 +106,22 @@ def _load_uncached_settings(runtime_file: Path, validate_fn) -> tuple[dict, Path
 	validate_fn(value)
 	custom_path = reg_cand if has_custom else None
 	return (value, custom_path, _file_stat_key(custom_path))
+# @used-by :func:`cached_addon_roots()`
+# @used-by :func:`cached_browser_perimeter()`
 def _put_derived(dkey: tuple, value: Any) -> Any:
 	if 64 < len(_DERIVED_CACHE):
 		_DERIVED_CACHE.clear()
 	_DERIVED_CACHE[dkey] = value
 	return value
+# @used-by :func:`cached_addon_roots()`
+# @used-by :func:`cached_browser_perimeter()`
 def _safe_default_readonly(runtime_mod) -> tuple[tuple | None, dict]:
 	try:
 		r = _load_default_readonly(runtime_mod)
 	except Exception:
 		r = (None, {})
 	return r
+# @used-by :func:`agent_tools.runtime.sanctioned_addon_code_roots()`
 def cached_addon_roots(config, runtime_mod, expand_fn) -> list[Path]:
 	if None is not config:
 		r = list(_compute_addon_roots(config, expand_fn))
@@ -121,6 +136,7 @@ def cached_addon_roots(config, runtime_mod, expand_fn) -> list[Path]:
 				cached = _put_derived(dkey, _compute_addon_roots(cfg, expand_fn))
 			r = list(cached)
 	return r
+# @used-by :func:`agent_tools.shell_audit.protected_browser_perimeter()`
 def cached_browser_perimeter(config, runtime_mod) -> dict:
 	if None is not config:
 		r = _compute_browser_perimeter(config)
@@ -135,6 +151,7 @@ def cached_browser_perimeter(config, runtime_mod) -> dict:
 				cached = _put_derived(dkey, _compute_browser_perimeter(cfg))
 			r = {'ports': list(cached['ports']), 'profile_dirs': list(cached['profile_dirs']), 'active_port_files': list(cached['active_port_files'])}
 	return r
+# @used-by :func:`agent_tools.path_cache.clear_path_cache()`
 def clear_runtime_cache() -> None:
 	_SETTINGS_CACHE.clear()
 	_DERIVED_CACHE.clear()
@@ -143,9 +160,12 @@ def clear_runtime_cache() -> None:
 		clear_observation_cache()
 	except Exception:
 		pass
+# @used-by :func:`agent_tools.runtime.settings()`
 def load_cached_settings(runtime_file: Path, validate_fn) -> dict:
 	_, value = load_cached_settings_readonly(runtime_file, validate_fn)
 	return _copy_json(value)
+# @used-by :func:`_load_default_readonly()`
+# @used-by :func:`load_cached_settings()`
 def load_cached_settings_readonly(runtime_file: Path, validate_fn) -> tuple[tuple | None, dict]:
 	rt_stat = _file_stat_key(runtime_file)
 	if None is rt_stat:
@@ -163,9 +183,12 @@ def load_cached_settings_readonly(runtime_file: Path, validate_fn) -> tuple[tupl
 			_SETTINGS_CACHE[key] = (value, custom_path, custom_stat)
 			r = (key, value)
 	return r
+# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
 def run_shell_violation_scan(fn, *args, **kwargs) -> None:
 	if not _SKIP_SHELL_VIOLATIONS.get():
 		fn(*args, **kwargs)
+# @used-by :func:`agent_tools.completion.issue_first_check_turn()`
+# @used-by :func:`agent_tools.completion.tdd_check_turn()`
 @contextmanager
 def skip_shell_violations():
 	token = _SKIP_SHELL_VIOLATIONS.set(True)

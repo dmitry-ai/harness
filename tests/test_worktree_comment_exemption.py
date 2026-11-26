@@ -9,13 +9,19 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :func:`_commit_file()`
+# @used-by :func:`_init_repo()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', *args], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+# @used-by :meth:`WorktreeCommentExemptionTests.test_deleted_sibling_and_nested_worktree_comment_only_commits_are_exempt()`
+# @used-by :meth:`WorktreeCommentExemptionTests.test_deleted_worktree_non_comment_code_commit_remains_blocked()`
 def _init_repo(repo: Path) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git(repo, 'init', '-b', 'main')
 	_git(repo, 'config', 'user.email', 't@example.com')
 	_git(repo, 'config', 'user.name', 'Test')
+# @used-by :meth:`WorktreeCommentExemptionTests.test_deleted_sibling_and_nested_worktree_comment_only_commits_are_exempt()`
+# @used-by :meth:`WorktreeCommentExemptionTests.test_deleted_worktree_non_comment_code_commit_remains_blocked()`
 def _commit_file(repo: Path, rel: str, text: str, msg: str) -> None:
 	p = repo / rel
 	p.parent.mkdir(parents=True, exist_ok=True)
@@ -26,6 +32,7 @@ def _commit_file(repo: Path, rel: str, text: str, msg: str) -> None:
 # "Resolve deleted worktree paths in TDD comment-only exemption":
 # https://github.com/dmitry-ai/harness/issues/278
 class WorktreeCommentExemptionTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_deleted_sibling_and_nested_worktree_comment_only_commits_are_exempt(self) -> None:
 		from agent_tools.tdd.evaluator import evaluate_tdd_events
 		from agent_tools.tdd.events import build_file_write_tdd_event
@@ -50,6 +57,7 @@ class WorktreeCommentExemptionTests(unittest.TestCase):
 			self.assertEqual(str(nest_repo), nest_ev['scope'])
 			nest_res = evaluate_tdd_events([nest_ev], require_final_full_green=True)
 			self.assertTrue(nest_res['verified'], nest_res)
+	# @used-by :mod:`unittest`
 	def test_deleted_worktree_non_comment_code_commit_remains_blocked(self) -> None:
 		from agent_tools.tdd.evaluator import evaluate_tdd_events
 		from agent_tools.tdd.events import build_file_write_tdd_event

@@ -15,6 +15,8 @@ from agent_tools.platforms import antigravity
 from agent_tools.platforms.trace_common import persist_review_proof, verify_review_proof_core
 PARENT_ID = 'be6873ea-5b72-4a7f-82bd-420b873f13f9'
 REVIEWER_ID = '8ec25783-99cc-40fa-99ff-a557eb04dde3'
+# @used-by :meth:`ReusedReviewerAndMetadataDriftM5Tests.test_tolerates_monotonic_same_model_metadata_append_and_rejects_model_change()`
+# @used-by :meth:`ReusedReviewerAndMetadataDriftM5Tests.test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention()`
 def _base_exec_meta(configs: list[str], extra_sources: list[dict] | None=None) -> dict:
 	sources = [
 		{'native_file': 'r.db', 'table': 'gen_metadata', 'row': 0, 'protobuf_path': [1, 19], 'sha256': 'aa' * 32},
@@ -36,6 +38,8 @@ def _base_exec_meta(configs: list[str], extra_sources: list[dict] | None=None) -
 		'metadata_sources': sources,
 		'verification': {'status': 'verified', 'model': 'verified', 'effort': 'verified', 'detail': 'ok'},
 	}
+# @used-by :meth:`ReusedReviewerAndMetadataDriftM5Tests.test_tolerates_monotonic_same_model_metadata_append_and_rejects_model_change()`
+# @used-by :meth:`ReusedReviewerAndMetadataDriftM5Tests.test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention()`
 def _make_proof(log_path: Path, final_text: str, exec_meta: dict) -> dict:
 	return {
 		'surface': 'antigravity-ui',
@@ -56,6 +60,7 @@ def _make_proof(log_path: Path, final_text: str, exec_meta: dict) -> dict:
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
 class ReusedReviewerAndMetadataDriftM5Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
@@ -79,6 +84,7 @@ class ReusedReviewerAndMetadataDriftM5Tests(unittest.TestCase):
 					antigravity.verify_native_proof(root, saved, package='forged-pkg-inputs.json')
 				with self.assertRaises(ValueError):
 					antigravity.verify_native_proof(root, saved, package='foreign-pkg-inputs.json')
+	# @used-by :mod:`unittest`
 	def test_tolerates_monotonic_same_model_metadata_append_and_rejects_model_change(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()

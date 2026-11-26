@@ -4,10 +4,12 @@ from collections import Counter
 from typing import Any
 from ..platforms.trace_common import parse_tool_args
 from .timesheet_common import classify_command, compute_top_gaps, parse_iso_ts, round_opt
+# @used-by :func:`_record_codex_output()`
 def _add_cat(cats: dict[str, dict[str, Any]], cat: str, wall_s: float) -> None:
 	slot = cats.setdefault(cat, {'count': 0, 'wall_s': 0.0})
 	slot['count'] += 1
 	slot['wall_s'] = round(slot['wall_s'] + max(0.0, wall_s), 3)
+# @used-by :func:`analyze_codex_rows()`
 def _build_codex_result(rows: list[dict[str, Any]], st: dict[str, Any], top_gaps_limit: int) -> dict[str, Any]:
 	ts_vals = [t for r in rows if None is not (t := parse_iso_ts(r.get('timestamp')))]
 	span = round_opt(ts_vals[-1] - ts_vals[0] if 2 <= len(ts_vals) else 0.0)
@@ -21,8 +23,10 @@ def _build_codex_result(rows: list[dict[str, Any]], st: dict[str, Any], top_gaps
 		'commands': {'categories': dict(sorted(st['cats'].items())), 'bg_test_waits': [], 'net_wall_time_blocked_on_tests_s': round(test_wall, 3)},
 		'top_gaps': compute_top_gaps(st['events'], limit=top_gaps_limit),
 	}
+# @used-by :func:`analyze_codex_rows()`
 def _init_cx_state() -> dict[str, Any]:
 	return {'cats': {}, 'checkpoints': [], 'cur_model': None, 'events': [], 'model_steps': Counter(), 'peak_step': None, 'peak_tokens': 0, 'pending': {}, 'tokens': Counter(), 'tools': Counter(), 'truncated': []}
+# @used-by :func:`analyze_codex_rows()`
 def _process_codex_row(idx: int, row: dict[str, Any], rows: list[dict[str, Any]], st: dict[str, Any]) -> None:
 	kind, ts = (row.get('type'), parse_iso_ts(row.get('timestamp')))
 	pay = row.get('payload') if isinstance(row.get('payload'), dict) else {}
@@ -33,6 +37,7 @@ def _process_codex_row(idx: int, row: dict[str, Any], rows: list[dict[str, Any]]
 		_record_codex_event(idx, row, rows, ts, st)
 	elif 'response_item' == kind:
 		_record_codex_item(idx, pay, ts, st)
+# @used-by :func:`_record_codex_item()`
 def _record_codex_call(idx: int, pay: dict[str, Any], ts: float | None, st: dict[str, Any]) -> None:
 	name = str(pay.get('name') or 'unknown')
 	st['tools'][name] += 1
@@ -42,6 +47,7 @@ def _record_codex_call(idx: int, pay: dict[str, Any], ts: float | None, st: dict
 	if name.endswith(('exec_command', 'run_command')) or 'exec' == name:
 		st['pending'][cid] = (ts, classify_command(cmd))
 	st['events'].append((idx, ts, name, st['cur_model'], cmd[:120] or name))
+# @used-by :func:`_process_codex_row()`
 def _record_codex_event(idx: int, row: dict[str, Any], rows: list[dict[str, Any]], ts: float | None, st: dict[str, Any]) -> None:
 	pay = row.get('payload') if isinstance(row.get('payload'), dict) else {}
 	etype = pay.get('type')
@@ -52,12 +58,14 @@ def _record_codex_event(idx: int, row: dict[str, Any], rows: list[dict[str, Any]
 		st['events'].append((idx, ts, 'CHECKPOINT', st['cur_model'], 'context_compacted'))
 	elif 'token_count' == etype:
 		_record_codex_tokens(idx, pay, st)
+# @used-by :func:`_process_codex_row()`
 def _record_codex_item(idx: int, pay: dict[str, Any], ts: float | None, st: dict[str, Any]) -> None:
 	ptype = pay.get('type')
 	if ptype in ('function_call', 'custom_tool_call'):
 		_record_codex_call(idx, pay, ts, st)
 	elif 'function_call_output' == ptype:
 		_record_codex_output(idx, pay, ts, st)
+# @used-by :func:`_record_codex_item()`
 def _record_codex_output(idx: int, pay: dict[str, Any], ts: float | None, st: dict[str, Any]) -> None:
 	cid = str(pay.get('call_id') or '')
 	pending = st['pending'].pop(cid, None)
@@ -68,6 +76,7 @@ def _record_codex_output(idx: int, pay: dict[str, Any], ts: float | None, st: di
 	out = str(pay.get('output') or '')
 	if 15000 <= len(out):
 		st['truncated'].append({'step': idx, 'chars': len(out), 'truncated_marker': False})
+# @used-by :func:`_record_codex_event()`
 def _record_codex_tokens(idx: int, pay: dict[str, Any], st: dict[str, Any]) -> None:
 	usage = (pay.get('info') or {}).get('last_token_usage') if isinstance(pay.get('info'), dict) else None
 	if isinstance(usage, dict):
@@ -82,6 +91,7 @@ def _record_codex_tokens(idx: int, pay: dict[str, Any], st: dict[str, Any]) -> N
 # 2026-11-24
 # "Add harness perf-timesheet CLI for deterministic turn chronometry":
 # https://github.com/dmitry-ai/harness/issues/191
+# @used-by :func:`agent_tools.perf.timesheet.build_timesheet()`
 def analyze_codex_rows(rows: list[dict[str, Any]], *, top_gaps_limit: int=10) -> dict[str, Any]:
 	st = _init_cx_state()
 	for idx, row in enumerate(rows):

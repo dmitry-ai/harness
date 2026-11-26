@@ -17,8 +17,10 @@ for _p in (str(SCRIPTS), str(TESTS)):
 from agent_tools import completion, journal, tdd_gate
 from test_stop_emergency_capture_and_foreign_sync import _reserve_foreign, _seed_ag_conversation
 import check_rules_and_server_gate as rg
+# @used-by :func:`_init_repo()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', *args], cwd=repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+# @used-by :meth:`ServiceFinalizationAndSyncAllOpenTests.test_service_finalization_passes_under_blocked_tdd_and_shell_bypass_is_denied()`
 def _init_repo(repo: Path) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git(repo, 'init')
@@ -27,12 +29,14 @@ def _init_repo(repo: Path) -> None:
 	(repo / 'app.py').write_text('x = 1\n', encoding='utf-8')
 	_git(repo, 'add', 'app.py')
 	_git(repo, 'commit', '-m', 'init')
+# @used-by :meth:`ServiceFinalizationAndSyncAllOpenTests.test_service_finalization_passes_under_blocked_tdd_and_shell_bypass_is_denied()`
 def _tool_payload(cwd: Path, name: str, args: dict) -> dict:
 	return {'cwd': str(cwd), 'toolCall': {'name': name, 'args': args}}
 # 2026-11-25
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
 class ServiceFinalizationAndSyncAllOpenTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			base = Path(td).resolve()
@@ -70,6 +74,7 @@ class ServiceFinalizationAndSyncAllOpenTests(unittest.TestCase):
 			res_map2 = journal.iter_turn_reservations(proj / '\ua66e')
 			self.assertNotIn(beg_c['turn_key'], res_map2)
 			self.assertIn(beg_d['turn_key'], res_map2)
+	# @used-by :mod:`unittest`
 	def test_service_finalization_passes_under_blocked_tdd_and_shell_bypass_is_denied(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			repo = Path(td).resolve() / 'repo'

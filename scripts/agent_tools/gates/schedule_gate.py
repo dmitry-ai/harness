@@ -9,6 +9,7 @@ PRIORITY = 95
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
 TOOLS = frozenset({'schedule'})
+# @used-by :func:`agent_tools.gates._load_builtin_entry()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	# 2026-11-24
 	# "Convert PreToolUse hook entry points to lazy tool-scoped imports":

@@ -10,10 +10,12 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# @used-by :meth:`CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
 def _init_repo(repo: Path) -> None:
 	subprocess.run(['git', 'init'], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
 	subprocess.run(['git', 'config', 'user.email', 't@example.com'], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
 	subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+# @used-by :meth:`CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
 def _write_red_transcript(repo: Path) -> Path:
 	tr = repo / 'transcript_full.jsonl'
 	tpath = (repo / 'tests/test_bad.py').as_posix()
@@ -30,10 +32,12 @@ def _write_red_transcript(repo: Path) -> Path:
 # "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
 # https://github.com/dmitry-ai/harness/issues/243
 class CodeStyleGateTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_clean_code1_python_passes_all_checks(self) -> None:
 		from agent_tools.code_style_gate import check_python_style_violations
 		clean = "def f(x):\n\t'''Docstring ok'''\n\tif None is x:\n\t\tr = \"don't\"\n\telse:\n\t\tr = 'ok' if 0 <= x <= 10 else 'bad\\nline'\n\treturn r\ndef gen(items):\n\tfor it in items:\n\t\tif 0 == it:\n\t\t\treturn\n\t\tyield it\n"
 		self.assertEqual([], check_python_style_violations('scripts/clean.py', clean))
+	# @used-by :mod:`unittest`
 	def test_rejects_blank_lines_spaces_multireturn_non_yoda_and_double_quotes(self) -> None:
 		from agent_tools.code_style_gate import check_python_style_violations
 		bad = 'def f(x):\n    if x == None:\n        return "bad"\n\n    return 1\n'
@@ -44,6 +48,7 @@ class CodeStyleGateTests(unittest.TestCase):
 		self.assertIn('return', joined.lower())
 		self.assertIn('yoda', joined.lower())
 		self.assertIn('single quote', joined.lower())
+	# @used-by :mod:`unittest`
 	def test_legacy_ratchet_preserves_existing_violations_but_blocks_new_ones(self) -> None:
 		from agent_tools.code_style_gate import check_python_style_violations
 		legacy = 'def old(x):\n    if x == None:\n        return "old"\n\n    return 0\n'
@@ -52,6 +57,7 @@ class CodeStyleGateTests(unittest.TestCase):
 		regressed = legacy + '\ndef bad_new(y):\n    if y == 2:\n        return "nope"\n    return 0\n'
 		errs = check_python_style_violations('scripts/legacy.py', regressed, baseline_source=legacy)
 		self.assertGreaterEqual(len(errs), 3, errs)
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_gate_and_pre_commit_enforce_code_style(self) -> None:
 		from agent_tools import git_gate
 		from agent_tools.gates import run_pre_tool_gates

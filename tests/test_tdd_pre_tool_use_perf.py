@@ -14,8 +14,13 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools.tdd.mechanical import is_git_file_mechanical_exempt
 import check_rules_and_server_gate as rg
+# @used-by :func:`_seed_multicommit_transcript()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+# @used-by :meth:`TddPreToolUsePerfTests.test_code_and_test_writes_stay_o1_subprocesses_across_25_committed_files()`
+# @used-by :meth:`TddPreToolUsePerfTests.test_mechanical_exemption_spawns_zero_subprocesses_without_recipes()`
+# @used-by :meth:`TddPreToolUsePerfTests.test_non_code_write_and_non_writing_command_spawn_zero_subprocesses()`
+# @used-by :meth:`test_hook_runner_e2e_budget.HookRunnerE2EBudgetTests.test_cold_start_runner_stays_within_25_percent_of_hooks_json_timeout()`
 def _seed_multicommit_transcript(base: Path, file_count: int) -> tuple[Path, Path]:
 	repo = base / f'repo_{file_count}'
 	repo.mkdir(parents=True)
@@ -60,6 +65,7 @@ def _seed_multicommit_transcript(base: Path, file_count: int) -> tuple[Path, Pat
 # "Add deterministic PreToolUse subprocess budget and scaling regression tests":
 # https://github.com/dmitry-ai/harness/issues/253
 class TddPreToolUsePerfTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_code_and_test_writes_stay_o1_subprocesses_across_25_committed_files(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			base = Path(td).resolve()
@@ -89,12 +95,14 @@ class TddPreToolUsePerfTests(unittest.TestCase):
 			self.assertLessEqual(calls_p, 2)
 			self.assertEqual(calls5, calls_p)
 			self.assertLess(dt_p, 1.0)
+	# @used-by :mod:`unittest`
 	def test_mechanical_exemption_spawns_zero_subprocesses_without_recipes(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			repo, _ = _seed_multicommit_transcript(Path(td).resolve(), 5)
 			with patch.object(subprocess, 'run', wraps=subprocess.run) as spy:
 				self.assertFalse(is_git_file_mechanical_exempt(repo, 'src/mod_00.py', project_root=repo))
 				self.assertEqual(0, spy.call_count)
+	# @used-by :mod:`unittest`
 	def test_non_code_write_and_non_writing_command_spawn_zero_subprocesses(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			repo, tx = _seed_multicommit_transcript(Path(td).resolve(), 25)

@@ -20,6 +20,8 @@ from test_upwork_init_e2e import _upsert_summary
 CID = '55555555-6666-4777-8888-999999999991'
 JOB_1 = '~022124567641351805598'
 JOB_2 = '~099999999999999999999'
+# @used-by :meth:`JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
+# @used-by :meth:`JournalIntegrityM4Tests.test_validate_step_strict_sequence_and_check_project_detect_gaps_and_orphans()`
 def _init_domain(base: Path, *, job_id: str=JOB_1, domain: str='blueskypeptide.com') -> tuple[Path, Path]:
 	from agent_tools import upwork_project as up
 	from test_onboarding import source
@@ -27,6 +29,9 @@ def _init_domain(base: Path, *, job_id: str=JOB_1, domain: str='blueskypeptide.c
 	data = {**source(job_id), 'url': f'https://upwork.com/jobs/{job_id}'}
 	res = up.initialize_upwork_project(job_id, domain_or_topic=domain, date_str='2026-11-23', daily_root=daily, extracted_data=data, register_native=False)
 	return (Path(res['project_dir']).resolve(), daily)
+# @used-by :meth:`JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
+# @used-by :meth:`JournalIntegrityM4Tests.test_validate_step_strict_sequence_and_check_project_detect_gaps_and_orphans()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
 def _write_step_pair(jdir: Path, step: int, req: str='Request text\n', res: str='Response text\n') -> None:
 	from agent_tools.journal import journal_bucket_name
 	bucket = journal_bucket_name(step)
@@ -34,14 +39,20 @@ def _write_step_pair(jdir: Path, step: int, req: str='Request text\n', res: str=
 		p = jdir / side / bucket / f'{step}.md'
 		p.parent.mkdir(parents=True, exist_ok=True)
 		p.write_text(body, encoding='utf-8')
+# @used-by :meth:`JournalIntegrityM4Tests.test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation()`
+# @used-by :meth:`JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
+# @used-by :meth:`JournalIntegrityM4Tests.test_validate_step_strict_sequence_and_check_project_detect_gaps_and_orphans()`
+# @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
 def _write_turn_json(root: Path, key: str, payload: dict) -> Path:
 	p = root / '\ua616/data/turns' / f'{key}.json'
 	p.parent.mkdir(parents=True, exist_ok=True)
 	p.write_text(json.dumps(payload), encoding='utf-8')
 	return p
+# @used-by :meth:`JournalIntegrityM4Tests.test_validate_step_strict_sequence_and_check_project_detect_gaps_and_orphans()`
 def _run_validate_step(*args: str) -> subprocess.CompletedProcess:
 	return subprocess.run([sys.executable, str(SCRIPTS / 'validate_step.py'), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=30, check=False)
 class JournalIntegrityM4Tests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation(self) -> None:
 		from agent_tools import completion, journal
 		with tempfile.TemporaryDirectory() as tmp:
@@ -69,6 +80,7 @@ class JournalIntegrityM4Tests(unittest.TestCase):
 			res_after = journal.iter_turn_reservations(l_jdir)
 			self.assertNotIn('turn2key', res_after)
 			self.assertEqual([2], res_after['turn3key']['steps'])
+	# @used-by :mod:`unittest`
 	def test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title(self) -> None:
 		from agent_tools import completion, journal
 		with tempfile.TemporaryDirectory() as tmp:
@@ -97,6 +109,7 @@ class JournalIntegrityM4Tests(unittest.TestCase):
 			self.assertEqual([3], completion.conversation_journal_steps(proj, jdir, CID))
 			journal.record_answer(jdir, ['Initial prompt'], 'Initial reply.  \n', 'native-turn1key', [f'{CID}-0'], reserved_turn_key='turn1key')
 			self.assertEqual({}, journal.iter_turn_reservations(jdir))
+	# @used-by :mod:`unittest`
 	def test_validate_step_strict_sequence_and_check_project_detect_gaps_and_orphans(self) -> None:
 		from agent_tools import journal, workflow
 		with tempfile.TemporaryDirectory() as tmp:
@@ -123,6 +136,7 @@ class JournalIntegrityM4Tests(unittest.TestCase):
 			self.assertEqual(0, strict_ok.returncode, strict_ok.stdout + strict_ok.stderr)
 			chk_ok = workflow.check_project(proj)
 			self.assertEqual([], [i for i in chk_ok['issues'] if str(i.get('code') or '').startswith('journal.')])
+	# @used-by :mod:`unittest`
 	def test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error(self) -> None:
 		from agent_tools import journal
 		from test_project_domain_drift import CID as DRIFT_CID

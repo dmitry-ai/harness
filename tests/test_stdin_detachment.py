@@ -13,6 +13,7 @@ SCRIPTS_DIR = HARNESS_ROOT / 'scripts'
 HARNESS_SCRIPT = SCRIPTS_DIR / 'harness.py'
 GIT_SHIM_SCRIPT = SCRIPTS_DIR / 'git_shim.py'
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+# @used-by :func:`_run_with_open_stdin()`
 def _kill_tree(proc: subprocess.Popen) -> None:
 	if None is proc.poll():
 		if 'nt' == os.name:
@@ -25,6 +26,10 @@ def _kill_tree(proc: subprocess.Popen) -> None:
 			proc.wait(timeout=5)
 		except (OSError, subprocess.TimeoutExpired):
 			pass
+# @used-by :meth:`StdinDetachmentTests.test_git_shim_pre_commit_completes_under_open_stdin_pipe()`
+# @used-by :meth:`StdinDetachmentTests.test_parallel_runner_detaches_inherited_open_stdin()`
+# @used-by :meth:`StdinDetachmentTests.test_suite_profiler_detaches_inherited_open_stdin()`
+# @used-by :meth:`StdinDetachmentTests.test_suite_runner_cli_detaches_inherited_open_stdin()`
 def _run_with_open_stdin(cmd: list[str], *, cwd: Path, timeout: float=4.0, env: dict[str, str] | None=None) -> tuple[int, str, str, float, bool]:
 	r_fd, w_fd = os.pipe()
 	timed_out = False
@@ -41,6 +46,9 @@ def _run_with_open_stdin(cmd: list[str], *, cwd: Path, timeout: float=4.0, env: 
 	finally:
 		os.close(w_fd)
 	return (rc, out, err, round(time.monotonic() - started, 3), timed_out)
+# @used-by :meth:`StdinDetachmentTests.test_parallel_runner_detaches_inherited_open_stdin()`
+# @used-by :meth:`StdinDetachmentTests.test_suite_profiler_detaches_inherited_open_stdin()`
+# @used-by :meth:`StdinDetachmentTests.test_suite_runner_cli_detaches_inherited_open_stdin()`
 def _write_stdin_probe_module(tests_dir: Path) -> Path:
 	tests_dir.mkdir(parents=True, exist_ok=True)
 	mod = tests_dir / 'test_probe_stdin.py'
@@ -50,6 +58,7 @@ def _write_stdin_probe_module(tests_dir: Path) -> Path:
 # "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
 # https://github.com/dmitry-ai/harness/issues/204
 class StdinDetachmentTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_git_shim_pre_commit_completes_under_open_stdin_pipe(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			repo = Path(td).resolve()
@@ -61,6 +70,7 @@ class StdinDetachmentTests(unittest.TestCase):
 			self.assertFalse(timed_out, f'pre-commit hung on open stdin ({elapsed}s): {out}{err}')
 			self.assertEqual(0, rc, out + err)
 			self.assertLess(elapsed, 4.0)
+	# @used-by :mod:`unittest`
 	def test_parallel_runner_detaches_inherited_open_stdin(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -73,6 +83,7 @@ class StdinDetachmentTests(unittest.TestCase):
 			data = json.loads(out)
 			self.assertTrue(data['ok'], data)
 			self.assertEqual(1, data['total_tests'])
+	# @used-by :mod:`unittest`
 	def test_suite_profiler_detaches_inherited_open_stdin(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()
@@ -85,6 +96,7 @@ class StdinDetachmentTests(unittest.TestCase):
 			data = json.loads(out)
 			self.assertTrue(data['valid'], data)
 			self.assertEqual(1, data['total_tests'])
+	# @used-by :mod:`unittest`
 	def test_suite_runner_cli_detaches_inherited_open_stdin(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
 			root = Path(td).resolve()

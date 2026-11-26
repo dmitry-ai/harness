@@ -20,8 +20,52 @@ from agent_tools.snapshot import snapshot_draft
 from agent_tools import upwork_project as up
 from agent_tools.upwork_data import extract_candidate_domains, format_kb_project_md
 from agent_tools.upwork_extract import RPC, SafeRedirect, attachment_path, decode_page, download_attachment, select_tab
+# @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._init_review_ready_project()`
+# @used-by :func:`test_contract_invariants._init_tracked_project()`
+# @used-by :func:`test_finalized_project_contract.seed_finalized_upwork_project()`
+# @used-by :func:`test_journal_integrity._init_domain()`
+# @used-by :func:`test_project_labels._write_capture()`
+# @used-by :func:`test_project_rename._init_provisional()`
+# @used-by :func:`test_project_rename_verification._seed_proposals_layout()`
+# @used-by :func:`test_upwork_init_e2e._source_capture()`
+# @used-by :meth:`AttachmentTests.test_docx_and_text_attachments_saved_in_source_and_both_kbs()`
+# @used-by :meth:`EvidenceTests.test_embedded_fences_do_not_end_the_manual_description()`
+# @used-by :meth:`InitializationTests.init()`
+# @used-by :meth:`InitializationTests.test_attachment_evidence_retained_with_hash()`
+# @used-by :meth:`InitializationTests.test_cli_init_reuses_capture_without_browser()`
+# @used-by :meth:`InitializationTests.test_invalid_names_dates_and_capture_do_not_create_projects()`
+# @used-by :meth:`InitializationTests.test_native_manifests_and_full_initial_port()`
+# @used-by :meth:`InitializationTests.test_reinit_preserves_legacy_v1_project_without_v2_migration()`
+# @used-by :meth:`InitializationTests.test_repeat_preserves_every_curated_file_and_configuration()`
+# @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
+# @used-by :meth:`test_analysis_workflow.NativeReviewTests.native_fixture()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.setUp()`
+# @used-by :meth:`test_cleanup.CleanupTests.test_init_persists_creation_time_and_repeat_never_resets_it()`
+# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
+# @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.setUp()`
+# @used-by :meth:`test_portability.CodexEvidenceTests.test_second_platform_keeps_original_date_root_manual_kb_and_saved_snapshot()`
+# @used-by :meth:`test_portability.ProjectionTests.test_multiline_toml_values_do_not_damage_unrelated_settings()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_collect_receipt_preserves_plan_after_input_is_consumed()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_creation_publishes_supplied_site_and_reinit_keeps_the_card()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_invalid_consumption_scope_fails_before_analysis_changes()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_stdin_analysis_and_owned_scratch_inputs_leave_no_permanent_candidate()`
+# @used-by :meth:`test_registration_portability.RegistrationTests.setUp()`
 def source(job_id='~021234567890'):
 	return {'job_id': job_id, 'title': 'Client task', 'description': 'CURRENT_DESCRIPTION_NOT_A_SUMMARY\n```text\noriginal code\n```\n', 'buyer': {'location': {'country': 'Portugal'}}, 'candidate_domains': ['reference.example'], 'work_history': [], 'open_jobs': [], 'related_descriptions': {}, 'client_names': [], 'coverage': {'history_records': 0, 'history_complete': False}, 'observed_at': '2026-10-15T00:00:00+03:00'}
+# @used-by :func:`analysis()`
+# @used-by :meth:`EvidenceTests.test_malformed_analysis_has_actionable_errors()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_creation_publishes_supplied_site_and_reinit_keeps_the_card()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_new_analysis_cannot_finish_with_an_unpublished_website_card()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_website_and_red_flags_have_stable_order_and_preserve_manual_edits()`
+# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_website_requires_valid_url_and_identity_basis()`
+# @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
+# @used-by :meth:`test_red_flags.RedFlagTests.setUp()`
 def claim(ident, addresses=(), method=False):
 	result = {'id': ident, 'essence': 'Client-specific proposed explanation', 'for': [{'argument': 'The description explicitly states this concern.', 'source': 'https://example.org/source#concern', 'quote': 'The concern'}], 'against': [{'argument': 'The source also gives an alternative.', 'source': 'https://example.org/source#alternative', 'quote': 'Alternative'}], 'assessment_basis': 'Expert estimate based on the stated evidence; not calibrated.', 'addresses': list(addresses)}
 	result['score_percent' if method else 'probability_percent'] = 60
@@ -29,6 +73,20 @@ def claim(ident, addresses=(), method=False):
 		result['criterion'] = 'Technical suitability under the stated conditions'
 	r = result
 	return r
+# @used-by :meth:`EvidenceTests.test_analysis_links_causes_to_concerns_and_methods_to_causes()`
+# @used-by :meth:`EvidenceTests.test_malformed_analysis_has_actionable_errors()`
+# @used-by :meth:`EvidenceTests.test_missing_counterevidence_probability_or_documentation_anchor_is_rejected()`
+# @used-by :meth:`test_analysis_workflow.ProjectCase.valid_analysis()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_causal_alternatives_and_recommendation_conditions_are_required()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_claim_index_includes_facts_and_all_five_stages()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_dependency_change_and_cycle_are_reported()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e7_contradictory_evidence_reuse_in_against_and_intake_only_counterevidence_cap()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_legacy_is_readable_but_cannot_be_newly_saved_or_published()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_limited_hypothesis_keeps_missing_browser_check_and_can_be_published()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_referenced_primary_cannot_be_replaced_with_an_own_kb_quote()`
+# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_unverified_hypothesis_with_empty_against_caps_probability_at_75()`
+# @used-by :meth:`test_red_flags.RedFlagTests.setUp()`
 def analysis():
 	return {'identity': [], 'concerns': [claim('H-CONCERN-1')], 'misconceptions': [], 'causes': [claim('H-CAUSE-1', ['H-CONCERN-1'])], 'methods': [claim('M-1', ['H-CAUSE-1'], method=True)], 'notes': {'identity': 'Not established.', 'misconceptions': 'No misconception established.'}}
 # 2026-10-14
@@ -38,6 +96,11 @@ def analysis():
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class InitializationTests(TemporaryCase):
+	# @used-by :meth:`InitializationTests.test_attachment_evidence_retained_with_hash()`
+	# @used-by :meth:`InitializationTests.test_invalid_names_dates_and_capture_do_not_create_projects()`
+	# @used-by :meth:`InitializationTests.test_native_manifests_and_full_initial_port()`
+	# @used-by :meth:`InitializationTests.test_reinit_preserves_legacy_v1_project_without_v2_migration()`
+	# @used-by :meth:`InitializationTests.test_repeat_preserves_every_curated_file_and_configuration()`
 	def init(self, data=None, **kwargs):
 		data = source() if None is data else data
 		r = up.initialize_upwork_project(data['job_id'], domain_or_topic='Topic', date_str='2026-10-15', daily_root=self.root / 'daily', extracted_data=data, register_antigravity=False, **kwargs)
@@ -45,6 +108,7 @@ class InitializationTests(TemporaryCase):
 	# 2026-11-21
 	# "Initialize new Upwork projects in the V2 filesystem layout":
 	# https://github.com/dmitry-ai/harness/issues/110
+	# @used-by :mod:`unittest`
 	def test_native_manifests_and_full_initial_port(self):
 		from check_markdown_slop import check_markdown_content
 		result = self.init()
@@ -77,6 +141,7 @@ class InitializationTests(TemporaryCase):
 		self.assertNotIn('`verified`', website)
 		self.assertIn('reference.example', website)
 		self.assertNotIn('These projects belong to the same website', (root / '\U0001f56e/Project.md').read_text(encoding='utf-8'))
+	# @used-by :mod:`unittest`
 	def test_repeat_preserves_every_curated_file_and_configuration(self):
 		root = Path(self.init()['project_dir'])
 		# 2026-11-21
@@ -103,6 +168,7 @@ class InitializationTests(TemporaryCase):
 	# 2026-11-21
 	# "Initialize new Upwork projects in the V2 filesystem layout":
 	# https://github.com/dmitry-ai/harness/issues/110
+	# @used-by :mod:`unittest`
 	def test_reinit_preserves_legacy_v1_project_without_v2_migration(self):
 		data = source('~02777777')
 		legacy_dir = self.root / 'daily/2026/10/15/1 - Legacy'
@@ -124,6 +190,7 @@ class InitializationTests(TemporaryCase):
 	# 2026-11-21
 	# "Initialize new Upwork projects in the V2 filesystem layout":
 	# https://github.com/dmitry-ai/harness/issues/110
+	# @used-by :mod:`unittest`
 	def test_resolve_or_create_reuses_unindexed_v2_project_dir(self):
 		daily = self.root / 'daily'
 		v2_readme = daily / '2026/10/15/1 - Unindexed Readme'
@@ -134,6 +201,7 @@ class InitializationTests(TemporaryCase):
 		(v2_state / '\ua616').mkdir(parents=True)
 		(v2_state / '\ua616/project.json').write_text(json.dumps({'job_id': '~02987655'}), encoding='utf-8')
 		self.assertEqual(up.resolve_or_create_project_dir('~02987655', 'Other', '2026-10-15', daily), v2_state.resolve())
+	# @used-by :mod:`unittest`
 	def test_existing_neighbor_material_is_untouched(self):
 		root = self.root / 'project'
 		note = self.put('project/.agents/private/work.txt', 'user material')
@@ -143,13 +211,16 @@ class InitializationTests(TemporaryCase):
 		up.configure_project(root)
 		self.assertEqual(note.read_text(), 'user material')
 		self.assertEqual(config.read_bytes(), before)
+	# @used-by :mod:`unittest`
 	def test_registry_is_stable_across_dates_and_labels(self):
 		daily = self.root / 'daily'
 		first = up.resolve_or_create_project_dir('~02123', 'First', '2026-10-15', daily)
 		second = up.resolve_or_create_project_dir('~02123', 'Other', '2026-10-16', daily)
 		self.assertEqual(first, second)
+	# @used-by :mod:`unittest`
 	def test_concurrent_numbers_and_same_job_are_exclusive(self):
 		daily = self.root / 'daily'
+		# @used-by :meth:`InitializationTests.test_concurrent_numbers_and_same_job_are_exclusive()`
 		def create(index):
 			return up.resolve_or_create_project_dir(f'~02{index:08d}', f'Topic {index}', '2026-10-15', daily)
 		with ThreadPoolExecutor(max_workers=8) as pool:
@@ -158,6 +229,7 @@ class InitializationTests(TemporaryCase):
 		with ThreadPoolExecutor(max_workers=4) as pool:
 			repeated = list(pool.map(lambda _: create(1), range(8)))
 		self.assertEqual(len(set(repeated)), 1)
+	# @used-by :mod:`unittest`
 	def test_invalid_names_dates_and_capture_do_not_create_projects(self):
 		for label in ('https://example.com', '../outside', 'bad:name', 'trail. '):
 			with self.assertRaises(ValueError):
@@ -170,6 +242,7 @@ class InitializationTests(TemporaryCase):
 			up.initialize_upwork_project(source()['job_id'], extracted_data=[])
 		self.assertFalse((self.root / 'unused').exists())
 		self.assertFalse((self.root / 'daily').exists())
+	# @used-by :mod:`unittest`
 	def test_cli_init_reuses_capture_without_browser(self):
 		capture = self.put('capture/source.json', json.dumps(source()))
 		result = self.cli('upwork_project', 'init', source()['job_id'], '--from-json', capture, '--domain', 'Topic', '--date', '2026-10-15', '--daily-root', self.root / 'daily', '--no-register')
@@ -182,6 +255,7 @@ class InitializationTests(TemporaryCase):
 		# "Initialize new Upwork projects in the V2 filesystem layout":
 		# https://github.com/dmitry-ai/harness/issues/110
 		self.assertFalse((root / '\u2c0f/\u227b/\u2659/Context/output/Context.md').exists())
+	# @used-by :mod:`unittest`
 	def test_attachment_evidence_retained_with_hash(self):
 		asset = self.put('capture/attachments/proof.txt', 'primary evidence')
 		data = {**source(), 'saved_attachments': [{'path': str(asset), 'filename': asset.name, 'sha256': hashlib.sha256(asset.read_bytes()).hexdigest()}]}
@@ -191,6 +265,7 @@ class InitializationTests(TemporaryCase):
 		self.assertEqual(copied[0].read_bytes(), asset.read_bytes())
 		self.assertIn('proof.txt', (root / 'ꘖ/KB/Evidence.md').read_text(encoding='utf-8'))
 class CapturedProjectTests(TemporaryCase):
+	# @used-by :mod:`unittest`
 	@unittest.skipUnless(os.environ.get('UPWORK_CAPTURE_DIR'), 'Optional real Upwork captures are not configured')
 	def test_real_captures_preserve_description_port_and_curated_work(self):
 		# 2026-10-17
@@ -229,6 +304,7 @@ class CapturedProjectTests(TemporaryCase):
 				up.initialize_upwork_project(**kwargs)
 				self.assertEqual({file: file.read_bytes() for file in paths}, expected)
 class IsolationTests(TemporaryCase):
+	# @used-by :mod:`unittest`
 	def test_pending_journal_cannot_be_recovered_into_another(self):
 		(self.root / 'ꘖ').mkdir()
 		a, b = (self.root / 'a', self.root / 'b')
@@ -244,6 +320,7 @@ class IsolationTests(TemporaryCase):
 		journal.recover_step(a, 1, token)
 		self.assertEqual((a / 'res/1.md').read_text(), 'A answer')
 		self.assertEqual((b / 'res/1.md').read_text(), 'B answer')
+	# @used-by :mod:`unittest`
 	def test_two_drafts_in_one_turn_have_distinct_archives(self):
 		(self.root / 'ꘖ').mkdir()
 		a, b = (self.put('a/draft.md', 'first'), self.put('b/draft.md', 'second'))
@@ -251,6 +328,7 @@ class IsolationTests(TemporaryCase):
 		self.assertNotEqual(sa, sb)
 		self.assertEqual(sa.read_bytes(), b'first')
 		self.assertEqual(sb.read_bytes(), b'second')
+	# @used-by :mod:`unittest`
 	def test_incomplete_journal_does_not_replace_context(self):
 		config = self.put('context.json', json.dumps({'version': 1, 'output': 'out.md', 'sections': [{'title': 'Journal', 'journals': ['chat']}]}))
 		old = self.put('out.md', 'previous complete context')
@@ -259,6 +337,7 @@ class IsolationTests(TemporaryCase):
 			generate(self.root, config)
 		self.assertEqual(old.read_text(), 'previous complete context')
 class AttachmentTests(TemporaryCase):
+	# @used-by :mod:`unittest`
 	def test_access_denied_and_unloaded_pages_are_not_job_captures(self):
 		for page in ({'title': 'Access denied'}, {'body': 'You do not have permission to view this job'}):
 			with self.assertRaises(PermissionError):
@@ -267,12 +346,16 @@ class AttachmentTests(TemporaryCase):
 			decode_page({}, '~02123')
 		with self.assertRaisesRegex(ValueError, 'does not match'):
 			decode_page({'nuxt': '[]'}, '~02123')
+	# @used-by :mod:`unittest`
 	def test_cookie_domain_and_path_boundaries(self):
 		class Response:
+			# @used-by :meth:`AttachmentTests.test_cookie_domain_and_path_boundaries()`
 			def __enter__(self):
 				return self
+			# @used-by :meth:`AttachmentTests.test_cookie_domain_and_path_boundaries()`
 			def __exit__(self, *args):
 				pass
+			# @used-by :meth:`AttachmentTests.test_cookie_domain_and_path_boundaries()`
 			def read(self, limit):
 				return b'proof'
 		cookies = [{'name': name, 'value': 'FAKE', 'domain': domain, 'path': path} for name, domain, path in [('allowed', '.upwork.com', '/jobs'), ('path_mismatch', '.upwork.com', '/job'), ('host_mismatch', 'other.upwork.com', '/'), ('root', 'www.upwork.com', '/')]]
@@ -281,16 +364,19 @@ class AttachmentTests(TemporaryCase):
 			download_attachment({'fileName': 'proof.txt', 'uri': '/jobs/proof'}, self.root, cookies)
 			request = opener.return_value.open.call_args.args[0]
 			self.assertEqual(request.get_header('Cookie'), 'allowed=FAKE; root=FAKE')
+	# @used-by :mod:`unittest`
 	def test_paths_cannot_escape_or_use_windows_special_names(self):
 		for name in ('../secret', '..\\secret', 'C:\\secret', 'a/b', 'NUL', 'COM1.txt', 'trailing.', '..'):
 			with self.assertRaises(ValueError):
 				attachment_path(self.root / 'assets', name)
 		self.assertEqual(attachment_path(self.root, 'normal.txt'), self.root / 'normal.txt')
+	# @used-by :mod:`unittest`
 	def test_unrelated_initial_host_rejected_before_network(self):
 		with patch('urllib.request.build_opener') as opener:
 			with self.assertRaises(ValueError):
 				download_attachment({'fileName': 'a.txt', 'uri': 'https://upwork.com.example.org/a'}, self.root, [{'name': 'FAKE', 'value': 'ONLY_TEST'}])
 			opener.assert_not_called()
+	# @used-by :mod:`unittest`
 	def test_redirect_cannot_keep_credentials_on_another_host(self):
 		req = Request('https://www.upwork.com/a', headers={'Cookie': 'FAKE=1', 'Authorization': 'TEST'})
 		result = SafeRedirect().redirect_request(req, None, 302, 'Found', Message(), 'https://upwork.com.example.org/a')
@@ -298,6 +384,7 @@ class AttachmentTests(TemporaryCase):
 		self.assertFalse(result.has_header('Authorization'))
 		with self.assertRaises(ValueError):
 			SafeRedirect().redirect_request(req, None, 302, 'Found', Message(), 'http://www.upwork.com/a')
+	# @used-by :mod:`unittest`
 	def test_tab_selection_requires_exact_job_or_explicit_id(self):
 		a = {'type': 'page', 'id': 'a', 'url': 'https://www.upwork.com/jobs/~02123'}
 		b = {**a, 'id': 'b'}
@@ -313,6 +400,7 @@ class AttachmentTests(TemporaryCase):
 	# 2026-10-17
 	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 	# https://github.com/dmitry-ai/harness/issues/7
+	# @used-by :mod:`unittest`
 	def test_docx_and_text_attachments_saved_in_source_and_both_kbs(self):
 		import zipfile
 		from agent_tools.knowledge import sync_project_attachments_and_kb
@@ -352,46 +440,58 @@ class AttachmentTests(TemporaryCase):
 		self.assertEqual((root / '\U0001f56e/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
 		self.assertEqual(attachment_issues(root), [])
 class RPCTests(unittest.IsolatedAsyncioTestCase):
+	# @used-by :mod:`unittest`
 	async def test_events_and_unrelated_responses_do_not_complete_call(self):
 		class WebSocket:
+			# @used-by :meth:`RPCTests.test_events_and_unrelated_responses_do_not_complete_call()`
 			def __init__(self):
 				self.sent = []
 				self.messages = iter([{'method': 'Runtime.event'}, {'id': 99, 'result': {'wrong': True}}, {'id': 1, 'result': {'expected': True}}])
+			# @used-by :meth:`RPCTests.test_events_and_unrelated_responses_do_not_complete_call()`
 			async def send(self, data):
 				self.sent.append(json.loads(data))
+			# @used-by :meth:`RPCTests.test_events_and_unrelated_responses_do_not_complete_call()`
 			async def recv(self):
 				return json.dumps(next(self.messages))
 		websocket = WebSocket()
 		result = await RPC(websocket).call('Runtime.test')
 		self.assertEqual(result, {'expected': True})
 		self.assertEqual(websocket.sent[0]['id'], 1)
+	# @used-by :mod:`unittest`
 	async def test_unresponsive_browser_has_bounded_diagnostic(self):
 		class WebSocket:
+			# @used-by :meth:`RPCTests.test_unresponsive_browser_has_bounded_diagnostic()`
 			async def send(self, data):
 				pass
+			# @used-by :meth:`RPCTests.test_unresponsive_browser_has_bounded_diagnostic()`
 			async def recv(self):
 				await asyncio.Future()
 		with self.assertRaisesRegex(TimeoutError, 'Runtime.test did not respond'):
 			await RPC(WebSocket(), timeout=0.01).call('Runtime.test')
 class EvidenceTests(TemporaryCase):
+	# @used-by :mod:`unittest`
 	def test_domain_mentions_include_vendors_and_keep_full_hostnames(self):
 		self.assertEqual(extract_candidate_domains(['https://www.stape.io x.example.co.uk and sub.client.example', 'stape.io']), ['stape.io', 'x.example.co.uk', 'sub.client.example'])
+	# @used-by :mod:`unittest`
 	def test_embedded_fences_do_not_end_the_manual_description(self):
 		value = source()
 		value['description'] = 'Original text\n~~~\nLiteral source\n~~~'
 		manual = format_kb_project_md(value)
 		self.assertIn('~~~~markdown', manual)
 		self.assertIn('Literal source\n~~~\n~~~~', manual)
+	# @used-by :mod:`unittest`
 	def test_malformed_analysis_has_actionable_errors(self):
 		cases = [[], {**analysis(), 'notes': []}, {**analysis(), 'concerns': [None]}, {**analysis(), 'causes': [{**claim('H-2'), 'addresses': 'H-CONCERN-1'}]}, {**analysis(), 'concerns': [{**claim('H-1'), 'for': [None]}]}]
 		for value in cases:
 			with self.subTest(value=value), self.assertRaises(ValueError):
 				validate_analysis(value)
+	# @used-by :mod:`unittest`
 	def test_windows_file_uris_and_absolute_paths(self):
 		target = self.put('with space/target.md', '## F-1\nEvidence')
 		for uri in (target.as_uri(), target.as_posix()):
 			path = self.put('links.md', f'[Evidence](<{uri}#f-1>)')
 			self.assertEqual(validate_file(path, local_anchors=True), [])
+	# @used-by :mod:`unittest`
 	def test_analysis_links_causes_to_concerns_and_methods_to_causes(self):
 		value = analysis()
 		validate_analysis(value)
@@ -402,12 +502,14 @@ class EvidenceTests(TemporaryCase):
 		value['methods'][0]['addresses'] = ['NOT-A-CLAIM']
 		with self.assertRaises(ValueError):
 			validate_analysis(value)
+	# @used-by :mod:`unittest`
 	def test_missing_counterevidence_probability_or_documentation_anchor_is_rejected(self):
 		for mutate in (lambda v: v['causes'][0].update(against=[]), lambda v: v['causes'][0].update(probability_percent=None), lambda v: v['methods'][0].pop('criterion'), lambda v: v['concerns'][0]['for'][0].update(documentation=True, source='https://example.org/no-anchor')):
 			value = analysis()
 			mutate(value)
 			with self.assertRaises(ValueError):
 				validate_analysis(value)
+	# @used-by :mod:`unittest`
 	def test_cross_file_markdown_anchors_and_missing_file(self):
 		self.put('target.md', '# H-1\n\n# Repeated\n# Repeated\n')
 		file = self.put('source.md', '[one](target.md#h-1) [second](target.md#repeated-1)')
@@ -415,6 +517,7 @@ class EvidenceTests(TemporaryCase):
 		file.write_text('[bad](absent.md#anything) [wrong](target.md#absent)', encoding='utf-8')
 		errors = validate_file(file, local_anchors=True)
 		self.assertEqual(len(errors), 2)
+	# @used-by :mod:`unittest`
 	def test_json_pointer_is_checked(self):
 		self.put('source.json', '{"description":"exact"}')
 		document = self.put('doc.md', '[valid](source.json#/description)')
@@ -425,6 +528,9 @@ class RegistrationTests(TemporaryCase):
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
 	# https://github.com/dmitry-ai/harness/issues/35
+	# @used-by :meth:`RegistrationTests.test_global_install_preserves_other_customizations_and_is_idempotent()`
+	# @used-by :meth:`RegistrationTests.test_global_install_repairs_profile_without_rules_and_merges_missing_hooks()`
+	# @used-by :meth:`RegistrationTests.test_undeclared_current_antigravity_home_is_reported()`
 	def native_primary(self):
 		primary = self.root / 'canonical'
 		if not primary.exists():
@@ -434,6 +540,7 @@ class RegistrationTests(TemporaryCase):
 			for name in ('runtime.json', 'platforms/codex.md'):
 				shutil.copyfile(up.PRIMARY_AGENTS_DIR / name, primary / name)
 		return primary
+	# @used-by :mod:`unittest`
 	def test_existing_native_file_uri_is_matched_without_replacing_settings(self):
 		root = self.root / '2026/10/15/1 - Topic'
 		root.mkdir(parents=True)
@@ -446,6 +553,7 @@ class RegistrationTests(TemporaryCase):
 		self.assertEqual(record.read_bytes(), before)
 		self.assertEqual(result['folder_path'], 'Upwork / Proposals / 2026 / 10 / 15')
 		self.assertEqual(json.loads(folders.read_text())['projectFolderMap']['existing'], result['folder_id'])
+	# @used-by :mod:`unittest`
 	def test_missing_or_wrong_folders_store_does_not_publish_ungrouped_project(self):
 		root = self.root / '2026/10/15/1 - Topic'
 		root.mkdir(parents=True)
@@ -456,6 +564,7 @@ class RegistrationTests(TemporaryCase):
 			with self.assertRaises((FileNotFoundError, ValueError)):
 				up.register_antigravity_project(root, 'Topic', projects_dir=projects, folders_json_path=self.root / filename)
 			self.assertEqual(list(projects.glob('*.json')), [])
+	# @used-by :mod:`unittest`
 	def test_branch_is_reused_by_parent_and_date_with_other_assignments_preserved(self):
 		data = {'folders': [{'id': 'work', 'name': 'upwork', 'parentId': None}, {'id': 'other-15', 'name': '15', 'parentId': 'work'}], 'projectFolderMap': {'manual-project': 'other-15'}, 'collapsedFolders': ['keep']}
 		folders = self.put('folders.json', json.dumps(data))
@@ -480,6 +589,7 @@ class RegistrationTests(TemporaryCase):
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
 	# https://github.com/dmitry-ai/harness/issues/35
+	# @used-by :mod:`unittest`
 	def test_global_install_preserves_other_customizations_and_is_idempotent(self):
 		primary = self.native_primary()
 		original = {'inherits': [{'path': 'other.json'}], 'entries': [{'path': 'my-skills'}]}
@@ -498,6 +608,7 @@ class RegistrationTests(TemporaryCase):
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
 	# https://github.com/dmitry-ai/harness/issues/35
+	# @used-by :mod:`unittest`
 	def test_global_install_repairs_profile_without_rules_and_merges_missing_hooks(self):
 		primary = self.native_primary()
 		a0 = self.root / 'A0/.gemini/config'
@@ -539,6 +650,7 @@ class RegistrationTests(TemporaryCase):
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
 	# https://github.com/dmitry-ai/harness/issues/35
+	# @used-by :mod:`unittest`
 	def test_undeclared_current_antigravity_home_is_reported(self):
 		primary = self.native_primary()
 		declared, current = (self.root / 'declared', self.root / 'current')
@@ -550,12 +662,14 @@ class RegistrationTests(TemporaryCase):
 		self.assertTrue(result['check']['profiles']['A0']['valid'])
 		self.assertIn('not declared', result['check']['profiles'][up.UNDECLARED_ANTIGRAVITY_HOME]['issues'][0]['message'])
 		self.assertTrue((current / '.gemini/config/rules.json').is_file())
+	# @used-by :mod:`unittest`
 	def test_parallel_registration_retains_all_assignments(self):
 		folders = self.put('folders.json', '{"folders":[],"projectFolderMap":{}}')
 		projects = self.root / 'native-projects'
 		roots = [self.root / f'2026/10/15/{i} - Topic' for i in range(1, 9)]
 		for root in roots:
 			root.mkdir(parents=True)
+		# @used-by :meth:`RegistrationTests.test_parallel_registration_retains_all_assignments()`
 		def register(root):
 			return up.register_antigravity_project(root, 'Topic', projects_dir=projects, folders_json_path=folders)
 		with ThreadPoolExecutor(max_workers=4) as pool:

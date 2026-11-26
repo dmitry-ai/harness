@@ -13,8 +13,11 @@ SCRIPTS_DIR = HARNESS_ROOT / 'scripts'
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 if str(SCRIPTS_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS_DIR))
+# @used-by :meth:`SubprocessHygieneAndTreeKillTests.test_pre_commit_and_pre_tool_use_enforce_subprocess_hygiene_ratchet()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, check=True, timeout=15, creationflags=_NO_WINDOW)
+# @used-by :func:`_kill_pid()`
+# @used-by :meth:`SubprocessHygieneAndTreeKillTests.test_parallel_runner_kills_grandchild_holding_stdout_on_timeout()`
 def _is_pid_alive(pid: int) -> bool:
 	r = False
 	if 0 < pid:
@@ -28,6 +31,7 @@ def _is_pid_alive(pid: int) -> bool:
 			except OSError:
 				r = False
 	return r
+# @used-by :meth:`SubprocessHygieneAndTreeKillTests.test_parallel_runner_kills_grandchild_holding_stdout_on_timeout()`
 def _kill_pid(pid: int) -> None:
 	if 0 < pid and _is_pid_alive(pid):
 		if 'nt' == os.name:
@@ -41,6 +45,7 @@ def _kill_pid(pid: int) -> None:
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206
 class SubprocessHygieneAndTreeKillTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_ast_hygiene_flags_unguarded_subprocess_in_tests_and_launchers_with_ratchet(self) -> None:
 		from agent_tools.subprocess_hygiene_gate import check_subprocess_hygiene_violations
 		bad_test = 'import subprocess, sys\ndef run_it():\n\treturn subprocess.run([sys.executable, "-c", "pass"], capture_output=True)\n'
@@ -61,6 +66,7 @@ class SubprocessHygieneAndTreeKillTests(unittest.TestCase):
 		self.assertEqual([], check_subprocess_hygiene_violations('tests/test_legacy.py', legacy_edited, baseline_source=bad_test))
 		legacy_worse = bad_test + 'def run_two():\n\treturn subprocess.run(["echo"], capture_output=True)\n'
 		self.assertEqual(2, len(check_subprocess_hygiene_violations('tests/test_legacy.py', legacy_worse, baseline_source=bad_test)))
+	# @used-by :mod:`unittest`
 	def test_parallel_runner_kills_grandchild_holding_stdout_on_timeout(self) -> None:
 		from agent_tools.parallel_runner import run_parallel_tests
 		with tempfile.TemporaryDirectory() as td:
@@ -86,6 +92,7 @@ class SubprocessHygieneAndTreeKillTests(unittest.TestCase):
 			finally:
 				_kill_pid(gc_pid)
 				_kill_pid(p_pid)
+	# @used-by :mod:`unittest`
 	def test_pre_commit_and_pre_tool_use_enforce_subprocess_hygiene_ratchet(self) -> None:
 		from agent_tools.git_gate import GitRepoGate
 		from agent_tools.subprocess_hygiene_gate import evaluate_pre_tool_use_subprocess_hygiene

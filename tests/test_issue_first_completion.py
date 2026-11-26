@@ -23,6 +23,7 @@ from agent_tools.repo_tags import ensure_commit_tag
 import check_stop_gate
 
 
+# @used-by :func:`_wire()`
 def _varint(val: int) -> bytes:
 	out = bytearray()
 	while True:
@@ -35,10 +36,14 @@ def _varint(val: int) -> bytes:
 			return bytes(out)
 
 
+# @used-by :func:`_setup_antigravity_conv()`
 def _wire(field_num: int, payload: bytes) -> bytes:
 	return _varint((field_num << 3) | 2) + _varint(len(payload)) + payload
 
 
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
 def _write_issue_ev(proj: Path, slug: str, num: int, *, state: str = 'closed', parent_number: int | None = None) -> Path:
 	ev_dir = proj / '_/ꘖ/KB/Evidence/GitHub' / slug.replace('/', '__')
 	ev_dir.mkdir(parents=True, exist_ok=True)
@@ -68,6 +73,7 @@ def _write_issue_ev(proj: Path, slug: str, num: int, *, state: str = 'closed', p
 _EMPTY_TEMPLATE: list[tuple[tempfile.TemporaryDirectory, Path, Path]] = []
 
 
+# @used-by :func:`_init_github_project()`
 def _get_empty_git_template() -> tuple[Path, Path]:
 	if not _EMPTY_TEMPLATE:
 		td = tempfile.TemporaryDirectory()
@@ -84,6 +90,10 @@ def _get_empty_git_template() -> tuple[Path, Path]:
 	return (bare, code)
 
 
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_cli_issue_first_check_read_only_and_legacy_delivered_immutability()`
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
 def _init_github_project(base: Path, *, slug: str = 'acme/demo', commit_issue: int = 51) -> tuple[Path, Path, Path]:
 	# 2026-11-24
 	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
@@ -117,6 +127,8 @@ def _init_github_project(base: Path, *, slug: str = 'acme/demo', commit_issue: i
 	return (proj, code, bare)
 
 
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_cli_issue_first_check_read_only_and_legacy_delivered_immutability()`
 def _setup_antigravity_conv(base: Path, proj: Path, prompt_text: str) -> tuple[Path, Path, str, Path, list[dict]]:
 	ag_home = base / 'ag_home'
 	backend = ag_home / '.gemini/antigravity'
@@ -139,6 +151,7 @@ def _setup_antigravity_conv(base: Path, proj: Path, prompt_text: str) -> tuple[P
 	return (ag_home, backend, cid, t_log, rows)
 
 
+# @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
 def _setup_codex_conv(base: Path, proj: Path, prompt_text: str, extra_rows: list[dict]) -> tuple[Path, str, Path]:
 	codex_home = base / 'codex_home'
 	sess_dir = codex_home / 'sessions/2026/11/23'
@@ -172,6 +185,7 @@ def _setup_codex_conv(base: Path, proj: Path, prompt_text: str, extra_rows: list
 # "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 # https://github.com/dmitry-ai/harness/issues/146
 class IssueFirstTurnCompletionAndGitTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -256,6 +270,7 @@ class IssueFirstTurnCompletionAndGitTests(unittest.TestCase):
 			)
 			self.assertEqual(stop_ok['decision'], 'allow', stop_ok)
 
+	# @used-by :mod:`unittest`
 	def test_codex_apply_patch_and_exec_command_issue_first_gate(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -351,6 +366,7 @@ class IssueFirstTurnCompletionAndGitTests(unittest.TestCase):
 			self.assertTrue(prep_ok['ready'])
 			self.assertTrue(prep_ok['issue_first_check']['verified'])
 
+	# @used-by :mod:`unittest`
 	def test_cli_issue_first_check_read_only_and_legacy_delivered_immutability(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -393,6 +409,7 @@ class IssueFirstTurnCompletionAndGitTests(unittest.TestCase):
 			self.assertTrue(sync2['valid'], sync2)
 			self.assertEqual(state_file.read_bytes(), legacy_bytes)
 
+	# @used-by :mod:`unittest`
 	def test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

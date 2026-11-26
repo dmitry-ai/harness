@@ -45,6 +45,7 @@ _FLOW_OPTIONS = {
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
+# @used-by :func:`main()`
 def findings_output(findings, path, as_json=False):
 	if as_json:
 		# 2026-11-14
@@ -62,6 +63,10 @@ def findings_output(findings, path, as_json=False):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# @used-by :func:`agent_tools.article.main()`
+# @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`
+# @used-by :mod:`df_proposal`
+# @used-by :mod:`df_text`
 def main(argv=None, *, default_kind='article'):
 	from . import text_core as core, text_workflow as flow
 	if hasattr(sys.stdout, 'reconfigure'):

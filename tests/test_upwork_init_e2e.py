@@ -24,6 +24,13 @@ JOB_NUM = '022124567641359999991'
 PARENT_CID = '33333333-4444-4555-8666-777777777771'
 CHILD_CID = '33333333-4444-4555-8666-777777777772'
 BLOCKED_CID = '33333333-4444-4555-8666-777777777773'
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :func:`_run_turn2_continuation()`
+# @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
+# @used-by :func:`test_finalized_project_contract._seed_pre_review()`
+# @used-by :func:`test_project_domain_drift._complete_review_and_prepare()`
+# @used-by :func:`test_project_domain_drift._prepare_pre_finalize_with_target()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
 def _wire(field: int, payload: bytes) -> bytes:
 	out = bytearray()
 	for val in ((field << 3) | 2, len(payload)):
@@ -34,29 +41,65 @@ def _wire(field: int, payload: bytes) -> bytes:
 			if not val:
 				break
 	return bytes(out) + payload
+# @used-by :func:`test_shadow_replay_m3._seed_pre_finalize_project()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
+# @used-by :func:`_complete_pre_review_stages()`
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :func:`_run_turn2_continuation()`
+# @used-by :func:`test_shadow_replay_m3._seed_pre_finalize_project()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _run_cli(env: dict[str, str], *args: str, cwd: Path, expect_ok: bool=True) -> dict:
 	proc = subprocess.run([sys.executable, str(HARNESS_PY), *args], cwd=str(cwd), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=60, check=False)
 	if expect_ok and 0 != proc.returncode:
 		raise AssertionError(f'CLI failed ({proc.returncode}): {args}\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}')
 	return json.loads(proc.stdout)
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :func:`_run_turn2_continuation()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _run_hook(script: Path, payload: dict, env: dict[str, str], *, cwd: Path) -> dict:
 	proc = subprocess.run([sys.executable, str(script)], input=json.dumps(payload, ensure_ascii=False), cwd=str(cwd), env=env, capture_output=True, text=True, encoding='utf-8', timeout=30, check=False)
 	if 0 != proc.returncode:
 		raise AssertionError(f'Hook failed ({proc.returncode}): {script.name}\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}')
 	return json.loads(proc.stdout)
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :func:`_run_turn2_continuation()`
+# @used-by :func:`_write_falsifier_auditor()`
+# @used-by :func:`test_finalized_project_contract._seed_pre_review()`
+# @used-by :func:`test_project_domain_drift._prepare_pre_finalize_with_target()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _write_transcript(backend: Path, cid: str, rows: list[dict]) -> Path:
 	tx = backend / 'brain' / cid / '.system_generated/logs/transcript_full.jsonl'
 	tx.parent.mkdir(parents=True, exist_ok=True)
 	tx.write_text('\n'.join((json.dumps(r, ensure_ascii=False) for r in rows)) + '\n', encoding='utf-8')
 	return tx
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :func:`_run_turn2_continuation()`
+# @used-by :func:`_write_falsifier_auditor()`
+# @used-by :func:`test_finalized_project_contract._seed_pre_review()`
+# @used-by :func:`test_project_domain_drift._prepare_pre_finalize_with_target()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
+# @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
+# @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_finalize_rejects_provisional_topic_when_target_domain_resolved()`
 def _upsert_summary(backend: Path, cid: str, parent: str, ws_uris: list[str], status: str, last_user: int, agent_name: str) -> None:
 	with closing(sqlite3.connect(backend / 'conversation_summaries.db')) as conn:
 		conn.execute('CREATE TABLE IF NOT EXISTS conversation_summaries(conversation_id TEXT, parent_conversation_id TEXT, workspace_uris TEXT, status TEXT, not_fully_idle INTEGER, killed INTEGER, last_user_input_step_index INTEGER, agent_name TEXT)')
 		conn.execute('DELETE FROM conversation_summaries WHERE conversation_id=?', (cid,))
 		conn.execute('INSERT INTO conversation_summaries VALUES(?,?,?,?,?,?,?,?)', (cid, parent, json.dumps(ws_uris), status, 0 if 'CASCADE_RUN_STATUS_IDLE' == status else 1, 0, last_user, agent_name))
 		conn.commit()
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :func:`_run_turn2_continuation()`
+# @used-by :func:`_write_falsifier_auditor()`
+# @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
+# @used-by :func:`test_finalized_project_contract._seed_pre_review()`
+# @used-by :func:`test_project_domain_drift._complete_review_and_prepare()`
+# @used-by :func:`test_project_domain_drift._prepare_pre_finalize_with_target()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
 def _write_steps_db(backend: Path, cid: str, step_rows: list[tuple[int, int, int, bytes | None]]) -> None:
 	(backend / 'conversations').mkdir(parents=True, exist_ok=True)
 	with closing(sqlite3.connect(backend / 'conversations' / f'{cid}.db')) as conn:
@@ -65,6 +108,8 @@ def _write_steps_db(backend: Path, cid: str, step_rows: list[tuple[int, int, int
 		for idx, stype, status, blob in step_rows:
 			conn.execute('INSERT INTO steps VALUES(?,?,?,0,?)', (idx, stype, status, blob))
 		conn.commit()
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
 def _source_capture(base: Path) -> Path:
 	from test_onboarding import source
 	src = dict(source())
@@ -73,6 +118,8 @@ def _source_capture(base: Path) -> Path:
 	src_file = base / 'source.json'
 	src_file.write_text(json.dumps(src, ensure_ascii=False), encoding='utf-8')
 	return src_file
+# @used-by :func:`_complete_pre_review_stages()`
+# @used-by :func:`test_finalized_project_contract._build_fixture_analysis()`
 def _significant_analysis(proj: Path) -> dict:
 	from agent_tools.analysis import SECTIONS
 	pj = json.loads((proj / '\ua616/project.json').read_text(encoding='utf-8'))
@@ -81,6 +128,9 @@ def _significant_analysis(proj: Path) -> dict:
 	title = json.loads(snap.read_text(encoding='utf-8'))['title']
 	claim = {'id': 'F-TITLE', 'essence': title, 'assessment_basis': 'Exact title in registered intake.', 'knowledge_type': 'client_report', 'verification_status': 'limited', 'scope': {'description': 'Saved job title only.', 'sample': [ref], 'limitations': []}, 'properties': ['content', 'causality'], 'missing_checks': ['Inspect private storefront admin logs.'], 'derived_from': [], 'materiality': 'significant', 'novelty': 'new', 'category': 'descriptive', 'impact': {'severity': 'unknown', 'basis': 'No business impact inferred.', 'evidence_claim_ids': []}, 'probability_percent': 100, 'addresses': [], 'evidence': [{'id': 'E-TITLE', 'kind': 'intake', 'source': ref, 'manifest': ref, 'source_sha256': hashlib.sha256(snap.read_bytes()).hexdigest(), 'quote': title, 'locator': {'type': 'json_pointer', 'value': '/title'}}], 'for': [{'argument': 'Registered intake contains the title.', 'evidence_id': 'E-TITLE'}], 'against': [], 'counterevidence': {'status': 'not_found', 'reviewed_sources': [ref], 'limitations': 'Attributed client report only.'}}
 	return {'schema_version': 3, 'facts': [], 'identity': [claim], **{s: [] for s in SECTIONS if 'identity' != s}, 'notes': {s: 'No conclusion established.' for s in SECTIONS}, 'websites': [{'role': 'client', 'url': None, 'basis_id': 'F-TITLE'}]}
+# @used-by :func:`_run_turn1_init_and_review()`
+# @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
+# @used-by :func:`test_project_domain_drift._complete_review_and_prepare()`
 def _write_falsifier_auditor(backend: Path, proj: Path, pkg: dict, cand_path: Path, parent_rows: list[dict]) -> Path:
 	from agent_tools.review import REVIEW_SCHEMA, SCOPES
 	pkg_name = Path(pkg['package']).name
@@ -102,6 +152,7 @@ def _write_falsifier_auditor(backend: Path, proj: Path, pkg: dict, cand_path: Pa
 	rep_file = proj / '\ua616/data/scratch/falsifier-report.json'
 	rep_file.write_text(rep_json, encoding='utf-8')
 	return rep_file
+# @used-by :func:`_run_turn1_init_and_review()`
 def _complete_pre_review_stages(env: dict[str, str], proj: Path) -> None:
 	_run_cli(env, 'resume', str(proj), '--reason', 'verify_saved_capture', cwd=proj)
 	(proj / '\ua616/KB/Evidence/init-check.json').write_text('{}', encoding='utf-8')
@@ -114,6 +165,7 @@ def _complete_pre_review_stages(env: dict[str, str], proj: Path) -> None:
 	_run_cli(env, 'save-analysis', str(proj), '--candidate', str(cand), '--consume-input', cwd=proj)
 	_run_cli(env, 'render-analysis', str(proj / '\ua616/KB/Analysis.json'), '--output', str(proj / '\ua616/KB/Analysis.md'), cwd=proj)
 	_run_cli(env, 'stage', str(proj), 'analysis', '--input', '\ua616/project.json', '--output', '\ua616/KB/Analysis.json', '--output', '\ua616/KB/Analysis.md', cwd=proj)
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
 def _doc5_blocked_report(src_link: str) -> str:
 	return (
 		'# 0. Metadata\n\n'
@@ -157,6 +209,7 @@ def _doc5_blocked_report(src_link: str) -> str:
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
+# @used-by :func:`_doc5_companion_blocks()`
 def _doc5_companion_block(header: str, tag: str, desc: str, src_link: str) -> str:
 	return (
 		f'\n---\n\n# {header}\n\n# 0. Metadata ({tag})\n\n'
@@ -171,14 +224,20 @@ def _doc5_companion_block(header: str, tag: str, desc: str, src_link: str) -> st
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
+# @used-by :func:`_doc5_blocked_report()`
 def _doc5_companion_blocks(src_link: str) -> str:
 	return (
 		_doc5_companion_block('Analysis 2: Culprit attribution', '2', 'Who introduced the upstream blocker: external endpoint returned `HTTP 503`.', src_link)
 		+ _doc5_companion_block('Analysis 3: Test and verification escape', '3', 'Why tests did not catch the `HTTP 503` retry gap during pre-flight.', src_link)
 		+ _doc5_companion_block('Analysis 4: Journal and reporting integrity', '4', 'Verified Journal `ꙮ` (`FILE-3`) recording via `answer-prepare --blocked-report`.', src_link)
 	)
+# @used-by :func:`_run_turn2_continuation()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _stop_payload(cwd: Path, cid: str, tx: Path) -> dict:
 	return {'hookEventName': 'Stop', 'cwd': str(cwd), 'workspacePaths': [str(cwd)], 'conversationId': cid, 'transcriptPath': str(tx), 'terminationReason': 'NO_TOOL_CALL', 'error': '', 'fullyIdle': True, 'continuationActive': False, 'executionNum': 0}
+# @used-by :func:`test_shadow_replay_m3._seed_pre_finalize_project()`
+# @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _run_turn1_init_and_review(case: unittest.TestCase, base: Path, launcher: Path, backend: Path, env: dict[str, str]) -> tuple[Path, Path, Path, Path, str, str, list[dict]]:
 	req1 = f'/upwork-init https://upwork.com/jobs/{JOB_ID}'
 	parent_rows = [{'step_index': 0, 'type': 'USER_INPUT', 'content': req1, 'created_at': '2026-11-25T10:00:00Z'}]
@@ -213,6 +272,7 @@ def _run_turn1_init_and_review(case: unittest.TestCase, base: Path, launcher: Pa
 	_run_cli(env, 'stage', str(daily), 'review', '--input', '\ua616/KB/Analysis.json', '--output', review_out, cwd=daily)
 	_run_cli(env, 'stage', str(daily), 'kb_review', *kb_args, '--output', '\ua616/KB/Analysis.md', '--note', 'KB consistent', cwd=daily)
 	return (daily, tx, cand_md, ev_bin, req1, reply1, parent_rows)
+# @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _run_turn2_continuation(case: unittest.TestCase, launcher: Path, daily: Path, backend: Path, env: dict[str, str], tx: Path, ev_bin: Path, req1: str, parent_rows: list[dict]) -> None:
 	launcher_before = sorted((p.name for p in (launcher / '\ua616/data/turns').glob('*.json')))
 	req2 = 'Follow up on the finalized project.'
@@ -235,6 +295,7 @@ def _run_turn2_continuation(case: unittest.TestCase, launcher: Path, daily: Path
 # "Add full offline CLI and hook end-to-end lifecycle test for /upwork-init":
 # https://github.com/dmitry-ai/harness/issues/235
 class UpworkInitFullE2ETests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()
@@ -267,6 +328,7 @@ class UpworkInitFullE2ETests(unittest.TestCase):
 			_write_transcript(backend, BLOCKED_CID, [{'step_index': 0, 'type': 'USER_INPUT', 'content': req1}, {'step_index': 5, 'type': 'PLANNER_RESPONSE', 'content': 'Turn 1 summary.', 'tool_calls': []}, {'step_index': 434, 'type': 'USER_INPUT', 'content': req2}, {'step_index': 450, 'type': 'PLANNER_RESPONSE', 'content': doc5, 'tool_calls': []}])
 			stop_out = _run_hook(STOP_HOOK_PY, _stop_payload(launcher, BLOCKED_CID, tx), env, cwd=launcher)
 			self.assertEqual('allow', stop_out['decision'], stop_out)
+	# @used-by :mod:`unittest`
 	def test_full_upwork_init_cli_and_hooks_lifecycle_two_turns(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

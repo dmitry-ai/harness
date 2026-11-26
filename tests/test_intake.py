@@ -1,6 +1,7 @@
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
+from typing import override
 import hashlib
 import io
 import json
@@ -10,8 +11,15 @@ from unittest.mock import patch
 from test_agent_tools import TemporaryCase
 from agent_tools import intake
 from agent_tools import upwork_project as up
+# @used-by :meth:`IntakeTests.initialize()`
+# @used-by :meth:`IntakeTests.test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js()`
 def digest(payload):
 	return hashlib.sha256(payload).hexdigest()
+# @used-by :meth:`IntakeTests.initialize()`
+# @used-by :meth:`IntakeTests.test_changed_attachment_and_incomplete_initialization_are_preserved()`
+# @used-by :meth:`IntakeTests.test_malformed_or_transport_credential_capture_is_preserved()`
+# @used-by :meth:`IntakeTests.test_missing_or_mismatched_snapshot_never_publishes_or_deletes()`
+# @used-by :meth:`IntakeTests.test_scope_name_and_directory_job_mismatch_are_preserved()`
 def json_data(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 # 2026-10-17
@@ -21,6 +29,14 @@ def json_data(value):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class IntakeTests(TemporaryCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_agent_tools.TemporaryCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.incoming = self.root / 'incoming'
@@ -31,12 +47,45 @@ class IntakeTests(TemporaryCase):
 		self.capture.mkdir(parents=True)
 		self.evidence.mkdir(parents=True)
 		self.source = {'job_id': '~021234567890', 'title': 'Task', 'description': 'Exact source\n', 'coverage': {'history_complete': False}, 'saved_attachments': []}
+	# @used-by :meth:`IntakeTests.initialize()`
+	# @used-by :meth:`IntakeTests.test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js()`
+	# @used-by :meth:`IntakeTests.test_changed_attachment_and_incomplete_initialization_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_concurrent_edit_after_copy_is_preserved_and_not_silently_replanned()`
+	# @used-by :meth:`IntakeTests.test_concurrent_replacement_during_retirement_keeps_both_versions()`
+	# @used-by :meth:`IntakeTests.test_copy_failure_preserves_all_staging_and_retry_reuses_objects()`
+	# @used-by :meth:`IntakeTests.test_dry_run_has_no_writes_and_identifies_durable_targets()`
+	# @used-by :meth:`IntakeTests.test_legacy_download_query_filename_is_archived_as_inert_evidence()`
+	# @used-by :meth:`IntakeTests.test_malformed_or_transport_credential_capture_is_preserved()`
+	# @used-by :meth:`IntakeTests.test_process_death_after_partial_delete_recovers_using_permanent_receipt()`
+	# @used-by :meth:`IntakeTests.test_scope_name_and_directory_job_mismatch_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_unknown_manual_material_and_empty_directories_are_preserved()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
 	def capture_file(self, name, payload):
 		path = self.capture / name
 		path.parent.mkdir(parents=True, exist_ok=True)
 		path.write_bytes(payload)
 		r = path
 		return r
+	# @used-by :meth:`IntakeTests.test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js()`
+	# @used-by :meth:`IntakeTests.test_changed_attachment_and_incomplete_initialization_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_changed_durable_object_prevents_any_retirement()`
+	# @used-by :meth:`IntakeTests.test_cli_dry_run_then_apply_and_managed_init_integration()`
+	# @used-by :meth:`IntakeTests.test_concurrent_edit_after_copy_is_preserved_and_not_silently_replanned()`
+	# @used-by :meth:`IntakeTests.test_concurrent_replacement_during_retirement_keeps_both_versions()`
+	# @used-by :meth:`IntakeTests.test_copy_failure_preserves_all_staging_and_retry_reuses_objects()`
+	# @used-by :meth:`IntakeTests.test_dry_run_has_no_writes_and_identifies_durable_targets()`
+	# @used-by :meth:`IntakeTests.test_legacy_download_query_filename_is_archived_as_inert_evidence()`
+	# @used-by :meth:`IntakeTests.test_malformed_or_transport_credential_capture_is_preserved()`
+	# @used-by :meth:`IntakeTests.test_manual_intake_index_is_never_overwritten()`
+	# @used-by :meth:`IntakeTests.test_missing_or_mismatched_snapshot_never_publishes_or_deletes()`
+	# @used-by :meth:`IntakeTests.test_process_death_after_partial_delete_recovers_using_permanent_receipt()`
+	# @used-by :meth:`IntakeTests.test_scope_name_and_directory_job_mismatch_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_symlinked_material_cannot_import_or_delete_outside_target()`
+	# @used-by :meth:`IntakeTests.test_two_concurrent_drainers_commit_once_and_remain_idempotent()`
+	# @used-by :meth:`IntakeTests.test_unknown_manual_material_and_empty_directories_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_user_note_in_previously_generated_index_is_preserved_on_retry()`
+	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
 	def initialize(self, attachment=False):
 		assets = []
 		if attachment:
@@ -59,12 +108,50 @@ class IntakeTests(TemporaryCase):
 		registry.write_bytes(json_data({self.source['job_id']: self.project.relative_to(self.daily).as_posix()}))
 		r = snapshot
 		return r
+	# @used-by :meth:`IntakeTests.test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js()`
+	# @used-by :meth:`IntakeTests.test_changed_attachment_and_incomplete_initialization_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_changed_durable_object_prevents_any_retirement()`
+	# @used-by :meth:`IntakeTests.test_concurrent_edit_after_copy_is_preserved_and_not_silently_replanned()`
+	# @used-by :meth:`IntakeTests.test_concurrent_replacement_during_retirement_keeps_both_versions()`
+	# @used-by :meth:`IntakeTests.test_copy_failure_preserves_all_staging_and_retry_reuses_objects()`
+	# @used-by :meth:`IntakeTests.test_dry_run_has_no_writes_and_identifies_durable_targets()`
+	# @used-by :meth:`IntakeTests.test_legacy_download_query_filename_is_archived_as_inert_evidence()`
+	# @used-by :meth:`IntakeTests.test_malformed_or_transport_credential_capture_is_preserved()`
+	# @used-by :meth:`IntakeTests.test_manual_intake_index_is_never_overwritten()`
+	# @used-by :meth:`IntakeTests.test_missing_or_mismatched_snapshot_never_publishes_or_deletes()`
+	# @used-by :meth:`IntakeTests.test_process_death_after_partial_delete_recovers_using_permanent_receipt()`
+	# @used-by :meth:`IntakeTests.test_scope_name_and_directory_job_mismatch_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_symlinked_material_cannot_import_or_delete_outside_target()`
+	# @used-by :meth:`IntakeTests.test_two_concurrent_drainers_commit_once_and_remain_idempotent()`
+	# @used-by :meth:`IntakeTests.test_unknown_manual_material_and_empty_directories_are_preserved()`
+	# @used-by :meth:`IntakeTests.test_user_note_in_previously_generated_index_is_preserved_on_retry()`
+	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
 	def commit(self, apply=True, capture=None):
 		return intake.commit_capture(capture or self.capture, incoming_root=self.incoming, daily_root=self.daily, apply=apply)
+	# @used-by :meth:`IntakeTests.test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js()`
+	# @used-by :meth:`IntakeTests.test_changed_durable_object_prevents_any_retirement()`
+	# @used-by :meth:`IntakeTests.test_copy_failure_preserves_all_staging_and_retry_reuses_objects()`
+	# @used-by :meth:`IntakeTests.test_legacy_download_query_filename_is_archived_as_inert_evidence()`
+	# @used-by :meth:`IntakeTests.test_malformed_or_transport_credential_capture_is_preserved()`
+	# @used-by :meth:`IntakeTests.test_missing_or_mismatched_snapshot_never_publishes_or_deletes()`
+	# @used-by :meth:`IntakeTests.test_process_death_after_partial_delete_recovers_using_permanent_receipt()`
+	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
+	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
 	def manifest(self):
 		return self.evidence / 'Intake' / (self.capture.name + '.json')
+	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
+	# @used-by :func:`agent_tools.native_profiles._apply()`
+	# @used-by :func:`agent_tools.native_profiles._rollback()`
+	# @used-by :func:`agent_tools.native_profiles._verify()`
+	# @used-by :meth:`IntakeTests.test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js()`
+	# @used-by :meth:`IntakeTests.test_changed_durable_object_prevents_any_retirement()`
+	# @used-by :meth:`IntakeTests.test_copy_failure_preserves_all_staging_and_retry_reuses_objects()`
+	# @used-by :meth:`IntakeTests.test_dry_run_has_no_writes_and_identifies_durable_targets()`
+	# @used-by :meth:`IntakeTests.test_unknown_manual_material_and_empty_directories_are_preserved()`
 	def files(self, directory):
 		return {p.relative_to(directory).as_posix(): p.read_bytes() for p in directory.rglob('*') if p.is_file()}
+	# @used-by :mod:`unittest`
 	def test_dry_run_has_no_writes_and_identifies_durable_targets(self):
 		self.initialize()
 		self.capture_file('home.html', b'<html>Observed</html>')
@@ -74,6 +161,7 @@ class IntakeTests(TemporaryCase):
 		self.assertEqual(result['files'], 2)
 		self.assertFalse(result['drained'])
 		self.assertEqual(self.files(self.root), before)
+	# @used-by :mod:`unittest`
 	def test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js(self):
 		self.initialize(attachment=True)
 		self.capture_file('site.json', b'{"identity":"Observed site"}\r\n')
@@ -103,12 +191,14 @@ class IntakeTests(TemporaryCase):
 			self.assertIn(entries[name]['durable_file'].removeprefix('ꘖ/KB/'), index)
 		self.assertEqual(self.commit()['status'], 'drained')
 		self.assertEqual(len(list((self.evidence / 'Intake/objects').iterdir())), 4)
+	# @used-by :mod:`unittest`
 	def test_copy_failure_preserves_all_staging_and_retry_reuses_objects(self):
 		self.initialize()
 		self.capture_file('home.html', b'primary HTML')
 		before = self.files(self.capture)
 		actual = intake.create_bytes
 		written = []
+		# @used-by :meth:`IntakeTests.test_copy_failure_preserves_all_staging_and_retry_reuses_objects()`
 		def fail_second(path, payload):
 			if 'objects' == path.parent.name:
 				written.append(path)
@@ -122,12 +212,14 @@ class IntakeTests(TemporaryCase):
 		self.assertFalse(self.manifest().exists())
 		self.assertEqual(self.commit()['status'], 'drained')
 		self.assertEqual(len(list((self.evidence / 'Intake/objects').iterdir())), 2)
+	# @used-by :mod:`unittest`
 	def test_process_death_after_partial_delete_recovers_using_permanent_receipt(self):
 		self.initialize()
 		self.capture_file('home.html', b'primary HTML')
 		self.capture_file('site.json', b'{"site":"example.test"}')
 		actual = Path.unlink
 		deleted = []
+		# @used-by :meth:`IntakeTests.test_process_death_after_partial_delete_recovers_using_permanent_receipt()`
 		def crash_after_first(path, *args, **kwargs):
 			if path.name.startswith('.intake-retired-'):
 				deleted.append(path)
@@ -143,6 +235,7 @@ class IntakeTests(TemporaryCase):
 		result = self.commit()
 		self.assertEqual(result['status'], 'drained', result)
 		self.assertFalse(self.capture.exists())
+	# @used-by :mod:`unittest`
 	def test_changed_durable_object_prevents_any_retirement(self):
 		self.initialize()
 		with patch.object(intake, '_index', side_effect=OSError('index write failed')):
@@ -155,10 +248,12 @@ class IntakeTests(TemporaryCase):
 		self.assertEqual(result['status'], 'retained', result)
 		self.assertIn('missing or changed', result['reason'])
 		self.assertEqual(self.files(self.capture), before)
+	# @used-by :mod:`unittest`
 	def test_concurrent_edit_after_copy_is_preserved_and_not_silently_replanned(self):
 		self.initialize()
 		page = self.capture_file('home.html', b'old observation')
 		actual = intake._index
+		# @used-by :meth:`IntakeTests.test_concurrent_edit_after_copy_is_preserved_and_not_silently_replanned()`
 		def concurrent(project):
 			actual(project)
 			page.write_bytes(b'new concurrent observation')
@@ -168,11 +263,13 @@ class IntakeTests(TemporaryCase):
 		self.assertEqual(page.read_bytes(), b'new concurrent observation')
 		self.assertTrue((self.capture / 'source.json').is_file())
 		self.assertEqual(self.commit()['status'], 'retained')
+	# @used-by :mod:`unittest`
 	def test_concurrent_replacement_during_retirement_keeps_both_versions(self):
 		self.initialize()
 		page = self.capture_file('home.html', b'old observation')
 		actual = intake.os.rename
 		replaced = []
+		# @used-by :meth:`IntakeTests.test_concurrent_replacement_during_retirement_keeps_both_versions()`
 		def concurrent(source, target):
 			actual(source, target)
 			if Path(source) == page:
@@ -185,6 +282,7 @@ class IntakeTests(TemporaryCase):
 		self.assertEqual(page.read_bytes(), b'new concurrent observation')
 		self.assertEqual(intake._retired(self.capture, 'home.html').read_bytes(), b'old observation')
 		self.assertTrue((self.capture / 'source.json').is_file())
+	# @used-by :mod:`unittest`
 	def test_missing_or_mismatched_snapshot_never_publishes_or_deletes(self):
 		snapshot = self.initialize()
 		snapshot.unlink()
@@ -195,6 +293,7 @@ class IntakeTests(TemporaryCase):
 		snapshot.write_bytes(json_data({'job_id': self.source['job_id'], 'description': 'different'}))
 		self.assertIn('differs', self.commit()['reason'])
 		self.assertFalse(self.manifest().exists())
+	# @used-by :mod:`unittest`
 	def test_changed_attachment_and_incomplete_initialization_are_preserved(self):
 		self.initialize(attachment=True)
 		self.capture_file('attachments/proof.pdf', b'changed attachment')
@@ -205,6 +304,7 @@ class IntakeTests(TemporaryCase):
 		state_file.write_bytes(json_data(state))
 		self.assertIn('incomplete', self.commit()['reason'])
 		self.assertTrue(self.capture.exists())
+	# @used-by :mod:`unittest`
 	def test_unknown_manual_material_and_empty_directories_are_preserved(self):
 		self.initialize()
 		manual = self.capture_file('manual.md', b'User note')
@@ -215,6 +315,7 @@ class IntakeTests(TemporaryCase):
 		(self.capture / 'manual').mkdir()
 		self.assertIn('Unknown/manual', self.commit()['reason'])
 		self.assertTrue((self.capture / 'manual').is_dir())
+	# @used-by :mod:`unittest`
 	def test_legacy_download_query_filename_is_archived_as_inert_evidence(self):
 		self.initialize()
 		self.capture_file('products.json_limit=250', b'{"products":[]}')
@@ -224,6 +325,7 @@ class IntakeTests(TemporaryCase):
 		entry = next((x for x in receipt['entries'] if 'products.json_limit=250' == x['original_relative_provenance']))
 		self.assertTrue(entry['durable_file'].endswith('.txt'))
 		self.assertEqual((self.project / entry['durable_file']).read_bytes(), b'{"products":[]}')
+	# @used-by :mod:`unittest`
 	def test_malformed_or_transport_credential_capture_is_preserved(self):
 		self.initialize()
 		self.capture_file('source.json', b'[]')
@@ -232,6 +334,7 @@ class IntakeTests(TemporaryCase):
 		self.capture_file('source.json', json_data(self.source))
 		self.assertIn('transport credentials', self.commit()['reason'])
 		self.assertFalse(self.manifest().exists())
+	# @used-by :mod:`unittest`
 	def test_manual_intake_index_is_never_overwritten(self):
 		self.initialize()
 		note = self.project / 'ꘖ/KB/Intake.md'
@@ -239,6 +342,7 @@ class IntakeTests(TemporaryCase):
 		self.assertIn('Manual KB/Intake.md', self.commit()['reason'])
 		self.assertEqual(note.read_bytes(), b'# User authored note\n')
 		self.assertTrue((self.capture / 'source.json').exists())
+	# @used-by :mod:`unittest`
 	def test_scope_name_and_directory_job_mismatch_are_preserved(self):
 		self.initialize()
 		outside = self.root / self.capture.name
@@ -253,6 +357,7 @@ class IntakeTests(TemporaryCase):
 		manual = self.incoming / 'manual'
 		manual.mkdir()
 		self.assertIn('Unknown/manual', self.commit(capture=manual)['reason'])
+	# @used-by :mod:`unittest`
 	def test_symlinked_material_cannot_import_or_delete_outside_target(self):
 		self.initialize()
 		proof = self.root / 'outside.html'
@@ -264,12 +369,14 @@ class IntakeTests(TemporaryCase):
 		self.assertIn('Linked path', self.commit()['reason'])
 		self.assertEqual(proof.read_bytes(), b'outside material')
 		self.assertTrue((self.capture / 'source.json').exists())
+	# @used-by :mod:`unittest`
 	def test_two_concurrent_drainers_commit_once_and_remain_idempotent(self):
 		self.initialize(attachment=True)
 		with ThreadPoolExecutor(max_workers=2) as pool:
 			results = list(pool.map(lambda _: self.commit(), range(2)))
 		self.assertEqual([x['status'] for x in results], ['drained', 'drained'], results)
 		self.assertEqual(len(list((self.evidence / 'Intake/objects').iterdir())), 1)
+	# @used-by :mod:`unittest`
 	def test_user_note_in_previously_generated_index_is_preserved_on_retry(self):
 		self.initialize()
 		self.assertEqual(self.commit()['status'], 'drained')
@@ -278,6 +385,7 @@ class IntakeTests(TemporaryCase):
 		previous = index.read_bytes()
 		self.assertEqual(self.commit()['status'], 'retained')
 		self.assertEqual(index.read_bytes(), previous)
+	# @used-by :mod:`unittest`
 	def test_cli_dry_run_then_apply_and_managed_init_integration(self):
 		self.initialize()
 		with patch.object(intake, 'INCOMING', self.incoming), redirect_stdout(io.StringIO()) as output:

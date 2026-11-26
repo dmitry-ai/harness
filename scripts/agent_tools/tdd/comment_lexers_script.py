@@ -9,10 +9,17 @@ import re
 _BATCH_COMMENT_RE = re.compile(r'^[ \t]*(?:@?rem(?:\s|$)|::)', re.IGNORECASE)
 _PERL_POD_RE = re.compile(r'^=(?:pod|head\d|over|item|back|begin|end|for|encoding)\b')
 _VBS_REM_RE = re.compile(r'rem(?:\s|$)', re.IGNORECASE)
+# @used-by :func:`_hash_block_step()`
+# @used-by :func:`_hash_here_or_regex()`
+# @used-by :func:`_hash_quote_step()`
+# @used-by :func:`_hash_step()`
+# @used-by :func:`_sql_step()`
+# @used-by :func:`_vbs_step()`
 def _emit_if_ok(src: str, i: int, end: int, out: list[str]) -> int:
 	if 0 <= end:
 		out.append(src[i:end])
 	return end
+# @used-by :func:`_hash_step()`
 def _hash_block_step(src: str, i: int, cfg: dict, comments: list[str]) -> int:
 	at_bol = 0 == i or '\n' == src[i - 1]
 	r = -2
@@ -23,6 +30,7 @@ def _hash_block_step(src: str, i: int, cfg: dict, comments: list[str]) -> int:
 	elif at_bol and cfg.get('perl_pod') and _PERL_POD_RE.match(src[i:]):
 		r = _emit_if_ok(src, i, scan_line_block(src, i, '=cut'), comments)
 	return r
+# @used-by :func:`_hash_step()`
 def _hash_comment_allowed(src: str, i: int, cfg: dict) -> bool:
 	if cfg.get('sh_hash'):
 		r = 0 == i or src[i - 1] in ' \t\r\n;|&()'
@@ -31,6 +39,7 @@ def _hash_comment_allowed(src: str, i: int, cfg: dict) -> bool:
 	else:
 		r = True
 	return r
+# @used-by :func:`_hash_quote_step()`
 def _hash_here_or_regex(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 	end = -2
 	if cfg.get('ps_here') and '@' == src[i] and i + 1 < len(src) and src[i + 1] in ('"', "'"):
@@ -42,6 +51,7 @@ def _hash_here_or_regex(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 	elif cfg.get('regex_slash') and '/' == src[i] and can_start_regex(tokens):
 		end = scan_js_regex(src, i)
 	return _emit_if_ok(src, i, end, tokens)
+# @used-by :func:`_hash_step()`
 def _hash_quote_step(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 	ch = src[i]
 	end = -2
@@ -52,6 +62,7 @@ def _hash_quote_step(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 	elif '`' == ch and cfg.get('backtick_str'):
 		end = scan_quoted(src, i, '`', backslash=True)
 	return _emit_if_ok(src, i, end, tokens) if -2 != end else _hash_here_or_regex(src, i, cfg, tokens)
+# @used-by :func:`lex_hash_script()`
 def _hash_step(src: str, i: int, cfg: dict, tokens: list[str], comments: list[str]) -> int:
 	nxt = _hash_block_step(src, i, cfg, comments)
 	if -2 != nxt:
@@ -64,6 +75,7 @@ def _hash_step(src: str, i: int, cfg: dict, tokens: list[str], comments: list[st
 	else:
 		r = _hash_quote_step(src, i, cfg, tokens)
 	return r
+# @used-by :func:`lex_sql()`
 def _sql_step(src: str, i: int, tokens: list[str], comments: list[str]) -> int:
 	ch = src[i]
 	if src.startswith('--', i):
@@ -77,6 +89,7 @@ def _sql_step(src: str, i: int, tokens: list[str], comments: list[str]) -> int:
 	else:
 		r = -2
 	return r
+# @used-by :func:`lex_vbscript()`
 def _vbs_step(src: str, i: int, stmt_start: bool, tokens: list[str], comments: list[str]) -> tuple[int, bool, bool]:
 	ch = src[i]
 	if "'" == ch or (stmt_start and _VBS_REM_RE.match(src, i)):
@@ -87,6 +100,8 @@ def _vbs_step(src: str, i: int, stmt_start: bool, tokens: list[str], comments: l
 	else:
 		r = (scan_word_or_char(src, i, tokens), ':' == ch, True)
 	return r
+# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_batch(source: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
 	tokens: list[str] = []
 	comments: list[str] = []
@@ -96,6 +111,8 @@ def lex_batch(source: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
 		elif raw.strip():
 			tokens.extend((raw.rstrip(), '\n'))
 	return (finalize_line_tokens(tokens), tuple(comments))
+# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_hash_script(source: str, cfg: dict) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	n, tokens, comments, ok = (len(source), [], [], True)
 	i = consume_shebang(source, tokens, True)
@@ -111,6 +128,8 @@ def lex_hash_script(source: str, cfg: dict) -> tuple[tuple[str, ...], tuple[str,
 			ok = -1 != nxt
 			i = scan_word_or_char(source, i, tokens) if -2 == nxt else nxt
 	return (finalize_line_tokens(tokens), tuple(comments)) if ok else None
+# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_sql(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	i, n, tokens, comments, ok = (0, len(source), [], [], True)
 	while i < n and ok:
@@ -121,6 +140,8 @@ def lex_sql(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 			ok = -1 != nxt
 			i = scan_word_or_char(source, i, tokens) if -2 == nxt else nxt
 	return (tuple(tokens), tuple(comments)) if ok else None
+# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_vbscript(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	i, n, tokens, comments, ok, stmt_start = (0, len(source), [], [], True, True)
 	while i < n and ok:

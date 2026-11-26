@@ -14,13 +14,24 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools.tdd import enforcement, evaluator, exemption
 from agent_tools.tdd.events import build_command_tdd_event, build_file_write_tdd_event
 from agent_tools.tdd.mechanical import find_matching_mechanical_recipes, is_git_file_mechanical_exempt
+# @used-by :func:`_init_repo()`
+# @used-by :func:`_seed_committed_files()`
+# @used-by :meth:`TddFastPathTests.test_evaluator_memoizes_exemption_and_allows_exempt_only_edits()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], check=True, stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+# @used-by :meth:`TddFastPathTests.test_evaluator_lazy_exemption_and_full_green_edge_cases()`
+# @used-by :meth:`TddFastPathTests.test_evaluator_memoizes_exemption_and_allows_exempt_only_edits()`
+# @used-by :meth:`TddFastPathTests.test_mechanical_exemption_spawns_zero_git_without_recipes()`
+# @used-by :meth:`TddFastPathTests.test_pre_tool_use_short_circuits_non_code_and_non_writing_commands()`
 def _init_repo(repo: Path) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git(repo, 'init', '-b', 'main')
 	cfg = repo / '.git/config'
 	cfg.write_text(cfg.read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test\n', encoding='utf-8')
+# @used-by :meth:`TddFastPathTests.test_evaluator_lazy_exemption_and_full_green_edge_cases()`
+# @used-by :meth:`TddFastPathTests.test_evaluator_memoizes_exemption_and_allows_exempt_only_edits()`
+# @used-by :meth:`TddFastPathTests.test_mechanical_exemption_spawns_zero_git_without_recipes()`
+# @used-by :meth:`TddFastPathTests.test_pre_tool_use_short_circuits_non_code_and_non_writing_commands()`
 def _seed_committed_files(repo: Path, count: int) -> list[Path]:
 	files: list[Path] = []
 	for idx in range(count):
@@ -31,6 +42,7 @@ def _seed_committed_files(repo: Path, count: int) -> list[Path]:
 	_git(repo, 'add', '.')
 	_git(repo, 'commit', '--no-verify', '-m', 'seed')
 	return files
+# @used-by :meth:`TddFastPathTests.test_pre_tool_use_short_circuits_non_code_and_non_writing_commands()`
 def _write_multi_commit_transcript(tx: Path, repo: Path, prod_files: list[Path]) -> None:
 	test_f = repo / 'tests/test_app.py'
 	rows: list[dict] = [{'step_index': 0, 'type': 'USER_INPUT', 'content': 'Implement modules'}]
@@ -51,6 +63,7 @@ def _write_multi_commit_transcript(tx: Path, repo: Path, prod_files: list[Path])
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
 class TddFastPathTests(unittest.TestCase):
+	# @used-by :mod:`unittest`
 	def test_evaluator_lazy_exemption_and_full_green_edge_cases(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'repo'
@@ -74,6 +87,7 @@ class TddFastPathTests(unittest.TestCase):
 			res_missing_full = evaluator.evaluate_tdd_events(events, require_final_full_green=True, project_root=repo)
 			self.assertFalse(res_missing_full['verified'], res_missing_full)
 			self.assertTrue(any(('TDD-FULL-GATE' in v for v in res_missing_full['violations'])))
+	# @used-by :mod:`unittest`
 	def test_evaluator_memoizes_exemption_and_allows_exempt_only_edits(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'repo'
@@ -107,6 +121,7 @@ class TddFastPathTests(unittest.TestCase):
 			]
 			res_post_green = evaluator.evaluate_tdd_events(post_green_comment, require_final_full_green=True, project_root=repo)
 			self.assertTrue(res_post_green['verified'], res_post_green)
+	# @used-by :mod:`unittest`
 	def test_mechanical_exemption_spawns_zero_git_without_recipes(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			repo = Path(tmp).resolve() / 'repo'
@@ -116,6 +131,7 @@ class TddFastPathTests(unittest.TestCase):
 				self.assertEqual([], find_matching_mechanical_recipes(repo, project_root=repo))
 				self.assertFalse(is_git_file_mechanical_exempt(repo, 'src/mod_00.py', project_root=repo))
 				self.assertEqual(0, spy.call_count)
+	# @used-by :mod:`unittest`
 	def test_pre_tool_use_short_circuits_non_code_and_non_writing_commands(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

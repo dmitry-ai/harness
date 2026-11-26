@@ -2,6 +2,7 @@
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import override
 import json
 import os
 from pathlib import Path
@@ -24,51 +25,134 @@ from agent_tools.text_claims import digest
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class LinkPresentationTests(unittest.TestCase):
+	# @used-by :meth:`LinkPresentationTests.test_missing_changed_fragment_path_query_or_host_is_rejected()`
+	# @used-by :meth:`LinkPresentationTests.test_named_links_are_allowed_in_other_profiles_and_literals_are_preserved()`
+	# @used-by :meth:`LinkPresentationTests.test_original_numeric_anchor_is_not_a_quantitative_claim()`
+	# @used-by :meth:`LinkPresentationTests.test_reference_links_and_balanced_parentheses_keep_the_same_behavior()`
 	def findings(self, text, profile='formatted'):
 		findings = []
 		check_link_style(scan(text), findings, profile)
 		r = {f.rule for f in findings}
 		return r
+	# @used-by :mod:`unittest`
 	def test_original_numeric_anchor_is_not_a_quantitative_claim(self):
 		for fragment in ('15.3', 'p-15.3(k)'):
 			text = f'[**ecfr.gov**/current/title-47/part-15#{fragment}](<https://www.ecfr.gov/current/title-47/part-15#{fragment}>)'
 			self.assertEqual(standalone_numbers(text), set())
 			self.assertEqual(self.findings(text), set())
+	# @used-by :mod:`unittest`
 	def test_numeric_prose_in_a_link_label_still_needs_grounding(self):
 		self.assertEqual(standalone_numbers('[The limit is 15.3 volts.](https://example.org/)'), {'15.3'})
 		self.assertEqual(standalone_numbers('The limit is **15.3** volts.'), {'15.3'})
+	# @used-by :mod:`unittest`
 	def test_reference_links_and_balanced_parentheses_keep_the_same_behavior(self):
 		text = '[**ecfr.gov**/part-15#p-15.3(k)][law]\n\n[law]: <https://ecfr.gov/part-15#p-15.3(k)>'
 		self.assertEqual(standalone_numbers(text), set())
 		self.assertNotIn('LINK-LABEL', self.findings(text))
+	# @used-by :mod:`unittest`
 	def test_missing_changed_fragment_path_query_or_host_is_rejected(self):
 		target = 'https://ecfr.gov/part-15?edition=current#p-15.3(k)'
 		for label in ['ecfr.gov/part-15?edition=current', 'ecfr.gov/part-15?edition=current#wrong', 'ecfr.gov/part-16?edition=current#p-15.3(k)', 'ecfr.gov/part-15#p-15.3(k)', 'other.gov/part-15?edition=current#p-15.3(k)']:
 			self.assertIn('LINK-LABEL', self.findings(f'[{label}](<{target}>)'), label)
+	# @used-by :mod:`unittest`
 	def test_named_links_are_allowed_in_other_profiles_and_literals_are_preserved(self):
 		text = '[The source](https://example.org/#p)'
 		self.assertNotIn('LINK-LABEL', self.findings(text, 'markdown'))
 		self.assertNotIn('LINK-LABEL', self.findings('`' + text + '`\n«' + text + '»\n> ' + text))
 class SourceAdmissionTests(TextWorkspaceCase):
+	# 2026-11-26
+	# "Apply cross-reference annotations across Harness Python and JavaScript":
+	# https://github.com/dmitry-ai/harness/issues/305
+	# @used-by :mod:`unittest`
+	# @see :meth:`test_text_workflow.TextWorkspaceCase.setUp()`
+	@override
 	def setUp(self):
 		super().setUp()
 		self.url = 'https://example.org/rule#p'
 		self.candidate = '1. Read ' + self.url + '.\n'
 		self.target, self.op = self.start(self.candidate, changes='links')
+	# @used-by :func:`agent_tools.cli_domains._op_prepare_experiment()`
+	# @used-by :func:`agent_tools.cli_domains._op_prepare_review()`
+	# @used-by :func:`agent_tools.cli_domains._op_question_add()`
+	# @used-by :func:`agent_tools.cli_domains._op_record_experiment()`
+	# @used-by :func:`agent_tools.text_cli.main()`
+	# @used-by :meth:`SourceAdmissionTests.saved()`
+	# @used-by :meth:`SourceAdmissionTests.test_a_200_redirect_to_a_challenge_is_not_the_intended_resource()`
+	# @used-by :meth:`SourceAdmissionTests.test_a_later_failed_probe_cannot_be_overridden_by_minting_an_older_success()`
+	# @used-by :meth:`SourceAdmissionTests.test_a_redirect_capture_cannot_substitute_for_requesting_a_different_citation()`
+	# @used-by :meth:`SourceAdmissionTests.test_a_source_without_anchor_requires_an_actual_no_anchor_section()`
+	# @used-by :meth:`SourceAdmissionTests.test_changing_candidate_does_not_erase_a_later_failure_of_the_same_url()`
+	# @used-by :meth:`SourceAdmissionTests.test_documentation_anchor_cannot_exist_only_in_the_receipt()`
+	# @used-by :meth:`SourceAdmissionTests.test_dom_fallback_needs_the_exact_captured_identity()`
+	# @used-by :meth:`SourceAdmissionTests.test_explicit_canonical_redirect_still_requires_the_anchor_and_quote()`
+	# @used-by :meth:`SourceAdmissionTests.test_http_500_wrong_anchor_and_wrong_quote_are_preserved_as_failed_receipts()`
+	# @used-by :meth:`SourceAdmissionTests.test_m1_heading_band_wrapper_child_sentinel_and_github_user_content_anchors()`
+	# @used-by :meth:`SourceAdmissionTests.test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked()`
+	# @used-by :meth:`SourceAdmissionTests.test_old_current_sources_expire_but_explicit_historical_editions_are_distinct()`
+	# @used-by :meth:`SourceAdmissionTests.test_reviewer_can_collect_its_own_equal_bytes_without_invalidating_the_author()`
+	# @used-by :meth:`SourceAdmissionTests.test_snapshot_replacement_does_not_verify_the_old_broken_citation()`
+	# @used-by :meth:`SourceAdmissionTests.test_source_check_cli_preserves_success_and_failed_receipts_with_exit_codes()`
+	# @used-by :meth:`SourceAdmissionTests.test_unicode_address_and_encoded_markdown_destination_share_one_identity()`
 	def spec(self, *, url=None, body=None, status=200, final=None, kind='http'):
 		url = url or self.url
 		body = body or b'<h2 id="p">Rule</h2><p>Exact legal text.</p>'
 		observation = collect(self.project, url, max_age=0, observation_kind=kind, fetcher=lambda *args: Response(final or args[0], status, 'text/html', body))
 		r = {'url': url, 'currency': 'current', 'currency_basis': 'This exact captured page at the observed time.', 'evidence': {'source': url, 'observation': observation['observation'], 'source_sha256': observation['body_sha256'], 'quote': 'Exact legal text.', 'documentation': True, 'locator': {'type': 'anchor', 'value': 'p'}}}
 		return r
+	# @used-by :meth:`SourceAdmissionTests.test_a_200_redirect_to_a_challenge_is_not_the_intended_resource()`
+	# @used-by :meth:`SourceAdmissionTests.test_a_later_failed_probe_cannot_be_overridden_by_minting_an_older_success()`
+	# @used-by :meth:`SourceAdmissionTests.test_a_redirect_capture_cannot_substitute_for_requesting_a_different_citation()`
+	# @used-by :meth:`SourceAdmissionTests.test_a_source_without_anchor_requires_an_actual_no_anchor_section()`
+	# @used-by :meth:`SourceAdmissionTests.test_changing_candidate_does_not_erase_a_later_failure_of_the_same_url()`
+	# @used-by :meth:`SourceAdmissionTests.test_documentation_anchor_cannot_exist_only_in_the_receipt()`
+	# @used-by :meth:`SourceAdmissionTests.test_dom_fallback_needs_the_exact_captured_identity()`
+	# @used-by :meth:`SourceAdmissionTests.test_exact_primary_quote_receipt_is_reused_without_network_and_apply_keeps_it()`
+	# @used-by :meth:`SourceAdmissionTests.test_explicit_canonical_redirect_still_requires_the_anchor_and_quote()`
+	# @used-by :meth:`SourceAdmissionTests.test_http_500_wrong_anchor_and_wrong_quote_are_preserved_as_failed_receipts()`
+	# @used-by :meth:`SourceAdmissionTests.test_later_failure_invalidates_apply_and_an_already_applied_gate()`
+	# @used-by :meth:`SourceAdmissionTests.test_m1_heading_band_wrapper_child_sentinel_and_github_user_content_anchors()`
+	# @used-by :meth:`SourceAdmissionTests.test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids()`
+	# @used-by :meth:`SourceAdmissionTests.test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked()`
+	# @used-by :meth:`SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
+	# @used-by :meth:`SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
+	# @used-by :meth:`SourceAdmissionTests.test_old_current_sources_expire_but_explicit_historical_editions_are_distinct()`
+	# @used-by :meth:`SourceAdmissionTests.test_plain_authored_verified_objects_and_changed_candidates_are_rejected()`
+	# @used-by :meth:`SourceAdmissionTests.test_primary_byte_or_metadata_change_invalidates_a_previously_valid_check()`
+	# @used-by :meth:`SourceAdmissionTests.test_reviewer_approval_needs_a_receipt_bound_assessment_for_each_url()`
+	# @used-by :meth:`SourceAdmissionTests.test_reviewer_can_collect_its_own_equal_bytes_without_invalidating_the_author()`
+	# @used-by :meth:`SourceAdmissionTests.test_snapshot_replacement_does_not_verify_the_old_broken_citation()`
+	# @used-by :meth:`SourceAdmissionTests.test_unicode_address_and_encoded_markdown_destination_share_one_identity()`
+	# @used-by :meth:`SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
 	def saved(self, spec=None, candidate=None):
 		return text_sources.save_source_check(self.project, candidate or self.candidate, spec or self.spec())
+	# @used-by :meth:`SourceAdmissionTests.test_a_later_failed_probe_cannot_be_overridden_by_minting_an_older_success()`
+	# @used-by :meth:`SourceAdmissionTests.test_exact_primary_quote_receipt_is_reused_without_network_and_apply_keeps_it()`
+	# @used-by :meth:`SourceAdmissionTests.test_http_500_wrong_anchor_and_wrong_quote_are_preserved_as_failed_receipts()`
+	# @used-by :meth:`SourceAdmissionTests.test_later_failure_invalidates_apply_and_an_already_applied_gate()`
+	# @used-by :meth:`SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
+	# @used-by :meth:`SourceAdmissionTests.test_missing_source_checks_cannot_become_a_valid_mechanical_check()`
+	# @used-by :meth:`SourceAdmissionTests.test_plain_authored_verified_objects_and_changed_candidates_are_rejected()`
+	# @used-by :meth:`SourceAdmissionTests.test_primary_byte_or_metadata_change_invalidates_a_previously_valid_check()`
+	# @used-by :meth:`SourceAdmissionTests.test_reviewer_can_collect_its_own_equal_bytes_without_invalidating_the_author()`
+	# @used-by :meth:`SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.check_and_review()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_explicit_reconciled_baseline_preserves_history_without_granting_publication()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_failed_semantic_admission_is_not_granted_by_a_later_valid_apply()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_historical_successor_lineage_preserves_history_when_later_reviewer_trace_is_unverified()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_later_legitimate_applied_revision_does_not_invalidate_old_answer()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_proof_evidence_review_document_and_journal_changes_remain_conflicts()`
+	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_replaying_an_older_applied_target_is_not_a_later_legitimate_revision()`
 	def checked(self, records):
 		return text_workflow.check(self.project, self.op['id'], self.candidate, {'source_checks': records})
+	# @used-by :meth:`SourceAdmissionTests.test_real_http_failure_and_redirect_are_saved_once_per_base_url()`
+	# @used-by :meth:`SourceAdmissionTests.test_source_check_cli_preserves_success_and_failed_receipts_with_exit_codes()`
+	# @see :meth:`test_agent_tools.TemporaryCase.cli()`
+	@override
 	def cli(self, *args):
 		script = Path(__file__).resolve().parents[1] / 'scripts/df_text.py'
 		r = subprocess.run([sys.executable, str(script), *map(str, args)], capture_output=True, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=30)
 		return r
+	# @used-by :mod:`unittest`
 	def test_source_check_cli_preserves_success_and_failed_receipts_with_exit_codes(self):
 		spec = self.spec()
 		file = self.project_file('source.json', json.dumps(spec))
@@ -82,10 +166,12 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		result = json.loads(failed.stdout)
 		self.assertFalse(result['valid'])
 		self.assertTrue((self.project / result['source_check']).is_file())
+	# @used-by :mod:`unittest`
 	def test_missing_source_checks_cannot_become_a_valid_mechanical_check(self):
 		result = self.checked([])
 		self.assertFalse(result['valid'])
 		self.assertIn('text.source_missing', codes(result))
+	# @used-by :mod:`unittest`
 	def test_unicode_address_and_encoded_markdown_destination_share_one_identity(self):
 		self.url = 'https://example.org/\u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442#\u0440\u0430\u0437\u0434\u0435\u043b'
 		self.candidate = 'Read [\u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442](<' + self.url + '>).'
@@ -95,6 +181,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		self.assertTrue(saved['valid'], saved['issues'])
 		self.assertEqual(text_sources.source_urls(self.candidate), [self.url])
 		self.assertFalse(text_sources.validate_source_checks(self.project, self.candidate, [saved['source_check']])['issues'])
+	# @used-by :mod:`unittest`
 	def test_exact_primary_quote_receipt_is_reused_without_network_and_apply_keeps_it(self):
 		saved = self.saved()
 		self.assertTrue(saved['valid'], saved)
@@ -105,15 +192,18 @@ class SourceAdmissionTests(TextWorkspaceCase):
 			self.assertEqual(applied['source_checks'], [saved['source_check']])
 			self.assertTrue(text_workflow.gate(self.project)['valid'])
 		self.assertTrue(any((path.endswith('response.bin') for path in checked['inputs'])))
+	# @used-by :mod:`unittest`
 	def test_http_500_wrong_anchor_and_wrong_quote_are_preserved_as_failed_receipts(self):
 		for spec in [self.spec(status=500), self.spec(body=b'<h2 id="other">Rule</h2><p>Exact legal text.</p>'), self.spec(body=b'<h2 id="p">Rule</h2><p>Different legal text.</p>')]:
 			failed = self.saved(spec)
 			self.assertFalse(failed['valid'])
 			self.assertFalse(self.checked([failed['source_check']])['valid'])
+	# @used-by :mod:`unittest`
 	def test_a_200_redirect_to_a_challenge_is_not_the_intended_resource(self):
 		failed = self.saved(self.spec(final='https://unblock.example.org/'))
 		self.assertFalse(failed['valid'])
 		self.assertIn('Final URL', ' '.join(failed['issues']))
+	# @used-by :mod:`unittest`
 	def test_explicit_canonical_redirect_still_requires_the_anchor_and_quote(self):
 		spec = self.spec(final='https://example.org/canonical')
 		spec['expected_final_url'] = 'https://example.org/canonical'
@@ -121,6 +211,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		bad = deepcopy(spec)
 		bad['evidence']['quote'] = 'Not in the primary document.'
 		self.assertFalse(self.saved(bad)['valid'])
+	# @used-by :mod:`unittest`
 	def test_a_redirect_capture_cannot_substitute_for_requesting_a_different_citation(self):
 		spec = self.spec(final='https://example.org/canonical')
 		self.url = 'https://example.org/canonical#p'
@@ -130,11 +221,13 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		failed = self.saved(spec)
 		self.assertFalse(failed['valid'])
 		self.assertIn('Requested URL', ' '.join(failed['issues']))
+	# @used-by :mod:`unittest`
 	def test_plain_authored_verified_objects_and_changed_candidates_are_rejected(self):
 		saved = self.saved()
 		self.assertFalse(self.checked([{'url': self.url, 'valid': True}])['valid'])
 		with self.assertRaisesRegex(ValueError, 'another candidate'):
 			text_sources.read_source_check(self.project, self.candidate + 'Changed.', saved['source_check'])
+	# @used-by :mod:`unittest`
 	def test_primary_byte_or_metadata_change_invalidates_a_previously_valid_check(self):
 		saved = self.saved()
 		checked = self.checked([saved['source_check']])
@@ -142,6 +235,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		meta.with_name('response.bin').write_bytes(b'Changed original source')
 		with self.assertRaisesRegex(ValueError, 'stale or failed'):
 			text_workflow.refresh_check(self.project, checked['check'])
+	# @used-by :mod:`unittest`
 	def test_a_later_failed_probe_cannot_be_overridden_by_minting_an_older_success(self):
 		spec = self.spec()
 		saved = self.saved(spec)
@@ -152,11 +246,13 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		self.assertFalse(self.saved(spec)['valid'])
 		refreshed = self.saved(self.spec())
 		self.assertTrue(self.checked([refreshed['source_check']])['valid'])
+	# @used-by :mod:`unittest`
 	def test_changing_candidate_does_not_erase_a_later_failure_of_the_same_url(self):
 		spec = self.spec()
 		self.saved(spec)
 		text_sources.probe_links(self.project, self.candidate, fetcher=lambda *args: Response(args[0], 500, 'text/html', b'Internal server error'))
 		self.assertFalse(self.saved(spec, self.candidate + '\n')['valid'])
+	# @used-by :mod:`unittest`
 	def test_later_failure_invalidates_apply_and_an_already_applied_gate(self):
 		checked = self.checked([self.saved()['source_check']])
 		text_sources.probe_links(self.project, self.candidate, fetcher=lambda *args: Response(args[0], 500, 'text/html', b'Internal server error'))
@@ -167,9 +263,11 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		text_sources.probe_links(self.project, self.candidate, fetcher=lambda *args: Response(args[0], 500, 'text/html', b'Internal server error'))
 		with self.assertRaisesRegex(ValueError, 'newer conflicting'):
 			text_workflow.gate(self.project)
+	# @used-by :mod:`unittest`
 	def test_snapshot_replacement_does_not_verify_the_old_broken_citation(self):
 		different = self.spec(url='https://example.org/other#p')
 		self.assertFalse(self.saved(different)['valid'])
+	# @used-by :mod:`unittest`
 	def test_a_source_without_anchor_requires_an_actual_no_anchor_section(self):
 		self.url = 'https://example.org/rule'
 		self.candidate = '1. Read [rule](' + self.url + ').\n'
@@ -182,15 +280,18 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		bad['evidence']['locator'] = {'type': 'text', 'value': 'Exact legal text.'}
 		bad['evidence']['anchor_exception'] = {'section': 'Rule', 'observation': bad['evidence']['observation']}
 		self.assertFalse(self.saved(bad)['valid'])
+	# @used-by :mod:`unittest`
 	def test_documentation_anchor_cannot_exist_only_in_the_receipt(self):
 		self.url = 'https://example.org/rule'
 		self.candidate = 'Read ' + self.url
 		failed = self.saved(self.spec())
 		self.assertFalse(failed['valid'])
 		self.assertIn('cited URL itself', ' '.join(failed['issues']))
+	# @used-by :mod:`unittest`
 	def test_old_current_sources_expire_but_explicit_historical_editions_are_distinct(self):
 		spec = self.spec()
 		class Later(datetime):
+			# @used-by :meth:`SourceAdmissionTests.test_old_current_sources_expire_but_explicit_historical_editions_are_distinct()`
 			@classmethod
 			def now(cls, tz=None):
 				return datetime.now(timezone.utc) + timedelta(days=2)
@@ -198,9 +299,11 @@ class SourceAdmissionTests(TextWorkspaceCase):
 			self.assertFalse(self.saved(spec)['valid'])
 			spec.update(currency='historical', edition='2024 edition', currency_basis='An explicitly historical comparison only.')
 			self.assertTrue(self.saved(spec)['valid'])
+	# @used-by :mod:`unittest`
 	def test_dom_fallback_needs_the_exact_captured_identity(self):
 		spec = self.spec(kind='dom')
 		self.assertFalse(self.saved(spec)['valid'])
+	# @used-by :mod:`unittest`
 	def test_valid_dom_capture_identity_can_resolve_the_http_channel_failure(self):
 		from agent_tools.storage import create_bytes
 		text_sources.probe_links(self.project, self.candidate, fetcher=lambda *args: Response(args[0], 403, 'text/html', b'Forbidden'))
@@ -226,6 +329,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		unver_obs = collect(self.project, self.url, max_age=0, observation_kind='dom', scope=f'CDP-session:fixture-session:tab:fixture-tab:identity:{unver_ref}', context={'session_id': 'fixture-session'}, fetcher=lambda *args: Response(args[0], 0, 'text/html', b'<h2 id="p">Rule</h2><p>Exact legal text.</p>'))
 		unver_spec = {**spec, 'cdp_identity': unver_ref, 'evidence': {**spec['evidence'], 'observation': unver_obs['observation'], 'source_sha256': unver_obs['body_sha256']}}
 		self.assertFalse(self.saved(unver_spec)['valid'])
+	# @used-by :mod:`unittest`
 	def test_reviewer_approval_needs_a_receipt_bound_assessment_for_each_url(self):
 		saved = self.saved()
 		package = {'source_checks': [saved['source_check']]}
@@ -237,6 +341,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		data['source_reviews'][0]['outcome'] = 'unsupported'
 		with self.assertRaisesRegex(ValueError, 'unsupported'):
 			text_review._source_reviews(self.project, data, package, self.candidate)
+	# @used-by :mod:`unittest`
 	def test_reviewer_can_collect_its_own_equal_bytes_without_invalidating_the_author(self):
 		author = self.saved()
 		independent = self.saved(self.spec())
@@ -244,6 +349,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		report = {'result': 'approved', 'source_reviews': [{'url': self.url, 'receipt': independent['source_check'], 'assessment': 'Independent bytes, same exact quote and section.', 'outcome': 'supported'}]}
 		self.assertTrue(text_review._source_reviews(self.project, report, package, self.candidate))
 		self.assertTrue(self.checked([author['source_check']])['valid'])
+	# @used-by :mod:`unittest`
 	def test_full_native_review_fixture_requires_and_preserves_source_assessments(self):
 		from test_text_integration import TextReviewTests
 		import uuid
@@ -274,9 +380,11 @@ class SourceAdmissionTests(TextWorkspaceCase):
 			applied = text_workflow.apply(fixture.project, fixture.checked['check'])
 		self.assertEqual(applied['status'], 'applied')
 		self.assertTrue(any((path.endswith('response.bin') for path in entry['proof'])))
+	# @used-by :mod:`unittest`
 	def test_real_http_failure_and_redirect_are_saved_once_per_base_url(self):
 		hits = []
 		class Handler(BaseHTTPRequestHandler):
+			# @used-by :meth:`SourceAdmissionTests.test_real_http_failure_and_redirect_are_saved_once_per_base_url()`
 			def do_GET(self):
 				hits.append(self.path)
 				if '/redirect' == self.path:
@@ -288,6 +396,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 					self.send_header('Content-Type', 'text/html')
 					self.end_headers()
 					self.wfile.write(b'<h2 id="p">Rule</h2><p>Exact legal text.</p>')
+			# @used-by :meth:`SourceAdmissionTests.test_real_http_failure_and_redirect_are_saved_once_per_base_url()`
 			def log_message(self, *args):
 				pass
 		server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
@@ -316,6 +425,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 	# https://github.com/dmitry-ai/harness/issues/81
+	# @used-by :mod:`unittest`
 	def test_m1_heading_band_wrapper_child_sentinel_and_github_user_content_anchors(self):
 		html_body = (
 			'<div id="testEvents"><h2>Test Events Tool</h2></div>'
@@ -405,6 +515,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 	# https://github.com/dmitry-ai/harness/issues/81
+	# @used-by :mod:`unittest`
 	def test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids(self):
 		from agent_tools.links import Page, check_network
 		seen_headers = {}
@@ -423,6 +534,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 			'## Implementation {#implementation}\n'
 			'Configure default consent states before tags fire.\n'
 		).encode('utf-8')
+		# @used-by :meth:`SourceAdmissionTests.test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids()`
 		def md_fetcher(req_url, headers, timeout):
 			seen_headers.update(headers)
 			return Response(req_url, 200, 'text/markdown', md_body)
@@ -445,6 +557,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		fenced_spec = {'url': 'https://example.org/consent#fenced-fake', 'currency': 'current', 'currency_basis': 'Code block fake id.', 'evidence': {'source': 'https://example.org/consent#fenced-fake', 'observation': obs['observation'], 'source_sha256': obs['body_sha256'], 'quote': 'Fake', 'documentation': True, 'locator': {'type': 'anchor', 'value': 'fenced-fake'}}}
 		self.assertFalse(self.saved(fenced_spec, '1. See https://example.org/consent#fenced-fake.\n')['valid'])
 		dom_seen = {}
+		# @used-by :meth:`SourceAdmissionTests.test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids()`
 		def dom_hdr_fetcher(req_url, headers, timeout):
 			dom_seen.update(headers)
 			return Response(req_url, 0, 'text/html', b'<h1>DOM</h1>')
@@ -459,6 +572,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 	# https://github.com/dmitry-ai/harness/issues/81
+	# @used-by :mod:`unittest`
 	def test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked(self):
 		from agent_tools.research import classify_html_challenge
 		passive_cf_html = (
@@ -503,12 +617,14 @@ class SourceAdmissionTests(TextWorkspaceCase):
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 	# https://github.com/dmitry-ai/harness/issues/81
+	# @used-by :mod:`unittest`
 	def test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance(self):
 		from agent_tools.research import collect_browser, load_observation
 		from agent_tools.text_browser import save_cdp_identity
 		pub_url = 'https://example.org/public-dom#sec'
 		pub_cand = f'1. Public DOM: {pub_url}.\n'
 		collect(self.project, pub_url, scope='public', observation_kind='dom', fetcher=lambda *a: Response(a[0], 0, 'text/html', b'<h2 id="sec">Section</h2><p>Legacy cached without cdp_identity.</p>'))
+		# @used-by :meth:`SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
 		def fake_headless_fetcher(proj_root, target, **kwargs):
 			id_ref, id_sha = save_cdp_identity(proj_root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(), 'endpoint': 'http://127.0.0.1:54321', 'browser': 'HeadlessChrome/139.0', 'browser_websocket': 'ws://127.0.0.1:54321/devtools/browser/1', 'target_id': 'HEADLESS-TAB-1', 'target_mode': 'ephemeral_headless_context', 'closed_after_capture': True, 'profile': {'status': 'verified', 'mode': 'ephemeral_headless_shell'}})
 			return {'url': target, 'html': '<h2 id="sec">Section</h2><p>Rendered headless quote.</p>', 'title': 'Public DOM', 'target_id': 'HEADLESS-TAB-1', 'target_mode': 'ephemeral_headless_context', 'closed_after_capture': True, 'cdp_identity': id_ref, 'cdp_identity_sha256': id_sha, 'endpoint': 'http://127.0.0.1:54321'}
@@ -525,6 +641,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		self.assertTrue(text_review._source_reviews(self.project, {'result': 'approved', 'source_reviews': [{'url': pub_url, 'receipt': pub_res['source_check'], 'assessment': 'Verified isolated DOM receipt.', 'outcome': 'supported'}]}, {'source_checks': [pub_res['source_check']]}, pub_cand))
 		auth_url = 'https://example.org/auth-dom#sec'
 		auth_cand = f'1. Auth DOM: {auth_url}.\n'
+		# @used-by :meth:`SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
 		def fake_auth_fetcher(proj_root, target, **kwargs):
 			id_ref, id_sha = save_cdp_identity(proj_root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(), 'session_id': 'chrome-default', 'endpoint': 'http://127.0.0.1:9222', 'browser': 'Chrome/142.0', 'browser_websocket': 'ws://127.0.0.1:9222/devtools/browser/2', 'target_id': 'AUTH-TAB-2', 'target_mode': 'm2a_extension_background_tab', 'closed_after_capture': True, 'profile': {'status': 'verified', 'name': 'Default'}})
 			return {'url': target, 'html': '<h2 id="sec">Auth</h2><p>Authenticated profile quote.</p>', 'title': 'Auth DOM', 'target_id': 'AUTH-TAB-2', 'target_mode': 'm2a_extension_background_tab', 'closed_after_capture': True, 'cdp_identity': id_ref, 'cdp_identity_sha256': id_sha, 'endpoint': 'http://127.0.0.1:9222'}
@@ -542,6 +659,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 	# 2026-11-16
 	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 	# https://github.com/dmitry-ai/harness/issues/81
+	# @used-by :mod:`unittest`
 	def test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation(self):
 		job_id = '~021989674775509080169'
 		snapshot_obj = {'job_id': job_id, 'captured_at': '2026-11-10T09:00:00+00:00', 'description': 'Need GTM Server-Side and Meta CAPI audit.', 'client': {'recent_history': [{'freelancer_feedback_text': 'Clear communication throughout the GTM audit.'}]}}
@@ -573,6 +691,7 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		bad_other_job['evidence']['source'] = other_job_url
 		self.assertFalse(self.saved(bad_other_job, o_cand)['valid'])
 		class Later(datetime):
+			# @used-by :meth:`SourceAdmissionTests.test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation()`
 			@classmethod
 			def now(cls, tz=None):
 				return datetime.now(timezone.utc) + timedelta(days=5)

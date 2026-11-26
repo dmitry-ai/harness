@@ -18,6 +18,7 @@ from agent_tools.evidence import evidence_issues
 from agent_tools.metrics import native_requests, project_metrics
 from agent_tools.research import collect, collect_plan, capture_dom, select_dom_tab, extract_bytes, Response
 from agent_tools import upwork_project as up
+# @used-by :func:`message()`
 def varint(value):
 	result = bytearray()
 	while value > 127:
@@ -26,6 +27,7 @@ def varint(value):
 	result.append(value)
 	r = bytes(result)
 	return r
+# @used-by :meth:`ResumeExportTests.request_database()`
 def message(field, payload):
 	return varint(field * 8 + 2) + varint(len(payload)) + payload
 # 2026-10-14
@@ -38,6 +40,10 @@ def message(field, payload):
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 class ResumeExportTests(ProjectCase):
+	# @used-by :meth:`ResumeExportTests.test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate()`
+	# @used-by :meth:`ResumeExportTests.test_native_requests_preserve_exact_bytes_and_current_job_scope()`
+	# @used-by :meth:`ResumeExportTests.test_routine_self_review_is_explicit_and_never_counts_as_independent()`
+	# @used-by :meth:`ResumeExportTests.test_unknown_native_format_does_not_reconstruct_request()`
 	def request_database(self, texts, format_id=0):
 		cid = str(uuid.uuid4())
 		home = self.root / 'native-home'
@@ -50,6 +56,7 @@ class ResumeExportTests(ProjectCase):
 			conn.commit()
 		r = (home, backend, cid)
 		return r
+	# @used-by :mod:`unittest`
 	def test_native_requests_preserve_exact_bytes_and_current_job_scope(self):
 		texts = ['Other task', '/upwork-init https://www.upwork.com/jobs/' + up.normalize_job_id('~021234567890'), 'Continue analysis.\nReason: Windows\n', '/upwork-init https://www.upwork.com/jobs/~029999999999', 'Continue unrelated job']
 		home, backend, cid = self.request_database(texts)
@@ -57,10 +64,12 @@ class ResumeExportTests(ProjectCase):
 		self.assertEqual([x['text'] for x in result], texts[1:3])
 		self.assertEqual([x['native_step'] for x in result], [1, 2])
 		self.assertEqual(result[1]['id'], cid + '-2')
+	# @used-by :mod:`unittest`
 	def test_unknown_native_format_does_not_reconstruct_request(self):
 		home, backend, cid = self.request_database(['/upwork-init https://www.upwork.com/jobs/~021234567890'], format_id=7)
 		with self.assertRaises(ValueError):
 			native_requests(self.project, cid, backend=backend)
+	# @used-by :mod:`unittest`
 	def test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate(self):
 		texts = ['/upwork-init https://www.upwork.com/jobs/~021234567890', 'Continue analysis.\n']
 		home, backend, cid = self.request_database(texts)
@@ -90,6 +99,7 @@ class ResumeExportTests(ProjectCase):
 		target, content, sources = generate(self.project, self.project / '.agents/context.json')
 		self.assertLess(content.index(texts[1]), content.index(answer))
 		self.assertIn('one final answer shared', content)
+	# @used-by :mod:`unittest`
 	def test_group_crash_reserves_all_numbers_and_preserves_previous_context(self):
 		# 2026-11-21
 		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
@@ -105,6 +115,7 @@ class ResumeExportTests(ProjectCase):
 		generate(self.project, self.project / '.agents/context.json')
 		previous = target.read_bytes()
 		real = journal.create_bytes
+		# @used-by :meth:`ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
 		def fail_on_second_request(path, data):
 			# 2026-11-21
 			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
@@ -125,6 +136,7 @@ class ResumeExportTests(ProjectCase):
 		self.assertEqual(len(journal.answer_groups(directory)), 1)
 		with self.assertRaises(ValueError):
 			journal.record_answer(directory, ['First exact request', 'Second exact request'], 'Changed answer', 'turn-1')
+	# @used-by :mod:`unittest`
 	def test_atomic_create_does_not_leave_a_partial_final_file(self):
 		target = self.project / 'ꘖ/data/new-state.json'
 		# 2026-11-24
@@ -138,6 +150,7 @@ class ResumeExportTests(ProjectCase):
 		with self.assertRaises(FileExistsError):
 			storage.create_bytes(target, b'replacement')
 		self.assertEqual(target.read_bytes(), b'complete')
+	# @used-by :mod:`unittest`
 	def test_analysis_commit_requires_current_hash_and_preserves_history(self):
 		# 2026-10-18
 		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
@@ -157,6 +170,7 @@ class ResumeExportTests(ProjectCase):
 		with self.assertRaises(ValueError):
 			save_analysis(self.project, candidate, result['sha256'])
 		self.assertEqual(target.read_bytes(), b'{"manual_change":true}')
+	# @used-by :mod:`unittest`
 	def test_public_example_passes_structure_evidence_and_project_checks(self):
 		directory = up.PRIMARY_AGENTS_DIR / 'skills/upwork-init/references'
 		source = self.put_project('ꘖ/KB/Evidence/example-source.json', (directory / 'example-source.json').read_bytes())
@@ -175,8 +189,10 @@ class ResumeExportTests(ProjectCase):
 		from agent_tools.analysis import publish_analysis
 		publish_analysis(self.project / 'ꘖ/KB/Analysis.json')
 		self.assertTrue(flow.check_project(self.project)['valid'])
+	# @used-by :mod:`unittest`
 	def test_failed_extraction_keeps_saved_observation_and_reuses_it(self):
 		calls = []
+		# @used-by :meth:`ResumeExportTests.test_failed_extraction_keeps_saved_observation_and_reuses_it()`
 		def fetcher(*args):
 			calls.append(args)
 			r = Response(args[0], 200, 'text/html', b'<h1>Not product JSON</h1>')
@@ -193,6 +209,7 @@ class ResumeExportTests(ProjectCase):
 		self.assertEqual(len(calls), 1)
 		observed = project_metrics(self.project)['collector']
 		self.assertEqual((observed['fresh_attempts'], observed['cache_hits']), (1, 1))
+	# @used-by :mod:`unittest`
 	def test_collection_cli_signals_unavailable_content_with_saved_diagnostics(self):
 		plan = self.put_project('ꘖ/data/plan.json', '{"requests":[{"url":"https://example.invalid/absent"}]}')
 		from agent_tools import research
@@ -206,6 +223,7 @@ class ResumeExportTests(ProjectCase):
 			self.assertEqual(result['results'][0]['status'], 404)
 			self.assertTrue((self.project / 'ꘖ/KB' / result['results'][0]['observation']).is_file())
 			self.assertEqual(fetched.call_count, 1 if 0 == attempt else 0)
+	# @used-by :mod:`unittest`
 	def test_exact_dom_tab_is_read_without_inventing_http_status(self):
 		tabs = [{'id': 'a', 'type': 'page', 'url': 'https://example.invalid/a'}]
 		self.assertEqual(select_dom_tab(tabs, 'https://example.invalid/a#part', 'a'), tabs[0])
@@ -220,6 +238,7 @@ class ResumeExportTests(ProjectCase):
 		self.assertIsNone(result['status'])
 		self.assertFalse(result['http_status_verified'])
 		self.assertEqual(result['kind'], 'dom')
+	# @used-by :mod:`unittest`
 	def test_remote_json_pointer_checks_only_the_target_field(self):
 		value = self.valid_analysis()
 		collect(self.project, 'https://example.invalid/product.json', fetcher=lambda *args: Response(args[0], 200, 'application/json', b'{"a":"The concern","b":"Alternative"}'))
@@ -227,6 +246,7 @@ class ResumeExportTests(ProjectCase):
 		self.assertTrue(evidence_issues(self.project, value))
 		value['concerns'][0]['for'][0]['source'] = 'https://example.invalid/product.json#/a'
 		self.assertEqual(evidence_issues(self.project, value), [])
+	# @used-by :mod:`unittest`
 	def test_overview_and_nested_kb_module_change_invalidates_review_receipt(self):
 		self.put_project('ꘖ/KB/.md', '# Overview\n')
 		self.put_project('ꘖ/KB/Modules/pricing.md', '# Pricing\n')
@@ -237,6 +257,7 @@ class ResumeExportTests(ProjectCase):
 		self.assertTrue(flow.receipt_current(self.project, receipt))
 		self.put_project('ꘖ/KB/.md', '# Updated overview\n')
 		self.assertFalse(flow.receipt_current(self.project, receipt))
+	# @used-by :mod:`unittest`
 	def test_malformed_evidence_fields_return_diagnostics_without_crashing(self):
 		value = self.valid_analysis()
 		arg = value['causes'][0]['for'][0]
@@ -251,6 +272,7 @@ class ResumeExportTests(ProjectCase):
 			code = up.main(['validate-analysis', str(self.project / 'ꘖ/data/invalid.json'), '--format', 'json', '--evidence'])
 		self.assertEqual(code, 1)
 		self.assertFalse(json.loads(stream.getvalue())['valid'])
+	# @used-by :mod:`unittest`
 	def test_routine_self_review_is_explicit_and_never_counts_as_independent(self):
 		self.valid_analysis()
 		home, backend, cid = self.request_database(['/upwork-init https://www.upwork.com/jobs/~021234567890'])
@@ -270,11 +292,13 @@ class ResumeExportTests(ProjectCase):
 		self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
 		with patch.object(Path, 'home', return_value=home), self.assertRaises(ValueError):
 			flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=cid, reviewer_id=cid)
+	# @used-by :mod:`unittest`
 	def test_tracking_extraction_handles_quoted_keys_and_declares_unparsed_js(self):
 		value = extract_bytes(b'<script>{"webPixelsConfigList":[{"id":1}]};wpmLoader=window.cfg</script>', 'text/html', 'tracking')
 		self.assertEqual(value['embedded_json']['webPixelsConfigList'], [[{'id': 1}]])
 		self.assertEqual(value['embedded_json_unparsed'][0]['key'], 'wpmLoader')
 		self.assertFalse(value['execution_checked'])
+	# @used-by :mod:`unittest`
 	def test_new_question_invalidates_completed_research_and_dependent_analysis(self):
 		# 2026-10-18
 		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
@@ -293,6 +317,7 @@ class ResumeExportTests(ProjectCase):
 		self.assertEqual(statuses['analysis'], 'stale')
 		with self.assertRaises(ValueError):
 			flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/init.json'])
+	# @used-by :mod:`unittest`
 	def test_review_package_pins_primary_evidence_and_unquoted_new_contradiction(self):
 		self.valid_analysis()
 		parent = str(uuid.uuid4())

@@ -13,6 +13,7 @@ import time
 from ..suite_runner import discover_test_modules
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _SUM_KEYS = ('dur_s', 'popen_count', 'popen_s', 'git_count', 'git_s', 'python_count', 'python_s', 'other_proc_count', 'other_proc_s', 'sleep_count', 'sleep_s')
+# @used-by :func:`_assemble_report()`
 def _aggregate_cprofile(file_rows: list[dict[str, Any]], top_n: int) -> list[dict[str, Any]]:
 	merged: dict[tuple[str, int, str], dict[str, Any]] = {}
 	for fitem in file_rows:
@@ -24,6 +25,8 @@ def _aggregate_cprofile(file_rows: list[dict[str, Any]], top_n: int) -> list[dic
 			slot['cumtime'] = round(slot['cumtime'] + float(row['cumtime']), 5)
 	ordered = sorted(merged.values(), key=lambda x: (-x['cumtime'], -x['tottime']))
 	return ordered[:max(1, int(top_n))]
+# @used-by :func:`_assemble_report()`
+# @used-by :func:`_file_summary()`
 def _aggregate_totals(tests: list[dict[str, Any]]) -> dict[str, Any]:
 	totals = {k: 0 if k.endswith('_count') else 0.0 for k in _SUM_KEYS}
 	for item in tests:
@@ -31,6 +34,7 @@ def _aggregate_totals(tests: list[dict[str, Any]]) -> dict[str, Any]:
 			val = item.get(k, 0)
 			totals[k] = (totals[k] + int(val)) if k.endswith('_count') else round(totals[k] + float(val), 4)
 	return totals
+# @used-by :func:`profile_test_suite()`
 def _assemble_report(base: Path, file_rows: list[dict[str, Any]], eff_workers: int, wall_s: float, top_n: int, cp_limit: int) -> dict[str, Any]:
 	file_rows.sort(key=lambda item: (-item['run_s'], item['file']))
 	all_tests = sorted((t for item in file_rows for t in (item.get('tests') or ())), key=lambda item: (-item['dur_s'], item['test_id']))
@@ -44,12 +48,15 @@ def _assemble_report(base: Path, file_rows: list[dict[str, Any]], eff_workers: i
 	cp_top = _aggregate_cprofile(file_rows, cp_limit) if 0 < cp_limit else []
 	clean_files = [{k: v for k, v in item.items() if 'cprofile' != k} for item in file_rows]
 	return {'schema_version': 1, 'valid': 0 == n_fail and 0 == n_err, 'tests_dir': base.as_posix(), 'workers': eff_workers, 'cpu_count': os.cpu_count(), 'python_version': platform.python_version(), 'platform': platform.platform(), 'parallel_wall_s': wall_s, 'sum_file_run_s': sum_run, 'sum_file_load_s': sum_load, 'total_files': len(file_rows), 'total_tests': n_tests, 'total_failures': n_fail, 'total_errors': n_err, 'total_skipped': n_skip, 'totals': _aggregate_totals(all_tests), 'top_files': top_files, 'top_tests': all_tests[:max(1, int(top_n))], 'cprofile_top': cp_top, 'files': clean_files}
+# @used-by :func:`profile_test_suite()`
 def _default_workers() -> int:
 	return min(max(2, (os.cpu_count() or 4) // 2), 6)
+# @used-by :func:`_assemble_report()`
 def _file_summary(item: dict[str, Any], total_run_s: float) -> dict[str, Any]:
 	sums = _aggregate_totals(item.get('tests') or [])
 	share = round(100.0 * item['run_s'] / total_run_s, 2) if 0.0 < total_run_s else 0.0
 	return {'file': item['file'], 'run_s': item['run_s'], 'load_s': item['load_s'], 'share_pct': share, 'tests_run': item['tests_run'], 'failures': item['failures'], 'errors': item['errors'], 'skipped': item['skipped'], 'popen_count': sums['popen_count'], 'popen_s': sums['popen_s'], 'git_count': sums['git_count'], 'python_count': sums['python_count'], 'sleep_s': sums['sleep_s']}
+# @used-by :func:`profile_test_suite()`
 def _run_worker(mod_path: Path, top_dir: Path, *, timeout_s: float, cprofile_top: int, tmp_dir: Path, idx: int) -> dict[str, Any]:
 	out_json = tmp_dir / f'worker-{idx}.json'
 	scripts_dir = Path(__file__).resolve().parents[2]
@@ -66,8 +73,11 @@ def _run_worker(mod_path: Path, top_dir: Path, *, timeout_s: float, cprofile_top
 	except subprocess.TimeoutExpired:
 		r = _worker_error(mod_path, top_dir, f'timeout after {timeout_s}s')
 	return r
+# @used-by :func:`_run_worker()`
 def _worker_error(mod_path: Path, top_dir: Path, msg: str) -> dict[str, Any]:
 	return {'file': mod_path.relative_to(top_dir).as_posix(), 'load_s': 0.0, 'run_s': 0.0, 'tests_run': 0, 'failures': 0, 'errors': 1, 'skipped': 0, 'import_stats': {}, 'tests': [], 'cprofile': [], 'worker_error': msg}
+# @used-by :func:`agent_tools.cli_registry._format_perf_profile_tests()`
+# @used-by :mod:`agent_tools.perf`
 def format_profile_text(report: dict[str, Any]) -> str:
 	tot = report.get('totals') or {}
 	lines = [
@@ -82,6 +92,9 @@ def format_profile_text(report: dict[str, Any]) -> str:
 # 2026-11-24
 # "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
 # https://github.com/dmitry-ai/harness/issues/192
+# @used-by :func:`run_perf_profile_cli()`
+# @used-by :meth:`test_perf_profile_tests.PerfProfileTestsSuiteTests.test_profile_test_suite_measures_files_tests_popen_sleep_and_cprofile()`
+# @used-by :mod:`agent_tools.perf`
 def profile_test_suite(tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, enable_cprofile: bool=False, top_n: int=15, cprofile_top: int=25) -> dict[str, Any]:
 	base, ordered = discover_test_modules(tests_dir, pattern=pattern, modules=modules)
 	if not ordered:
@@ -96,6 +109,7 @@ def profile_test_suite(tests_dir: Path | str | None=None, *, workers: int | None
 			file_rows = [f.result() for f in futs]
 	wall_s = round(max(0.0, time.perf_counter() - t0), 4)
 	return _assemble_report(base, file_rows, eff_workers, wall_s, top_n, cp_limit)
+# @used-by :func:`agent_tools.cli_registry._exec_perf_profile_tests()`
 def run_perf_profile_cli(args) -> dict[str, Any]:
 	report = profile_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, pattern=args.pattern, modules=args.module, enable_cprofile=bool(args.cprofile), top_n=args.top, cprofile_top=args.cprofile_top)
 	if None is not args.output:
