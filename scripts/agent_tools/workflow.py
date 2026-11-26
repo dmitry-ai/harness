@@ -1,4 +1,6 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Harden follow-up launcher handoff and journal reservation integrity":
+# https://github.com/dmitry-ai/harness/issues/269
 # "Enforce project.domain_drift invariant in check-project and finalize":
 # https://github.com/dmitry-ai/harness/issues/268
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -163,10 +165,8 @@ class ProjectHealthAuditor:
 					issues.append(problem('document.link_style', self.pp.rel_to_root(document), error, file=document))
 		path = self.pp.kb_dir / 'Analysis.json'
 		issues.extend(self._analysis_card_issues(path, prevalidated=prevalidated_analysis))
-		for issue in issues:
-			if not issue.get('file'):
-				issue['file'] = str(path)
-		return {'valid': not issues, 'issues': issues, 'semantic_truth_verified': False}
+		from .journal_integrity import finalize_project_check
+		return finalize_project_check(self.pp, issues, path)
 	def kb_issues(self):
 		from .links import validate_file
 		r = []
@@ -370,7 +370,8 @@ class WorkflowStateEngine:
 	def _apply_unadopt(self, state, conversation_id, req_ids):
 		state['requests'] = [x for x in state.get('requests', []) if not ((conversation_id and x.get('native_conversation_id') == conversation_id) or (req_ids and x.get('id') in req_ids))]
 	def _finalize_stage(self, state, out_hashes, outputs):
-		from .journal import get_existing_step_ids, journal_pair_dirs, resolve_journal_dir, step_errors, step_file
+		from .journal import journal_pair_dirs, resolve_journal_dir, step_file
+		from .journal_integrity import validate_finalize_journal
 		from .links import chat_reply_link_issues
 		from .project_drift import require_no_domain_drift_for_finalize
 		from .review import authorize
@@ -379,9 +380,7 @@ class WorkflowStateEngine:
 		gate_paths([self.root / name for name in outputs])
 		prepared = state['requests'][-1].get('response_prepared', {}) if state['requests'] else {}
 		journal = resolve_journal_dir(self.root, prepared.get('journal'))
-		ids = get_existing_step_ids(journal)
-		if not ids or any((step_errors(journal, ident) for ident in ids)):
-			raise ValueError('Complete exact req/res journal pairs before finalizing')
+		ids = validate_finalize_journal(self.root, journal, state)
 		req_dir, res_dir = journal_pair_dirs(journal)
 		latest = max(ids)
 		reply = step_file(res_dir, latest, directory=journal)

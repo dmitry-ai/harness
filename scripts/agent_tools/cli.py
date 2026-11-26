@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Harden follow-up launcher handoff and journal reservation integrity":
+# https://github.com/dmitry-ai/harness/issues/269
 # 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
 # https://github.com/dmitry-ai/harness/issues/105
@@ -39,7 +42,7 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			group = parser.add_mutually_exclusive_group()
 			add_arg_specs(group, (('--' + name, {}), ('--' + name + '-file', {'type': Path})))
 	elif 'validate_step' == command:
-		add_arg_specs(parser, (('--dir', {'type': Path, 'required': True}), ('--file', {'type': Path, 'action': 'append', 'default': []})))
+		add_arg_specs(parser, (('--dir', {'type': Path, 'required': True}), ('--file', {'type': Path, 'action': 'append', 'default': []}), ('--strict-sequence', {'action': 'store_true', 'help': 'Fail on missing contiguous steps 1..max(ids) (unless documented in sequence-recovery.json) or orphaned reservations'})))
 		group = parser.add_mutually_exclusive_group(required=True)
 		add_arg_specs(group, (('--step', {'type': int}), ('--all', {'action': 'store_true'})))
 	elif command in specs_map:
@@ -68,17 +71,8 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			target, content, sources = generate(root, args.config, args.output, args.dry_run)
 			print(f"{len(sources)} sources; {len(content.encode('utf-8'))} bytes; {('dry run' if args.dry_run else 'saved')}: {target}")
 		elif 'validate_step' == command:
-			from .journal import get_existing_step_ids, step_errors
-			steps = sorted(get_existing_step_ids(args.dir)) if args.all else [args.step]
-			if not steps:
-				raise ValueError('No journal steps found')
-			errors = [error for step in steps for error in step_errors(args.dir, step)]
-			if args.file:
-				from .links import validate_file
-				errors += [e for path in args.file for e in validate_file(path)]
-			if errors:
-				raise ValueError('\n'.join(errors))
-			print(f'Checked {len(steps)} journal pairs and {len(args.file)} explicit files; content truth and authorization require review')
+			from .journal_integrity import validate_step_cli
+			print(validate_step_cli(args))
 		elif 'record_step' != command:
 			from .links import check_network, references, validate_file
 			errors = []

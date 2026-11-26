@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Harden follow-up launcher handoff and journal reservation integrity":
+# https://github.com/dmitry-ai/harness/issues/269
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
@@ -1056,47 +1059,15 @@ def format_conversation_journal_title(steps) -> str:
 	ordered = sorted({st for st in (steps or ()) if int is type(st) and 1 <= st})
 	return ', '.join((str(st) for st in ordered))
 def conversation_journal_steps(root, journal_directory, conversation_id: str) -> list[int]:
+	from .journal_integrity import collect_conversation_journal_steps
 	from .path_registry import canonicalize_root_dir
-	root_p = canonicalize_root_dir(root)
-	jdir = _directory(root_p, journal_directory)
 	cid = str(conversation_id or '').strip().lower()
 	if not cid:
-		return []
-	steps: set[int] = set()
-	req_prefix = cid + '-'
-	turn_prefix = f'ag-{cid}-'
-	for _, group in journal.iter_answer_group_records(jdir, ignore_errors=True):
-		rids = group.get('request_ids') or ()
-		t_name = str(group.get('turn') or '').lower()
-		if any((isinstance(rid, str) and rid.lower().startswith(req_prefix) for rid in rids)) or t_name.startswith(turn_prefix):
-			steps.update((st for st in (group.get('steps') or ()) if int is type(st) and 1 <= st))
-	t_dir = _folder(root_p)
-	if t_dir.is_dir():
-		for sf in t_dir.glob('*.json'):
-			if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
-				continue
-			try:
-				st_obj = _read(sf)
-			except (OSError, ValueError):
-				continue
-			if str(st_obj.get('conversation_id') or '').strip().lower() != cid:
-				continue
-			if st_obj.get('journal') and (not journal.same_journal_identity(st_obj.get('journal'), jdir)):
-				continue
-			committed = False
-			for slot in ('prepared', 'journal_record', 'delivery'):
-				rec = st_obj.get(slot)
-				if isinstance(rec, dict) and isinstance(rec.get('journal_steps'), list):
-					valid_st = [s for s in rec['journal_steps'] if int is type(s) and 1 <= s]
-					if valid_st:
-						steps.update(valid_st)
-						committed = True
-			if (not committed) and 'open' == st_obj.get('status') and isinstance(st_obj.get('reserved_journal_steps'), list):
-				steps.update((s for s in st_obj['reserved_journal_steps'] if int is type(s) and 1 <= s))
-	for entry in journal.iter_turn_reservations(jdir).values():
-		if str(entry.get('conversation_id') or '').strip().lower() == cid:
-			steps.update((s for s in (entry.get('steps') or ()) if int is type(s) and 1 <= s))
-	return sorted(steps)
+		r: list[int] = []
+	else:
+		root_p = canonicalize_root_dir(root)
+		r = collect_conversation_journal_steps(_folder(root_p), _directory(root_p, journal_directory), cid, iter_groups_fn=journal.iter_answer_group_records, iter_res_fn=journal.iter_turn_reservations, read_fn=_read, same_j_fn=journal.same_journal_identity)
+	return r
 def _sync_antigravity_conversation_title(root, native: dict, journal_directory=None, *, dry_run: bool=False) -> dict | None:
 	if not isinstance(native, dict) or (not native.get('primary')):
 		return None
@@ -1145,6 +1116,7 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 		res = {'synced': False, 'changed': False, 'title': format_conversation_journal_title(steps), 'steps': steps, 'conversation_id': native.get('conversation_id'), 'reason': 'unsupported_platform'}
 	return {**res, 'platform': native['platform'], 'journal': str(jdir)}
 def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id=None) -> list[dict]:
+	from .journal_integrity import collect_handed_off_conversations, turn_matches_handoff
 	from .path_registry import canonicalize_root_dir, same_project_root
 	from .platforms.request_binding import _explicit
 	if not launcher_root or not target_root:
@@ -1160,6 +1132,7 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 	job_str = str(job_id or '').strip() or None
 	if not cid_filter and not job_str:
 		return []
+	prior_cids = collect_handed_off_conversations(t_dir, target_p, read_fn=_read, same_root_fn=same_project_root)
 	handed_off: list[dict] = []
 	for sf in sorted(t_dir.glob('*.json')):
 		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
@@ -1173,8 +1146,7 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 		st_cid = str(st.get('conversation_id') or '').strip().lower()
 		if None is not cid_filter and st_cid != cid_filter:
 			continue
-		reqs = [r for r in (st.get('requests') or ()) if isinstance(r, dict)]
-		if None is not job_str and not any((_explicit(str(r.get('text') or ''), job_str)[0] for r in reqs)):
+		if not turn_matches_handoff(st, st_cid, job_str, prior_cids, _explicit):
 			continue
 		key = str(st.get('key') or sf.stem)
 		with locked(_turn_lock(launcher_p, key)):
@@ -1188,11 +1160,10 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 				continue
 			cur_reqs = [r for r in (cur.get('requests') or ()) if isinstance(r, dict)]
 			req_ids = [r['id'] for r in cur_reqs if r.get('id')]
-			if cur.get('journal'):
-				try:
-					journal.release_turn_steps(_directory(launcher_p, cur['journal']), key, request_ids=req_ids)
-				except (OSError, ValueError):
-					pass
+			try:
+				journal.release_turn_steps(_directory(launcher_p, cur.get('journal')), key, request_ids=req_ids)
+			except (OSError, ValueError):
+				pass
 			cur.pop('reserved_journal_steps', None)
 			cur['status'] = 'handed_off'
 			cur['handed_off_to'] = {'project_root': str(target_p), 'job_id': job_str, 'handed_off_at': _now()}
@@ -1235,12 +1206,8 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		with locked(_turn_lock(root, key)):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
 			if 'handed_off' != value.get('status'):
-				if 'open' == value.get('status') and (not _recorded(value)) and (not turn.get('completed')):
-					req_ids = [req['id'] for req in (turn.get('requests') or ()) if isinstance(req, dict) and req.get('id')]
-					if req_ids:
-						value['reserved_journal_steps'] = journal.reserve_turn_steps(_directory(root, value['journal']), value['key'], native['conversation_id'], req_ids)
-				elif 'reserved_journal_steps' in value and _recorded(value):
-					value.pop('reserved_journal_steps', None)
+				from .journal_integrity import sync_begin_turn_state
+				sync_begin_turn_state(root, value, native, turn, native_reconciliation, dir_fn=_directory, recorded_fn=_recorded, reserve_fn=journal.reserve_turn_steps)
 				if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
 					value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
 				_persist(path, value)

@@ -1,4 +1,6 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Harden follow-up launcher handoff and journal reservation integrity":
+# https://github.com/dmitry-ai/harness/issues/269
 # "Add transactional rename-project command with automatic domain promotion":
 # https://github.com/dmitry-ai/harness/issues/267
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -330,18 +332,9 @@ def release_turn_steps(directory: Path, turn_key: str, *, request_ids: list[str]
 	if not (journal_state / TURN_RESERVATIONS_FILE).is_file():
 		return False
 	with locked(journal_state / 'writer.lock'):
+		from .journal_integrity import prune_overlapping_reservations
 		reservations = _read_turn_reservations(eff)
-		removed = False
-		if turn_key and turn_key in reservations:
-			del reservations[turn_key]
-			removed = True
-		if request_ids:
-			req_set = set(request_ids)
-			for key in list(reservations):
-				e_reqs = set(reservations[key].get('request_ids') or ())
-				if e_reqs and e_reqs <= req_set:
-					del reservations[key]
-					removed = True
+		removed = prune_overlapping_reservations(reservations, turn_key, set(request_ids or ()), set())
 		if removed:
 			_write_turn_reservations(eff, reservations)
 		return removed
@@ -544,21 +537,9 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 			group['status'] = 'complete'
 			replace_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
 		if (journal_state / TURN_RESERVATIONS_FILE).is_file():
+			from .journal_integrity import prune_overlapping_reservations
 			reservations = _read_turn_reservations(directory)
-			changed = False
-			if eff_res_key and eff_res_key in reservations:
-				del reservations[eff_res_key]
-				changed = True
-			committed_steps = set(group.get('steps') or ())
-			req_set = set(request_ids or ())
-			for r_key in list(reservations):
-				entry = reservations[r_key]
-				e_reqs = set(entry.get('request_ids') or ())
-				e_steps = set(entry.get('steps') or ())
-				if (req_set and e_reqs and e_reqs <= req_set) or (committed_steps and e_steps and e_steps <= committed_steps):
-					del reservations[r_key]
-					changed = True
-			if changed:
+			if prune_overlapping_reservations(reservations, eff_res_key, set(request_ids or ()), set(group.get('steps') or ())):
 				_write_turn_reservations(directory, reservations)
 	r = group['steps']
 	return r
