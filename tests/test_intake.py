@@ -141,9 +141,6 @@ class IntakeTests(TemporaryCase):
 	def manifest(self):
 		return self.evidence / 'Intake' / (self.capture.name + '.json')
 	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
-	# @used-by :func:`agent_tools.native_profiles._apply()`
-	# @used-by :func:`agent_tools.native_profiles._rollback()`
-	# @used-by :func:`agent_tools.native_profiles._verify()`
 	# @used-by :meth:`IntakeTests.test_all_unique_bytes_retained_deduped_and_reachable_without_executable_js()`
 	# @used-by :meth:`IntakeTests.test_changed_durable_object_prevents_any_retirement()`
 	# @used-by :meth:`IntakeTests.test_copy_failure_preserves_all_staging_and_retry_reuses_objects()`

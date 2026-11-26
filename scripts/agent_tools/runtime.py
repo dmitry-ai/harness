@@ -53,7 +53,7 @@ def _expand_path(value):
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
-# @used-by :func:`settings()`
+# @used-by :meth:`Df.Harness.Runtime.SettingsLoader.SettingsLoader.run()`
 def _validate_runtime(value):
 	if 2 != value.get('version') or not value.get('workspace_root') or (not isinstance(value.get('platforms'), dict)) or (not value['platforms']):
 		raise ValueError('runtime.json needs version 2, workspace_root and platforms')
@@ -102,6 +102,7 @@ def _validate_runtime(value):
 # 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`_resolve_platform_cfg()`
 # @used-by :func:`agent_tools.cleanup.record_cleanup_answer()`
 # @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
@@ -197,9 +198,8 @@ def _validate_runtime(value):
 # @used-by :mod:`agent_tools.runtime`
 # @used-by :mod:`agent_tools.upwork_project`
 def settings(path=None):
-	from .runtime_cache import load_cached_settings
-	runtime_file = Path(path) if None is not path else default_runtime_file(PRIMARY, _CODE_ANCHOR, DEFAULT_REGISTRY_FILE)
-	return load_cached_settings(runtime_file, _validate_runtime)
+	from Df.Harness.Runtime.SettingsLoader import SettingsLoader
+	return SettingsLoader(path).run()
 _UNPATCHED_SETTINGS = settings
 from .runtime_cache import skip_shell_violations
 # @used-by :func:`agent_tools.cleanup_lifecycle._disabled_ag_history()`

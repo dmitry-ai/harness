@@ -62,7 +62,7 @@ def _parse_json_stdout(text: str) -> dict | None:
 		except ValueError:
 			r = None
 	return r
-# @used-by :func:`execute_shadow_command()`
+# @used-by :meth:`Df.Harness.Shadow.CommandExecutor.CommandExecutor.run()`
 def _run_exec_rename_domain(shadow_project: Path, shadow_launcher: Path | None, shadow_daily: Path | None, shadow_root: Path, domain: str, pairs: list[tuple[str, str]], checks: dict, verified: list[str], errors: list[str]) -> Path:
 	ag_dirs, folders = _stage_ag_from_receipt(shadow_project, shadow_root / 'native-profiles', pairs)
 	final_dir = shadow_project
@@ -80,7 +80,7 @@ def _run_exec_rename_domain(shadow_project: Path, shadow_launcher: Path | None, 
 		checks['command_exec'] = {'mode': 'exec_rename_domain', 'domain': domain, 'valid': False, 'error': str(exc)}
 		errors.append(f'exec_rename_domain: {exc}')
 	return final_dir
-# @used-by :func:`execute_shadow_command()`
+# @used-by :meth:`Df.Harness.Shadow.CommandExecutor.CommandExecutor.run()`
 def _run_generic_command(shadow_project: Path, shadow_launcher: Path | None, shadow_root: Path, command_spec: str, checks: dict, verified: list[str], errors: list[str]) -> Path:
 	pre_snap = capture_pre_rename_snapshot(shadow_project)
 	argv = _build_command_argv(command_spec, shadow_project, shadow_launcher)
@@ -142,16 +142,13 @@ def _verify_shadow_command_post(shadow_project: Path, final_dir: Path, pre_snap:
 		verified.append('post_rename_verify')
 	else:
 		errors.extend(post_ver['errors'])
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`agent_tools.shadow_replay._run_shadow_mode()`
 # @used-by :mod:`agent_tools.shadow_replay_command`
 def execute_shadow_command(src_project: Path, shadow_project: Path, shadow_launcher: Path | None, shadow_daily: Path | None, shadow_root: Path, *, exec_rename_domain: str | None, command: str | None, checks: dict, verified: list[str], errors: list[str]) -> Path:
-	pairs = _path_pairs(((src_project, shadow_project),))
-	if exec_rename_domain:
-		r = _run_exec_rename_domain(shadow_project, shadow_launcher, shadow_daily, shadow_root, exec_rename_domain, pairs, checks, verified, errors)
-	else:
-		r = _run_generic_command(shadow_project, shadow_launcher, shadow_root, str(command or ''), checks, verified, errors)
-	return r
-# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+	from Df.Harness.Shadow.CommandExecutor import CommandExecutor
+	return CommandExecutor(src_project, shadow_project, shadow_launcher, shadow_daily, shadow_root, exec_rename_domain=exec_rename_domain, command=command, checks=checks, verified=verified, errors=errors).run()
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__build_report()`
 # @used-by :mod:`agent_tools.shadow_replay_command`
 def persist_shadow_replay_receipt(ws_root: Path, src_project: Path, report: dict, *, exec_rename_domain: str | None, command: str | None) -> str | None:
 	r = None
@@ -163,7 +160,7 @@ def persist_shadow_replay_receipt(ws_root: Path, src_project: Path, report: dict
 		replace_bytes(dest, (json.dumps(payload, ensure_ascii=False, indent='\t') + '\n').encode('utf-8'))
 		r = str(dest)
 	return r
-# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 # @used-by :mod:`agent_tools.shadow_replay_command`
 def resolve_shadow_launcher(src_project: Path, launcher: str | Path | None) -> Path | None:
 	explicit = Path(launcher).resolve() if None is not launcher else None

@@ -14,7 +14,6 @@ from .path_registry import _path_key, load_registry
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
 # https://github.com/dmitry-ai/harness/issues/237
 # @used-by :func:`_remap_journal_data()`
-# @used-by :func:`clone_project_tree()`
 def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
 	dst.parent.mkdir(parents=True, exist_ok=True)
 	linked = False
@@ -26,17 +25,12 @@ def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
 			linked = False
 	if not linked:
 		shutil.copy2(src, dst)
-# @used-by :func:`clone_project_tree()`
-def _is_evidence_file(rel: Path) -> bool:
-	parts = rel.parts
-	return 3 <= len(parts) and '\ua616' == parts[0] and 'KB' == parts[1] and 'Evidence' == parts[2]
 # 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
-# @used-by :func:`clone_project_tree()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _is_skipped_rel(rel: Path) -> bool:
 	return dfh_is_skipped_rel(rel)
-# @used-by :func:`agent_tools.shadow_replay_command.execute_shadow_command()`
 # @used-by :func:`remap_shadow_state()`
+# @used-by :meth:`Df.Harness.Shadow.CommandExecutor.CommandExecutor.run()`
 def _path_pairs(raw_pairs: tuple[tuple[Path, Path], ...]) -> list[tuple[str, str]]:
 	pairs: list[tuple[str, str]] = []
 	for old_p, new_p in raw_pairs:
@@ -79,7 +73,7 @@ def build_stop_transcript(native_tx: Path, prepared_body: str, out_dir: Path) ->
 	dest = out_dir / 'transcript_full.jsonl'
 	dest.write_text('\n'.join((json.dumps(row, ensure_ascii=False) for row in rows)) + '\n', encoding='utf-8')
 	return dest
-# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 def cleanup_shadow_root(shadow_root: Path) -> bool:
 	if shadow_root.exists():
 		shutil.rmtree(shadow_root, ignore_errors=False)
@@ -87,23 +81,13 @@ def cleanup_shadow_root(shadow_root: Path) -> bool:
 	if parent.is_dir() and (not any(parent.iterdir())):
 		parent.rmdir()
 	return not shadow_root.exists()
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`agent_tools.shadow_replay._stage_shadow_copies()`
 # @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
 # @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
 def clone_project_tree(src_root: Path, dst_root: Path, *, hardlink_evidence: bool=True) -> None:
-	src_r = Path(src_root).resolve()
-	dst_r = Path(dst_root).resolve()
-	dst_r.mkdir(parents=True, exist_ok=True)
-	for item in sorted(src_r.rglob('*')):
-		rel = item.relative_to(src_r)
-		if _is_skipped_rel(rel):
-			continue
-		target = dst_r / rel
-		if item.is_dir():
-			target.mkdir(parents=True, exist_ok=True)
-		elif item.is_file():
-			_copy_file(item, target, hardlink=hardlink_evidence and _is_evidence_file(rel))
-	(dst_r / '\ua616/data/scratch').mkdir(parents=True, exist_ok=True)
+	from Df.Harness.Shadow.WorkspaceCloner import WorkspaceCloner
+	WorkspaceCloner(src_root, dst_root, hardlink_evidence=hardlink_evidence).run()
 # @used-by :func:`shadow_isolation_context()`
 def _journal_identity_matcher(orig_fn, relocations: dict[Path, Path]):
 	mapped = {(_path_key(Path(src).resolve() / '\ua66e'), _path_key(Path(dst).resolve() / '\ua66e')) for src, dst in relocations.items()}
@@ -147,7 +131,7 @@ def remap_shadow_state(src_root: Path, dst_root: Path, extra_pairs: tuple[tuple[
 	if turns_dir.is_dir():
 		for item in sorted(turns_dir.glob('*.json')):
 			_rewrite_json_file(item, pairs, preserve_keys=('admission',))
-# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 @contextmanager
 def shadow_isolation_context(relocations: dict[Path, Path]):
 	from . import journal as journal_mod, path_registry as pr_mod

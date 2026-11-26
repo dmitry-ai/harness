@@ -185,7 +185,7 @@ def _run_turn_begin(shadow_project: Path, cid: str, platform: str, backend: Path
 	except (OSError, ValueError) as exc:
 		checks['turn_begin'] = {'error': str(exc)}
 		errors.append(f'turn_begin: {exc}')
-# @used-by :func:`run_shadow_replay()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 def _remap_staged_copies(src_project: Path, shadow_project: Path, src_launcher: Path | None, shadow_launcher: Path | None, old_states: dict[str, Path]) -> None:
 	remap_shadow_state(src_project, shadow_project, old_state=old_states['project'])
 	if None is not src_launcher and None is not shadow_launcher:
@@ -204,7 +204,7 @@ def _stage_shadow_copies(src_project: Path, src_launcher: Path | None, shadow_ro
 		relocations[src_launcher] = shadow_launcher
 	return (shadow_project, shadow_launcher, relocations, old_states)
 # 2026-11-26 "Add mutating command execution mode to shadow-replay with isolated native profiles": https://github.com/dmitry-ai/harness/issues/289
-# @used-by :func:`run_shadow_replay()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 def _prepare_shadow_stage(src_project: Path, src_launcher: Path | None, shadow_root: Path, command_mode: bool) -> tuple[Path, Path | None, dict[Path, Path], dict[str, Path], Path | None]:
 	if command_mode:
 		r = stage_command_shadow_copies(src_project, src_launcher, shadow_root)
@@ -212,7 +212,7 @@ def _prepare_shadow_stage(src_project: Path, src_launcher: Path | None, shadow_r
 		sp, sl, relocs, states = _stage_shadow_copies(src_project, src_launcher, shadow_root)
 		r = (sp, sl, relocs, states, None)
 	return r
-# @used-by :func:`run_shadow_replay()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 def _run_shadow_mode(src_project: Path, shadow_project: Path, shadow_launcher: Path | None, shadow_daily: Path | None, shadow_root: Path, *, cid: str, platform: str, backend: str | Path | None, response_file: str | Path | None, exec_rename_domain: str | None, command: str | None, checks: dict, verified: list[str], errors: list[str]) -> None:
 	if exec_rename_domain or command:
 		execute_shadow_command(src_project, shadow_project, shadow_launcher, shadow_daily, shadow_root, exec_rename_domain=exec_rename_domain, command=command, checks=checks, verified=verified, errors=errors)
@@ -221,22 +221,8 @@ def _run_shadow_mode(src_project: Path, shadow_project: Path, shadow_launcher: P
 	else:
 		backend_dir, native_tx = _resolve_native_paths(cid, Path(backend).resolve() if None is not backend else None)
 		_execute_replay_pipeline(shadow_project, shadow_launcher, shadow_root, cid, platform, backend_dir, native_tx, Path(response_file).resolve() if None is not response_file else None, checks, verified, errors)
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`agent_tools.cli_registry._exec_shadow_replay()`
 def run_shadow_replay(project: str | Path, conversation_id: str | None=None, *, launcher: str | Path | None=None, workspace: str | Path | None=None, platform: str='antigravity', backend: str | Path | None=None, response_file: str | Path | None=None, keep: bool=False, exec_rename_domain: str | None=None, command: str | None=None) -> dict:
-	src_project = Path(project).resolve()
-	command_mode = bool(exec_rename_domain or command)
-	src_launcher = resolve_shadow_launcher(src_project, launcher) if command_mode else (Path(launcher).resolve() if None is not launcher else None)
-	ws_root = Path(workspace).resolve() if None is not workspace else src_project
-	cid = str(conversation_id or '').strip().lower()
-	shadow_root = project_paths(ws_root, exact_root=True).scratch_dir / 'shadow-replay' / f'run-{uuid.uuid4().hex[:12]}'
-	checks, verified, errors = ({}, [], [])
-	try:
-		shadow_project, shadow_launcher, relocations, old_states, shadow_daily = _prepare_shadow_stage(src_project, src_launcher, shadow_root, command_mode)
-		with shadow_isolation_context(relocations):
-			_remap_staged_copies(src_project, shadow_project, src_launcher, shadow_launcher, old_states)
-			_run_shadow_mode(src_project, shadow_project, shadow_launcher, shadow_daily, shadow_root, cid=cid, platform=platform, backend=backend, response_file=response_file, exec_rename_domain=exec_rename_domain, command=command, checks=checks, verified=verified, errors=errors)
-	finally:
-		cleaned = (not shadow_root.exists()) if keep else cleanup_shadow_root(shadow_root)
-	report = {'valid': not errors, 'project': str(src_project), 'launcher': str(src_launcher) if None is not src_launcher else None, 'conversation_id': cid, 'platform': platform, 'shadow_dir': str(shadow_root), 'cleaned_up': cleaned, 'stages_verified': verified, 'stages_not_run': list(NOT_RUN_STAGES), 'checks': checks, 'errors': errors}
-	report['receipt_file'] = persist_shadow_replay_receipt(ws_root, src_project, report, exec_rename_domain=exec_rename_domain, command=command)
-	return report
+	from Df.Harness.Shadow.ReplayRunner import ReplayRunner
+	return ReplayRunner(project, conversation_id, launcher=launcher, workspace=workspace, platform=platform, backend=backend, response_file=response_file, keep=keep, exec_rename_domain=exec_rename_domain, command=command).run()

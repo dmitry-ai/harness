@@ -317,7 +317,7 @@ class Tier0SourceIndex:
 	CACHE_SCHEMA_VERSION = 2
 	_INDICES: dict[str, 'Tier0SourceIndex'] = {}
 	# @used-by :meth:`Tier0SourceIndex.for_root()`
-	# @uses :meth:`agent_tools.path_registry.ProjectPaths.grounding_cache_json()`
+	# @uses :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.grounding_cache_json()`
 	def __init__(self, root: Path):
 		# 2026-11-19
 		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":

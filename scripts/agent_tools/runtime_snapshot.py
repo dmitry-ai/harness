@@ -55,26 +55,7 @@ _VALIDATION_PROBE = (
 	'\tif pi_errs:\n'
 	"\t\traise SystemExit('; '.join(pi_errs[:5]))\n"
 )
-# @used-by :func:`_promote_locked()`
-def _activate_release(prim_p: Path, store: Path, staging: Path, sha: str, *, keep: int, configure_repo_hooks: bool) -> dict:
-	releases_dir = store / 'releases'
-	releases_dir.mkdir(parents=True, exist_ok=True)
-	release_dir = releases_dir / sha
-	if not release_dir.exists():
-		os.replace(staging, release_dir)
-	prior = _read_pointer(store)
-	old_cur = str(prior.get('current') or '').strip() or None
-	old_prev = str(prior.get('previous') or '').strip() or None
-	new_prev = old_cur if (old_cur and old_cur != sha) else old_prev
-	ptr_payload = {'canonical_primary': prim_p.as_posix(), 'current': sha, 'previous': new_prev, 'updated_at': datetime.now(timezone.utc).isoformat(), 'version': 1}
-	replace_bytes(store / 'current.json', (json.dumps(ptr_payload, ensure_ascii=False, indent='\t', sort_keys=True) + '\n').encode('utf-8'))
-	gh_dir = _deploy_git_hooks(store, prim_p)
-	if configure_repo_hooks:
-		_set_local_hooks_path(prim_p, gh_dir)
-	protected = {s for s in (sha, new_prev) if s}
-	pruned = _rotate_releases(releases_dir, keep, protected)
-	return {'valid': True, 'promoted': True, 'commit_sha': sha, 'previous': new_prev, 'release_dir': release_dir.as_posix(), 'store_dir': store.as_posix(), 'git_hooks_dir': gh_dir.as_posix(), 'pruned': pruned}
-# @used-by :func:`_activate_release()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
 def _deploy_git_hooks(store: Path, primary: Path) -> Path:
 	gh_dir = store / 'git_hooks'
 	gh_dir.mkdir(parents=True, exist_ok=True)
@@ -88,7 +69,7 @@ def _deploy_git_hooks(store: Path, primary: Path) -> Path:
 		except OSError:
 			pass
 	return gh_dir
-# @used-by :func:`_promote_locked()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 def _export_git_archive(repo: Path, staging: Path) -> str:
 	head_proc = _git_read(repo, 'rev-parse', '--verify', 'HEAD')
 	sha = head_proc.stdout.decode('utf-8', errors='replace').strip()
@@ -111,7 +92,7 @@ def _git_read(repo: Path, *args: str) -> subprocess.CompletedProcess:
 		raise RuntimeError(proc.stderr.decode('utf-8', errors='replace').strip() or f'git {" ".join(args)} failed')
 	return proc
 # @used-by :func:`check_runtime_snapshot()`
-# @used-by :func:`promote_runtime_snapshot()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.run()`
 def _has_git_head(repo: Path) -> bool:
 	r = False
 	if (repo / '.git').exists():
@@ -121,27 +102,9 @@ def _has_git_head(repo: Path) -> bool:
 		except (OSError, RuntimeError, subprocess.SubprocessError):
 			r = False
 	return r
-# 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
-# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
-# @used-by :func:`promote_runtime_snapshot()`
-def _promote_locked(prim_p: Path, store: Path, *, keep: int, entrypoints: tuple[str, ...], configure_repo_hooks: bool, fail_on_fallback_spike: bool=False, base_ref: str | None=None) -> dict:
-	from .snapshot_latency_canary import finalize_snapshot_promotion
-	from .tdd.diff_executability import should_run_snapshot_canary
-	staging = store / f'.staging-{uuid.uuid4().hex[:10]}'
-	try:
-		sha = _export_git_archive(prim_p, staging)
-		meta = {'canonical_primary': prim_p.as_posix(), 'commit_sha': sha, 'created_at': datetime.now(timezone.utc).isoformat(), 'schema_version': 1}
-		replace_bytes(staging / 'snapshot.json', (json.dumps(meta, ensure_ascii=False, indent='\t', sort_keys=True) + '\n').encode('utf-8'))
-		run_canary, canary_reason = should_run_snapshot_canary(prim_p, base_ref)
-		ok, detail = _validate_staged_release(staging, prim_p, entrypoints, run_canary=run_canary)
-		r = finalize_snapshot_promotion(store, _read_pointer(store), sha, ok, detail, lambda: _activate_release(prim_p, store, staging, sha, keep=keep, configure_repo_hooks=configure_repo_hooks), fail_on_fallback_spike=fail_on_fallback_spike)
-		r.update(canary_skipped=not run_canary, canary_reason=canary_reason)
-	finally:
-		shutil.rmtree(staging, ignore_errors=True)
-	return r
-# @used-by :func:`_activate_release()`
-# @used-by :func:`_promote_locked()`
 # @used-by :func:`check_runtime_snapshot()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 def _read_pointer(store: Path) -> dict:
 	ptr_file = store / 'current.json'
 	r: dict = {}
@@ -153,7 +116,7 @@ def _read_pointer(store: Path) -> dict:
 		except (OSError, ValueError):
 			r = {}
 	return r
-# @used-by :func:`_activate_release()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
 def _rotate_releases(releases_dir: Path, keep: int, protected: set[str]) -> list[str]:
 	pruned: list[str] = []
 	if releases_dir.is_dir():
@@ -181,8 +144,8 @@ def _safe_extract_tar(tf: tarfile.TarFile, dest: Path) -> None:
 			src = tf.extractfile(member)
 			if None is not src:
 				target.write_bytes(src.read())
-# @used-by :func:`_activate_release()`
 # @used-by :func:`ensure_repo_git_hooks()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
 def _set_local_hooks_path(main_repo: Path, hooks_dir: Path) -> None:
 	from .shell_audit import normalize_host_path
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(main_repo), 'config', '--local', '--get', 'core.hooksPath'], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30, check=False, creationflags=_NO_WINDOW)
@@ -190,7 +153,7 @@ def _set_local_hooks_path(main_repo: Path, hooks_dir: Path) -> None:
 	if (not current) or normalize_host_path(current).resolve() != hooks_dir.resolve():
 		subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(hooks_dir)], stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False, creationflags=_NO_WINDOW)
 # 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
-# @used-by :func:`_promote_locked()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints: tuple[str, ...], *, run_canary: bool=True) -> tuple[bool, str]:
 	proc = subprocess.run([sys.executable, '-I', '-c', _VALIDATION_PROBE, str(staging), canonical_primary.as_posix(), json.dumps(list(entrypoints))], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60, check=False, creationflags=_NO_WINDOW)
 	detail = (proc.stderr or proc.stdout or '').strip()
@@ -277,6 +240,7 @@ def is_harness_code_repo(repo: str | Path) -> bool:
 	return (p / 'paths.json').is_file() and (p / 'runtime.json').is_file() and (p / 'scripts/check_rules_and_server_gate.py').is_file()
 # 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
 # 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`agent_tools.cli_registry._exec_runtime_promote()`
 # @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
 # @used-by :func:`finalize_native_install()`
@@ -295,18 +259,11 @@ def is_harness_code_repo(repo: str | Path) -> bool:
 # @used-by :meth:`test_snapshot_latency_and_delegation_policy.SnapshotLatencyAndDelegationPolicyTests.test_promote_rejects_large_transcript_slow_snapshot_and_accepts_fast_snapshot()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def promote_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=None, keep: int=DEFAULT_KEEP_RELEASES, entrypoints: tuple[str, ...]=REQUIRED_ENTRYPOINTS, configure_repo_hooks: bool=True, fail_on_fallback_spike: bool=False, base_ref: str | None=None) -> dict:
-	prim_p = Path(primary).resolve()
-	if not _has_git_head(prim_p):
-		r = {'valid': True, 'promoted': False, 'skipped': True, 'reason': 'not_a_git_repo'}
-	else:
-		store = runtime_store_dir(prim_p, store_dir=store_dir)
-		store.mkdir(parents=True, exist_ok=True)
-		with locked(store / 'promote.lock'):
-			r = _promote_locked(prim_p, store, keep=keep, entrypoints=entrypoints, configure_repo_hooks=configure_repo_hooks, fail_on_fallback_spike=fail_on_fallback_spike, base_ref=base_ref)
-	return r
+	from Df.Harness.Runtime.SnapshotPromoter import SnapshotPromoter
+	return SnapshotPromoter(primary, store_dir=store_dir, keep=keep, entrypoints=entrypoints, configure_repo_hooks=configure_repo_hooks, fail_on_fallback_spike=fail_on_fallback_spike, base_ref=base_ref).run()
 # @used-by :func:`check_runtime_snapshot()`
 # @used-by :func:`effective_git_hooks_dir()`
-# @used-by :func:`promote_runtime_snapshot()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.run()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def runtime_store_dir(primary: str | Path | None=None, *, store_dir: str | Path | None=None) -> Path:
 	if None is not store_dir:

@@ -160,7 +160,7 @@ def clear_runtime_cache() -> None:
 		clear_observation_cache()
 	except Exception:
 		pass
-# @used-by :func:`agent_tools.runtime.settings()`
+# @used-by :meth:`Df.Harness.Runtime.SettingsLoader.SettingsLoader.run()`
 def load_cached_settings(runtime_file: Path, validate_fn) -> dict:
 	_, value = load_cached_settings_readonly(runtime_file, validate_fn)
 	return _copy_json(value)

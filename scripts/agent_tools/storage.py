@@ -14,46 +14,9 @@ from Df.Core.lib.state import df_is_windows
 # 2026-11-13
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
-# @used-by :func:`replace_bytes()`
-def _replace_with_retry(temp: Path, path: Path):
-	for attempt in range(10):
-		try:
-			os.replace(temp, path)
-			break
-		except PermissionError:
-			if 9 == attempt:
-				raise
-			time.sleep(0.025)
-# 2026-11-24
-# "Deduplicate historical admission fixtures and guard optional temp fsync":
-# https://github.com/dmitry-ai/harness/issues/177
-# @used-by :func:`_stage_atomic_write()`
-def _should_skip_fsync(path: Path) -> bool:
-	r = False
-	if '1' == os.environ.get('HARNESS_TEST_NO_FSYNC'):
-		try:
-			r = path.resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
-		except (OSError, ValueError):
-			r = False
-	return r
-# @used-by :func:`create_bytes()`
-# @used-by :func:`replace_bytes()`
-def _stage_atomic_write(path: Path, data: bytes, commit):
-	fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
-	temp = Path(name)
-	try:
-		with os.fdopen(fd, 'wb') as stream:
-			stream.write(data)
-			stream.flush()
-			if not _should_skip_fsync(path):
-				os.fsync(stream.fileno())
-		commit(temp, path)
-	finally:
-		temp.unlink(missing_ok=True)
-# 2026-10-15
-# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
-# https://github.com/dmitry-ai/harness/issues/4
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`agent_tools.admission.capture()`
+# @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.cleanup_audit._create_unique_log_file()`
 # @used-by :func:`agent_tools.configuration.store_content_backup()`
@@ -61,26 +24,24 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # @used-by :func:`agent_tools.journal._publish()`
 # @used-by :func:`agent_tools.journal.record_answer()`
 # @used-by :func:`agent_tools.journal.record_step()`
-# @used-by :func:`agent_tools.native_profiles._apply()`
+# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
+# @used-by :func:`agent_tools.knowledge.create_once()`
+# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
 # @used-by :func:`agent_tools.research._write_cached_extraction()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
+# @used-by :func:`agent_tools.upwork_extract.download_attachment()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`write_immutable_bytes()`
-# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
-# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
-# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
-# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
-# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__register_bytes()`
-# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
-# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
-# @used-by :meth:`Df.Harness.Project.OnceFileWriter.OnceFileWriter.write()`
-# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.download()`
-# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_inspect()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__handle_failure()`
+# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
+# @used-by :meth:`agent_tools.knowledge.AttachmentInventory._register_bytes()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_recovery_does_not_overwrite_conflict()`
@@ -88,10 +49,9 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_atomic_create_does_not_leave_a_partial_final_file()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_valid_dom_capture_identity_can_resolve_the_http_channel_failure()`
-# @used-by :mod:`agent_tools.intake`
 def create_bytes(path: Path, data: bytes):
-	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
-	_stage_atomic_write(Path(path), data, os.rename if df_is_windows() else os.link)
+	from Df.Harness.Config.AtomicWriter import AtomicWriter
+	AtomicWriter(path, data, mode='create').run()
 # 2026-11-19
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
@@ -101,20 +61,20 @@ def create_bytes(path: Path, data: bytes):
 # @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
 # @used-by :func:`agent_tools.configuration._publish()`
 # @used-by :func:`agent_tools.configuration.load_project_receipt()`
+# @used-by :func:`agent_tools.context.generate()`
 # @used-by :func:`agent_tools.journal.upgrade_journal()`
-# @used-by :func:`agent_tools.native_profiles._apply()`
 # @used-by :func:`agent_tools.native_profiles._backup()`
 # @used-by :func:`agent_tools.native_profiles._role_config()`
 # @used-by :func:`agent_tools.native_profiles._state_path()`
 # @used-by :func:`agent_tools.native_profiles.build_shared_native()`
 # @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
 # @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
-# @used-by :func:`agent_tools.runtime_launchers._default_store_dir()`
 # @used-by :func:`agent_tools.runtime_snapshot.runtime_store_dir()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.text_core.find_bans()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
-# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__handle_failure()`
+# @used-by :meth:`Df.Harness.Runtime.LauncherRenderer.LauncherRenderer.__resolve_store()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._verify_projection_receipt()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_check_creates_no_lock_receipt_or_profile_files()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_edited_project_projection_blocks_all_retirements()`
@@ -138,8 +98,8 @@ def journal_data_dir_for(eff: Path) -> Path:
 # https://github.com/dmitry-ai/harness/issues/72
 # @used-by :func:`agent_tools.issues.service_helpers._decode_gh_stdout()`
 # @used-by :func:`agent_tools.platforms.codex._json_objects()`
-# @used-by :meth:`Df.Harness.Experiment.NativeGeoExtractor.NativeGeoExtractor.extract_country()`
-# @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__is_plan_commit()`
+# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector.native_geolocation()`
+# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore._is_plan_commit()`
 def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=True):
 	if isinstance(value, dict):
 		yield value
@@ -182,6 +142,11 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # 2026-11-23
 # "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
 # https://github.com/dmitry-ai/harness/issues/158
+# @used-by :func:`agent_tools.analysis.publish_owned()`
+# @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
+# @used-by :func:`agent_tools.arch.review_store._persist_review_index()`
+# @used-by :func:`agent_tools.arch.review_store._register_package_index()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.completion._persist_turn_recovery()`
@@ -192,6 +157,8 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.completion.recover_checkpoint()`
 # @used-by :func:`agent_tools.completion.similar_project_exempt()`
 # @used-by :func:`agent_tools.configuration._publish()`
+# @used-by :func:`agent_tools.context.generate()`
+# @used-by :func:`agent_tools.intake.commit_capture()`
 # @used-by :func:`agent_tools.journal.record_answer()`
 # @used-by :func:`agent_tools.journal.record_step()`
 # @used-by :func:`agent_tools.journal.recover_step()`
@@ -201,40 +168,32 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.landing_lease._try_acquire_once()`
 # @used-by :func:`agent_tools.landing_lease._unqueue_owner()`
 # @used-by :func:`agent_tools.landing_lease.release_lease()`
+# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
 # @used-by :func:`agent_tools.native_profiles.build_shared_native()`
 # @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
 # @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+# @used-by :func:`agent_tools.project_card.sync_block()`
+# @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
+# @used-by :func:`agent_tools.project_rename._update_projects_index()`
 # @used-by :func:`agent_tools.reconcile_helpers._trim_narrowed_reservation()`
+# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
+# @used-by :func:`agent_tools.registration._begin()`
+# @used-by :func:`agent_tools.registration.save_registration()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.observed_use()`
-# @used-by :func:`agent_tools.runtime_snapshot.promote_runtime_snapshot()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.stop_emergency_capture.maybe_emergency_capture_journal()`
+# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_review.record()`
 # @used-by :func:`agent_tools.text_sources._attempt()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
-# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
-# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
-# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
-# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
-# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
-# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
-# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_commit()`
-# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
-# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
-# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
-# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
-# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.run()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler.run()`
@@ -242,6 +201,7 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.update()`
 # @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_concurrent_fresh_files_succeed_without_permission_error()`
 # @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`
 # @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_storage_locked_concurrent_threads_no_permission_error()`
@@ -279,11 +239,11 @@ def locked(path: Path, timeout: float=15, *, create=True):
 # 2026-11-13
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
+# @used-by :func:`agent_tools.review.read_package()`
+# @used-by :func:`agent_tools.review.read_package_envelope()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`agent_tools.text_sources.read_source_check()`
 # @used-by :func:`agent_tools.text_sources.source_integrity()`
-# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
-# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.read_package()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
@@ -301,7 +261,12 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 	if not isinstance(value, dict) or actual != expected:
 		raise ValueError(error_msg)
 	return (raw, value)
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`agent_tools.analysis.publish_owned()`
+# @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
+# @used-by :func:`agent_tools.arch.review_store._persist_review_index()`
+# @used-by :func:`agent_tools.arch.review_store._register_package_index()`
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
@@ -311,70 +276,63 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.completion.recover_checkpoint()`
 # @used-by :func:`agent_tools.completion.similar_project_exempt()`
 # @used-by :func:`agent_tools.configuration._publish()`
+# @used-by :func:`agent_tools.context.generate()`
 # @used-by :func:`agent_tools.git_ignore._append_exclude_pattern()`
 # @used-by :func:`agent_tools.git_ignore._write_verified_ignore()`
+# @used-by :func:`agent_tools.intake.commit_capture()`
 # @used-by :func:`agent_tools.journal._rewrite_journal_readme()`
 # @used-by :func:`agent_tools.journal._sync_overlay_journal_slot()`
 # @used-by :func:`agent_tools.journal._write_turn_reservations()`
 # @used-by :func:`agent_tools.journal.record_answer()`
 # @used-by :func:`agent_tools.journal_pending_index._write_index_doc()`
 # @used-by :func:`agent_tools.journal_pending_index.persist_turn_state()`
+# @used-by :func:`agent_tools.knowledge._load_media_descriptions()`
+# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
+# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
 # @used-by :func:`agent_tools.landing_lease._save_state()`
-# @used-by :func:`agent_tools.native_profiles._apply()`
-# @used-by :func:`agent_tools.native_profiles._rollback()`
+# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
+# @used-by :func:`agent_tools.parallel_runner._save_timings()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+# @used-by :func:`agent_tools.project_card.sync_block()`
+# @used-by :func:`agent_tools.project_rename._restore_file_backups()`
+# @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
+# @used-by :func:`agent_tools.project_rename._update_projects_index()`
+# @used-by :func:`agent_tools.project_rename_state._rewrite_json_file()`
+# @used-by :func:`agent_tools.project_rename_state._update_folder_rule()`
+# @used-by :func:`agent_tools.project_rename_state._update_project_json()`
+# @used-by :func:`agent_tools.project_rename_state.rewrite_launcher_handoffs()`
+# @used-by :func:`agent_tools.project_rename_state.rewrite_project_internal_state()`
+# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
+# @used-by :func:`agent_tools.registration._write()`
 # @used-by :func:`agent_tools.research._write_cached_extraction()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.observed_use()`
-# @used-by :func:`agent_tools.runtime_snapshot._activate_release()`
+# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
 # @used-by :func:`agent_tools.runtime_snapshot._deploy_git_hooks()`
-# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
 # @used-by :func:`agent_tools.shadow_replay_command.persist_shadow_replay_receipt()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.stop_hook_guard._save_guard()`
+# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_review.record()`
 # @used-by :func:`agent_tools.text_sources._attempt()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
 # @used-by :func:`agent_tools.trace_event_cache._save_disk_index()`
-# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
-# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__init__()`
-# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
-# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
-# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
-# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
-# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_files()`
-# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.__build()`
-# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__resolve_loom_body()`
-# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.load_media_descriptions()`
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__unlink_and_mark_drained()`
-# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
-# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__rollback()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__rewrite_json_file()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_folder_rule()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite_launcher_handoffs()`
-# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
-# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
-# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__save_timings()`
-# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_or_make_new()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__load_and_prepare_fs()`
-# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__apply_files()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__commit_receipt()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__rollback_files()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_issue_evidence()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_repo_transfer_evidence()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.save_index()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.update()`
 # @used-by :meth:`test_analysis_workflow.PublicationTests.test_interrupted_state_write_preserves_published_output_for_recovery()`
 # @used-by :meth:`test_cleanup.CleanupTests.test_folders_publication_failure_after_unlink_recovers_without_native_file()`
 # @used-by :meth:`test_storage_fsync_guard.StorageFsyncGuardTests.test_fsync_runs_by_default_and_when_env_is_zero()`
@@ -382,32 +340,22 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`test_storage_fsync_guard.StorageFsyncGuardTests.test_fsync_still_runs_outside_tempdir_even_when_env_is_one()`
 # @used-by :meth:`test_turn_completion.WatcherLifecycleTests.test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime()`
 def replace_bytes(path: Path, data: bytes):
-	target = Path(path)
-	same = False
-	try:
-		same = target.read_bytes() == data
-	except FileNotFoundError:
-		pass
-	if not same:
-		target.parent.mkdir(parents=True, exist_ok=True)
-		_stage_atomic_write(target, data, _replace_with_retry)
+	from Df.Harness.Config.AtomicWriter import AtomicWriter
+	AtomicWriter(path, data, mode='replace').run()
+# @used-by :func:`agent_tools.analysis.publish_owned()`
+# @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.arch.review_store.prepare_arch_package()`
+# @used-by :func:`agent_tools.arch.review_store.record_arch_review()`
 # @used-by :func:`agent_tools.completion._conflict()`
+# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
 # @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
+# @used-by :func:`agent_tools.review._immutable()`
+# @used-by :func:`agent_tools.review.prepare_verdict_record()`
 # @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 # @used-by :func:`agent_tools.text_review.prepare()`
 # @used-by :func:`agent_tools.text_sources.probe_links()`
 # @used-by :func:`agent_tools.text_sources.save_source_check()`
 # @used-by :func:`agent_tools.text_workflow._immutable()`
-# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__commit_locked()`
-# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__write_new()`
-# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
-# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
-# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
-# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__write_candidate()`
-# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
-# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
 def write_immutable_bytes(path: Path, payload: bytes, *, diff_error: str='Immutable artifact differs') -> Path:
 	target = Path(path)

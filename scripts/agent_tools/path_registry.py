@@ -42,10 +42,10 @@ _SIMILAR_REVERSE_MAP: dict[tuple[str, str], list[Path]] = {}
 _DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}}
 # @used-by :func:`agent_tools.journal._sync_overlay_journal_slot()`
 # @used-by :func:`agent_tools.journal.upgrade_journal()`
+# @used-by :func:`agent_tools.project_rename._apply_rename_mutations()`
+# @used-by :func:`agent_tools.project_rename._rollback_rename()`
 # @used-by :func:`git_fixture_cache._clear_harness_caches()`
 # @used-by :func:`test_historical_admission._restore_tree_in_place()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__apply_mutations()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__rollback()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.tearDown()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
@@ -74,8 +74,9 @@ def clear_registry_cache() -> None:
 	clear_path_cache()
 	clear_repo_locator_cache()
 # @used-by :func:`default_platform_paths()`
-# @used-by :meth:`PathRegistry.__init__()`
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_raw_paths_and_vars()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__anchor_overrides()`
+# @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__resolve_one()`
 def escape_template_literal(value: str) -> str:
 	return str(value).replace('%', '%%').replace('${', '$${')
 # @used-by :func:`discover_overlay_file()`
@@ -104,6 +105,7 @@ def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
 # @used-by :func:`agent_tools.research.inside()`
 # @used-by :func:`agent_tools.shadow_replay_clone._journal_identity_matcher()`
 # @used-by :func:`agent_tools.shadow_replay_clone._wrapped_shadow_registry()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :func:`canonicalize_root_dir()`
 # @used-by :func:`evaluate_similar_project_touches()`
 # @used-by :func:`is_tracked_workspace()`
@@ -112,11 +114,14 @@ def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
 # @used-by :func:`resolve_project_root()`
 # @used-by :func:`same_project_root()`
 # @used-by :func:`workspace_override()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_indexed()`
-# @used-by :meth:`PathRegistry.__init__()`
-# @used-by :meth:`ProjectPaths.__init__()`
-# @used-by :meth:`ProjectPaths._register_reverse_links()`
-# @used-by :meth:`ProjectPaths.similar_projects()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_raw_paths_and_vars()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_similar_projects()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.register_reverse_links()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.similar_projects()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__anchor_overrides()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_core_maps()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_variables()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__parse_workspace_overrides()`
 def _path_key(value: str | Path) -> str:
 	return str(value).replace('\\', '/').rstrip('/').casefold()
 # 2026-11-21
@@ -188,8 +193,10 @@ def _lookup_env(name: str, env: dict[str, str] | None=None) -> str | None:
 # @used-by :func:`default_platform_paths()`
 # @used-by :func:`derive_platform_system_paths()`
 # @used-by :func:`expand_template()`
-# @used-by :meth:`ProjectPaths.__init__()`
-# @used-by :meth:`ProjectPaths._resolve_rel_to_root()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_journal()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__resolve_effective_journal_dir()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__resolve_rel_to_root()`
+# @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__resolve_one()`
 def normalize_path_str(raw: str, *, preserve_trailing_slash: bool=False) -> str:
 	if not isinstance(raw, str):
 		raise TypeError('Path template value must be a string')
@@ -236,11 +243,15 @@ def normalize_path_str(raw: str, *, preserve_trailing_slash: bool=False) -> str:
 # @used-by :func:`agent_tools.polyglot_land._expand_token()`
 # @used-by :func:`derive_platform_system_paths()`
 # @used-by :func:`expand_structure()`
-# @used-by :meth:`PathRegistry.__init__()`
-# @used-by :meth:`PathRegistry.expand()`
-# @used-by :meth:`ProjectPaths.__init__()`
-# @used-by :meth:`ProjectPaths._resolve_rel_to_root()`
-# @used-by :meth:`ProjectPaths.var()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__resolve_rel_to_root()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.var()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__anchor_overrides()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_core_maps()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_overlays_and_profiles()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_variables()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__parse_workspace_overrides()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.expand()`
+# @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__resolve_one()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_apache_prefix_concatenation_windows_env_vars_globs_and_escapes()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_template_and_schema_error_paths_reject_cycles_unknowns_symlinks_and_conflicts()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
@@ -295,9 +306,10 @@ def expand_template(template: str, variables: dict[str, str], *, env: dict[str, 
 		return normalize_path_str(expanded) if normalize else expanded
 	expanded = expanded.replace(_ESC_DOLLAR, '${').replace(_ESC_PERCENT, '%')
 	return normalize_path_str(expanded) if normalize else expanded
-# @used-by :meth:`PathRegistry.__init__()`
-# @used-by :meth:`PathRegistry.expand_data()`
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_tools_and_repos()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_core_maps()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__parse_workspace_overrides()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.expand_data()`
 def expand_structure(value: Any, variables: dict[str, str], *, env: dict[str, str] | None=None) -> Any:
 	if isinstance(value, str):
 		if '${' in value or '$${' in value or '%%' in value or re.search('%[A-Za-z_][A-Za-z0-9_]*%', value):
@@ -311,8 +323,8 @@ def expand_structure(value: Any, variables: dict[str, str], *, env: dict[str, st
 		return {expand_structure(k, variables, env=env) if isinstance(k, str) else k: expand_structure(v, variables, env=env) for k, v in value.items()}
 	return value
 # @used-by :func:`_validate_overlay()`
-# @used-by :meth:`PathRegistry.__init__()`
-# @used-by :meth:`PathRegistry._resolve_profile_chain()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__build_profile_spec()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_variables()`
 def _validate_variables_map(raw: Any, label: str) -> dict[str, str]:
 	if None is raw:
 		return {}
@@ -327,8 +339,8 @@ def _validate_variables_map(raw: Any, label: str) -> dict[str, str]:
 		out[k] = v
 	return out
 # @used-by :func:`_validate_overlay()`
-# @used-by :meth:`PathRegistry.__init__()`
-# @used-by :meth:`PathRegistry._resolve_profile_chain()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__build_profile_spec()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_core_maps()`
 def _validate_string_map(raw: Any, label: str) -> dict[str, str]:
 	if None is raw:
 		return {}
@@ -342,8 +354,9 @@ def _validate_string_map(raw: Any, label: str) -> dict[str, str]:
 	return out
 # @used-by :func:`_validate_overlay()`
 # @used-by :func:`_validate_similar_project_groups()`
-# @used-by :meth:`PathRegistry.__init__()`
-# @used-by :meth:`PathRegistry._resolve_profile_chain()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__build_profile_spec()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_core_maps()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_overlays_and_profiles()`
 def _validate_string_list(raw: Any, label: str) -> list[str]:
 	if None is raw:
 		return []
@@ -354,7 +367,7 @@ def _validate_string_list(raw: Any, label: str) -> list[str]:
 # "Add declarative similar_projects registry groups and project overlay resolution":
 # https://github.com/dmitry-ai/harness/issues/122
 _SIMILAR_GROUP_ID_RE = re.compile('^[A-Za-z0-9_.-]+$')
-# @used-by :meth:`PathRegistry.__init__()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_overlays_and_profiles()`
 def _validate_similar_project_groups(raw: Any, variables: dict[str, str], *, env: dict[str, str] | None=None) -> tuple[dict[str, Any], ...]:
 	if None is raw:
 		return ()
@@ -425,7 +438,7 @@ def _validate_similar_project_groups(raw: Any, variables: dict[str, str], *, env
 # 2026-11-20
 # "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
 # https://github.com/dmitry-ai/harness/issues/103
-# @used-by :meth:`PathRegistry.__init__()`
+# @used-by :meth:`Df.Harness.Path.Registry.Registry.__anchor_overrides()`
 def _infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
 	if '\u26ef' == anchor_code.name and 4 <= len(anchor_code.parents) and (anchor_code.parent.name, anchor_code.parents[1].name, anchor_code.parents[2].name) in (('\u2655', '\u227b', '\u2c0f'), ('Deliverables', '\u227b', 'Artifacts')):
 		root = anchor_code.parents[3].resolve()
@@ -433,144 +446,8 @@ def _infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
 	root = anchor_code.parent.resolve()
 	meta = (root / '_').resolve() if (root / '_').is_dir() else root
 	return (root, meta, 1)
-# 2026-11-19
-# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
-# https://github.com/dmitry-ai/harness/issues/95
-class PathRegistry:
-	# @used-by :func:`load_registry()`
-	def __init__(self, source_path: Path, raw: dict[str, Any], *, primary: Path | None=None, env: dict[str, str] | None=None):
-		self.source_path = Path(source_path).resolve()
-		self.env = dict(env) if None is not env else None
-		if not isinstance(raw, dict) or 1 != raw.get('version'):
-			raise ValueError(f'{self.source_path.name} requires version 1')
-		variables = _validate_variables_map(raw.get('variables'), 'paths.json variables')
-		if not variables:
-			raise ValueError('paths.json requires non-empty variables')
-		# 2026-11-24
-		# "Fix worktree scope resolution for new files in TDD classifier":
-		# https://github.com/dmitry-ai/harness/issues/188
-		anchor_code = Path(primary).resolve() if None is not primary else resolve_code_anchor(self.source_path.parent.resolve())
-		# 2026-11-22
-		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
-		# https://github.com/dmitry-ai/harness/issues/123
-		self.anchor_code = anchor_code
-		self.has_synthetic_primary = None is not primary and _path_key(anchor_code) != _path_key(self.source_path.parent.resolve())
-		# 2026-11-20
-		# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
-		# https://github.com/dmitry-ai/harness/issues/100
-		configured_code = expand_template(variables['HARNESS_CODE'], variables, env=self.env, normalize=True) if 'HARNESS_CODE' in variables else ''
-		if _path_key(anchor_code) != _path_key(configured_code) or _path_key(anchor_code) != _path_key(_CODE_ANCHOR):
-			anchor_root, anchor_meta, anchor_ver = _infer_harness_anchor(anchor_code)
-			overrides = {'HARNESS_CODE': escape_template_literal(anchor_code.as_posix()), 'HARNESS_ROOT': escape_template_literal(anchor_root.as_posix()), 'HARNESS_META': escape_template_literal(anchor_meta.as_posix())}
-			if 1 == anchor_ver and 'HARNESS_CLEANUP_LOG_DIR' in variables:
-				overrides['HARNESS_CLEANUP_LOG_DIR'] = escape_template_literal((anchor_meta / 'Data/Log/cleanup').as_posix())
-			variables = {**variables, **overrides}
-		self.raw = deepcopy(raw)
-		self.raw_variables = variables
-		self.resolved_variables = {name: expand_template(val, variables, env=self.env, normalize=True) for name, val in variables.items()}
-		if not isinstance(raw.get('tools'), dict):
-			raise ValueError('paths.json requires a tools object')
-		self.tools = expand_structure(raw['tools'], variables, env=self.env)
-		if not isinstance(raw.get('harness_stores'), dict):
-			raise ValueError('paths.json requires a harness_stores object')
-		self.harness_stores = expand_structure(raw['harness_stores'], variables, env=self.env)
-		raw_ws = raw.get('workspace_overrides') or {}
-		if not isinstance(raw_ws, dict):
-			raise ValueError('paths.json workspace_overrides must be an object')
-		self.workspace_overrides: dict[str, dict[str, Any]] = {}
-		for ws_tpl, ws_cfg in raw_ws.items():
-			if not isinstance(ws_cfg, dict):
-				raise ValueError('paths.json workspace_overrides values must be objects')
-			ws_resolved = expand_template(ws_tpl, variables, env=self.env, normalize=True)
-			self.workspace_overrides[_path_key(ws_resolved)] = {'root': ws_resolved, **expand_structure(ws_cfg, variables, env=self.env)}
-		# 2026-11-23
-		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-		# https://github.com/dmitry-ai/harness/issues/132
-		raw_untracked = _validate_string_list(raw.get('untracked_workspaces'), 'paths.json untracked_workspaces')
-		self.untracked_workspaces: frozenset[str] = frozenset((_path_key(Path(os.path.abspath(expand_template(item, variables, env=self.env, normalize=True)))) for item in raw_untracked))
-		raw_reloc = _validate_string_map(raw.get('relocations') or {}, 'paths.json relocations')
-		self.relocations = {_path_key(expand_template(src, variables, env=self.env, normalize=True)): expand_template(dst, variables, env=self.env, normalize=True) for src, dst in raw_reloc.items()}
-		raw_plats = raw.get('platform_layouts') or {}
-		if not isinstance(raw_plats, dict):
-			raise ValueError('paths.json platform_layouts must be an object')
-		self.platform_layouts = deepcopy(raw_plats)
-		raw_overlays = raw.get('project_overlays') or {}
-		if not isinstance(raw_overlays, dict):
-			raise ValueError('paths.json project_overlays must be an object')
-		self.overlay_candidates = [expand_template(c, variables, env=self.env, normalize=True) for c in _validate_string_list(raw_overlays.get('candidates') or ['.agents/paths.json'], 'project_overlays.candidates')]
-		self.overlay_discovery_roots = [expand_template(r, variables, env=self.env, normalize=True) for r in _validate_string_list(raw_overlays.get('discovery_roots') or [], 'project_overlays.discovery_roots')]
-		self.overlay_discovery_globs = [expand_template(g, variables, env=self.env, normalize=True) for g in _validate_string_list(raw_overlays.get('discovery_globs') or [], 'project_overlays.discovery_globs')]
-		# 2026-11-22
-		# "Add declarative similar_projects registry groups and project overlay resolution":
-		# https://github.com/dmitry-ai/harness/issues/122
-		self.similar_project_groups = _validate_similar_project_groups(raw.get('similar_projects'), variables, env=self.env)
-		raw_profiles = raw.get('project_profiles') or {}
-		if not isinstance(raw_profiles, dict) or 'default' not in raw_profiles:
-			raise ValueError('paths.json project_profiles must define at least "default"')
-		self.project_profiles = deepcopy(raw_profiles)
-		for prof_name in self.project_profiles:
-			self._resolve_profile_chain(prof_name)
-	# @used-by :meth:`PathRegistry.__init__()`
-	def _resolve_profile_chain(self, name: str, seen: tuple[str, ...]=()) -> dict[str, Any]:
-		if name in seen:
-			raise ValueError(f"Cyclic project profile inheritance: {' -> '.join((*seen, name))}")
-		if name not in self.project_profiles:
-			raise ValueError(f'Unknown project path profile: {name!r}')
-		cfg = self.project_profiles[name]
-		if not isinstance(cfg, dict):
-			raise ValueError(f'project_profiles.{name} must be an object')
-		parent_name = cfg.get('extends')
-		if None is not parent_name:
-			if not isinstance(parent_name, str) or not parent_name.strip():
-				raise ValueError(f'project_profiles.{name}.extends must be a profile name')
-			base = self._resolve_profile_chain(parent_name, (*seen, name))
-		else:
-			base = {'fs_version': 1, 'journal_version': 1, 'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'similar_projects': [], 'journal_legacy_fallbacks': []}
-		# 2026-11-20
-		# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
-		# https://github.com/dmitry-ai/harness/issues/100
-		raw_fs_ver = cfg.get('fs_version', base['fs_version'])
-		if int is not type(raw_fs_ver) or raw_fs_ver not in (1, 2):
-			raise ValueError(f'project_profiles.{name}.fs_version must be 1 or 2')
-		# 2026-11-21
-		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
-		# https://github.com/dmitry-ai/harness/issues/108
-		raw_j_ver = cfg.get('journal_version', base['journal_version'])
-		if int is not type(raw_j_ver) or raw_j_ver not in (1, 2, 3):
-			raise ValueError(f'project_profiles.{name}.journal_version must be 1, 2, or 3')
-		prof_vars = _validate_variables_map(cfg.get('variables'), f'project_profiles.{name}.variables')
-		prof_paths = _validate_string_map(cfg.get('paths'), f'project_profiles.{name}.paths')
-		prof_tools = deepcopy(cfg.get('tools') or {})
-		if not isinstance(prof_tools, dict):
-			raise ValueError(f'project_profiles.{name}.tools must be an object')
-		prof_code = _validate_string_list(cfg.get('code_repos'), f'project_profiles.{name}.code_repos')
-		prof_aux = _validate_string_map(cfg.get('auxiliary_repos'), f'project_profiles.{name}.auxiliary_repos')
-		prof_links = _validate_string_list(cfg.get('linked_roots'), f'project_profiles.{name}.linked_roots')
-		# 2026-11-22
-		# "Add declarative similar_projects registry groups and project overlay resolution":
-		# https://github.com/dmitry-ai/harness/issues/122
-		prof_sim = _validate_string_list(cfg.get('similar_projects'), f'project_profiles.{name}.similar_projects')
-		prof_jfb = _validate_string_list(cfg.get('journal_legacy_fallbacks'), f'project_profiles.{name}.journal_legacy_fallbacks')
-		return {
-			'fs_version': raw_fs_ver,
-			'journal_version': raw_j_ver,
-			'variables': {**base['variables'], **prof_vars},
-			'paths': {**base['paths'], **prof_paths},
-			'tools': {**base['tools'], **prof_tools},
-			'code_repos': prof_code if 'code_repos' in cfg else list(base['code_repos']),
-			'auxiliary_repos': {**base['auxiliary_repos'], **prof_aux},
-			'linked_roots': prof_links if 'linked_roots' in cfg else list(base['linked_roots']),
-			'similar_projects': prof_sim if 'similar_projects' in cfg else list(base['similar_projects']),
-			'journal_legacy_fallbacks': prof_jfb if 'journal_legacy_fallbacks' in cfg else list(base['journal_legacy_fallbacks']),
-		}
-	# @used-by :func:`agent_tools.runtime._expand_path()`
-	def expand(self, template: str, extra_variables: dict[str, str] | None=None) -> str:
-		merged = self.raw_variables if not extra_variables else {**self.raw_variables, **extra_variables}
-		return expand_template(template, merged, env=self.env, normalize=True)
-	# @used-by :func:`agent_tools.runtime_cache._load_uncached_settings()`
-	def expand_data(self, data: Any, extra_variables: dict[str, str] | None=None) -> Any:
-		merged = self.raw_variables if not extra_variables else {**self.raw_variables, **extra_variables}
-		return expand_structure(data, merged, env=self.env)
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+from Df.Harness.Path.Registry import Registry as PathRegistry
 # @used-by :func:`load_registry()`
 def _env_fingerprint(env: dict[str, str] | None) -> tuple:
 	if None is env:
@@ -589,6 +466,8 @@ def _env_fingerprint(env: dict[str, str] | None) -> tuple:
 # @used-by :func:`agent_tools.runtime._expand_path()`
 # @used-by :func:`agent_tools.runtime_cache._load_uncached_settings()`
 # @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
+# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :func:`canonicalize_root_dir()`
 # @used-by :func:`default_platform_paths()`
 # @used-by :func:`derive_platform_system_paths()`
@@ -605,9 +484,7 @@ def _env_fingerprint(env: dict[str, str] | None) -> tuple:
 # @used-by :func:`tool_value()`
 # @used-by :func:`var_value()`
 # @used-by :func:`workspace_override()`
-# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_indexed()`
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init__()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_is_tracked_workspace_supports_registered_single_projects_and_declarative_opt_outs()`
@@ -667,13 +544,9 @@ def store_value(name: str, *, registry: PathRegistry | None=None) -> Any:
 	if name not in reg.harness_stores:
 		raise KeyError(f'Unknown harness store entry: {name}')
 	return deepcopy(reg.harness_stores[name])
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.drain_incoming()`
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
-# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
-# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_intake_drain()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
+# @used-by :func:`agent_tools.intake._project()`
+# @used-by :func:`agent_tools.project_rename._update_projects_index()`
+# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
@@ -709,9 +582,9 @@ def tool_path(name: str, *, project_root: str | Path | None=None, registry: Path
 	return Path(val)
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
+# @used-by :func:`agent_tools.upwork_data._find_poppler_tool()`
 # @used-by :func:`git_shim._normalize_arg_token()`
 # @used-by :func:`git_shim.resolve_system_git()`
-# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.find_poppler_tool()`
 def tool_list(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> list[str]:
 	val = tool_value(name, project_root=project_root, registry=registry)
 	if isinstance(val, list):
@@ -743,8 +616,8 @@ def relocated_roots(*, registry: PathRegistry | None=None) -> dict[str, str]:
 # https://github.com/dmitry-ai/harness/issues/103
 # @used-by :func:`agent_tools.configuration._project_rule_paths()`
 # @used-by :func:`agent_tools.native_profiles._relocated_primaries()`
-# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
+# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
 def relocated_harness_code_dirs(*, primary: str | Path | None=None, registry: PathRegistry | None=None) -> tuple[Path, ...]:
 	reg = registry or load_registry()
 	cur_code = Path(os.path.abspath(primary)) if None is not primary else (Path(reg.resolved_variables.get('HARNESS_CODE', '')).resolve() if reg.resolved_variables.get('HARNESS_CODE') else None)
@@ -854,9 +727,9 @@ def derive_platform_system_paths(adapter_kind: str, explicit_paths: dict[str, st
 # @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
 # @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
 # @used-by :func:`agent_tools.runtime.resolve_antigravity_paths()`
+# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`check_pre_invocation._resolve_ag_paths()`
 # @used-by :func:`check_stop_gate._resolve_stop_paths()`
-# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 # @used-by :mod:`agent_tools.platforms.antigravity`
@@ -886,7 +759,7 @@ def default_platform_paths(adapter_kind: str, *, home: str | Path | None=None, u
 # @used-by :func:`paths_report()`
 # @used-by :func:`project_paths()`
 # @used-by :func:`resolve_project_root()`
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_overlay_and_profile()`
 def discover_overlay_file(root: str | Path, *, registry: PathRegistry | None=None, _resolved_root: bool=False) -> Path | None:
 	reg = registry or load_registry()
 	root_p = Path(root) if _resolved_root else Path(root).resolve()
@@ -907,7 +780,7 @@ def discover_overlay_file(root: str | Path, *, registry: PathRegistry | None=Non
 			joined = ', '.join((str(p) for p in found))
 			raise ValueError(f'Conflicting project paths.json overlays in {root_p}: {joined}')
 	return found[0] if found else None
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_overlay_and_profile()`
 def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[str, Any]:
 	if not isinstance(raw, dict):
 		raise ValueError(f'Project overlay {overlay_path} must be a JSON object')
@@ -964,7 +837,8 @@ _JOURNAL_BUCKET_DIR_RE = re.compile('^(\\d+)[-\\u2013](\\d+)$')
 def _canonical_journal_bucket(step: int, bucket_size: int=20) -> str:
 	start = ((step - 1) // bucket_size) * bucket_size + 1
 	return f'{start}\u2013{start + bucket_size - 1}'
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_journal()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__resolve_effective_journal_dir()`
 def _inspect_journal_dir_on_disk(j_dir: Path, reg: PathRegistry) -> tuple[int | None, tuple[str, str] | None]:
 	j_out = reg.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b')
 	j_in = reg.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')
@@ -1062,30 +936,31 @@ def _v2_software_deliverable_dir(root: Path, reg: PathRegistry) -> Path:
 # @used-by :func:`agent_tools.completion.similar_project_exempt()`
 # @used-by :func:`agent_tools.completion.sync_conversation_title()`
 # @used-by :func:`agent_tools.completion.tdd_check_turn()`
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :func:`agent_tools.context.generate()`
 # @used-by :func:`agent_tools.issues.parity.check_similar_project_parity()`
 # @used-by :func:`agent_tools.journal.canonicalize_journal_dir_identity()`
 # @used-by :func:`agent_tools.journal_sync_all.sync_all_open()`
+# @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
+# @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
+# @used-by :func:`agent_tools.meta.builders.build_problem_metadata()`
+# @used-by :func:`agent_tools.meta.identity.resolve_project_identity()`
 # @used-by :func:`agent_tools.operations.analysis_root()`
 # @used-by :func:`agent_tools.platforms.codex._review_inputs()`
 # @used-by :func:`agent_tools.platforms.request_binding.canonical_path()`
+# @used-by :func:`agent_tools.review.read_package_envelope()`
+# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 # @used-by :func:`agent_tools.text_workflow._roots()`
 # @used-by :func:`evaluate_similar_project_touches()`
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`project_paths()`
 # @used-by :func:`resolve_project_root()`
 # @used-by :func:`same_project_root()`
-# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_github_issue()`
-# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
-# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_problem()`
-# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve()`
-# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.assemble()`
-# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
-# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
-# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.__init__()`
-# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_similar_projects()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler.__init__()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator.__init__()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.__init__()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_df_servers_relocation_and_nested_server_artifact_root()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
@@ -1140,12 +1015,12 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 # @used-by :func:`agent_tools.platforms.antigravity._project_item_matches_root()`
 # @used-by :func:`agent_tools.platforms.codex._review_inputs()`
 # @used-by :func:`agent_tools.research.inside()`
-# @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__is_plan_commit()`
-# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
-# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.load()`
+# @used-by :func:`agent_tools.review.read_package_envelope()`
+# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore._is_plan_commit()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.operation_meta()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.reconciled_integrity()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.load()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_df_servers_relocation_and_nested_server_artifact_root()`
 # @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
@@ -1228,7 +1103,7 @@ def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ..
 	_DISCOVERY_STATE['candidate_roots'] = frozen
 	return (roots_key, frozen)
 # @used-by :func:`resolve_project_root()`
-# @used-by :meth:`ProjectPaths.similar_projects()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.similar_projects()`
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_refresh_known_overlay_links_uses_ttl_and_resets_on_clear()`
 def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 	# 2026-11-24
@@ -1310,13 +1185,13 @@ def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None,
 		if (anc / journal_name).is_dir():
 			return (idx, anc)
 	return (None, None)
+# @used-by :func:`agent_tools.analysis.publish_analysis()`
 # @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
 # @used-by :func:`agent_tools.issues.service_helpers.resolve_metadata_project_root()`
+# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`check_markdown_slop._infer_project_root()`
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`project_paths()`
-# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
-# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_mid_process_overlay_creation_and_edit_invalidate_reverse_links_and_stay_fast()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
@@ -1358,7 +1233,7 @@ def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=No
 # "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
 # https://github.com/dmitry-ai/harness/issues/100
 # @used-by :func:`project_paths()`
-# @used-by :meth:`ProjectPaths.__init__()`
+# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_overlay_and_profile()`
 def _infer_default_profile(root: Path, overlay_file: Path | None, reg: PathRegistry, *, explicit_fs_version: int | None=None) -> str:
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
@@ -1388,907 +1263,18 @@ def _infer_default_profile(root: Path, overlay_file: Path | None, reg: PathRegis
 # 2026-11-19
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
-class ProjectPaths:
-	# @used-by :func:`_refresh_known_overlay_links()`
-	# @used-by :func:`paths_report()`
-	# @used-by :func:`project_paths()`
-	def __init__(self, root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, _register_links: bool=True):
-		self.registry = registry or load_registry(env=env)
-		self.root = canonicalize_root_dir(root, registry=self.registry)
-		self.overlay_file = discover_overlay_file(self.root, registry=self.registry)
-		self.overlay = _validate_overlay(json.loads(self.overlay_file.read_text(encoding='utf-8-sig')), self.overlay_file, self.registry) if None is not self.overlay_file else None
-		self.has_overlay = None is not self.overlay
-		# 2026-11-23
-		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-		# https://github.com/dmitry-ai/harness/issues/132
-		self.tracked: bool | None = self.overlay.get('tracked') if self.overlay else None
-		ov_fs_ver = self.overlay.get('fs_version') if self.overlay else None
-		self.profile = (self.overlay.get('profile') if self.overlay else None) or _infer_default_profile(self.root, self.overlay_file, self.registry, explicit_fs_version=ov_fs_ver)
-		prof_spec = self.registry._resolve_profile_chain(self.profile)
-		self.fs_version = ov_fs_ver if None is not ov_fs_ver else prof_spec['fs_version']
-		ws_ovr = self.registry.workspace_overrides.get(_path_key(self.root))
-		raw_paths = dict(prof_spec['paths'])
-		if ws_ovr:
-			for k in ('data_dir', 'cleanup_log_dir', 'browser_locks_dir'):
-				if k in ws_ovr and isinstance(ws_ovr[k], str):
-					raw_paths[k] = ws_ovr[k]
-		self._explicit_overlay_paths: set[str] = set()
-		if self.overlay:
-			raw_paths.update(self.overlay['paths'])
-			self._explicit_overlay_paths = set(self.overlay['paths'])
-		merged_vars = dict(self.registry.raw_variables)
-		merged_vars.update(prof_spec['variables'])
-		if self.overlay:
-			merged_vars.update(self.overlay['variables'])
-		# 2026-11-20
-		# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
-		# https://github.com/dmitry-ai/harness/issues/103
-		ov_vars = self.overlay['variables'] if self.overlay else {}
-		if 2 == self.fs_version and 'ARTIFACTS_DIR_NAME' not in ov_vars and 'ARTIFACTS_DIR' not in ov_vars:
-			cur_art = self.registry.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
-			if not (self.root / cur_art).exists() and (self.root / 'Artifacts').is_dir():
-				merged_vars['ARTIFACTS_DIR_NAME'] = 'Artifacts'
-				art_out = self.registry.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
-				if 'DELIVERABLES_DIR_NAME' not in ov_vars and (self.root / 'Artifacts' / art_out / 'Deliverables').is_dir():
-					merged_vars['DELIVERABLES_DIR_NAME'] = 'Deliverables'
-				if 'INTERMEDIARY_DIR_NAME' not in ov_vars and (self.root / 'Artifacts' / art_out / 'Intermediary').is_dir():
-					merged_vars['INTERMEDIARY_DIR_NAME'] = 'Intermediary'
-		merged_vars['PROJECT_ROOT'] = escape_template_literal(self.root.as_posix())
-		eff_slot_tpls: dict[str, str] = {}
-		slot_vars: dict[str, str] = {}
-		var_to_slot: dict[str, str] = {}
-		for slot_key, slot_tpl in raw_paths.items():
-			slot_var = re.sub('[^A-Za-z0-9_]', '_', slot_key).upper()
-			eff_tpl = slot_tpl
-			if _VAR_NAME_RE.match(slot_var):
-				self_tok = f'${{{slot_var}}}'
-				if self_tok in eff_tpl and slot_var in merged_vars:
-					eff_tpl = eff_tpl.replace(self_tok, merged_vars[slot_var])
-				slot_vars[slot_key] = slot_var
-				var_to_slot[slot_var] = slot_key
-			eff_slot_tpls[slot_key] = eff_tpl
-		self._variables = merged_vars
-		self.paths_str: dict[str, str] = {}
-		# @used-by :meth:`ProjectPaths.__init__()`
-		def _resolve_slot(slot_key: str, resolving_vars: tuple[str, ...]=()) -> str:
-			if slot_key in self.paths_str:
-				return self.paths_str[slot_key]
-			slot_var = slot_vars.get(slot_key)
-			eff_tpl = eff_slot_tpls[slot_key]
-			next_chain = (*resolving_vars, slot_var) if slot_var else resolving_vars
-			for m in _TOKEN_RE.finditer(eff_tpl):
-				ref = (m.group(1) or '').strip()
-				if not ref or ref.upper().startswith('ENV:'):
-					continue
-				if ref in next_chain:
-					raise ValueError(f"Cyclic path template variable reference: {' -> '.join((*next_chain, ref))}")
-				if ref in var_to_slot:
-					_resolve_slot(var_to_slot[ref], next_chain)
-			had_trailing = eff_tpl.endswith(('/', '\\'))
-			resolved_val = expand_template(eff_tpl, merged_vars, env=self.registry.env, normalize=True)
-			if not Path(resolved_val).is_absolute() and (not _URI_SCHEME_RE.match(resolved_val)):
-				resolved_val = normalize_path_str(f'{self.root.as_posix()}/{resolved_val}')
-			self.paths_str[slot_key] = resolved_val
-			if slot_var:
-				var_val = resolved_val + ('/' if had_trailing and (not resolved_val.endswith('/')) else '')
-				merged_vars[slot_var] = escape_template_literal(var_val)
-			return resolved_val
-		for slot_key in raw_paths:
-			_resolve_slot(slot_key)
-		merged_tools = deepcopy(self.registry.tools)
-		merged_tools.update(expand_structure(prof_spec['tools'], merged_vars, env=self.registry.env))
-		if self.overlay and self.overlay['tools']:
-			merged_tools.update(expand_structure(self.overlay['tools'], merged_vars, env=self.registry.env))
-		self.tools = merged_tools
-		raw_code = self.overlay['code_repos'] if self.overlay and self.overlay['code_repos'] else prof_spec['code_repos']
-		self.code_repos = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_code))
-		raw_aux = {**prof_spec['auxiliary_repos'], **(self.overlay['auxiliary_repos'] if self.overlay else {})}
-		self.auxiliary_repos = {k: Path(self._resolve_rel_to_root(v)).resolve() for k, v in raw_aux.items()}
-		raw_links = self.overlay['linked_roots'] if self.overlay and self.overlay['linked_roots'] else prof_spec['linked_roots']
-		self.linked_roots = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_links))
-		# 2026-11-22
-		# "Add declarative similar_projects registry groups and project overlay resolution":
-		# https://github.com/dmitry-ai/harness/issues/122
-		raw_sim = self.overlay['similar_projects'] if self.overlay and self.overlay['similar_projects'] else prof_spec['similar_projects']
-		direct_sim: list[Path] = []
-		seen_sim: set[str] = {_path_key(self.root)}
-		# @used-by :meth:`ProjectPaths.__init__()`
-		def _push_sim(cand: Path) -> None:
-			ck = _path_key(cand)
-			if ck not in seen_sim:
-				seen_sim.add(ck)
-				direct_sim.append(cand)
-		for item in raw_sim:
-			_push_sim(canonicalize_root_dir(self._resolve_rel_to_root(item), registry=self.registry))
-		self_key = _path_key(self.root)
-		for grp in self.registry.similar_project_groups:
-			mem_roots = [canonicalize_root_dir(mem['project'], registry=self.registry) for mem in grp['members']]
-			if any((_path_key(mr) == self_key for mr in mem_roots)):
-				for mr in mem_roots:
-					_push_sim(mr)
-		self._direct_similar_projects = tuple(direct_sim)
-		self._include_reverse_similar = _register_links
-		self.journal_legacy_fallbacks = tuple((Path(self._resolve_rel_to_root(item)) for item in prof_spec['journal_legacy_fallbacks']))
-		# 2026-11-21
-		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
-		# https://github.com/dmitry-ai/harness/issues/108
-		ov_j_ver = self.overlay.get('journal_version') if self.overlay else None
-		cfg_j_ver = ov_j_ver if None is not ov_j_ver else prof_spec['journal_version']
-		j_root = Path(self.paths_str['journal_root_dir'])
-		j_cur = self.journal_dir
-		if self.has_explicit_path('journal_dir') or self.journal_glob:
-			if not j_cur.is_dir() and j_cur.parent == j_root and j_cur.name in ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437') and (None is not _inspect_journal_dir_on_disk(j_root, self.registry)[0]):
-				j_eff = j_root
-				self.paths_str['journal_dir'] = j_eff.as_posix()
-			else:
-				j_eff = j_cur
-		elif None is not _inspect_journal_dir_on_disk(j_root, self.registry)[0]:
-			j_eff = j_root
-		else:
-			fb_hit = next((fb for fb in self.journal_legacy_fallbacks if fb != j_root and fb.is_dir()), None)
-			if None is not fb_hit:
-				j_eff = fb_hit
-				self.paths_str['journal_dir'] = normalize_path_str(j_eff.as_posix())
-			else:
-				j_eff = j_cur
-		disk_j_ver, disk_j_pair = _inspect_journal_dir_on_disk(j_eff, self.registry)
-		self.journal_version = disk_j_ver if None is not disk_j_ver else cfg_j_ver
-		eff_j_pair = disk_j_pair if None is not disk_j_pair else ((self.registry.resolved_variables.get('JOURNAL_OUT_DIR_NAME', '\u227b'), self.registry.resolved_variables.get('JOURNAL_IN_DIR_NAME', '\u227a')) if 2 <= self.journal_version else ('req', 'res'))
-		if 'journal_req_dir' not in self._explicit_overlay_paths:
-			self.paths_str['journal_req_dir'] = normalize_path_str(f'{j_eff.as_posix()}/{eff_j_pair[0]}')
-		if 'journal_res_dir' not in self._explicit_overlay_paths:
-			self.paths_str['journal_res_dir'] = normalize_path_str(f'{j_eff.as_posix()}/{eff_j_pair[1]}')
-		self.deliverable_segments = tuple((self.overlay['deliverable_segments'] if self.overlay and self.overlay['deliverable_segments'] else ('/letters/', '/result/', '/defects/', '/articles/', '/\u2c3f/\u227b/\u2655/', '/artifacts/\u227b/deliverables/')))
-		self.source_dirs = tuple((Path(self._resolve_rel_to_root(item)) for item in (self.overlay['source_dirs'] if self.overlay else ())))
-		if _register_links and (self.has_overlay or self._direct_similar_projects):
-			self._register_reverse_links()
-	# @used-by :func:`project_paths()`
-	# @used-by :meth:`ProjectPaths.__init__()`
-	def _register_reverse_links(self) -> None:
-		rk = _path_key(self.root)
-		if self.has_overlay:
-			for ext in (*self.linked_roots, *self.code_repos, *self.auxiliary_repos.values()):
-				ek = _path_key(ext)
-				if ek != rk:
-					_OVERLAY_REVERSE_MAP[ek] = self.root
-		reg_key = _path_key(self.registry.source_path)
-		for sp in self._direct_similar_projects:
-			sk = (reg_key, _path_key(sp))
-			peers = _SIMILAR_REVERSE_MAP.setdefault(sk, [])
-			if all((_path_key(p) != rk for p in peers)):
-				peers.append(self.root)
-	# @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
-	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_commit()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_locked()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
-	# @used-by :meth:`Df.Harness.Project.Intake.IntakeIndexer.IntakeIndexer.rebuild()`
-	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.build()`
-	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
-	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__sync_selected()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-	def rel_to_root(self, target: str | Path) -> str:
-		p = Path(target).resolve()
-		return p.relative_to(self.root).as_posix() if p.is_relative_to(self.root) else p.as_posix()
-	# @used-by :meth:`ProjectPaths.__init__()`
-	# @used-by :meth:`ProjectPaths.expand()`
-	def _resolve_rel_to_root(self, tpl: str) -> str:
-		val = expand_template(tpl, self._variables, env=self.registry.env, normalize=True)
-		if not Path(val).is_absolute() and (not _URI_SCHEME_RE.match(val)):
-			val = normalize_path_str(f'{self.root.as_posix()}/{val}')
-		return val
-	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
-	# @used-by :func:`agent_tools.completion._folder()`
-	# @used-by :meth:`ProjectPaths.__init__()`
-	# @used-by :meth:`ProjectPaths.journal_dir()`
-	def has_explicit_path(self, name: str) -> bool:
-		return name in self._explicit_overlay_paths
-	# @used-by :func:`Df.Core.lib.fs.df_uri_file_decode()`
-	# @used-by :func:`_candidate_discovery_roots()`
-	# @used-by :func:`_is_linked()`
-	# @used-by :func:`_validate_similar_project_groups()`
-	# @used-by :func:`agent_tools.completion._is_client_deliverable_path()`
-	# @used-by :func:`agent_tools.completion._response_link_issues()`
-	# @used-by :func:`agent_tools.configuration.has_linked_ancestor()`
-	# @used-by :func:`agent_tools.journal._assert_not_linked_tree()`
-	# @used-by :func:`agent_tools.links.readable_reference()`
-	# @used-by :func:`agent_tools.links.validate_file()`
-	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
-	# @used-by :func:`agent_tools.markdown_links.display_address()`
-	# @used-by :func:`agent_tools.native_profiles._absolute()`
-	# @used-by :func:`agent_tools.native_profiles._apply()`
-	# @used-by :func:`agent_tools.native_profiles._direct_link_matches_target()`
-	# @used-by :func:`agent_tools.native_profiles._exists()`
-	# @used-by :func:`agent_tools.native_profiles._is_relocated_owned_link()`
-	# @used-by :func:`agent_tools.native_profiles._link_matches_target()`
-	# @used-by :func:`agent_tools.native_profiles._plan_codex_link()`
-	# @used-by :func:`agent_tools.native_profiles._rollback()`
-	# @used-by :func:`agent_tools.path_cache._fast_sig()`
-	# @used-by :func:`agent_tools.platforms.trace_common.local_uri_to_path()`
-	# @used-by :func:`agent_tools.polyglot_land._expand_token()`
-	# @used-by :func:`agent_tools.runtime._expand_path()`
-	# @used-by :func:`agent_tools.runtime_cache._file_stat_key()`
-	# @used-by :func:`agent_tools.shadow_replay._ensure_scripts_path()`
-	# @used-by :func:`agent_tools.statements.is_documentation_url()`
-	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
-	# @used-by :func:`check_pre_invocation._ensure_scripts_on_path()`
-	# @used-by :func:`check_stop_gate._ensure_scripts_on_path()`
-	# @used-by :func:`check_stop_gate._resolve_stop_paths()`
-	# @used-by :func:`conftest.configure_test_environment()`
-	# @used-by :func:`discover_overlay_file()`
-	# @used-by :func:`load_registry()`
-	# @used-by :func:`normalize_path_str()`
-	# @used-by :func:`paths_report()`
-	# @used-by :func:`relocated_harness_code_dirs()`
-	# @used-by :meth:`Df.Harness.Analysis.ObservationHtmlResolver.ObservationHtmlResolver.resolve()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_file_uri()`
-	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_relative_cross_repo()`
-	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
-	# @used-by :meth:`Df.Harness.Perf.SuiteWorker.SuiteWorker.main()`
-	# @used-by :meth:`Df.Harness.Project.Intake.IntakePathGuard.IntakePathGuard.plain()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
-	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__find_uncovered()`
-	# @used-by :meth:`Df.Harness.Tdd.DiffCoverageHook.DiffCoverageHook.prepare_env()`
-	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.uri_to_local_path()`
-	# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.__build_headers()`
-	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
-	# @used-by :meth:`Df.Harness.Upwork.JobUrlParser.JobUrlParser.extract_upwork_job_url_id()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
-	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.__question_lines()`
-	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.publish()`
-	# @used-by :meth:`PathRegistry.__init__()`
-	# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._prune_delivered_checkpoint_recovery()`
-	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_df_bootstrap_loads_dotpy_packages_and_sibling_modules()`
-	# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_in_process_cache_shares_single_disk_read_across_pre_tool_gates()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
-	# @used-by :mod:`check_markdown_slop`
-	# @used-by :mod:`check_rules_and_server_gate`
-	# @used-by :mod:`df_article`
-	# @used-by :mod:`df_github_issue`
-	# @used-by :mod:`generate_context`
-	# @used-by :mod:`git_fixture_cache`
-	# @used-by :mod:`git_shim`
-	# @used-by :mod:`harness`
-	# @used-by :mod:`safe_commit`
-	# @used-by :mod:`snapshot_draft`
-	# @used-by :mod:`test_addon_observability`
-	# @used-by :mod:`test_agent_tools`
-	# @used-by :mod:`test_arch_audit_gates`
-	# @used-by :mod:`test_arch_review_cli`
-	# @used-by :mod:`test_arch_rules_contract`
-	# @used-by :mod:`test_arch_spec_and_triggers`
-	# @used-by :mod:`test_ask_question_clarifications_m8`
-	# @used-by :mod:`test_ask_question_pre_tool_gate`
-	# @used-by :mod:`test_atomic_prepare_and_narrowed_reconcile_m7`
-	# @used-by :mod:`test_background_wait_and_tdd_inheritance`
-	# @used-by :mod:`test_blocked_report_hygiene_and_doc5_m2`
-	# @used-by :mod:`test_blocked_report_m2`
-	# @used-by :mod:`test_bounded_foreign_sync`
-	# @used-by :mod:`test_budget_status_scoping`
-	# @used-by :mod:`test_chat_reply_link_issues_m5`
-	# @used-by :mod:`test_clarification_stop_consent`
-	# @used-by :mod:`test_cleanup_audit`
-	# @used-by :mod:`test_cleanup_integration`
-	# @used-by :mod:`test_cleanup_lifecycle`
-	# @used-by :mod:`test_cli_command_grounding`
-	# @used-by :mod:`test_cli_common`
-	# @used-by :mod:`test_cli_output_json`
-	# @used-by :mod:`test_cli_registry`
-	# @used-by :mod:`test_code_fanout_gates`
-	# @used-by :mod:`test_code_formatting_rules`
-	# @used-by :mod:`test_code_size_gate`
-	# @used-by :mod:`test_code_style_gate`
-	# @used-by :mod:`test_comment_exemption_and_denied_writes`
-	# @used-by :mod:`test_context_and_storage_determinism`
-	# @used-by :mod:`test_contract_invariants`
-	# @used-by :mod:`test_cross_repo_issue_urls`
-	# @used-by :mod:`test_df_analysis_companion_tracks`
-	# @used-by :mod:`test_df_analysis_rules_contract`
-	# @used-by :mod:`test_df_analysis`
-	# @used-by :mod:`test_df_core_array`
-	# @used-by :mod:`test_df_core_base`
-	# @used-by :mod:`test_df_core_qa_s10`
-	# @used-by :mod:`test_df_core_text_misc`
-	# @used-by :mod:`test_df_dotpy_bootstrap`
-	# @used-by :mod:`test_df_harness_dedup_s8`
-	# @used-by :mod:`test_df_harness_lib_s10`
-	# @used-by :mod:`test_df_harness_s11_wave2a_facade_exports`
-	# @used-by :mod:`test_df_harness_s11_wave2a_project_ext`
-	# @used-by :mod:`test_df_harness_s11_wave2a_review`
-	# @used-by :mod:`test_df_harness_s11_wave2a_upwork`
-	# @used-by :mod:`test_df_harness_s11_wave2a_workflow`
-	# @used-by :mod:`test_df_harness_s11_wave2a`
-	# @used-by :mod:`test_df_harness_s11_wave2b_gate_cov`
-	# @used-by :mod:`test_df_harness_s11_wave2b_gate`
-	# @used-by :mod:`test_df_harness_s11_wave2b_meta_cov`
-	# @used-by :mod:`test_df_harness_s11_wave2b_meta`
-	# @used-by :mod:`test_df_harness_s11_wave2b_perf_runner_cov`
-	# @used-by :mod:`test_df_harness_s11_wave2b_tail_cov`
-	# @used-by :mod:`test_df_harness_s11_wave2b_tdd_cov1`
-	# @used-by :mod:`test_df_harness_s11_wave2b_tdd_cov2`
-	# @used-by :mod:`test_df_harness_s11_wave2b_tdd`
-	# @used-by :mod:`test_df_harness_s11_wave2b_xref_cov`
-	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
-	# @used-by :mod:`test_df_harness_s11_wave2b`
-	# @used-by :mod:`test_df_harness_s11_wave2e_arch`
-	# @used-by :mod:`test_df_qa`
-	# @used-by :mod:`test_df_upstream_fixes`
-	# @used-by :mod:`test_diff_coverage_gate`
-	# @used-by :mod:`test_diff_executability_contract`
-	# @used-by :mod:`test_diff_executability_telemetry`
-	# @used-by :mod:`test_diff_executability`
-	# @used-by :mod:`test_dirty_diff_issue_scope`
-	# @used-by :mod:`test_doc5_context_trigger`
-	# @used-by :mod:`test_doc5_golden_feature_turn`
-	# @used-by :mod:`test_doc5_replay_audit`
-	# @used-by :mod:`test_env_isolation_and_worktree_gate_contracts`
-	# @used-by :mod:`test_evidence_unification`
-	# @used-by :mod:`test_executor_metadata`
-	# @used-by :mod:`test_experiments`
-	# @used-by :mod:`test_failfast_and_schedule_gate`
-	# @used-by :mod:`test_falsifier_and_schedule_subagent_gate_m8`
-	# @used-by :mod:`test_falsifier_default_send_message_and_schedule_m8`
-	# @used-by :mod:`test_finalized_project_contract`
-	# @used-by :mod:`test_gate_registry`
-	# @used-by :mod:`test_git_fixture_cache`
-	# @used-by :mod:`test_git_ignore`
-	# @used-by :mod:`test_git_lifecycle_memoization`
-	# @used-by :mod:`test_github_issue`
-	# @used-by :mod:`test_grounding_corpus_cache_m9`
-	# @used-by :mod:`test_harness_xref_compliance`
-	# @used-by :mod:`test_hook_lazy_imports`
-	# @used-by :mod:`test_hook_runner_e2e_budget`
-	# @used-by :mod:`test_hook_runner_watchdog`
-	# @used-by :mod:`test_hook_trace_cache_and_watchdog`
-	# @used-by :mod:`test_hook_unification`
-	# @used-by :mod:`test_incomplete_scope_regression_matrix`
-	# @used-by :mod:`test_issue44`
-	# @used-by :mod:`test_issue45_to_48`
-	# @used-by :mod:`test_issue_close_acceptance`
-	# @used-by :mod:`test_issue_comment_gate`
-	# @used-by :mod:`test_issue_conversation_isolation`
-	# @used-by :mod:`test_issue_decomposition`
-	# @used-by :mod:`test_issue_first_completion`
-	# @used-by :mod:`test_issue_first_gate`
-	# @used-by :mod:`test_issue_first_github_cli`
-	# @used-by :mod:`test_issue_first_pre_tool_use`
-	# @used-by :mod:`test_issue_first_rules_contract`
-	# @used-by :mod:`test_issue_preflight_and_batch`
-	# @used-by :mod:`test_java_xref`
-	# @used-by :mod:`test_journal_clarifications_and_disclosure`
-	# @used-by :mod:`test_journal_idle_sync_and_liveness`
-	# @used-by :mod:`test_journal_integrity`
-	# @used-by :mod:`test_journal_metadata`
-	# @used-by :mod:`test_js_xref`
-	# @used-by :mod:`test_landing_lease`
-	# @used-by :mod:`test_metadata_decomposition`
-	# @used-by :mod:`test_metadata_rules_contract`
-	# @used-by :mod:`test_metadata`
-	# @used-by :mod:`test_mixed_commit_audit`
-	# @used-by :mod:`test_multiturn_handoff_stop_guard_and_schedule_m1`
-	# @used-by :mod:`test_native_review_binding_m4`
-	# @used-by :mod:`test_observability_diagnostics`
-	# @used-by :mod:`test_open_child_deferral_gate`
-	# @used-by :mod:`test_optimistic_worktree_land`
-	# @used-by :mod:`test_parallel_runner`
-	# @used-by :mod:`test_parallel_test_runner`
-	# @used-by :mod:`test_path_cache_and_diff_cov_perf`
-	# @used-by :mod:`test_path_registry_perf`
-	# @used-by :mod:`test_path_registry`
-	# @used-by :mod:`test_perf_improvement_skill_contract`
-	# @used-by :mod:`test_perf_profile_tests`
-	# @used-by :mod:`test_perf_timesheet`
-	# @used-by :mod:`test_polyglot_land`
-	# @used-by :mod:`test_problem_metadata`
-	# @used-by :mod:`test_project_domain_drift`
-	# @used-by :mod:`test_project_labels`
-	# @used-by :mod:`test_project_rename_verification`
-	# @used-by :mod:`test_project_rename`
-	# @used-by :mod:`test_pytest_xdist_runner`
-	# @used-by :mod:`test_python_integrity_gate`
-	# @used-by :mod:`test_python_xref`
-	# @used-by :mod:`test_repo_link_gate`
-	# @used-by :mod:`test_repo_locator_perf`
-	# @used-by :mod:`test_repo_tag_close_gate`
-	# @used-by :mod:`test_repo_tags_docs`
-	# @used-by :mod:`test_repo_tags`
-	# @used-by :mod:`test_repo_wait_and_retry`
-	# @used-by :mod:`test_reused_reviewer_and_metadata_drift_m5`
-	# @used-by :mod:`test_review_contract_package_and_paths_m6`
-	# @used-by :mod:`test_review_target_claim_and_wait_m5`
-	# @used-by :mod:`test_rules_architecture_m2`
-	# @used-by :mod:`test_rules_audit`
-	# @used-by :mod:`test_rules_progressive_disclosure`
-	# @used-by :mod:`test_runtime_cache_and_evidence_fastpath_m9`
-	# @used-by :mod:`test_runtime_snapshot`
-	# @used-by :mod:`test_scatter_banner_gate`
-	# @used-by :mod:`test_schema_help_and_analysis_merge_m10`
-	# @used-by :mod:`test_scratch_slop_and_grounding_loc_m7`
-	# @used-by :mod:`test_service_finalization_exempt_and_sync_all_open`
-	# @used-by :mod:`test_shadow_replay_command`
-	# @used-by :mod:`test_shadow_replay_m3`
-	# @used-by :mod:`test_shell_herestring_write_targets_m4`
-	# @used-by :mod:`test_snapshot_canary_and_hook_crash_audit`
-	# @used-by :mod:`test_snapshot_latency_and_delegation_policy`
-	# @used-by :mod:`test_source_diagnostics_scanner`
-	# @used-by :mod:`test_source_grounding`
-	# @used-by :mod:`test_stop_emergency_capture_and_foreign_sync`
-	# @used-by :mod:`test_stop_gate_contract`
-	# @used-by :mod:`test_stop_gate_subagents_m1`
-	# @used-by :mod:`test_storage_fsync_guard`
-	# @used-by :mod:`test_subprocess_hygiene_and_tree_kill`
-	# @used-by :mod:`test_tdd_comment_exemption`
-	# @used-by :mod:`test_tdd_completion`
-	# @used-by :mod:`test_tdd_decomposition`
-	# @used-by :mod:`test_tdd_fast_path`
-	# @used-by :mod:`test_tdd_gate`
-	# @used-by :mod:`test_tdd_git_gate`
-	# @used-by :mod:`test_tdd_mechanical_exemption`
-	# @used-by :mod:`test_tdd_pre_tool_use_perf`
-	# @used-by :mod:`test_tdd_pre_tool_use`
-	# @used-by :mod:`test_tdd_rules_contract`
-	# @used-by :mod:`test_tdd_worktree_and_subagent_trace`
-	# @used-by :mod:`test_text_browser`
-	# @used-by :mod:`test_text_diagnostics`
-	# @used-by :mod:`test_text_native_binding`
-	# @used-by :mod:`test_turn_begin_status_and_auditors`
-	# @used-by :mod:`test_turn_completion`
-	# @used-by :mod:`test_turn_routing_and_handoff_m6`
-	# @used-by :mod:`test_upwork_data`
-	# @used-by :mod:`test_upwork_init_e2e`
-	# @used-by :mod:`test_verification_observability`
-	# @used-by :mod:`test_watchdog_and_timeout_gate`
-	# @used-by :mod:`test_worker_semaphore_and_xdist`
-	# @used-by :mod:`test_worktree_cleanup_guard`
-	# @used-by :mod:`test_worktree_comment_exemption`
-	# @used-by :mod:`test_worktree_flow`
-	# @used-by :mod:`test_worktree_ignore`
-	# @used-by :mod:`test_worktree_isolation_gate`
-	# @used-by :mod:`test_worktree_lifecycle`
-	# @used-by :mod:`test_xref_gate`
-	# @used-by :mod:`upwork_project`
-	# @used-by :mod:`validate_anchors`
-	# @used-by :mod:`validate_links`
-	# @used-by :mod:`validate_statements`
-	# @used-by :mod:`validate_step`
-	def path(self, name: str, default: str | Path | None=None) -> Path | None:
-		if name in self.paths_str:
-			return Path(self.paths_str[name])
-		return Path(default) if None is not default else None
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
-	def var(self, name: str, default: str | None=None) -> str | None:
-		if name in self._variables:
-			return expand_template(f'${{{name}}}', self._variables, env=self.registry.env, normalize=True)
-		return default
-	# @used-by :func:`agent_tools.journal.ensure_project_journal_upgraded()`
-	# @used-by :func:`agent_tools.journal.resolve_journal_dir()`
-	# @used-by :func:`paths_report()`
-	def expand(self, template: str) -> str:
-		return self._resolve_rel_to_root(template)
-	# @used-by :func:`agent_tools.completion._instruction_snapshot()`
-	# @used-by :func:`agent_tools.configuration._project_rule_paths()`
-	# @used-by :func:`agent_tools.configuration.build_native()`
-	# @used-by :func:`agent_tools.configuration.configure_codex_project()`
-	# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__prepare_agents_dirs()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
-	# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
-	@property
-	def agents_config_dir(self) -> Path:
-		return Path(self.paths_str['agents_config_dir'])
-	# @used-by :func:`agent_tools.configuration._native_config()`
-	# @used-by :func:`agent_tools.configuration._publish()`
-	# @used-by :func:`agent_tools.configuration.build_native()`
-	# @used-by :func:`agent_tools.configuration.configure_codex_project()`
-	# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
-	@property
-	def codex_config_toml(self) -> Path:
-		return Path(self.paths_str['codex_config_toml'])
-	# @used-by :func:`agent_tools.completion._is_client_deliverable_path()`
-	# @used-by :func:`agent_tools.path_cache._fast_sig()`
-	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.meta_dir_for_project_root()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	# @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_project_paths_fast_cache_hits_and_invalidates_on_fs_mutations()`
-	@property
-	def agent_dir(self) -> Path:
-		return Path(self.paths_str['agent_dir'])
-	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
-	# @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
-	# @used-by :func:`agent_tools.completion._folder()`
-	# @used-by :func:`agent_tools.journal.upgrade_journal()`
-	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
-	# @used-by :func:`agent_tools.path_cache.resolve_journal_data_dir()`
-	# @used-by :func:`agent_tools.polyglot_land._sandbox_root()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.observed_use()`
-	# @used-by :func:`agent_tools.shadow_replay_command.persist_shadow_replay_receipt()`
-	# @used-by :func:`agent_tools.storage.data_dir_for()`
-	# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
-	# @used-by :func:`agent_tools.text_claims.save_registry()`
-	# @used-by :func:`agent_tools.text_workflow._folder()`
-	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
-	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
-	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
-	# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
-	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__arch_dir()`
-	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.build()`
-	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.load_media_descriptions()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_commit()`
-	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
-	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
-	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
-	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.refresh_workflow_file_hash()`
-	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
-	# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
-	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	@property
-	def data_dir(self) -> Path:
-		return Path(self.paths_str['data_dir'])
-	# @used-by :func:`agent_tools.budget.compute_budget_status()`
-	# @used-by :func:`agent_tools.completion._factual_kb_note_issues()`
-	# @used-by :func:`agent_tools.evidence.source_reference()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.compute_site_summary()`
-	# @used-by :func:`agent_tools.research.evidence_query()`
-	# @used-by :func:`agent_tools.research.extract_file()`
-	# @used-by :func:`agent_tools.research.extract_observation()`
-	# @used-by :func:`agent_tools.research.load_observation()`
-	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
-	# @used-by :func:`agent_tools.text_claims.registry_path()`
-	# @used-by :func:`agent_tools.text_sources._evaluate()`
-	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
-	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
-	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
-	# @used-by :meth:`Df.Harness.Experiment.ArtifactVerifier.ArtifactVerifier.verify()`
-	# @used-by :meth:`Df.Harness.Experiment.ResultValidator.ResultValidator.__check_run()`
-	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
-	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
-	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.assemble()`
-	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.default_config()`
-	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
-	# @used-by :meth:`Df.Harness.Project.FinalizeDriftGuard.FinalizeDriftGuard.require()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_locked()`
-	# @used-by :meth:`Df.Harness.Project.Intake.IntakeIndexer.IntakeIndexer.rebuild()`
-	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
-	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__write_kb_pages()`
-	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__sync_selected()`
-	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
-	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
-	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__check_red_flags()`
-	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	@property
-	def kb_dir(self) -> Path:
-		return Path(self.paths_str['kb_dir'])
-	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__write_kb_pages()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
-	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
-	@property
-	def manual_kb_dir(self) -> Path:
-		return Path(self.paths_str['manual_kb_dir'])
-	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
-	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
-	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
-	@property
-	def source_dir(self) -> Path:
-		return Path(self.paths_str['source_dir'])
-	# @used-by :func:`agent_tools.completion._compaction_status()`
-	# @used-by :func:`agent_tools.completion._factual_kb_note_issues()`
-	# @used-by :func:`agent_tools.operations._execute_collect()`
-	# @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.evidence_query()`
-	# @used-by :func:`agent_tools.research.extract_file()`
-	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
-	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
-	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
-	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
-	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
-	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
-	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
-	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.default_config()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_locked()`
-	# @used-by :meth:`Df.Harness.Project.Intake.IntakeIndexer.IntakeIndexer.rebuild()`
-	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.build()`
-	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
-	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
-	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
-	# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
-	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__write_candidate()`
-	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
-	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
-	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_evidence_files()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	@property
-	def evidence_dir(self) -> Path:
-		return Path(self.paths_str['evidence_dir'])
-	# @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
-	# @used-by :func:`agent_tools.completion._find_evicted_cited_files()`
-	# @used-by :func:`agent_tools.completion.check_answer()`
-	# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
-	# @used-by :func:`check_pre_invocation._scratch_answer_path()`
-	# @used-by :meth:`Df.Harness.Project.FinalizeDriftGuard.FinalizeDriftGuard.require()`
-	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
-	@property
-	def scratch_dir(self) -> Path:
-		return Path(self.paths_str['scratch_dir'])
-	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
-	# @used-by :func:`agent_tools.completion._folder()`
-	# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
-	# @used-by :func:`agent_tools.hook_crash_audit._load_violation_receipt()`
-	# @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
-	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
-	# @used-by :func:`agent_tools.issues.turn_scope._candidate_turns_dirs()`
-	# @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
-	# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
-	# @used-by :func:`agent_tools.shadow_replay._run_pre_invocation()`
-	# @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
-	# @used-by :func:`is_tracked_workspace()`
-	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
-	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__find_issue_state_pair()`
-	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
-	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__launcher_stale_files()`
-	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
-	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite_launcher_handoffs()`
-	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__candidate_recipe_dirs()`
-	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
-	# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
-	# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	@property
-	def turns_dir(self) -> Path:
-		return Path(self.paths_str['turns_dir'])
-	# @used-by :func:`agent_tools.cli_registry._exec_worktree_begin()`
-	# @used-by :func:`agent_tools.git_ignore.prepare_worktrees_base_dir()`
-	@property
-	def worktrees_dir(self) -> Path:
-		return Path(self.paths_str['worktrees_dir'])
-	# @used-by :func:`agent_tools.completion._is_client_deliverable_path()`
-	# @used-by :func:`agent_tools.journal._sync_overlay_journal_slot()`
-	# @used-by :func:`agent_tools.journal.ensure_project_journal_upgraded()`
-	# @used-by :func:`agent_tools.path_cache._fast_sig()`
-	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
-	@property
-	def journal_root_dir(self) -> Path:
-		return Path(self.paths_str['journal_root_dir'])
-	# @used-by :func:`agent_tools.journal.canonicalize_journal_dir_identity()`
-	# @used-by :func:`agent_tools.journal.ensure_project_journal_upgraded()`
-	# @used-by :func:`agent_tools.journal.journal_pair_names()`
-	# @used-by :func:`agent_tools.journal.resolve_journal_dir()`
-	# @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
-	# @used-by :func:`agent_tools.path_cache._fast_sig()`
-	# @used-by :func:`is_tracked_workspace()`
-	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
-	# @used-by :meth:`ProjectPaths.__init__()`
-	# @used-by :meth:`ProjectPaths.to_dict()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
-	@property
-	def journal_dir(self) -> Path:
-		if not self.has_explicit_path('journal_dir') and self.journal_glob:
-			matches = sorted((Path(m).resolve() for m in glob.glob(self.journal_glob, recursive=True) if Path(m).is_dir()))
-			if matches:
-				return matches[-1]
-		return Path(self.paths_str['journal_dir'])
-	# @used-by :func:`agent_tools.journal.ensure_project_journal_upgraded()`
-	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
-	# @used-by :meth:`ProjectPaths.__init__()`
-	# @used-by :meth:`ProjectPaths.journal_dir()`
-	@property
-	def journal_glob(self) -> str | None:
-		return self.paths_str.get('journal_glob')
-	# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
-	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.default_config()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
-	@property
-	def context_output(self) -> Path:
-		return Path(self.paths_str['context_output'])
-	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
-	@property
-	def context_config(self) -> Path:
-		return Path(self.paths_str['context_config'])
-	# @used-by :func:`agent_tools.blocked_report._authorize_workflow_errors()`
-	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
-	# @used-by :func:`agent_tools.budget.compute_budget_status()`
-	# @used-by :func:`agent_tools.completion._delegation_status()`
-	# @used-by :func:`agent_tools.completion.begin()`
-	# @used-by :func:`agent_tools.path_cache._fast_sig()`
-	# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
-	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
-	# @used-by :func:`agent_tools.platforms.request_binding.native_project_fields()`
-	# @used-by :func:`agent_tools.platforms.request_binding.native_project_id()`
-	# @used-by :func:`agent_tools.text_sources._evaluate()`
-	# @used-by :func:`is_tracked_workspace()`
-	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
-	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
-	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
-	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_json()`
-	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_locked()`
-	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
-	# @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
-	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
-	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.maybe_promote_domain()`
-	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
-	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
-	# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
-	@property
-	def project_json(self) -> Path:
-		return Path(self.paths_str['project_json'])
-	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
-	# @used-by :func:`agent_tools.platforms.request_binding.native_project_fields()`
-	# @used-by :func:`agent_tools.platforms.request_binding.native_project_id()`
-	# @used-by :func:`test_arch_review_cli._init_text_workspace()`
-	@property
-	def text_project_json(self) -> Path:
-		return Path(self.paths_str['text_project_json'])
-	# @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
-	# @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
-	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__probe_workflow()`
-	# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.state_path()`
-	@property
-	def workflow_json(self) -> Path:
-		return Path(self.paths_str['workflow_json'])
-	# @used-by :func:`agent_tools.blocked_report.blocked_report_issues()`
-	# @used-by :func:`agent_tools.budget.compute_budget_status()`
-	@property
-	def continuation_md(self) -> Path:
-		return Path(self.paths_str['continuation_md'])
-	# @used-by :func:`agent_tools.shadow_replay_command._stage_ag_from_receipt()`
-	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.__title_mismatches()`
-	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
-	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
-	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__extract_prior_ag_id()`
-	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
-	@property
-	def registrations_json(self) -> Path:
-		return Path(self.paths_str['registrations_json'])
-	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
-	# @used-by :meth:`Df.Harness.Review.MerkleDeltaCalculator.MerkleDeltaCalculator.load_cache()`
-	@property
-	def verified_claims_json(self) -> Path:
-		return Path(self.paths_str['verified_claims_json'])
-	# @used-by :func:`agent_tools.source_grounding.load_fact_ledger()`
-	@property
-	def facts_json(self) -> Path:
-		return Path(self.paths_str['facts_json'])
-	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.__init__()`
-	@property
-	def grounding_cache_json(self) -> Path:
-		return Path(self.paths_str['grounding_cache_json'])
-	# @used-by :func:`agent_tools.research.observed_use()`
-	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
-	@property
-	def metrics_json(self) -> Path:
-		return Path(self.paths_str['metrics_json'])
-	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
-	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
-	@property
-	def executors_json(self) -> Path:
-		return Path(self.paths_str['executors_json'])
-	# @used-by :func:`agent_tools.operations._execute_collect()`
-	# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
-	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
-	@property
-	def rendered_json(self) -> Path:
-		return Path(self.paths_str['rendered_json'])
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :meth:`Df.Harness.Analysis.ObservationResolver.ObservationResolver.__lookup_index()`
-	@property
-	def http_index_json(self) -> Path:
-		return Path(self.paths_str['http_index_json'])
-	# 2026-11-22
-	# "Add declarative similar_projects registry groups and project overlay resolution":
-	# https://github.com/dmitry-ai/harness/issues/122
-	# @used-by :func:`agent_tools.completion._similar_projects_metadata()`
-	# @used-by :func:`agent_tools.completion.similar_project_exempt()`
-	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
-	# @used-by :func:`evaluate_similar_project_touches()`
-	# @used-by :func:`paths_report()`
-	# @used-by :meth:`ProjectPaths.to_dict()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
-	@property
-	def similar_projects(self) -> tuple[Path, ...]:
-		out: list[Path] = list(self._direct_similar_projects)
-		seen: set[str] = {_path_key(self.root), *(_path_key(p) for p in out)}
-		if self._include_reverse_similar:
-			_refresh_known_overlay_links(self.registry)
-			rk = _path_key(self.root)
-			reg_key = _path_key(self.registry.source_path)
-			rev_peers = [*_DISCOVERY_STATE['similar_links'].get(rk, ()), *_SIMILAR_REVERSE_MAP.get((reg_key, rk), ())]
-			for peer in rev_peers:
-				pk = _path_key(peer)
-				if pk not in seen:
-					seen.add(pk)
-					out.append(peer)
-		return tuple(out)
-	# @used-by :func:`paths_report()`
-	# @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
-	def to_dict(self, *, check_exists: bool=True) -> dict[str, Any]:
-		# @used-by :meth:`ProjectPaths.to_dict()`
-		def _exists(p_str: str) -> bool:
-			if '*' in p_str or '?' in p_str:
-				return any((Path(m).exists() for m in glob.glob(p_str, recursive=True)))
-			return Path(p_str).exists()
-		paths_view = dict(self.paths_str)
-		paths_view['journal_dir'] = self.journal_dir.as_posix()
-		sim_projects = self.similar_projects
-		out: dict[str, Any] = {
-			'project_root': self.root.as_posix(),
-			'fs_version': self.fs_version,
-			'journal_version': self.journal_version,
-			'profile': self.profile,
-			'has_overlay': self.has_overlay,
-			'overlay_file': self.overlay_file.as_posix() if self.overlay_file else None,
-			'paths': paths_view,
-			'code_repos': [p.as_posix() for p in self.code_repos],
-			'auxiliary_repos': {k: p.as_posix() for k, p in self.auxiliary_repos.items()},
-			'linked_roots': [p.as_posix() for p in self.linked_roots],
-			'similar_projects': [p.as_posix() for p in sim_projects],
-			'tools': deepcopy(self.tools),
-		}
-		if check_exists:
-			out['paths_exist'] = {k: _exists(v) for k, v in paths_view.items()}
-			out['code_repos_exist'] = {p.as_posix(): p.is_dir() for p in self.code_repos}
-			out['linked_roots_exist'] = {p.as_posix(): p.exists() for p in self.linked_roots}
-			out['similar_projects_exist'] = {p.as_posix(): p.is_dir() for p in sim_projects}
-		return out
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+from Df.Harness.Path.ProjectPaths import ProjectPaths
 # 2026-11-19
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
 # @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
+# @used-by :func:`agent_tools.analysis.publish_analysis()`
+# @used-by :func:`agent_tools.analysis.publish_owned()`
+# @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
 # @used-by :func:`agent_tools.budget.compute_budget_status()`
+# @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
 # @used-by :func:`agent_tools.completion._compaction_status()`
 # @used-by :func:`agent_tools.completion._delegation_status()`
@@ -2304,13 +1290,24 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.configuration._native_config()`
 # @used-by :func:`agent_tools.configuration._project_rule_paths()`
 # @used-by :func:`agent_tools.configuration._publish()`
-# @used-by :func:`agent_tools.configuration.build_native()`
 # @used-by :func:`agent_tools.configuration.configure_codex_project()`
-# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
-# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
+# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :func:`agent_tools.context.default_context_config()`
+# @used-by :func:`agent_tools.context.generate()`
+# @used-by :func:`agent_tools.evidence.local_file()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
+# @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
+# @used-by :func:`agent_tools.experiments.result_issues()`
+# @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
+# @used-by :func:`agent_tools.gates.external_write._match_upwork_root()`
 # @used-by :func:`agent_tools.git_ignore.prepare_worktrees_base_dir()`
 # @used-by :func:`agent_tools.hook_crash_audit._load_violation_receipt()`
+# @used-by :func:`agent_tools.intake._index()`
+# @used-by :func:`agent_tools.intake._project()`
+# @used-by :func:`agent_tools.intake._receipt()`
+# @used-by :func:`agent_tools.intake._snapshot()`
+# @used-by :func:`agent_tools.intake._validate_receipt()`
+# @used-by :func:`agent_tools.intake.commit_capture()`
 # @used-by :func:`agent_tools.issue_first_inherit._candidate_project_roots()`
 # @used-by :func:`agent_tools.issues.acceptance_gate._load_acceptance_receipt()`
 # @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
@@ -2328,15 +1325,44 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.journal.journal_pair_names()`
 # @used-by :func:`agent_tools.journal.resolve_journal_dir()`
 # @used-by :func:`agent_tools.journal.upgrade_journal()`
+# @used-by :func:`agent_tools.knowledge._load_media_descriptions()`
+# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
+# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
+# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
+# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
+# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 # @used-by :func:`agent_tools.landing_lease._lease_file_for()`
+# @used-by :func:`agent_tools.meta.builders._find_issue_state_pair()`
+# @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
+# @used-by :func:`agent_tools.meta.identity._lookup_name_from_project_json()`
+# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
+# @used-by :func:`agent_tools.metrics.project_metrics()`
 # @used-by :func:`agent_tools.operations._execute_collect()`
 # @used-by :func:`agent_tools.path_cache.resolve_journal_data_dir()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
 # @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
-# @used-by :func:`agent_tools.platforms.request_binding.native_project_fields()`
 # @used-by :func:`agent_tools.platforms.request_binding.native_project_id()`
 # @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
 # @used-by :func:`agent_tools.polyglot_land._sandbox_root()`
+# @used-by :func:`agent_tools.project_card.sync_block()`
+# @used-by :func:`agent_tools.project_drift.domain_drift_issues()`
+# @used-by :func:`agent_tools.project_drift.require_no_domain_drift_for_finalize()`
+# @used-by :func:`agent_tools.project_rename._ag_id_from_receipt()`
+# @used-by :func:`agent_tools.project_rename._sync_registrations()`
+# @used-by :func:`agent_tools.project_rename._validate_rename_inputs()`
+# @used-by :func:`agent_tools.project_rename.maybe_promote_project_domain()`
+# @used-by :func:`agent_tools.project_rename_state._update_project_json()`
+# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
+# @used-by :func:`agent_tools.project_rename_state.refresh_workflow_file_hash()`
+# @used-by :func:`agent_tools.project_rename_state.rewrite_launcher_handoffs()`
+# @used-by :func:`agent_tools.project_rename_state.rewrite_project_internal_state()`
+# @used-by :func:`agent_tools.project_rename_verify._launcher_stale_files()`
+# @used-by :func:`agent_tools.project_rename_verify._probe_workflow()`
+# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
+# @used-by :func:`agent_tools.registration._begin()`
+# @used-by :func:`agent_tools.registration._expected()`
+# @used-by :func:`agent_tools.registration._read()`
+# @used-by :func:`agent_tools.registration.save_registration()`
 # @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 # @used-by :func:`agent_tools.research.collect()`
@@ -2346,19 +1372,36 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.research.extract_observation()`
 # @used-by :func:`agent_tools.research.load_observation()`
 # @used-by :func:`agent_tools.research.observed_use()`
+# @used-by :func:`agent_tools.review._analysis()`
+# @used-by :func:`agent_tools.review.disposition()`
+# @used-by :func:`agent_tools.review.load_verified_claims_cache()`
+# @used-by :func:`agent_tools.review.prepare()`
+# @used-by :func:`agent_tools.review.prepare_verdict_record()`
+# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`agent_tools.shadow_replay._run_pre_invocation()`
-# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
 # @used-by :func:`agent_tools.shadow_replay_command._stage_ag_from_receipt()`
 # @used-by :func:`agent_tools.shadow_replay_command.persist_shadow_replay_receipt()`
 # @used-by :func:`agent_tools.source_grounding.load_fact_ledger()`
 # @used-by :func:`agent_tools.storage.data_dir_for()`
+# @used-by :func:`agent_tools.tdd.classifier._resolve_deleted_worktree_scope()`
+# @used-by :func:`agent_tools.tdd.mechanical._candidate_recipe_dirs()`
+# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
+# @used-by :func:`agent_tools.tdd.ratchet._turn_receipt_dirs()`
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 # @used-by :func:`agent_tools.text_claims.registry_path()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`agent_tools.text_workflow._folder()`
+# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :func:`agent_tools.upwork_project.default_context_config()`
+# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`agent_tools.worker_semaphore.default_slots_dir()`
+# @used-by :func:`agent_tools.workflow.evidence_paths()`
+# @used-by :func:`agent_tools.workflow.kb_paths()`
 # @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`
 # @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
 # @used-by :func:`agent_tools.worktree_flow.worktree_land()`
@@ -2367,112 +1410,14 @@ class ProjectPaths:
 # @used-by :func:`evaluate_similar_project_touches()`
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`paths_report()`
-# @used-by :func:`test_arch_review_cli._init_text_workspace()`
-# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 # @used-by :func:`tool_value()`
-# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
-# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
-# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
-# @used-by :meth:`Df.Harness.Analysis.ObservationResolver.ObservationResolver.__lookup_index()`
-# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
-# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
-# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
-# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__arch_dir()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__load_verified_package()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.read_review_input()`
-# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
-# @used-by :meth:`Df.Harness.Experiment.ArtifactVerifier.ArtifactVerifier.verify()`
-# @used-by :meth:`Df.Harness.Experiment.PlanLoader.PlanLoader.__init__()`
-# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.__init__()`
-# @used-by :meth:`Df.Harness.Experiment.PlanStore.PlanStore.__init__()`
-# @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__init__()`
-# @used-by :meth:`Df.Harness.Experiment.ResultValidator.ResultValidator.__check_run()`
-# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.load_run()`
-# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.record_run()`
-# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
-# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
-# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__find_issue_state_pair()`
-# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
-# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
-# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
-# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_json()`
-# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__init__()`
-# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
-# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
-# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.assemble()`
-# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
-# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.default_config()`
-# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
-# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.build()`
-# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.load_media_descriptions()`
-# @used-by :meth:`Df.Harness.Project.FinalizeDriftGuard.FinalizeDriftGuard.require()`
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_commit()`
-# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
-# @used-by :meth:`Df.Harness.Project.Intake.IntakeIndexer.IntakeIndexer.rebuild()`
-# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.build()`
-# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
-# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
-# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
-# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
-# @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
-# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
-# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__launcher_stale_files()`
-# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__probe_workflow()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__extract_prior_ag_id()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
-# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.maybe_promote_domain()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.refresh_workflow_file_hash()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
-# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite_launcher_handoffs()`
-# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
-# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
-# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
-# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
-# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
-# @used-by :meth:`Df.Harness.Review.MerkleDeltaCalculator.MerkleDeltaCalculator.load_cache()`
-# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
-# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
-# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
-# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
-# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__candidate_recipe_dirs()`
-# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
-# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
-# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
-# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
-# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
-# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
-# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
-# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
-# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
-# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.QuestionAdder.QuestionAdder.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.QuestionClaimer.QuestionClaimer.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.QuestionFinisher.QuestionFinisher.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.QuestionHandoff.QuestionHandoff.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.QuestionRegistry.QuestionRegistry.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.QuestionSearchRecorder.QuestionSearchRecorder.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.adopt()`
-# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.StageEngine.StageEngine.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.state_path()`
-# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__init__()`
-# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
+# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__prepare_codex_outputs()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner.__init__()`
+# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.__init__()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._verify_saved_artifacts()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.load()`
+# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate._tdd_project_root()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_repos_and_issues()`
@@ -2480,15 +1425,21 @@ class ProjectPaths:
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.meta_dir_for_project_root()`
+# @used-by :meth:`agent_tools.knowledge.AttachmentInventory.__init__()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_evidence_files()`
 # @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.__init__()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.__init__()`
+# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.__init__()`
+# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.__init__()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.__init__()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.resume()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_still_rejects_client_claim_ids_inside_doc5()`
-# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_is_tracked_workspace_supports_registered_single_projects_and_declarative_opt_outs()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
@@ -2509,7 +1460,8 @@ def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=Non
 	fast_hit = lookup_fast_project_paths(fast_key, reg, len(_OVERLAY_REVERSE_MAP))
 	if None is not fast_hit:
 		if fast_hit.has_overlay or fast_hit._direct_similar_projects:
-			fast_hit._register_reverse_links()
+			# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+			fast_hit.register_reverse_links()
 		return fast_hit
 	root = canonicalize_root_dir(path_or_root, registry=reg) if exact_root else resolve_project_root(path_or_root, registry=reg, env=env)
 	ov_file = discover_overlay_file(root, registry=reg, _resolved_root=True)
@@ -2520,7 +1472,7 @@ def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=Non
 		pp = ProjectPaths(root, registry=reg, env=env)
 		lru_put(_PROJECT_PATHS_CACHE, cache_key, pp)
 	elif pp.has_overlay or pp._direct_similar_projects:
-		pp._register_reverse_links()
+		pp.register_reverse_links()
 	store_fast_project_paths(fast_key, pp, reg, len(_OVERLAY_REVERSE_MAP))
 	return pp
 # 2026-11-23
@@ -2715,8 +1667,8 @@ def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path
 # 2026-11-19
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
-# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_paths()`
-# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
+# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_registry_and_runtime_contain_no_hardcoded_host_paths_outside_r_and_validate_five_overlays()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:

@@ -31,7 +31,6 @@ _linked_ancestor = has_linked_ancestor
 # @used-by :func:`_antigravity_plan()`
 # @used-by :func:`_codex_plan()`
 # @used-by :func:`_direct_link_matches_target()`
-# @used-by :func:`_execute()`
 # @used-by :func:`_is_relocated_owned_link()`
 # @used-by :func:`_link_matches_target()`
 # @used-by :func:`_link_target_path()`
@@ -43,27 +42,29 @@ _linked_ancestor = has_linked_ancestor
 # @used-by :func:`_role_identity()`
 # @used-by :func:`_shared_plan()`
 # @used-by :func:`install_native_profiles()`
-# @used-by :meth:`_ManagedLink.__init__()`
-# @used-by :meth:`_Plan.file()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__attach_profile_views()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.__init__()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Plan.Plan.file()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
 def _absolute(path):
 	return Path(os.path.abspath(path))
 # @used-by :func:`_antigravity_plan()`
-# @used-by :func:`_apply()`
 # @used-by :func:`_codex_plan()`
 # @used-by :func:`_retire_profile_roles()`
 # @used-by :func:`_retire_shared_roles()`
 # @used-by :func:`_role_config()`
 # @used-by :func:`_shared_plan()`
 # @used-by :func:`retire_owned_project_projections()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__handle_failure()`
 def _hash(data):
 	return hashlib.sha256(data).hexdigest()
 # @used-by :func:`_antigravity_plan()`
-# @used-by :func:`_apply()`
 # @used-by :func:`retire_owned_project_projections()`
 # @used-by :func:`shared_native_outputs()`
-# @used-by :meth:`_ManagedLink.backup_payload()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__commit_receipt()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__handle_failure()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.backup_payload()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
 def _json(data):
 	return (json.dumps(data, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
@@ -79,8 +80,8 @@ def _configuration(primary):
 # @used-by :func:`_plan_codex_link()`
 # @used-by :func:`_retire_profile_roles()`
 # @used-by :func:`_retire_profile_skills()`
-# @used-by :meth:`_ManagedLink.restore_retired()`
-# @used-by :meth:`_ManagedLink.verify_before_create()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.restore_retired()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.verify_before_create()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_removed_skill_retires_alias_without_deleting_canonical_directory()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_does_not_touch_unselected_profile_or_forget_ownership()`
@@ -91,7 +92,7 @@ def _exists(path):
 # @used-by :func:`_codex_plan()`
 # @used-by :func:`_link_matches_target()`
 # @used-by :func:`_manifest()`
-# @used-by :meth:`_ManagedLink.verify_created()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.verify_created()`
 def _same_path(first, second):
 	return Path(first).resolve() == Path(second).resolve()
 # 2026-11-20
@@ -139,7 +140,7 @@ def _is_relocated_owned_link(path, prior_target, current_target, relocated_targe
 # @used-by :func:`_remove_link()`
 # @used-by :func:`_retire_profile_roles()`
 # @used-by :func:`_retire_profile_skills()`
-# @used-by :meth:`_ManagedLink.verify_retired()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.verify_retired()`
 def _link_matches_target(path, target):
 	try:
 		if _same_path(path, target):
@@ -198,7 +199,8 @@ def _model_fields(primary, role):
 	value = (config.get('roles') or {})[role]
 	return '' if 'parent' == config.get('subagents', {}).get('selection') or value.get('selection') in ('parent', 'inherit') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
 # @used-by :func:`_shared_plan()`
-# @used-by :func:`agent_tools.configuration.build_native()`
+# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_disabled()`
+# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_enabled()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests.test_general_rule_passes_doctor_native_bootstrap_and_lint()`
@@ -290,8 +292,8 @@ def _profile_agents(text, primary, owned):
 		match = re.search('(?m)^# Codex: Upwork\\r?\\n', text)
 		r = text[:match.start()] + wanted
 	return r
-# @used-by :func:`_apply()`
 # @used-by :func:`_load_state()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__apply()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
@@ -324,164 +326,11 @@ def _load_state(primary):
 	if not isinstance(data, dict) or data.get('schema_version') != 1 or any(not isinstance(data.get(key, {}), dict) for key in ('shared', 'profiles', 'backups')):
 		raise ValueError('Native profile ownership receipt is malformed; preserved')
 	return data
-# 2026-11-14
-# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/71
-class _ApplyFailure(ValueError):
-	# 2026-11-26
-	# "Apply cross-reference annotations across Harness Python and JavaScript":
-	# https://github.com/dmitry-ai/harness/issues/305
-	# @used-by :func:`_apply()`
-	# @see :meth:`ValueError.__init__()`
-	@override
-	def __init__(self, error, rollback, backups, recovery=None):
-		super().__init__(f'{error}; rollback {rollback["status"]}' + (f'; recovery receipt: {recovery}' if recovery else ''))
-		self.rollback, self.backups, self.recovery = (rollback, backups, recovery)
-# 2026-11-14
-# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/71
-class _ManagedLink:
-	# @used-by :func:`_codex_plan()`
-	# @used-by :func:`_plan_codex_link()`
-	# @used-by :func:`_retire_profile_roles()`
-	# @used-by :func:`_retire_profile_skills()`
-	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
-	def __init__(self, path, target, kind, *, label='skill', legacy_dir=False):
-		self.path = _absolute(path)
-		self.target = target if isinstance(target, str) and kind in ('directory-junction', 'directory-symlink') else Path(target)
-		self.kind = kind
-		self.label = label
-		self.legacy_dir = legacy_dir
-	# @used-by :func:`_apply()`
-	def backup_payload(self):
-		return _json(self.identity_dict())
-	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
-	def create(self, primary):
-		if _linked_ancestor(self.path, include_self=False):
-			raise ValueError(f'Linked {self.label} parent directory appeared before creation; preserved: {self.path}')
-		if self.legacy_dir:
-			self.path.rmdir()
-		if 'file-symlink' == self.kind:
-			_file_link(self.target, self.path, primary)
-		else:
-			_directory_link(self.target, self.path, primary)
-	# @used-by :func:`_apply()`
-	# @used-by :meth:`_ManagedLink.backup_payload()`
-	# @used-by :meth:`_ManagedLink.restore_retired()`
-	# @used-by :meth:`_ManagedLink.retire()`
-	# @used-by :meth:`_ManagedLink.verify_retired()`
-	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
-	def identity_dict(self):
-		target = os.readlink(self.path) if 'file-symlink' == self.kind else str(self.target)
-		return {'kind': self.kind, 'target': target}
-	# @used-by :meth:`_Plan.readonly_issues()`
-	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
-	def readonly_issue(self, *, retired=False):
-		if retired:
-			message = 'Obsolete owned role file link needs retirement' if 'file-symlink' == self.kind else 'Obsolete owned skill directory link needs retirement'
-		else:
-			message = f'Shared role file link is missing: {self.target}' if 'file-symlink' == self.kind else f'Shared skill directory link is missing: {self.target}'
-		return {'file': str(self.path), 'message': message}
-	# @used-by :func:`_rollback()`
-	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
-	def remove_created(self):
-		_remove_link(self.path, self.target)
-	# @used-by :func:`_rollback()`
-	def restore_retired(self, primary):
-		if 'file-symlink' == self.kind:
-			if _exists(self.path) or _linked_ancestor(self.path, include_self=False):
-				raise ValueError('Obsolete role destination changed before rollback; preserved')
-			_file_link(self.target, self.path, primary)
-		else:
-			if _exists(self.path) or _linked(self.path) or _linked_ancestor(self.path, include_self=False):
-				raise ValueError('Obsolete skill destination changed before rollback; preserved')
-			_restore_directory_link(self.path, self.identity_dict(), primary)
-			self.verify_retired()
-	# @used-by :func:`_apply()`
-	def retire(self):
-		if 'file-symlink' == self.kind:
-			_remove_link(self.path, self.target)
-		else:
-			_retire_directory_link(self.path, self.identity_dict())
-	# @used-by :func:`_verify()`
-	def verify_before_create(self, files, retired_links=()):
-		if _linked_ancestor(self.path, include_self=False):
-			raise ValueError(f'Linked {self.label} parent directory appeared during migration; preserved: {self.path}')
-		if self.path in retired_links:
-			return
-		if 'file-symlink' == self.kind:
-			if _exists(self.path) and (self.path not in files or None is not files[self.path][1]):
-				raise ValueError(f'Role destination appeared during migration; preserved: {self.path}')
-		elif self.legacy_dir:
-			if not self.path.is_dir() or ['SKILL.md'] != sorted((p.name for p in self.path.iterdir())):
-				raise ValueError(f'Legacy skill directory changed during migration; preserved: {self.path}')
-		elif _exists(self.path):
-			raise ValueError(f'Skill destination appeared during migration; preserved: {self.path}')
-	# @used-by :func:`_apply()`
-	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
-	def verify_created(self):
-		if 'file-symlink' == self.kind:
-			target = Path(self.target)
-			if not self.path.is_symlink() or not self.path.is_file() or (not _same_path(self.path, target)) or (not self.path.samefile(target)) or (self.path.read_bytes() != target.read_bytes()):
-				raise ValueError(f'New role link failed read-back verification: {self.path}')
-		elif not self.path.is_dir() or (not _same_path(self.path, self.target)):
-			raise ValueError(f'New skill link failed read-back verification: {self.path}')
-	# @used-by :func:`_verify()`
-	# @used-by :meth:`_ManagedLink.restore_retired()`
-	def verify_retired(self):
-		if 'file-symlink' != self.kind:
-			_verify_retired_directory_link(self.path, self.identity_dict())
-		elif _linked_ancestor(self.path, include_self=False) or not self.path.is_symlink() or (not _link_matches_target(self.path, self.target)):
-			raise ValueError(f'Obsolete role link changed during migration; preserved: {self.path}')
-class _Plan:
-	# @used-by :func:`build_shared_native()`
-	# @used-by :func:`install_native_profiles()`
-	# @used-by :func:`retire_owned_project_projections()`
-	def __init__(self):
-		self.details = {}
-		self.files = {}
-		self.issues = []
-		self.managed_links = {}
-		self.profiles = {}
-		self.removed_shared = set()
-		self.retired_links = {}
-		self.shared = {}
-	# @used-by :func:`_antigravity_plan()`
-	def file(self, path, after):
-		path = _absolute(path)
-		if _linked_ancestor(path):
-			self.issue(path, 'Linked native configuration preserved')
-		elif path.exists() and (not path.is_file()):
-			self.issue(path, 'Expected a regular configuration file; preserved')
-		else:
-			before = path.read_bytes() if path.exists() else None
-			if before != after:
-				self.files[path] = (before, after)
-	# @used-by :func:`_antigravity_plan()`
-	# @used-by :func:`_codex_plan()`
-	# @used-by :func:`_plan_codex_link()`
-	# @used-by :func:`_retire_profile_roles()`
-	# @used-by :func:`_retire_profile_skills()`
-	# @used-by :func:`_retire_shared_roles()`
-	# @used-by :func:`_shared_plan()`
-	# @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
-	# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
-	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
-	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
-	# @used-by :func:`retire_owned_project_projections()`
-	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
-	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
-	# @used-by :meth:`_Plan.file()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_close()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_comment()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_edit()`
-	def issue(self, path, message):
-		self.issues.append({'file': str(path), 'message': message})
-	# @used-by :func:`_execute()`
-	def readonly_issues(self):
-		active = [link.readonly_issue() for link in self.managed_links.values()]
-		retired = [link.readonly_issue(retired=True) for link in self.retired_links.values()]
-		return self.issues + [{'file': str(path), 'message': 'Native connection is missing, stale or requires owned legacy retirement'} for path in self.files] + active + retired
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+from Df.Harness.Config.NativeProfile.Applier import Applier
+from Df.Harness.Config.NativeProfile.ApplyFailure import ApplyFailure as _ApplyFailure
+from Df.Harness.Config.NativeProfile.ManagedLink import ManagedLink as _ManagedLink
+from Df.Harness.Config.NativeProfile.Plan import Plan as _Plan
 # @used-by :func:`build_shared_native()`
 # @used-by :func:`install_native_profiles()`
 def _shared_plan(plan, primary, state):
@@ -546,11 +395,11 @@ def _retire_profile_roles(plan, profile, previous, home, primary, state):
 def _directory_link_identity(path):
 	return {'kind': 'directory-junction' if bool(getattr(path, 'is_junction', lambda: False)()) else 'directory-symlink', 'target': os.readlink(path)}
 # @used-by :func:`_retire_directory_link()`
-# @used-by :meth:`_ManagedLink.verify_retired()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.verify_retired()`
 def _verify_retired_directory_link(path, identity):
 	if _linked_ancestor(path, include_self=False) or not _linked(path) or _directory_link_identity(path) != identity:
 		raise ValueError(f'Obsolete skill link changed during migration; preserved: {path}')
-# @used-by :meth:`_ManagedLink.retire()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.retire()`
 def _retire_directory_link(path, identity):
 	_verify_retired_directory_link(path, identity)
 	path.rmdir() if 'directory-junction' == identity['kind'] else path.unlink()
@@ -921,7 +770,7 @@ def _prepare_link_parent(path, label, action='creation'):
 	if _linked_ancestor(path, include_self=False):
 		raise ValueError(f'Linked {label} parent directory appeared before {action}; preserved: {path}')
 # @used-by :func:`_restore_directory_link()`
-# @used-by :meth:`_ManagedLink.create()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.create()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
@@ -945,8 +794,8 @@ def _directory_link(target, path, primary):
 		result = subprocess.run([node, '-e', "require('node:fs').symlinkSync(process.argv[1],process.argv[2],'junction')", str(target), str(path)], capture_output=True, text=True, timeout=15)
 		if result.returncode:
 			raise OSError(f'Directory junction creation failed: {result.stderr.strip()}')
-# @used-by :meth:`_ManagedLink.create()`
-# @used-by :meth:`_ManagedLink.restore_retired()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.create()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.restore_retired()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_changed_created_link_does_not_stop_other_guarded_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_link_failure_restores_retired_roles_and_config()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_role_parent_link_injected_immediately_before_creation_cannot_escape()`
@@ -954,15 +803,15 @@ def _directory_link(target, path, primary):
 def _file_link(target, path, primary):
 	_prepare_link_parent(path, 'role')
 	path.symlink_to(target, target_is_directory=False)
-# @used-by :meth:`_ManagedLink.restore_retired()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.restore_retired()`
 def _restore_directory_link(path, identity, primary):
 	if 'directory-junction' == identity['kind']:
 		_directory_link(identity['target'], path, primary)
 	else:
 		_prepare_link_parent(path, 'obsolete skill', 'restoration')
 		path.symlink_to(identity['target'], target_is_directory=True)
-# @used-by :meth:`_ManagedLink.remove_created()`
-# @used-by :meth:`_ManagedLink.retire()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.remove_created()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.retire()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_dangling_directory_symlink_skill_is_retired()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_manually_replaced_obsolete_skill_directory_is_preserved()`
@@ -972,16 +821,7 @@ def _remove_link(path, target):
 	if _linked_ancestor(path, include_self=False) or not _linked(path) or (not _link_matches_target(path, target)):
 		raise ValueError(f'Created link changed before rollback; preserved: {path}')
 	path.rmdir() if bool(getattr(path, 'is_junction', lambda: False)()) else path.unlink()
-# @used-by :func:`_apply()`
-def _verify(plan):
-	for path, (before, _) in plan.files.items():
-		if _linked_ancestor(path) or (path.read_bytes() if path.is_file() else None) != before:
-			raise ValueError(f'Configuration changed during migration; external edit preserved: {path}')
-	for link in plan.managed_links.values():
-		link.verify_before_create(plan.files, plan.retired_links)
-	for link in plan.retired_links.values():
-		link.verify_retired()
-# @used-by :func:`_apply()`
+# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__apply()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_preimage_change_is_preserved_before_application()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_changed_during_backup_is_preserved()`
@@ -990,129 +830,14 @@ def _backup(primary, state, path, payload):
 	backup, digest = store_content_backup(data_dir_for(primary) / 'native-profiles/backups', path, payload)
 	state.setdefault('backups', {})[str(path) + ':' + digest] = str(backup)
 	return str(backup)
-# @used-by :func:`_apply()`
-def _rollback(plan, applied, created_links, retired_links, primary):
-	issues, restored = ([], [])
-	for link in reversed(created_links):
-		try:
-			link.remove_created()
-			restored.append(str(link.path))
-		except (ValueError, OSError, subprocess.SubprocessError) as exc:
-			issues.append({'file': str(link.path), 'message': str(exc)})
-	for path in reversed(applied):
-		try:
-			before, after = plan.files[path]
-			if _linked_ancestor(path):
-				raise ValueError('Linked path prevents rollback; backup retained')
-			actual = path.read_bytes() if path.is_file() else None
-			if actual != after:
-				raise ValueError('Concurrent edit prevents rollback; backup retained')
-			if None is before:
-				path.unlink(missing_ok=True)
-			else:
-				replace_bytes(path, before)
-			restored.append(str(path))
-		except (ValueError, OSError, subprocess.SubprocessError) as exc:
-			issues.append({'file': str(path), 'message': str(exc)})
-	for link in reversed(retired_links):
-		try:
-			link.restore_retired(primary)
-			restored.append(str(link.path))
-		except (ValueError, OSError, subprocess.SubprocessError) as exc:
-			issues.append({'file': str(link.path), 'message': str(exc)})
-	return {'status': 'partial' if issues else 'complete', 'restored': restored, 'issues': issues}
-# @used-by :func:`_execute()`
-def _apply(plan, primary, state):
-	receipt = _state_path(primary)
-	receipt_before = receipt.read_bytes() if receipt.exists() else None
-	if None is not receipt_before and json.loads(receipt_before) != state:
-		raise ValueError('Native ownership changed before migration; preserved')
-	_verify(plan)
-	updated = deepcopy(state)
-	backups = [_backup(primary, updated, path, before) for path, (before, _) in plan.files.items() if None is not before]
-	backups.extend((_backup(primary, updated, path, link.backup_payload()) for path, link in plan.retired_links.items()))
-	_verify(plan)
-	applied, created_links, retired_links = ([], [], [])
-	try:
-		for path, (before, after) in plan.files.items():
-			if _linked_ancestor(path) or (path.read_bytes() if path.is_file() else None) != before:
-				raise ValueError(f'Configuration changed before write; preserved: {path}')
-			if None is after:
-				path.unlink()
-			else:
-				replace_bytes(path, after)
-			applied.append(path)
-		for link in plan.retired_links.values():
-			link.retire()
-			retired_links.append(link)
-		for link in plan.managed_links.values():
-			link.create(primary)
-			created_links.append(link)
-			link.verify_created()
-		for path, (_, after) in plan.files.items():
-			if None is not after and path.read_bytes() != after:
-				raise ValueError(f'Native configuration read-back differs: {path}')
-		updated.setdefault('shared', {}).update(plan.shared)
-		for path in plan.removed_shared:
-			updated['shared'].pop(path, None)
-		updated.setdefault('profiles', {}).update(plan.profiles)
-		payload = _json(updated)
-		if (receipt.read_bytes() if receipt.exists() else None) != receipt_before:
-			raise ValueError('Native ownership changed during migration; preserved')
-		if not receipt.exists() or receipt.read_bytes() != payload:
-			replace_bytes(receipt, payload)
-	except (ValueError, OSError, subprocess.SubprocessError) as exc:
-		rollback = _rollback(plan, applied, created_links, retired_links, primary)
-		recovery = None
-		if 'partial' == rollback['status']:
-			recovery = data_dir_for(primary) / 'native-profiles/recovery' / f'{uuid.uuid4().hex}.json'
-			try:
-				recovery.parent.mkdir(parents=True, exist_ok=True)
-				create_bytes(recovery, _json({'schema_version': 1, 'error': str(exc), 'rollback': rollback, 'backups': updated.get('backups', {}), 'files': {str(path): {'before_sha256': _hash(before) if None is not before else None, 'after_sha256': _hash(after) if None is not after else None} for path, (before, after) in plan.files.items()}, 'created_links': {str(link.path): str(link.target) for link in created_links}, 'retired_links': {str(link.path): str(link.target) for link in retired_links if 'file-symlink' == link.kind}, 'retired_directory_links': {str(link.path): link.identity_dict() for link in retired_links if 'file-symlink' != link.kind}}))
-			except OSError as recovery_error:
-				rollback['issues'].append({'file': str(recovery), 'message': f'Recovery receipt could not be saved: {recovery_error}'})
-				recovery = None
-		raise _ApplyFailure(exc, rollback, backups, str(recovery) if recovery else None) from exc
-	for path in applied:
-		if None is plan.files[path][1]:
-			parent = path.parent
-			if 'SKILL.md' == path.name and 'skills' == parent.parent.name and ('.agents' == parent.parent.parent.name):
-				if _linked(parent):
-					continue
-				try:
-					parent.rmdir()
-				except OSError:
-					continue
-				parent = parent.parent
-			while parent.name in ('agents', '.codex', 'skills', '.agents') and parent.is_dir() and (not _linked(parent)):
-				try:
-					parent.rmdir()
-				except OSError:
-					break
-				parent = parent.parent
-	return {'written': [str(path) for path, (_, value) in plan.files.items() if None is not value], 'removed': [str(path) for path, (_, value) in plan.files.items() if None is value] + [str(path) for path in plan.retired_links], 'linked': [str(path) for path in plan.managed_links], 'backups': backups}
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`build_shared_native()`
 # @used-by :func:`install_native_profiles()`
 # @used-by :func:`retire_owned_project_projections()`
 def _execute(plan, primary, state, *, check=False):
-	issues = plan.readonly_issues() if check else plan.issues
-	result = {'valid': not issues, 'issues': issues, 'profiles': deepcopy(plan.profiles), 'verification': 'filesystem-only', 'written': [], 'removed': [], 'linked': [], 'backups': []}
-	if not issues and not check:
-		try:
-			result.update(_apply(plan, primary, state))
-		except (ValueError, OSError, subprocess.SubprocessError) as exc:
-			result['valid'] = False
-			result['issues'].append({'file': str(primary), 'message': str(exc)})
-			if isinstance(exc, _ApplyFailure):
-				result.update(rollback=exc.rollback, backups=exc.backups, recovery_receipt=exc.recovery)
-				result['issues'].extend(exc.rollback['issues'])
-	for name, profile in result['profiles'].items():
-		base = Path(profile['path'])
-		local = [issue for issue in result['issues'] if _absolute(issue['file']).is_relative_to(base)]
-		global_issues = [issue for issue in result['issues'] if not any(_absolute(issue['file']).is_relative_to(Path(item['path'])) for item in result['profiles'].values())]
-		profile.update(config=str(base), valid=not local and not global_issues, issues=[*global_issues, *local], written=[path for path in result['written'] if _absolute(path).is_relative_to(base)], removed=[path for path in result['removed'] if _absolute(path).is_relative_to(base)], link_targets=profile.pop('links', {}), links=[path for path in result['linked'] if _absolute(path).is_relative_to(base)], **plan.details.get(name, {}))
-	return result
-# @used-by :func:`agent_tools.configuration.build_native()`
+	return Applier(plan, primary, state, check=check).run()
+# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_disabled()`
+# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_enabled()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_shared_manual_edit_is_preserved()`
@@ -1195,9 +920,10 @@ def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMAR
 		# https://github.com/dmitry-ai/harness/issues/198
 		from .git_ignore import finalize_install_result
 		return finalize_install_result(_execute(plan, primary, state, check=check), all_declared, names, primary, check=check, git_ignore_path=git_ignore_path)
-# @used-by :func:`agent_tools.configuration.build_native()`
 # @used-by :func:`agent_tools.configuration.configure_codex_project()`
 # @used-by :func:`retire_owned_project_projections()`
+# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_disabled()`
+# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_enabled()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_edited_project_projection_blocks_all_retirements()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_project_retirement_requires_exact_ownership_and_keeps_unrelated_files()`
 def legacy_project_projection_paths(root, primary=PRIMARY):

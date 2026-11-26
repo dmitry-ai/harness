@@ -109,7 +109,7 @@ def check_fallback_before_promote(store: Path, prior: dict, *, fail_on_fallback_
 	err = f"Fallback TimeoutError spike detected ({audit['new_timeout_count']} >= {audit['threshold']} since {since_iso or 'start'})" if fail_on_fallback_spike and audit['spike_detected'] else None
 	return (audit, err)
 # 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
-# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 # @used-by :mod:`agent_tools.snapshot_latency_canary`
 def finalize_snapshot_promotion(store: Path, prior: dict, sha: str, ok: bool, detail: str, activate_fn, *, fail_on_fallback_spike: bool=False) -> dict:
 	fb_audit, fb_err = check_fallback_before_promote(store, prior, fail_on_fallback_spike=fail_on_fallback_spike)
@@ -137,7 +137,7 @@ def inspect_fallback_timeout_spike(store: Path, *, since_iso: str | None=None, t
 				count += 1
 	return {'new_timeout_count': count, 'since': since_iso, 'spike_detected': count >= threshold, 'threshold': threshold}
 # 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
-# @used-by :func:`agent_tools.snapshot_canary.run_pre_tool_use_canary()`
+# @used-by :meth:`Df.Harness.Runtime.CanaryProbe.CanaryProbe.run()`
 # @used-by :meth:`test_snapshot_latency_and_delegation_policy.SnapshotLatencyAndDelegationPolicyTests.test_live_worktree_passes_large_transcript_latency_canary()`
 # @used-by :mod:`agent_tools.snapshot_latency_canary`
 def run_large_transcript_latency_canary(staging: Path, *, max_median_seconds: float=LARGE_CANARY_MAX_MEDIAN_SECONDS, runs: int=LARGE_CANARY_RUNS, target_bytes: int=LARGE_TRANSCRIPT_BYTES) -> tuple[bool, str]:

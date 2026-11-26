@@ -96,27 +96,11 @@ _CANARY_PROBE = (
 	'\telapsed = time.perf_counter() - t0\n'
 	"\tprint(json.dumps({'elapsed': round(elapsed, 4), 'subprocesses': calls[0]}))\n"
 )
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`agent_tools.runtime_snapshot._validate_staged_release()`
 # @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_live_worktree_passes_pre_tool_use_canary()`
 # @used-by :mod:`agent_tools.snapshot_canary`
 def run_pre_tool_use_canary(staging: Path, *, max_seconds: float=CANARY_MAX_SECONDS, max_subprocesses: int=CANARY_MAX_SUBPROCESSES, committed_files: int=CANARY_COMMITTED_FILES) -> tuple[bool, str]:
-	proc = subprocess.run(
-		[sys.executable, '-I', '-c', _CANARY_PROBE, str(Path(staging).resolve()), str(max_seconds), str(max_subprocesses), str(committed_files)],
-		stdin=subprocess.DEVNULL,
-		capture_output=True,
-		text=True,
-		encoding='utf-8',
-		errors='replace',
-		timeout=45,
-		check=False,
-		creationflags=_NO_WINDOW,
-	)
-	detail = (proc.stderr or proc.stdout or '').strip()
-	# 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
-	if 0 != proc.returncode:
-		r = (False, detail)
-	else:
-		from .snapshot_latency_canary import run_large_transcript_latency_canary
-		r = run_large_transcript_latency_canary(staging)
-	return r
+	from Df.Harness.Runtime.CanaryProbe import CanaryProbe
+	return CanaryProbe(staging, max_seconds=max_seconds, max_subprocesses=max_subprocesses, committed_files=committed_files).run()
 __all__ = ['CANARY_COMMITTED_FILES', 'CANARY_MAX_SECONDS', 'CANARY_MAX_SUBPROCESSES', 'run_pre_tool_use_canary']

@@ -142,7 +142,8 @@ class PythonIntegrityGateTests(unittest.TestCase):
 				},
 				# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 				# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
-				copy_rels=('paths.json', 'runtime.json', 'scripts/Df/__init__.py', 'scripts/Df/Core/lib/fs/.py', 'scripts/Df/Core/lib/git.py', 'scripts/Df/Harness/Gate/PythonIntegrity.py', 'scripts/agent_tools/path_cache.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/python_integrity.py'),
+				# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+				copy_rels=('paths.json', 'runtime.json', 'scripts/Df/__init__.py', 'scripts/Df/Core/lib/fs/.py', 'scripts/Df/Core/lib/git.py', 'scripts/Df/Harness/Gate/PythonIntegrity.py', 'scripts/Df/Harness/Path/CacheStore.py', 'scripts/Df/Harness/Path/ProjectPaths.py', 'scripts/Df/Harness/Path/Registry.py', 'scripts/Df/Harness/Path/SlotResolver.py', 'scripts/agent_tools/path_cache.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/python_integrity.py'),
 			)
 			snap = promote_runtime_snapshot(repo, store_dir=root / 'store')
 			self.assertFalse(snap['valid'])

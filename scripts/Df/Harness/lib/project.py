@@ -7,6 +7,7 @@ from Df.Core.lib.text.source import df_text_rewrite_pairs
 # 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # Return True when a project-relative path should be skipped during Harness tree cloning.
 # @used-by :func:`agent_tools.shadow_replay_clone._is_skipped_rel()`
+# @used-by :meth:`Df.Harness.Shadow.WorkspaceCloner.WorkspaceCloner.run()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_cli_journal_and_project_helpers()`
 def dfh_is_skipped_rel(rel: Path) -> bool:
 	parts = rel.parts
