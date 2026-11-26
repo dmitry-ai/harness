@@ -326,8 +326,6 @@ class ClientTextWorkspace:
 	# @used-by :func:`agent_tools.grounding_helpers.build_active_corpus_cached()`
 	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
 	# @used-by :func:`agent_tools.native_profiles._role_config()`
-	# @used-by :func:`agent_tools.project_card.sync_block()`
-	# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`agent_tools.upwork_data.parse_webvtt_phrases()`
 	# @used-by :func:`gate_paths()`
@@ -336,8 +334,10 @@ class ClientTextWorkspace:
 	# @used-by :meth:`ClientTextWorkspace.gate()`
 	# @used-by :meth:`ClientTextWorkspace.gate_requests_for_root()`
 	# @used-by :meth:`ClientTextWorkspace.scope_issues()`
+	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
+	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
 	# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector.unconditional_calls()`
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._parse_commit_flag_bundle()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`

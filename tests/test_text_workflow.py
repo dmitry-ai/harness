@@ -86,7 +86,6 @@ class TextWorkspaceCase(TemporaryCase):
 		return r
 	# @used-by :func:`agent_tools.article.check_link_style()`
 	# @used-by :func:`agent_tools.article.check_structure()`
-	# @used-by :func:`agent_tools.claims._quantity_matches()`
 	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_fact_tuples()`
 	# @used-by :func:`agent_tools.grounding_domains.ticket_message_issues()`
@@ -105,6 +104,9 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.text_core.sentences()`
 	# @used-by :func:`agent_tools.text_sections.content_blocks()`
 	# @used-by :func:`agent_tools.upwork_data.discover_pdf_ligature_repairs()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__check_excerpt()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__sign_before()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__code_lines_and_semicolons()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`

@@ -12,6 +12,21 @@ import hashlib
 # @used-by :func:`agent_tools.text_claims.digest()`
 # @used-by :func:`df_sha256_file()`
 # @used-by :func:`df_sha256_text()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__check_snapshot()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
+# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
+# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
+# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__commit_locked()`
+# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__write_new()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__sync_locked()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
+# @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_local()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__check_expected()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
+# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_result()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_sha256_json_io_and_time_helpers()`
 def df_sha256(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()

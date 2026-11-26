@@ -7,7 +7,7 @@ from __future__ import annotations
 # @used-by :func:`Df.Core.lib.text.n.has.df_is_multiline()`
 # @used-by :func:`Df.Core.lib.text.n.remove.df_single_line()`
 # @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
-# @used-by :func:`agent_tools.project_card.sync_block()`
+# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__build_block()`
 # @used-by :meth:`Df.Qa.Dumper.Dumper.__dumpS()`
 # @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.normalize_newlines()`
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part2()`

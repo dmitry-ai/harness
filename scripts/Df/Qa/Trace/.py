@@ -44,14 +44,15 @@ class Trace:
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
 	# @used-by :func:`agent_tools.native_profiles._role_config()`
-	# @used-by :func:`agent_tools.project_card.sync_block()`
-	# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
 	# @used-by :func:`agent_tools.repo_tags.plan_retro_tags()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`
 	# @used-by :func:`agent_tools.text_sections.content_blocks()`
+	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__scan_brace_end()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
+	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__compute_payload()`
+	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_atom()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_step()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_step()`

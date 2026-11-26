@@ -44,16 +44,18 @@ _CHALLENGE_COPY_RE = re.compile('(?i)verify you are human|checking your browser|
 _CHALLENGE_TOKEN_RE = re.compile('(?i)_cf_chl_opt|challenge-platform|challenges\\.cloudflare\\.com/turnstile|cf-chl-bypass|ray id')
 # @used-by :func:`_summarize_observation_bundle()`
 # @used-by :func:`_write_cached_extraction()`
-# @used-by :func:`agent_tools.evidence_loader._load_saved_extracted_html()`
-# @used-by :func:`agent_tools.evidence_loader._resolve_html_data()`
-# @used-by :func:`agent_tools.evidence_loader._scan_ext_files()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__scan_ext_files()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationHtmlResolver.ObservationHtmlResolver.__load_saved()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationHtmlResolver.ObservationHtmlResolver.resolve()`
+# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_evidence_manifest_and_loader_paths()`
+# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_remaining_edge_paths()`
 def extractor_version():
 	return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
 # @used-by :func:`_summarize_observation_bundle()`
-# @used-by :func:`agent_tools.evidence.verify_html_quote_scope()`
-# @used-by :func:`agent_tools.evidence_loader._extract_bundle_html()`
 # @used-by :func:`agent_tools.text_browser._poll_dom_on_session()`
 # @used-by :func:`extract_bytes()`
+# @used-by :meth:`Df.Harness.Analysis.HtmlQuoteVerifier.HtmlQuoteVerifier.verify()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__extract_html()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked()`
 def classify_html_challenge(raw_html: str, *, parsed: dict | None=None, status: int | None=None) -> bool:
 	if not isinstance(raw_html, str):
@@ -181,8 +183,6 @@ def _fingerprint(value):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-# @used-by :func:`agent_tools.analysis.save_analysis()`
-# @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
 # @used-by :func:`agent_tools.cli_domains._resolve_project_input()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
@@ -210,6 +210,9 @@ def _fingerprint(value):
 # @used-by :func:`extract_file()`
 # @used-by :func:`extract_observation()`
 # @used-by :func:`load_observation()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__check_intake()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__collect_modules()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__load_verified_package()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.read_review_input()`
@@ -368,7 +371,7 @@ def request_key(url, headers, scope, context=None):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-# @used-by :func:`agent_tools.claims._primary_capabilities()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.PrimaryCapabilities.PrimaryCapabilities.resolve()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_dom_is_fresh_and_never_proves_click()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_observation_kind_alone_never_grants_extra_capabilities()`
@@ -547,14 +550,15 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-# @used-by :func:`agent_tools.claims._primary_capabilities()`
-# @used-by :func:`agent_tools.evidence.evidence_issues()`
-# @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
 # @used-by :func:`agent_tools.text_sources._attempt()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`collect()`
 # @used-by :func:`extract_observation()`
 # @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._build_html_obs_project()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.PrimaryCapabilities.PrimaryCapabilities.resolve()`
+# @used-by :meth:`Df.Harness.Analysis.EvidenceAuditor.EvidenceAuditor.__check_counter_source()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationResolver.ObservationResolver.__lookup_index()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationResolver.ObservationResolver.resolve()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_changed_cached_body_is_not_silently_used()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
@@ -830,9 +834,9 @@ class HTMLData(HTMLParser):
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
 # @used-by :func:`_summarize_observation_bundle()`
-# @used-by :func:`agent_tools.evidence_loader._extract_bundle_markdown()`
 # @used-by :func:`agent_tools.links.check_network()`
 # @used-by :func:`extract_bytes()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__extract_markdown()`
 def extract_markdown(text: str) -> dict:
 	from collections import Counter
 	from markdown_it import MarkdownIt
@@ -1020,14 +1024,19 @@ def _write_cached_extraction(target, legacy_pattern, sha_key, sha_value, build_f
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`_summarize_observation_bundle()`
 # @used-by :func:`agent_tools.evidence.saved_source()`
-# @used-by :func:`agent_tools.evidence_loader._resolve_html_data()`
+# @used-by :func:`agent_tools.evidence.verify_saved_quote()`
+# @used-by :func:`agent_tools.evidence_loader.load_observation_content()`
+# @used-by :func:`agent_tools.evidence_loader.probe_observation_status()`
 # @used-by :func:`extract_file()`
 # @used-by :func:`extract_observation()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationHtmlResolver.ObservationHtmlResolver.resolve()`
+# @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_text_or_structured()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_void_elements_compact_extracted_disk_json_and_max_bytes_guard()`
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_tracking_and_shopify_extraction_preserve_provenance_limits()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_tracking_extraction_handles_quoted_keys_and_declares_unparsed_js()`
 # @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
+# @used-by :mod:`agent_tools.evidence_loader`
 def extract_bytes(body, content_type, profile, charset='utf-8', *, status=None):
 	if profile not in PROFILES:
 		raise ValueError(f'Unknown profile: {profile}; choose {PROFILES}')
@@ -1528,7 +1537,7 @@ def collect_browser_batch(root, urls, *, profile='html', scope='public', session
 # @used-by :func:`evidence_query()`
 def _norm_query_url(url: str) -> str:
 	return urldefrag(str(url or '').strip())[0].rstrip('/')
-# @used-by :func:`agent_tools.evidence_loader._extract_bundle_html()`
+# @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__extract_html()`
 # @used-by :mod:`agent_tools.research`
 def extract_github_blob_lines(raw_text: str) -> list[str]:
 	if not raw_text:

@@ -41,8 +41,6 @@ class OutcomeParser:
 		self.__task_log_paths = task_log_paths
 		self.__first_fn = first_fn
 	# @used-by :func:`agent_tools.article.check_link_style()`
-	# @used-by :func:`agent_tools.claims.evaluate_safe_arithmetic()`
-	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
 	# @used-by :func:`agent_tools.env_isolation_contracts._extract_worktree_land_gates()`
 	# @used-by :func:`agent_tools.env_isolation_contracts._verify_contract_test_ref()`
 	# @used-by :func:`agent_tools.env_isolation_contracts.audit_metadata_test_env_isolation()`
@@ -51,12 +49,14 @@ class OutcomeParser:
 	# @used-by :func:`agent_tools.markdown_links.numeric_text()`
 	# @used-by :func:`agent_tools.source_grounding.extract_authored_prose()`
 	# @used-by :func:`agent_tools.tdd.outcomes.parse_command_outcome()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.SafeArithmetic.SafeArithmetic.__parse()`
 	# @used-by :meth:`Df.Harness.Arch.TriggerClassifier.TriggerClassifier.__extract_python_symbols()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.analyze()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.analyze()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.build_py_spans()`
 	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.check()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneChecker.SubprocessHygieneChecker.__scan_source_findings()`
+	# @used-by :meth:`Df.Harness.Project.LinkAudit.LinkAudit.audit()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_python()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.parse_module_functions()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__record_bg_task_completion()`

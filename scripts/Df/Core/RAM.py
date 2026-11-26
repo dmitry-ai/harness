@@ -31,10 +31,7 @@ class RAM:
 	# @used-by :func:`Df.Core.lib.cache.dfcf.dfcf()`
 	# @used-by :func:`Df.Core.lib.git.df_git_root()`
 	# @used-by :func:`agent_tools.admission.capture()`
-	# @used-by :func:`agent_tools.analysis.publish_owned()`
-	# @used-by :func:`agent_tools.analysis.save_analysis()`
 	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
-	# @used-by :func:`agent_tools.claims._manifest_primary()`
 	# @used-by :func:`agent_tools.cleanup._finish_pending()`
 	# @used-by :func:`agent_tools.cleanup._read_ag_rows()`
 	# @used-by :func:`agent_tools.cleanup.antigravity_projects()`
@@ -63,8 +60,6 @@ class RAM:
 	# @used-by :func:`agent_tools.configuration.store_content_backup()`
 	# @used-by :func:`agent_tools.context.resolve_letter_file()`
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
-	# @used-by :func:`agent_tools.evidence.local_file()`
-	# @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
 	# @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 	# @used-by :func:`agent_tools.git_ignore._plan_global_git_ignore()`
 	# @used-by :func:`agent_tools.git_ignore.sync_global_git_ignore()`
@@ -105,13 +100,10 @@ class RAM:
 	# @used-by :func:`agent_tools.platforms.antigravity._workspace_context()`
 	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
 	# @used-by :func:`agent_tools.platforms.trace_common.verify_review_proof_core()`
-	# @used-by :func:`agent_tools.project_card.sync_block()`
 	# @used-by :func:`agent_tools.project_rename._rollback_rename()`
 	# @used-by :func:`agent_tools.project_rename._update_projects_index()`
 	# @used-by :func:`agent_tools.project_rename._validate_rename_inputs()`
 	# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
-	# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
-	# @used-by :func:`agent_tools.registration._read()`
 	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait._normalize_repo_list()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
@@ -150,12 +142,22 @@ class RAM:
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
 	# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
+	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
+	# @used-by :meth:`Df.Harness.Analysis.ObservationResolver.ObservationResolver.__lookup_index()`
+	# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__commit_locked()`
+	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__sync_locked()`
+	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
+	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__find_git_root()`
 	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__collect_project_executors()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
+	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__read_state()`
+	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
+	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__is_project_marker_dir()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`

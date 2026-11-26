@@ -128,7 +128,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.article.parse_sections()`
 	# @used-by :func:`agent_tools.article.render()`
 	# @used-by :func:`agent_tools.article.to_source()`
-	# @used-by :func:`agent_tools.claims._quantity_matches()`
 	# @used-by :func:`agent_tools.cli_command_grounding._extract_recommended_commands()`
 	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
 	# @used-by :func:`agent_tools.completion._response_link_issues()`
@@ -190,6 +189,7 @@ class Regex(O):
 	# @used-by :func:`agent_tools.upwork_extract.attachment_path()`
 	# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 	# @used-by :func:`split_project_rules.split_rules()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_timeout_guard()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__check_header_placement()`

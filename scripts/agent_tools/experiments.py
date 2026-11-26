@@ -877,8 +877,8 @@ def digest(value):
 # @used-by unused
 def evaluate_assertions(run, contents):
 	return ExperimentRunValidator(None, run, contents).evaluate_assertions()
-# @used-by :func:`agent_tools.claims._primary_capabilities()`
 # @used-by :func:`result_issues()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.PrimaryCapabilities.PrimaryCapabilities.__resolve_experiment()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`

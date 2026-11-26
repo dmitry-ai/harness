@@ -257,8 +257,8 @@ def maybe_promote_project_domain(project_root: str | Path, analysis_value: dict,
 			res = rename_project(root, domain=domain, daily_root=daily_root, register_native=register_native, launcher_root=launcher_root)
 			r = {**res, 'basis_id': basis_id}
 	return r
-# @used-by :func:`agent_tools.project_drift.domain_drift_issues()`
 # @used-by :func:`maybe_promote_project_domain()`
+# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
 def resolve_promotable_target_domain(analysis_value: dict, *, min_probability: int=75) -> tuple[str | None, str | None]:
 	r: tuple[str | None, str | None] = (None, None)
 	if isinstance(analysis_value, dict):

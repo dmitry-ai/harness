@@ -54,7 +54,6 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 # @used-by :func:`agent_tools.admission.capture()`
-# @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.cleanup_audit._create_unique_log_file()`
 # @used-by :func:`agent_tools.configuration.store_content_backup()`
@@ -67,7 +66,6 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
 # @used-by :func:`agent_tools.native_profiles._apply()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
-# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
 # @used-by :func:`agent_tools.research._write_cached_extraction()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
@@ -77,6 +75,8 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`write_immutable_bytes()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
 # @used-by :meth:`agent_tools.knowledge.AttachmentInventory._register_bytes()`
@@ -180,9 +180,6 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # 2026-11-23
 # "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
 # https://github.com/dmitry-ai/harness/issues/158
-# @used-by :func:`agent_tools.analysis.publish_owned()`
-# @used-by :func:`agent_tools.analysis.save_analysis()`
-# @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.completion._persist_turn_recovery()`
@@ -208,13 +205,9 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
 # @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
-# @used-by :func:`agent_tools.project_card.sync_block()`
 # @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
 # @used-by :func:`agent_tools.project_rename._update_projects_index()`
 # @used-by :func:`agent_tools.reconcile_helpers._trim_narrowed_reservation()`
-# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
-# @used-by :func:`agent_tools.registration._begin()`
-# @used-by :func:`agent_tools.registration.save_registration()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.observed_use()`
 # @used-by :func:`agent_tools.runtime_snapshot.promote_runtime_snapshot()`
@@ -227,9 +220,16 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
+# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
+# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
+# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
+# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
@@ -300,8 +300,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 		raise ValueError(error_msg)
 	return (raw, value)
 # @used-by :func:`agent_tools.analysis.publish_owned()`
-# @used-by :func:`agent_tools.analysis.save_analysis()`
-# @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
@@ -328,7 +326,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.native_profiles._apply()`
 # @used-by :func:`agent_tools.native_profiles._rollback()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
-# @used-by :func:`agent_tools.project_card.sync_block()`
 # @used-by :func:`agent_tools.project_rename._restore_file_backups()`
 # @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
 # @used-by :func:`agent_tools.project_rename._update_projects_index()`
@@ -337,8 +334,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.project_rename_state._update_project_json()`
 # @used-by :func:`agent_tools.project_rename_state.rewrite_launcher_handoffs()`
 # @used-by :func:`agent_tools.project_rename_state.rewrite_project_internal_state()`
-# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
-# @used-by :func:`agent_tools.registration._write()`
 # @used-by :func:`agent_tools.research._write_cached_extraction()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.observed_use()`
@@ -357,9 +352,16 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
+# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__init__()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
+# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_files()`
+# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
+# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__save_timings()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
@@ -385,8 +387,6 @@ def replace_bytes(path: Path, data: bytes):
 	if not same:
 		target.parent.mkdir(parents=True, exist_ok=True)
 		_stage_atomic_write(target, data, _replace_with_retry)
-# @used-by :func:`agent_tools.analysis.publish_owned()`
-# @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.completion._conflict()`
 # @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
 # @used-by :func:`agent_tools.review._immutable()`
@@ -396,6 +396,9 @@ def replace_bytes(path: Path, data: bytes):
 # @used-by :func:`agent_tools.text_sources.probe_links()`
 # @used-by :func:`agent_tools.text_sources.save_source_check()`
 # @used-by :func:`agent_tools.text_workflow._immutable()`
+# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__commit_locked()`
+# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__write_new()`
+# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`

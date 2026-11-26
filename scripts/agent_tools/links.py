@@ -51,13 +51,12 @@ def readable_reference(value: str | Path) -> str:
 		elif re.match('^/[A-Za-z]:/', path):
 			path = path[1:]
 	return _readable_escapes(path) + query_sep + query + fragment_sep + _readable_escapes(fragment)
-# @used-by :func:`agent_tools.analysis._render_claim_contract()`
-# @used-by :func:`agent_tools.analysis.render_analysis()`
 # @used-by :func:`agent_tools.knowledge._render_evidence_md()`
 # @used-by :func:`agent_tools.knowledge._render_projects_md()`
 # @used-by :func:`agent_tools.knowledge.sync_initial_website()`
 # @used-by :func:`agent_tools.knowledge.sync_website_card()`
 # @used-by :func:`agent_tools.upwork_data.format_kb_project_md()`
+# @used-by :meth:`Df.Harness.Analysis.Renderer.Renderer.render()`
 # @used-by :meth:`agent_tools.upwork_data.DocxMarkdownExtractor._render_link()`
 # @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._collect_visual_lines()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
@@ -92,8 +91,8 @@ def chat_reply_link_issues(content: str, *, root: Path | None=None) -> list[str]
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
-# @used-by :func:`agent_tools.evidence.local_file()`
 # @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
+# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_decode_file_uri_handles_windows_relative_and_remote()`
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	from .markdown_links import decode_file_uri as _decode
@@ -101,11 +100,11 @@ def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 # 2026-10-17
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
-# @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.knowledge.create_once()`
-# @used-by :func:`agent_tools.project_card.sync_block()`
 # @used-by :func:`chat_reply_link_issues()`
 # @used-by :func:`validate_content()`
+# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__check_links()`
+# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__validate_inputs()`
 # @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes()`
@@ -287,9 +286,9 @@ def validate_content(content: str, *, local_anchors: bool=False, unique_urls: bo
 # 2026-11-16
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
-# @used-by :func:`agent_tools.evidence._markdown_section()`
 # @used-by :func:`agent_tools.research.extract_markdown()`
 # @used-by :func:`heading_anchors()`
+# @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__markdown_section()`
 def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str], str]:
 	from .markdown_links import parser as md_parser
 	raw_lines = content.splitlines(keepends=True)

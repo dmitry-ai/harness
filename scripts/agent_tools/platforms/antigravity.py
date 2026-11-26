@@ -456,13 +456,13 @@ class AntigravityTurnScanner:
 # https://github.com/dmitry-ai/harness/issues/75
 # @used-by :func:`_project_item_matches_root()`
 # @used-by :func:`_project_roots()`
-# @used-by :func:`agent_tools.registration.validate_registration()`
+# @used-by :meth:`Df.Harness.Project.RegistrationValidator.RegistrationValidator.__check_antigravity()`
 def resource_uri(res):
 	return extract_resource_uri(res)
 # @used-by :func:`_project_item_matches_root()`
 # @used-by :func:`_project_roots()`
 # @used-by :func:`_workspace_context()`
-# @used-by :func:`agent_tools.registration.validate_registration()`
+# @used-by :meth:`Df.Harness.Project.RegistrationValidator.RegistrationValidator.__check_antigravity()`
 def folder_path(uri):
 	return local_uri_to_path(uri)
 # 2026-11-21

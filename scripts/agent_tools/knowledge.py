@@ -115,9 +115,9 @@ class AttachmentInventory:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.analysis.analysis_issues()`
 # @used-by :func:`sync_initial_website()`
 # @used-by :func:`sync_website_card()`
+# @used-by :meth:`Df.Harness.Analysis.Validator.Validator.issues()`
 def website_issues(value):
 	from urllib.parse import urlsplit
 	from .diagnostics import problem
@@ -155,11 +155,11 @@ def website_issues(value):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.analysis.publish_analysis()`
-# @used-by :func:`agent_tools.project_drift.analysis_card_sync_issues()`
 # @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._init_review_ready_project()`
 # @used-by :func:`test_contract_invariants._init_tracked_project()`
 # @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._write_minimal_v3_project()`
+# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
+# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.valid_review_analysis()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`

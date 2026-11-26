@@ -205,8 +205,8 @@ def _receipt(project, capture, state, files, dirs):
 		entries.append({'original_relative_provenance': name, 'sha256': digest, 'bytes': len(payload), 'durable_file': known[digest], 'transform': 'identity'})
 	r = {'version': 1, 'capture_id': capture.name, 'job_id': source['job_id'], 'status': 'prepared', 'original_directory_provenance': str(capture), 'original_paths_are_provenance_only': True, 'snapshot': snapshot, 'entries': entries}
 	return r
-# @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`commit_capture()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__check_intake()`
 def _validate_receipt(receipt, capture, project, state):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":

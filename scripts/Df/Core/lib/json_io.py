@@ -16,6 +16,9 @@ def df_json_bytes(value: Any, *, indent: int | str | None=None) -> bytes:
 # Read a UTF-8 JSON file and return its top-level dict, or None on missing/invalid/non-dict data.
 # @used-by :func:`agent_tools.journal_integrity._load_json_dict()`
 # @used-by :func:`agent_tools.project_drift._load_json_dict()`
+# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.__title_mismatches()`
+# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
+# @used-by :meth:`Df.Harness.Project.FinalizeDriftGuard.FinalizeDriftGuard.require()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_sha256_json_io_and_time_helpers()`
 def df_json_dict_load(path: str | Path) -> dict[str, Any] | None:
 	p = Path(path)

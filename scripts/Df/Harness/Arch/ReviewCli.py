@@ -45,7 +45,6 @@ class ReviewCli:
 			r = '\n'.join(lines) + '\n'
 		return r
 	# @used-by :func:`agent_tools.arch.review_cli.register_arch_commands()`
-	# @used-by :func:`git_fixture_cache._template_root()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_review_cli_registers_and_executes_all_arch_commands()`
 	def register(self, register_fn: Callable) -> None:
 		register_fn('arch-check', 'Run read-only architecture pattern specification and arch-auditor receipt diagnostics', (('project', {'type': Path}), ('--repo', {'type': Path, 'help': 'Optional code repository root to check structural triggers and cached modules'}), ('--response-file', {'type': Path, 'help': 'Optional UTF-8 candidate response Markdown file'}), ('--issue', {'help': 'Optional parent GitHub Issue URL'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), ReviewCli.__exec_arch_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=ReviewCli.__format_arch_check)

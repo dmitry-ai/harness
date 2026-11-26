@@ -876,8 +876,8 @@ def extract_docx_markdown(raw_bytes: bytes) -> str:
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
-# @used-by :func:`agent_tools.evidence.saved_source()`
 # @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
+# @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_document()`
 # @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
 # @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_shared_table_bullet_rows_across_markdown_and_csv()`
 def extract_attachment_markdown(path_or_name, raw_bytes: bytes | None=None) -> str:

@@ -117,6 +117,7 @@ def _validate_runtime(value):
 # @used-by :func:`agent_tools.platforms.antigravity._default_folders_json()`
 # @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
 # @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+# @used-by :func:`agent_tools.registration.register_project()`
 # @used-by :func:`agent_tools.registration.register_projects()`
 # @used-by :func:`agent_tools.repo_tags._configured_timezone()`
 # @used-by :func:`agent_tools.text_browser.browser_anchor_status()`
@@ -152,6 +153,7 @@ def _validate_runtime(value):
 # @used-by :func:`resolve_codex_home()`
 # @used-by :func:`resolve_codex_paths()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
+# @used-by :meth:`Df.Harness.Project.Registry.Registry.__init__()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`agent_tools.text_browser.CDPSession.__init__()`
 # @used-by :meth:`agent_tools.text_browser.GuardedCDP.__init__()`
@@ -178,6 +180,7 @@ def _validate_runtime(value):
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 # @used-by :mod:`agent_tools.intake`
 # @used-by :mod:`agent_tools.platforms.antigravity`
+# @used-by :mod:`agent_tools.registration`
 # @used-by :mod:`agent_tools.runtime`
 # @used-by :mod:`agent_tools.upwork_project`
 def settings(path=None):
@@ -393,11 +396,11 @@ def platform_homes(platform, *, config=None, include_disabled=False):
 	if None is cfg:
 		raise ValueError(f'Unknown Upwork platform: {platform}')
 	return extract_platform_homes(cfg, platform=resolved_id, include_disabled=include_disabled)
-# @used-by :func:`agent_tools.registration.register_projects()`
 # @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`all_instances()`
 # @used-by :func:`enabled_platforms()`
 # @used-by :func:`platform_name()`
+# @used-by :meth:`Df.Harness.Project.Registry.Registry.__resolve_targets()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
@@ -815,14 +818,13 @@ def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, co
 # @used-by :func:`agent_tools.completion.issue_first_check_turn()`
 # @used-by :func:`agent_tools.completion.tdd_check_turn()`
 # @used-by :func:`agent_tools.platforms.adapter()`
-# @used-by :func:`agent_tools.registration.register_project()`
-# @used-by :func:`agent_tools.registration.register_projects()`
-# @used-by :func:`agent_tools.registration.save_registration()`
 # @used-by :func:`agent_tools.review.input_receipt()`
 # @used-by :func:`agent_tools.upwork_project.doctor()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`platform_settings()`
 # @used-by :func:`using()`
+# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__init__()`
+# @used-by :meth:`Df.Harness.Project.Registry.Registry.register()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 def platform_name(value=None, *, config=None):
@@ -967,9 +969,9 @@ def using(platform=None, profile=None, instance=None):
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
 # @used-by :func:`agent_tools.platforms.codex.register()`
 # @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
-# @used-by :func:`agent_tools.registration._expected()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
 def request_day(value=None):
 	from datetime import date, datetime
 	from zoneinfo import ZoneInfo

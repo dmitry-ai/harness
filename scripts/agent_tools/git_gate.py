@@ -725,8 +725,8 @@ class WorktreeCommitTransaction:
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
 	# @used-by :func:`remove_isolated_worktree()`
+	# @used-by :meth:`Df.Harness.Analysis.ClaimGraph.ClaimGraph.__visit_cycle()`
 	# @used-by :meth:`WorktreeCommitTransaction.commit()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_cycles()`
 	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_df_bootstrap_loads_dotpy_packages_and_sibling_modules()`
 	# @used-by :meth:`test_experiments.ExperimentTests.test_native_actions_without_prior_plan_commit_receipt_cannot_be_verified()`
 	# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`

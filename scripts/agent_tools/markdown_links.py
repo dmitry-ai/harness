@@ -95,7 +95,7 @@ def iter_inline_segments(tokens, *, include_images: bool=True):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.claims.standalone_numbers()`
+# @used-by :meth:`Df.Harness.Analysis.Claim.StandaloneNumberExtractor.StandaloneNumberExtractor.extract()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def numeric_text(text):
 	engine = parser()

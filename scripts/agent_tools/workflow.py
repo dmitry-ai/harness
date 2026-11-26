@@ -273,10 +273,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`Df.Core.lib.lang.other.df_no_rec()`
 	# @used-by :func:`add_question()`
 	# @used-by :func:`agent_tools.article.check_graph()`
-	# @used-by :func:`agent_tools.claims.collect_claim_closure()`
-	# @used-by :func:`agent_tools.claims.evaluate_safe_arithmetic()`
-	# @used-by :func:`agent_tools.claims.extract_verified_inline_calc_numbers()`
-	# @used-by :func:`agent_tools.claims.source_numeric_tokens()`
 	# @used-by :func:`agent_tools.cleanup._collect_folder_ancestors()`
 	# @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 	# @used-by :func:`agent_tools.cleanup_lifecycle._journal_pair_activity()`
@@ -287,10 +283,8 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.configuration._root_options()`
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :func:`agent_tools.context.discover_letters()`
-	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.env_isolation_contracts._extract_worktree_land_gates()`
-	# @used-by :func:`agent_tools.evidence_loader._add_anchor()`
 	# @used-by :func:`agent_tools.experiments.requirement_issues()`
 	# @used-by :func:`agent_tools.git_gate._ancestor_process_names()`
 	# @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
@@ -326,7 +320,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.platforms.trace_common.collect_subagent_bfs()`
 	# @used-by :func:`agent_tools.platforms.trace_common.summarize_turn_activity()`
 	# @used-by :func:`agent_tools.project_rename_verify._verify_journal_regression()`
-	# @used-by :func:`agent_tools.red_flags.red_flag_issues()`
 	# @used-by :func:`agent_tools.repo_tags._build_retro_entry()`
 	# @used-by :func:`agent_tools.research._extract_sitemap()`
 	# @used-by :func:`agent_tools.research._grep_section_windows()`
@@ -337,7 +330,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.runtime_cache._compute_browser_perimeter()`
 	# @used-by :func:`agent_tools.runtime_snapshot._rotate_releases()`
 	# @used-by :func:`agent_tools.scatter_banner._collect_candidate_recommendations()`
-	# @used-by :func:`agent_tools.schema_help._check_one_assertion()`
 	# @used-by :func:`agent_tools.stop_subagent_check._apply_call()`
 	# @used-by :func:`agent_tools.stop_subagent_check._process_manage_subagents()`
 	# @used-by :func:`agent_tools.text_browser._verify_context_anchor()`
@@ -352,6 +344,17 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.upwork_data.extract_client_names()`
 	# @used-by :func:`agent_tools.worktree_guard.find_worktree_lock_holders()`
 	# @used-by :func:`split_project_rules.split_rules()`
+	# @used-by :meth:`Df.Harness.Analysis.AssertionValidator.AssertionValidator.__check_one()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.InlineCalcVerifier.InlineCalcVerifier.__expand_lhs()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.InlineCalcVerifier.InlineCalcVerifier.__record_rhs()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.InlineCalcVerifier.InlineCalcVerifier.extract()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.SourceNumericTokenizer.SourceNumericTokenizer.tokenize()`
+	# @used-by :meth:`Df.Harness.Analysis.Claim.StructureAuditor.StructureAuditor.__check_deps()`
+	# @used-by :meth:`Df.Harness.Analysis.ClaimGraph.ClaimGraph.__check_one_dep()`
+	# @used-by :meth:`Df.Harness.Analysis.ClaimGraph.ClaimGraph.__load_one_ref()`
+	# @used-by :meth:`Df.Harness.Analysis.ClaimGraph.ClaimGraph.__visit_cycle()`
+	# @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__add_anchor()`
+	# @used-by :meth:`Df.Harness.Analysis.RedFlagValidator.RedFlagValidator.__check_flag()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.arch_index_paths()`
 	# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.run()`
 	# @used-by :meth:`Df.Harness.Gate.BulkSourceReadGate.BulkSourceReadGate.__update_streak()`
@@ -368,6 +371,7 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.__staged_overrides()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__scan_ag_file()`
 	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__push_project_dir()`
+	# @used-by :meth:`Df.Harness.Project.LinkAudit.LinkAudit.audit()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_test_delete_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_write_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__collect_hit_lines()`
@@ -393,10 +397,6 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.discover_files()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Overrides.Overrides.__check_repo_ancestors()`
 	# @used-by :meth:`ResearchQuestionRegistry.contract_issues()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_dependencies_and_caps()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_structure()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_cycles()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._load_direct_evidence()`
 	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.capabilities()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._committed_parent_numbers()`
@@ -1036,184 +1036,8 @@ class WorkflowStateEngine:
 		if not conversation_id and (not req_ids):
 			raise ValueError('Provide --conversation or at least one --request-id to unadopt')
 		return update(self.root, {'action': 'unadopt_requests', 'conversation_id': conversation_id, 'request_ids': sorted(req_ids)}, lambda state: self._apply_unadopt(state, conversation_id, req_ids))
-	# @used-by :func:`Df.Core.lib.array.other.unshift_assoc.dfa_unshift_assoc()`
-	# @used-by :func:`agent_tools.article.check_graph()`
-	# @used-by :func:`agent_tools.article.render()`
-	# @used-by :func:`agent_tools.claims.extract_verified_inline_calc_numbers()`
-	# @used-by :func:`agent_tools.claims.grounded_numbers_for_claim()`
-	# @used-by :func:`agent_tools.claims.source_numeric_tokens()`
-	# @used-by :func:`agent_tools.cleanup_lifecycle.count_project_conversations()`
-	# @used-by :func:`agent_tools.completion._instruction_snapshot()`
-	# @used-by :func:`agent_tools.configuration._publish()`
-	# @used-by :func:`agent_tools.configuration.build_native()`
-	# @used-by :func:`agent_tools.env_isolation_contracts.isolated_host_env()`
-	# @used-by :func:`agent_tools.env_isolation_contracts.isolated_subprocess_env()`
-	# @used-by :func:`agent_tools.evidence_loader._extract_bundle_html()`
-	# @used-by :func:`agent_tools.grounding_domains._check_mem_tuples()`
-	# @used-by :func:`agent_tools.grounding_helpers._assemble_corpus()`
-	# @used-by :func:`agent_tools.intake.commit_capture()`
-	# @used-by :func:`agent_tools.issue_first_inherit._extract_issue_nums_from_turn()`
-	# @used-by :func:`agent_tools.issue_first_inherit._iter_candidate_issue_nums()`
-	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
-	# @used-by :func:`agent_tools.issues.workspace._update_turn_issue_entry()`
-	# @used-by :func:`agent_tools.journal.get_existing_step_ids()`
-	# @used-by :func:`agent_tools.journal.reserved_step_ids()`
-	# @used-by :func:`agent_tools.journal_integrity._eligible_active_turn_keys()`
-	# @used-by :func:`agent_tools.journal_integrity._group_steps_for_cid()`
-	# @used-by :func:`agent_tools.journal_integrity.collect_conversation_journal_steps()`
-	# @used-by :func:`agent_tools.knowledge._load_media_descriptions()`
-	# @used-by :func:`agent_tools.landing_lease._enqueue_owner()`
-	# @used-by :func:`agent_tools.landing_lease._try_acquire_once()`
-	# @used-by :func:`agent_tools.native_profiles._execute()`
-	# @used-by :func:`agent_tools.path_registry._refresh_known_overlay_links()`
-	# @used-by :func:`agent_tools.path_registry.clear_registry_cache()`
-	# @used-by :func:`agent_tools.path_registry.derive_platform_system_paths()`
-	# @used-by :func:`agent_tools.platforms.antigravity._apply_requested_config()`
-	# @used-by :func:`agent_tools.platforms.antigravity._query_step_model_ids()`
-	# @used-by :func:`agent_tools.platforms.antigravity.native_executor_metadata()`
-	# @used-by :func:`agent_tools.platforms.codex.native_executor_metadata()`
-	# @used-by :func:`agent_tools.platforms.trace_common.summarize_turn_activity()`
-	# @used-by :func:`agent_tools.project_labels.update_state_label()`
-	# @used-by :func:`agent_tools.proposal.render()`
-	# @used-by :func:`agent_tools.registration._attempt()`
-	# @used-by :func:`agent_tools.registration.save_registration()`
-	# @used-by :func:`agent_tools.research._summarize_observation_bundle()`
-	# @used-by :func:`agent_tools.research.collect_browser()`
-	# @used-by :func:`agent_tools.research.collect_http()`
-	# @used-by :func:`agent_tools.research.compute_site_summary()`
-	# @used-by :func:`agent_tools.runtime.extract_platform_instances()`
-	# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
-	# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
-	# @used-by :func:`agent_tools.shell_audit.extract_comment_issue_urls()`
-	# @used-by :func:`agent_tools.stop_subagent_check._collect_invoke_outputs()`
-	# @used-by :func:`agent_tools.stop_subagent_check._process_row_message()`
-	# @used-by :func:`agent_tools.stop_subagent_check._record_invoke()`
-	# @used-by :func:`agent_tools.text_browser._verify_context_anchor()`
-	# @used-by :func:`agent_tools.text_browser.preflight()`
-	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
-	# @used-by :func:`agent_tools.text_claims.validate_map()`
-	# @used-by :func:`agent_tools.text_core.replay()`
-	# @used-by :func:`agent_tools.text_review._source_reviews()`
-	# @used-by :func:`agent_tools.text_sources.save_source_check()`
-	# @used-by :func:`agent_tools.text_sources.validate_source_checks()`
-	# @used-by :func:`agent_tools.trace_event_cache.load_transcript_rows_cached()`
-	# @used-by :func:`agent_tools.worktree_flow._attach_land_telemetry()`
-	# @used-by :func:`agent_tools.worktree_flow._enrich_worktree_entry()`
-	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
-	# @used-by :func:`git_fixture_cache.run_harness_inprocess()`
-	# @used-by :func:`test_evidence_contract.v3_analysis()`
-	# @used-by :func:`test_issue_close_acceptance._run_close_cli()`
-	# @used-by :func:`test_issue_preflight_and_batch._make_fake_gh()`
-	# @used-by :func:`test_stop_emergency_capture_and_foreign_sync._reserve_foreign()`
-	# @used-by :func:`test_text_browser.dom_fixture()`
 	# @used-by :func:`update()`
-	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__staged_code_entries()`
-	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.load_merged_index()`
-	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__add_override_decorator_lines()`
-	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__collect_excluded_lines()`
-	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__function_metrics()`
-	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
-	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__collect_defined_globals()`
-	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__changed_py_files()`
-	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__track_bg_command_outputs()`
-	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__verify_single_file_issue_urls()`
-	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__collect_repo_anchor_vars()`
-	# @used-by :meth:`Df.Harness.Xref.Java.Graph.Graph.__scan_plugin_xml_classes()`
-	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.__expected_java_used_by()`
-	# @used-by :meth:`Df.Harness.Xref.Js.Syncer.Syncer.__expected_js_used_by()`
-	# @used-by :meth:`Df.Harness.Xref.Python.Syncer.Syncer.__expected_used_by_lines()`
-	# @used-by :meth:`ResearchQuestionRegistry._apply_claim()`
-	# @used-by :meth:`ResearchQuestionRegistry._apply_finish()`
-	# @used-by :meth:`ResearchQuestionRegistry._apply_handoff()`
-	# @used-by :meth:`WorkflowStateEngine._apply_complete_stage()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_structure()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._inherited()`
-	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._load_direct_evidence()`
-	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
-	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._inspect_candidate()`
-	# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._fail_gate()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._ingest_artifacts_and_trace()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.capabilities()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.evaluate_assertions()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
-	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._extract_added_diff_urls()`
-	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_latest_commits()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.extract_unlinked_m_subtasks()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._build_mutation_success_payload()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._build_issue_record()`
-	# @used-by :meth:`agent_tools.path_registry.ProjectPaths.__init__()`
-	# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
-	# @used-by :meth:`agent_tools.review.ReviewClassifier._evaluate_claim_risk()`
-	# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approved_claim_digests()`
-	# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._populate_source_metadata()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
-	# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_anchored_quote_from_another_section_is_rejected()`
-	# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_existing_heading_or_ancestor_anchor_is_required()`
-	# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_no_anchor_exception_uses_an_observed_specific_section()`
-	# @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
-	# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_enforces_batch_cap_recency_order_and_index()`
-	# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_stops_on_time_budget_while_all_open_sweeps_all()`
-	# @used-by :meth:`test_cleanup.CleanupTests.control()`
-	# @used-by :meth:`test_cleanup.CleanupTests.test_new_chat_restores_a_partially_held_codex_project()`
-	# @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`
-	# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
-	# @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.price_analysis()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.signed_price_analysis()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_critical_severity_needs_impact_evidence()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_currency_cannot_be_borrowed_from_another_quantity()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e5_and_e6_html_sitemap_and_site_summary_diagnostics()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_explicit_text_locator_does_not_cover_another_part_of_page()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_full_real_intake_receipt_binds_source_to_snapshot_and_rejects_relabelled_note()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_html_markup_cannot_hide_a_sign_between_spans()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_json_amount_currency_pair_is_an_exact_quantity_locator()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_misconception_hypothesis_requires_alternatives_and_discriminating_check()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_own_prya_kb_note_in_evidence_is_not_a_primary_observation()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_referenced_primary_cannot_be_replaced_with_an_own_kb_quote()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_unavailable_result_is_valid_with_explicit_gap()`
-	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_v3_documentation_requires_verified_anchor_or_genuine_no_anchor_section()`
-	# @used-by :meth:`test_experiments.ExperimentTests.browser_requirement()`
-	# @used-by :meth:`test_experiments.ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
-	# @used-by :meth:`test_experiments.ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
-	# @used-by :meth:`test_experiments.ExperimentTests.test_amended_expectation_requires_new_observation_and_retains_original()`
-	# @used-by :meth:`test_experiments.ExperimentTests.test_context_or_session_difference_is_rejected_even_for_same_tab_ids()`
-	# @used-by :meth:`test_experiments.ExperimentTests.test_egress_must_be_measured_in_the_actual_action_browser_context()`
-	# @used-by :meth:`test_experiments.ExperimentTests.test_missing_native_identity_cannot_be_repaired_by_declared_session()`
-	# @used-by :meth:`test_experiments.ExperimentTests.test_native_before_and_action_in_different_browser_tabs_are_rejected()`
-	# @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor()`
-	# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_and_consume_input_with_readback_verification()`
-	# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out()`
-	# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_parent_child_issue_linking_bundled_subtasks_and_parent_closure()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unrelated_review_entry_does_not_reapprove_or_invalidate_history()`
-	# @used-by :meth:`test_issue_first_github_cli.IssueFirstGitHubCliTests.test_create_parent_issue_blocked_on_dirty_tree_while_open_parent_child_create_allowed()`
-	# @used-by :meth:`test_onboarding.EvidenceTests.test_missing_counterevidence_probability_or_documentation_anchor_is_rejected()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
-	# @used-by :meth:`test_portability.CodexEvidenceTests.test_parent_can_select_another_model_and_effort_with_native_proof()`
-	# @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
-	# @used-by :meth:`test_readable_links.ReadableProjectTests.test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes()`
-	# @used-by :meth:`test_red_flags.RedFlagTests.test_unknown_duplicate_and_unsupported_basis_cannot_be_published()`
-	# @used-by :meth:`test_registration_portability.RegistrationProfileTests.setUp()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_audit_target_must_equal_the_analysis_claim_and_irrelevant_test_is_unsupported()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_causal_property_forces_significant_even_when_labeled_descriptive_routine()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_empty_manifest_package_cannot_pass_record_review()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_routine_package_cannot_bypass_computed_risk()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_official_distributor_is_not_established_by_contains_lunos_proxy()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_per_claim_audit_is_required_and_qualified_gap_can_pass()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_restatement_is_routine_only_after_two_approved_exact_versions_and_no_new_evidence()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report()`
-	# @used-by :meth:`test_review_contract.ReviewContractTests.test_task_flags_cannot_omit_typed_work_or_silently_default()`
-	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m1_heading_band_wrapper_child_sentinel_and_github_user_content_anchors()`
-	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids()`
-	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked()`
-	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_old_current_sources_expire_but_explicit_historical_editions_are_distinct()`
-	# @used-by :meth:`test_stop_gate_contract.StopGateContractTests.test_ag2_conversation_id_without_session_id_enforces_stop_gate()`
-	# @used-by :meth:`test_text_browser.TextBrowserTests.test_dynamic_antigravity_port_read_each_time_without_launch()`
-	# @used-by :meth:`test_text_workflow.TextClaimRevisionTests.dependent_registry()`
-	# @used-by :meth:`test_text_workflow.TextWorkspaceCase.start()`
 	def update(self, event, change):
 		with locked(self.pp.data_dir / 'workflow.lock'):
 			state = self.load()
