@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 import re
 from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
+from .cli_output_json import top_level_json_has_failure
 from .hook_crash_audit import _load_turn_rows
 from .statements import analysis_gate_issues
 from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
@@ -27,12 +28,13 @@ def _cmd_from_tool_call(call: dict[str, Any]) -> str:
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _collect_row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
 	return dfh_row_outputs(rows, pos)
+# 2026-11-26 "Separate top-level turn-begin status from foreign_reconciliation across trace auditors": https://github.com/dmitry-ai/harness/issues/370
 # @used-by :func:`_record_call_outcome()`
 # @used-by :func:`_resolve_bg_completions()`
+# @used-by :meth:`test_turn_begin_status_and_auditors.TurnBeginStatusAndAuditorsTests.test_all_trace_auditors_ignore_nested_foreign_reconciliation_and_flag_top_level_failure()`
 def _is_passing_output(text: str) -> bool:
 	out = parse_command_outcome(text)
-	low = (text or '').lower()
-	has_invalid = '"valid": false' in low or '"valid":false' in low
+	has_invalid = top_level_json_has_failure(text)
 	return (0 == out.get('exit_code') or ('pass' == out.get('status') and None is out.get('exit_code'))) and (not has_invalid)
 # @used-by :func:`_collect_passing_trace_commands()`
 def _record_call_outcome(call: dict[str, Any], matched: str, bg_cmds: dict[str, str], passing: list[str]) -> None:

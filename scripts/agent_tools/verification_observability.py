@@ -7,6 +7,7 @@ from typing import Any
 import re
 import shlex
 from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
+from .cli_output_json import top_level_json_has_failure
 from .hook_crash_audit import _load_turn_rows
 from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 _SHADOW_CMD_RE = re.compile(r'\bshadow-replay\b', re.IGNORECASE)
@@ -18,13 +19,14 @@ _FAIL_DISCLOSE_RE = re.compile(r'(?i)(?:valid\s*[:=]\s*false|"valid"\s*:\s*false
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
 def _cmd_from_call(call: dict[str, Any]) -> str:
 	return dfh_cmd_from_call(call)
+# 2026-11-26 "Separate top-level turn-begin status from foreign_reconciliation across trace auditors": https://github.com/dmitry-ai/harness/issues/370
 # @used-by :func:`_inspect_shadow_call()`
 # @used-by :func:`_resolve_bg_shadow_runs()`
+# @used-by :meth:`test_turn_begin_status_and_auditors.TurnBeginStatusAndAuditorsTests.test_all_trace_auditors_ignore_nested_foreign_reconciliation_and_flag_top_level_failure()`
 def _classify_shadow_output(step_idx: int, text: str) -> dict[str, Any]:
 	out = parse_command_outcome(text)
-	low = (text or '').lower()
 	rc = out.get('exit_code')
-	has_invalid = '"valid": false' in low or '"valid":false' in low
+	has_invalid = top_level_json_has_failure(text)
 	failed = has_invalid or (None is not rc and 0 != rc) or 'fail' == out.get('status')
 	passed = (not failed) and (0 == rc or ('pass' == out.get('status') and None is rc))
 	return {'step': step_idx, 'passed': passed, 'failed': failed, 'exit_code': rc}

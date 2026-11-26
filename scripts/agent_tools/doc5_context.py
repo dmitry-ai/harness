@@ -20,6 +20,7 @@ def _cmd_from_call(call: dict[str, Any]) -> str:
 # 2026-11-26 "Fix top-level JSON parsing and workspace repo scoping in doc5_context.py": https://github.com/dmitry-ai/harness/issues/368
 # @used-by :func:`_inspect_call_failure()`
 # @used-by :func:`_record_bg_cli_failures()`
+# @used-by :meth:`test_turn_begin_status_and_auditors.TurnBeginStatusAndAuditorsTests.test_all_trace_auditors_ignore_nested_foreign_reconciliation_and_flag_top_level_failure()`
 def _is_failed_cli_output(text: str) -> bool:
 	out = parse_command_outcome(text)
 	rc = out.get('exit_code')

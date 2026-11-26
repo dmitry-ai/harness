@@ -1817,6 +1817,7 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 # @used-by :meth:`test_stop_emergency_capture_and_foreign_sync.StopEmergencyCaptureAndForeignSyncTests.test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running()`
 # @used-by :meth:`test_stop_emergency_capture_and_foreign_sync.StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
+# @used-by :meth:`test_turn_begin_status_and_auditors.TurnBeginStatusAndAuditorsTests.test_begin_returns_top_level_ok_true_for_primary_dry_run_and_child_with_foreign_reconciliation()`
 # @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_automatic_journal_only_upgrade_and_cli_subcommand()`
 # @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
 # @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_antigravity_journal_conversation_auto_titling_and_comma_append()`
@@ -1847,7 +1848,8 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 	native = _native(root, conversation, platform=platform, backend=backend)
 	turn = _active(native)
 	if None is turn:
-		r = {'role': 'child', 'journal_required': False, 'reason': 'The primary conversation owns the user journal'}
+		# 2026-11-26 "Separate top-level turn-begin status from foreign_reconciliation across trace auditors": https://github.com/dmitry-ai/harness/issues/370
+		r = {'ok': True, 'role': 'child', 'journal_required': False, 'reason': 'The primary conversation owns the user journal'}
 		# 2026-11-21
 		# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
 		# https://github.com/dmitry-ai/harness/issues/116
@@ -1863,7 +1865,8 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		# 2026-11-23
 		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 		# https://github.com/dmitry-ai/harness/issues/146
-		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
+		# 2026-11-26 "Separate top-level turn-begin status from foreign_reconciliation across trace auditors": https://github.com/dmitry-ai/harness/issues/370
+		r = {'ok': True, 'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
 		# 2026-11-22
 		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
 		# https://github.com/dmitry-ai/harness/issues/123
@@ -1912,7 +1915,8 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 		# 2026-11-23
 		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
 		# https://github.com/dmitry-ai/harness/issues/146
-		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		# 2026-11-26 "Separate top-level turn-begin status from foreign_reconciliation across trace auditors": https://github.com/dmitry-ai/harness/issues/370
+		result = {'ok': True, 'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
 		# 2026-11-22
 		# "Auto-name Antigravity conversations from project journal step numbers":
 		# https://github.com/dmitry-ai/harness/issues/120

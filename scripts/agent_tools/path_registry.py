@@ -1813,6 +1813,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_text_browser`
 	# @used-by :mod:`test_text_diagnostics`
 	# @used-by :mod:`test_text_native_binding`
+	# @used-by :mod:`test_turn_begin_status_and_auditors`
 	# @used-by :mod:`test_turn_completion`
 	# @used-by :mod:`test_turn_routing_and_handoff_m6`
 	# @used-by :mod:`test_upwork_data`
