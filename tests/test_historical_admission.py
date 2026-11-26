@@ -32,6 +32,9 @@ def _restore_tree_in_place(snapshot_dir: Path, work_dir: Path) -> None:
 	shutil.copytree(snapshot_dir, work_dir)
 	path_registry.clear_registry_cache()
 class Later(datetime):
+	# @used-by :func:`Df.Core.lib.date.df_date()`
+	# @used-by :func:`Df.Core.lib.date.df_date_from_timestamp_14()`
+	# @used-by :func:`Df.Core.lib.date.df_now()`
 	# @used-by :func:`agent_tools.cleanup_audit._istanbul_stamp()`
 	# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
 	# @used-by :func:`agent_tools.completion._budget_status()`
