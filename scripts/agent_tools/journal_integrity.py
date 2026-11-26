@@ -78,21 +78,10 @@ def _mentioned_other_job(reqs: list[dict], job_str: str) -> bool:
 				r = True
 				break
 	return r
+# 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
 def _reservation_orphan_reason(r_key: str, entry: dict, max_existing: int, committed_rids: set[str], by_key: dict[str, dict], max_start_by_cid: dict[str, int], *, require_empty: bool) -> str | None:
-	cid = str(entry.get('conversation_id') or '').strip().lower()
-	e_steps = [s for s in (entry.get('steps') or ()) if int is type(s) and 1 <= s]
-	e_reqs = [rid for rid in (entry.get('request_ids') or ()) if isinstance(rid, str) and rid]
-	st = by_key.get(r_key)
-	r: str | None = None
-	if require_empty:
-		r = f'dangling reservation {r_key} (steps={e_steps}) remains for finalized conversation'
-	elif any((s <= max_existing for s in e_steps)):
-		r = f'orphaned reservation {r_key} holds steps {e_steps} <= committed max step {max_existing}'
-	elif any((rid in committed_rids for rid in e_reqs)):
-		r = f'orphaned reservation {r_key} references already-committed request_ids'
-	elif isinstance(st, dict):
-		r = _turn_state_orphan_reason(r_key, st, cid, max_start_by_cid)
-	return r
+	from .journal_liveness import classify_reservation_entry
+	return classify_reservation_entry(r_key, entry, max_existing, committed_rids, by_key, max_start_by_cid, require_empty=require_empty, turn_reason_fn=_turn_state_orphan_reason)[0]
 def _subtract_entry_overlap(entry: dict, req_set: set[str], committed_steps: set[int]) -> tuple[dict | None, bool]:
 	e_reqs = list(entry.get('request_ids') or ())
 	e_steps = list(entry.get('steps') or ())
@@ -198,10 +187,13 @@ def missing_contiguous_steps(jdir: Path, ids: set[int]) -> list[int]:
 		expected = set(range(1, max(ids) + 1))
 		r = sorted((expected - set(ids)) - acknowledged_sequence_gaps(jdir))
 	return r
-def orphaned_reservation_issues(jdir: Path, *, project_root: Path | None=None, conversation_ids: set[str] | None=None, require_empty_for_cids: bool=False) -> list[str]:
+# 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
+# @used-by :func:`orphaned_reservation_issues()`
+def classify_reservations(jdir: Path, *, project_root: Path | None=None, conversation_ids: set[str] | None=None, require_empty_for_cids: bool=False) -> dict[str, list]:
+	from .journal_liveness import classify_reservation_entry
 	eff = Path(jdir).resolve()
 	reservations = journal.iter_turn_reservations(eff)
-	r: list[str] = []
+	orphaned, active_parallel = ([], [])
 	if reservations:
 		max_existing = max(journal.get_existing_step_ids(eff), default=0)
 		committed_rids = set(journal.completed_request_group_index(eff))
@@ -210,10 +202,14 @@ def orphaned_reservation_issues(jdir: Path, *, project_root: Path | None=None, c
 			cid = str(entry.get('conversation_id') or '').strip().lower()
 			if None is not conversation_ids and cid not in conversation_ids:
 				continue
-			why = _reservation_orphan_reason(r_key, entry, max_existing, committed_rids, by_key, max_start_by_cid, require_empty=require_empty_for_cids)
-			if None is not why:
-				r.append(why)
-	return r
+			err, live = classify_reservation_entry(r_key, entry, max_existing, committed_rids, by_key, max_start_by_cid, require_empty=require_empty_for_cids, turn_reason_fn=_turn_state_orphan_reason)
+			if None is not err:
+				orphaned.append(err)
+			elif None is not live:
+				active_parallel.append(live)
+	return {'orphaned': orphaned, 'active_parallel': active_parallel}
+def orphaned_reservation_issues(jdir: Path, *, project_root: Path | None=None, conversation_ids: set[str] | None=None, require_empty_for_cids: bool=False) -> list[str]:
+	return classify_reservations(jdir, project_root=project_root, conversation_ids=conversation_ids, require_empty_for_cids=require_empty_for_cids)['orphaned']
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 # @used-by :func:`agent_tools.completion._conflict()`
 def finalize_conflict_turn(root_p: Path, path: Path, value: dict, turn: dict, *, dir_fn, persist_fn) -> None:

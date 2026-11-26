@@ -26,11 +26,32 @@ def _antigravity_summary_is_idle(st: dict[str, Any], cid: str) -> bool:
 		except (OSError, sqlite3.Error):
 			r = False
 	return r
+# 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
+# @used-by :func:`_collect_all_open_candidates()`, :func:`reconcile_foreign_open_reservations()`
+def _iter_idle_prepared_candidates(root: Path, *, folder_fn, read_fn) -> dict[str, dict[str, Any]]:
+	out: dict[str, dict[str, Any]] = {}
+	turns_dir = folder_fn(root)
+	if turns_dir.is_dir():
+		for path in sorted(turns_dir.glob('*.json')):
+			if '-' in path.stem:
+				continue
+			try:
+				raw = path.read_bytes()
+			except OSError:
+				continue
+			if b'"prepared"' in raw and b'"delivery": null' in raw:
+				st = _load_turn_state_safe(path, read_fn)
+				if isinstance(st, dict) and 'prepared' == st.get('status') and None is st.get('delivery') and st.get('conversation_id'):
+					out[path.stem] = {'conversation_id': str(st['conversation_id'])}
+	return out
 # 2026-11-26
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
+# 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
 def _collect_all_open_candidates(root: Path, jdir: Path, *, folder_fn, read_fn) -> list[tuple[str, dict[str, Any]]]:
 	entries: dict[str, dict[str, Any]] = dict(journal.iter_turn_reservations(jdir))
+	for k, v in _iter_idle_prepared_candidates(root, folder_fn=folder_fn, read_fn=read_fn).items():
+		entries.setdefault(k, v)
 	turns_dir = folder_fn(root)
 	if turns_dir.is_dir():
 		for path in sorted(turns_dir.glob('*.json')):
@@ -39,10 +60,13 @@ def _collect_all_open_candidates(root: Path, jdir: Path, *, folder_fn, read_fn) 
 				if isinstance(st, dict) and st.get('conversation_id') and st.get('status') in ('open', 'conflict'):
 					entries[path.stem] = {'conversation_id': str(st['conversation_id'])}
 	return sorted(entries.items())
+# 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
 def _is_foreign_open_eligible(st: dict[str, Any], *, adopt_conflict: bool=False) -> tuple[bool, str]:
 	recorded = any((isinstance(st.get(k), dict) and 'journal_steps' in st[k] for k in ('prepared', 'journal_record', 'delivery')))
 	status = str(st.get('status') or '')
-	if recorded:
+	if 'prepared' == status and None is st.get('delivery'):
+		r = (True, '')
+	elif recorded:
 		r = (False, 'already_recorded')
 	elif adopt_conflict and status in ('open', 'conflict'):
 		r = (True, '')
@@ -130,6 +154,7 @@ def reconcile_before_begin(root: Path, native: dict[str, Any], turn: dict[str, A
 	cur_rec = _reconcile_current_earlier(root, native, turn, key, journal_directory, folder_fn=folder_fn, dir_fn=dir_fn, read_fn=read_fn, sync_fn=sync_fn, key_fn=key_fn)
 	foreign = reconcile_foreign_open_reservations(root, native['conversation_id'], journal_directory=journal_directory, folder_fn=folder_fn, dir_fn=dir_fn, read_fn=read_fn, sync_fn=sync_fn)
 	return (cur_rec, foreign)
+# 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
 def reconcile_foreign_open_reservations(root: Path, current_cid: str | None, *, journal_directory: Any=None, folder_fn, dir_fn, read_fn, sync_fn) -> list[dict[str, Any]]:
 	jdir = dir_fn(root, journal_directory)
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
@@ -137,7 +162,10 @@ def reconcile_foreign_open_reservations(root: Path, current_cid: str | None, *, 
 	cur_low = str(current_cid or '').strip().lower()
 	synced: list[dict[str, Any]] = []
 	seen_cids: set[str] = set()
-	for turn_key, entry in sorted(journal.iter_turn_reservations(jdir).items()):
+	candidates = dict(journal.iter_turn_reservations(jdir))
+	for k, v in _iter_idle_prepared_candidates(root, folder_fn=folder_fn, read_fn=read_fn).items():
+		candidates.setdefault(k, v)
+	for turn_key, entry in sorted(candidates.items()):
 		cid = str(entry.get('conversation_id') or '').strip()
 		if cid and cid.lower() != cur_low and cid.lower() not in seen_cids:
 			hit, _ = _try_sync_foreign_entry(root, turn_key, entry, journal_directory, folder_fn=folder_fn, read_fn=read_fn, sync_fn=sync_fn)
