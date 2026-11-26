@@ -264,12 +264,31 @@ def resolve_land_test_plan(wt_path: Path, target_branch: str, *, run_tests: bool
 	else:
 		should_run, skip_reason = (False, f"non_executable_diff:{diff_info['classification']}")
 	return {'blocked_error': blocked_err, 'diff_info': diff_info, 'should_run_post_health': should_run, 'should_run_tests': should_run, 'test_skip_reason': skip_reason}
+# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+# @used-by :func:`agent_tools.worktree_flow._attach_land_telemetry()`
+# @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_format_land_diff_telemetry_truncates_and_preserves_counts()`
+# @used-by :mod:`agent_tools.tdd.diff_executability`
+# @used-by :mod:`agent_tools.tdd_gate`
+# @used-by :mod:`agent_tools.tdd`
+def format_land_diff_telemetry(plan: dict[str, Any] | None, *, max_files: int=DEFAULT_MAX_REPORTED_FILES) -> dict[str, Any]:
+	if None is plan:
+		r: dict[str, Any] = {}
+	else:
+		info = plan.get('diff_info') or {}
+		cap = max(0, int(max_files))
+		exec_files = sorted(info.get('executable_files') or ())
+		non_exec = sorted(info.get('non_executable_files') or ())
+		counts = dict(sorted((info.get('category_counts') or {}).items()))
+		r = {'diff_category_counts': counts, 'diff_classification': info.get('classification'), 'executable_file_count': len(exec_files), 'executable_files': exec_files[:cap], 'non_executable_file_count': len(non_exec), 'non_executable_files': non_exec[:cap], 'test_skip_reason': plan.get('test_skip_reason')}
+	return r
 __all__ = [
 	'DEFAULT_MAX_REPORTED_FILES',
 	'NON_EXECUTABLE_CATEGORIES',
 	'classify_git_path',
 	'classify_git_range',
 	'classify_text_diff',
+	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+	'format_land_diff_telemetry',
 	'is_git_path_non_executable',
 	'is_non_executable_diff',
 	'resolve_land_test_plan',

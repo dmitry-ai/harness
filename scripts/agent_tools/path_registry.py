@@ -1693,6 +1693,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
 	# @used-by :mod:`test_diff_coverage_gate`
+	# @used-by :mod:`test_diff_executability_telemetry`
 	# @used-by :mod:`test_diff_executability`
 	# @used-by :mod:`test_dirty_diff_issue_scope`
 	# @used-by :mod:`test_doc5_context_trigger`

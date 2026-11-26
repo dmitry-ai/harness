@@ -44,14 +44,18 @@ def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], sc
 	elif 'production' == cls and scope_str:
 		_apply_prod_file_event(fpath, scope_str, step, order, scopes, orders, violations, project_root, cache)
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 # @used-by :func:`_apply_file_write_event()`
 def _apply_test_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> None:
-	if not _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
+	if _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
+		_record_exempt_edit(scopes, orders, scope_str, fpath, step, 'test')
+	else:
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
 		_apply_test_write(st, st_ord, fpath, step, order)
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
+# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 # @used-by :func:`_apply_file_write_event()`
 def _apply_prod_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> None:
 	existing = scopes.get(scope_str)
@@ -59,7 +63,9 @@ def _apply_prod_file_event(fpath: str, scope_str: str, step: int, order: tuple[i
 		st, st_ord = (existing, orders[scope_str])
 		st_ord['unverified_prod_writes'].append((fpath, order))
 		_apply_prod_write(st, st_ord, fpath, step, order, violations)
-	elif not _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
+	elif _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
+		_record_exempt_edit(scopes, orders, scope_str, fpath, step, 'production')
+	else:
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
 		st_ord['last_non_exempt_prod'] = order
 		_apply_prod_write(st, st_ord, fpath, step, order, violations)
@@ -131,13 +137,16 @@ def _cwd_matches_scope(cwd_p: Path | None, scope_p: Path, scope_key: str, scope_
 		direct = cwd_scope.as_posix().lower() == scope_key or cwd_p.is_relative_to(scope_p) or scope_p.is_relative_to(cwd_p)
 		r = direct or (is_full_cmd and _git_main_repo_root(cwd_scope).as_posix().lower() == scope_main_key)
 	return r
+# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 # @used-by :func:`_apply_prod_file_event()`
 # @used-by :func:`_apply_test_file_event()`
+# @used-by :func:`_record_exempt_edit()`
 def _ensure_scope(scopes: dict[str, dict], orders: dict[str, dict], scope_str: str) -> tuple[dict, dict]:
 	st = scopes.setdefault(scope_str, {
 		'any_prod_edit': False,
 		'cycle_green_step': None,
 		'cycle_had_prod_edit': False,
+		'exempt_edits': [],
 		'last_code_edit_step': None,
 		'last_full_green_step': None,
 		'last_prod_edit_step': None,
@@ -216,6 +225,14 @@ def _order_tdd_events(events: list[dict] | tuple[dict, ...] | None) -> list[tupl
 		tagged.append(((step, sub_seq, sub_step), idx, ev))
 	tagged.sort(key=lambda item: (item[0], item[1]))
 	return tagged
+# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+# @used-by :func:`_apply_prod_file_event()`
+# @used-by :func:`_apply_test_file_event()`
+def _record_exempt_edit(scopes: dict[str, dict], orders: dict[str, dict], scope_str: str, fpath: str, step: int, cls: str) -> None:
+	st, _ = _ensure_scope(scopes, orders, scope_str)
+	entry = {'classification': cls, 'path': fpath, 'step': step}
+	if entry not in st['exempt_edits']:
+		st['exempt_edits'].append(entry)
 # @used-by :func:`_command_matches_scope()`
 def _resolve_event_target_scopes(targets: list[str], cwd_p: Path | None) -> list[Path]:
 	r: list[Path] = []
@@ -267,6 +284,7 @@ def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step:
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_evaluator_exempts_comment_only_test_edits_in_idle_and_post_green()`
+# @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_evaluate_tdd_events_records_exempt_edits_without_state_transition()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_tdd_gate_records_non_failfast_full_suite_warning_without_breaking_verified()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_linked_worktree_scope_accepts_full_suite_green_on_main_repo()`

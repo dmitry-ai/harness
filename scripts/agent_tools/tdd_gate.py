@@ -54,10 +54,14 @@ from .tdd.comment_diff import (
 )
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 from .tdd.diff_executability import (
+	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+	DEFAULT_MAX_REPORTED_FILES,
 	NON_EXECUTABLE_CATEGORIES,
 	classify_git_path,
 	classify_git_range,
 	classify_text_diff,
+	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+	format_land_diff_telemetry,
 	is_git_path_non_executable,
 	is_non_executable_diff,
 	resolve_land_test_plan,
@@ -154,6 +158,8 @@ from .tdd.substantive import (
 # https://github.com/dmitry-ai/harness/issues/169
 __all__ = [
 	'COMMENT_LEXER_LANGUAGES',
+	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+	'DEFAULT_MAX_REPORTED_FILES',
 	'NON_EXECUTABLE_CATEGORIES',
 	'SOFTWARE_CODE_SUFFIXES',
 	'build_command_tdd_event',
@@ -171,6 +177,8 @@ __all__ = [
 	'extract_antigravity_tdd_events',
 	'find_matching_mechanical_recipes',
 	'find_ratchet_approval',
+	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+	'format_land_diff_telemetry',
 	'is_comment_only_diff',
 	'is_diff_exempt',
 	'is_git_path_exempt',
