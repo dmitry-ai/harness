@@ -131,6 +131,7 @@ def _touches_audit_surface(staged_paths: list[str]) -> bool:
 # @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
 # @used-by :func:`agent_tools.rules_manifest._build_doctor_rule_meta()`
 # @used-by :func:`verify_staged_rules_audit()`
+# @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_stop_gate_bypass_and_docs_codify_rule()`
 # @used-by :meth:`test_cli_command_grounding.CliCommandGroundingTests.test_exec2_rule_contains_shadow_replay_requirement_and_passes_rules_audit()`
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_docs_and_rules_codify_contract_within_rules_audit_budgets()`

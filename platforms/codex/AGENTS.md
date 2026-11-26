@@ -14,6 +14,7 @@ That command reads only the required TOML key rather than the entire configurati
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/04-statement-structure.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/05-verification-audit.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/08-execution-and-tools.md
+- C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/12-architecture.md
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/platforms/codex.md
 On-demand shared rules (trigger: model_decision — read before executing matching work):  
 - C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/rules/06-knowledge-base.md — Read when maintaining project knowledge bases (🕮/Project.md, ꘖ/KB), saving primary evidence, continuing interrupted analyses, or exporting Context.md

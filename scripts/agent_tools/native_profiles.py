@@ -166,6 +166,7 @@ def _normalized(text):
 	return text.replace('\r\n', '\n').replace('/scripts/upwork_project.py', '/scripts/harness.py').replace('via upwork_project.py git-read', 'via harness.py git-read').replace('run upwork_project.py build-native', 'run harness.py build-native').strip()
 # @used-by :func:`_codex_plan()`
 # @used-by :func:`legacy_project_projection_paths()`
+# @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_df_architecture_skill_discovered_and_lints_cleanly()`
 # @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_skill_rules_and_docs_codify_mandatory_separate_companion_tracks()`
 # @used-by :meth:`test_df_analysis_rules_contract.DfAnalysisRulesAndSkillContractTests.test_df_analysis_skill_discovered_by_native_profiles_and_lints_cleanly()`
 # @used-by :meth:`test_perf_improvement_skill_contract.PerfImprovementSkillContractTests.test_perf_improvement_skill_discovered_and_references_pass_lint()`
@@ -198,6 +199,7 @@ def _model_fields(primary, role):
 	return '' if 'parent' == config.get('subagents', {}).get('selection') or value.get('selection') in ('parent', 'inherit') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
 # @used-by :func:`_shared_plan()`
 # @used-by :func:`agent_tools.configuration.build_native()`
+# @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests.test_general_rule_passes_doctor_native_bootstrap_and_lint()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_comment_gate_skips_body_misalignment_on_comment_only_diff()`
 # @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`

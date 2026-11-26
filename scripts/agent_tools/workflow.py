@@ -420,6 +420,7 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._detect_bold_fonts()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	# @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
+	# @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_patterns_catalog_covers_wikipedia_taxonomy_and_required_fields()`
 	# @used-by :meth:`test_experiments.ExperimentTests.test_cache_distinguishes_network_country_language_and_session_state()`
 	# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_comment_only_diffs_accepted_for_all_20_languages()`
 	def add(self, ident, question, impact, done_when, inputs, outputs, *, requirements=None):

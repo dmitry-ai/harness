@@ -1,0 +1,77 @@
+{
+	"schema_version": 1
+	,"source_url": "https://en.wikipedia.org/wiki/Software_design_pattern"
+	,"categories": ["Creational", "Structural", "Behavioral", "Concurrency", "Architectural"]
+	,"required_spec_fields": ["Pattern", "Category", "Intent", "Participants", "Collaboration", "Consequences"]
+	,"idiom_exception_fields": ["Pattern", "Native Construct", "Rationale", "Participants"]
+	,"patterns": [
+		{"name": "Abstract Factory", "category": "Creational", "aliases": ["Kit"], "roles": ["AbstractFactory", "ConcreteFactory", "AbstractProduct", "ConcreteProduct", "Client"]}
+		,{"name": "Builder", "category": "Creational", "aliases": ["Fluent Builder"], "roles": ["Builder", "ConcreteBuilder", "Director", "Product"]}
+		,{"name": "Dependency Injection", "category": "Creational", "aliases": ["DI", "Inversion of Control", "IoC"], "roles": ["Service", "Client", "Interface", "Injector"]}
+		,{"name": "Factory Method", "category": "Creational", "aliases": ["Virtual Constructor"], "roles": ["Creator", "ConcreteCreator", "Product", "ConcreteProduct"]}
+		,{"name": "Lazy Initialization", "category": "Creational", "aliases": ["Lazy Loading", "Deferred Initialization"], "roles": ["Holder", "Initializer", "Resource"]}
+		,{"name": "Multiton", "category": "Creational", "aliases": ["Keyed Singleton"], "roles": ["Registry", "Key", "Instance"]}
+		,{"name": "Object Pool", "category": "Creational", "aliases": ["Resource Pool"], "roles": ["Pool", "Reusable", "Client"]}
+		,{"name": "Prototype", "category": "Creational", "aliases": ["Clone"], "roles": ["Prototype", "ConcretePrototype", "Client"]}
+		,{"name": "Resource Acquisition Is Initialization", "category": "Creational", "aliases": ["RAII", "Scoped Resource"], "roles": ["ResourceGuard", "Resource", "Scope"]}
+		,{"name": "Singleton", "category": "Creational", "aliases": ["Single Instance"], "roles": ["Singleton", "InstanceAccessor"]}
+		,{"name": "Adapter", "category": "Structural", "aliases": ["Wrapper", "Translator"], "roles": ["Target", "Adapter", "Adaptee", "Client"]}
+		,{"name": "Bridge", "category": "Structural", "aliases": ["Handle/Body"], "roles": ["Abstraction", "RefinedAbstraction", "Implementor", "ConcreteImplementor"]}
+		,{"name": "Composite", "category": "Structural", "aliases": ["Tree Composite"], "roles": ["Component", "Leaf", "Composite", "Client"]}
+		,{"name": "Decorator", "category": "Structural", "aliases": ["Wrapper Decorator"], "roles": ["Component", "ConcreteComponent", "Decorator", "ConcreteDecorator"]}
+		,{"name": "Extension Object", "category": "Structural", "aliases": ["Extension Interface"], "roles": ["Subject", "Extension", "ConcreteExtension", "Client"]}
+		,{"name": "Facade", "category": "Structural", "aliases": ["Subsystem Facade"], "roles": ["Facade", "SubsystemClasses", "Client"]}
+		,{"name": "Flyweight", "category": "Structural", "aliases": ["Shared Cache", "Memoized Registry"], "roles": ["Flyweight", "ConcreteFlyweight", "FlyweightFactory", "Client"]}
+		,{"name": "Front Controller", "category": "Structural", "aliases": ["Central Dispatcher"], "roles": ["Controller", "Dispatcher", "Handler"]}
+		,{"name": "Marker", "category": "Structural", "aliases": ["Marker Interface"], "roles": ["Marker", "MarkedClass", "Inspector"]}
+		,{"name": "Module", "category": "Structural", "aliases": ["Modular Encapsulation"], "roles": ["Module", "PublicInterface", "PrivateState"]}
+		,{"name": "Proxy", "category": "Structural", "aliases": ["Protection Proxy", "Virtual Proxy", "Remote Proxy", "Smart Reference", "Surrogate"], "roles": ["Subject", "RealSubject", "Proxy", "Client"]}
+		,{"name": "Twin", "category": "Structural", "aliases": ["Dual Inheritance Pair"], "roles": ["TwinA", "TwinB", "ParentA", "ParentB"]}
+		,{"name": "Blackboard", "category": "Behavioral", "aliases": ["Shared Workspace"], "roles": ["Blackboard", "KnowledgeSource", "Controller"]}
+		,{"name": "Chain of Responsibility", "category": "Behavioral", "aliases": ["Pipeline Chain", "Handler Chain"], "roles": ["Handler", "ConcreteHandler", "Client"]}
+		,{"name": "Command", "category": "Behavioral", "aliases": ["Action", "Transaction Command"], "roles": ["Command", "ConcreteCommand", "Invoker", "Receiver"]}
+		,{"name": "Interpreter", "category": "Behavioral", "aliases": ["AST Evaluator", "Grammar Interpreter"], "roles": ["AbstractExpression", "TerminalExpression", "NonterminalExpression", "Context"]}
+		,{"name": "Iterator", "category": "Behavioral", "aliases": ["Cursor"], "roles": ["Iterator", "ConcreteIterator", "Aggregate", "ConcreteAggregate"]}
+		,{"name": "Mediator", "category": "Behavioral", "aliases": ["Coordinator"], "roles": ["Mediator", "ConcreteMediator", "Colleague"]}
+		,{"name": "Memento", "category": "Behavioral", "aliases": ["Snapshot", "Immutable Snapshot"], "roles": ["Originator", "Memento", "Caretaker"]}
+		,{"name": "Null Object", "category": "Behavioral", "aliases": ["No-Op Object"], "roles": ["AbstractObject", "RealObject", "NullObject"]}
+		,{"name": "Observer", "category": "Behavioral", "aliases": ["Listener", "Dependents"], "roles": ["Subject", "Observer", "ConcreteSubject", "ConcreteObserver"]}
+		,{"name": "Servant", "category": "Behavioral", "aliases": ["Utility Servant"], "roles": ["Servant", "ServicedInterface", "Client"]}
+		,{"name": "Specification", "category": "Behavioral", "aliases": ["Predicate Specification", "Rule Specification"], "roles": ["Specification", "CompositeSpecification", "Candidate"]}
+		,{"name": "State", "category": "Behavioral", "aliases": ["Finite State Machine", "State Machine"], "roles": ["Context", "State", "ConcreteState"]}
+		,{"name": "Strategy", "category": "Behavioral", "aliases": ["Policy"], "roles": ["Context", "Strategy", "ConcreteStrategy"]}
+		,{"name": "Template Method", "category": "Behavioral", "aliases": ["Template Skeleton"], "roles": ["AbstractClass", "ConcreteClass", "PrimitiveOperation"]}
+		,{"name": "Visitor", "category": "Behavioral", "aliases": ["AST Visitor", "Double Dispatch"], "roles": ["Visitor", "ConcreteVisitor", "Element", "ConcreteElement"]}
+		,{"name": "Active Object", "category": "Concurrency", "aliases": ["Actor Proxy"], "roles": ["Proxy", "MethodRequest", "ActivationQueue", "Scheduler", "Servant"]}
+		,{"name": "Balking", "category": "Concurrency", "aliases": ["Fail-Fast Guard"], "roles": ["GuardedObject", "StateCheck", "Client"]}
+		,{"name": "Double-Checked Locking", "category": "Concurrency", "aliases": ["DCL"], "roles": ["SharedResource", "Lock", "Accessor"]}
+		,{"name": "Event-Based Asynchronous", "category": "Concurrency", "aliases": ["Async Event"], "roles": ["AsyncOperation", "EventCompletion", "Subscriber"]}
+		,{"name": "Guarded Suspension", "category": "Concurrency", "aliases": ["Condition Wait"], "roles": ["GuardedObject", "Precondition", "WaitQueue"]}
+		,{"name": "Lock", "category": "Concurrency", "aliases": ["Mutex", "File Lock", "Lease Lock"], "roles": ["Lock", "CriticalSection", "Owner"]}
+		,{"name": "Messaging", "category": "Concurrency", "aliases": ["Message Passing", "Message Queue"], "roles": ["Sender", "Channel", "Message", "Receiver"]}
+		,{"name": "Monitor Object", "category": "Concurrency", "aliases": ["Synchronized Monitor"], "roles": ["Monitor", "MonitorLock", "ConditionVariable"]}
+		,{"name": "Proactor", "category": "Concurrency", "aliases": ["Async Completion Proactor"], "roles": ["Proactor", "AsyncOperation", "CompletionHandler"]}
+		,{"name": "Reactor", "category": "Concurrency", "aliases": ["Event Demultiplexer"], "roles": ["Reactor", "EventDemultiplexer", "EventHandler"]}
+		,{"name": "Read-Write Lock", "category": "Concurrency", "aliases": ["RWLock", "Shared-Exclusive Lock"], "roles": ["ReadLock", "WriteLock", "Resource"]}
+		,{"name": "Scheduler", "category": "Concurrency", "aliases": ["FIFO Scheduler", "Queue Scheduler"], "roles": ["Scheduler", "Task", "Queue"]}
+		,{"name": "Thread Pool", "category": "Concurrency", "aliases": ["Worker Pool", "Process Pool"], "roles": ["Pool", "Worker", "TaskQueue"]}
+		,{"name": "Thread-Specific Storage", "category": "Concurrency", "aliases": ["Thread-Local Storage", "ContextVar Storage"], "roles": ["StorageKey", "ThreadContext", "Value"]}
+		,{"name": "Broker", "category": "Architectural", "aliases": ["Message Broker"], "roles": ["Broker", "Client", "Server", "Proxy"]}
+		,{"name": "Clean Architecture", "category": "Architectural", "aliases": ["Onion Architecture"], "roles": ["Entities", "UseCases", "InterfaceAdapters", "Frameworks"]}
+		,{"name": "CQRS", "category": "Architectural", "aliases": ["Command Query Responsibility Segregation"], "roles": ["CommandModel", "QueryModel", "Store"]}
+		,{"name": "Event-Driven Architecture", "category": "Architectural", "aliases": ["EDA"], "roles": ["EventProducer", "EventChannel", "EventConsumer"]}
+		,{"name": "Hexagonal Architecture", "category": "Architectural", "aliases": ["Ports and Adapters"], "roles": ["CoreDomain", "Port", "Adapter"]}
+		,{"name": "Intercepting Filter", "category": "Architectural", "aliases": ["Filter Chain", "Middleware Pipeline"], "roles": ["FilterManager", "FilterChain", "Filter", "Target"]}
+		,{"name": "Layered Architecture", "category": "Architectural", "aliases": ["N-Tier Architecture", "Multilayered Architecture"], "roles": ["PresentationLayer", "ApplicationLayer", "DomainLayer", "InfrastructureLayer"]}
+		,{"name": "Microkernel", "category": "Architectural", "aliases": ["Plugin Architecture", "Plug-in Architecture"], "roles": ["CoreSystem", "PluginRegistry", "PluginModule"]}
+		,{"name": "Microservices", "category": "Architectural", "aliases": ["Microservice Architecture"], "roles": ["Service", "ApiGateway", "ServiceRegistry"]}
+		,{"name": "Model-View-Controller", "category": "Architectural", "aliases": ["MVC"], "roles": ["Model", "View", "Controller"]}
+		,{"name": "Model-View-ViewModel", "category": "Architectural", "aliases": ["MVVM"], "roles": ["Model", "View", "ViewModel"]}
+		,{"name": "Pipes and Filters", "category": "Architectural", "aliases": ["Pipeline Architecture"], "roles": ["Pipe", "Filter", "Source", "Sink"]}
+		,{"name": "Publish-Subscribe", "category": "Architectural", "aliases": ["Pub-Sub", "Publish/Subscribe"], "roles": ["Publisher", "Topic", "Subscriber"]}
+		,{"name": "Registry", "category": "Architectural", "aliases": ["Plugin Registry", "Service Registry"], "roles": ["Registry", "Entry", "LookupClient"]}
+		,{"name": "Repository", "category": "Architectural", "aliases": ["Data Repository"], "roles": ["Repository", "DomainEntity", "DataSource"]}
+		,{"name": "Service Locator", "category": "Architectural", "aliases": ["Component Locator"], "roles": ["Locator", "Service", "Cache"]}
+		,{"name": "Unit of Work", "category": "Architectural", "aliases": ["Transaction Coordinator"], "roles": ["UnitOfWork", "EntityTracker", "CommitSink"]}
+	]
+}

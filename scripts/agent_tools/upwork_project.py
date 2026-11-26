@@ -535,6 +535,7 @@ def save_registration(root, platform, result):
 # "Add deterministic rules-audit CLI and aggregate budget enforcement":
 # https://github.com/dmitry-ai/harness/issues/244
 # @used-by :func:`run()`
+# @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests.test_general_rule_passes_doctor_native_bootstrap_and_lint()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_doctor_reports_and_validates_global_git_ignore()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_all_disabled_and_claude_code_only_environment_without_antigravity_or_codex()`

@@ -43,7 +43,8 @@ class RulesAuditTests(unittest.TestCase):
 		rep = json.loads(proc.stdout)
 		self.assertTrue(rep['valid'], rep)
 		self.assertEqual([], rep['issues'])
-		self.assertLessEqual(rep['total_always_on_bytes'], 20000)
+		# 2026-11-26 "Add software design patterns normative contract and catalog": https://github.com/dmitry-ai/harness/issues/344
+		self.assertLessEqual(rep['total_always_on_bytes'], 21500)
 		self.assertLessEqual(rep['total_always_on_tokens'], 7000)
 		brief_proc = subprocess.run([sys.executable, str(SCRIPTS / 'harness.py'), 'rules-audit', '--primary', str(WT_ROOT), '--semantic-brief', '--format', 'text'], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=30, check=False)
 		self.assertEqual(0, brief_proc.returncode, brief_proc.stderr)

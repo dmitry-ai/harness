@@ -19,11 +19,12 @@ class RulesArchitectureM2Tests(unittest.TestCase):
 	# @used-by :mod:`unittest`
 	def test_always_on_budget_and_three_layer_partition(self) -> None:
 		doc = upwork_project.doctor(primary=WT_ROOT)
-		self.assertEqual(['00-scope.md', '01-file-boundaries.md', '02-link-standards.md', '03-language-lexicon.md', '04-statement-structure.md', '05-verification-audit.md', '08-execution-and-tools.md'], doc['always_on_rules'])
+		# 2026-11-26 "Add software design patterns normative contract and catalog": https://github.com/dmitry-ai/harness/issues/344
+		self.assertEqual(['00-scope.md', '01-file-boundaries.md', '02-link-standards.md', '03-language-lexicon.md', '04-statement-structure.md', '05-verification-audit.md', '08-execution-and-tools.md', '12-architecture.md'], doc['always_on_rules'])
 		self.assertEqual(['06-knowledge-base.md', '07-review-and-delegation.md', '11-code-formatting.md'], doc['model_decision_rules'])
 		self.assertFalse((WT_ROOT / 'rules/09-initial-analysis.md').exists())
 		self.assertFalse((WT_ROOT / 'rules/10-client-text.md').exists())
-		self.assertLessEqual(doc['always_on_rule_bytes'], 20000)
+		self.assertLessEqual(doc['always_on_rule_bytes'], 21500)
 		for name in doc['always_on_rules']:
 			self.assertLessEqual(doc['per_file_bytes'][name], 4500, f'always_on rule {name} exceeds 4,500 bytes')
 		for name in doc['model_decision_rules']:
