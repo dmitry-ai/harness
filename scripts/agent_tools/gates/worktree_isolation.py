@@ -10,7 +10,8 @@ import time
 # https://github.com/dmitry-ai/harness/issues/185
 NAME = 'EXEC-5-WORKTREE-GATE'
 PRIORITY = 97
-TOOLS = frozenset({'write_file', 'edit_file'})
+# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
+TOOLS = frozenset({'write_file', 'edit_file', 'run_command'})
 _ACTIVE_TURN_MAX_AGE_SECONDS = 86400
 _META_PARTS = frozenset({'.git', '__pycache__', 'node_modules', '\ua616', '\ua66e', '\U0001f56e'})
 def _active_turn_id(path: Path, cutoff: float) -> str | None:
@@ -118,13 +119,19 @@ def _turn_timestamp(data: dict, path: Path) -> float:
 	return r
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	r = None
-	raw = (args.get('Path') or args.get('path') or args.get('TargetFile') or '') if name in TOOLS else ''
-	if isinstance(raw, str) and raw.strip():
-		cwd_val = (payload or {}).get('cwd')
-		cwd = cwd_val if isinstance(cwd_val, str) else None
-		repo_root = _governed_repo_for_path(raw, cwd)
-		if None is not repo_root:
-			from ..worktree_flow import is_linked_worktree
-			if not is_linked_worktree(repo_root):
-				r = _evaluate_main_checkout(name, repo_root, cwd)
+	# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
+	if 'run_command' == name:
+		from ..worktree_guard import prohibited_worktree_shell_deletions
+		viols = prohibited_worktree_shell_deletions(str(args.get('CommandLine') or ''))
+		r = '; '.join(viols) if viols else None
+	elif name in TOOLS:
+		raw = args.get('Path') or args.get('path') or args.get('TargetFile') or ''
+		if isinstance(raw, str) and raw.strip():
+			cwd_val = (payload or {}).get('cwd')
+			cwd = cwd_val if isinstance(cwd_val, str) else None
+			repo_root = _governed_repo_for_path(raw, cwd)
+			if None is not repo_root:
+				from ..worktree_flow import is_linked_worktree
+				if not is_linked_worktree(repo_root):
+					r = _evaluate_main_checkout(name, repo_root, cwd)
 	return r

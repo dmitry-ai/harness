@@ -76,8 +76,13 @@ def _push_and_finish_land(main_repo: Path, wt_path: Path, branch: str, target_br
 	else:
 		head = GitRepoGate(main_repo).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
 		tag_name = _apply_land_tag(main_repo, head, push=push) if tag else None
-		removed = bool(worktree_cleanup(main_repo, wt_path, force=True)['valid']) if remove else False
-		r = {'valid': True, 'landed': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'target_branch': target_branch, 'head': head, 'tag': tag_name, 'test_runs': test_runs, 'test_result': test_res, 'pushed': push, 'removed': removed, 'runtime_snapshot': snap}
+		# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
+		cleanup = worktree_cleanup(main_repo, wt_path, force=True) if remove else None
+		removed = bool(cleanup['valid']) if None is not cleanup else False
+		ok_land = (None is cleanup) or removed
+		r = {'valid': ok_land, 'landed': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'target_branch': target_branch, 'head': head, 'tag': tag_name, 'test_runs': test_runs, 'test_result': test_res, 'pushed': push, 'removed': removed, 'runtime_snapshot': snap}
+		if not ok_land and None is not cleanup:
+			r.update(stage='worktree_cleanup', error=str(cleanup.get('error') or 'Worktree cleanup failed'), cleanup=cleanup)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def _apply_land_tag(main_repo: Path, head: str, *, push: bool) -> str:
@@ -192,18 +197,18 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 			raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f'git worktree add failed for {wt_path}')
 	head = GitRepoGate(wt_path).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
 	return {'valid': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': _current_branch(wt_path) or branch, 'base_ref': base_ref, 'head': head, 'enclosing_ignore': ignore_info}
+# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
 def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False) -> dict:
+	from .worktree_guard import remove_worktree_fail_closed
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	wt_path = Path(target).resolve()
 	branch = _current_branch(wt_path) if (wt_path / '.git').exists() else ''
-	proc = _git_exec(main_repo, 'worktree', 'remove', *(['--force'] if force else []), str(wt_path))
-	if 0 != proc.returncode and force and wt_path.exists():
-		shutil.rmtree(wt_path, ignore_errors=True)
+	outcome = remove_worktree_fail_closed(main_repo, wt_path, force=force, git_exec_fn=_git_exec)
 	_git_exec(main_repo, 'worktree', 'prune')
 	branch_deleted = False
-	if branch and branch.startswith('task/'):
+	if outcome['ok'] and branch and branch.startswith('task/'):
 		branch_deleted = 0 == _git_exec(main_repo, 'branch', '-D' if force else '-d', branch).returncode
-	return {'valid': not wt_path.exists(), 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'branch_deleted': branch_deleted}
+	return {'valid': outcome['ok'], 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'branch_deleted': branch_deleted, 'error': outcome['error'], 'removal_errors': outcome['removal_errors'], 'locking_processes': outcome['locking_processes']}
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	if GitRepoGate(wt_path).git('status', '--porcelain').strip():

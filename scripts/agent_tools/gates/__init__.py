@@ -36,7 +36,8 @@ _BUILTIN_TOOLS_MANIFEST = {
 	'server_hygiene': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'subprocess_hygiene': frozenset({'write_file', 'edit_file'}),
 	'tdd': frozenset({'run_command', 'write_file', 'edit_file'}),
-	'worktree_isolation': frozenset({'write_file', 'edit_file'}),
+	# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
+	'worktree_isolation': frozenset({'write_file', 'edit_file', 'run_command'}),
 }
 _MODULE_ENTRY_CACHE: dict[str, dict | None] = {}
 _NON_PRE_TOOL_MODULES = frozenset({'answer_checks', 'stop_checks'})

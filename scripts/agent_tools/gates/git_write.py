@@ -16,6 +16,9 @@ def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 		# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 		# https://github.com/dmitry-ai/harness/issues/187
 		from ..git_gate import prohibited_git_write_commands
-		violations = prohibited_git_write_commands(args.get('CommandLine', ''))
+		# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
+		from ..worktree_guard import prohibited_worktree_remove_commands
+		cmd = args.get('CommandLine', '')
+		violations = [*prohibited_git_write_commands(cmd), *prohibited_worktree_remove_commands(cmd)]
 		r = '; '.join(violations) if violations else None
 	return r
