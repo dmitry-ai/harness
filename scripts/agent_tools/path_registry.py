@@ -1660,6 +1660,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_addon_observability`
 	# @used-by :mod:`test_agent_tools`
 	# @used-by :mod:`test_ask_question_clarifications_m8`
+	# @used-by :mod:`test_ask_question_pre_tool_gate`
 	# @used-by :mod:`test_atomic_prepare_and_narrowed_reconcile_m7`
 	# @used-by :mod:`test_background_wait_and_tdd_inheritance`
 	# @used-by :mod:`test_blocked_report_hygiene_and_doc5_m2`

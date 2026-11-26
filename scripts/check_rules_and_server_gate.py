@@ -35,6 +35,8 @@ _LAZY_EXPORTS = {
 	'_is_inside_sanctioned_code': ('agent_tools.gates.cdp_bypass', '_is_inside_sanctioned_code'),
 	'_turn_has_background_mcp_new_page': ('agent_tools.gates.browser_mcp', '_turn_has_background_mcp_new_page'),
 	'_upwork_project_root_for_command': ('agent_tools.gates.external_write', '_upwork_project_root_for_command'),
+	# 2026-11-26 "Enforce PreToolUse governance gate for ask_question calls": https://github.com/dmitry-ai/harness/issues/374
+	'check_ask_question_gate': ('agent_tools.gates.ask_question_gate', 'check'),
 	'check_batch_analysis_generator': ('agent_tools.gates.batch_synthesis', 'check'),
 	'check_browser_mcp_gate': ('agent_tools.gates.browser_mcp', 'check'),
 	'check_bulk_source_read_streak': ('agent_tools.gates.bulk_source_read', 'check'),

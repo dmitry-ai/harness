@@ -226,6 +226,7 @@ def legacy_runner_global_hooks(primary=PRIMARY_AGENTS_DIR):
 # https://github.com/dmitry-ai/harness/issues/33
 # @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
 # @used-by :func:`agent_tools.native_profiles.shared_native_outputs()`
+# @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_hooks_manifest_and_canonical_hooks_include_ask_question()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_hooks_manifest_and_canonical_hooks_match_schedule()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
 # @used-by :meth:`test_onboarding.RegistrationTests.test_global_install_repairs_profile_without_rules_and_merges_missing_hooks()`
@@ -241,7 +242,8 @@ def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR, *, config_dir: str | Path
 		# 2026-11-24
 		# "Enforce single falsifier review default and block duplicate send_message reports":
 		# https://github.com/dmitry-ai/harness/issues/226
-		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent|schedule|send_message', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
+		# 2026-11-26 "Enforce PreToolUse governance gate for ask_question calls": https://github.com/dmitry-ai/harness/issues/374
+		'rules-and-server-gate': {'PreToolUse': [{'matcher': 'write_file|edit_file|run_command|read_file|mcp_.*|invoke_subagent|schedule|send_message|ask_question', 'hooks': [{'type': 'command', 'command': 'python harness_hook_runner.py check_rules_and_server_gate.py', 'timeout': 10}]}]},
 		'final-turn-gate': {
 			# 2026-11-21
 			# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":

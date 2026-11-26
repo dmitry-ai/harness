@@ -10,6 +10,8 @@ from .stop_checks import run_stop_gates
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
 _BUILTIN_TOOLS_MANIFEST = {
+	# 2026-11-26 "Enforce PreToolUse governance gate for ask_question calls": https://github.com/dmitry-ai/harness/issues/374
+	'ask_question_gate': frozenset({'ask_question'}),
 	'batch_synthesis': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'browser_mcp': frozenset({'mcp_*', 'invoke_subagent', 'write_file', 'edit_file'}),
 	'bulk_source_read': frozenset({'read_file'}),
@@ -55,6 +57,7 @@ def _extract_pre_tool_entry(mod) -> dict | None:
 	tools = frozenset((str(t) for t in raw_tools)) if isinstance(raw_tools, (set, frozenset, list, tuple)) else None
 	return {'name': str(name), 'priority': int(priority), 'check': check, 'module': getattr(mod, '__name__', ''), 'tools': tools} if isinstance(name, str) and isinstance(priority, int) and callable(check) else None
 # @used-by :func:`_load_builtin_pre_tool_gates()`
+# @uses :func:`agent_tools.gates.ask_question_gate.check()`
 # @uses :func:`agent_tools.gates.batch_synthesis.check()`
 # @uses :func:`agent_tools.gates.browser_mcp.check()`
 # @uses :func:`agent_tools.gates.bulk_source_read.check()`
@@ -117,6 +120,7 @@ def _tool_matches(tool_name: str | None, tools: frozenset[str] | None) -> bool:
 		r = any((tool_name.startswith(pat[:-1]) if pat.endswith('*') else tool_name == pat for pat in tools))
 	return r
 # @used-by :func:`run_pre_tool_gates()`
+# @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_hooks_manifest_and_canonical_hooks_include_ask_question()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_builtin_pre_tool_gates_discovered_in_strict_priority_order()`
 # @used-by :meth:`test_hook_lazy_imports.HookLazyImportsTests.test_discover_pre_tool_gates_tool_filtering_and_manifest_parity()`
 # @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_harness_main_blocks_write_and_edit_while_linked_worktree_allows()`
@@ -133,6 +137,8 @@ def discover_pre_tool_gates(*, tool_name: str | None=None, extra_dirs: list[Path
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 # @used-by :func:`check_rules_and_server_gate._evaluate_payload()`
+# @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_q4_undisclosed_deferral_and_allows_q1_to_q3()`
+# @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_stop_gate_bypass_and_docs_codify_rule()`
 # @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_send_message_gate_blocks_duplicate_json_verdicts_and_allows_prompts()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_dynamic_plugin_discovery_runs_without_touching_dispatcher()`
