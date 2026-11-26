@@ -91,11 +91,15 @@ def release_worker_slots(lease: dict[str, Any] | None) -> bool:
 	return r
 # @used-by :func:`agent_tools.parallel_runner.run_parallel_tests()`
 # @used-by :func:`agent_tools.suite_runner.run_test_suite()`
+# @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_nested_worker_slot_budget_skips_self_throttling_against_parent_lease()`
 def worker_slot_budget(requested: int, *, max_slots: int | None=None, slots_dir: Path | str | None=None, ttl_s: float=600.0, wait_timeout: float=2.0, poll_interval: float=0.1):
 	# @used-by :func:`worker_slot_budget()`
 	@contextmanager
 	def _ctx():
-		lease = acquire_worker_slots(requested, max_slots=max_slots, slots_dir=slots_dir, ttl_s=ttl_s, wait_timeout=wait_timeout, poll_interval=poll_interval)
+		# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
+		req = max(1, int(requested))
+		nested = None is slots_dir and '1' == os.environ.get('HARNESS_TEST_IN_WORKER')
+		lease = {'granted': req, 'max_slots': req, 'owner': 'nested-worker', 'requested': req, 'reserved': False, 'slot_file': None} if nested else acquire_worker_slots(req, max_slots=max_slots, slots_dir=slots_dir, ttl_s=ttl_s, wait_timeout=wait_timeout, poll_interval=poll_interval)
 		try:
 			yield lease
 		finally:

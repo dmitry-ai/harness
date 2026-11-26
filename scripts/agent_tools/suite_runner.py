@@ -74,7 +74,8 @@ def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_
 			# 2026-11-24
 			# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 			# https://github.com/dmitry-ai/harness/issues/206
-			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdin=subprocess.DEVNULL, stdout=out_file, stderr=subprocess.STDOUT, env={'HARNESS_TEST_NO_FSYNC': '1', **os.environ}, **POPEN_TREE_KWARGS)
+			# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
+			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdin=subprocess.DEVNULL, stdout=out_file, stderr=subprocess.STDOUT, env={'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'HARNESS_TEST_IN_WORKER': '1'}, **POPEN_TREE_KWARGS)
 			with active_lock:
 				active_procs.add(proc)
 			try:
@@ -178,6 +179,7 @@ def format_text_report(report: dict) -> str:
 	return '\n'.join(lines) + '\n'
 # 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
 # @used-by :func:`agent_tools.cli_registry._exec_run_tests()`
+# @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_nested_worker_slot_budget_skips_self_throttling_against_parent_lease()`
 # @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_pytest_worksteal_runner_and_cli_runner_option()`
 def run_test_suite(tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, failfast: bool=True, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, runner: str='auto') -> dict:
 	base, ordered = discover_test_modules(tests_dir, pattern=pattern, modules=modules)

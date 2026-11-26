@@ -53,7 +53,7 @@ def run_pytest_for_suite(base: Path, ordered: list[Path], *, workers: int, failf
 def run_pytest_worksteal(tests_dir: Path, modules: list[Path], *, workers: int, failfast: bool=True, timeout: float=300.0, env_extra: dict[str, str] | None=None) -> dict:
 	cmd = _build_pytest_cmd(modules, workers=workers, failfast=failfast)
 	run_cwd = tests_dir.parent if 'tests' == tests_dir.name else tests_dir
-	env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'PYTHONUTF8': '1', 'GIT_OPTIONAL_LOCKS': '0', **(env_extra or {})}
+	env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'HARNESS_TEST_IN_WORKER': '1', 'PYTHONUTF8': '1', 'GIT_OPTIONAL_LOCKS': '0', **(env_extra or {})}
 	started, timed_out = (time.monotonic(), False)
 	with tempfile.TemporaryFile() as out_file:
 		proc = subprocess.Popen(cmd, cwd=str(run_cwd), stdin=subprocess.DEVNULL, stdout=out_file, stderr=subprocess.STDOUT, env=env, **POPEN_TREE_KWARGS)

@@ -3,6 +3,7 @@
 # https://github.com/dmitry-ai/harness/issues/354
 from __future__ import annotations
 from pathlib import Path
+from unittest.mock import patch
 import inspect
 import json
 import os
@@ -80,5 +81,19 @@ class WorkerSemaphoreAndXdistTests(unittest.TestCase):
 		specs = cli_registry._REGISTRY['run-tests']['specs']
 		flags = [sp[0] for sp in specs]
 		self.assertIn('--runner', flags)
+	# @used-by :mod:`unittest`
+	def test_nested_worker_slot_budget_skips_self_throttling_against_parent_lease(self) -> None:
+		from agent_tools import worker_semaphore
+		with patch.dict(os.environ, {'HARNESS_TEST_IN_WORKER': '1'}):
+			with patch.object(worker_semaphore, 'acquire_worker_slots', side_effect=AssertionError('nested worker must not re-acquire global semaphore')):
+				with worker_semaphore.worker_slot_budget(3) as lease:
+					self.assertEqual(3, lease['granted'])
+					self.assertFalse(lease['reserved'])
+		with tempfile.TemporaryDirectory() as td:
+			tdir = Path(td).resolve() / 'tests'
+			tdir.mkdir(parents=True)
+			(tdir / 'test_nested_env.py').write_text("import os, unittest\nclass TN(unittest.TestCase):\n\tdef test_env(self) -> None:\n\t\tself.assertEqual('1', os.environ.get('HARNESS_TEST_IN_WORKER'))\n", encoding='utf-8')
+			res = suite_runner.run_test_suite(tdir, workers=1, runner='unittest', failfast=True, module_timeout=30.0)
+			self.assertTrue(res['ok'], res)
 if '__main__' == __name__:
 	unittest.main()

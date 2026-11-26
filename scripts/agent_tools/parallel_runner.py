@@ -105,7 +105,7 @@ def _run_single_module(module: Path, tests_dir: Path, *, failfast: bool, buffer_
 		# https://github.com/dmitry-ai/harness/issues/177
 		# 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
 		# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
-		env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'PYTHONUTF8': '1', 'PYTHONDONTWRITEBYTECODE': '1', 'GIT_OPTIONAL_LOCKS': '0', **(env_extra or {})}
+		env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'HARNESS_TEST_IN_WORKER': '1', 'PYTHONUTF8': '1', 'PYTHONDONTWRITEBYTECODE': '1', 'GIT_OPTIONAL_LOCKS': '0', **(env_extra or {})}
 		# 2026-11-24
 		# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
 		# https://github.com/dmitry-ai/harness/issues/204
