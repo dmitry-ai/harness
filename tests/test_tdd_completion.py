@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
@@ -25,7 +28,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 
-from agent_tools import completion, tdd_gate
+from agent_tools import completion, repo_tags, tdd_gate
 import check_pre_invocation
 import check_stop_gate
 
@@ -76,7 +79,8 @@ def _build_template_project(issue_num: int) -> tuple[Path, Path]:
 		(code / 'app.py').write_text(f'# https://github.com/test-org/demo/issues/{issue_num}\nVAL = 2\n', encoding='utf-8')
 		subprocess.run(['git', '-C', str(code), 'add', 'app.py', 'tests/test_existing.py', 'tests/test_app.py'], check=True, capture_output=True)
 		subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/test-org/demo/issues/{issue_num}'], check=True, capture_output=True)
-		subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
+		subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+		repo_tags.ensure_commit_tag(code, push=True)
 		ev = proj / f'_/ꘖ/KB/Evidence/GitHub/test-org__demo/issue-{issue_num}.json'
 		ev.write_text(
 			json.dumps({'url': f'https://github.com/test-org/demo/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}),
