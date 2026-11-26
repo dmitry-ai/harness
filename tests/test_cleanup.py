@@ -444,17 +444,25 @@ class CleanupTests(TemporaryCase):
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-26
+# "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
+# https://github.com/dmitry-ai/harness/issues/308
 class CleanupReportTests(TemporaryCase):
 	def test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight(self):
+		from agent_tools import metadata
 		body = 'Cleanup completed.\n\n[History](<C:/work/upwork/code/proposals/daily>)\n'
 		with patch.object(cleanup, 'settings', return_value={'workspace_root': str(self.root)}):
 			result = cleanup.record_cleanup_answer(body, now=datetime(2026, 10, 17, 21, 49, tzinfo=timezone.utc))
 		path = self.root / 'AI/log/cleanup/2026/10/18--00-49.md'
 		self.assertEqual(Path(result['path']), path)
 		self.assertEqual(result['timestamp'], '2026-10-18 00:49 UTC+3')
-		self.assertEqual(path.read_bytes(), ('2026-10-18 00:49 UTC+3\n\n' + body).encode('utf-8'))
-		self.assertEqual(result['answer'].encode('utf-8'), path.read_bytes())
+		hdr, stripped = metadata.extract_leading_metadata_header(path.read_text(encoding='utf-8'))
+		self.assertIsNotNone(hdr)
+		self.assertEqual(hdr['Time'], '2026-10-18 00:49 UTC+3')
+		self.assertEqual(stripped, body)
+		self.assertEqual(result['answer'], body)
 	def test_repeated_and_concurrent_answers_never_overwrite_logs_in_the_same_minute(self):
+		from agent_tools import metadata
 		now = datetime(2026, 10, 17, 21, 49, tzinfo=timezone.utc)
 		root = self.root / 'logs'
 		first = cleanup.record_cleanup_answer('First answer', now=now, log_root=root)
@@ -464,9 +472,12 @@ class CleanupReportTests(TemporaryCase):
 		self.assertEqual({Path(r['path']).name for r in results}, {'18--00-49.md', '18--00-49--2.md', '18--00-49--3.md'})
 		self.assertEqual(len({r['path'] for r in results}), 3)
 		for result in results:
-			self.assertEqual(Path(result['path']).read_bytes(), result['answer'].encode('utf-8'))
+			hdr, stripped = metadata.extract_leading_metadata_header(Path(result['path']).read_text(encoding='utf-8'))
+			self.assertIsNotNone(hdr)
+			self.assertEqual(stripped, result['answer'])
 		self.assertTrue(Path(first['path']).read_text(encoding='utf-8').endswith('First answer'))
 	def test_cli_logs_actual_stdin_answer_from_either_platform_without_running_cleanup(self):
+		from agent_tools import metadata
 		for platform in ('antigravity', 'codex'):
 			with self.subTest(platform=platform):
 				body = 'Mode: preview.\nNo matching projects.\n'
@@ -475,9 +486,12 @@ class CleanupReportTests(TemporaryCase):
 					code = up.main(['cleanup-report', '--answer', '-', '--platform', platform])
 				result = json.loads(output.getvalue())
 				self.assertEqual(code, 0, result)
-				self.assertRegex(result['answer'], '^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC\\+3\\n\\n')
-				self.assertTrue(result['answer'].endswith(body))
-				self.assertEqual(Path(result['path']).read_bytes(), result['answer'].encode('utf-8'))
+				self.assertRegex(result['timestamp'], '^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC\\+3$')
+				self.assertEqual(result['answer'], body)
+				hdr, stripped = metadata.extract_leading_metadata_header(Path(result['path']).read_text(encoding='utf-8'))
+				self.assertIsNotNone(hdr)
+				self.assertEqual(hdr['Time'], result['timestamp'])
+				self.assertEqual(stripped, body)
 				self.assertTrue(Path(result['path']).is_relative_to(self.root / 'AI/log/cleanup'))
 	def test_empty_answer_or_naive_timestamp_does_not_create_a_log(self):
 		root = self.root / 'logs'

@@ -546,7 +546,10 @@ def main(argv=None):
 		# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 		# https://github.com/dmitry-ai/harness/issues/8
 		'cleanup': ('Remove empty native Upwork projects older than 72 hours; keep the entire daily archive', (('--apply', {'action': 'store_true', 'help': 'Apply cleanup; default is a read-only preview'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}))),
-		'cleanup-report': ('Save the exact cleanup answer with an Istanbul timestamp in AI/log/cleanup', (('--answer', {'default': '-', 'help': 'Answer body as a UTF-8 file, or - for stdin'}),)),
+		# 2026-11-26
+		# "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
+		# https://github.com/dmitry-ai/harness/issues/308
+		'cleanup-report': ('Save the cleanup report with a Harness JSON metadata header and optional sidecar manifest link', (('--answer', {'default': '-', 'help': 'Legacy answer body path or - for stdin'}), ('--answer-file', {'type': Path, 'help': 'UTF-8 scratch file containing the cleanup report body (preferred per FILE-5)'}), ('--consume-input', {'action': 'store_true', 'help': 'Delete verified scratch input file after read-back confirmation'}), ('--manifest', {'type': Path, 'help': 'Optional sidecar JSON manifest path produced by cleanup --apply'}), ('--project', {'type': Path, 'help': 'Optional project root for metadata and scratch path validation'}))),
 		'configure': ('Create missing native manifests; preserve existing configuration', (('project', {'type': Path}), ('--check', {'action': 'store_true', 'help': 'Check the project Codex projection without writing'}))),
 		'register': ('Ensure the same project and folder in configured active platforms', (('project', {'type': Path}), ('--domain', {}), ('--target', {'choices': tuple(platforms_map), 'help': 'Repair one platform only; default: active targets'}))),
 		'validate-analysis': ('Check all five analysis stages and their evidence graph', (('input', {'type': Path}), ('--render', {'type': Path}), ('--format', {'choices': ('text', 'json'), 'default': 'text'}), ('--evidence', {'action': 'store_true', 'help': 'Verify saved sources and quotes without network requests'}))),
@@ -696,8 +699,11 @@ def run(args):
 			elif 'cleanup-report' != args.command:
 				raise ValueError(f'Unknown command: {args.command}')
 			else:
-				from .cleanup import record_cleanup_answer
-				result = record_cleanup_answer(read_input_text(args.answer, encoding='utf-8'))
+				# 2026-11-26
+				# "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
+				# https://github.com/dmitry-ai/harness/issues/308
+				from .cleanup_audit import run_cleanup_report_cli
+				result = run_cleanup_report_cli(args)
 			dump_json(result)
 			r = result_exit_code(result, extra_failures=(False is (result.get('registration') or {}).get('complete'), 'retained' == (result.get('intake') or {}).get('status')))
 	except (OSError, ValueError, KeyError, TypeError, RuntimeError, sqlite3.Error) as exc:

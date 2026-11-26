@@ -8,18 +8,21 @@
 <!-- 2026-11-18 "Externalize agent environments and per-instance system paths into runtime.json": https://github.com/dmitry-ai/harness/issues/86 -->  
 `/upwork-cleanup` is the shared skill for cleaning up empty auto-created projects across enabled environments and instances declared in `../runtime.json`.  
 The internal command `upwork_project.py cleanup --platform codex` (or `antigravity`) shows a dry-run preview; `--apply` removes registrations across active enabled instances and emptied Folders branches while skipping disabled instances/environments.  
-Criterion: strictly older than 72 hours and zero conversations across all enabled instances, including archived and child conversations, matched by project ID or working directory.  
+<!-- 2026-11-26 "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores": https://github.com/dmitry-ai/harness/issues/307 -->  
+<!-- 2026-11-26 "Persist cleanup audit manifests and metadata headers aligned with FILE-3": https://github.com/dmitry-ai/harness/issues/308 -->  
+Criterion: latest lifecycle activity (`effective_activity_at = max(created_at, workflow.stages.finalize.time, renamed_from[*].at, handed_off_conversation, latest_journal_pair)`) strictly older than 72 hours, zero conversations across all declared local instances (including read-only scanning of readable local databases of temporarily disabled instances) matched by project ID or working directory (both current `root` and `renamed_from` paths), and no post-initialization deliverables (`result/`, `Letters/`, `Ⰿ/≻/♕/🖂`) or multi-turn journal steps beyond initial `/upwork-init`.  
 Unknown conversation history blocks deletion of the corresponding project.  
 Projects with confirmed conversations are excluded from legacy `/upwork-init` provenance warnings: they are counted in `preserved` and `discovery.excluded_with_conversations`, and reported to the user only in the total preserved count.  
 A closed required Codex profile yields `pending` without queuing a deferred deletion; re-run the command after opening that profile.  
 A partial deletion records a minimal `cleanupHold` until the next run, which finishes native cleanup and removes bindings from the shared catalog.  
 All of `proposals/daily` remains untouched on disk; its `ꘖ/data/projects.json` serves as the historical job index.  
 For new `init` runs, the exact creation timestamp is stored in `ꘖ/project.json:created_at`; re-running `init` preserves it.  
-Before publishing the final `/upwork-cleanup` response, pass it via stdin to `cleanup-report --answer - --platform <platform>`.  
+On every `cleanup --apply` run, an immutable sidecar audit manifest is written to `AI/harness/Ⰿ/≺/Logs/Cleanup/☰/YYYY/MM/DD--HH-mm.json` with `metadata`, `removed_projects` (`root`, `job_id`, `project_id`, base64 registration/Folders rollback snapshots, `created_at`, `effective_activity_at`, `age_basis`, `conversations`), and `projects` summaries.  
+Before publishing the final `/upwork-cleanup` response, write it to a UTF-8 scratch file under `ꘖ/data/scratch/` and record it via `cleanup-report --answer-file <scratch> --consume-input [--manifest <path>] [--project <root>] --platform <platform>` (in tracked workspaces, also run `answer-prepare` per `FILE-3`).  
 <!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
 <!-- 2026-11-20 "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner": https://github.com/dmitry-ai/harness/issues/103 -->  
-The command saves the full text to `AI/harness/Ⰿ/≺/Logs/Cleanup/☰/YYYY/MM/DD--HH-mm.md`, prepending a first line `YYYY-MM-DD HH:mm UTC+3` in `Europe/Istanbul`, and returns the verbatim `answer` field for chat publication.  
-Multiple reports within the same minute receive suffixes `--2`, `--3`, etc.; prior logs are never overwritten.  
+The command saves the full text to `AI/harness/Ⰿ/≺/Logs/Cleanup/☰/YYYY/MM/DD--HH-mm.md`, prepending a tab-indented Harness JSON metadata header (`Time` in `Europe/Istanbul`, `Project`, `Journal`, `Agent`, `Trace`, and `Trace["Cleanup Manifest"]`), and returns the clean `answer` field for chat publication.  
+Multiple reports or manifests within the same minute receive suffixes `--2`, `--3`, etc.; prior logs are never overwritten.  
 
 The user starts with `/upwork-init <URL>` and continues with ordinary messages in the same chat.  
 <!-- 2026-10-16 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  

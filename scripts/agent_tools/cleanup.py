@@ -19,6 +19,10 @@ from .storage import create_bytes, locked, replace_bytes
 # "Compute upwork-cleanup age from lifecycle activity and scan disabled history stores":
 # https://github.com/dmitry-ai/harness/issues/307
 from .cleanup_lifecycle import count_project_conversations, effective_project_activity, load_codex_history_rows, resolve_readonly_history
+# 2026-11-26
+# "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
+# https://github.com/dmitry-ai/harness/issues/308
+from .cleanup_audit import maybe_write_cleanup_manifest, record_cleanup_answer_log
 _ACTIVE_CODEX_GLOBS = ContextVar('upwork_cleanup_codex_globs', default=None)
 _ACTIVE_READONLY_HISTORY = ContextVar('upwork_cleanup_readonly_history', default=None)
 @contextmanager
@@ -37,43 +41,11 @@ _STATUS_NAMES = ('recent', 'preserved', 'eligible', 'removed', 'pending', 'block
 # 2026-10-17
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 # https://github.com/dmitry-ai/harness/issues/8
-def record_cleanup_answer(body, *, now=None, log_root=None):
-	if not isinstance(body, str) or not body.strip():
-		raise ValueError('Cleanup answer must not be empty')
-	moment = now or datetime.now(timezone.utc)
-	if None is moment.tzinfo or None is moment.utcoffset():
-		raise ValueError('Cleanup report time must include a timezone')
-	local = moment.astimezone(ZoneInfo('Europe/Istanbul'))
-	offset = int(local.utcoffset().total_seconds() / 60)
-	hours, minutes = divmod(abs(offset), 60)
-	zone = f"UTC{('+' if offset >= 0 else '-')}{hours}" + (f':{minutes:02d}' if minutes else '')
-	timestamp = f'{local:%Y-%m-%d %H:%M} {zone}'
-	answer = timestamp + '\n\n' + body
-	payload = answer.encode('utf-8')
-	# 2026-11-19
-	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-	# https://github.com/dmitry-ai/harness/issues/96
-	from .path_registry import store_value, workspace_override
-	ws = Path(settings()['workspace_root']).resolve()
-	ovr_log = workspace_override(ws, 'cleanup_log_dir')
-	default_log = Path(ovr_log) if ovr_log else ws / str(store_value('workspace_cleanup_log_rel'))
-	root = Path(log_root or default_log).absolute()
-	directory = root / f'{local:%Y/%m}'
-	if linked(directory):
-		raise ValueError('Cleanup log directory must not be linked')
-	directory.mkdir(parents=True, exist_ok=True)
-	number = 1
-	while True:
-		suffix = '' if 1 == number else f'--{number}'
-		target = directory / f'{local:%d--%H-%M}{suffix}.md'
-		try:
-			create_bytes(target, payload)
-			break
-		except FileExistsError:
-			number += 1
-	if target.read_bytes() != payload:
-		raise OSError('Cleanup answer log read-back mismatch')
-	return {'path': str(target), 'timestamp': timestamp, 'answer': answer}
+# 2026-11-26
+# "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
+# https://github.com/dmitry-ai/harness/issues/308
+def record_cleanup_answer(body, *, now=None, log_root=None, config=None, manifest_path=None, project_root=None, env=None):
+	return record_cleanup_answer_log(body, now=now, log_root=log_root, config=config, manifest_path=manifest_path, project_root=project_root, env=env, settings_fn=settings, linked_fn=linked)
 def path_key(value):
 	return str(local_uri_to_path(value, require_absolute=True)).replace('\\', '/').rstrip('/').casefold()
 def linked(path):
@@ -354,7 +326,10 @@ def remove_antigravity(root, directory, folders, expected, check):
 		pending_file = directory / 'ꘖ/data/cleanup-pending.json'
 		pending = _json(pending_file) if pending_file.exists() else {}
 		ancestry = _collect_folder_ancestors({node['id']: node for node in original['folders']}, original['projectFolderMap'], (p['id'] for p in current), 'Invalid pending Folders ancestry')
-		pending.setdefault(path_key(root), {'projects': [{'id': p['id'], 'payload': base64.b64encode(p['sha'] if None is not p['sha'] else p['restore']).decode('ascii')} for p in current], 'folders': [node for node in original['folders'] if node['id'] in ancestry], 'assignments': {p['id']: original['projectFolderMap'][p['id']] for p in current if p['id'] in original['projectFolderMap']}})
+		# 2026-11-26
+		# "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
+		# https://github.com/dmitry-ai/harness/issues/308
+		snapshot = pending.setdefault(path_key(root), {'projects': [{'id': p['id'], 'payload': base64.b64encode(p['sha'] if None is not p['sha'] else p['restore']).decode('ascii')} for p in current], 'folders': [node for node in original['folders'] if node['id'] in ancestry], 'assignments': {p['id']: original['projectFolderMap'][p['id']] for p in current if p['id'] in original['projectFolderMap']}})
 		replace_bytes(pending_file, json_data(pending))
 		removed = []
 		for project in current:
@@ -375,7 +350,7 @@ def remove_antigravity(root, directory, folders, expected, check):
 		replace_bytes(folders, payload)
 		if folders.read_bytes() != payload:
 			raise ValueError('Folders did not confirm cleanup; retry')
-		r = {'complete': True, 'removed_projects': removed, 'removed_folders': pruned, 'awaiting_commit': True}
+		r = {'complete': True, 'removed_projects': removed, 'removed_folders': pruned, 'awaiting_commit': True, 'rollback': snapshot}
 	return r
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
@@ -602,8 +577,7 @@ class ProjectCleanupScanner:
 				self.result['complete'] = False
 	def run(self):
 		from .path_registry import store_path
-		lock = store_path('cleanup_lock')
-		with locked(lock) if self.apply else nullcontext(), _codex_glob_scope(self.home_globs, self.readonly_history):
+		with locked(store_path('cleanup_lock')) if self.apply else nullcontext(), _codex_glob_scope(self.home_globs, self.readonly_history):
 			found, issues = candidates(self.daily, self.config, self.now)
 			self.result['discovery'] = {'verified_projects': len(found), 'modern_projects': sum(('project.json' == p['initialization_basis'] for p in found)), 'legacy_projects': sum(('project.json' != p['initialization_basis'] for p in found)), 'excluded_with_conversations': 0, 'unresolved_entries': len(issues)}
 			ready = True
@@ -624,6 +598,10 @@ class ProjectCleanupScanner:
 				if self.result['issues']:
 					self.result['complete'] = False
 				self.result['counts'] = {name: sum((p['status'] == name for p in self.result['projects'])) for name in _STATUS_NAMES}
+				# 2026-11-26
+				# "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
+				# https://github.com/dmitry-ai/harness/issues/308
+				maybe_write_cleanup_manifest(self.result, apply=self.apply, now=self.now, config=self.config, linked_fn=linked)
 		return self.result
 # 2026-10-17
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
