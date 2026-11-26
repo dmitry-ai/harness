@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 from ..cli_common import consume_unchanged_files, dump_json
-from ..git_gate import is_issue_tracked_code_repo, verify_repo_issue_ready_for_close
+# 2026-11-26 "Require passing shadow-replay acceptance receipt in df_github_issue close gate": https://github.com/dmitry-ai/harness/issues/291
+from .acceptance_gate import check_close_readiness
 from .linter import IssueMarkdownLinter
 from .repo_commands import run_audit_repo, run_transfer_repo
 from .service_helpers import build_create_payload, dirty_issue_first_files, gh_api_call, pending_similar_peer_slugs, resolve_metadata_project_root, resolve_title
@@ -35,19 +36,8 @@ class GitHubIssueService:
 		return out
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 	def _check_close_commit_readiness(self, args: argparse.Namespace, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> tuple[Path | None, str | None, str]:
-		from ..addon_observability import check_close_companion_health
-		code_repo = self.workspace.find_local_code_repo(repo, project_root=project_root, source_files=consumable, repo_root=getattr(args, 'repo_root', None))
-		commit_err, stage = (None, 'pre_flight_commit_check')
-		if None is not code_repo and is_issue_tracked_code_repo(code_repo):
-			try:
-				verify_repo_issue_ready_for_close(code_repo, repo, number, project_root=project_root)
-			except (ValueError, RuntimeError) as exc:
-				commit_err = str(exc)
-		if None is commit_err:
-			comp_err = check_close_companion_health(repo, code_repo)
-			if None is not comp_err:
-				commit_err, stage = (comp_err, 'pre_flight_companion_health')
-		return (code_repo, commit_err, stage)
+		# 2026-11-26 "Require passing shadow-replay acceptance receipt in df_github_issue close gate": https://github.com/dmitry-ai/harness/issues/291
+		return check_close_readiness(self.workspace, args, repo, number, consumable, project_root)
 	def _edit_parent_only(self, repo: str, number: int, parent_num: int, target_locale: str, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> int:
 		fetched = self._api(f'repos/{repo}/issues/{number}', method='GET')
 		remote_title, remote_body = (fetched.get('title') or '', fetched.get('body') or '')
