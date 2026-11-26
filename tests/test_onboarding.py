@@ -525,20 +525,33 @@ class EvidenceTests(TemporaryCase):
 		document.write_text('[invalid](source.json#/missing)', encoding='utf-8')
 		self.assertTrue(validate_file(document))
 class RegistrationTests(TemporaryCase):
+	# 2026-11-26
+	# "Fix test_onboarding native_primary fixture for generated Antigravity roles and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/388
+	# @used-by :meth:`RegistrationTests.native_primary()`
+	def _generated_ag_agent_files(self, source_root: Path) -> tuple[str, ...]:
+		cfg = json.loads((source_root / 'runtime.json').read_text(encoding='utf-8'))
+		roles = cfg.get('platforms', {}).get('antigravity', {}).get('roles', {})
+		return tuple((f"{v['agent']}.md" for v in roles.values() if v.get('agent')))
 	# 2026-11-02
 	# "Replace per-profile Harness projections with shared native connections":
 	# https://github.com/dmitry-ai/harness/issues/35
+	# 2026-11-26
+	# "Fix test_onboarding native_primary fixture for generated Antigravity roles and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/388
 	# @used-by :meth:`RegistrationTests.test_global_install_preserves_other_customizations_and_is_idempotent()`
 	# @used-by :meth:`RegistrationTests.test_global_install_repairs_profile_without_rules_and_merges_missing_hooks()`
 	# @used-by :meth:`RegistrationTests.test_undeclared_current_antigravity_home_is_reported()`
 	def native_primary(self):
 		primary = self.root / 'canonical'
 		if not primary.exists():
+			source_root = Path(__file__).resolve().parents[1]
+			ignore_agents = shutil.ignore_patterns(*self._generated_ag_agent_files(source_root))
 			for name in ('rules', 'skills', 'agents'):
-				shutil.copytree(up.PRIMARY_AGENTS_DIR / name, primary / name, ignore=shutil.ignore_patterns('af-worker.md') if name == 'agents' else None)
+				shutil.copytree(source_root / name, primary / name, ignore=ignore_agents if 'agents' == name else None)
 			(primary / 'platforms').mkdir()
 			for name in ('runtime.json', 'platforms/codex.md'):
-				shutil.copyfile(up.PRIMARY_AGENTS_DIR / name, primary / name)
+				shutil.copyfile(source_root / name, primary / name)
 		return primary
 	# @used-by :mod:`unittest`
 	def test_existing_native_file_uri_is_matched_without_replacing_settings(self):
@@ -602,6 +615,10 @@ class RegistrationTests(TemporaryCase):
 		self.assertIn(original['inherits'][0], value['inherits'])
 		self.assertIn({'path': (primary / 'platforms/antigravity/skills.json').as_posix()}, value['inherits'])
 		self.assertIn(original['entries'][0], value['entries'])
+		# 2026-11-26
+		# "Fix test_onboarding native_primary fixture for generated Antigravity roles and worktree isolation":
+		# https://github.com/dmitry-ai/harness/issues/388
+		self.assertTrue((primary / 'agents/arch-auditor.md').is_file())
 	# 2026-11-01
 	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
 	# https://github.com/dmitry-ai/harness/issues/33
