@@ -58,13 +58,24 @@ def _code_lines_and_semicolons(source: str) -> tuple[set[int], list[int]]:
 		pass
 	semis = [ln for ln, toks in sorted(per_line.items()) if any((tokenize.OP == t and ';' == s and idx + 1 < len(toks) for idx, (t, s) in enumerate(toks)))]
 	return (code_lines, semis)
+# 2026-11-26
+# "Codify navigable cross-reference standards and override SLOC exemption":
+# https://github.com/dmitry-ai/harness/issues/286
+def _add_override_decorator_lines(node: ast.AST, excluded: set[int]) -> None:
+	for dec in getattr(node, 'decorator_list', ()):
+		if (isinstance(dec, ast.Name) and 'override' == dec.id) or (isinstance(dec, ast.Attribute) and 'override' == dec.attr and isinstance(dec.value, ast.Name) and 'typing' == dec.value.id):
+			excluded.update(range(dec.lineno, (getattr(dec, 'end_lineno', None) or dec.lineno) + 1))
+def _is_override_import(node: ast.AST) -> bool:
+	return isinstance(node, ast.ImportFrom) and 'typing' == node.module and 1 == len(node.names) and 'override' == node.names[0].name and None is node.names[0].asname
 def _collect_excluded_lines(tree: ast.AST) -> set[int]:
 	excluded: set[int] = set()
 	for node in ast.walk(tree):
-		if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and node.body:
-			first = node.body[0]
-			if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
-				excluded.update(range(first.lineno, (first.end_lineno or first.lineno) + 1))
+		if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+			if node.body and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant) and isinstance(node.body[0].value.value, str):
+				excluded.update(range(node.body[0].lineno, (node.body[0].end_lineno or node.body[0].lineno) + 1))
+			_add_override_decorator_lines(node, excluded)
+		elif _is_override_import(node):
+			excluded.update(range(node.lineno, (getattr(node, 'end_lineno', None) or node.lineno) + 1))
 		elif isinstance(node, (ast.Dict, ast.List, ast.Tuple, ast.Set)):
 			end_ln = getattr(node, 'end_lineno', None) or node.lineno
 			if end_ln > node.lineno and _is_constant_expr(node):

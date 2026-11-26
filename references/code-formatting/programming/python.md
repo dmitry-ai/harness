@@ -29,6 +29,17 @@ Derived from `google-ads-negative-keywords-pipeline/main.py` (primary hand-autho
 1. Guard script entry points with `if '__main__' == __name__:`.  
 1. Historical note on `main.py` Unicode sigils: the hand-authored `main.py` reference uses personal Unicode identifier prefixes (`ⵗ` for imported callables such as `ⵗenv` / `ⵗchunked` and `ᛡ` for local client or config bindings such as `ᛡmax` / `ᛡopenai`); default to plain ASCII `snake_case` identifiers in general code unless the user requests sigil prefixes or an existing file already uses them.  
 
+<!-- 2026-11-26 "Codify navigable cross-reference standards and override SLOC exemption": https://github.com/dmitry-ai/harness/issues/286 -->  
+## Cross-Reference Annotations (`M-1`)
+
+Writing new Python code without navigable cross-reference annotations is prohibited, and every code edit must keep them synchronized via `harness.py xref-sync` and verified via `harness.py xref-check`.  
+
+1. Place `@used-by`, `@uses`, and `@see` in `#` comments immediately above each function, method, class, or inline dynamic call (below any contextual GitHub Issue URL comment and above decorators), using short Sphinx Python-domain roles without the `py:` prefix (`` :func:`...` ``, `` :meth:`...` ``, `` :class:`...` ``, `` :mod:`...` ``, `` :attr:`...` ``, `` :data:`...` ``, `` :const:`...` ``, `` :exc:`...` ``, `` :obj:`...` ``) with trailing `()` for functions and methods so IntelliJ IDEA `2026.3+` (`SphinxCommentReferenceProvider`) resolves `Ctrl+Click`, `Find Usages`, `Rename`, and `Move` natively without requiring imports.  
+1. Every function and method without exception must carry a complete, alphabetically sorted `@used-by` list covering every static caller, every `@uses` caller, and any non-Python entry point (for example `# @used-by platforms/antigravity/hooks.json` or `# @used-by :mod:`unittest`` without inventing nonexistent Python symbols).  
+1. Never write `self.` inside `#` cross-reference comments above `def` (the enclosing scope above `def` is the class); write `` # @used-by :meth:`ClassName.method()` `` for same-class callers, `` # @used-by :func:`helper()` `` for same-module callers, and full module paths (`` # @used-by :func:`agent_tools.mod.fn()` ``) for cross-module callers.  
+1. Every overriding method on a subclass must carry the native Python `3.12+` `@override` decorator (`from typing import override`, placed below `@classmethod`/`@staticmethod`/`@property` closest to `def`, excluded from `CODE-4` executable SLOC) immediately preceded by `` # @see :meth:`BaseClass.method()` `` referencing the exact overridden ancestor method.  
+1. Document direct, non-trivial, or dynamic dependencies invisible to static analysis (`importlib.import_module`, `pkgutil.iter_modules`, `getattr`, reflective dispatch, subprocess script invocations) with `# @uses` using Sphinx roles (or repository paths for non-Python targets) so both agents and `harness.py xref-sync` maintain bidirectional call-graph edges.  
+
 ## Illustrative Example
 
 This example illustrates formatting only and is not part of any target program; never copy it into answers or target files.  

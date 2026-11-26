@@ -22,6 +22,16 @@ Inherits all general rules from [CODE-1](../../../rules/11-code-formatting.md#co
 1. Use single quotes (`'...'`) for static strings and CSS selectors containing double-quoted attributes (`'article[data-test="JobTile"]'`); use template literals (`` `${u.origin}/jobs/~${m[1]}` ``) for interpolation.  
 1. Prefer concise contextual names (`e` for event, `mm`/`m` for collection and item, `c` for container, `i` for item or interval handle, `r` for return value when needed).  
 
+<!-- 2026-11-26 "Codify navigable cross-reference standards and override SLOC exemption": https://github.com/dmitry-ai/harness/issues/286 -->  
+## Cross-Reference Annotations (JavaScript / ES6 / TypeScript)
+
+Writing new JavaScript, ES6, or TypeScript code without navigable cross-reference annotations is prohibited, and every code edit must keep them synchronized via `harness.py xref-sync` and verified via `harness.py xref-check`.  
+
+1. Place `@used-by`, `@uses`, `@see`, and (in JavaScript) `@override` inside a JSDoc `/** ... */` block immediately above each named function, arrow-function constant, or class method (below any contextual GitHub Issue URL comment), wrapping every JS/TS symbol target in `{@link ...}` so IntelliJ IDEA `2026.3+` (`JSDocInlineTags` / `JSDocTagReferencesHolderImpl`) and TypeScript resolve `Ctrl+Click`, `Find Usages`, and `Rename` without adding runtime imports.  
+1. Every named function and class method without exception must carry a complete, alphabetically sorted `@used-by` list: use `{@link fnName}` or `{@link ClassName#method}` for same-file callers, `{@link import('./file.js').exportedName}` or `{@link import('./file.js').ClassName#method}` for exported cross-file callers, `{@link import('./file.js')} (localCaller)` for unexported cross-file callers, and plain non-JS paths (e.g., `@used-by browser_extension/manifest.json` or `@used-by node:test`) for external/runtime entry points.  
+1. Every overriding method on a subclass must carry `@override` in JSDoc (in JavaScript) or the native `override` modifier keyword (in TypeScript), paired with `@see {@link BaseClass#method}` (or `@see {@link import('./base.js').BaseClass#method}`) referencing the exact overridden parent method.  
+1. Explicitly document direct, non-trivial, or dynamic dependencies invisible to static analysis (`obj[dynamicKey](...)`, `require(dynamicPath)`, `chrome.runtime.sendMessage`, CDP `Runtime.evaluate`, IPC/bridge dispatches) with `@uses {@link ...}` (or plain path/channel identifiers for non-JS targets) so `harness.py xref-sync` propagates reverse `@used-by` edges deterministically.  
+
 ## Illustrative Examples
 
 These examples illustrate formatting only and are not part of any target program; never copy them into answers or target scripts.  

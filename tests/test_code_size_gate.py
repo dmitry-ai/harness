@@ -98,6 +98,27 @@ class CodeSizeGateTests(unittest.TestCase):
 		errs_file = check_python_size_violations(Path('scripts/big.py'), huge_file)
 		self.assertTrue(any(('300' in e for e in errs_file)))
 		self.assertEqual(check_python_size_violations(Path('tests/test_big.py'), huge_file), [])
+	# 2026-11-26
+	# "Codify navigable cross-reference standards and override SLOC exemption":
+	# https://github.com/dmitry-ai/harness/issues/286
+	def test_override_decorator_and_typing_import_excluded_from_sloc(self):
+		from agent_tools.code_size_gate import analyze_python_source, check_python_size_violations
+		base_src = 'class Base:\n\tdef run(self):\n\t\treturn 1\nclass Sub(Base):\n\tdef run(self):\n\t\treturn 2\n'
+		ov_src = (
+			'from typing import override\n'
+			'class Base:\n\tdef run(self):\n\t\treturn 1\n'
+			'class Sub(Base):\n'
+			'\t# @see :meth:`Base.run()`\n'
+			'\t@override\n'
+			'\tdef run(self):\n\t\treturn 2\n'
+		)
+		base_m = analyze_python_source(base_src)
+		ov_m = analyze_python_source(ov_src)
+		self.assertEqual(base_m['file_sloc'], ov_m['file_sloc'])
+		self.assertEqual(base_m['functions']['Sub.run']['sloc'], ov_m['functions']['Sub.run']['sloc'])
+		big_base = ''.join((self._make_func(f'fn_{i}', 10) for i in range(32))) + base_src
+		big_ov = 'from typing import override\n' + ''.join((self._make_func(f'fn_{i}', 10) for i in range(32))) + ov_src.replace('from typing import override\n', '')
+		self.assertEqual(check_python_size_violations(Path('scripts/legacy.py'), big_ov, baseline_source=big_base), [])
 	def test_pre_tool_use_gate_rejects_oversized_python_write(self):
 		import check_rules_and_server_gate as gate_mod
 		with tempfile.TemporaryDirectory() as td:

@@ -99,10 +99,27 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		for token in ('11-code-formatting.md#code-1', 'key = value', 'alphabetical', '`#`', 'not part of'):
 			self.assertIn(token, ini_text, f'Missing INI formatting requirement {token!r}')
 		all_guides = sorted(CODE_FORMATTING_DIR.rglob('*.md'))
-		self.assertGreaterEqual(len(all_guides), 9)
+		self.assertGreaterEqual(len(all_guides), 10)
 		for guide in all_guides:
 			rel = guide.relative_to(CODE_FORMATTING_DIR).as_posix()
 			self.assertIn(rel, rule_text, f'Orphaned formatting guide not indexed in {RULE_DOC.name}: {rel}')
 			self._assert_clean_doc(guide)
+	# 2026-11-26
+	# "Codify navigable cross-reference standards and override SLOC exemption":
+	# https://github.com/dmitry-ai/harness/issues/286
+	def test_xref_standards_codified_for_python_javascript_and_java(self) -> None:
+		rule_text = self._assert_clean_doc(RULE_DOC)
+		self.assertLess(len(RULE_DOC.read_bytes()), 6000)
+		for token in ('programming/java.md', '@used-by', '@uses', '@see', '@override', 'xref-sync', 'xref-check'):
+			self.assertIn(token, rule_text, f'Missing cross-reference token {token!r} in {RULE_DOC.name}')
+		py_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'programming/python.md')
+		for token in ('@used-by', '@uses', '@see', '@override', ':func:', ':meth:', 'typing', 'self.', 'xref-sync'):
+			self.assertIn(token, py_text, f'Missing Python xref token {token!r}')
+		js_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'programming/javascript.md')
+		for token in ('@used-by', '@uses', '@see', '@override', '{@link', 'import(', 'TypeScript', 'override'):
+			self.assertIn(token, js_text, f'Missing JS/TS xref token {token!r}')
+		java_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'programming/java.md')
+		for token in ('11-code-formatting.md#code-1', '- @used-by', '- @uses', '@see', '@Override', '{@link', '-Xdoclint:all', 'not part of'):
+			self.assertIn(token, java_text, f'Missing Java xref token {token!r}')
 if '__main__' == __name__:
 	unittest.main()

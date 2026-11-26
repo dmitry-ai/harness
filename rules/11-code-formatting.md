@@ -16,6 +16,7 @@ Never rewrite an entire user file unnecessarily ([FILE-1](01-file-boundaries.md#
 Before creating or editing a file in a supported language, markup language, or structured format, read and apply its format-specific specification under `references/code-formatting/`:  
 1. Programming languages:  
    - [Bash](../references/code-formatting/programming/bash.md)  
+   - [Java](../references/code-formatting/programming/java.md)  
    - [JavaScript (ES6)](../references/code-formatting/programming/javascript.md)  
    - [PHP](../references/code-formatting/programming/php.md)  
    - [Python](../references/code-formatting/programming/python.md)  
@@ -31,6 +32,7 @@ Before creating or editing a file in a supported language, markup language, or s
 ## CODE-3
 [CODE-1](#code-1) applies across all code and structured files unless a format guide or language syntax requires an exception (e.g., double quotes in JSON or spaces in YAML).  
 Prose Markdown documents (`.md`) follow [DOC-4](04-statement-structure.md#doc-4) rather than zero-blank-line code rules; required GitHub Issue URL references in issue-tracked `code` repositories follow [EXEC-5](08-execution-and-tools.md#exec-5) and [Issue Comments](../references/code-formatting/issue-comments.md) (author header once per file with creation date; issue comments placed right before the modified block or function/method/class header, never dumped into file headers on partial edits) and are exempt from the no-agent-comments rule in [CODE-1](#code-1).  
+Navigable cross-reference annotations (`@used-by`, `@uses`, `@see`, `@override`) are mandatory in Python, JavaScript/ES6/TypeScript, and Java code per their language guides and are exempt from the no-agent-comments rule in [CODE-1](#code-1): every function/method must carry a complete `@used-by` list without exception, every overriding method must carry `@override` plus `@see` referencing the overridden method, direct/non-trivial/dynamic dependencies must carry `@uses`, and any code edit must keep cross-references synchronized (`harness.py xref-sync` / `harness.py xref-check`).  
 ## CODE-4
 Decompose new and compact production Python code into small single-purpose functions and modules: keep functions at most `20` executable SLOC and McCabe complexity at most `8`, keep files at most `300` executable SLOC, and never join statements with `;` (test limits: `40` SLOC, McCabe `12`, `600` file SLOC).  
 Pre-existing oversized legacy Python files and functions operate under a one-way size ratchet: never increase their executable SLOC or McCabe complexity, and extract new logic into separate compact helpers.  
