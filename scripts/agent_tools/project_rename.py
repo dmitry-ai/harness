@@ -11,6 +11,8 @@ from .path_cache import clear_path_cache
 from .path_registry import clear_registry_cache, project_paths, store_path
 from .project_labels import LabelValidationError, normalize_domain_host, resolve_init_label
 from .project_rename_state import capture_file_sha, refresh_workflow_file_hash, rewrite_launcher_handoffs, rewrite_project_internal_state
+# 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+from .project_rename_verify import capture_pre_rename_snapshot, infer_launcher_root, verify_post_rename
 from .runtime import platform_instances, request_day
 from .storage import locked, replace_bytes
 _SEQ_PREFIX_RE = re.compile(r'^(\d+) - (.+)$')
@@ -115,8 +117,12 @@ def _restore_file_backups(backups: list[tuple[Path, bytes | None]]) -> None:
 				replace_bytes(path, raw)
 		except OSError:
 			pass
-def _rollback_rename(old_root: Path, new_root: Path, same_dir: bool, moved_cwd: Path | None, backups: list[tuple[Path, bytes | None]]) -> None:
+# 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+def _rollback_rename(old_root: Path, new_root: Path, same_dir: bool, moved_cwd: Path | None, backups: list[tuple[Path, bytes | None]], state_moves: list[tuple[Path, Path]]=()) -> None:
 	_restore_file_backups(backups)
+	for old_st, new_st in reversed(state_moves):
+		if new_st.is_dir() and (not old_st.exists()):
+			os.replace(new_st, old_st)
 	if (not same_dir) and new_root.is_dir() and (not old_root.exists()):
 		os.rename(new_root, old_root)
 	if None is not moved_cwd and old_root.is_dir():
@@ -154,6 +160,8 @@ def _sync_registrations(old_root: Path, new_root: Path, new_label: str, day_str:
 			if None is not custom_ag:
 				eff_regs['antigravity'] = custom_ag
 		# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
+		# 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+		backups.append((regs_f, regs_f.read_bytes() if regs_f.is_file() else None))
 		old_reg_sha = capture_file_sha(regs_f)
 		r = register_projects(new_root, new_label, day_str, targets=targets, registrars=eff_regs or None)
 		refresh_workflow_file_hash(new_root, regs_f, old_reg_sha)
@@ -191,10 +199,13 @@ def _validate_rename_inputs(project_root: str | Path, domain: str | None, topic:
 	if new_root != old_root and new_root.exists() and old_root.name.casefold() != new_root.name.casefold():
 		raise FileExistsError(f'Target project directory already exists: {new_root}')
 	return (old_root, new_root, new_label, new_kind, pj_old)
-def apply_domain_promotion(project_root: Path, analysis_value: dict, result: dict, *, register_native: bool | None=None) -> dict:
-	promo = maybe_promote_project_domain(project_root, analysis_value, register_native=register_native)
+# 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+def apply_domain_promotion(project_root: Path, analysis_value: dict, result: dict, *, register_native: bool | None=None, launcher_root: Path | None=None) -> dict:
+	promo = maybe_promote_project_domain(project_root, analysis_value, register_native=register_native, launcher_root=launcher_root)
 	result['domain_promotion'] = promo
-	if promo.get('renamed'):
+	if False is promo.get('valid'):
+		result['valid'] = False
+	elif promo.get('renamed'):
 		new_root = Path(promo['project_dir'])
 		result['project_dir'] = str(new_root)
 		old_str = str(Path(project_root).resolve())
@@ -202,7 +213,8 @@ def apply_domain_promotion(project_root: Path, analysis_value: dict, result: dic
 			if isinstance(result.get(key), str) and old_str in result[key]:
 				result[key] = result[key].replace(old_str, str(new_root), 1)
 	return result
-def maybe_promote_project_domain(project_root: str | Path, analysis_value: dict, *, daily_root: Path | None=None, register_native: bool | None=None) -> dict:
+# 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+def maybe_promote_project_domain(project_root: str | Path, analysis_value: dict, *, daily_root: Path | None=None, register_native: bool | None=None, launcher_root: Path | None=None) -> dict:
 	root = Path(project_root).resolve()
 	pj_path = project_paths(root, exact_root=True).project_json
 	if not pj_path.is_file():
@@ -218,7 +230,7 @@ def maybe_promote_project_domain(project_root: str | Path, analysis_value: dict,
 		elif cur_label.casefold() == domain.casefold():
 			r = {'renamed': False, 'reason': 'already_matches_domain', 'domain': domain, 'basis_id': basis_id, 'project_dir': str(root)}
 		else:
-			res = rename_project(root, domain=domain, daily_root=daily_root, register_native=register_native)
+			res = rename_project(root, domain=domain, daily_root=daily_root, register_native=register_native, launcher_root=launcher_root)
 			r = {**res, 'basis_id': basis_id}
 	return r
 def resolve_promotable_target_domain(analysis_value: dict, *, min_probability: int=75) -> tuple[str | None, str | None]:
@@ -239,22 +251,35 @@ def resolve_promotable_target_domain(analysis_value: dict, *, min_probability: i
 			if 'verified' == claim.get('verification_status') or (isinstance(score, int) and (not isinstance(score, bool)) and min_probability <= score):
 				r = (host, bid)
 	return r
+# 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
+# @used-by :func:`rename_project()`
+def _apply_rename_mutations(old_root: Path, new_root: Path, new_label: str, new_kind: str, pj_old: dict, *, daily_root: Path | None, eff_launcher: Path | None, pre_snap: dict, register_native: bool | None, ag_dirs: dict[str, Path] | None, folders_json: Path | None, targets: list[str] | None, registrars: dict | None, backups: list[tuple[Path, bytes | None]], state_moves: list[tuple[Path, Path]]) -> tuple[str | None, dict | None, dict]:
+	clear_path_cache()
+	clear_registry_cache()
+	idx_file = _update_projects_index(old_root, new_root, pj_old['job_id'], daily_root, backups)
+	rewrite_project_internal_state(old_root, new_root, new_label, new_kind, backups=backups, state_moves=state_moves)
+	if None is not eff_launcher:
+		rewrite_launcher_handoffs(eff_launcher, old_root, new_root, backups=backups)
+	reg_info = _sync_registrations(old_root, new_root, new_label, pj_old.get('request_date'), register_native=register_native, ag_dirs=ag_dirs, folders_json=folders_json, targets=targets, registrars=registrars, backups=backups)
+	post_ver = verify_post_rename(old_root, new_root, pre_snap, launcher_root=eff_launcher)
+	return (idx_file, reg_info, post_ver)
+# 2026-11-26 "Auto-detect launcher root and enforce post-rename invariant verification with rollback": https://github.com/dmitry-ai/harness/issues/288
 def rename_project(project_root: str | Path, *, domain: str | None=None, topic: str | None=None, daily_root: Path | None=None, register_native: bool | None=None, antigravity_projects_dirs: dict[str, Path] | None=None, antigravity_folders_json: Path | None=None, targets: list[str] | None=None, registrars: dict | None=None, launcher_root: Path | None=None) -> dict:
 	old_root, new_root, new_label, new_kind, pj_old = _validate_rename_inputs(project_root, domain, topic)
-	same_dir = new_root == old_root
-	backups: list[tuple[Path, bytes | None]] = []
+	eff_launcher = infer_launcher_root(old_root, _infer_daily_root(old_root, daily_root), launcher_root)
+	pre_snap = capture_pre_rename_snapshot(old_root)
+	same_dir, backups, state_moves = (new_root == old_root, [], [])
 	moved_cwd = None if same_dir else _rename_dir_safe(old_root, new_root)
 	try:
-		clear_path_cache()
-		clear_registry_cache()
-		idx_file = _update_projects_index(old_root, new_root, pj_old['job_id'], daily_root, backups)
-		rewrite_project_internal_state(old_root, new_root, new_label, new_kind)
-		if None is not launcher_root:
-			rewrite_launcher_handoffs(launcher_root, old_root, new_root)
-		reg_info = _sync_registrations(old_root, new_root, new_label, pj_old.get('request_date'), register_native=register_native, ag_dirs=antigravity_projects_dirs, folders_json=antigravity_folders_json, targets=targets, registrars=registrars, backups=backups)
+		idx_file, reg_info, post_ver = _apply_rename_mutations(old_root, new_root, new_label, new_kind, pj_old, daily_root=daily_root, eff_launcher=eff_launcher, pre_snap=pre_snap, register_native=register_native, ag_dirs=antigravity_projects_dirs, folders_json=antigravity_folders_json, targets=targets, registrars=registrars, backups=backups, state_moves=state_moves)
 	except Exception:
-		_rollback_rename(old_root, new_root, same_dir, moved_cwd, backups)
+		_rollback_rename(old_root, new_root, same_dir, moved_cwd, backups, state_moves)
 		raise
-	if None is not moved_cwd and new_root.is_dir():
-		os.chdir(new_root)
-	return {'valid': True, 'renamed': not same_dir, 'old_project_dir': str(old_root), 'project_dir': str(new_root), 'job_id': pj_old['job_id'], 'label': new_label, 'label_kind': new_kind, 'projects_index': idx_file, 'registration': reg_info}
+	if not post_ver['valid']:
+		_rollback_rename(old_root, new_root, same_dir, moved_cwd, backups, state_moves)
+		r = {'valid': False, 'renamed': False, 'rolled_back': True, 'old_project_dir': str(old_root), 'project_dir': str(old_root), 'job_id': pj_old['job_id'], 'label': pj_old.get('label'), 'launcher_root': str(eff_launcher) if None is not eff_launcher else None, 'post_verification': post_ver, 'errors': post_ver['errors']}
+	else:
+		if None is not moved_cwd and new_root.is_dir():
+			os.chdir(new_root)
+		r = {'valid': True, 'renamed': not same_dir, 'old_project_dir': str(old_root), 'project_dir': str(new_root), 'job_id': pj_old['job_id'], 'label': new_label, 'label_kind': new_kind, 'launcher_root': str(eff_launcher) if None is not eff_launcher else None, 'projects_index': idx_file, 'registration': reg_info, 'post_verification': post_ver}
+	return r
