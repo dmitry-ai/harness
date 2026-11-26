@@ -111,11 +111,20 @@ def _journal_identity_matcher(orig_fn, relocations: dict[Path, Path]):
 			r = (k1, k2) in mapped or (k2, k1) in mapped
 		return r
 	return _match
-def _restore_shadow_registry(reg, orig_relocs: dict, orig_ws: dict, ag_mod, orig_title, journal_mod, orig_same_j) -> None:
-	reg.relocations.clear()
-	reg.relocations.update(orig_relocs)
-	reg.workspace_overrides.clear()
-	reg.workspace_overrides.update(orig_ws)
+# 2026-11-26 "Add reusable finalized Upwork project fixture and lifecycle contract tests": https://github.com/dmitry-ai/harness/issues/293
+# @used-by :func:`shadow_isolation_context()`
+def _wrapped_shadow_registry(orig_load, relocations: dict[Path, Path]):
+	mapped = [(_path_key(Path(src).resolve()), Path(dst).resolve()) for src, dst in relocations.items()]
+	def _load(*args, **kwargs):
+		reg = orig_load(*args, **kwargs)
+		for src_k, dst_r in mapped:
+			reg.relocations[src_k] = str(dst_r)
+			reg.workspace_overrides[_path_key(dst_r)] = {}
+		return reg
+	return _load
+def _restore_shadow_registry(pr_mod, orig_load, ag_mod, orig_title, journal_mod, orig_same_j) -> None:
+	pr_mod.load_registry = orig_load
+	pr_mod.clear_registry_cache()
 	ag_mod.update_conversation_title = orig_title
 	journal_mod.same_journal_identity = orig_same_j
 	clear_path_cache()
@@ -133,19 +142,16 @@ def remap_shadow_state(src_root: Path, dst_root: Path, extra_pairs: tuple[tuple[
 			_rewrite_json_file(item, pairs, preserve_keys=('admission',))
 @contextmanager
 def shadow_isolation_context(relocations: dict[Path, Path]):
-	from . import journal as journal_mod
+	from . import journal as journal_mod, path_registry as pr_mod
 	from .platforms import antigravity as ag_mod
-	reg = load_registry()
-	orig_relocs, orig_ws = (dict(reg.relocations), dict(reg.workspace_overrides))
+	orig_load = pr_mod.load_registry
 	orig_title, orig_same_j = (ag_mod.update_conversation_title, journal_mod.same_journal_identity)
-	for src, dst in relocations.items():
-		dst_r = Path(dst).resolve()
-		reg.relocations[_path_key(Path(src).resolve())] = str(dst_r)
-		reg.workspace_overrides[_path_key(dst_r)] = {}
+	pr_mod.load_registry = _wrapped_shadow_registry(orig_load, relocations)
+	pr_mod.load_registry()
 	ag_mod.update_conversation_title = lambda cid, title, **_kw: {'synced': False, 'changed': False, 'title': title, 'conversation_id': cid, 'reason': 'shadow_replay_disabled'}
 	journal_mod.same_journal_identity = _journal_identity_matcher(orig_same_j, relocations)
 	clear_path_cache()
 	try:
 		yield
 	finally:
-		_restore_shadow_registry(reg, orig_relocs, orig_ws, ag_mod, orig_title, journal_mod, orig_same_j)
+		_restore_shadow_registry(pr_mod, orig_load, ag_mod, orig_title, journal_mod, orig_same_j)
