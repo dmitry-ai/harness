@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from .formatting import _format_step_value, _system_display_name, format_duration_timecode, format_local_timestamp, posix_path
+from .formatting import _format_step_value, _system_display_name, format_duration_timecode, format_local_timestamp, parse_timestamp, posix_path
+import json
 import re
 import sys
 # 2026-11-24
@@ -25,6 +26,14 @@ def _build_agent_block(platform: str | None, instance_id: str | None, model: str
 	elif effort:
 		r['Effort'] = effort
 	return r
+# 2026-11-26
+# "Surface ask_question clarifications in journal headers and require deferral disclosure":
+# https://github.com/dmitry-ai/harness/issues/376
+# @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
+def _build_clarifications_block(turn: dict[str, Any], state_path: Path | None, tz: Any) -> list[dict[str, Any]] | None:
+	raw = _load_turn_clarifications(turn, state_path)
+	items = [entry for item in raw if (entry := _format_clarification_entry(item, tz))]
+	return items or None
 # @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
 # @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
 def _build_journal_block(steps: list[int] | tuple[int, ...], conv_label: str | None) -> dict[str, Any]:
@@ -101,6 +110,24 @@ def _conversation_label(*, summary_title: str | None, conversation_steps: list[i
 		formatted = format_conversation_journal_title(all_steps)
 		r = title if title == formatted or (not re.fullmatch(r'\d+(?:,\s*\d+)*', title)) else formatted
 	return r
+# 2026-11-26
+# "Surface ask_question clarifications in journal headers and require deferral disclosure":
+# https://github.com/dmitry-ai/harness/issues/376
+# @used-by :func:`_format_clarification_entry()`
+def _format_clarification_answers(item: dict[str, Any]) -> list[dict[str, str]]:
+	return [{'ID': str(a.get('id') or 'A1').strip() or 'A1', 'Text': str(a.get('text') or '').strip()} for a in (item.get('answers') or ()) if isinstance(a, dict) and str(a.get('text') or '').strip()]
+# @used-by :func:`_build_clarifications_block()`
+def _format_clarification_entry(item: dict[str, Any], tz: Any) -> dict[str, Any]:
+	ans = _format_clarification_answers(item)
+	qs = [str(q).strip() for q in (item.get('questions') or ()) if str(q).strip()]
+	raw_out = '' if ans else str(item.get('raw_output') or '').strip()
+	pairs = (('Ask Step', item.get('ask_step')), ('Answer Step', item.get('answer_step')), ('Asked At', _format_clarification_ts(item.get('asked_at'), tz)), ('Answered At', _format_clarification_ts(item.get('answered_at'), tz)), ('Questions', qs or None), ('Answers', ans or None), ('Raw Output', raw_out or None))
+	return {k: v for k, v in pairs if None is not v}
+# @used-by :func:`_format_clarification_entry()`
+def _format_clarification_ts(raw: Any, tz: Any) -> str | None:
+	text = str(raw or '').strip()
+	dt = parse_timestamp(text) if text else None
+	return format_local_timestamp(dt, tz=tz) if None is not dt else (text or None)
 # @used-by :func:`_build_journal_trace()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_blocks_builders_produce_step_paths_labels_and_blocks()`
 # @used-by :mod:`agent_tools.meta`
@@ -116,6 +143,18 @@ def _journal_step_paths(journal_dir: Path, steps: list[int]) -> tuple[str | list
 		res_paths = [posix_path(journal.step_file(res_dir, st, directory=journal_dir)) for st in clean]
 		r = (req_paths[0], res_paths[0]) if 1 == len(clean) else (req_paths, res_paths)
 	return r
+# 2026-11-26
+# "Surface ask_question clarifications in journal headers and require deferral disclosure":
+# https://github.com/dmitry-ai/harness/issues/376
+# @used-by :func:`_build_clarifications_block()`
+def _load_turn_clarifications(turn: dict[str, Any], state_path: Path | None) -> list[dict[str, Any]]:
+	raw = turn.get('clarifications') if isinstance(turn, dict) else None
+	if (not raw) and None is not state_path and state_path.is_file():
+		try:
+			raw = json.loads(state_path.read_text(encoding='utf-8')).get('clarifications')
+		except (OSError, ValueError):
+			raw = None
+	return [item for item in (raw or ()) if isinstance(item, dict)]
 # @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
 # @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
 def _resolve_conversation_steps(canon_root: Path | None, jdir: Path | None, cid: str | None) -> list[int] | None:

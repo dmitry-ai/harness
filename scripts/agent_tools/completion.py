@@ -3036,6 +3036,7 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_post_checkpoint_res_citation_and_issue48_recursive_subagent_aggregation()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
+# @used-by :meth:`test_journal_clarifications_and_disclosure.JournalClarificationsAndDisclosureTests.test_build_journal_metadata_includes_clarifications_and_preserves_user_input_hash()`
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_all_open_syncs_idle_prepared_turn()`
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_idle_prepared_turn_transitions_to_delivered_via_foreign_sync_and_all_open_without_mutating_journal()`
 # @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_antigravity_prepare_prepends_metadata_and_stop_gate_and_sync_accept_clean_chat_reply()`

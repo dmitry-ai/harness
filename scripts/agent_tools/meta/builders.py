@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from . import identity, transcripts
-from .blocks import _build_agent_block, _build_journal_block, _build_journal_trace, _build_time_block, _build_trace_block, _build_turn_trace, _conversation_label, _resolve_conversation_steps, _resolve_hook
+from .blocks import _build_agent_block, _build_clarifications_block, _build_journal_block, _build_journal_trace, _build_time_block, _build_trace_block, _build_turn_trace, _conversation_label, _resolve_conversation_steps, _resolve_hook
 from .formatting import _UUID_RE, _split_model_and_effort, format_local_timestamp, parse_timestamp
 import os
 import re
@@ -40,7 +40,7 @@ def _apply_issue_state_details(state_path: Path | None, state_obj: dict[str, Any
 	return out
 # @used-by :func:`build_github_issue_metadata()`
 # @used-by :func:`build_journal_metadata()`
-def _assemble_optional_blocks(base: dict[str, Any], extras: tuple[tuple[str, dict[str, Any] | None], ...]) -> dict[str, Any]:
+def _assemble_optional_blocks(base: dict[str, Any], extras: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
 	for key, val in extras:
 		if val:
 			base[key] = val
@@ -249,6 +249,7 @@ def build_github_issue_metadata(*, issue_url: str, project_root: str | Path | No
 	return _assemble_optional_blocks({'Time': format_local_timestamp(now, tz=tz), 'Issue': str(issue_url)}, extras)
 # @used-by :func:`agent_tools.completion._record()`
 # @used-by :func:`agent_tools.stop_emergency_capture._build_emergency_response()`
+# @used-by :meth:`test_journal_clarifications_and_disclosure.JournalClarificationsAndDisclosureTests.test_build_journal_metadata_includes_clarifications_and_preserves_user_input_hash()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_build_journal_metadata_for_antigravity_and_codex()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_builders_honor_facade_monkeypatch_seam_and_match_metadata_parity()`
 # @used-by :mod:`agent_tools.meta`
@@ -269,7 +270,10 @@ def build_journal_metadata(root: str | Path, native: dict[str, Any], turn: dict[
 	turn_trace = _build_turn_trace(turn_index=state['turn_index'], turn_id=turn.get('turn_id'), turn_key=turn_key, start_step=state['start_step'], final_step=state['final_step'], state_path=state_p, canon_root=canon_root)
 	journal_trace = _build_journal_trace(jdir, steps, group_file, canon_root=canon_root)
 	trace_block = _build_trace_block(cid=cid, turn_trace=turn_trace, journal_trace=journal_trace, transcript_path=native.get('source_file'))
-	extras = (('Journal', _build_journal_block(steps, conv_label)), ('Agent', _build_agent_block(platform, instance_id, state['model'], state['effort'])), ('Trace', trace_block))
+	# 2026-11-26
+	# "Surface ask_question clarifications in journal headers and require deferral disclosure":
+	# https://github.com/dmitry-ai/harness/issues/376
+	extras = (('Journal', _build_journal_block(steps, conv_label)), ('Agent', _build_agent_block(platform, instance_id, state['model'], state['effort'])), ('Clarifications', _build_clarifications_block(turn, state_p, tz)), ('Trace', trace_block))
 	return _assemble_optional_blocks({'Time': time_block, 'Project': project_info}, extras)
 # 2026-11-24
 # "Add structured problem metadata builder and CLI command":

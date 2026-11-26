@@ -71,6 +71,7 @@ def format_duration_timecode(start: datetime | str | None, end: datetime | str |
 		r = f'{hours:02d}:{mins:02d}:{s:02d}'
 	return r
 # @used-by :func:`agent_tools.meta.blocks._build_time_block()`
+# @used-by :func:`agent_tools.meta.blocks._format_clarification_ts()`
 # @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_format_local_timestamp_and_duration_timecode()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_formatting_submodule_handles_paths_timestamps_steps_and_models()`
@@ -88,6 +89,7 @@ def format_local_timestamp(value: datetime | str | None=None, *, tz=None) -> str
 	tz_label = f'UTC{sign}{hours}' if 0 == mins else f'UTC{sign}{hours}:{mins:02d}'
 	return f'{local_dt:%Y-%m-%d %H:%M:%S} {tz_label}'
 # @used-by :func:`agent_tools.cleanup_lifecycle._step_response_time()`
+# @used-by :func:`agent_tools.meta.blocks._format_clarification_ts()`
 # @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
 # @used-by :func:`format_duration_timecode()`
 # @used-by :func:`format_local_timestamp()`

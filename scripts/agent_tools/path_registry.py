@@ -1727,6 +1727,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_issue_first_rules_contract`
 	# @used-by :mod:`test_issue_preflight_and_batch`
 	# @used-by :mod:`test_java_xref`
+	# @used-by :mod:`test_journal_clarifications_and_disclosure`
 	# @used-by :mod:`test_journal_idle_sync_and_liveness`
 	# @used-by :mod:`test_journal_integrity`
 	# @used-by :mod:`test_journal_metadata`
