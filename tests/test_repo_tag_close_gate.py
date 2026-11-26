@@ -89,5 +89,22 @@ class RepoTagCloseGateTests(unittest.TestCase):
 			self.assertTrue(landed['valid'], landed)
 			self.assertEqual('2026-11-26', landed['tag'])
 			self.assertIn('2026-11-26', _git(bare, 'tag', '-l').splitlines())
+	def test_verify_closing_commit_tag_reads_origin_from_config_without_git_config_spawn(self) -> None:
+		from unittest.mock import patch
+		from agent_tools.repo_tag_gate import verify_closing_commit_tag
+		from agent_tools.repo_tags import ensure_commit_tag
+		with tempfile.TemporaryDirectory() as td:
+			_, code, _ = _init_tracked_repo(Path(td).resolve())
+			sha = _commit_issue(code, 'c.py', 3)
+			ensure_commit_tag(code, commit=sha, push=True)
+			calls: list[list[str]] = []
+			real_run = subprocess.run
+			def spy(cmd, *args, **kwargs):
+				calls.append([str(c) for c in cmd])
+				return real_run(cmd, *args, **kwargs)
+			with patch.object(subprocess, 'run', side_effect=spy):
+				tag = verify_closing_commit_tag(code, sha, 'https://github.com/acme/demo/issues/3')
+			self.assertEqual('2026-11-26', tag)
+			self.assertFalse(any('config' in c for c in calls), calls)
 if '__main__' == __name__:
 	unittest.main()

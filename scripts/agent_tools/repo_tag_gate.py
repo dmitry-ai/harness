@@ -3,10 +3,12 @@
 # https://github.com/dmitry-ai/harness/issues/263
 from __future__ import annotations
 from pathlib import Path
+import configparser
 import os
 import subprocess
 from .git_gate import _NO_WINDOW, run_git_read
 from .repo_tags import pick_preferred_tag
+from .worktree_flow import git_config_file
 def _cached_local_tag_map(repo: Path, git_cache) -> dict[str, list[str]]:
 	resolved = Path(repo).resolve()
 	store = getattr(git_cache, '_local_tag_map_cache', None) if None is not git_cache else None
@@ -71,13 +73,17 @@ def _read_remote_tags(repo: Path, remote_target: str) -> set[str]:
 			r = set()
 	return r
 def _resolve_origin_push_target(repo: Path) -> str:
+	cfg_file = git_config_file(repo)
 	r = ''
-	for key in ('remote.origin.pushurl', 'remote.origin.url'):
-		proc = run_git_read(repo, ['config', '--get', key], check=False)
-		val = proc.stdout.decode('utf-8', errors='replace').strip() if 0 == proc.returncode else ''
-		if val:
-			r = val
-			break
+	if cfg_file.is_file():
+		parser = configparser.RawConfigParser(strict=False)
+		try:
+			parser.read_string(cfg_file.read_text(encoding='utf-8', errors='replace'))
+			sec = 'remote "origin"'
+			if parser.has_section(sec):
+				r = (parser.get(sec, 'pushurl', fallback='') or parser.get(sec, 'url', fallback='')).strip()
+		except (OSError, configparser.Error):
+			r = ''
 	return r
 def finalize_commit_close_check(repo: Path, commit_sha: str, issue_url: str, git_cache) -> dict:
 	pushed = git_cache.verify_commit_pushed(repo, commit_sha, issue_url)
