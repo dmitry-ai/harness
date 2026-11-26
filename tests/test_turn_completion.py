@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
@@ -128,7 +131,7 @@ from unittest.mock import patch
 import uuid
 SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
-from agent_tools import completion, journal, metadata, storage, workflow, text_workflow
+from agent_tools import completion, journal, metadata, repo_tags, storage, workflow, text_workflow
 from agent_tools.causal_checks import unsupported_probability_claims
 from agent_tools.platforms import codex, antigravity
 def assert_journal_response_body(case, raw, expected):
@@ -1140,10 +1143,8 @@ class AntigravityCompletionTests(unittest.TestCase):
 		code_repo = self.project / 'code'
 		(self.project / '_/ꘖ').mkdir(parents=True, exist_ok=True)
 		code_repo.mkdir(parents=True, exist_ok=True)
-		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
-		subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
-		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
-		subprocess.run(['git', 'remote', 'add', 'origin', str(bare)], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+		(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n', encoding='utf-8')
 		mod = code_repo / 'mod.py'
 		mod.write_text('x = 1\n', encoding='utf-8')
 		test_mod = code_repo / 'tests/test_mod.py'
@@ -1172,7 +1173,8 @@ class AntigravityCompletionTests(unittest.TestCase):
 		subprocess.run(['git', 'commit', '-m', 'https://github.com/dmitry-ai/antigravity-addons/issues/999'], cwd=code_repo, check=True, capture_output=True)
 		with self.assertRaisesRegex(ValueError, 'has not been pushed to upstream'):
 			completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
-		subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True)
+		subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+		repo_tags.ensure_commit_tag(code_repo, push=True)
 		ev_file = self.project / '_/ꘖ/KB/Evidence/GitHub/dmitry-ai__antigravity-addons/issue-999.json'
 		ev_file.parent.mkdir(parents=True, exist_ok=True)
 		ev_file.write_text(json.dumps({'url': 'https://github.com/dmitry-ai/antigravity-addons/issues/999', 'issue': {'number': 999, 'state': 'OPEN'}}), encoding='utf-8')
@@ -1580,24 +1582,23 @@ class IssueLifecycleTests(unittest.TestCase):
 			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
 			code_repo = project / 'code'
 			code_repo.mkdir(parents=True, exist_ok=True)
-			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', f'url.{bare.as_posix()}.insteadOf', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/dmitry-ai/antigravity-addons.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n[url "{bare.as_posix()}"]\n\tinsteadOf = https://github.com/dmitry-ai/antigravity-addons.git\n', encoding='utf-8')
 			url_a = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/901'
 			url_b = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/902'
 			url_backlog = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/903'
 			file_a = code_repo / 'a.py'
 			file_b = code_repo / 'b.py'
 			file_a.write_text('# ' + url_a + '\nx = 1\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'a.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_a], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'a.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'commit', '-m', url_a], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
 			file_b.write_text('# ' + url_b + '\ny = 2\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'b.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_b], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'b.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'commit', '-m', url_b], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
+			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'push', '-u', 'origin', 'main', '--tags'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			ev_dir = project / '_/\ua616/KB/Evidence/GitHub/dmitry-ai__antigravity-addons'
 			ev_dir.mkdir(parents=True, exist_ok=True)
 			(ev_dir / 'issue-901.json').write_text(json.dumps({'url': url_a, 'issue': {'number': 901, 'state': 'OPEN', 'title': 'Fix A', 'body': '# Scope\nDetails.\n'}}), encoding='utf-8')
@@ -1622,21 +1623,19 @@ class IssueLifecycleTests(unittest.TestCase):
 			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
 			code_repo = project / 'code'
 			code_repo.mkdir(parents=True, exist_ok=True)
-			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', f'url.{bare.as_posix()}.insteadOf', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/dmitry-ai/antigravity-addons.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n[url "{bare.as_posix()}"]\n\tinsteadOf = https://github.com/dmitry-ai/antigravity-addons.git\n', encoding='utf-8')
 			url_mono = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/910'
 			url_p = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/920'
 			url_c1 = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/921'
 			url_c2 = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/922'
 			f_mono = code_repo / 'mono.py'
 			f_mono.write_text('# ' + url_mono + '\nx = 1\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'mono.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_mono], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'mono.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'commit', '-m', url_mono], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
+			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'push', '-u', 'origin', 'main', '--tags'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			ev_dir = project / '_/\ua616/KB/Evidence/GitHub/dmitry-ai__antigravity-addons'
 			ev_dir.mkdir(parents=True, exist_ok=True)
 			(ev_dir / 'issue-910.json').write_text(json.dumps({'url': url_mono, 'issue': {'number': 910, 'state': 'CLOSED', 'title': 'Monolithic fix', 'body': '## Problem\nSingle issue.\n'}}), encoding='utf-8')
@@ -1648,12 +1647,14 @@ class IssueLifecycleTests(unittest.TestCase):
 			f_c1 = code_repo / 'c1.py'
 			f_c2 = code_repo / 'c2.py'
 			f_c1.write_text('# ' + url_c1 + '\na = 1\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'c1.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'c1.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
 			f_c2.write_text('# ' + url_c2 + '\nb = 2\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'c2.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_c2], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'c2.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'commit', '-m', url_c2], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
+			subprocess.run(['git', 'push', 'origin', 'main', '--tags'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			(ev_dir / 'issue-920.json').write_text(json.dumps({'url': url_p, 'issue': {'number': 920, 'state': 'CLOSED', 'title': 'Parent problem report', 'body': '## Problem\nRoot causes.\n'}}), encoding='utf-8')
 			(ev_dir / 'issue-921.json').write_text(json.dumps({'url': url_c1, 'number': 921, 'parent_number': 920, 'state': 'CLOSED', 'title': 'Implement M-1', 'body': f'Parent: #920\n\n## Scope\nFirst subtask.\n'}), encoding='utf-8')
 			(ev_dir / 'issue-922.json').write_text(json.dumps({'url': url_c2, 'number': 922, 'parent_number': 920, 'state': 'CLOSED', 'title': 'Implement M-2', 'body': f'Parent: #920\n\n## Scope\nSecond subtask.\n'}), encoding='utf-8')
@@ -1681,20 +1682,18 @@ class IssueLifecycleTests(unittest.TestCase):
 			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
 			code_repo = project / 'code'
 			code_repo.mkdir(parents=True)
-			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', f'url.{bare.as_posix()}.insteadOf', 'https://github.com/dmitry-ai/antigravity-addons.git'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/dmitry-ai/antigravity-addons.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n[url "{bare.as_posix()}"]\n\tinsteadOf = https://github.com/dmitry-ai/antigravity-addons.git\n', encoding='utf-8')
 			url_single = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/931'
 			url_backlog = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/932'
 			url_foreign = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/999'
 			f_single = code_repo / 'single.py'
 			f_single.write_text('# ' + url_single + '\nx = 1\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'single.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_single], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'push', '-u', 'origin', 'main'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'single.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'commit', '-m', url_single], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
+			subprocess.run(['git', 'branch', '-M', 'main'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'push', '-u', 'origin', 'main', '--tags'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			ev_dir = project / '_/\ua616/KB/Evidence/GitHub/dmitry-ai__antigravity-addons'
 			ev_dir.mkdir(parents=True)
 			(ev_dir / 'issue-931.json').write_text(json.dumps({'url': url_single, 'issue': {'number': 931, 'state': 'CLOSED', 'title': 'Single bugfix', 'body': '## Problem\nSingle fix.\n'}}), encoding='utf-8')
@@ -1719,11 +1718,13 @@ class IssueLifecycleTests(unittest.TestCase):
 			f_c2 = code_repo / 'c2.py'
 			f_c1.write_text('# ' + url_c1 + '\na = 1\n', encoding='utf-8')
 			subprocess.run(['git', 'add', 'c1.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
 			f_c2.write_text('# ' + url_c2 + '\nb = 2\n', encoding='utf-8')
-			subprocess.run(['git', 'add', 'c2.py'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'commit', '-m', url_c2], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True)
+			subprocess.run(['git', 'add', 'c2.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			subprocess.run(['git', 'commit', '-m', url_c2], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(code_repo, push=False)
+			subprocess.run(['git', 'push', 'origin', 'main', '--tags'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			(ev_dir / 'issue-950.json').write_text(json.dumps({'url': url_p, 'number': 950, 'state': 'OPEN', 'title': 'Parent problem issue', 'body': '## Problem\nRoot.\n'}), encoding='utf-8')
 			(ev_dir / 'issue-951.json').write_text(json.dumps({'url': url_c1, 'number': 951, 'parent_number': 950, 'state': 'CLOSED', 'title': 'Child 1', 'body': 'Parent: #950\n\n## Scope\nA.\n'}), encoding='utf-8')
 			(ev_dir / 'issue-952.json').write_text(json.dumps({'url': url_c2, 'number': 952, 'parent_number': 950, 'state': 'CLOSED', 'title': 'Child 2', 'body': 'Parent: #950\n\n## Scope\nB.\n'}), encoding='utf-8')
@@ -2515,10 +2516,8 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 		import check_stop_gate
 		with tempfile.TemporaryDirectory() as tmp:
 			t = Path(tmp).resolve()
-			peer_a = t / 'peer_a'
-			peer_b = t / 'peer_b'
-			bare_a = t / 'bare_a.git'
-			bare_b = t / 'bare_b.git'
+			peer_a, peer_b = (t / 'peer_a', t / 'peer_b')
+			bare_a, bare_b = (t / 'bare_a.git', t / 'bare_b.git')
 			subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare_a)], check=True, capture_output=True)
 			subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare_b)], check=True, capture_output=True)
 			for p, bare, peer_other, slug in ((peer_a, bare_a, peer_b, 'test-org/peer-a'), (peer_b, bare_b, peer_a, 'test-org/peer-b')):
@@ -2564,7 +2563,8 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 				mod_path.write_text(f'# https://github.com/test-org/peer-a/issues/{issue_num}\nx = {val}\n', encoding='utf-8')
 				subprocess.run(['git', 'add', 'app.py', 'tests/test_app.py'], cwd=peer_a / 'code', check=True, capture_output=True)
 				subprocess.run(['git', 'commit', '-m', f'https://github.com/test-org/peer-a/issues/{issue_num}'], cwd=peer_a / 'code', check=True, capture_output=True)
-				subprocess.run(['git', 'push'], cwd=peer_a / 'code', check=True, capture_output=True)
+				subprocess.run(['git', 'push'], cwd=peer_a / 'code', check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+				repo_tags.ensure_commit_tag(peer_a / 'code', push=True)
 				ev_a = peer_a / f'_/\ua616/KB/Evidence/GitHub/test-org__peer-a/issue-{issue_num}.json'
 				ev_a.parent.mkdir(parents=True, exist_ok=True)
 				ev_a.write_text(json.dumps({'url': f'https://github.com/test-org/peer-a/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}), encoding='utf-8')
@@ -2660,7 +2660,8 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			(peer_b / 'code/app.py').write_text('# https://github.com/test-org/peer-b/issues/8\nx = 3\n', encoding='utf-8')
 			subprocess.run(['git', 'add', 'app.py', 'tests/test_app.py'], cwd=peer_b / 'code', check=True, capture_output=True)
 			subprocess.run(['git', 'commit', '-m', 'https://github.com/test-org/peer-b/issues/8'], cwd=peer_b / 'code', check=True, capture_output=True)
-			subprocess.run(['git', 'push'], cwd=peer_b / 'code', check=True, capture_output=True)
+			subprocess.run(['git', 'push'], cwd=peer_b / 'code', check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			repo_tags.ensure_commit_tag(peer_b / 'code', push=True)
 			ev_b8 = peer_b / '_/\ua616/KB/Evidence/GitHub/test-org__peer-b/issue-8.json'
 			ev_b8.parent.mkdir(parents=True, exist_ok=True)
 			ev_b8.write_text(json.dumps({'url': 'https://github.com/test-org/peer-b/issues/8', 'issue': {'number': 8, 'state': 'CLOSED'}}), encoding='utf-8')

@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
@@ -14,6 +17,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import git_gate, issue_lifecycle
+from agent_tools.repo_tags import ensure_commit_tag
 def _git_subcommand(cmd) -> str | None:
 	r = None
 	if isinstance(cmd, (list, tuple)) and cmd and 'git' == Path(str(cmd[0])).stem.lower():
@@ -43,9 +47,10 @@ def _init_multi_issue_repo(base: Path) -> tuple[Path, Path]:
 	for num, fname in ((11, 'a.py'), (12, 'b.py'), (13, 'c.py')):
 		(code / fname).write_text(f'# https://github.com/acme/demo/issues/{num}\nVAL = {num}\n', encoding='utf-8')
 		subprocess.run(['git', '-C', str(code), 'add', fname], check=True, capture_output=True)
-		subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/acme/demo/issues/{num}'], check=True, capture_output=True)
+		subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/acme/demo/issues/{num}'], check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+		ensure_commit_tag(code, push=False)
 		_write_ev(ev_dir, num, state='closed', parent=10)
-	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
+	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main', '--tags'], check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 	return (proj, code)
 def _write_ev(ev_dir: Path, num: int, *, state: str='closed', parent: int | None=None) -> None:
 	body = f'Parent: [Issue #{parent}](https://github.com/acme/demo/issues/{parent})\n' if None is not parent else 'Problem statement.\n'

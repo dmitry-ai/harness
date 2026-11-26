@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
 # https://github.com/dmitry-ai/harness/issues/150
@@ -41,6 +44,7 @@ from unittest.mock import patch
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from agent_tools.github_issue import has_enumerated_slop_title, lint_issue_markdown, main
+from agent_tools.repo_tags import ensure_commit_tag
 class TestGitHubIssueTool(unittest.TestCase):
 	def test_clean_markdown_passes(self):
 		clean = '## 1. Root Cause\nIn `Magento\\PageCache\\Model\\Cache\\Warmer` (`vendor/magento/module-page-cache/Model/Cache/Warmer.php`, lines 122–125 — see §6.1):\n```php\n$identifier = $this->cookieManager->getCookie(\'affiliate_identifier\') ?: null;\nif ($identifier && $this->customerSession->getId()) {\n    $this->accountService->ensureCustomerRelation((string)$identifier, `0`);\n}\n```\n```xml\n    <type name="Magento\\Framework\\Data\\Form\\FormKey">\n        <arguments>\n            <argument name="session" xsi:type="object">Magento\\Framework\\Session\\Generic\\Proxy</argument>\n        </arguments>\n    </type>\n```\nPaginated URLs like `/water-pipes.html?p=2` work across «Customers» in `0.131–0.325` seconds.\n'
@@ -129,7 +133,8 @@ class TestGitHubIssueTool(unittest.TestCase):
 					mod = code_repo / 'mod.py'
 					mod.write_text('# https://github.com/smokeday-com/m/issues/46\nx = 1\n', encoding='utf-8')
 					subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
-					subprocess.run(['git', 'commit', '-m', 'https://github.com/smokeday-com/m/issues/46'], cwd=code_repo, check=True, capture_output=True)
+					subprocess.run(['git', 'commit', '-m', 'https://github.com/smokeday-com/m/issues/46'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+					ensure_commit_tag(code_repo, push=False)
 					rc = main(['close', '--repo', 'smokeday-com/m', '--issue', '46', '--reason', 'completed'])
 					self.assertEqual(rc, 0)
 					self.assertTrue((proj / '_/ꘖ/KB/Evidence/GitHub/smokeday-com__m/issue-46.json').is_file())
@@ -247,14 +252,9 @@ class TestGitHubIssueTool(unittest.TestCase):
 			code_repo = proj / 'code'
 			(proj / '_/\ua616').mkdir(parents=True)
 			code_repo.mkdir(parents=True)
-			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
-			subprocess.run(['git', 'remote', 'add', 'origin', 'https://github.com/smokeday-com/m.git'], cwd=code_repo, check=True, capture_output=True)
-			url40 = 'https://github.com/smokeday-com/m/' + 'issues/40'
-			url41 = 'https://github.com/smokeday-com/m/' + 'issues/41'
-			url42 = 'https://github.com/smokeday-com/m/' + 'issues/42'
-			url46 = 'https://github.com/smokeday-com/m/' + 'issues/46'
+			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+			(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/smokeday-com/m.git\n', encoding='utf-8')
+			url40, url41, url42, url46 = ('https://github.com/smokeday-com/m/' + f'issues/{n}' for n in (40, 41, 42, 46))
 			f46 = code_repo / 'mod46.py'
 			f46.write_text('# ' + url46 + '\nx = 46\n', encoding='utf-8')
 			subprocess.run(['git', 'add', 'mod46.py'], cwd=code_repo, check=True, capture_output=True)
@@ -304,20 +304,23 @@ class TestGitHubIssueTool(unittest.TestCase):
 				f41 = code_repo / 'mod41.py'
 				f41.write_text('# ' + url41 + '\nx = 1\n', encoding='utf-8')
 				subprocess.run(['git', 'add', 'mod41.py'], cwd=code_repo, check=True, capture_output=True)
-				subprocess.run(['git', 'commit', '-m', url41], cwd=code_repo, check=True, capture_output=True)
+				subprocess.run(['git', 'commit', '-m', url41], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+				ensure_commit_tag(code_repo, push=False)
 				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '41', '--project-root', str(proj)]), 0)
 				self.assertEqual(json.loads((ev_dir / 'issue-41.json').read_text(encoding='utf-8'))['parent_number'], 40)
 				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '40', '--project-root', str(proj)]), 2)
 				f42 = code_repo / 'mod42.py'
 				f42.write_text('# ' + url42 + '\nx = 2\n', encoding='utf-8')
-				subprocess.run(['git', 'add', 'mod42.py'], cwd=code_repo, check=True, capture_output=True)
-				subprocess.run(['git', 'commit', '-m', url42], cwd=code_repo, check=True, capture_output=True)
+				subprocess.run(['git', 'add', 'mod42.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+				subprocess.run(['git', 'commit', '-m', url42], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+				ensure_commit_tag(code_repo, push=False)
 				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '42', '--project-root', str(proj)]), 0)
 				url43 = 'https://github.com/smokeday-com/m/' + 'issues/43'
 				f43 = code_repo / 'mod43.py'
 				f43.write_text('# ' + url43 + '\nx = 43\n', encoding='utf-8')
-				subprocess.run(['git', 'add', 'mod43.py'], cwd=code_repo, check=True, capture_output=True)
-				subprocess.run(['git', 'commit', '-m', url43], cwd=code_repo, check=True, capture_output=True)
+				subprocess.run(['git', 'add', 'mod43.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+				subprocess.run(['git', 'commit', '-m', url43], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+				ensure_commit_tag(code_repo, push=False)
 				self.assertEqual(main(['close', '--repo', 'smokeday-com/m', '--issue', '43', '--project-root', str(proj)]), 0)
 				f40_mono = code_repo / 'mod40.py'
 				f40_mono.write_text('# ' + url40 + '\nx = 40\n', encoding='utf-8')

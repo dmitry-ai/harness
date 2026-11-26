@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
 # https://github.com/dmitry-ai/harness/issues/243
@@ -274,8 +277,8 @@ class GitRepoGate:
 			return {'verified': True, 'repo': str(self.root), 'issue_url': issue_url, 'commit_sha': child_shas[0] if child_shas else '', 'child_issues': [c['number'] for c in completed_children], 'pushed': True}
 		if not commit_sha:
 			raise ValueError(f'EXEC-5 violation: no commit in {self.root} references {issue_url}; commit and push changes before closing the issue as completed')
-		pushed = cache.verify_commit_pushed(self.root, commit_sha, issue_url)
-		return {'verified': True, 'repo': str(self.root), 'issue_url': issue_url, 'commit_sha': commit_sha, 'pushed': pushed}
+		from .repo_tag_gate import finalize_commit_close_check
+		return finalize_commit_close_check(self.root, commit_sha, issue_url, cache)
 	def _tdd_project_root(self) -> Path:
 		main_r = self.main_repo()
 		try:

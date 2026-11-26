@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
@@ -15,6 +18,7 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import git_gate
 from agent_tools.issues.git_read_cache import RepoReadCache
+from agent_tools.repo_tags import ensure_commit_tag
 URL_174 = 'https://github.com/acme/demo/issues/174'
 URL_177 = 'https://github.com/acme/demo/issues/177'
 URL_180 = 'https://github.com/acme/demo/issues/180'
@@ -45,6 +49,7 @@ def _init_repo(base: Path) -> Path:
 	subprocess.run(['git', '-C', str(code), 'add', 'storage.py'], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(code), 'commit', '-m', URL_174], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
+	ensure_commit_tag(code, push=True)
 	return code
 class DirtyDiffIssueScopeTests(unittest.TestCase):
 	def test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo(self) -> None:

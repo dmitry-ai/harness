@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
+# https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
@@ -23,6 +26,7 @@ if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 
 from agent_tools import completion, git_gate
+from agent_tools.repo_tags import ensure_commit_tag
 import check_stop_gate
 
 
@@ -109,6 +113,7 @@ def _init_github_project(base: Path, *, slug: str = 'acme/demo', commit_issue: i
 	subprocess.run(['git', '-C', str(code), 'add', 'app.py', 'tests/test_existing.py', 'tests/test_app.py'], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/{slug}/issues/{commit_issue}'], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
+	ensure_commit_tag(code, push=True)
 	return (proj, code, bare)
 
 
