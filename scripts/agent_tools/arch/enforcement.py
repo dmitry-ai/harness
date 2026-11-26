@@ -220,6 +220,7 @@ def evaluate_pre_tool_use_arch_audit(name: str, args: dict, payload: dict) -> st
 				r = _evaluate_write_against_index(rel, new_text, trig, index)
 	return r
 # @used-by :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_staged_pre_commit_handles_participant_file_paths_and_incremental_multi_wave_commits()`
 # @used-by :mod:`agent_tools.arch.enforcement`
 def verify_staged_arch_audit(repo_root: Path, staged_paths: list[str], *, use_index: bool=True, strict: bool=False) -> list[str]:
 	repo = Path(repo_root).resolve()

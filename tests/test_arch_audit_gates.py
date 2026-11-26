@@ -180,8 +180,8 @@ class ArchAuditGatesTests(unittest.TestCase):
 	# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
 	# @used-by :mod:`unittest`
 	def test_staged_pre_commit_handles_participant_file_paths_and_incremental_multi_wave_commits(self) -> None:
+		from agent_tools.arch.enforcement import verify_staged_arch_audit
 		from agent_tools.arch.review_store import prepare_arch_package
-		from agent_tools.staged_gates import verify_staged_extra_gates
 		with tempfile.TemporaryDirectory() as td:
 			base = Path(td).resolve()
 			r1 = _seed_governed_repo(base / 'mixed', with_rule=True)
@@ -191,10 +191,10 @@ class ArchAuditGatesTests(unittest.TestCase):
 			a1.parent.mkdir(parents=True)
 			a1.write_text('class WaveAlpha:\n\tdef run(self):\n\t\treturn 1\n', encoding='utf-8')
 			_git(r1, 'add', 'scripts/a.py')
-			self.assertEqual([], [v for v in verify_staged_extra_gates(r1, ['scripts/a.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v])
+			self.assertEqual([], verify_staged_arch_audit(r1, ['scripts/a.py'], use_index=True))
 			a1.write_text('class ProceduralBlob:\n\tdef run(self):\n\t\treturn 1\n', encoding='utf-8')
 			_git(r1, 'add', 'scripts/a.py')
-			v_bad = [v for v in verify_staged_extra_gates(r1, ['scripts/a.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v]
+			v_bad = verify_staged_arch_audit(r1, ['scripts/a.py'], use_index=True)
 			self.assertTrue(any(('WaveAlpha' in v for v in v_bad)), f'Expected missing symbol failure, got {v_bad}')
 			r2 = _seed_governed_repo(base / 'path_only', with_rule=True)
 			path_spec = '- **Pattern:** Facade\n- **Category:** Structural\n- **Intent:** Group modules behind facade.\n- **Participants:** `scripts/a.py`, `scripts/b.py`\n- **Collaboration:** Module a calls module b.\n- **Consequences:** Clear file boundaries.\n'
@@ -203,11 +203,11 @@ class ArchAuditGatesTests(unittest.TestCase):
 			a2.parent.mkdir(parents=True)
 			a2.write_text('class PathMod:\n\tdef run(self):\n\t\treturn 1\n', encoding='utf-8')
 			_git(r2, 'add', 'scripts/a.py')
-			self.assertEqual([], [v for v in verify_staged_extra_gates(r2, ['scripts/a.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v])
+			self.assertEqual([], verify_staged_arch_audit(r2, ['scripts/a.py'], use_index=True))
 			o2 = r2 / 'scripts/other.py'
 			o2.write_text('class OtherMod:\n\tdef run(self):\n\t\treturn 2\n', encoding='utf-8')
 			_git(r2, 'add', 'scripts/other.py')
-			v_other = [v for v in verify_staged_extra_gates(r2, ['scripts/other.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v]
+			v_other = verify_staged_arch_audit(r2, ['scripts/other.py'], use_index=True)
 			self.assertTrue(any(('scripts/a.py' in v for v in v_other)), f'Expected missing path participant failure, got {v_other}')
 if '__main__' == __name__:
 	unittest.main()
