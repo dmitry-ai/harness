@@ -1,9 +1,12 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce project.domain_drift invariant in check-project and finalize":
+# https://github.com/dmitry-ai/harness/issues/268
 # "Add transactional rename-project command with automatic domain promotion":
 # https://github.com/dmitry-ai/harness/issues/267
 from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
+import hashlib
 import json
 import os
 import re
@@ -60,16 +63,18 @@ def _update_folder_rule(new_root: Path, new_label: str) -> None:
 		updated = _FOLDER_RULE_RE.sub(lambda _m: f'Folder name: `{new_label}`;', orig)
 		if updated != orig:
 			replace_bytes(rule_f, updated.encode('utf-8'))
-def _update_project_json(old_root: Path, new_root: Path, new_label: str, new_label_kind: str) -> dict:
+def _update_project_json(old_root: Path, new_root: Path, new_label: str, new_label_kind: str) -> tuple[dict, str, str]:
 	pj_path = project_paths(new_root, exact_root=True).project_json
-	state = json.loads(pj_path.read_text(encoding='utf-8-sig'))
+	old_raw = pj_path.read_bytes()
+	state = json.loads(old_raw.decode('utf-8-sig'))
 	history = list(state.get('renamed_from') or [])
 	history.append({'from': str(old_root), 'to': str(new_root), 'from_name': old_root.name, 'to_name': new_root.name, 'at': datetime.now(timezone.utc).isoformat()})
 	state['label'] = new_label
 	state['label_kind'] = new_label_kind
 	state['renamed_from'] = history
-	replace_bytes(pj_path, (json.dumps(state, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
-	return state
+	new_raw = (json.dumps(state, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+	replace_bytes(pj_path, new_raw)
+	return (state, hashlib.sha256(old_raw).hexdigest(), hashlib.sha256(new_raw).hexdigest())
 def migrate_journal_state(old_root: Path, new_root: Path) -> tuple[Path, Path]:
 	new_pp = project_paths(new_root, exact_root=True)
 	new_jdir = resolve_journal_dir(new_root)
@@ -102,11 +107,11 @@ def rewrite_launcher_handoffs(launcher_root: Path, old_root: Path, new_root: Pat
 def rewrite_project_internal_state(old_root: Path, new_root: Path, new_label: str, new_label_kind: str) -> dict:
 	old_state, new_state = migrate_journal_state(old_root, new_root)
 	pairs = _path_pairs(old_root, new_root, old_state, new_state)
-	state = _update_project_json(old_root, new_root, new_label, new_label_kind)
+	state, old_pj_sha, new_pj_sha = _update_project_json(old_root, new_root, new_label, new_label_kind)
 	_update_folder_rule(new_root, new_label)
 	pp = project_paths(new_root, exact_root=True)
-	for name in ('workflow.json', 'rendered.json'):
-		_rewrite_json_file(pp.data_dir / name, pairs)
+	_rewrite_json_file(pp.data_dir / 'workflow.json', [*pairs, (old_pj_sha, new_pj_sha)])
+	_rewrite_json_file(pp.data_dir / 'rendered.json', pairs)
 	if pp.turns_dir.is_dir():
 		for tf in sorted(pp.turns_dir.glob('*.json')):
 			_rewrite_json_file(tf, pairs)

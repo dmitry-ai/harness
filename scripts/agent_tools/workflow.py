@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Enforce project.domain_drift invariant in check-project and finalize":
+# https://github.com/dmitry-ai/harness/issues/268
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 # https://github.com/dmitry-ai/harness/issues/230
@@ -74,16 +77,8 @@ class ProjectHealthAuditor:
 				r.extend(ev_issues)
 				if isinstance(value, dict):
 					if value.get('schema_version') in (2, 3) and (not contract_issues):
-						from .knowledge import sync_website_card
-						website = sync_website_card(self.root, value, check=True)
-						if website['status'] not in ('published', 'unchanged'):
-							r.append(problem('project.website', overview_rel, 'Publish the explicit evidenced client/target website selection, or null if unidentified', file=overview_file))
-						established_identity = any((isinstance(c, dict) and ('verified' == c.get('verification_status') or (c.get('probability_percent') or 0) >= 80) and re.search('(?:client|author|artist|owner|customer|founder|\\u043a\\u043b\\u0438\\u0435\\u043d\\u0442|\\u0430\\u0432\\u0442\\u043e\\u0440|\\u0445\\u0443\\u0434\\u043e\\u0436\\u043d\\u0438\\u043a|\\u0432\\u043b\\u0430\\u0434\\u0435\\u043b\\u0435\\u0446|\\u0437\\u0430\\u043a\\u0430\\u0437\\u0447\\u0438\\u043a|\\u043e\\u0441\\u043d\\u043e\\u0432\\u0430\\u0442\\u0435\\u043b\\u044c)[^.]{0,40}?\\b[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{1,25}\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{1,25}\\b', c.get('essence') or '', re.IGNORECASE) for c in value.get('identity') or []))
-						if established_identity:
-							for proj_file in (self.pp.manual_kb_dir / 'Project.md', self.pp.kb_dir / 'Project.md'):
-								rel_proj = self.pp.rel_to_root(proj_file)
-								if proj_file.is_file() and re.search('#\\s*1\\.1\\s+(?:Name|\\u0418\\u043c\\u044f)\\s*\\r?\\n\\s*(?:unknown|\\u043d\\u0435\\u0438\\u0437\\u0432\\u0435\\u0441\\u0442\\u043d\\u043e)\\b', proj_file.read_text(encoding='utf-8'), re.IGNORECASE):
-									r.append(problem('kb.identity_mismatch', rel_proj, f'Established client identity in Analysis.json is not synced to {rel_proj} (# 1.1 Name is still unknown)', file=proj_file))
+						from .project_drift import analysis_card_sync_issues
+						r.extend(analysis_card_sync_issues(self.pp, value))
 			except (OSError, ValueError, TypeError) as exc:
 				r.append(problem('analysis.input', str(path), str(exc)))
 		return r
@@ -327,12 +322,12 @@ class WorkflowStateEngine:
 			raise ValueError('Complete native project/folder registration in the current platform/profile first')
 		if 'research' == stage and (not questions_current(self.root, state)):
 			raise ValueError('A research question is open or its inputs/results changed')
+		from .project_drift import require_stage_project_valid
 		if 'analysis' == stage:
 			from .analysis import require_current_contract
 			analysis_json = self.pp.kb_dir / 'Analysis.json'
 			require_current_contract(json.loads(analysis_json.read_text(encoding='utf-8-sig')))
-			if not check_project(self.root)['valid']:
-				raise ValueError('Resolve project/evidence diagnostics before completing analysis')
+			require_stage_project_valid(self.root, check_project, 'Resolve project/evidence diagnostics before completing analysis')
 			if self.pp.rel_to_root(analysis_json) not in out_hashes:
 				raise ValueError('Analysis.json must be a declared stage output')
 		if 'kb_review' == stage and (not note):
@@ -341,11 +336,9 @@ class WorkflowStateEngine:
 		if stage in ('review', 'kb_review'):
 			from .review import authorize
 			approval = authorize(self.root, state)
-			if not check_project(self.root)['valid']:
-				raise ValueError('Current KB/evidence checks failed')
+			require_stage_project_valid(self.root, check_project, 'Current KB/evidence checks failed')
 		elif 'finalize' == stage:
-			if not check_project(self.root)['valid']:
-				raise ValueError('Current KB/evidence checks failed')
+			require_stage_project_valid(self.root, check_project, 'Current KB/evidence checks failed')
 			approval = self._finalize_stage(state, out_hashes, outputs)
 		state['stages'][stage] = {'status': 'complete', 'time': now(), 'inputs': in_hashes, 'outputs': out_hashes, 'note': note}
 		if 'finalize' == stage:
@@ -379,12 +372,11 @@ class WorkflowStateEngine:
 	def _finalize_stage(self, state, out_hashes, outputs):
 		from .journal import get_existing_step_ids, journal_pair_dirs, resolve_journal_dir, step_errors, step_file
 		from .links import chat_reply_link_issues
+		from .project_drift import require_no_domain_drift_for_finalize
 		from .review import authorize
 		from .text_workflow import gate_paths
+		require_no_domain_drift_for_finalize(self.root)
 		gate_paths([self.root / name for name in outputs])
-		scratch_dir = self.pp.scratch_dir
-		if scratch_dir.is_dir() and any((p.is_file() for p in scratch_dir.rglob('*'))):
-			raise ValueError('Clean or consume all temporary files in \ua616/data/scratch before finalizing')
 		prepared = state['requests'][-1].get('response_prepared', {}) if state['requests'] else {}
 		journal = resolve_journal_dir(self.root, prepared.get('journal'))
 		ids = get_existing_step_ids(journal)
