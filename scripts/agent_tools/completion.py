@@ -610,7 +610,8 @@ def _hook_crash_status(root, native, turn, value, response):
 # "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 # https://github.com/dmitry-ai/harness/issues/251
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
-VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'addon_observability_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
+# 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
+VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'addon_observability_check', 'verification_observability_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60

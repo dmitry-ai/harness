@@ -43,6 +43,15 @@ def _exec5_messages(ctx: dict) -> list[str]:
 def _hook_crash_messages(ctx: dict) -> list[str]:
 	chk = ctx.get('hook_crash_chk') or {}
 	return [] if chk.get('verified', True) else [str(chk.get('detail') or 'DOC-5 / EXEC-5 hook_crash_check: unhandled JSON hook failure in active turn')]
+# 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
+# @used-by :data:`ANSWER_GATES`
+def _verification_obs_messages(ctx: dict) -> list[str]:
+	chk = ctx.get('verification_observability_chk')
+	if None is chk and None is not ctx.get('root'):
+		from ..verification_observability import evaluate_verification_observability
+		chk = evaluate_verification_observability(ctx['root'], ctx.get('native'), ctx.get('turn') or ctx.get('turn_obj'), ctx.get('value') or ctx.get('value_obj'), ctx.get('response'))
+		ctx['verification_observability_chk'] = chk
+	return [] if (chk or {}).get('verified', True) else [str(chk.get('detail') or 'EXEC-2 / VERIFY-4 verification_observability_check: unresolved shadow-replay failure in active turn')]
 def _http_messages(ctx: dict) -> list[str]:
 	chk = ctx['http_chk']
 	if chk.get('verified', True):
@@ -73,6 +82,8 @@ ANSWER_GATES = (
 	('hook_crash', 'turn.hook_crash', _hook_crash_messages),
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 	('addon_observability', 'turn.addon_observability', _addon_observability_messages),
+	# 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
+	('verification_observability', 'turn.verification_observability', _verification_obs_messages),
 	('http_fetch', 'turn.http_fetch', _http_messages),
 	('compaction', 'turn.compaction', _compaction_messages),
 	('evicted_citations', 'turn.evicted_citations', _evicted_messages),
@@ -88,7 +99,8 @@ def _build_checks_map(ctx: dict) -> dict[str, bool]:
 	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 	# https://github.com/dmitry-ai/harness/issues/251
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
-	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'addon_observability': bool((ctx.get('addon_obs_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
+	# 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
+	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'addon_observability': bool((ctx.get('addon_obs_chk') or {}).get('verified', True)), 'verification_observability': bool((ctx.get('verification_observability_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
