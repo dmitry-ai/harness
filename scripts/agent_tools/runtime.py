@@ -566,6 +566,7 @@ def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=No
 # @used-by :func:`agent_tools.metrics._resolve_target()`
 # @used-by :func:`agent_tools.metrics.summarize_instance()`
 # @used-by :func:`agent_tools.perf.timesheet_common._lookup_conversation_trace()`
+# @used-by :func:`agent_tools.perf.timesheet_common._lookup_summary_db_optional()`
 # @used-by :func:`agent_tools.upwork_project.instances_report()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`

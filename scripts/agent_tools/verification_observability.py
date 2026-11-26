@@ -5,10 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import re
+import shlex
 from .hook_crash_audit import _load_turn_rows
 from .platforms.trace_common import parse_tool_args
 from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 _SHADOW_CMD_RE = re.compile(r'\bshadow-replay\b', re.IGNORECASE)
+# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
+_SHADOW_CLI_RE = re.compile(r'(?:^|[;&|\r\n]\s*)(?:[^;&|\r\n]*?\s)?[\'"]?[^\'"\s;&|]*\b(?:harness|upwork_project)\.py[\'"]?\s+shadow-replay(?:\s|$|[;&|])', re.IGNORECASE)
 _FAIL_DISCLOSE_RE = re.compile(r'(?i)(?:valid\s*[:=]\s*false|"valid"\s*:\s*false|exit(?:ed)?\s*(?:with\s+code\s+|status\s+|=)?[1-9]\d*|\bfail(?:ed|ure)?\b|\berror\b|\u0443\u043f\u0430\u043b|\u043f\u0440\u043e\u0432\u0430\u043b|\u043e\u0448\u0438\u0431\u043a|\u043d\u0435\s+\u043f\u0440\u043e\u0448)')
 # @used-by :func:`_inspect_shadow_call()`
 def _cmd_from_call(call: dict[str, Any]) -> str:
@@ -37,10 +40,28 @@ def _row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
 		if 'GENERIC' == cand.get('type') and cand.get('content'):
 			outs.append(str(cand.get('content')))
 	return outs
+# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
+# @used-by :func:`_inspect_shadow_call()`
+def _is_shadow_replay_cmd(cmd: str) -> bool:
+	r = False
+	if _SHADOW_CMD_RE.search(cmd):
+		try:
+			toks = shlex.split(cmd, posix=False)
+		except ValueError:
+			r = bool(_SHADOW_CLI_RE.search(cmd))
+		else:
+			for idx in range(len(toks) - 1):
+				cur = toks[idx].strip('\'"').replace('\\', '/').lower()
+				nxt = toks[idx + 1].strip('\'"').lower()
+				if cur.endswith(('harness.py', 'upwork_project.py')) and 'shadow-replay' == nxt:
+					r = True
+					break
+	return r
 # @used-by :func:`detect_shadow_replay_runs()`
 def _inspect_shadow_call(call: dict[str, Any], matched: str, step_idx: int, bg_steps: dict[str, int], runs: list[dict[str, Any]]) -> None:
 	cmd = _cmd_from_call(call)
-	if cmd and _SHADOW_CMD_RE.search(cmd):
+	# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
+	if cmd and _is_shadow_replay_cmd(cmd):
 		out_info = parse_command_outcome(matched)
 		if out_info.get('background_task_id'):
 			bg_steps[str(out_info['background_task_id'])] = step_idx
@@ -79,6 +100,7 @@ def _response_discloses_shadow_failure(response: str | None) -> bool:
 	raw = str(response or '')
 	return bool(_SHADOW_CMD_RE.search(raw)) and bool(_FAIL_DISCLOSE_RE.search(raw))
 # @used-by :func:`evaluate_verification_observability()`
+# @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_detect_shadow_replay_ignores_cli_arguments_and_matches_real_invocations()`
 # @used-by :mod:`agent_tools.verification_observability`
 def detect_shadow_replay_runs(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
 	rows = _load_turn_rows(native, turn)
@@ -104,6 +126,7 @@ def check_runner_verification_observability(runner) -> None:
 		runner._fail_gate('verification_observability', chk['detail'])
 # @used-by :func:`agent_tools.gates.answer_checks._verification_obs_messages()`
 # @used-by :func:`check_runner_verification_observability()`
+# @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_detect_shadow_replay_ignores_cli_arguments_and_matches_real_invocations()`
 # @used-by :mod:`agent_tools.verification_observability`
 def evaluate_verification_observability(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
 	unresolved = _latest_unresolved_failure(detect_shadow_replay_runs(native, turn))

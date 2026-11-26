@@ -43,23 +43,50 @@ def _probe_repo_state(main_repo: Path, *, require_clean: bool, require_lease_fre
 	is_clean, is_free = (not dirty, bool(st.get('free')))
 	ready = (is_clean or (not require_clean)) and (is_free or (not require_lease_free))
 	return {'ready': ready, 'clean': is_clean, 'lease_free': is_free, 'dirty_files': dirty, 'holder': st.get('holder'), 'queue_length': len(st.get('queue') or [])}
+# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
 # @used-by :func:`run_with_transient_wait()`
-def _sleep_or_raise_transient(exc: BaseException, deadline: float, poll_interval: float) -> None:
+def _execute_with_retries(root: Path, fn: Callable[[], dict[str, Any]], deadline: float, poll_interval: float) -> tuple[dict[str, Any], int, float, float]:
+	attempts = 0
+	retry_wait_s = 0.0
+	exec_s = 0.0
+	while True:
+		attempts += 1
+		t0 = time.monotonic()
+		try:
+			res = fn()
+			exec_s += time.monotonic() - t0
+			break
+		except Exception as exc:
+			exec_s += time.monotonic() - t0
+			if not is_transient_contention_error(exc, root):
+				raise
+			retry_wait_s += _sleep_or_raise_transient(exc, deadline, poll_interval)
+	return (res, attempts, retry_wait_s, exec_s)
+# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
+# @used-by :func:`_execute_with_retries()`
+def _sleep_or_raise_transient(exc: BaseException, deadline: float, poll_interval: float) -> float:
 	rem = deadline - time.monotonic()
 	if 0.0 >= rem:
 		raise RetryableOperationError(str(exc)) from exc
+	t0 = time.monotonic()
 	time.sleep(min(max(0.01, float(poll_interval)), rem))
+	return time.monotonic() - t0
+# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
 # @used-by :func:`run_with_transient_wait()`
-def _wait_active_repo_leases(root: Path, deadline: float, poll_interval: float) -> None:
+def _wait_active_repo_leases(root: Path, deadline: float, poll_interval: float) -> float:
+	waited = 0.0
 	for cr in _workspace_code_repos(root):
 		if lease_status(cr)['free']:
 			continue
 		rem = deadline - time.monotonic()
 		if 0.0 >= rem:
 			raise RetryableOperationError(f'Timed out waiting for active landing lease on {cr.as_posix()}')
+		t0 = time.monotonic()
 		res = wait_for_repo(cr, lease_free=True, timeout=rem, poll_interval=poll_interval)
+		waited += time.monotonic() - t0
 		if not res['ready']:
 			raise RetryableOperationError(f'Timed out waiting for active landing lease on {cr.as_posix()}')
+	return waited
 # @used-by :func:`_has_active_workspace_lease()`
 # @used-by :func:`_wait_active_repo_leases()`
 def _workspace_code_repos(root: Path) -> list[Path]:
@@ -73,8 +100,8 @@ def _workspace_code_repos(root: Path) -> list[Path]:
 		if (resolved / '.git').exists() and resolved not in repos:
 			repos.append(resolved)
 	return repos
+# @used-by :func:`_execute_with_retries()`
 # @used-by :func:`agent_tools.cli_common.operation_error_payload()`
-# @used-by :func:`run_with_transient_wait()`
 def is_transient_contention_error(exc: BaseException, root: Path | None=None) -> bool:
 	msg = str(exc).lower()
 	if bool(getattr(exc, 'retryable', False)):
@@ -90,26 +117,23 @@ def is_transient_contention_error(exc: BaseException, root: Path | None=None) ->
 	else:
 		r = False
 	return r
+# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
 # @used-by :func:`agent_tools.completion.prepare()`
+# @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_run_with_transient_wait_separates_lease_retry_and_execution_seconds()`
 def run_with_transient_wait(root: Path, fn: Callable[[], dict[str, Any]], *, wait_timeout: float=0.0, poll_interval: float=DEFAULT_WAIT_POLL_SECONDS) -> dict[str, Any]:
 	started = time.monotonic()
 	budget = max(0.0, float(wait_timeout))
 	deadline = started + budget
-	if 0.0 < budget:
-		_wait_active_repo_leases(root, deadline, poll_interval)
-	attempts = 0
-	while True:
-		attempts += 1
-		try:
-			res = fn()
-			break
-		except Exception as exc:
-			if not is_transient_contention_error(exc, root):
-				raise
-			_sleep_or_raise_transient(exc, deadline, poll_interval)
+	lease_wait_s = _wait_active_repo_leases(root, deadline, poll_interval) if 0.0 < budget else 0.0
+	res, attempts, retry_wait_s, exec_s = _execute_with_retries(root, fn, deadline, poll_interval)
+	total_s = time.monotonic() - started
 	res['retryable'] = False
+	res['lease_wait_seconds'] = round(lease_wait_s, 3)
+	res['retry_wait_seconds'] = round(retry_wait_s, 3)
+	res['execution_seconds'] = round(exec_s, 3)
+	res['total_seconds'] = round(total_s, 3)
 	if 1 < attempts or 0.0 < budget:
-		res['waited_seconds'] = round(time.monotonic() - started, 3)
+		res['waited_seconds'] = round(lease_wait_s + retry_wait_s, 3)
 	return res
 # 2026-11-24
 # "Add deterministic reactive wait primitive for transient repository and journal contention":

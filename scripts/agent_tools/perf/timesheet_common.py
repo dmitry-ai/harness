@@ -35,6 +35,19 @@ def _lookup_conversation_trace(cid: str, instance: str | None, platform: str | N
 	db_raw = (picked.get('system_paths') or {}).get('conversations_db')
 	sdb = summary_db or (Path(db_raw) if db_raw else None)
 	return (Path(picked['trace_file']), sdb)
+# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
+# @used-by :func:`resolve_trace_source()`
+def _lookup_summary_db_optional(cid: str, instance: str | None, platform: str | None) -> Path | None:
+	from ..runtime import find_conversation_instance
+	r: Path | None = None
+	try:
+		matches = find_conversation_instance(cid, platform=platform, include_disabled=True)
+		picked = next((m for m in matches if None is instance or m['id'] == instance), None)
+		db_raw = (picked.get('system_paths') or {}).get('conversations_db') if None is not picked else None
+		r = Path(db_raw) if db_raw else None
+	except (OSError, ValueError, KeyError):
+		r = None
+	return r
 # @used-by :func:`resolve_journal_step_meta()`
 def _parse_header_meta(text: str) -> dict[str, Any]:
 	m = re.match(r'^```json[ \t]*\r?\n([\s\S]*?)\r?\n```', (text or '').lstrip())
@@ -160,6 +173,7 @@ def resolve_journal_step_meta(project_root: Path, step_num: int) -> dict[str, An
 # "Add harness perf-timesheet CLI for deterministic turn chronometry":
 # https://github.com/dmitry-ai/harness/issues/191
 # @used-by :func:`agent_tools.perf.timesheet.run_perf_timesheet_cli()`
+# @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_resolve_trace_source_populates_summary_db_from_journal_step()`
 def resolve_trace_source(*, trace: Path | None=None, conversation: str | None=None, project: Path | None=None, journal_step: int | None=None, instance: str | None=None, platform: str | None=None, summary_db: Path | None=None, turn_start_step: int | None=None) -> dict[str, Any]:
 	cid, tpath, s_step, sdb = (conversation, trace, turn_start_step, summary_db)
 	if None is not project and None is not journal_step:
@@ -170,6 +184,9 @@ def resolve_trace_source(*, trace: Path | None=None, conversation: str | None=No
 			s_step = jmeta['start_step']
 	if None is tpath and cid:
 		tpath, sdb = _lookup_conversation_trace(cid, instance, platform, sdb)
+	# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
+	elif None is sdb and cid:
+		sdb = _lookup_summary_db_optional(cid, instance, platform)
 	if None is tpath or (not Path(tpath).is_file()):
 		raise FileNotFoundError(f'Trace file not found: {tpath}')
 	return {'trace_path': Path(tpath).resolve(), 'conversation_id': cid, 'summary_db': Path(sdb).resolve() if sdb else None, 'turn_start_step': s_step}
