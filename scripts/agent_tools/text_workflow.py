@@ -342,6 +342,7 @@ class ClientTextWorkspace:
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._parse_commit_flag_bundle()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_sources_and_fences_preserved_in_configured_order()`
+	# @used-by :meth:`test_df_qa.TestDfQa.test_dump_and_dumper()`
 	# @used-by :meth:`test_gate_registry.GateRegistryTests.test_builtin_pre_tool_gates_discovered_in_strict_priority_order()`
 	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_website_and_red_flags_have_stable_order_and_preserve_manual_edits()`
 	# @used-by :meth:`test_red_flags.RedFlagTests.test_both_risks_precede_technical_analysis_and_are_duplicated_in_card()`

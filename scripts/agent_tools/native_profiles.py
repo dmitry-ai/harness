@@ -450,18 +450,6 @@ class _Plan:
 		self.retired_links = {}
 		self.shared = {}
 	# @used-by :func:`_antigravity_plan()`
-	# @used-by :func:`_codex_plan()`
-	# @used-by :func:`_plan_codex_link()`
-	# @used-by :func:`_retire_shared_roles()`
-	# @used-by :func:`_shared_plan()`
-	# @used-by :func:`agent_tools.cli.main()`
-	# @used-by :func:`agent_tools.cli_domains._op_source_ref()`
-	# @used-by :func:`agent_tools.cli_registry._exec_xref_check()`
-	# @used-by :func:`agent_tools.cli_registry._exec_xref_sync()`
-	# @used-by :func:`agent_tools.completion.execute()`
-	# @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
-	# @used-by :func:`agent_tools.repo_tags.run_repo_tag_cli()`
-	# @used-by :func:`retire_owned_project_projections()`
 	def file(self, path, after):
 		path = _absolute(path)
 		if _linked_ancestor(path):
@@ -659,7 +647,9 @@ def _manifest(payload, kind, config, primary):
 def _profile_state(state, name, path):
 	previous = state.get('profiles', {}).get(name, {})
 	return previous if previous.get('path') == str(_absolute(path)) else {}
+# 2026-11-26 "Port Df/Qa classes and validation libraries": https://github.com/dmitry-ai/harness/issues/325
 # @used-by :func:`install_native_profiles()`
+# @uses :meth:`_Plan.file()`
 def _antigravity_plan(plan, name, config, primary, state):
 	# 2026-11-20
 	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":

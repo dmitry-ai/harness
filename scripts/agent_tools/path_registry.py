@@ -1677,7 +1677,11 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_analysis_companion_tracks`
 	# @used-by :mod:`test_df_analysis_rules_contract`
 	# @used-by :mod:`test_df_analysis`
+	# @used-by :mod:`test_df_core_array`
+	# @used-by :mod:`test_df_core_base`
+	# @used-by :mod:`test_df_core_text_misc`
 	# @used-by :mod:`test_df_dotpy_bootstrap`
+	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_diff_coverage_gate`
 	# @used-by :mod:`test_dirty_diff_issue_scope`
 	# @used-by :mod:`test_doc5_context_trigger`

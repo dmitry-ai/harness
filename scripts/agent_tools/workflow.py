@@ -270,6 +270,7 @@ class ResearchQuestionRegistry:
 		if 3 == len(recent) and all((not x['useful'] for x in recent)) and (not method_change):
 			raise ValueError('Three unsuccessful searches: return a gap or document a different method before continuing')
 		q['searches'].append({'query': ' '.join(query.casefold().split()), 'useful': bool(useful), 'method_change': method_change, 'time': now()})
+	# @used-by :func:`Df.Core.lib.lang.other.df_no_rec()`
 	# @used-by :func:`add_question()`
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.claims.collect_claim_closure()`
@@ -1029,6 +1030,7 @@ class WorkflowStateEngine:
 		if not conversation_id and (not req_ids):
 			raise ValueError('Provide --conversation or at least one --request-id to unadopt')
 		return update(self.root, {'action': 'unadopt_requests', 'conversation_id': conversation_id, 'request_ids': sorted(req_ids)}, lambda state: self._apply_unadopt(state, conversation_id, req_ids))
+	# @used-by :func:`Df.Core.lib.array.other.unshift_assoc.dfa_unshift_assoc()`
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.article.render()`
 	# @used-by :func:`agent_tools.claims.extract_verified_inline_calc_numbers()`
