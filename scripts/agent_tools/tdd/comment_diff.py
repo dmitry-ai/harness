@@ -270,6 +270,7 @@ def classify_comment_or_whitespace_diff(path: str | Path, old_text: str | None, 
 def is_comment_only_diff(path: str | Path, old_text: str | None, new_text: str | None) -> bool:
 	return classify_comment_or_whitespace_diff(path, old_text, new_text) in ('comment_only', 'unchanged', 'whitespace_only')
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_whitespace_only_and_indentation_sensitive_fail_closed()`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def is_whitespace_only_diff(path: str | Path, old_text: str | None, new_text: str | None) -> bool:

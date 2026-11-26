@@ -148,7 +148,10 @@ class DiffExecutabilityTests(unittest.TestCase):
 			self.assertEqual(0, spy_h.call_count)
 	# @used-by :mod:`unittest`
 	def test_whitespace_only_and_indentation_sensitive_fail_closed(self) -> None:
+		from agent_tools.tdd.comment_diff import is_whitespace_only_diff
 		from agent_tools.tdd.diff_executability import classify_text_diff
+		self.assertTrue(is_whitespace_only_diff('src/a.py', 'x=1\ny=2\n', 'x = 1\n\ny = 2\n'))
+		self.assertFalse(is_whitespace_only_diff('src/a.py', '# a\nx = 1\n', '# b\nx = 1\n'))
 		self.assertEqual('whitespace_only', classify_text_diff('src/a.py', 'x=1\ny=2\n', 'x = 1\n\ny = 2\n'))
 		self.assertEqual('whitespace_only', classify_text_diff('src/a.py', 'def f():\r\n    return (1 + 2)\r\n', 'def f():\n\treturn (\n\t\t1 + 2\n\t)\n'))
 		self.assertEqual('whitespace_only', classify_text_diff('src/a.js', 'const a=1;\nconst b=2;\n', 'const a = 1;\n\nconst b = 2;\n'))
