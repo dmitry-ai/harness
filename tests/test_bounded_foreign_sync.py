@@ -14,6 +14,7 @@ SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import journal_sync_all
+# @used-by :meth:`BoundedForeignSyncTests.test_reconcile_foreign_does_not_create_index_when_only_own_turn_prepared()`
 # @used-by :meth:`BoundedForeignSyncTests.test_reconcile_foreign_enforces_batch_cap_recency_order_and_index()`
 # @used-by :meth:`BoundedForeignSyncTests.test_reconcile_foreign_stops_on_time_budget_while_all_open_sweeps_all()`
 def _seed_prepared_turns(root: Path, count: int) -> list[tuple[str, str]]:
@@ -99,5 +100,14 @@ class BoundedForeignSyncTests(unittest.TestCase):
 			state = {'key': 'tk0001', 'conversation_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'status': 'prepared', 'delivery': None}
 			jpi.persist_turn_state(turn_p, json.dumps(state).encode('utf-8'), state)
 			self.assertFalse((tdir / jpi.PENDING_INDEX_FILE).exists())
+	# @used-by :mod:`unittest`
+	def test_reconcile_foreign_does_not_create_index_when_only_own_turn_prepared(self) -> None:
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			seeded = _seed_prepared_turns(root, 1)
+			own_cid = seeded[0][1]
+			res = journal_sync_all.reconcile_foreign_open_reservations(root, own_cid, folder_fn=lambda r: r / '\ua616/data/turns', dir_fn=lambda r, _j: r / '\ua66e', read_fn=lambda p: json.loads(p.read_text(encoding='utf-8')), sync_fn=lambda *_a, **_kw: {'valid': True})
+			self.assertEqual([], res)
+			self.assertFalse((root / '\ua616/data/turns/pending-sync.json').exists())
 if '__main__' == __name__:
 	unittest.main()

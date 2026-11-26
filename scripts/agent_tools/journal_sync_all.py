@@ -212,6 +212,7 @@ def _sync_foreign_batch(root: Path, ordered: list[tuple[str, dict[str, Any]]], c
 # 2026-11-26 "Reconcile idle prepared turns and verify liveness for orphaned reservations": https://github.com/dmitry-ai/harness/issues/295
 # 2026-11-26 "Bound synchronous foreign turn reconciliation with pending-sync index": https://github.com/dmitry-ai/harness/issues/341
 # @used-by :func:`reconcile_before_begin()`
+# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_does_not_create_index_when_only_own_turn_prepared()`
 # @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_enforces_batch_cap_recency_order_and_index()`
 # @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_stops_on_time_budget_while_all_open_sweeps_all()`
 # @used-by :mod:`agent_tools.journal_sync_all`
@@ -226,7 +227,8 @@ def reconcile_foreign_open_reservations(root: Path, current_cid: str | None, *, 
 	turns_dir = folder_fn(root)
 	ordered = order_candidates_by_recency(turns_dir, candidates)
 	synced, checked = _sync_foreign_batch(root, ordered, str(current_cid or '').strip().lower(), journal_directory, folder_fn=folder_fn, read_fn=read_fn, sync_fn=sync_fn, max_entries=max_entries, time_budget_s=time_budget_s)
-	prune_resolved_from_index(turns_dir, prepared, checked, read_fn=read_fn, had_entries=had_index or bool(prepared))
+	if had_index or checked:
+		prune_resolved_from_index(turns_dir, prepared, checked, read_fn=read_fn, had_entries=True)
 	return synced
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler._reconcile_turn()`
 # @used-by :mod:`agent_tools.journal_sync_all`
