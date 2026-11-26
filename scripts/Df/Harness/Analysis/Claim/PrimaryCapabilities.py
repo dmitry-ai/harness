@@ -15,8 +15,8 @@ class PrimaryCapabilities:
 		self.__ref = ref
 	# @used-by :meth:`PrimaryCapabilities.resolve()`
 	def __resolve_experiment(self) -> tuple[set[str], dict]:
-		from agent_tools.experiments import load_experiment
-		exp = load_experiment(self.__root, self.__ref['experiment'])
+		from Df.Harness.Experiment.RunLoader import RunLoader
+		exp = RunLoader(self.__root, self.__ref['experiment']).load_run()
 		asset = next((a for a in exp.get('artifacts', []) if a.get('id') == self.__ref['artifact_id']), None)
 		if not asset or LocalSourceResolver(self.__root, asset['path']).resolve() != LocalSourceResolver(self.__root, self.__ref['source']).resolve() or asset.get('sha256') != self.__ref['source_sha256']:
 			raise ValueError('Experiment source must be the exact recorded artifact and hash')

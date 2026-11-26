@@ -6,6 +6,7 @@ import json
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class NumericGrounding:
 	# @used-by :func:`agent_tools.claims.grounded_numbers_for_claim()`
+	# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`
 	# @used-by :meth:`NumericGrounding.__compute()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_graph_and_validators()`
 	def __init__(self, claim, index=None, visited=None, memo=None) -> None:
@@ -65,6 +66,7 @@ class NumericGrounding:
 		ids.extend((a for a in (addrs if isinstance(addrs, list) else ()) if isinstance(a, str)))
 		return ids
 	# @used-by :func:`agent_tools.claims.grounded_numbers_for_claim()`
+	# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`
 	# @used-by :meth:`NumericGrounding.__compute()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_graph_and_validators()`
 	def grounded_numbers(self) -> set[str]:

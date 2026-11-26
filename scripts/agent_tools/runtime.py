@@ -818,13 +818,13 @@ def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, co
 # @used-by :func:`agent_tools.completion.issue_first_check_turn()`
 # @used-by :func:`agent_tools.completion.tdd_check_turn()`
 # @used-by :func:`agent_tools.platforms.adapter()`
-# @used-by :func:`agent_tools.review.input_receipt()`
 # @used-by :func:`agent_tools.upwork_project.doctor()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`platform_settings()`
 # @used-by :func:`using()`
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__init__()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.register()`
+# @used-by :meth:`Df.Harness.Review.InputReceiptBuilder.InputReceiptBuilder.build()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 def platform_name(value=None, *, config=None):

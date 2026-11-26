@@ -8,6 +8,7 @@ import hashlib
 # @used-by :func:`agent_tools.analysis.digest()`
 # @used-by :func:`agent_tools.intake._hash()`
 # @used-by :func:`agent_tools.project_card._digest()`
+# @used-by :func:`agent_tools.review.digest()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.text_claims.digest()`
 # @used-by :func:`df_sha256_file()`
@@ -25,8 +26,30 @@ import hashlib
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__check_expected()`
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
+# @used-by :meth:`Df.Harness.Experiment.ArtifactIngestor.ArtifactIngestor.__append_aliases()`
+# @used-by :meth:`Df.Harness.Experiment.ArtifactIngestor.ArtifactIngestor.__build_item()`
+# @used-by :meth:`Df.Harness.Experiment.ArtifactIngestor.ArtifactIngestor.__ingest_trace()`
+# @used-by :meth:`Df.Harness.Experiment.ArtifactIngestor.ArtifactIngestor.collector_artifact()`
+# @used-by :meth:`Df.Harness.Experiment.ArtifactVerifier.ArtifactVerifier.__verify_artifact()`
+# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
+# @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__load_plan()`
+# @used-by :meth:`Df.Harness.Experiment.ResultValidator.ResultValidator.__check_run()`
+# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_result()`
+# @used-by :meth:`Df.Harness.Review.ApprovalChecker.ApprovalChecker.__verify_package()`
+# @used-by :meth:`Df.Harness.Review.ClaimMerkleHasher.ClaimMerkleHasher.compute_hash()`
+# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`
+# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
+# @used-by :meth:`Df.Harness.Review.NativeProofVerifier.NativeProofVerifier.verify()`
+# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
+# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.subject_digest()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__write_candidate()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
+# @used-by :meth:`Df.Harness.Review.ReportAuthenticator.ReportAuthenticator.__auth_independent()`
+# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
+# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_sha256_json_io_and_time_helpers()`
 def df_sha256(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()

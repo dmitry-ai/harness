@@ -6,12 +6,14 @@ class SourceNumericTokenizer:
 	# @used-by :func:`agent_tools.claims.source_numeric_tokens()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.NumericGrounding.NumericGrounding.__compute()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.StructureAuditor.StructureAuditor.__check_numbers()`
+	# @used-by :meth:`Df.Harness.Review.ClaimReviewValidator.ClaimReviewValidator.__check_numeric_grounding()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_arithmetic_and_grounding_classes()`
 	def __init__(self, raw_text: str) -> None:
 		self.__raw_text = raw_text or ''
 	# @used-by :func:`agent_tools.claims.source_numeric_tokens()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.NumericGrounding.NumericGrounding.__compute()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.StructureAuditor.StructureAuditor.__check_numbers()`
+	# @used-by :meth:`Df.Harness.Review.ClaimReviewValidator.ClaimReviewValidator.__check_numeric_grounding()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_arithmetic_and_grounding_classes()`
 	def tokenize(self) -> set[str]:
 		r: set[str] = set()

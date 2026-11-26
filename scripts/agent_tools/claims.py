@@ -72,12 +72,9 @@ def _verify_quote(root, ref, *, observation=None):
 # @used-by :mod:`agent_tools.claims`
 def all_claims(value):
 	return [claim for _, _, claim in claim_locations(value)]
-# @used-by :func:`agent_tools.review.read_package()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_claims.validate_map()`
 # @used-by :func:`test_evidence_contract.v3_analysis()`
-# @used-by :meth:`agent_tools.review.ReviewClassifier._check_omitted_stage_claims()`
-# @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
 # @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
@@ -96,15 +93,9 @@ def all_claims(value):
 # @used-by :mod:`agent_tools.claims`
 def claim_digest(claim):
 	return hashlib.sha256(json.dumps(claim, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
-# @used-by :func:`agent_tools.review.build_blind_verification_predicates()`
-# @used-by :func:`agent_tools.review.compute_claim_merkle_delta()`
-# @used-by :func:`agent_tools.review.read_package()`
-# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_claims.subset()`
 # @used-by :func:`agent_tools.text_claims.validate_map()`
-# @used-by :meth:`agent_tools.review.ReviewClassifier.classify()`
-# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approved_claim_digests()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
 # @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_claim_index_includes_facts_and_all_five_stages()`
@@ -114,7 +105,6 @@ def claim_index(value):
 	return {claim['id']: claim for claim in all_claims(value) if _text(claim.get('id'))}
 # @used-by :func:`agent_tools.text_claims.subset()`
 # @used-by :func:`all_claims()`
-# @used-by :meth:`agent_tools.review.ReviewClassifier.classify()`
 # @used-by :mod:`agent_tools.claims`
 def claim_locations(value):
 	if isinstance(value, dict):
@@ -122,7 +112,6 @@ def claim_locations(value):
 			for number, claim in enumerate(value.get(section, []) if isinstance(value.get(section), list) else ()):
 				if isinstance(claim, dict):
 					yield (f'/{section}/{number}', section, claim)
-# @used-by :func:`agent_tools.review._claim_evidence_pairs()`
 # @used-by :func:`agent_tools.text_claims.primary_numbers()`
 # @used-by :func:`agent_tools.text_claims.subset()`
 # @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
@@ -152,11 +141,9 @@ def evidence_contract_issues(root, value, *, skip_structural=False):
 # @used-by :mod:`agent_tools.claims`
 def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> tuple[set[str], list[str]]:
 	return InlineCalcVerifier(text, grounded_nums).extract()
-# @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
 # @used-by :mod:`agent_tools.claims`
 def grounded_numbers_for_claim(claim, index=None, visited=None, _memo=None):
 	return NumericGrounding(claim, index, visited, _memo).grounded_numbers()
-# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_alignment_and_outcome()`
 # @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_multi_segment_quote_and_thousand_grouped_numeric_tokens()`
 # @used-by :mod:`agent_tools.claims`
 # @used-by :mod:`agent_tools.source_grounding`
@@ -164,8 +151,6 @@ def source_numeric_tokens(raw_text: str) -> set[str]:
 	return SourceNumericTokenizer(raw_text).tokenize()
 # @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
 # @used-by :func:`agent_tools.text_claims.validate_map()`
-# @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
-# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_alignment_and_outcome()`
 # @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_tier2_sole_evidence()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_numeric_prose_in_a_link_label_still_needs_grounding()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_original_numeric_anchor_is_not_a_quantitative_claim()`

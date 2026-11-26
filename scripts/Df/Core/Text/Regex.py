@@ -191,6 +191,7 @@ class Regex(O):
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
+	# @used-by :meth:`Df.Harness.Experiment.CallChainParser.CallChainParser.__tokenize()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_timeout_guard()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__check_header_placement()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__is_line_comment_prefix()`
@@ -227,7 +228,6 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.parse_tag_line()`
 	# @used-by :meth:`Regex.matchInt()`
 	# @used-by :meth:`Regex.test()`
-	# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector._tokenize()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_push_blob_sizes()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._collect_m_subtask_groups()`

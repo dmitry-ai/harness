@@ -13,6 +13,8 @@ class EvidenceAuditor:
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__validate_partial()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
+	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
+	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_evidence_and_observation_classes()`
 	def __init__(self, root, value, *, skip_structural: bool=False) -> None:
 		self.__root = root
@@ -62,6 +64,8 @@ class EvidenceAuditor:
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__validate_partial()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
+	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
+	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_evidence_and_observation_classes()`
 	def issues(self) -> list[dict]:
 		if not isinstance(self.__value, dict):

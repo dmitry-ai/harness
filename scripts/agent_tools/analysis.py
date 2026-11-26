@@ -10,7 +10,6 @@ from Df.Harness.Analysis.Saver import Saver
 from Df.Harness.Analysis.Validator import SECTIONS, Validator
 from .diagnostics import require_valid
 from .storage import replace_bytes
-# @used-by :func:`agent_tools.review._analysis()`
 # @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`validate_analysis()`
 # @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`

@@ -40,37 +40,11 @@ class OutcomeParser:
 		self.__outputs = outputs
 		self.__task_log_paths = task_log_paths
 		self.__first_fn = first_fn
-	# @used-by :func:`agent_tools.article.check_link_style()`
-	# @used-by :func:`agent_tools.env_isolation_contracts._extract_worktree_land_gates()`
-	# @used-by :func:`agent_tools.env_isolation_contracts._verify_contract_test_ref()`
-	# @used-by :func:`agent_tools.env_isolation_contracts.audit_metadata_test_env_isolation()`
-	# @used-by :func:`agent_tools.links.readable_link_issues()`
-	# @used-by :func:`agent_tools.links.references()`
-	# @used-by :func:`agent_tools.markdown_links.numeric_text()`
-	# @used-by :func:`agent_tools.source_grounding.extract_authored_prose()`
 	# @used-by :func:`agent_tools.tdd.outcomes.parse_command_outcome()`
-	# @used-by :meth:`Df.Harness.Analysis.Claim.SafeArithmetic.SafeArithmetic.__parse()`
-	# @used-by :meth:`Df.Harness.Arch.TriggerClassifier.TriggerClassifier.__extract_python_symbols()`
-	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.analyze()`
-	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.analyze()`
-	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.build_py_spans()`
-	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.check()`
-	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneChecker.SubprocessHygieneChecker.__scan_source_findings()`
-	# @used-by :meth:`Df.Harness.Project.LinkAudit.LinkAudit.audit()`
-	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_python()`
-	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.parse_module_functions()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__record_bg_task_completion()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
-	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__py_has_ast_assertion()`
-	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__py_source_text_issues()`
-	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.index_file()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
-	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_s11_arch_invariants_and_zero_class_facades()`
-	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_structure_visitor_and_trigger_classifier_detect_df_cross_imports()`
-	# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
-	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def parse(self) -> dict:
 		parts = [self.__outputs] if isinstance(self.__outputs, str) else [str(o) for o in (self.__outputs or ()) if o]
 		combined = '\n'.join(parts)

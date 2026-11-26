@@ -37,8 +37,8 @@ def native_requests(root, conversation_id, *, backend=None, platform=None, insta
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None, wait_timeout=0.0, role='AA'):
 	return MetricsSummarizer.native_review_proof(root, parent_id, reviewer_id, backend=backend, write=write, platform=platform, instance=instance, wait_timeout=wait_timeout, role=role)
-# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._ingest_artifacts_and_trace()`
-# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._verify_saved_artifacts()`
+# @used-by :meth:`Df.Harness.Experiment.ArtifactIngestor.ArtifactIngestor.__ingest_trace()`
+# @used-by :meth:`Df.Harness.Experiment.ArtifactVerifier.ArtifactVerifier.__verify_trace()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_supplied_native_events_are_rejected()`
 def native_tool_trace(root, request):
@@ -61,9 +61,9 @@ def summarize(paths, bindings=None):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
 def summarize_instance(conversation_id, *, instance=None, platform=None, bindings=None):
 	return MetricsSummarizer.summarize_instance(conversation_id, instance=instance, platform=platform, bindings=bindings)
-# @used-by :func:`agent_tools.review.authenticate_report()`
-# @used-by :func:`agent_tools.review.verify_entry_native_proof()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.authenticate_report()`
+# @used-by :meth:`Df.Harness.Review.NativeProofVerifier.NativeProofVerifier.verify()`
+# @used-by :meth:`Df.Harness.Review.ReportAuthenticator.ReportAuthenticator.__auth_independent()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_parent_can_select_another_model_and_effort_with_native_proof()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
 def verify_native_proof(root, native, package=None):

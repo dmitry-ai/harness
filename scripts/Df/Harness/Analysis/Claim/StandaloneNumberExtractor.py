@@ -5,11 +5,15 @@ import re
 class StandaloneNumberExtractor:
 	# @used-by :func:`agent_tools.claims.standalone_numbers()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.StructureAuditor.StructureAuditor.__check_numbers()`
+	# @used-by :meth:`Df.Harness.Review.ClaimReviewValidator.ClaimReviewValidator.__check_numeric_grounding()`
+	# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_arithmetic_and_grounding_classes()`
 	def __init__(self, text) -> None:
 		self.__text = text
 	# @used-by :func:`agent_tools.claims.standalone_numbers()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.StructureAuditor.StructureAuditor.__check_numbers()`
+	# @used-by :meth:`Df.Harness.Review.ClaimReviewValidator.ClaimReviewValidator.__check_numeric_grounding()`
+	# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_arithmetic_and_grounding_classes()`
 	def extract(self) -> set[str]:
 		if not isinstance(self.__text, str) or not self.__text:

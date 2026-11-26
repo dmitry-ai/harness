@@ -285,7 +285,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.context.discover_letters()`
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.env_isolation_contracts._extract_worktree_land_gates()`
-	# @used-by :func:`agent_tools.experiments.requirement_issues()`
 	# @used-by :func:`agent_tools.git_gate._ancestor_process_names()`
 	# @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_ticket_metadata()`
@@ -356,6 +355,9 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__add_anchor()`
 	# @used-by :meth:`Df.Harness.Analysis.RedFlagValidator.RedFlagValidator.__check_flag()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.arch_index_paths()`
+	# @used-by :meth:`Df.Harness.Experiment.CapabilityResolver.CapabilityResolver.__add_method_caps()`
+	# @used-by :meth:`Df.Harness.Experiment.CapabilityResolver.CapabilityResolver.capabilities()`
+	# @used-by :meth:`Df.Harness.Experiment.RequirementValidator.RequirementValidator.__check_fields()`
 	# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.run()`
 	# @used-by :meth:`Df.Harness.Gate.BulkSourceReadGate.BulkSourceReadGate.__update_streak()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__code_lines_and_semicolons()`
@@ -372,6 +374,11 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__scan_ag_file()`
 	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__push_project_dir()`
 	# @used-by :meth:`Df.Harness.Project.LinkAudit.LinkAudit.audit()`
+	# @used-by :meth:`Df.Harness.Review.ApprovedDigestCollector.ApprovedDigestCollector.__add_claims()`
+	# @used-by :meth:`Df.Harness.Review.ClaimReviewValidator.ClaimReviewValidator.__check_item()`
+	# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__evaluate_claim()`
+	# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__process_item()`
+	# @used-by :meth:`Df.Harness.Review.FindingValidator.FindingValidator.__check_one()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_test_delete_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_write_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__collect_hit_lines()`
@@ -397,7 +404,6 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.discover_files()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Overrides.Overrides.__check_repo_ancestors()`
 	# @used-by :meth:`ResearchQuestionRegistry.contract_issues()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.capabilities()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._committed_parent_numbers()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
@@ -409,11 +415,6 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`agent_tools.research.HTMLData.result()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
-	# @used-by :meth:`agent_tools.review.ReviewClassifier._evaluate_claim_risk()`
-	# @used-by :meth:`agent_tools.review.ReviewClassifier.classify()`
-	# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approved_claim_digests()`
-	# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_claim_reviews()`
-	# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_findings()`
 	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._load_ledger_tuples()`
 	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex._candidate_files()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate_requests_for_root()`
@@ -1056,9 +1057,9 @@ class WorkflowStateEngine:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.review.disposition()`
-# @used-by :func:`agent_tools.review.record()`
 # @used-by :func:`agent_tools.text_review.record()`
+# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
+# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
 # @used-by :meth:`ResearchQuestionRegistry._apply_add()`
 # @used-by :meth:`ResearchQuestionRegistry._apply_search()`
 # @used-by :meth:`WorkflowStateEngine._apply_complete_stage()`
@@ -1066,8 +1067,8 @@ class WorkflowStateEngine:
 # @used-by :meth:`WorkflowStateEngine.update()`
 def now():
 	return datetime.now(timezone.utc).isoformat(timespec='seconds')
-# @used-by :func:`agent_tools.review.input_receipt()`
 # @used-by :func:`hashes()`
+# @used-by :meth:`Df.Harness.Review.InputReceiptBuilder.InputReceiptBuilder.build()`
 # @used-by :meth:`WorkflowStateEngine._apply_resume()`
 # @used-by :meth:`WorkflowStateEngine.receipt_current()`
 # @used-by :meth:`WorkflowStateEngine.status()`
@@ -1075,18 +1076,18 @@ def now():
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
 def file_hash(path):
 	return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-# @used-by :func:`agent_tools.review.disposition()`
-# @used-by :func:`agent_tools.review.prepare()`
-# @used-by :func:`agent_tools.review.read_package()`
-# @used-by :func:`agent_tools.review.record()`
 # @used-by :func:`agent_tools.text_review.record()`
+# @used-by :meth:`Df.Harness.Review.ApprovedDigestCollector.ApprovedDigestCollector.digests()`
+# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__build_data()`
+# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
+# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
 # @used-by :meth:`ResearchQuestionRegistry._apply_finish()`
 # @used-by :meth:`ResearchQuestionRegistry.add()`
 # @used-by :meth:`WorkflowStateEngine._apply_resume()`
 # @used-by :meth:`WorkflowStateEngine.complete_stage()`
 # @used-by :meth:`WorkflowStateEngine.evidence_hashes()`
 # @used-by :meth:`WorkflowStateEngine.kb_hashes()`
-# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approved_claim_digests()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_overview_and_nested_kb_module_change_invalidates_review_receipt()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_answer_change_and_new_request_need_new_review_even_without_kb_change()`
 def hashes(root, paths):
@@ -1098,8 +1099,8 @@ def hashes(root, paths):
 			raise FileNotFoundError(f'Missing stage artifact: {path}')
 		r[target.relative_to(resolved).as_posix()] = file_hash(target)
 	return r
-# @used-by :func:`agent_tools.review.prepare()`
-# @used-by :func:`agent_tools.review.read_package()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__build_data()`
+# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
 # @used-by :meth:`ProjectHealthAuditor.kb_issues()`
 # @used-by :meth:`WorkflowStateEngine.kb_hashes()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
@@ -1120,10 +1121,10 @@ def kb_paths(root):
 	if not kb.is_dir():
 		return []
 	return [p.relative_to(pp.root).as_posix() for p in sorted(kb.rglob('*')) if p.is_file() and (p.suffix.lower() in ('.md', '.json') or '.md' == p.name) and ('Progress.md' != p.name) and (not p.is_relative_to(ev))]
-# @used-by :func:`agent_tools.review.prepare()`
-# @used-by :func:`agent_tools.review.read_package()`
+# @used-by :meth:`Df.Harness.Review.ApprovedDigestCollector.ApprovedDigestCollector.digests()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__build_data()`
+# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
 # @used-by :meth:`WorkflowStateEngine.evidence_hashes()`
-# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.approved_claim_digests()`
 def evidence_paths(root):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -1140,7 +1141,7 @@ def evidence_paths(root):
 # @used-by unused
 def question_contract_issues(root, question):
 	return ResearchQuestionRegistry(root).contract_issues(question)
-# @used-by :func:`agent_tools.review.authorize()`
+# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.__check_prereqs()`
 # @used-by :meth:`WorkflowStateEngine._apply_complete_stage()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap()`
 def questions_current(root, state):
@@ -1154,14 +1155,14 @@ def state_path(root):
 # @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
 # @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
 # @used-by :func:`agent_tools.project_rename_verify._probe_workflow()`
-# @used-by :func:`agent_tools.review.disposition()`
-# @used-by :func:`agent_tools.review.prepare()`
-# @used-by :func:`agent_tools.review.read_package()`
-# @used-by :func:`agent_tools.review.record()`
 # @used-by :func:`agent_tools.shadow_replay._run_finalize_stage()`
 # @used-by :func:`agent_tools.shadow_replay._run_review_stage()`
 # @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
+# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
+# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.read_package()`
+# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._audit_workflow_scope()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_resume_uses_existing_capture_and_agent_kb_without_reading_context()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
@@ -1201,7 +1202,7 @@ def state_path(root):
 # @used-by :meth:`test_turn_completion.CompletionCase.tracked()`
 def load(root):
 	return WorkflowStateEngine(root).load()
-# @used-by :meth:`agent_tools.review.ReviewQuorumEvaluator.entry_proof_current()`
+# @used-by :meth:`Df.Harness.Review.QuorumEvaluator.QuorumEvaluator.entry_proof_current()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_overview_and_nested_kb_module_change_invalidates_review_receipt()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_review_package_pins_primary_evidence_and_unquoted_new_contradiction()`
 def receipt_current(root, receipt):
@@ -1258,8 +1259,8 @@ def status(root, *, state=None, statuses=None):
 def publish_progress(root, state, *, statuses=None):
 	return WorkflowStateEngine(root).publish_progress(state, statuses=statuses)
 # @used-by :func:`agent_tools.blocked_report.sync_authorized_workflow_requests()`
-# @used-by :func:`agent_tools.review.disposition()`
-# @used-by :func:`agent_tools.review.record()`
+# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
+# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
 # @used-by :meth:`ResearchQuestionRegistry.add()`
 # @used-by :meth:`ResearchQuestionRegistry.claim()`
 # @used-by :meth:`ResearchQuestionRegistry.finish()`
@@ -1336,7 +1337,7 @@ def unadopt_requests(root, conversation_id=None, request_ids=None):
 # 2026-11-24
 # "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
 # https://github.com/dmitry-ai/harness/issues/79
-# @used-by :func:`agent_tools.review.prepare()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__validate_response()`
 # @used-by :meth:`ProjectHealthAuditor.kb_issues()`
 # @used-by :meth:`test_hook_unification.HookUnificationTests.test_doc4_scanner_supports_hook_and_workflow_modes()`
 def doc4_sentence_issues(text):
@@ -1392,8 +1393,8 @@ def attachment_issues(root):
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 # @used-by :func:`agent_tools.cli_domains._op_check_project()`
-# @used-by :func:`agent_tools.review.authorize()`
 # @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
+# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.__check_prereqs()`
 # @used-by :meth:`WorkflowStateEngine._apply_complete_stage()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`

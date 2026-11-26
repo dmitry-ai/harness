@@ -338,7 +338,6 @@ class ClientTextWorkspace:
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
-	# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector.unconditional_calls()`
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._parse_commit_flag_bundle()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_sources_and_fences_preserved_in_configured_order()`

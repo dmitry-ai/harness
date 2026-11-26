@@ -58,14 +58,14 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.workflow.now()`
 	# @used-by :func:`test_worktree_isolation_gate._write_turn()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
+	# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
+	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__init_run()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 	# @used-by :meth:`Df.Harness.Meta.TimestampFormatter.TimestampFormatter.format_local()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.__build_entry()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__build_entry()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
-	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
 	# @used-by :meth:`agent_tools.text_browser.GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_legacy_conflicting_job_or_unowned_manifests_never_authorize_deletion()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_legacy_historical_ids_are_compared_in_full_instead_of_their_numeric_prefix()`

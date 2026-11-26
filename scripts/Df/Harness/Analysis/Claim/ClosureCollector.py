@@ -3,6 +3,7 @@ from __future__ import annotations
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class ClosureCollector:
 	# @used-by :func:`agent_tools.claims.collect_claim_closure()`
+	# @used-by :meth:`Df.Harness.Review.ClaimEvidenceCollector.ClaimEvidenceCollector.pairs()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_graph_and_validators()`
 	def __init__(self, seed_ids, index: dict, *, include_addresses: bool=False, unknown_prefix: str | None=None) -> None:
 		self.__seed_ids = seed_ids
@@ -34,6 +35,7 @@ class ClosureCollector:
 				if self.__should_visit(cid):
 					self.__visit(cid)
 	# @used-by :func:`agent_tools.claims.collect_claim_closure()`
+	# @used-by :meth:`Df.Harness.Review.ClaimEvidenceCollector.ClaimEvidenceCollector.pairs()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_claim_graph_and_validators()`
 	def collect(self) -> list[str]:
 		for seed in self.__seed_ids:

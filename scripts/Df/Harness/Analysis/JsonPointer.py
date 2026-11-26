@@ -4,15 +4,10 @@ from urllib.parse import unquote
 import re
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class JsonPointer:
-	# @used-by :func:`agent_tools.evidence.pointer()`
-	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_evidence_and_observation_classes()`
-	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_evidence_manifest_and_loader_paths()`
-	@staticmethod
-	def render_pointer(*parts) -> str:
-		return '/' + '/'.join((str(x).replace('~', '~0').replace('/', '~1') for x in parts)) if parts else ''
 	# @used-by :func:`agent_tools.evidence.resolve_pointer()`
 	# @used-by :meth:`Df.Harness.Analysis.ObservationContentLoader.ObservationContentLoader.load()`
 	# @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_text_or_structured()`
+	# @used-by :meth:`Df.Harness.Experiment.AssertionEvaluator.AssertionEvaluator.__select_raw()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_evidence_and_observation_classes()`
 	def __init__(self, value, fragment: str, *, decode_uri: bool=True) -> None:
 		self.__value = value
@@ -40,6 +35,7 @@ class JsonPointer:
 	# @used-by :func:`agent_tools.evidence.resolve_pointer()`
 	# @used-by :meth:`Df.Harness.Analysis.ObservationContentLoader.ObservationContentLoader.load()`
 	# @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_text_or_structured()`
+	# @used-by :meth:`Df.Harness.Experiment.AssertionEvaluator.AssertionEvaluator.__select_raw()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_evidence_and_observation_classes()`
 	def resolve(self):
 		if not self.__fragment:

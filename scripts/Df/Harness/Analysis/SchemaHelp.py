@@ -23,7 +23,7 @@ class SchemaHelp:
 		}
 	# @used-by :meth:`SchemaHelp.payload()`
 	def __experiment(self) -> dict:
-		from agent_tools.experiments import METHODS, OPERATORS, PROPERTY_METHODS, STATUSES
+		from Df.Harness.Experiment.RequirementValidator import METHODS, OPERATORS, PROPERTY_METHODS, STATUSES
 		return {
 			'valid': True,
 			'topic': 'experiment',
@@ -36,7 +36,9 @@ class SchemaHelp:
 		}
 	# @used-by :meth:`SchemaHelp.payload()`
 	def __review(self) -> dict:
-		from agent_tools.review import REPORT_CONTRACT, REVIEW_SCHEMA, SCOPES, TASK_FLAGS
+		from Df.Harness.Review.Classifier import TASK_FLAGS
+		from Df.Harness.Review.InputReceiptBuilder import REPORT_CONTRACT
+		from Df.Harness.Review.ReportValidator import REVIEW_SCHEMA, SCOPES
 		return {
 			'valid': True,
 			'topic': 'review',

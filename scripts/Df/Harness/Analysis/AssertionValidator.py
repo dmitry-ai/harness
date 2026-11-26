@@ -3,6 +3,7 @@ from __future__ import annotations
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class AssertionValidator:
 	# @used-by :func:`agent_tools.schema_help.requirement_assertion_issues()`
+	# @used-by :meth:`Df.Harness.Experiment.RequirementValidator.RequirementValidator.__check_one()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_schema_help_classes()`
 	def __init__(self, label: str, requirement: dict, operators: tuple[str, ...]) -> None:
 		self.__label = label
@@ -36,6 +37,7 @@ class AssertionValidator:
 			r = ('json_pointer' != loc.get('type')) or (not loc['value']) or loc['value'].startswith('/')
 		return r
 	# @used-by :func:`agent_tools.schema_help.requirement_assertion_issues()`
+	# @used-by :meth:`Df.Harness.Experiment.RequirementValidator.RequirementValidator.__check_one()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_schema_help_classes()`
 	def issues(self) -> list[str]:
 		out: list[str] = []

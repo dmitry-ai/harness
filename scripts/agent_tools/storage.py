@@ -77,8 +77,8 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # @used-by :func:`write_immutable_bytes()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
-# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
-# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
+# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
+# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
 # @used-by :meth:`agent_tools.knowledge.AttachmentInventory._register_bytes()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
@@ -136,8 +136,8 @@ def journal_data_dir_for(eff: Path) -> Path:
 # https://github.com/dmitry-ai/harness/issues/72
 # @used-by :func:`agent_tools.issues.service_helpers._decode_gh_stdout()`
 # @used-by :func:`agent_tools.platforms.codex._json_objects()`
-# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector.native_geolocation()`
-# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore._is_plan_commit()`
+# @used-by :meth:`Df.Harness.Experiment.NativeGeoExtractor.NativeGeoExtractor.extract_country()`
+# @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__is_plan_commit()`
 def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=True):
 	if isinstance(value, dict):
 		yield value
@@ -277,11 +277,11 @@ def locked(path: Path, timeout: float=15, *, create=True):
 # 2026-11-13
 # "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
 # https://github.com/dmitry-ai/harness/issues/63
-# @used-by :func:`agent_tools.review.read_package()`
-# @used-by :func:`agent_tools.review.read_package_envelope()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`agent_tools.text_sources.read_source_check()`
 # @used-by :func:`agent_tools.text_sources.source_integrity()`
+# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
+# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.read_package()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
@@ -337,7 +337,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.research._write_cached_extraction()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.observed_use()`
-# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
 # @used-by :func:`agent_tools.runtime_snapshot._activate_release()`
 # @used-by :func:`agent_tools.runtime_snapshot._deploy_git_hooks()`
 # @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
@@ -362,6 +361,7 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_files()`
 # @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
+# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__save_timings()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
@@ -389,8 +389,6 @@ def replace_bytes(path: Path, data: bytes):
 		_stage_atomic_write(target, data, _replace_with_retry)
 # @used-by :func:`agent_tools.completion._conflict()`
 # @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
-# @used-by :func:`agent_tools.review._immutable()`
-# @used-by :func:`agent_tools.review.prepare_verdict_record()`
 # @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 # @used-by :func:`agent_tools.text_review.prepare()`
 # @used-by :func:`agent_tools.text_sources.probe_links()`
@@ -402,6 +400,10 @@ def replace_bytes(path: Path, data: bytes):
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
+# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__write_candidate()`
+# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
+# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
 def write_immutable_bytes(path: Path, payload: bytes, *, diff_error: str='Immutable artifact differs') -> Path:
 	target = Path(path)

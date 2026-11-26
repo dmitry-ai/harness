@@ -1,88 +1,29 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
-# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
+# 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
+from Df.Harness.Review.AlignmentValidator import AlignmentValidator, TARGET_CLAIM_RULE
+from Df.Harness.Review.ClaimTargetBuilder import ClaimTargetBuilder
+from Df.Harness.Review.ContractBinder import ContractBinder
+from Df.Harness.Review.EnvelopeValidator import EnvelopeValidator
+from Df.Harness.Review.ReviewModeResolver import ReviewModeResolver
 from Df.Qa.lib.validation.check_strict import df_is_sne
-# 2026-11-24
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
-TARGET_CLAIM_RULE = 'Copy claims[i].essence verbatim in its original language without translating or paraphrasing (see claim_targets)'
-# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
-# @used-by :func:`_package_envelope_issues()`
-# @used-by :func:`alignment_issues()`
-# @used-by :func:`build_claim_targets()`
-# @used-by :func:`envelope_issues()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
+# @used-by :mod:`agent_tools.review_alignment`
 def _nonempty(value) -> bool:
 	return df_is_sne(value)
-# 2026-11-24
-# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
-# https://github.com/dmitry-ai/harness/issues/223
-# @used-by :func:`envelope_issues()`
-def _package_envelope_issues(data: dict, package: dict) -> list[str]:
-	r: list[str] = []
-	if not _nonempty(data.get('package')):
-		r.append('Review report must identify its immutable package (top-level "package" key is required)')
-	if not _nonempty(data.get('package_sha256')):
-		r.append('Review report must include top-level "package_sha256" matching the immutable package')
-	elif _nonempty(package.get('package_sha256')) and data.get('package_sha256') != package.get('package_sha256'):
-		r.append('Review report package_sha256 does not match the immutable package')
-	return r
-# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_alignment_and_outcome()`
+# @used-by :mod:`agent_tools.review_alignment`
 def alignment_issues(ident: str, alignment, expected_target: str | None) -> list[str]:
-	issues: list[str] = []
-	if not isinstance(alignment, dict):
-		issues.append(f'{ident}: test_alignment must be an object binding target_claim, tested_claim, relationship, rationale and a concrete counterexample')
-	else:
-		actual_target = alignment.get('target_claim')
-		if actual_target != expected_target:
-			issues.append(f'{ident}: test_alignment.target_claim mismatch (copy claims[i].essence verbatim without translation): expected {expected_target!r}, got {actual_target!r}')
-		missing = [k for k in ('tested_claim', 'rationale', 'counterexample') if not _nonempty(alignment.get(k))]
-		if missing:
-			issues.append(f"{ident}: test_alignment missing nonempty field(s): {', '.join(missing)}")
-		rel = alignment.get('relationship')
-		if rel not in ('direct', 'proxy', 'irrelevant'):
-			issues.append(f'{ident}: test_alignment.relationship must be direct, proxy or irrelevant, got {rel!r}')
-	return issues
-# 2026-11-24
-# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
-# https://github.com/dmitry-ai/harness/issues/223
-# @used-by :func:`agent_tools.review.input_receipt()`
+	return AlignmentValidator(ident, alignment, expected_target).issues()
+# @used-by :mod:`agent_tools.review_alignment`
 def bind_contract_envelope(contract: dict, package_path: str, package_sha: str, review_mode: str | None=None) -> dict:
-	r = dict(contract)
-	if 'falsifier' == review_mode and isinstance(r.get('falsifier_required_top_level_fields'), list):
-		r['required_top_level_fields'] = list(r['falsifier_required_top_level_fields'])
-	r['expected_package'] = package_path
-	r['expected_package_sha256'] = package_sha
-	return r
-# @used-by :func:`agent_tools.review.input_receipt()`
+	return ContractBinder(contract, package_path, package_sha, review_mode).bind()
+# @used-by :mod:`agent_tools.review_alignment`
 def build_claim_targets(claims: list | tuple | None) -> dict[str, str]:
-	return {c['claim_id']: c['essence'] for c in (claims or ()) if isinstance(c, dict) and _nonempty(c.get('claim_id')) and isinstance(c.get('essence'), str)}
-# 2026-11-24
-# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
-# https://github.com/dmitry-ai/harness/issues/223
-# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_envelope()`
+	return ClaimTargetBuilder(claims).build()
+# @used-by :mod:`agent_tools.review_alignment`
 def envelope_issues(data: dict, package: dict, *, review_schema: int, scopes: tuple[str, ...], require_envelope: bool=False) -> list[str]:
-	r: list[str] = []
-	if review_schema != data.get('schema_version'):
-		r.append(f'Review report schema_version {review_schema} is required')
-	if data.get('result') not in ('approved', 'needs_changes'):
-		r.append('Review result must be approved or needs_changes')
-	required_scope = package.get('scope', list(scopes)) if 'client_text' == package.get('kind') else scopes
-	if not isinstance(data.get('scope'), list) or not all((_nonempty(x) for x in data['scope'])) or (not set(required_scope).issubset(data['scope'])):
-		r.append('Review must cover the required subject scope: ' + ', '.join(required_scope))
-	if require_envelope or ('package' in data) or ('package_sha256' in data):
-		r.extend(_package_envelope_issues(data, package))
-	return r
-# 2026-11-24
-# "Enforce single falsifier review default and block duplicate send_message reports":
-# https://github.com/dmitry-ai/harness/issues/226
-# @used-by :func:`agent_tools.review.prepare()`
+	return EnvelopeValidator(data, package, review_schema=review_schema, scopes=scopes, require_envelope=require_envelope).issues()
+# @used-by :mod:`agent_tools.review_alignment`
 def resolve_package_review_mode(spec: object, package: dict, evaluator) -> str | None:
-	if isinstance(spec, dict) and spec.get('review_mode') in ('standard', 'falsifier'):
-		r: str | None = spec['review_mode']
-	elif 'significant' == package.get('risk'):
-		has_esc = evaluator.significant_findings(package['subject_sha256']) or any(('approved' != item.get('result') for item in evaluator.latest_for_subject(package).values()))
-		r = 'standard' if has_esc else 'falsifier'
-	else:
-		r = None
-	return r
+	return ReviewModeResolver(spec, package, evaluator).resolve()
+__all__ = ['TARGET_CLAIM_RULE', '_nonempty', 'alignment_issues', 'bind_contract_envelope', 'build_claim_targets', 'envelope_issues', 'resolve_package_review_mode']

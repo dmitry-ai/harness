@@ -72,7 +72,6 @@ def local_file(root, reference):
 def pointer(*parts):
 	return JsonPointer.render_pointer(*parts)
 # @used-by :func:`agent_tools.completion._response_link_issues()`
-# @used-by :func:`agent_tools.experiments._select_raw()`
 # @used-by :func:`agent_tools.links.validate_file()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`

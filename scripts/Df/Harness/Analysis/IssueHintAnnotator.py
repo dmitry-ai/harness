@@ -8,12 +8,16 @@ _HINTS = {
 class IssueHintAnnotator:
 	# @used-by :func:`agent_tools.schema_help.annotate_experiment_issues()`
 	# @used-by :func:`agent_tools.schema_help.annotate_review_issues()`
+	# @used-by :meth:`Df.Harness.Experiment.RequirementValidator.RequirementValidator.issues()`
+	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_schema_help_classes()`
 	def __init__(self, kind: str, issues: list[str]) -> None:
 		self.__kind = kind
 		self.__issues = issues
 	# @used-by :func:`agent_tools.schema_help.annotate_experiment_issues()`
 	# @used-by :func:`agent_tools.schema_help.annotate_review_issues()`
+	# @used-by :meth:`Df.Harness.Experiment.RequirementValidator.RequirementValidator.issues()`
+	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_schema_help_classes()`
 	def annotate(self) -> list[str]:
 		marker, hint = _HINTS[self.__kind]
