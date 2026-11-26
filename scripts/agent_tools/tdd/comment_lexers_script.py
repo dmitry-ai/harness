@@ -1,7 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from .comment_lexers_c import can_start_regex, consume_shebang, scan_word_or_char
-from .comment_scanners import finalize_line_tokens, scan_block_comment, scan_heredoc, scan_js_regex, scan_line_block, scan_line_comment, scan_ps_herestring, scan_quoted
+from .comment_scanners import finalize_line_tokens, scan_block_comment, scan_heredoc, scan_js_regex, scan_line_block, scan_line_comment, scan_ps_herestring, scan_quoted, scan_triple_quote
 import re
 # 2026-11-25
 # "Add comment-only diff lexer exemption for top 20 repository languages":
@@ -57,6 +57,9 @@ def _hash_quote_step(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 	end = -2
 	if "'" == ch and cfg.get('single_quote', True):
 		end = scan_quoted(src, i, "'", backslash=bool(cfg.get('sq_bs')), doubled=bool(cfg.get('ps_here')))
+	# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+	elif cfg.get('triple_quote') and src.startswith('"""', i):
+		end = scan_triple_quote(src, i, '"')
 	elif '"' == ch:
 		end = scan_quoted(src, i, '"', backslash=not cfg.get('ps_here'), backtick=bool(cfg.get('ps_here')))
 	elif '`' == ch and cfg.get('backtick_str'):
@@ -100,7 +103,7 @@ def _vbs_step(src: str, i: int, stmt_start: bool, tokens: list[str], comments: l
 	else:
 		r = (scan_word_or_char(src, i, tokens), ':' == ch, True)
 	return r
-# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_diff`
 # @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_batch(source: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
 	tokens: list[str] = []
@@ -128,7 +131,7 @@ def lex_hash_script(source: str, cfg: dict) -> tuple[tuple[str, ...], tuple[str,
 			ok = -1 != nxt
 			i = scan_word_or_char(source, i, tokens) if -2 == nxt else nxt
 	return (finalize_line_tokens(tokens), tuple(comments)) if ok else None
-# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_diff`
 # @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_sql(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	i, n, tokens, comments, ok = (0, len(source), [], [], True)
@@ -140,7 +143,7 @@ def lex_sql(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 			ok = -1 != nxt
 			i = scan_word_or_char(source, i, tokens) if -2 == nxt else nxt
 	return (tuple(tokens), tuple(comments)) if ok else None
-# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_diff`
 # @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_vbscript(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	i, n, tokens, comments, ok, stmt_start = (0, len(source), [], [], True, True)

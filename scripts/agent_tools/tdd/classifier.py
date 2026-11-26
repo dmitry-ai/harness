@@ -135,6 +135,13 @@ def count_repo_test_files(scope_root: Path | None) -> int:
 				if 2 <= r:
 					break
 	return r
+# @used-by :func:`agent_tools.tdd.diff_executability._classify_existing_git_path()`
+# @used-by :func:`agent_tools.tdd.diff_executability._classify_last_commit_path()`
+# @used-by :func:`agent_tools.tdd.diff_executability._classify_modified_entry()`
+# @used-by :func:`agent_tools.tdd.diff_executability._classify_non_modified_entry()`
+# @used-by :func:`agent_tools.tdd.diff_executability._classify_single_blob()`
+# @used-by :func:`agent_tools.tdd.diff_executability.classify_git_path()`
+# @used-by :func:`agent_tools.tdd.diff_executability.classify_text_diff()`
 # @used-by :func:`classify_code_path()`
 # @used-by :func:`is_test_file()`
 # @used-by :mod:`agent_tools.tdd_gate`

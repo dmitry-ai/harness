@@ -2,17 +2,15 @@
 from __future__ import annotations
 from pathlib import Path
 from ..shell_audit import _GITHUB_ISSUE_URL_RE, is_code_file, parse_issue_url
-from .comment_diff import is_comment_only_diff, is_git_file_comment_only
-# 2026-11-25
-# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
-# https://github.com/dmitry-ai/harness/issues/239
-from .mechanical import is_git_file_mechanical_exempt, is_mechanical_diff_exempt
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+from .diff_executability import is_git_path_non_executable, is_non_executable_diff
 # 2026-11-25
 # "Add comment-only diff lexer exemption for top 20 repository languages":
 # https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-25
 # "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 # https://github.com/dmitry-ai/harness/issues/239
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`agent_tools.tdd.enforcement._eval_pre_code_write()`
 # @used-by :func:`agent_tools.tdd.enforcement._eval_pre_test_write()`
 # @used-by :func:`agent_tools.tdd.enforcement._verify_staged_test_file()`
@@ -20,17 +18,18 @@ from .mechanical import is_git_file_mechanical_exempt, is_mechanical_diff_exempt
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def is_diff_exempt(path: str | Path, old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
-	return is_comment_only_diff(path, old_text, new_text) or is_mechanical_diff_exempt(old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)
+	return is_non_executable_diff(path, old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)
 # 2026-11-25
 # "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 # https://github.com/dmitry-ai/harness/issues/239
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`is_write_event_exempt()`
 # @used-by :func:`verify_staged_issue_urls()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def is_git_path_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
-	return is_git_file_comment_only(repo_root, rel_posix, disk_text=disk_text, use_index=use_index) or is_git_file_mechanical_exempt(repo_root, rel_posix, disk_text=disk_text, use_index=use_index, message=message, project_root=project_root)
+	return is_git_path_non_executable(repo_root, rel_posix, disk_text=disk_text, use_index=use_index, message=message, project_root=project_root)
 # 2026-11-26 "Resolve deleted worktree paths in TDD comment-only exemption": https://github.com/dmitry-ai/harness/issues/278
 # @used-by :func:`agent_tools.tdd.evaluator._is_exempt_cached()`
 # @used-by :meth:`test_tdd_fast_path.TddFastPathTests.test_evaluator_memoizes_exemption_and_allows_exempt_only_edits()`

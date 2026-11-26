@@ -31,17 +31,24 @@ def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: di
 			st['cycle_had_prod_edit'] = False
 			st['cycle_green_step'] = None
 			orders[sk]['written_test'] = None
+# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`evaluate_tdd_events()`
 def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None, exempt_cache: dict[tuple[str, str], bool] | None=None) -> None:
 	cls = ev.get('classification')
 	fpath = str(ev.get('path') or '')
-	# 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
 	scope_str = resolve_tdd_scope_key(fpath, str(ev.get('scope') or ''))
+	cache = {} if None is exempt_cache else exempt_cache
 	if 'test' == cls and scope_str:
+		_apply_test_file_event(fpath, scope_str, step, order, scopes, orders, project_root, cache)
+	elif 'production' == cls and scope_str:
+		_apply_prod_file_event(fpath, scope_str, step, order, scopes, orders, violations, project_root, cache)
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# @used-by :func:`_apply_file_write_event()`
+def _apply_test_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> None:
+	if not _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
 		_apply_test_write(st, st_ord, fpath, step, order)
-	elif 'production' == cls and scope_str:
-		_apply_prod_file_event(fpath, scope_str, step, order, scopes, orders, violations, project_root, {} if None is exempt_cache else exempt_cache)
 # 2026-11-25
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
@@ -71,7 +78,7 @@ def _apply_prod_write(st: dict, st_ord: dict, fpath: str, step: int, order: tupl
 	st['last_prod_edit_step'] = step
 	st['last_code_edit_step'] = step
 	st_ord['last_code_edit'] = order
-# @used-by :func:`_apply_file_write_event()`
+# @used-by :func:`_apply_test_file_event()`
 def _apply_test_write(st: dict, st_ord: dict, fpath: str, step: int, order: tuple[int, int, int]) -> None:
 	if fpath not in st['written_tests']:
 		st['written_tests'].append(fpath)
@@ -124,8 +131,8 @@ def _cwd_matches_scope(cwd_p: Path | None, scope_p: Path, scope_key: str, scope_
 		direct = cwd_scope.as_posix().lower() == scope_key or cwd_p.is_relative_to(scope_p) or scope_p.is_relative_to(cwd_p)
 		r = direct or (is_full_cmd and _git_main_repo_root(cwd_scope).as_posix().lower() == scope_main_key)
 	return r
-# @used-by :func:`_apply_file_write_event()`
 # @used-by :func:`_apply_prod_file_event()`
+# @used-by :func:`_apply_test_file_event()`
 def _ensure_scope(scopes: dict[str, dict], orders: dict[str, dict], scope_str: str) -> tuple[dict, dict]:
 	st = scopes.setdefault(scope_str, {
 		'any_prod_edit': False,
@@ -182,6 +189,7 @@ def _has_non_exempt_prod(sk: str, st_ord: dict, project_root: Path | None, exemp
 # "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
 # https://github.com/dmitry-ai/harness/issues/250
 # @used-by :func:`_apply_prod_file_event()`
+# @used-by :func:`_apply_test_file_event()`
 # @used-by :func:`_has_non_exempt_prod()`
 def _is_exempt_cached(fpath: str, scope_str: str, project_root: Path | None, cache: dict[tuple[str, str], bool]) -> bool:
 	key = (scope_str, fpath)
@@ -258,6 +266,7 @@ def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step:
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_evaluator_exempts_comment_only_test_edits_in_idle_and_post_green()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_tdd_gate_records_non_failfast_full_suite_warning_without_breaking_verified()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_classify_test_command_recognizes_harness_run_tests_full_and_filtered()`
 # @used-by :meth:`test_parallel_test_runner.ParallelTestRunnerTests.test_linked_worktree_scope_accepts_full_suite_green_on_main_repo()`

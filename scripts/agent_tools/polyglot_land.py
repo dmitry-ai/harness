@@ -36,7 +36,7 @@ def _branch_touched_files(main_repo: Path, branch: str) -> set[str]:
 	proc = GitRepoGate(main_repo).run_read(['diff', '--name-only', f'HEAD..{branch}'], check=False)
 	raw = proc.stdout.decode('utf-8', errors='replace') if 0 == proc.returncode else ''
 	return {ln.strip().replace('\\', '/').lstrip('./').casefold() for ln in raw.splitlines() if ln.strip()}
-# @used-by :func:`run_polyglot_land_tests()`
+# @used-by :func:`_execute_polyglot_spec()`
 def _diff_host_snapshots(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
 	return sorted((k for k in set(before) | set(after) if before.get(k) != after.get(k)))
 # @used-by :func:`_expand_spec()`
@@ -89,7 +89,7 @@ def _resolve_node_exe() -> str:
 		r = 'node'
 	return r
 # 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
-# @used-by :func:`run_polyglot_land_tests()`
+# @used-by :func:`_execute_polyglot_spec()`
 def _run_polyglot_proc(cmd: list[str], cwd: Path, sandbox: Path, timeout: int) -> tuple[int, bool, str]:
 	try:
 		proc = subprocess.run(cmd, cwd=str(cwd), env=_sandbox_env(sandbox), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, check=False, creationflags=_NO_WINDOW)
@@ -108,7 +108,7 @@ def _sandbox_env(sandbox_dir: Path) -> dict[str, str]:
 	for sub in (appdata, localappdata, tools_state):
 		sub.mkdir(parents=True, exist_ok=True)
 	return {**os.environ, 'APPDATA': str(appdata), 'LOCALAPPDATA': str(localappdata), 'ANTIGRAVITY_TOOLS_STATE_DIR': str(tools_state), 'GIT_OPTIONAL_LOCKS': '0'}
-# @used-by :func:`run_polyglot_land_tests()`
+# @used-by :func:`_execute_polyglot_spec()`
 def _sandbox_root(main_repo: Path) -> Path:
 	r: Path | None = None
 	for anc in (main_repo, *main_repo.parents[:4]):
@@ -133,7 +133,7 @@ def _snapshot_one_host_file(path: Path) -> dict[str, Any] | None:
 			except OSError:
 				r = {'kind': 'unreadable'}
 	return r
-# @used-by :func:`run_polyglot_land_tests()`
+# @used-by :func:`_execute_polyglot_spec()`
 def _snapshot_host_files(paths: list[Path]) -> dict[str, Any]:
 	return {p.as_posix(): _snapshot_one_host_file(p) for p in paths}
 # @used-by :func:`run_repo_health_check()`
@@ -178,26 +178,32 @@ def resolve_repo_verification_spec(main_repo: Path, wt_path: Path | None=None, *
 				found = _expand_spec(val, reg)
 				break
 	return found if None is not found else (_auto_node_spec(wt_path) if None is not wt_path else None)
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+# @used-by :func:`run_polyglot_land_tests()`
+def _execute_polyglot_spec(main_repo: Path, wt_path: Path, eff: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+	sandbox = _sandbox_root(main_repo) / 'test-sandbox' / wt_path.name
+	watch = [Path(p) for p in (eff.get('watch_host_files') or ()) if str(p).strip()]
+	before = _snapshot_host_files(watch)
+	cwd = (wt_path / str(eff.get('test_cwd') or '.')).resolve()
+	timeout = max(5, int(eff.get('timeout_seconds') or 180))
+	rc, timed_out, out = _run_polyglot_proc(list(eff['test_command']), cwd, sandbox, timeout)
+	mutated = _diff_host_snapshots(before, _snapshot_host_files(watch))
+	ok = (0 == rc) and (not timed_out) and (not mutated)
+	stage = 'host_mutation' if mutated else (None if ok else 'tests')
+	return (ok, {'ok': ok, 'runner': 'polyglot', 'failure_stage': stage, 'timed_out': timed_out, 'mutated_host_files': mutated, 'exit_code': rc, 'output': out})
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`agent_tools.worktree_flow._run_land_tests()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_host_state_mutation_fails_closed_while_heartbeat_timestamp_is_ignored()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :mod:`agent_tools.polyglot_land`
-def run_polyglot_land_tests(main_repo: Path, wt_path: Path, *, spec: dict[str, Any] | None=None) -> tuple[bool, dict[str, Any] | None]:
-	eff = spec if None is not spec else resolve_repo_verification_spec(main_repo, wt_path)
-	if None is eff or (not eff.get('test_command')):
+def run_polyglot_land_tests(main_repo: Path, wt_path: Path, *, spec: dict[str, Any] | None=None, base_ref: str | None=None) -> tuple[bool, dict[str, Any] | None]:
+	from .tdd.diff_executability import classify_git_range
+	if None is not base_ref and (not classify_git_range(wt_path, base_ref, 'HEAD')['is_executable']):
 		r: tuple[bool, dict[str, Any] | None] = (True, None)
 	else:
-		sandbox = _sandbox_root(main_repo) / 'test-sandbox' / wt_path.name
-		watch = [Path(p) for p in (eff.get('watch_host_files') or ()) if str(p).strip()]
-		before = _snapshot_host_files(watch)
-		cwd = (wt_path / str(eff.get('test_cwd') or '.')).resolve()
-		timeout = max(5, int(eff.get('timeout_seconds') or 180))
-		# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
-		rc, timed_out, out = _run_polyglot_proc(list(eff['test_command']), cwd, sandbox, timeout)
-		mutated = _diff_host_snapshots(before, _snapshot_host_files(watch))
-		ok = (0 == rc) and (not timed_out) and (not mutated)
-		stage = 'host_mutation' if mutated else (None if ok else 'tests')
-		r = (ok, {'ok': ok, 'runner': 'polyglot', 'failure_stage': stage, 'timed_out': timed_out, 'mutated_host_files': mutated, 'exit_code': rc, 'output': out})
+		eff = spec if None is not spec else resolve_repo_verification_spec(main_repo, wt_path)
+		r = (True, None) if (None is eff or (not eff.get('test_command'))) else _execute_polyglot_spec(main_repo, wt_path, eff)
 	return r
 # @used-by :func:`agent_tools.addon_observability.check_close_companion_health()`
 # @used-by :func:`agent_tools.worktree_flow._post_merge_checks()`

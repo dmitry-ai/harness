@@ -102,8 +102,9 @@ class OptimisticWorktreeLandTests(unittest.TestCase):
 			marker = root / 'probe.log'
 			repo = _init_repo(root, _probe_script(root / 'repo', leases, marker, advance_mode='once'))
 			wt = Path(worktree_begin(repo, 'opt-retry', worktrees_dir=root / 'wts')['worktree'])
-			(wt / 'feat.txt').write_text('feature\n', encoding='utf-8')
-			_git(wt, 'add', 'feat.txt')
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			(wt / 'feat.py').write_text('VAL = 1\n', encoding='utf-8')
+			_git(wt, 'add', 'feat.py')
 			_git(wt, 'commit', '-m', 'add feature')
 			res = worktree_land(wt, run_tests=True, remove=True, owner='retry-1', leases_dir=leases)
 			self.assertTrue(res['valid'], res)
@@ -112,7 +113,7 @@ class OptimisticWorktreeLandTests(unittest.TestCase):
 			self.assertEqual(1, res['optimistic_retries'])
 			self.assertEqual(2, res['test_runs'])
 			self.assertTrue((repo / 'adv_1.txt').is_file())
-			self.assertTrue((repo / 'feat.txt').is_file())
+			self.assertTrue((repo / 'feat.py').is_file())
 			self.assertEqual(['free', 'free'], marker.read_text(encoding='utf-8').splitlines())
 			self.assertTrue(lease_status(repo, leases_dir=leases)['free'])
 	# @used-by :mod:`unittest`
@@ -144,8 +145,9 @@ class OptimisticWorktreeLandTests(unittest.TestCase):
 			marker = root / 'probe.log'
 			repo = _init_repo(root, _probe_script(root / 'repo', leases, marker, advance_mode='none'))
 			wt = Path(worktree_begin(repo, 'opt-free', worktrees_dir=root / 'wts')['worktree'])
-			(wt / 'feat.txt').write_text('ok\n', encoding='utf-8')
-			_git(wt, 'add', 'feat.txt')
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			(wt / 'feat.py').write_text('VAL = 1\n', encoding='utf-8')
+			_git(wt, 'add', 'feat.py')
 			_git(wt, 'commit', '-m', 'add feat')
 			res = worktree_land(wt, run_tests=True, remove=True, owner='opt-1', leases_dir=leases)
 			self.assertTrue(res['valid'], res)
@@ -154,7 +156,7 @@ class OptimisticWorktreeLandTests(unittest.TestCase):
 			self.assertEqual(0, res['optimistic_retries'])
 			self.assertEqual(1, res['test_runs'])
 			self.assertEqual(['free'], marker.read_text(encoding='utf-8').splitlines())
-			self.assertTrue((repo / 'feat.txt').is_file())
+			self.assertTrue((repo / 'feat.py').is_file())
 			self.assertTrue(lease_status(repo, leases_dir=leases)['free'])
 	# @used-by :mod:`unittest`
 	def test_repeated_main_collisions_fall_back_to_fifo_lease(self) -> None:
@@ -164,8 +166,9 @@ class OptimisticWorktreeLandTests(unittest.TestCase):
 			marker = root / 'probe.log'
 			repo = _init_repo(root, _probe_script(root / 'repo', leases, marker, advance_mode='while_free'))
 			wt = Path(worktree_begin(repo, 'opt-fallback', worktrees_dir=root / 'wts')['worktree'])
-			(wt / 'feat.txt').write_text('fallback\n', encoding='utf-8')
-			_git(wt, 'add', 'feat.txt')
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			(wt / 'feat.py').write_text('VAL = 1\n', encoding='utf-8')
+			_git(wt, 'add', 'feat.py')
 			_git(wt, 'commit', '-m', 'add fallback feature')
 			res = worktree_land(wt, run_tests=True, remove=True, owner='fb-1', leases_dir=leases, max_optimistic_retries=2)
 			self.assertTrue(res['valid'], res)
@@ -174,7 +177,7 @@ class OptimisticWorktreeLandTests(unittest.TestCase):
 			self.assertEqual(2, res['optimistic_retries'])
 			self.assertEqual(3, res['test_runs'])
 			self.assertEqual(['free', 'free', 'held'], marker.read_text(encoding='utf-8').splitlines())
-			self.assertTrue((repo / 'feat.txt').is_file())
+			self.assertTrue((repo / 'feat.py').is_file())
 			self.assertTrue((repo / 'adv_1.txt').is_file())
 			self.assertTrue((repo / 'adv_2.txt').is_file())
 			self.assertTrue(lease_status(repo, leases_dir=leases)['free'])

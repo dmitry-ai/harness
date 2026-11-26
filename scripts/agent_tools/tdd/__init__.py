@@ -5,7 +5,9 @@ from .commands import classify_test_command, shell_code_write_targets, shell_tes
 # 2026-11-25
 # "Add comment-only diff lexer exemption for top 20 repository languages":
 # https://github.com/dmitry-ai/harness/issues/238
-from .comment_diff import COMMENT_LEXER_LANGUAGES, detect_comment_language, is_comment_only_diff
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+from .comment_diff import COMMENT_LEXER_LANGUAGES, classify_comment_or_whitespace_diff, detect_comment_language, is_comment_only_diff, is_whitespace_only_diff
+from .diff_executability import NON_EXECUTABLE_CATEGORIES, classify_git_path, classify_git_range, classify_text_diff, is_git_path_non_executable, is_non_executable_diff, resolve_land_test_plan, validate_no_tests_override_reason
 from .enforcement import evaluate_pre_tool_use_tdd, verify_staged_tdd_diff
 from .evaluator import evaluate_tdd_events
 from .events import build_command_tdd_event, build_file_write_tdd_event, extract_antigravity_tdd_events
@@ -25,11 +27,16 @@ from .substantive import is_substantive_test_content, source_text_assertion_issu
 # https://github.com/dmitry-ai/harness/issues/169
 __all__ = [
 	'COMMENT_LEXER_LANGUAGES',
+	'NON_EXECUTABLE_CATEGORIES',
 	'SOFTWARE_CODE_SUFFIXES',
 	'build_command_tdd_event',
 	'build_file_write_tdd_event',
 	'classify_code_path',
+	'classify_comment_or_whitespace_diff',
+	'classify_git_path',
+	'classify_git_range',
 	'classify_test_command',
+	'classify_text_diff',
 	'count_repo_test_files',
 	'detect_comment_language',
 	'evaluate_pre_tool_use_tdd',
@@ -40,20 +47,25 @@ __all__ = [
 	'is_comment_only_diff',
 	'is_diff_exempt',
 	'is_git_path_exempt',
+	'is_git_path_non_executable',
+	'is_non_executable_diff',
 	'is_software_code_file',
 	'is_substantive_test_content',
 	'is_test_file',
+	'is_whitespace_only_diff',
 	'is_write_event_exempt',
 	'matches_mechanical_recipe',
 	'parse_command_outcome',
 	'ratchet_diff_violations',
 	'record_mechanical_exemption',
 	'resolve_code_scope',
+	'resolve_land_test_plan',
 	'shell_code_write_targets',
 	'shell_test_delete_targets',
 	'shell_write_targets',
 	'source_text_assertion_issues',
 	'validate_mechanical_reason',
+	'validate_no_tests_override_reason',
 	'validate_ratchet_reason',
 	'verify_staged_tdd_diff',
 ]

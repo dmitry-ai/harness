@@ -1693,6 +1693,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
 	# @used-by :mod:`test_diff_coverage_gate`
+	# @used-by :mod:`test_diff_executability`
 	# @used-by :mod:`test_dirty_diff_issue_scope`
 	# @used-by :mod:`test_doc5_context_trigger`
 	# @used-by :mod:`test_env_isolation_and_worktree_gate_contracts`
@@ -2372,6 +2373,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.workflow.evidence_paths()`
 # @used-by :func:`agent_tools.workflow.kb_paths()`
 # @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`
+# @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
 # @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 # @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
 # @used-by :func:`check_pre_invocation._scratch_answer_path()`

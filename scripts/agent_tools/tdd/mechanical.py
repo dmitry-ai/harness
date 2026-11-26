@@ -179,6 +179,7 @@ def _validate_recipe_inputs(issue_url: str, pattern: str, replacement: str, reas
 	if not ok_r:
 		raise ValueError(str(err_r))
 	return parsed[0]
+# @used-by :func:`agent_tools.tdd.diff_executability._resolve_range_recipes()`
 # @used-by :func:`agent_tools.tdd.enforcement._eval_shell_prod_writes()`
 # @used-by :func:`is_git_file_mechanical_exempt()`
 # @used-by :func:`is_mechanical_diff_exempt()`
@@ -199,7 +200,6 @@ def find_matching_mechanical_recipes(repo_root: Path | None, *, message: str | N
 			for rf in r_files:
 				r.extend((it for it in _load_recipe_entries(rf) if _recipe_matches_repo(it, repo_posix, repo_slug, msg_norm)))
 	return r
-# @used-by :func:`agent_tools.tdd.exemption.is_git_path_exempt()`
 # @used-by :meth:`test_tdd_fast_path.TddFastPathTests.test_mechanical_exemption_spawns_zero_git_without_recipes()`
 # @used-by :meth:`test_tdd_pre_tool_use_perf.TddPreToolUsePerfTests.test_mechanical_exemption_spawns_zero_subprocesses_without_recipes()`
 def is_git_file_mechanical_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
@@ -216,10 +216,11 @@ def is_git_file_mechanical_exempt(repo_root: Path, rel_posix: str, *, disk_text:
 			r = matches_any_mechanical_recipes(head, cur, recipes) if None is not head and head != cur else _is_last_commit_mechanical_exempt(repo, rel_posix, project_root=project_root)
 	return r
 # @used-by :func:`_is_last_commit_mechanical_exempt()`
-# @used-by :func:`agent_tools.tdd.exemption.is_diff_exempt()`
+# @used-by :func:`agent_tools.tdd.diff_executability.classify_text_diff()`
 def is_mechanical_diff_exempt(old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
 	recipes = find_matching_mechanical_recipes(repo_root, message=message, project_root=project_root)
 	return bool(recipes) and matches_any_mechanical_recipes(old_text, new_text, recipes)
+# @used-by :func:`agent_tools.tdd.diff_executability._classify_modified_entry()`
 # @used-by :func:`is_git_file_mechanical_exempt()`
 # @used-by :func:`is_mechanical_diff_exempt()`
 # @used-by :func:`matches_mechanical_recipe()`
@@ -238,6 +239,7 @@ def matches_any_mechanical_recipes(old_text: str | None, new_text: str | None, r
 def matches_mechanical_recipe(old_text: str | None, new_text: str | None, recipe: dict) -> bool:
 	return matches_any_mechanical_recipes(old_text, new_text, (recipe,))
 # @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_skips_tests_for_non_executable_and_runs_for_executable()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_cli_registration_and_validation_errors()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit()`

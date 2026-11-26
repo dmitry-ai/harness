@@ -169,7 +169,8 @@ def _exec_worktree_land(args) -> dict:
 	if args.keep and args.remove:
 		raise ValueError('Cannot combine --keep and --remove in worktree-land')
 	# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
-	return worktree_land(args.worktree, target_branch=args.target, run_tests=not args.no_tests, push=bool(args.push), remove=not bool(args.keep), owner=args.owner, wait_timeout=args.timeout, workers=args.workers, tag=bool(args.tag))
+	# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+	return worktree_land(args.worktree, target_branch=args.target, run_tests=not args.no_tests, push=bool(args.push), remove=not bool(args.keep), owner=args.owner, wait_timeout=args.timeout, workers=args.workers, tag=bool(args.tag), no_tests_reason=args.no_tests_reason)
 # @used-by :func:`_register_runtime_builtins()`
 def _exec_worktree_status(args) -> dict:
 	from .worktree_flow import worktree_status
@@ -278,7 +279,8 @@ def _register_runtime_builtins() -> None:
 	register_command('worktree-begin', 'Create an isolated linked git worktree and task branch', (('repo', {'type': Path}), ('--task', {'required': True}), ('--base', {'default': 'main'}), ('--worktrees-dir', {'type': Path})), _exec_worktree_begin)
 	register_command('worktree-cleanup', 'Remove a linked git worktree and its merged task branch', (('repo', {'type': Path}), ('target', {'type': Path}), ('--force', {'action': 'store_true'})), _exec_worktree_cleanup)
 	# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
-	register_command('worktree-land', 'Rebase, test once, fast-forward merge, and remove (unless --keep) a task worktree under FIFO lease', (('worktree', {'type': Path}), ('--target', {'default': 'main'}), ('--no-tests', {'action': 'store_true'}), ('--push', {'action': 'store_true'}), ('--tag', {'action': 'store_true', 'help': 'Assign a daily-counter Git tag on the landed commit and push it when --push is set'}), ('--keep', {'action': 'store_true', 'help': 'Keep the linked worktree and task branch after landing'}), ('--remove', {'action': 'store_true', 'help': 'Remove the linked worktree after landing (default)'}), ('--owner', {}), ('--timeout', {'type': float, 'default': 600.0}), ('--workers', {'type': int})), _exec_worktree_land)
+	# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+	register_command('worktree-land', 'Rebase, test once, fast-forward merge, and remove (unless --keep) a task worktree under FIFO lease', (('worktree', {'type': Path}), ('--target', {'default': 'main'}), ('--no-tests', {'action': 'store_true'}), ('--no-tests-reason', {'help': 'Audited justification (>= 30 chars) required when passing --no-tests on an executable diff'}), ('--push', {'action': 'store_true'}), ('--tag', {'action': 'store_true', 'help': 'Assign a daily-counter Git tag on the landed commit and push it when --push is set'}), ('--keep', {'action': 'store_true', 'help': 'Keep the linked worktree and task branch after landing'}), ('--remove', {'action': 'store_true', 'help': 'Remove the linked worktree after landing (default)'}), ('--owner', {}), ('--timeout', {'type': float, 'default': 600.0}), ('--workers', {'type': int})), _exec_worktree_land)
 	register_command('worktree-status', 'List linked git worktrees and dirty status for a repository', (('repo', {'type': Path}),), _exec_worktree_status)
 	# 2026-11-26
 	# "Implement Python AST cross-reference analyzer and sync CLI":

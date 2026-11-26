@@ -104,7 +104,8 @@ class RepoTagCloseGateTests(unittest.TestCase):
 			(wt / 'feat.py').write_text(f'# {url2}\nX = 2\n', encoding='utf-8')
 			_git(wt, 'add', 'feat.py')
 			_git(wt, 'commit', '--no-verify', '-m', url2, env_extra={'GIT_AUTHOR_DATE': '2026-11-26T12:00:00+03:00', 'GIT_COMMITTER_DATE': '2026-11-26T12:00:00+03:00'})
-			landed = worktree_flow.worktree_land(wt, run_tests=False, push=True, tag=True, promote_snapshot=False, leases_dir=tmp / 'leases')
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			landed = worktree_flow.worktree_land(wt, run_tests=True, push=True, tag=True, promote_snapshot=False, leases_dir=tmp / 'leases')
 			self.assertTrue(landed['valid'], landed)
 			self.assertEqual('2026-11-26', landed['tag'])
 			self.assertIn('2026-11-26', _git(bare, 'tag', '-l').splitlines())

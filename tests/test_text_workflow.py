@@ -101,6 +101,8 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.scatter_banner._proposal_slice()`
 	# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_php()`
 	# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_python()`
+	# @used-by :func:`agent_tools.tdd.comment_lexers_markup._consume_astro_frontmatter()`
+	# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_sfc()`
 	# @used-by :func:`agent_tools.tdd.mechanical._consume_partial_match()`
 	# @used-by :func:`agent_tools.text_core._excerpt()`
 	# @used-by :func:`agent_tools.text_core.bold_spans()`

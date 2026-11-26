@@ -140,6 +140,7 @@ class RAM:
 	# @used-by :func:`agent_tools.tdd.classifier.resolve_code_scope()`
 	# @used-by :func:`agent_tools.tdd.comment_diff._git_read_text()`
 	# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
+	# @used-by :func:`agent_tools.tdd.diff_executability._git_read_bytes()`
 	# @used-by :func:`agent_tools.tdd.enforcement._git_show_text()`
 	# @used-by :func:`agent_tools.tdd.exemption.is_write_event_exempt()`
 	# @used-by :func:`agent_tools.tdd.mechanical._resolve_repo_binding()`

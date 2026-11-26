@@ -214,7 +214,8 @@ class RuntimeSnapshotTests(unittest.TestCase):
 			(wt / 'scripts/landed.py').write_text('LANDED = True\n', encoding='utf-8')
 			_git(wt, 'add', 'scripts/landed.py')
 			_git(wt, 'commit', '-m', 'landed change')
-			land = worktree_land(wt, run_tests=False, remove=True, leases_dir=root / 'leases', promote_snapshot=True, snapshot_store=store)
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			land = worktree_land(wt, run_tests=True, remove=True, leases_dir=root / 'leases', promote_snapshot=True, snapshot_store=store)
 			self.assertTrue(land['landed'], land)
 			self.assertTrue(land['runtime_snapshot']['promoted'], land)
 			ptr = json.loads((store / 'current.json').read_text(encoding='utf-8'))

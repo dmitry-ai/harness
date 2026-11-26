@@ -204,7 +204,8 @@ class XrefGateTests(unittest.TestCase):
 			(wt / 'scripts/a.py').write_text(_A_UNUSED, encoding='utf-8', newline='\n')
 			_git(wt, 'add', 'scripts/a.py')
 			_git(wt, 'commit', '--no-verify', '-m', 'sync xref')
-			landed = worktree_land(wt, run_tests=False, remove=True, leases_dir=root / 'leases', promote_snapshot=False)
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			landed = worktree_land(wt, run_tests=False, no_tests_reason='Isolated xref landing test uses stubbed return value in _B_DROPPED fixture.', remove=True, leases_dir=root / 'leases', promote_snapshot=False)
 			self.assertTrue(landed['valid'], landed)
 			self.assertTrue(landed['landed'], landed)
 			leg = _init_repo(root / 'leg_wt')
@@ -239,7 +240,8 @@ class XrefGateTests(unittest.TestCase):
 			(wt / 'scripts/a.py').write_text(_A_UNUSED, encoding='utf-8', newline='\n')
 			_git(wt, 'add', 'scripts/a.py')
 			_git(wt, 'commit', '--no-verify', '-m', 'sync cross cutting xref')
-			landed = worktree_land(wt, run_tests=False, remove=True, leases_dir=root / 'leases', promote_snapshot=False)
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			landed = worktree_land(wt, run_tests=False, no_tests_reason='Isolated cross-cutting xref fixture validates xref sync with stubbed _B_DROPPED.', remove=True, leases_dir=root / 'leases', promote_snapshot=False)
 			self.assertTrue(landed['valid'], landed)
 			self.assertTrue(landed['landed'], landed)
 if '__main__' == __name__:

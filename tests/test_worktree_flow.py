@@ -89,11 +89,12 @@ class WorktreeFlowTests(unittest.TestCase):
 			leases = root / 'leases'
 			wt_a = Path(worktree_begin(repo, 'task-a', worktrees_dir=wt_base)['worktree'])
 			wt_b = Path(worktree_begin(repo, 'task-b', worktrees_dir=wt_base)['worktree'])
-			(wt_a / 'a.txt').write_text('from a\n', encoding='utf-8')
-			self._git(wt_a, 'add', 'a.txt')
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			(wt_a / 'a.py').write_text('VAL_A = 1\n', encoding='utf-8')
+			self._git(wt_a, 'add', 'a.py')
 			self._git(wt_a, 'commit', '-m', 'add a')
-			(wt_b / 'b.txt').write_text('from b\n', encoding='utf-8')
-			self._git(wt_b, 'add', 'b.txt')
+			(wt_b / 'b.py').write_text('VAL_B = 2\n', encoding='utf-8')
+			self._git(wt_b, 'add', 'b.py')
 			self._git(wt_b, 'commit', '-m', 'add b')
 			land_a = worktree_land(wt_a, run_tests=True, remove=True, owner='a', leases_dir=leases)
 			self.assertTrue(land_a['landed'])
@@ -101,8 +102,8 @@ class WorktreeFlowTests(unittest.TestCase):
 			land_b = worktree_land(wt_b, run_tests=True, remove=True, owner='b', leases_dir=leases)
 			self.assertTrue(land_b['landed'])
 			self.assertEqual(land_b['test_runs'], 1)
-			self.assertTrue((repo / 'a.txt').is_file())
-			self.assertTrue((repo / 'b.txt').is_file())
+			self.assertTrue((repo / 'a.py').is_file())
+			self.assertTrue((repo / 'b.py').is_file())
 			self.assertFalse(wt_a.exists())
 			self.assertFalse(wt_b.exists())
 	# @used-by :mod:`unittest`

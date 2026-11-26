@@ -140,7 +140,8 @@ class PolyglotLandTests(unittest.TestCase):
 			(wt / 'safe.js').write_text('module.exports = true;\n', encoding='utf-8')
 			self._git(wt, 'add', 'safe.js')
 			self._git(wt, 'commit', '-m', 'safe edit')
-			res = worktree_land(wt, run_tests=False, remove=True, owner='livef', leases_dir=root / 'leases')
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			res = worktree_land(wt, run_tests=False, no_tests_reason='Isolated dirty-main whitelist fixture for antigravity-addons omits Upgrade suite.', remove=True, owner='livef', leases_dir=root / 'leases')
 			self.assertTrue(res['valid'], res)
 			self.assertTrue(res['landed'])
 			self.assertIn('live', (repo / 'Folders/folders.json').read_text(encoding='utf-8'))

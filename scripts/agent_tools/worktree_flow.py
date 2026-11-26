@@ -45,6 +45,7 @@ def _enrich_worktree_entry(main_repo: Path, main_posix: str, base_ref: str, entr
 		else:
 			ahead, behind = _rev_distance(main_repo, base_ref, str(entry.get('head') or ''))
 			entry.update(ahead=ahead, behind=behind, stale=(not entry['dirty']) and 0 == ahead and 0 < behind)
+# @used-by :func:`_check_land_diff_coverage()`
 # @used-by :func:`_land_under_lease()`
 # @used-by :func:`_merge_and_finalize()`
 # @used-by :func:`_push_and_finish_land()`
@@ -139,41 +140,56 @@ def _parse_worktree_porcelain(text: str) -> list[dict]:
 	if cur:
 		entries.append(cur)
 	return entries
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+# @used-by :func:`_run_land_checks()`
+def _check_land_diff_coverage(main_repo: Path, wt_path: Path, branch: str, target_branch: str, test_runs: int, test_res: dict | None) -> dict | None:
+	from .tdd.diff_coverage import verify_worktree_diff_coverage
+	cov = verify_worktree_diff_coverage(wt_path, target_branch)
+	if cov.get('valid'):
+		r = None
+	else:
+		joined = ', '.join(cov.get('uncovered', ())[:8])
+		cov_msg = f'Diff coverage timed out with uncovered functions: {joined}' if cov.get('timed_out') else f'Uncovered newly added production functions: {joined}'
+		r = _fail_land(main_repo, wt_path, branch, 'diff_coverage', cov_msg, test_runs=test_runs, test_result=test_res)
+	return r
 # 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
 # @used-by :func:`_rebase_and_test()`
-def _run_land_checks(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
-	ok_tests, test_runs, test_res = _run_land_tests(main_repo, wt_path, run_tests=run_tests, workers=workers)
-	err: dict | None = None
-	if not ok_tests:
-		stage = str((test_res or {}).get('failure_stage') or 'tests')
-		# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
-		msg = 'Host state mutated during sandboxed tests' if 'host_mutation' == stage else ('Sandboxed land tests timed out' if (test_res or {}).get('timed_out') else 'Full test suite failed on rebased worktree')
-		err = _fail_land(main_repo, wt_path, branch, stage, msg, test_runs=test_runs, test_result=test_res)
-	elif run_tests:
-		from .tdd.diff_coverage import verify_worktree_diff_coverage
-		cov = verify_worktree_diff_coverage(wt_path, target_branch)
-		if not cov.get('valid'):
-			joined = ', '.join(cov.get('uncovered', ())[:8])
-			# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
-			cov_msg = f'Diff coverage timed out with uncovered functions: {joined}' if cov.get('timed_out') else f'Uncovered newly added production functions: {joined}'
-			err = _fail_land(main_repo, wt_path, branch, 'diff_coverage', cov_msg, test_runs=test_runs, test_result=test_res)
-	return (err, test_runs, test_res)
+def _run_land_checks(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None, no_tests_reason: str | None=None) -> tuple[dict | None, int, dict | None, dict]:
+	from .tdd.diff_executability import resolve_land_test_plan
+	plan = resolve_land_test_plan(wt_path, target_branch, run_tests=run_tests, no_tests_reason=no_tests_reason, project_root=project_paths(main_repo).root)
+	if plan['blocked_error']:
+		r = (_fail_land(main_repo, wt_path, branch, 'no_tests_blocked', str(plan['blocked_error'])), 0, None, plan)
+	else:
+		eff_run = bool(plan['should_run_tests'])
+		ok_tests, test_runs, test_res = _run_land_tests(main_repo, wt_path, run_tests=eff_run, workers=workers, target_branch=target_branch)
+		if not ok_tests:
+			stage = str((test_res or {}).get('failure_stage') or 'tests')
+			msg = 'Host state mutated during sandboxed tests' if 'host_mutation' == stage else ('Sandboxed land tests timed out' if (test_res or {}).get('timed_out') else 'Full test suite failed on rebased worktree')
+			err = _fail_land(main_repo, wt_path, branch, stage, msg, test_runs=test_runs, test_result=test_res)
+		else:
+			err = _check_land_diff_coverage(main_repo, wt_path, branch, target_branch, test_runs, test_res) if eff_run else None
+		r = (err, test_runs, test_res, plan)
+	return r
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`_land_under_lease()`
 # @used-by :func:`agent_tools.worktree_land_flow._run_optimistic_loop()`
-def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
+def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None, no_tests_reason: str | None=None) -> tuple[dict | None, int, dict | None, dict | None]:
 	from .python_integrity import verify_worktree_python_changes
 	reb = _git_exec(wt_path, 'rebase', target_branch)
 	if 0 != reb.returncode:
 		_git_exec(wt_path, 'rebase', '--abort')
-		r = (_fail_land(main_repo, wt_path, branch, 'rebase', reb.stderr.strip() or reb.stdout.strip()), 0, None)
+		r = (_fail_land(main_repo, wt_path, branch, 'rebase', reb.stderr.strip() or reb.stdout.strip()), 0, None, None)
 	else:
 		# 2026-11-24
 		# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
 		# https://github.com/dmitry-ai/harness/issues/186
 		py_errs = verify_worktree_python_changes(wt_path, target_branch)
 		if py_errs:
-			r = (_fail_land(main_repo, wt_path, branch, 'python_integrity', '; '.join(py_errs[:5])), 0, None)
+			r = (_fail_land(main_repo, wt_path, branch, 'python_integrity', '; '.join(py_errs[:5])), 0, None, None)
 		else:
 			# 2026-11-26
 			# "Enforce cross-reference compliance in PreToolUse and Git gates":
@@ -181,10 +197,10 @@ def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch:
 			from .xref_gate import verify_worktree_xref_changes
 			xref_errs = verify_worktree_xref_changes(wt_path, target_branch)
 			if xref_errs:
-				r = (_fail_land(main_repo, wt_path, branch, 'xref_integrity', '; '.join(xref_errs[:5])), 0, None)
+				r = (_fail_land(main_repo, wt_path, branch, 'xref_integrity', '; '.join(xref_errs[:5])), 0, None, None)
 			else:
 				# 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
-				r = _run_land_checks(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
+				r = _run_land_checks(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers, no_tests_reason=no_tests_reason)
 	return r
 # @used-by :func:`resolve_touched_repo_file()`
 def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
@@ -210,8 +226,9 @@ def _rev_distance(main_repo: Path, base_ref: str, head_sha: str) -> tuple[int, i
 			r = (int(parts[1]), int(parts[0]))
 	return r
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`_run_land_checks()`
-def _run_land_tests(main_repo: Path, wt_path: Path, *, run_tests: bool, workers: int | None) -> tuple[bool, int, dict | None]:
+def _run_land_tests(main_repo: Path, wt_path: Path, *, run_tests: bool, workers: int | None, target_branch: str | None=None) -> tuple[bool, int, dict | None]:
 	tests_dir = wt_path / 'tests'
 	if not run_tests:
 		r = (True, 0, None)
@@ -221,7 +238,7 @@ def _run_land_tests(main_repo: Path, wt_path: Path, *, run_tests: bool, workers:
 		r = (bool(res.get('ok')), 1, res)
 	else:
 		from .polyglot_land import run_polyglot_land_tests
-		ok, res = run_polyglot_land_tests(main_repo, wt_path)
+		ok, res = run_polyglot_land_tests(main_repo, wt_path, base_ref=target_branch)
 		r = (ok, 1 if None is not res else 0, res)
 	return r
 # @used-by :func:`worktree_begin()`
@@ -276,6 +293,9 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_polyglot_land_skips_tests_and_health_for_comment_only_js()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_blocks_no_tests_on_executable_and_allows_audited_reason()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_skips_tests_for_non_executable_and_runs_for_executable()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_optimistic_phase1_runs_tests_without_holding_fifo_lease()`
@@ -360,22 +380,28 @@ def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False)
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
 # 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`agent_tools.worktree_land_flow._fifo_fallback_land()`
-def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False, check_dirty_worktree: bool=True) -> dict:
+def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False, check_dirty_worktree: bool=True, no_tests_reason: str | None=None) -> dict:
 	from .polyglot_land import dirty_blocking_main_files
 	if check_dirty_worktree and GitRepoGate(wt_path).git('status', '--porcelain').strip():
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_worktree', 'Worktree has uncommitted changes')
 	elif dirty_blocking_main_files(main_repo, branch):
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_main', 'Main checkout has uncommitted changes')
 	else:
-		err, test_runs, test_res = _rebase_and_test(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
-		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, run_tests=run_tests, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
+		err, test_runs, test_res, plan = _rebase_and_test(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers, no_tests_reason=no_tests_reason)
+		eff_health = bool(plan['should_run_post_health']) if None is not plan else run_tests
+		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, run_tests=eff_health, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_polyglot_land_skips_tests_and_health_for_comment_only_js()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_blocks_no_tests_on_executable_and_allows_audited_reason()`
+# @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_skips_tests_for_non_executable_and_runs_for_executable()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_optimistic_phase1_runs_tests_without_holding_fifo_lease()`
@@ -394,7 +420,7 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
-def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False, max_optimistic_retries: int=2) -> dict:
+def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False, max_optimistic_retries: int=2, no_tests_reason: str | None=None) -> dict:
 	from .worktree_land_flow import execute_optimistic_worktree_land
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):
@@ -403,7 +429,7 @@ def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests:
 	branch = _current_branch(wt_path)
 	if None is leases_dir:
 		ensure_worktree_dir_ignored(project_paths(main_repo).data_dir / 'repo-leases')
-	return execute_optimistic_worktree_land(main_repo, wt_path, branch, target_branch=target_branch, run_tests=run_tests, push=push, remove=remove, owner=owner, wait_timeout=wait_timeout, leases_dir=leases_dir, workers=workers, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag, max_optimistic_retries=max_optimistic_retries)
+	return execute_optimistic_worktree_land(main_repo, wt_path, branch, target_branch=target_branch, run_tests=run_tests, push=push, remove=remove, owner=owner, wait_timeout=wait_timeout, leases_dir=leases_dir, workers=workers, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag, max_optimistic_retries=max_optimistic_retries, no_tests_reason=no_tests_reason)
 # @used-by :func:`agent_tools.cli_registry._exec_worktree_status()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`

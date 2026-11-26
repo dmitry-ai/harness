@@ -169,7 +169,8 @@ class PythonIntegrityGateTests(unittest.TestCase):
 			(wt / 'scripts/mod_5.py').write_text('def fn_5() -> int:\n\treturn 15\n', encoding='utf-8')
 			_git(wt, 'add', 'scripts/mod_5.py')
 			_git(wt, 'commit', '-m', 'fix broken symbol')
-			landed = worktree_land(wt, run_tests=False, remove=True, leases_dir=root / 'leases', promote_snapshot=False)
+			# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+			landed = worktree_land(wt, run_tests=False, no_tests_reason='Isolated cross-cutting python-integrity fixture validates static checks only.', remove=True, leases_dir=root / 'leases', promote_snapshot=False)
 			self.assertTrue(landed['valid'], landed)
 			self.assertTrue(landed['landed'], landed)
 if '__main__' == __name__:

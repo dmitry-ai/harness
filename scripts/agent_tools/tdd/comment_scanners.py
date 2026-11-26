@@ -9,6 +9,13 @@ _HEREDOC_START_RE = re.compile(r'<<<[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'
 _SH_HEREDOC_RE = re.compile(r'<<(-?)[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'|([A-Za-z_]\w*))')
 # @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_c_like()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_php()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lex_indent_loop()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lex_loop()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_dockerfile()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_indent_hash()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_sed()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_sfc()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_tcl()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_batch()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_hash_script()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_vbscript()`
@@ -25,6 +32,10 @@ def finalize_line_tokens(raw_tokens: list[str]) -> tuple[str, ...]:
 	return tuple(out)
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_comment_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._rust_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_block_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
 # @used-by :func:`agent_tools.xref.java_lex._tokenize_java_step()`
@@ -57,6 +68,7 @@ def scan_cpp_raw(src: str, pos: int) -> int:
 		r = -1 if -1 == idx else idx + len(end_marker)
 	return r
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_special_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
 def scan_css_url(src: str, pos: int) -> int:
 	n = len(src)
 	i = pos + 4
@@ -69,6 +81,7 @@ def scan_css_url(src: str, pos: int) -> int:
 		r = _scan_until_paren(src, i)
 	return r
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
 def scan_heredoc(src: str, pos: int, *, php: bool=False) -> int:
 	pat = _HEREDOC_START_RE if php else _SH_HEREDOC_RE
@@ -110,6 +123,14 @@ def scan_line_block(src: str, pos: int, end_prefix: str) -> int:
 	return r
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_comment_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._cmake_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lua_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._rust_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._zig_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup._tcl_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
@@ -137,6 +158,15 @@ def scan_ps_herestring(src: str, pos: int, quote: str) -> int:
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._scan_template_expr()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._cmake_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lua_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._rust_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._scan_rust_char_or_lifetime()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._zig_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup._tcl_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_quote_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
@@ -163,6 +193,8 @@ def scan_quoted(src: str, pos: int, quote: str, *, backslash: bool=True, doubled
 			i += 1
 	return r
 # @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_quote_step()`
 # @used-by :func:`agent_tools.xref.java_lex._tokenize_java_atom()`
 def scan_triple_quote(src: str, pos: int, quote: str) -> int:
 	marker = quote * 3

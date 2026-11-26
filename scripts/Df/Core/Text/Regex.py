@@ -185,6 +185,7 @@ class Regex(O):
 	# @used-by :func:`agent_tools.tdd.classifier.is_test_file()`
 	# @used-by :func:`agent_tools.tdd.commands.unwrap_watchdog_prefix()`
 	# @used-by :func:`agent_tools.tdd.comment_lexers_c.scan_word_or_char()`
+	# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_dockerfile()`
 	# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_block_step()`
 	# @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
 	# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_batch()`

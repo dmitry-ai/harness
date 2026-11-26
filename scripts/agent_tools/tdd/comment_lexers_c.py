@@ -1,6 +1,7 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from .comment_scanners import finalize_line_tokens, scan_block_comment, scan_cpp_raw, scan_css_url, scan_heredoc, scan_js_regex, scan_line_comment, scan_quoted, scan_triple_quote
+import ast
 import io
 import re
 import tokenize
@@ -45,8 +46,13 @@ def _c_like_string_step(src: str, i: int, cfg: dict, tokens: list[str]) -> int:
 		end = scan_quoted(src, i + 1, '"', backslash=False, doubled=True)
 	elif cfg.get('triple_quote') and src.startswith('"""', i):
 		end = scan_triple_quote(src, i, '"')
+	# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+	elif cfg.get('triple_single') and src.startswith("'''", i):
+		end = scan_triple_quote(src, i, "'")
 	elif '"' == ch or ("'" == ch and cfg.get('single_quote', True)):
 		end = scan_quoted(src, i, ch, backslash=True, allow_nl=bool(cfg.get('ml_quote')))
+	elif '`' == ch and cfg.get('raw_tick'):
+		end = scan_quoted(src, i, '`', backslash=False)
 	elif '`' == ch and cfg.get('template_tick'):
 		end = _scan_template_literal(src, i)
 	return _emit_slice(src, i, end, tokens)
@@ -161,13 +167,17 @@ def consume_shebang(source: str, tokens: list[str], enabled: bool) -> int:
 		tokens.extend((source[:r], '\n'))
 	return r
 # @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup._consume_astro_frontmatter()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_sfc()`
 # @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_c_like(source: str, cfg: dict) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	n, tokens, comments, ok = (len(source), [], [], True)
+	# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+	ws_chars = (' \t\r\n', ' \t\r')[bool(cfg.get('nl_significant', True))]
 	i = consume_shebang(source, tokens, bool(cfg.get('shebang_code')))
 	while i < n and ok:
 		ch = source[i]
-		if ch in ' \t\r':
+		if ch in ws_chars:
 			i += 1
 		elif '\n' == ch:
 			tokens.append('\n')
@@ -177,7 +187,7 @@ def lex_c_like(source: str, cfg: dict) -> tuple[tuple[str, ...], tuple[str, ...]
 			ok = -1 != nxt
 			i = scan_word_or_char(source, i, tokens) if -2 == nxt else nxt
 	return (finalize_line_tokens(tokens), tuple(comments)) if ok else None
-# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# @used-by :mod:`agent_tools.tdd.comment_diff`
 # @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_php(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	i, n, tokens, comments, ok = (0, len(source), [], [], True)
@@ -190,12 +200,24 @@ def lex_php(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 		tokens.append(m_open.group(0).lower())
 		i, ok = _lex_php_body(source, m_open.end(), tokens, comments)
 	return (finalize_line_tokens(tokens), tuple(comments)) if ok else None
-# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
+# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# @used-by :func:`lex_python()`
+def _py_token_text(tok: tokenize.TokenInfo) -> str:
+	if tokenize.INDENT == tok.type:
+		r = f'{tokenize.INDENT}:'
+	elif tokenize.NEWLINE == tok.type:
+		r = f'{tokenize.NEWLINE}:\n'
+	else:
+		r = f'{tok.type}:{tok.string}'
+	return r
+# @used-by :mod:`agent_tools.tdd.comment_diff`
 # @used-by :mod:`agent_tools.tdd.comment_lexers`
 def lex_python(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 	tokens: list[str] = []
 	comments: list[str] = []
 	try:
+		# 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+		ast.parse(source)
 		for tok in tokenize.generate_tokens(io.StringIO(source).readline):
 			if tok.type in (tokenize.NL, tokenize.ENCODING, tokenize.ENDMARKER):
 				continue
@@ -203,12 +225,15 @@ def lex_python(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 				is_ctrl = (1 == tok.start[0] and tok.string.startswith('#!')) or (2 >= tok.start[0] and bool(_CODING_RE.search(tok.string)))
 				(tokens if is_ctrl else comments).append(tok.string)
 			else:
-				tokens.append(f'{tok.type}:{tok.string}')
+				tokens.append(_py_token_text(tok))
 		r: tuple[tuple[str, ...], tuple[str, ...]] | None = (tuple(tokens), tuple(comments))
-	except (tokenize.TokenError, IndentationError):
+	except (SyntaxError, tokenize.TokenError, IndentationError):
 		r = None
 	return r
 # @used-by :func:`_lex_php_body()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lex_indent_loop()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lex_loop()`
+# @used-by :func:`agent_tools.tdd.comment_lexers_markup._tcl_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_hash_script()`
 # @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_sql()`

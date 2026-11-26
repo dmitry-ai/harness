@@ -222,7 +222,7 @@ def verify_repo_diff_coverage(repo_root: Path, *, base_ref: str='HEAD') -> dict[
 		mods = select_targeted_test_modules(repo_root, list(added), base_ref=base_ref, include_working_tree=True)
 		r = run_trace_diff_coverage(repo_root, added, mods) if mods else {'valid': False, 'checked_functions': sum((len(v) for v in added.values())), 'uncovered': [f"{rel}:{fn['name']} (L{fn['start_line']})" for rel, v in sorted(added.items()) for fn in v], 'targeted_modules': []}
 	return r
-# @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
+# @used-by :func:`agent_tools.worktree_flow._check_land_diff_coverage()`
 # @used-by :mod:`agent_tools.tdd.diff_coverage`
 def verify_worktree_diff_coverage(wt_path: Path, target_branch: str) -> dict[str, Any]:
 	added = find_added_production_functions(wt_path, base_ref=target_branch, include_working_tree=False)
