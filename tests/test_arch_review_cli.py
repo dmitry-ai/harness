@@ -147,6 +147,20 @@ class ArchReviewCliTests(unittest.TestCase):
 			self.assertEqual(0, proc.returncode, f'STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}')
 			out = json.loads(proc.stdout)
 			self.assertTrue(out['valid'])
+	# 2026-11-27 "Forward reviewer role in build_native_review_proof": https://github.com/dmitry-ai/harness/issues/392
+	# @used-by :mod:`unittest`
+	def test_build_native_review_proof_forwards_arch_role_on_bare_workspace(self) -> None:
+		from agent_tools.platforms.trace_common import build_native_review_proof
+		with tempfile.TemporaryDirectory() as td:
+			base = Path(td).resolve()
+			proj = base / 'bare-proj'
+			proj.mkdir()
+			proof = build_native_review_proof(proj, 'antigravity-ui', _PARENT_ID, _REVIEWER_ID, 'arch-auditor', base / 'child.jsonl', base / 'parent.jsonl', b'{}\n', 1, '{"result": "approved"}', ['Audit architecture package as independent read-only falsifier.'], [], write=False, role='ARCH')
+			self.assertEqual('code_workspace', proof['project_kind'])
+			self.assertIsNone(proof['job_id'])
+			self.assertTrue(proof['project_id'].startswith('text-'))
+			with self.assertRaises(ValueError):
+				build_native_review_proof(proj, 'antigravity-ui', _PARENT_ID, _REVIEWER_ID, 'self', base / 'child.jsonl', base / 'parent.jsonl', b'{}\n', 1, '{"result": "approved"}', ['Audit package.'], [], write=False, role='AA')
 	# @used-by :mod:`unittest`
 	def test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip(self) -> None:
 		from agent_tools import metrics

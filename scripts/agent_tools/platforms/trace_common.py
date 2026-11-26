@@ -104,9 +104,11 @@ def _strip_win_extended_prefix(text):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
+# 2026-11-27 "Forward reviewer role in build_native_review_proof": https://github.com/dmitry-ai/harness/issues/392
 # @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
 # @used-by :func:`agent_tools.platforms.codex.native_review_proof()`
-def build_native_review_proof(root, surface, parent_id, reviewer_id, agent_name, log_path, parent_log, raw_log_bytes, final_step, final_text, matched_prompts, rows, *, diff_error='Existing reviewer proof changed; preserve both and recheck native progress', extra_fields_fn=None, write=True):
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_build_native_review_proof_forwards_arch_role_on_bare_workspace()`
+def build_native_review_proof(root, surface, parent_id, reviewer_id, agent_name, log_path, parent_log, raw_log_bytes, final_step, final_text, matched_prompts, rows, *, diff_error='Existing reviewer proof changed; preserve both and recheck native progress', extra_fields_fn=None, write=True, role='AA'):
 	from .request_binding import native_project_fields
 	bias_issues = collect_prompt_bias_issues(matched_prompts)
 	if bias_issues:
@@ -116,7 +118,7 @@ def build_native_review_proof(root, surface, parent_id, reviewer_id, agent_name,
 		raise ValueError('Independent reviewer isolation violated: ' + '; '.join(isolation_issues))
 	extra = extra_fields_fn() if None is not extra_fields_fn else {}
 	digest = hashlib.sha256(raw_log_bytes).hexdigest()
-	proof = {'surface': surface, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'agent_name': agent_name, 'status': 'completed', 'native_log': str(log_path), 'parent_log': str(parent_log), 'native_log_sha256': digest, 'final_step': final_step, 'final_response_sha256': hashlib.sha256(final_text.encode('utf-8')).hexdigest(), 'final_response': final_text, **native_project_fields(root), **extra}
+	proof = {'surface': surface, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'agent_name': agent_name, 'status': 'completed', 'native_log': str(log_path), 'parent_log': str(parent_log), 'native_log_sha256': digest, 'final_step': final_step, 'final_response_sha256': hashlib.sha256(final_text.encode('utf-8')).hexdigest(), 'final_response': final_text, **native_project_fields(root, role=role), **extra}
 	return persist_review_proof(root, reviewer_id, digest, final_text, proof, write=write, diff_error=diff_error)
 # @used-by :func:`build_native_review_proof()`
 def collect_prompt_bias_issues(prompts):
