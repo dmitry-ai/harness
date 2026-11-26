@@ -58,10 +58,17 @@ from .tdd.diff_executability import (
 	DEFAULT_MAX_REPORTED_FILES,
 	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 	DIFF_EXECUTABILITY_GATES,
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	MIXED_COMMIT_COMMENT_THRESHOLD,
 	NON_EXECUTABLE_CATEGORIES,
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	check_staged_mixed_commit_warning,
+	check_touched_mixed_commit_warning,
 	classify_git_path,
 	classify_git_range,
 	classify_text_diff,
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	detect_mixed_commit_warning,
 	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 	format_land_diff_telemetry,
 	is_git_path_non_executable,
@@ -166,10 +173,15 @@ __all__ = [
 	'DEFAULT_MAX_REPORTED_FILES',
 	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 	'DIFF_EXECUTABILITY_GATES',
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	'MIXED_COMMIT_COMMENT_THRESHOLD',
 	'NON_EXECUTABLE_CATEGORIES',
 	'SOFTWARE_CODE_SUFFIXES',
 	'build_command_tdd_event',
 	'build_file_write_tdd_event',
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	'check_staged_mixed_commit_warning',
+	'check_touched_mixed_commit_warning',
 	'classify_code_path',
 	'classify_comment_or_whitespace_diff',
 	'classify_git_path',
@@ -178,6 +190,8 @@ __all__ = [
 	'classify_text_diff',
 	'count_repo_test_files',
 	'detect_comment_language',
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	'detect_mixed_commit_warning',
 	'evaluate_pre_tool_use_tdd',
 	'evaluate_tdd_events',
 	'extract_antigravity_tdd_events',

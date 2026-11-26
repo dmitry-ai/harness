@@ -983,6 +983,7 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 # https://github.com/dmitry-ai/harness/issues/39
 # @used-by :func:`git_shim.main()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
+# @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_pre_commit_emits_non_blocking_mixed_warning_to_stderr()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
 # @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
 # @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_doc_only_agent_commit_allowed_without_tests()`

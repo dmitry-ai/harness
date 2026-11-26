@@ -383,6 +383,7 @@ def heading_anchors(content: str) -> set[str]:
 # @used-by :meth:`test_journal_clarifications_and_disclosure.JournalClarificationsAndDisclosureTests.test_turn_completion_doc_covers_clarifications_header_and_deferral_disclosure()`
 # @used-by :meth:`test_landing_lease.LandingLeaseTests.test_exec4_documents_fifo_lease_and_swarm()`
 # @used-by :meth:`test_metadata_rules_contract.MetadataRulesAndDocsContractTests.test_rules_skill_and_docs_codify_json_metadata_headers_and_pass_lint()`
+# @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_df_github_issue_skill_documents_decomposition_and_passes_lint()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_analysis_links_causes_to_concerns_and_methods_to_causes()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_cross_file_markdown_anchors_and_missing_file()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_json_pointer_is_checked()`

@@ -27,6 +27,7 @@ class TurnIssueLifecycleAuditor:
 	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
 	# @used-by :meth:`test_cross_repo_issue_urls.CrossRepoIssueUrlsTests.test_auditor_ignores_foreign_repo_turn_issue_urls_in_touched_file()`
 	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
+	# @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_turn_issue_lifecycle_auditor_emits_soft_mixed_commit_warning()`
 	# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
 	# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
 	def __init__(self, root: Path, turn: dict, turn_state: dict | None=None, response=None, *, workspace: IssueEvidenceWorkspace | None=None, linter: IssueMarkdownLinter | None=None) -> None:
@@ -34,6 +35,8 @@ class TurnIssueLifecycleAuditor:
 		self.workspace = workspace if None is not workspace else IssueEvidenceWorkspace()
 		self.linter = linter if None is not linter else IssueMarkdownLinter()
 		self.violations: list[str] = []
+		# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+		self.warnings: list[str] = []
 		self.checked_issues: list[dict] = []
 		self.checked_urls: set[str] = set()
 		self.repo_touched: dict[Path, set[str]] = {}
@@ -143,6 +146,11 @@ class TurnIssueLifecycleAuditor:
 			existing_rels = [rel for rel in rel_paths if (code_repo / rel).exists()]
 			if existing_rels:
 				self._inspect_latest_commits(code_repo, existing_rels, required_issues, committed_urls)
+			# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+			from ..tdd.diff_executability import check_touched_mixed_commit_warning
+			mixed_warn = check_touched_mixed_commit_warning(code_repo, rel_paths, project_root=self.root)
+			if None is not mixed_warn:
+				self.warnings.append(str(mixed_warn['message']))
 		return committed_urls
 	# @used-by :meth:`TurnIssueLifecycleAuditor.audit()`
 	def _check_turn_issue_evidence(self, repo_by_issue_url: dict[str, Path]) -> None:
@@ -314,6 +322,7 @@ class TurnIssueLifecycleAuditor:
 					self.violations.append(f'GitHub issue {issue_url} remains {eff_state}; close it via df_github_issue.py close after git push before answer-prepare')
 	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
 	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
+	# @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_turn_issue_lifecycle_auditor_emits_soft_mixed_commit_warning()`
 	def audit(self) -> dict:
 		required_by_repo, repo_by_url = self._collect_repos_and_issues()
 		committed_by_repo: dict[Path, set[str]] = {}
@@ -326,7 +335,8 @@ class TurnIssueLifecycleAuditor:
 		self._check_turn_issue_evidence(repo_by_url)
 		self._check_multi_subtask_decomposition(committed_by_repo, required_by_repo)
 		# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
-		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations, **({'deferred_children': getattr(self, 'deferred_children', [])} if getattr(self, 'deferred_children', None) else {})}
+		# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations, 'warnings': self.warnings, **({'deferred_children': getattr(self, 'deferred_children', [])} if getattr(self, 'deferred_children', None) else {})}
 	# 2026-11-24
 	# "Isolate per-conversation github_issues recording and turn-state filtering":
 	# https://github.com/dmitry-ai/harness/issues/195

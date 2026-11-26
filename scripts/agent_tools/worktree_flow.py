@@ -334,6 +334,7 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_worktree_land_passes_prev_head_base_ref_and_skips_canary_for_non_exec()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_attaches_telemetry_on_failed_landings()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_emits_telemetry_for_non_executable_executable_and_override()`
+# @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_worktree_land_emits_mixed_commit_warning_and_clean_commit_has_none()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_optimistic_phase1_runs_tests_without_holding_fifo_lease()`
@@ -445,6 +446,7 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_worktree_land_passes_prev_head_base_ref_and_skips_canary_for_non_exec()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_attaches_telemetry_on_failed_landings()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_emits_telemetry_for_non_executable_executable_and_override()`
+# @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_worktree_land_emits_mixed_commit_warning_and_clean_commit_has_none()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_optimistic_phase1_runs_tests_without_holding_fifo_lease()`

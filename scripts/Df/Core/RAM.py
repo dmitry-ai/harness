@@ -139,6 +139,7 @@ class RAM:
 	# @used-by :func:`agent_tools.tdd.classifier._resolve_deleted_worktree_scope()`
 	# @used-by :func:`agent_tools.tdd.classifier.resolve_code_scope()`
 	# @used-by :func:`agent_tools.tdd.comment_diff._git_read_text()`
+	# @used-by :func:`agent_tools.tdd.diff_contract._git_batch_texts()`
 	# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
 	# @used-by :func:`agent_tools.tdd.diff_executability._git_read_bytes()`
 	# @used-by :func:`agent_tools.tdd.enforcement._git_show_text()`

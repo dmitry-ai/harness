@@ -1741,6 +1741,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_metadata_decomposition`
 	# @used-by :mod:`test_metadata_rules_contract`
 	# @used-by :mod:`test_metadata`
+	# @used-by :mod:`test_mixed_commit_audit`
 	# @used-by :mod:`test_multiturn_handoff_stop_guard_and_schedule_m1`
 	# @used-by :mod:`test_native_review_binding_m4`
 	# @used-by :mod:`test_observability_diagnostics`

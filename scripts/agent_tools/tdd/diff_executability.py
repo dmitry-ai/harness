@@ -7,7 +7,8 @@ from typing import Any
 from .classifier import is_software_code_file
 from .comment_diff import _git_read_text, classify_comment_or_whitespace_diff
 # 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
-from .diff_contract import DIFF_EXECUTABILITY_GATES, should_run_snapshot_canary
+# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+from .diff_contract import DIFF_EXECUTABILITY_GATES, MIXED_COMMIT_COMMENT_THRESHOLD, check_staged_mixed_commit_warning, check_touched_mixed_commit_warning, detect_mixed_commit_warning, should_run_snapshot_canary
 from .mechanical import find_matching_mechanical_recipes, is_mechanical_diff_exempt, matches_any_mechanical_recipes
 import os
 import re
@@ -122,6 +123,8 @@ def _overall_classification(exec_files: list[str], counts: dict[str, int]) -> st
 		non_unch = [c for c in counts if 'unchanged' != c]
 		r = non_unch[0] if 1 == len(non_unch) else ('unchanged' if not non_unch else 'mixed_non_executable')
 	return r
+# @used-by :func:`agent_tools.tdd.diff_contract.check_staged_mixed_commit_warning()`
+# @used-by :func:`agent_tools.tdd.diff_contract.check_touched_mixed_commit_warning()`
 # @used-by :func:`classify_git_range()`
 def _summarize_categories(file_categories: dict[str, str]) -> dict[str, Any]:
 	exec_files = sorted((p for p, c in file_categories.items() if c not in NON_EXECUTABLE_CATEGORIES))
@@ -139,6 +142,8 @@ def _summarize_categories(file_categories: dict[str, str]) -> dict[str, Any]:
 	}
 # @used-by :func:`_classify_existing_git_path()`
 # @used-by :func:`_classify_last_commit_path()`
+# @used-by :func:`agent_tools.tdd.diff_contract.check_staged_mixed_commit_warning()`
+# @used-by :func:`agent_tools.tdd.diff_contract.check_touched_mixed_commit_warning()`
 # @used-by :func:`is_non_executable_diff()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_whitespace_only_and_indentation_sensitive_fail_closed()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
@@ -194,6 +199,7 @@ def _classify_existing_git_path(repo: Path, fpath: Path, rel_posix: str, cur: st
 			# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 			r = _classify_last_commit_path(repo, rel_posix, cur, project_root)
 	return r
+# @used-by :func:`agent_tools.tdd.diff_contract.check_touched_mixed_commit_warning()`
 # @used-by :func:`is_git_path_non_executable()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
 # @used-by :mod:`agent_tools.tdd_gate`
@@ -272,6 +278,7 @@ def resolve_land_test_plan(wt_path: Path, target_branch: str, *, run_tests: bool
 		should_run, skip_reason = (False, f"non_executable_diff:{diff_info['classification']}")
 	return {'blocked_error': blocked_err, 'diff_info': diff_info, 'should_run_post_health': should_run, 'should_run_tests': should_run, 'test_skip_reason': skip_reason}
 # 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
 # @used-by :func:`agent_tools.worktree_flow._attach_land_telemetry()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_format_land_diff_telemetry_truncates_and_preserves_counts()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
@@ -286,16 +293,24 @@ def format_land_diff_telemetry(plan: dict[str, Any] | None, *, max_files: int=DE
 		exec_files = sorted(info.get('executable_files') or ())
 		non_exec = sorted(info.get('non_executable_files') or ())
 		counts = dict(sorted((info.get('category_counts') or {}).items()))
-		r = {'diff_category_counts': counts, 'diff_classification': info.get('classification'), 'executable_file_count': len(exec_files), 'executable_files': exec_files[:cap], 'non_executable_file_count': len(non_exec), 'non_executable_files': non_exec[:cap], 'test_skip_reason': plan.get('test_skip_reason')}
+		warn = detect_mixed_commit_warning(info)
+		r = {'diff_category_counts': counts, 'diff_classification': info.get('classification'), 'executable_file_count': len(exec_files), 'executable_files': exec_files[:cap], 'mixed_commit_warning': warn, 'non_executable_file_count': len(non_exec), 'non_executable_files': non_exec[:cap], 'test_skip_reason': plan.get('test_skip_reason'), 'warnings': [warn['message']] if None is not warn else []}
 	return r
 __all__ = [
 	'DEFAULT_MAX_REPORTED_FILES',
 	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 	'DIFF_EXECUTABILITY_GATES',
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	'MIXED_COMMIT_COMMENT_THRESHOLD',
 	'NON_EXECUTABLE_CATEGORIES',
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	'check_staged_mixed_commit_warning',
+	'check_touched_mixed_commit_warning',
 	'classify_git_path',
 	'classify_git_range',
 	'classify_text_diff',
+	# 2026-11-26 "Enforce mixed executable and bulk comment-only commit audit and decomposition rules": https://github.com/dmitry-ai/harness/issues/362
+	'detect_mixed_commit_warning',
 	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 	'format_land_diff_telemetry',
 	'is_git_path_non_executable',
