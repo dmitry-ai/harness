@@ -22,6 +22,7 @@ for p in (SCRIPTS,):
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=True, timeout=30)
 	return (proc.stdout or '').strip()
+# @used-by :meth:`DiffCoverageGateTests.test_decorated_methods_covered_under_sys_monitoring()`
 # @used-by :meth:`DiffCoverageGateTests.test_run_trace_diff_coverage_handles_timeout_gracefully()`
 # @used-by :meth:`DiffCoverageGateTests.test_select_targeted_falls_back_to_direct_when_large_diff_has_no_token_match()`
 # @used-by :meth:`DiffCoverageGateTests.test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages()`
@@ -46,6 +47,24 @@ def _init_demo_repo(root: Path) -> Path:
 	return repo
 # @used-by :mod:`unittest`
 class DiffCoverageGateTests(unittest.TestCase):
+	# 2026-11-27 "Include decorator_list start lines in diff_coverage AST spans for Python 3.13": https://github.com/dmitry-ai/harness/issues/390
+	# @used-by :mod:`unittest`
+	def test_decorated_methods_covered_under_sys_monitoring(self) -> None:
+		from agent_tools.tdd.diff_coverage import find_added_production_functions, verify_repo_diff_coverage
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = _init_demo_repo(root)
+			calc_src = 'from typing import override\ndef base_val() -> int:\n\treturn 1\nclass BaseCalc:\n\tdef value(self) -> int:\n\t\treturn 1\nclass SubCalc(BaseCalc):\n\t@override\n\tdef value(self) -> int:\n\t\treturn 2\n\t@staticmethod\n\tdef static_val() -> int:\n\t\treturn 3\n'
+			test_src = 'import sys, unittest\nfrom pathlib import Path\nsys.path.insert(0, str(Path(__file__).resolve().parents[1]))\nfrom pkg import calc\nclass CalcTests(unittest.TestCase):\n\tdef test_all(self) -> None:\n\t\tself.assertEqual(1, calc.base_val())\n\t\tself.assertEqual(1, calc.BaseCalc().value())\n\t\tself.assertEqual(2, calc.SubCalc().value())\n\t\tself.assertEqual(3, calc.SubCalc.static_val())\n'
+			(repo / 'pkg/calc.py').write_text(calc_src, encoding='utf-8')
+			(repo / 'tests/test_calc.py').write_text(test_src, encoding='utf-8')
+			res = verify_repo_diff_coverage(repo)
+			self.assertTrue(res['valid'], res)
+			self.assertEqual([], res['uncovered'])
+			self.assertEqual(3, res['checked_functions'])
+			added = {fn['name']: fn for fn in find_added_production_functions(repo, base_ref='HEAD', include_working_tree=True)['pkg/calc.py']}
+			self.assertEqual(8, added['SubCalc.value']['start_line'])
+			self.assertEqual(11, added['SubCalc.static_val']['start_line'])
 	# @used-by :mod:`unittest`
 	def test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered(self) -> None:
 		from agent_tools.worktree_flow import worktree_begin, worktree_land

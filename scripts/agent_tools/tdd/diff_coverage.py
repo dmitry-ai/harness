@@ -20,12 +20,14 @@ _GENERIC_PROD_DIRS = frozenset({'', '.', 'agent_tools', 'scripts', 'src', 'tests
 # @used-by :func:`_git_show_text()`
 def _git_read(repo_root: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(repo_root), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15, creationflags=_NO_WINDOW, check=False)
+# 2026-11-27 "Include decorator_list start lines in diff_coverage AST spans for Python 3.13": https://github.com/dmitry-ai/harness/issues/390
 # @used-by :func:`_parse_module_functions()`
 def _collect_ast_defs(body: list[ast.stmt], prefix: str, out: dict[str, dict[str, Any]]) -> None:
 	for node in body:
 		if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
 			qname = f'{prefix}{node.name}'
-			out[qname] = {'name': qname, 'start_line': int(node.lineno), 'end_line': int(getattr(node, 'end_lineno', node.lineno) or node.lineno)}
+			start_line = min([int(node.lineno), *(int(d.lineno) for d in node.decorator_list)]) if node.decorator_list else int(node.lineno)
+			out[qname] = {'name': qname, 'start_line': start_line, 'end_line': int(getattr(node, 'end_lineno', node.lineno) or node.lineno)}
 		elif isinstance(node, ast.ClassDef):
 			_collect_ast_defs(node.body, f'{prefix}{node.name}.', out)
 # @used-by :func:`_changed_test_paths()`
@@ -98,6 +100,7 @@ def _touched_git_repos(root_p: Path, turn_obj: dict[str, Any]) -> list[Path]:
 	return repos
 # @used-by :func:`verify_repo_diff_coverage()`
 # @used-by :func:`verify_worktree_diff_coverage()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_decorated_methods_covered_under_sys_monitoring()`
 # @used-by :meth:`test_path_cache_and_diff_cov_perf.PathCacheAndDiffCovPerfTests.test_diff_coverage_sys_monitoring_matches_settrace_and_supports_single_pass()`
 # @used-by :mod:`agent_tools.tdd.diff_coverage`
 def find_added_production_functions(repo_root: Path, *, base_ref: str='HEAD', include_working_tree: bool=False) -> dict[str, list[dict[str, Any]]]:
@@ -213,6 +216,7 @@ def enrich_tdd_check_report(root_p: Path, role: str, turn_key: str, turn_obj: di
 	cov_summary = {'valid': not uncovered, 'checked_functions': checked, 'uncovered': uncovered}
 	return {'valid': bool(tdd_chk.get('verified', True)) and cov_summary['valid'], 'read_only': True, 'role': role, 'turn_key': turn_key, 'tdd_check': tdd_chk, 'diff_coverage': cov_summary, 'event_count': len(turn_obj.get('tdd_events') or ())}
 # @used-by :func:`enrich_tdd_check_report()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_decorated_methods_covered_under_sys_monitoring()`
 # @used-by :mod:`agent_tools.tdd.diff_coverage`
 def verify_repo_diff_coverage(repo_root: Path, *, base_ref: str='HEAD') -> dict[str, Any]:
 	added = find_added_production_functions(repo_root, base_ref=base_ref, include_working_tree=True)
