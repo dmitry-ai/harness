@@ -40,13 +40,17 @@ def df_map_to_options_reverse(m: dict[str, Any]) -> list[dict[str, Any]]:
 # @used-by :func:`df_map_to_options()`
 # @used-by :func:`df_map_to_options_reverse()`
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_html_js_and_option()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_329_df_option_0_default_label()`
 def df_option(v: Any, l: str) -> dict[str, Any]:
 	return {'label': l, 'value': v}
 # 2020-02-02 Prepend a default `0` option to an options list.
+# 2026-11-26 "Fix df_option_0() passing None default label to df_map_0()": https://github.com/dmitry-ai/harness/issues/329
+# Upstream defect: https://github.com/mage2pro/core/issues/472
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/option.php#L73-L81
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_html_js_and_option()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_329_df_option_0_default_label()`
 def df_option_0(tail: list[dict[str, Any]], l: str | None=None) -> list[dict[str, Any]]:
-	return df_map_to_options(df_map_0({}, l)) + list(tail)
+	return df_map_to_options(df_map_0({}, '' if None is l else l)) + list(tail)
 # Extract the `'value'` field from an option dict.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/option.php#L83-L89
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_html_js_and_option()`

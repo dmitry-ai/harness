@@ -32,5 +32,12 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		mk = Marker('<![CDATA[', ']]>')
 		self.assertIs(True, mk.marked('<![CDATA[x]]>'))
 		self.assertIs(False, mk.marked('x'))
+	# 2026-11-26 "Fix df_option_0() passing None default label to df_map_0()": https://github.com/dmitry-ai/harness/issues/329
+	# Upstream defect: https://github.com/mage2pro/core/issues/472
+	# @used-by :mod:`unittest`
+	def test_329_df_option_0_default_label(self) -> None:
+		from Df.Core.lib.option import df_option, df_option_0
+		r = df_option_0([df_option('a', 'A')])
+		self.assertEqual([{'label': '-- select a value --', 'value': 0}, {'label': 'A', 'value': 'a'}], r)
 if '__main__' == __name__:
 	unittest.main()
