@@ -88,6 +88,12 @@ def check_close_companion_health(repo: str, code_repo: Path | None=None) -> str 
 		if not health['healthy']:
 			detail = '; '.join(health['issues'])
 			r = f"EXEC-5 / DOC-5 companion health check failed for {repo} ({health['path']}): {detail}"
+	# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+	if None is r and None is not code_repo:
+		from .polyglot_land import run_repo_health_check
+		repo_health = run_repo_health_check(code_repo, slug=repo)
+		if not repo_health['ok']:
+			r = f"EXEC-5 / DOC-5 repo health check failed for {repo}: {repo_health['error']}"
 	return r
 # @used-by :func:`agent_tools.blocked_report._run_runner_audits()`
 def check_runner_addon_observability(runner) -> None:

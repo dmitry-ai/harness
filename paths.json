@@ -432,5 +432,42 @@
         "meta": "${PROJECT_META_ROOT}"
       }
     }
+  },
+  "repo_verification": {
+    "dmitry-ai/antigravity-addons": {
+      "test_cwd": "Upgrade",
+      "test_command": [
+        "${NODE_EXE}",
+        "--test",
+        "--test-force-exit",
+        "--test-timeout=30000",
+        "test-registry.js",
+        "test-cdp-runtime.js",
+        "../Folders/architecture.test.js",
+        "../Folders/folder-picker.test.js",
+        "../Multi-Account/launcher.test.js",
+        "../Multi-Account/skills-manifest.test.js",
+        "../Titlebar-Badges/badges.test.js"
+      ],
+      "watch_host_files": [
+        "${APPDATA}/AntigravityTools/runtime.json",
+        "${APPDATA}/AntigravityTools/instance.lock"
+      ],
+      "health_command": [
+        "${NODE_EXE}",
+        "Upgrade/runtime-health.js"
+      ],
+      "health_ok_exit_codes": [
+        0
+      ],
+      "health_skip_exit_codes": [
+        2
+      ],
+      "health_skip_states": [
+        "unavailable",
+        "waiting-for-sign-in"
+      ],
+      "timeout_seconds": 180
+    }
   }
 }

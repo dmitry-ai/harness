@@ -52,18 +52,32 @@ def _maybe_promote_snapshot(main_repo: Path, *, promote_snapshot: bool | None, s
 	should = promote_snapshot if None is not promote_snapshot else is_harness_code_repo(main_repo)
 	return promote_runtime_snapshot(main_repo, store_dir=snapshot_store) if should else None
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
-def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
+# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool=True, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	ff = _git_exec(main_repo, 'merge', '--ff-only', branch)
 	if 0 != ff.returncode:
 		r = _fail_land(main_repo, wt_path, branch, 'ff_merge', ff.stderr.strip() or ff.stdout.strip(), test_runs=test_runs, test_result=test_res)
 	else:
 		if post_merge_fn:
 			post_merge_fn(main_repo)
-		snap = _maybe_promote_snapshot(main_repo, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
-		if None is not snap and (not snap.get('valid')):
-			r = _fail_land(main_repo, wt_path, branch, 'snapshot_promote', str(snap.get('error') or 'Runtime snapshot promotion failed'), test_runs=test_runs, test_result=test_res)
+		snap, err_stage, err_msg = _post_merge_checks(main_repo, run_tests=run_tests, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
+		if None is not err_stage:
+			r = _fail_land(main_repo, wt_path, branch, err_stage, err_msg or 'Post-merge verification failed', test_runs=test_runs, test_result=test_res)
 		else:
 			r = _push_and_finish_land(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, snap=snap, tag=tag)
+	return r
+# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# @used-by :func:`_merge_and_finalize()`
+def _post_merge_checks(main_repo: Path, *, run_tests: bool, promote_snapshot: bool | None, snapshot_store: Path | None) -> tuple[dict | None, str | None, str | None]:
+	snap = _maybe_promote_snapshot(main_repo, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
+	if None is not snap and (not snap.get('valid')):
+		r = (snap, 'snapshot_promote', str(snap.get('error') or 'Runtime snapshot promotion failed'))
+	elif run_tests:
+		from .polyglot_land import run_repo_health_check
+		health = run_repo_health_check(main_repo)
+		r = (snap, None, None) if health.get('ok') else (snap, 'post_land_health', str(health.get('error') or 'Post-land repository health check failed'))
+	else:
+		r = (snap, None, None)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def _push_and_finish_land(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, snap: dict | None, tag: bool=False) -> dict:
@@ -115,8 +129,11 @@ def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch:
 		if py_errs:
 			r = (_fail_land(main_repo, wt_path, branch, 'python_integrity', '; '.join(py_errs[:5])), 0, None)
 		else:
-			ok_tests, test_runs, test_res = _run_land_tests(wt_path, run_tests=run_tests, workers=workers)
-			err = None if ok_tests else _fail_land(main_repo, wt_path, branch, 'tests', 'Full test suite failed on rebased worktree', test_runs=test_runs, test_result=test_res)
+			# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+			ok_tests, test_runs, test_res = _run_land_tests(main_repo, wt_path, run_tests=run_tests, workers=workers)
+			stage = str((test_res or {}).get('failure_stage') or 'tests')
+			msg = 'Host state mutated during sandboxed tests' if 'host_mutation' == stage else 'Full test suite failed on rebased worktree'
+			err = None if ok_tests else _fail_land(main_repo, wt_path, branch, stage, msg, test_runs=test_runs, test_result=test_res)
 			r = (err, test_runs, test_res)
 	return r
 def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
@@ -140,14 +157,19 @@ def _rev_distance(main_repo: Path, base_ref: str, head_sha: str) -> tuple[int, i
 		if 2 == len(parts) and parts[0].isdigit() and parts[1].isdigit():
 			r = (int(parts[1]), int(parts[0]))
 	return r
-def _run_land_tests(wt_path: Path, *, run_tests: bool, workers: int | None) -> tuple[bool, int, dict | None]:
+# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+def _run_land_tests(main_repo: Path, wt_path: Path, *, run_tests: bool, workers: int | None) -> tuple[bool, int, dict | None]:
 	tests_dir = wt_path / 'tests'
-	if not run_tests or (not tests_dir.is_dir()):
+	if not run_tests:
 		r = (True, 0, None)
-	else:
+	elif tests_dir.is_dir():
 		from .parallel_runner import run_parallel_tests
 		res = run_parallel_tests(tests_dir, workers=workers, failfast=True)
 		r = (bool(res.get('ok')), 1, res)
+	else:
+		from .polyglot_land import run_polyglot_land_tests
+		ok, res = run_polyglot_land_tests(main_repo, wt_path)
+		r = (ok, 1 if None is not res else 0, res)
 	return r
 def _safe_task_id(task_id: str) -> str:
 	clean = _SAFE_TASK_RE.sub('-', str(task_id or '').strip()).strip('-.')
@@ -210,14 +232,16 @@ def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False)
 		branch_deleted = 0 == _git_exec(main_repo, 'branch', '-D' if force else '-d', branch).returncode
 	return {'valid': outcome['ok'], 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'branch_deleted': branch_deleted, 'error': outcome['error'], 'removal_errors': outcome['removal_errors'], 'locking_processes': outcome['locking_processes']}
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
+# 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
 def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
+	from .polyglot_land import dirty_blocking_main_files
 	if GitRepoGate(wt_path).git('status', '--porcelain').strip():
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_worktree', 'Worktree has uncommitted changes')
-	elif GitRepoGate(main_repo).git('status', '--porcelain').strip():
+	elif dirty_blocking_main_files(main_repo, branch):
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_main', 'Main checkout has uncommitted changes')
 	else:
 		err, test_runs, test_res = _rebase_and_test(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
-		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
+		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, run_tests=run_tests, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
 	return r
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
