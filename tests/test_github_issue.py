@@ -8,6 +8,8 @@ import unittest
 from unittest.mock import patch
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+from agent_tools.env_isolation_contracts import isolated_host_env
 from agent_tools.github_issue import has_enumerated_slop_title, lint_issue_markdown, main
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 from agent_tools.repo_tags import ensure_commit_tag
@@ -88,7 +90,8 @@ class TestGitHubIssueTool(unittest.TestCase):
 					proc.stdout = json.dumps(stored).encode('utf-8')
 				r = proc
 				return r
-			with patch('agent_tools.github_issue.subprocess.run', side_effect=fake_run):
+			# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+			with patch('agent_tools.github_issue.subprocess.run', side_effect=fake_run), patch.dict('os.environ', isolated_host_env(), clear=False):
 				# 2026-11-02
 				# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
 				# https://github.com/dmitry-ai/harness/issues/37
@@ -421,7 +424,8 @@ class TestGitHubIssueTool(unittest.TestCase):
 					num = int(endpoint.rsplit('/', 1)[-1])
 					return dict(issues_db[num])
 				raise AssertionError(f'Unexpected {method} {endpoint}')
-			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh):
+			# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+			with patch('agent_tools.github_issue._gh_api', side_effect=fake_gh), patch.dict('os.environ', isolated_host_env(), clear=False):
 				buf = io.StringIO()
 				with patch('sys.stdout', buf):
 					rc = main(['create', '--repo', 'acme/demo', '--title', 'Add metadata header', '--body-file', str(body_file), '--project-root', str(proj)])

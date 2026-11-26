@@ -20,6 +20,8 @@ for _p in (SCRIPTS, TESTS):
 		sys.path.insert(0, str(_p))
 from agent_tools import cleanup, metadata, project_rename, runtime, upwork_project as up
 from agent_tools.platforms import antigravity
+# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+from agent_tools.env_isolation_contracts import isolated_host_env
 from test_agent_tools import TemporaryCase
 from test_onboarding import source
 # 2026-11-26
@@ -110,7 +112,8 @@ class CleanupIntegrationTests(TemporaryCase):
 		body = f'Очистка завершена.  \nМанифест: `{m_path.as_posix()}`.  \n'
 		scratch.write_text(body, encoding='utf-8')
 		out = io.StringIO()
-		fake_env = {'ANTIGRAVITY_CONVERSATION_ID': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 'ANTIGRAVITY_ACCOUNT': 'A0', 'ANTIGRAVITY_APP_DATA_DIR': ''}
+		# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+		fake_env = isolated_host_env(ANTIGRAVITY_ACCOUNT='A0', ANTIGRAVITY_CONVERSATION_ID='aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
 		with patch.object(cleanup, 'settings', return_value=self.config), patch.dict('os.environ', fake_env, clear=False), redirect_stdout(out):
 			rc = up.main(['cleanup-report', '--answer-file', str(scratch), '--consume-input', '--manifest', str(m_path), '--project', str(self.workspace), '--platform', 'antigravity'])
 		self.assertEqual(0, rc, out.getvalue())

@@ -27,6 +27,7 @@ def _is_harness_metadata_obj(obj: Any) -> bool:
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_cli_logs_actual_stdin_answer_from_either_platform_without_running_cleanup()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_repeated_and_concurrent_answers_never_overwrite_logs_in_the_same_minute()`
+# @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_isolates_conflicting_host_a0_and_codex_env()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_writes_metadata_header_links_manifest_and_consumes_scratch_file()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests.test_apply_and_cleanup_report_manifest_and_metadata_roundtrip()`
 # @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out()`

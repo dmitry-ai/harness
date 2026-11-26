@@ -1695,6 +1695,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_diff_coverage_gate`
 	# @used-by :mod:`test_dirty_diff_issue_scope`
 	# @used-by :mod:`test_doc5_context_trigger`
+	# @used-by :mod:`test_env_isolation_and_worktree_gate_contracts`
 	# @used-by :mod:`test_evidence_unification`
 	# @used-by :mod:`test_executor_metadata`
 	# @used-by :mod:`test_experiments`

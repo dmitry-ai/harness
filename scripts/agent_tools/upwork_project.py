@@ -620,6 +620,7 @@ def instances_report(*, platform=None, instance=None, conversation=None, include
 # @used-by :func:`git_fixture_cache.run_harness_inprocess()`
 # @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_cli_logs_actual_stdin_answer_from_either_platform_without_running_cleanup()`
+# @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_isolates_conflicting_host_a0_and_codex_env()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_writes_metadata_header_links_manifest_and_consumes_scratch_file()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests.test_apply_and_cleanup_report_manifest_and_metadata_roundtrip()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`

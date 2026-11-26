@@ -289,6 +289,7 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :func:`agent_tools.context.discover_letters()`
 	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
+	# @used-by :func:`agent_tools.env_isolation_contracts._extract_worktree_land_gates()`
 	# @used-by :func:`agent_tools.evidence_loader._add_anchor()`
 	# @used-by :func:`agent_tools.experiments.requirement_issues()`
 	# @used-by :func:`agent_tools.failfast_gate._active_turn_run_command_tasks()`
@@ -1046,6 +1047,8 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.completion._instruction_snapshot()`
 	# @used-by :func:`agent_tools.configuration._publish()`
 	# @used-by :func:`agent_tools.configuration.build_native()`
+	# @used-by :func:`agent_tools.env_isolation_contracts.isolated_host_env()`
+	# @used-by :func:`agent_tools.env_isolation_contracts.isolated_subprocess_env()`
 	# @used-by :func:`agent_tools.evidence_loader._extract_bundle_html()`
 	# @used-by :func:`agent_tools.grounding_domains._check_mem_tuples()`
 	# @used-by :func:`agent_tools.grounding_helpers._assemble_corpus()`

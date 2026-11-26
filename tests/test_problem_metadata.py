@@ -13,6 +13,8 @@ SCRIPT_DIR = WT_ROOT / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import metadata
+# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+from agent_tools.env_isolation_contracts import isolated_subprocess_env
 # 2026-11-24
 # "Add structured problem metadata builder and CLI command":
 # https://github.com/dmitry-ai/harness/issues/180
@@ -79,11 +81,13 @@ class ProblemMetadataTests(unittest.TestCase):
 			proj = Path(tmp).resolve() / 'cli-proj'
 			proj.mkdir()
 			harness_cli = str(SCRIPT_DIR / 'harness.py')
-			bad = subprocess.run([sys.executable, harness_cli, 'problem-metadata', str(proj)], capture_output=True, text=True, encoding='utf-8', check=False)
+			# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+			sub_env = isolated_subprocess_env()
+			bad = subprocess.run([sys.executable, harness_cli, 'problem-metadata', str(proj)], env=sub_env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=False, timeout=30)
 			self.assertNotEqual(0, bad.returncode)
 			ok_json = subprocess.run(
 				[sys.executable, harness_cli, 'problem-metadata', str(proj), '--issue', 'https://github.com/dmitry-ai/harness/issues/180', '--format', 'json'],
-				capture_output=True, text=True, encoding='utf-8', check=False,
+				env=sub_env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=False, timeout=30,
 			)
 			self.assertEqual(0, ok_json.returncode, ok_json.stderr or ok_json.stdout)
 			payload = json.loads(ok_json.stdout)
@@ -92,7 +96,7 @@ class ProblemMetadataTests(unittest.TestCase):
 			self.assertTrue(payload['markdown'].startswith('```json\n{\n\t"Time":'))
 			ok_md = subprocess.run(
 				[sys.executable, harness_cli, 'problem-metadata', str(proj), '--no-issue', '--format', 'markdown'],
-				capture_output=True, text=True, encoding='utf-8', check=False,
+				env=sub_env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=False, timeout=30,
 			)
 			self.assertEqual(0, ok_md.returncode, ok_md.stderr or ok_md.stdout)
 			self.assertTrue(ok_md.stdout.startswith('```json\n{\n\t"Time":'))

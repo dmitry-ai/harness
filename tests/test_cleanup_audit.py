@@ -20,6 +20,8 @@ for _p in (SCRIPTS, TESTS):
 		sys.path.insert(0, str(_p))
 from agent_tools import cleanup, metadata, runtime, upwork_project as up
 from agent_tools.platforms import antigravity
+# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+from agent_tools.env_isolation_contracts import isolated_host_env
 from test_agent_tools import TemporaryCase
 # 2026-11-26
 # "Persist cleanup audit manifests and metadata headers aligned with FILE-3":
@@ -117,7 +119,8 @@ class CleanupAuditTests(TemporaryCase):
 		# 2026-11-26
 		# "Isolate ANTIGRAVITY_APP_DATA_DIR in test_cleanup_audit.py under non-A6 sessions":
 		# https://github.com/dmitry-ai/harness/issues/310
-		fake_env = {'ANTIGRAVITY_ACCOUNT': 'A6', 'ANTIGRAVITY_APP_DATA_DIR': '', 'ANTIGRAVITY_CONVERSATION_ID': '11111111-2222-3333-4444-555555555555'}
+		# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+		fake_env = isolated_host_env(ANTIGRAVITY_ACCOUNT='A6', ANTIGRAVITY_CONVERSATION_ID='11111111-2222-3333-4444-555555555555')
 		with patch.object(cleanup, 'settings', return_value=self.config), patch.dict('os.environ', fake_env, clear=False), redirect_stdout(out):
 			rc = up.main(['cleanup-report', '--answer-file', str(scratch), '--consume-input', '--manifest', str(m_path), '--project', str(proj_root), '--platform', 'antigravity'])
 		self.assertEqual(0, rc, out.getvalue())
@@ -140,9 +143,35 @@ class CleanupAuditTests(TemporaryCase):
 		outside = self.root / 'outside.md'
 		outside.write_text(body, encoding='utf-8')
 		err_out = io.StringIO()
-		with patch.object(cleanup, 'settings', return_value=self.config), redirect_stdout(err_out):
+		# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+		with patch.object(cleanup, 'settings', return_value=self.config), patch.dict('os.environ', isolated_host_env(), clear=False), redirect_stdout(err_out):
 			rc_bad = up.main(['cleanup-report', '--answer-file', str(outside), '--consume-input', '--project', str(proj_root), '--platform', 'antigravity'])
 		self.assertNotEqual(0, rc_bad)
 		self.assertTrue(outside.exists())
+	# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+	# @used-by :mod:`unittest`
+	def test_cleanup_report_isolates_conflicting_host_a0_and_codex_env(self) -> None:
+		proj_root = self.root / 'tracked-a0-conflict'
+		scratch = proj_root / '\ua616/data/scratch/cleanup-a0-conflict.md'
+		scratch.parent.mkdir(parents=True, exist_ok=True)
+		body = 'Изолированный отчёт очистки.  \n'
+		scratch.write_text(body, encoding='utf-8')
+		host_conflict = {
+			'ANTIGRAVITY_ACCOUNT': 'A0',
+			'ANTIGRAVITY_APP_DATA_DIR': str(self.ag_homes['A0'] / '.gemini/antigravity'),
+			'CODEX_HOME': str(self.root / 'cx/C1'),
+		}
+		fake_env = isolated_host_env(ANTIGRAVITY_ACCOUNT='A6', ANTIGRAVITY_CONVERSATION_ID='22222222-3333-4444-5555-666666666666')
+		out = io.StringIO()
+		with patch.dict('os.environ', host_conflict, clear=False):
+			with patch.object(cleanup, 'settings', return_value=self.config), patch.dict('os.environ', fake_env, clear=False), redirect_stdout(out):
+				rc = up.main(['cleanup-report', '--answer-file', str(scratch), '--consume-input', '--project', str(proj_root), '--platform', 'antigravity'])
+		self.assertEqual(0, rc, out.getvalue())
+		res = json.loads(out.getvalue())
+		hdr, stripped = metadata.extract_leading_metadata_header(Path(res['path']).read_text(encoding='utf-8'))
+		self.assertIsNotNone(hdr)
+		self.assertEqual(body, stripped)
+		self.assertEqual('A6', hdr['Agent']['Instance'])
+		self.assertEqual('22222222-3333-4444-5555-666666666666', hdr['Trace']['Conversation ID'])
 if '__main__' == __name__:
 	unittest.main()

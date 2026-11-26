@@ -14,6 +14,8 @@ from unittest.mock import patch
 from test_agent_tools import TemporaryCase
 from agent_tools import cleanup, runtime, upwork_project as up
 from agent_tools.platforms.antigravity import register_antigravity_project
+# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+from agent_tools.env_isolation_contracts import isolated_host_env
 from test_onboarding import source
 # 2026-10-17
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
@@ -620,8 +622,9 @@ class CleanupReportTests(TemporaryCase):
 	def test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight(self):
 		from agent_tools import metadata
 		body = 'Cleanup completed.\n\n[History](<C:/work/upwork/code/proposals/daily>)\n'
+		# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
 		with patch.object(cleanup, 'settings', return_value={'workspace_root': str(self.root)}):
-			result = cleanup.record_cleanup_answer(body, now=datetime(2026, 10, 17, 21, 49, tzinfo=timezone.utc))
+			result = cleanup.record_cleanup_answer(body, now=datetime(2026, 10, 17, 21, 49, tzinfo=timezone.utc), env=isolated_host_env())
 		path = self.root / 'AI/log/cleanup/2026/10/18--00-49.md'
 		self.assertEqual(Path(result['path']), path)
 		self.assertEqual(result['timestamp'], '2026-10-18 00:49 UTC+3')
@@ -635,9 +638,10 @@ class CleanupReportTests(TemporaryCase):
 		from agent_tools import metadata
 		now = datetime(2026, 10, 17, 21, 49, tzinfo=timezone.utc)
 		root = self.root / 'logs'
-		first = cleanup.record_cleanup_answer('First answer', now=now, log_root=root)
+		# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+		first = cleanup.record_cleanup_answer('First answer', now=now, log_root=root, env=isolated_host_env())
 		with ThreadPoolExecutor(max_workers=2) as pool:
-			others = list(pool.map(lambda text: cleanup.record_cleanup_answer(text, now=now, log_root=root), ['Second answer', 'Third answer']))
+			others = list(pool.map(lambda text: cleanup.record_cleanup_answer(text, now=now, log_root=root, env=isolated_host_env()), ['Second answer', 'Third answer']))
 		results = [first, *others]
 		self.assertEqual({Path(r['path']).name for r in results}, {'18--00-49.md', '18--00-49--2.md', '18--00-49--3.md'})
 		self.assertEqual(len({r['path'] for r in results}), 3)
@@ -653,7 +657,8 @@ class CleanupReportTests(TemporaryCase):
 			with self.subTest(platform=platform):
 				body = 'Mode: preview.\nNo matching projects.\n'
 				output = io.StringIO()
-				with patch.object(cleanup, 'settings', return_value={'workspace_root': str(self.root)}), patch.object(cleanup, 'cleanup_projects', side_effect=AssertionError('Logging must not run cleanup')), patch('sys.stdin', io.StringIO(body)), redirect_stdout(output):
+				# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
+				with patch.object(cleanup, 'settings', return_value={'workspace_root': str(self.root)}), patch.object(cleanup, 'cleanup_projects', side_effect=AssertionError('Logging must not run cleanup')), patch.dict('os.environ', isolated_host_env(), clear=False), patch('sys.stdin', io.StringIO(body)), redirect_stdout(output):
 					code = up.main(['cleanup-report', '--answer', '-', '--platform', platform])
 				result = json.loads(output.getvalue())
 				self.assertEqual(code, 0, result)
@@ -667,10 +672,11 @@ class CleanupReportTests(TemporaryCase):
 	# @used-by :mod:`unittest`
 	def test_empty_answer_or_naive_timestamp_does_not_create_a_log(self):
 		root = self.root / 'logs'
+		# 2026-11-26 "Add contract invariants for metadata test env isolation and worktree-land gates": https://github.com/dmitry-ai/harness/issues/366
 		with self.assertRaises(ValueError):
-			cleanup.record_cleanup_answer('  ', log_root=root)
+			cleanup.record_cleanup_answer('  ', log_root=root, env=isolated_host_env())
 		with self.assertRaises(ValueError):
-			cleanup.record_cleanup_answer('Report', now=datetime(2026, 10, 18), log_root=root)
+			cleanup.record_cleanup_answer('Report', now=datetime(2026, 10, 18), log_root=root, env=isolated_host_env())
 		self.assertFalse(root.exists())
 if '__main__' == __name__:
 	unittest.main()
