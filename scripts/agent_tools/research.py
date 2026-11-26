@@ -115,6 +115,10 @@ def classify_network_error(exc):
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 # @used-by :func:`_write_cached_extraction()`
+# @used-by :func:`agent_tools.arch.review_store._persist_review_index()`
+# @used-by :func:`agent_tools.arch.review_store._register_package_index()`
+# @used-by :func:`agent_tools.arch.review_store._subject_digest()`
+# @used-by :func:`agent_tools.arch.review_store.prepare_arch_package()`
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
@@ -177,6 +181,9 @@ def _fingerprint(value):
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 # @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.arch.review_store._collect_modules()`
+# @used-by :func:`agent_tools.arch.review_store._load_verified_package()`
+# @used-by :func:`agent_tools.arch.review_store.read_arch_review_input()`
 # @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
 # @used-by :func:`agent_tools.cli_domains._resolve_project_input()`

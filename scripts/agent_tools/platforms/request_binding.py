@@ -19,6 +19,7 @@ def _raw_text_project_id(path_val):
 # https://github.com/dmitry-ai/harness/issues/13
 # @used-by :func:`completion_project_id()`
 # @used-by :func:`native_project_id()`
+# @used-by :func:`test_arch_review_cli._init_text_workspace()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 # @used-by :meth:`test_text_native_binding.TextNativeBindingTests.setUp()`
 def text_project_id(root):

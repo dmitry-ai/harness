@@ -1660,6 +1660,7 @@ class ProjectPaths:
 	# @used-by :mod:`snapshot_draft`
 	# @used-by :mod:`test_addon_observability`
 	# @used-by :mod:`test_agent_tools`
+	# @used-by :mod:`test_arch_review_cli`
 	# @used-by :mod:`test_arch_rules_contract`
 	# @used-by :mod:`test_arch_spec_and_triggers`
 	# @used-by :mod:`test_ask_question_clarifications_m8`
@@ -1885,6 +1886,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.analysis.save_analysis()`
 	# @used-by :func:`agent_tools.analysis_merge._load_merge_base()`
 	# @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
+	# @used-by :func:`agent_tools.arch.review_store._arch_dir()`
 	# @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
 	# @used-by :func:`agent_tools.completion._folder()`
 	# @used-by :func:`agent_tools.intake.commit_capture()`
@@ -2132,6 +2134,7 @@ class ProjectPaths:
 		return Path(self.paths_str['project_json'])
 	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
 	# @used-by :func:`agent_tools.platforms.request_binding.native_project_id()`
+	# @used-by :func:`test_arch_review_cli._init_text_workspace()`
 	@property
 	def text_project_json(self) -> Path:
 		return Path(self.paths_str['text_project_json'])
@@ -2255,6 +2258,11 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
+# @used-by :func:`agent_tools.arch.review_store._arch_dir()`
+# @used-by :func:`agent_tools.arch.review_store._load_verified_package()`
+# @used-by :func:`agent_tools.arch.review_store.prepare_arch_package()`
+# @used-by :func:`agent_tools.arch.review_store.read_arch_review_input()`
+# @used-by :func:`agent_tools.arch.review_store.record_arch_review()`
 # @used-by :func:`agent_tools.budget.compute_budget_status()`
 # @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
@@ -2396,6 +2404,7 @@ class ProjectPaths:
 # @used-by :func:`evaluate_similar_project_touches()`
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`paths_report()`
+# @used-by :func:`test_arch_review_cli._init_text_workspace()`
 # @used-by :func:`tool_value()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.__init__()`

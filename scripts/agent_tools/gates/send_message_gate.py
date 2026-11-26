@@ -6,7 +6,8 @@ PRIORITY = 96
 TOOLS = frozenset({'send_message'})
 _FENCE_JSON_RE = re.compile(r'^\s*```(?:json)?\s*\{', re.I)
 _MAX_JSON_MSG_BYTES = 4096
-_VERDICT_KEY_RE = re.compile(r'"(?:claim_reviews|disproved_claims)"\s*:')
+# 2026-11-26 "Add arch-auditor subagent role and content-addressed review CLI": https://github.com/dmitry-ai/harness/issues/361
+_VERDICT_KEY_RE = re.compile(r'"(?:claim_reviews|disproved_claims|pattern_checks)"\s*:')
 _VERDICT_META_RE = re.compile(r'"(?:schema_version|package_sha256|findings|result)"\s*:')
 # @used-by :func:`check()`
 def _is_duplicate_verdict_payload(msg: str) -> bool:
@@ -19,6 +20,7 @@ def _is_duplicate_verdict_payload(msg: str) -> bool:
 # "Enforce single falsifier review default and block duplicate send_message reports":
 # https://github.com/dmitry-ai/harness/issues/226
 # @used-by :func:`agent_tools.gates._load_builtin_entry()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_cli_registry_and_send_message_gate_expose_arch_commands_and_block_verdict_duplication()`
 def check(name: str, args: dict, payload: dict | None=None) -> str | None:
 	r: str | None = None
 	if 'send_message' == name:

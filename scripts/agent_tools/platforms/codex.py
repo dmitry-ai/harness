@@ -602,7 +602,7 @@ def _selection(parent_rows, child_meta, invocation=None):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
-	if role not in ('primary', 'AA', 'AF'):
+	if role not in ('primary', 'AA', 'AF', 'ARCH'):
 		raise ValueError('Unknown executor role')
 	paths = _paths(backend, profile=instance, conversation_id=conversation_id)
 	home = paths['home']
@@ -707,7 +707,7 @@ def _json_objects(value):
 # https://github.com/dmitry-ai/harness/issues/113
 # @used-by :func:`native_review_proof()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
-def _review_inputs(root, rows, parent_id, reviewer_id):
+def _review_inputs(root, rows, parent_id, reviewer_id, *, role='AA'):
 	from ..path_registry import canonicalize_root_dir, same_project_root
 	from ..research import inside
 	calls, r, root_p = ({}, [], canonicalize_root_dir(root))
@@ -721,7 +721,7 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 					calls[call_id] = arguments
 			elif kind in ('function_call_output', 'custom_tool_call_output') and call_id in calls:
 				for receipt in _json_objects(payload.get('output')):
-					if 1 == receipt.get('upwork_review_input') and True is receipt.get('verified') and (receipt.get('reviewer_id') == reviewer_id) and (receipt.get('parent_id') == parent_id) and same_project_root(receipt.get('project_root'), root_p):
+					if 1 == receipt.get({'ARCH': 'arch_review_input'}.get(role, 'upwork_review_input')) and True is receipt.get('verified') and (receipt.get('reviewer_id') == reviewer_id) and (receipt.get('parent_id') == parent_id) and same_project_root(receipt.get('project_root'), root_p):
 						try:
 							package = inside(root_p, receipt.get('package', ''))
 						except ValueError:
@@ -743,14 +743,18 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 # 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
+# 2026-11-26
+# "Add arch-auditor subagent role and content-addressed review CLI":
+# https://github.com/dmitry-ai/harness/issues/361
 # @used-by :func:`verify_native_proof()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_encrypted_assignment_or_missing_native_package_execution_cannot_prove_a_review()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_native_windows_extended_path_keeps_the_profile_boundary()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
 # @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_codex_native_review_for_text_has_no_fabricated_upwork_job()`
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0, role='AA'):
 	paths = _paths(backend, profile=instance, conversation_id=reviewer_id or parent_id)
 	home = paths['home']
 	_, parent_path, _, parent_rows = _trace(home, parent_id, paths=paths)
@@ -787,7 +791,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 				if isinstance(msg_txt, str) and msg_txt.strip():
 					matched_prompts.append(msg_txt)
 	resolved_inst = paths['instance'] or instance
-	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home, instance=resolved_inst), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write)
+	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id, role=role), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role=role, parent_id=parent_id, backend=home, instance=resolved_inst), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -795,12 +799,16 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 # "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/52
 # @used-by :func:`agent_tools.platforms.adapter()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 def verify_native_proof(root, native, package=None):
-	home = Path(native.get('native_profile_home', '')).resolve()
+	# 2026-11-26
+	# "Add arch-auditor subagent role and content-addressed review CLI":
+	# https://github.com/dmitry-ai/harness/issues/361
+	home, role = (Path(native.get('native_profile_home', '')).resolve(), (native.get('executor_metadata') or {}).get('role') or 'AA')
 	allowed_homes = [Path(value).resolve() for value in extract_platform_homes(platform_settings('codex'), platform='codex', include_disabled=True).values()]
 	if home not in allowed_homes:
 		raise ValueError('Saved Codex proof names an unconfigured profile')
-	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, instance=native.get('instance'), write=False), ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'), trace_error='Codex review proof differs from the actual native trace', identity_error='Codex review proof has a different explicit project identity')
+	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=home, instance=native.get('instance'), write=False, role=role), ('native_log_sha256', 'final_response_sha256', 'assignment_sha256', 'assignment_source', 'review_inputs', 'final_step', 'job_id', 'observed_model', 'model_selection'), trace_error='Codex review proof differs from the actual native trace', identity_error='Codex review proof has a different explicit project identity')
 	if package and (not any((Path(item['package']).name == package for item in r['review_inputs']))):
 		raise ValueError('Codex reviewer did not verify this immutable KB review package')
 	return r

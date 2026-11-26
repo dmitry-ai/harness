@@ -38,6 +38,7 @@ class Finding:
 	line: int
 	message: str
 	excerpt: str = ''
+	# @used-by :func:`agent_tools.arch.review_cli._format_arch_check()`
 	# @used-by :func:`agent_tools.cli_registry._format_perf_profile_tests()`
 	# @used-by :func:`agent_tools.cli_registry._format_perf_timesheet()`
 	# @used-by :func:`agent_tools.cli_registry._format_problem_metadata()`

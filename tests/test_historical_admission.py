@@ -36,6 +36,7 @@ class Later(datetime):
 	# @used-by :func:`Df.Core.lib.date.df_date_from_timestamp_14()`
 	# @used-by :func:`Df.Core.lib.date.df_now()`
 	# @used-by :func:`Df.Core.lib.time.df_utc_iso()`
+	# @used-by :func:`agent_tools.arch.review_store.record_arch_review()`
 	# @used-by :func:`agent_tools.budget._active_window_5h_steps()`
 	# @used-by :func:`agent_tools.cleanup_audit._istanbul_stamp()`
 	# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`

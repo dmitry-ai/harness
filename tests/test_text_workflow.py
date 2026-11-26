@@ -131,6 +131,7 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`test_agent_tools.LinkTests.test_real_http_redirect_anchor_and_404()`
 	# @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 	# @used-by :meth:`test_analysis_workflow.ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`
+	# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.setUp()`
 	# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unrelated_registry_revision_and_target_do_not_invalidate_selected_history()`
 	# @used-by :meth:`test_landing_lease.LandingLeaseTests.test_fifo_ordering_prevents_starvation()`

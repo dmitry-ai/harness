@@ -183,6 +183,8 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
+# @used-by :func:`agent_tools.arch.review_store._persist_review_index()`
+# @used-by :func:`agent_tools.arch.review_store._register_package_index()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.completion._persist_turn_recovery()`
@@ -300,6 +302,8 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
+# @used-by :func:`agent_tools.arch.review_store._persist_review_index()`
+# @used-by :func:`agent_tools.arch.review_store._register_package_index()`
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
@@ -383,6 +387,8 @@ def replace_bytes(path: Path, data: bytes):
 		_stage_atomic_write(target, data, _replace_with_retry)
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
+# @used-by :func:`agent_tools.arch.review_store.prepare_arch_package()`
+# @used-by :func:`agent_tools.arch.review_store.record_arch_review()`
 # @used-by :func:`agent_tools.completion._conflict()`
 # @used-by :func:`agent_tools.metrics._save_executor_metadata()`
 # @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`

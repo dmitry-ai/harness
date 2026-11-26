@@ -25,7 +25,7 @@ from .storage import create_bytes, data_dir_for, locked, replace_bytes
 ISSUE = 'https://github.com/dmitry-ai/harness/issues/35'
 START = '<!-- harness:native-loader:start -->'
 END = '<!-- harness:native-loader:end -->'
-PURPOSES = {'AA': 'Independent substantive review of the five stages and KB consistency.', 'AF': 'Collection and extraction of evidence for an assigned question.'}
+PURPOSES = {'AA': 'Independent substantive review of the five stages and KB consistency.', 'AF': 'Collection and extraction of evidence for an assigned question.', 'ARCH': 'Independent falsifier audit of software design patterns and architecture specifications.'}
 _linked = is_linked_path
 _linked_ancestor = has_linked_ancestor
 # @used-by :func:`_antigravity_plan()`
@@ -187,7 +187,7 @@ def _skills(primary):
 def _role_values(primary):
 	config = _configuration(primary)['platforms'].get('codex') or {}
 	roles = config.get('roles') or {}
-	values = [(role, roles[role]['agent'], PURPOSES[role], roles[role]) for role in ('AA', 'AF') if role in roles]
+	values = [(role, roles[role]['agent'], PURPOSES[role], roles[role]) for role in ('AA', 'AF', 'ARCH') if role in roles]
 	if any(not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', name) for _, name, _, _ in values) or len({name for _, name, _, _ in values}) != len(values):
 		raise ValueError('Native role identifiers must be distinct safe filenames')
 	return values
@@ -199,6 +199,7 @@ def _model_fields(primary, role):
 	return '' if 'parent' == config.get('subagents', {}).get('selection') or value.get('selection') in ('parent', 'inherit') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
 # @used-by :func:`_shared_plan()`
 # @used-by :func:`agent_tools.configuration.build_native()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests.test_general_rule_passes_doctor_native_bootstrap_and_lint()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_comment_gate_skips_body_misalignment_on_comment_only_diff()`
@@ -223,27 +224,21 @@ def shared_native_outputs(primary=PRIMARY):
 		for kind in KINDS:
 			r[primary / f'platforms/antigravity/{kind}.json'] = _json({'entries': [{'path': (canon / kind).as_posix()}]}).decode('utf-8')
 		r[primary / 'platforms/antigravity/hooks.json'] = _json(canonical_global_hooks(canon)).decode('utf-8')
-		# 2026-11-23
-		# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-		# https://github.com/dmitry-ai/harness/issues/133
-		ag_cfg = plats.get('antigravity') or {}
-		ag_roles = ag_cfg.get('roles') or {}
-		if 'AF' in ag_roles:
-			af_cfg = ag_roles['AF']
-			ag_parent = 'parent' == (ag_cfg.get('subagents') or {}).get('selection') or af_cfg.get('selection') in ('parent', 'inherit')
-			model_line = '' if ag_parent or not af_cfg.get('tier') else f'model: {af_cfg["tier"]}\n'
-			# 2026-11-24
-			# "Prevent context compaction with schema-help CLI and staged analysis merge":
-			# https://github.com/dmitry-ai/harness/issues/217
-			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\n{model_line}subagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(canon / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the parent agent selects the model per task complexity, and the requested selection does not prove the actual runtime model.  \nUse `harness.py extract` and `harness.py evidence-query` on saved captures instead of reading raw HTML/JSON bodies into context, write structured findings to the assigned output path (default `\ua616/KB/Evidence/<question>-extract.json`), and return only that file path plus a compact summary of verified facts, quotes, and gaps.  \n<!-- https://github.com/dmitry-ai/harness/issues/217 -->  \n'
+		# 2026-11-26
+		# "Add arch-auditor subagent role and content-addressed review CLI":
+		# https://github.com/dmitry-ai/harness/issues/361
+		from .arch.native_role import populate_antigravity_roles
+		populate_antigravity_roles(r, primary, canon, plats.get('antigravity') or {})
 	if 'codex' in plats:
+		from .arch.native_role import codex_role_protocol_path
 		bootstrap = canon / 'platforms/codex/AGENTS.md'
 		# 2026-11-25
 		# "Refactor shared rules into compact three-layer M-2 architecture":
 		# https://github.com/dmitry-ai/harness/issues/242
 		r[primary / 'platforms/codex/AGENTS.md'] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(primary, display_root=canon) + '\n'
 		for role, name, purpose, _ in _role_values(primary):
-			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(canon / "agents/worker.md").as_posix()}  '
+			proto_p = codex_role_protocol_path(canon, role)
+			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the protocol: {proto_p}  '
 			r[primary / f'platforms/codex/agents/{name}.toml'] = f'# Generated from runtime.json and agents/worker.md; do not edit.\n# {ISSUE}\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + _model_fields(primary, role) + f'developer_instructions = {json.dumps(instructions)}\n'
 	return r
 # @used-by :func:`_codex_plan()`
@@ -469,6 +464,8 @@ class _Plan:
 	# @used-by :func:`_retire_profile_skills()`
 	# @used-by :func:`_retire_shared_roles()`
 	# @used-by :func:`_shared_plan()`
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
 	# @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
 	# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
 	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`

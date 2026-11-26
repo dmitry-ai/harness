@@ -189,6 +189,7 @@ def native_requests(root, conversation_id, *, backend=None, platform=None, insta
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`agent_tools.arch.review_store._authenticate_arch_report()`
 # @used-by :func:`agent_tools.cli_domains._op_native_review_proof()`
 # @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_af_or_terminal_quota_error_is_not_an_independent_completed_aa_review()`
@@ -196,12 +197,13 @@ def native_requests(root, conversation_id, *, backend=None, platform=None, insta
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_native_review_rejects_prompt_bias_and_reviewer_isolation_violations()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_parent_model_selection_allowed_and_observed_mismatch_rejected()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_significant_risk_cannot_finish_with_one_independent_aa()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_finalize_stage_accepts_unencoded_file_uri_chat_links()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_native_windows_extended_path_keeps_the_profile_boundary()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_parent_can_select_another_model_and_effort_with_native_proof()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None, wait_timeout=0.0):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None, wait_timeout=0.0, role='AA'):
 	from .platforms import adapter
 	platform, backend, resolved_instance = _resolve_target(platform, backend, instance, conversation_id=reviewer_id or parent_id)
 	kw = {'backend': backend, 'write': write}
@@ -212,10 +214,16 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 	# https://github.com/dmitry-ai/harness/issues/212
 	if 0.0 < float(wait_timeout or 0.0):
 		kw['wait_timeout'] = float(wait_timeout)
+	# 2026-11-26
+	# "Add arch-auditor subagent role and content-addressed review CLI":
+	# https://github.com/dmitry-ai/harness/issues/361
+	if 'AA' != role:
+		kw['role'] = role
 	return adapter(platform).native_review_proof(root, parent_id, reviewer_id, **kw)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# @used-by :func:`agent_tools.arch.review_store._authenticate_arch_report()`
 # @used-by :func:`agent_tools.review.authenticate_report()`
 # @used-by :func:`agent_tools.review.verify_entry_native_proof()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_parent_can_select_another_model_and_effort_with_native_proof()`
@@ -230,12 +238,13 @@ def verify_native_proof(root, native, package=None):
 # https://github.com/dmitry-ai/harness/issues/10
 # @used-by :func:`agent_tools.cli_domains._op_native_executor_metadata()`
 # @used-by :func:`record_executor_metadata()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None, write=False):
 	from .platforms import adapter
-	if role not in ('primary', 'AA', 'AF'):
-		raise ValueError('Executor role must be primary, AA or AF')
+	if role not in ('primary', 'AA', 'AF', 'ARCH'):
+		raise ValueError('Executor role must be primary, AA, AF or ARCH')
 	platform, backend, resolved_instance = _resolve_target(platform, backend, instance, conversation_id=conversation_id)
 	kw = {'role': role, 'parent_id': parent_id, 'backend': backend}
 	if None is not resolved_instance:

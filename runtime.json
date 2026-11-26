@@ -65,6 +65,10 @@
         "AF": {
           "selection": "parent",
           "agent": "af-worker"
+        },
+        "ARCH": {
+          "selection": "parent",
+          "agent": "arch-auditor"
         }
       },
       "delegation": {
@@ -118,6 +122,10 @@
         "AF": {
           "selection": "parent",
           "agent": "upwork-af"
+        },
+        "ARCH": {
+          "selection": "parent",
+          "agent": "arch-auditor"
         }
       },
       "delegation": {

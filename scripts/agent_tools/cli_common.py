@@ -18,6 +18,8 @@ def add_arg_specs(parser, specs: tuple | list) -> None:
 	for flags, kwargs in specs:
 		names = flags if isinstance(flags, tuple) else (flags,)
 		parser.add_argument(*names, **kwargs)
+# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
+# @used-by :func:`agent_tools.arch.review_cli._exec_arch_record_review()`
 # @used-by :func:`agent_tools.cli_domains._load_consumed()`
 # @used-by :func:`agent_tools.cli_domains._op_prepare_review()`
 # @used-by :func:`agent_tools.cli_domains._op_record_answer()`
@@ -72,6 +74,8 @@ def consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService.run_verified_mutation()`
 def dump_json(payload, *, stream=None) -> None:
 	print(json.dumps(payload, ensure_ascii=False, indent=2), file=stream or sys.stdout)
+# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
+# @used-by :func:`agent_tools.arch.review_cli._exec_arch_record_review()`
 # @used-by :func:`agent_tools.cli_domains._load_consumed()`
 # @used-by :func:`agent_tools.cli_domains._op_prepare_review()`
 # @used-by :func:`agent_tools.cli_domains._op_record_answer()`
@@ -134,6 +138,7 @@ def read_input_bytes(path) -> bytes:
 # @used-by :mod:`agent_tools.text_cli`
 def read_input_json(path, *, encoding: str='utf-8-sig'):
 	return json.loads(read_input_text(path, encoding=encoding)) if None is not path else None
+# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
 # @used-by :func:`agent_tools.cli.main()`
 # @used-by :func:`agent_tools.cli_domains._op_resume()`
 # @used-by :func:`read_input_json()`

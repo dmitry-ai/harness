@@ -158,6 +158,7 @@ def _validate_runtime(value):
 # @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.__init__()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner.__init__()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_cleanup.CleanupTests.setUp()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.setUp()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests.setUp()`
@@ -913,6 +914,7 @@ def registration_profile_name(value=None, *, config=None):
 	return r
 # @used-by :func:`agent_tools.meta.identity._resolve_codex_paths_safe()`
 # @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
+# @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
 # @used-by :func:`agent_tools.platforms.codex._paths()`
 # @used-by :func:`agent_tools.platforms.codex.native_tool_trace()`
 # @used-by :func:`agent_tools.platforms.codex.shared_control()`

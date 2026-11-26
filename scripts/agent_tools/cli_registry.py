@@ -263,10 +263,13 @@ def _register_analysis_builtins() -> None:
 	# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
 	register_command('run-tests', 'Run unittest modules in parallel with fail-fast and per-module watchdog timeout', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..8)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), ('--no-failfast', {'action': 'store_true', 'help': 'Run all modules instead of stopping on first failure'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--runner', {'choices': ('auto', 'unittest', 'pytest'), 'default': 'auto', 'help': 'Test runner backend (default: auto)'}), ('--format', {'choices': ('text', 'json'), 'default': 'text', 'help': 'Output format (default: text)'})), _exec_run_tests, exit_code_fn=lambda res: int(res['exit_code']), text_fn=_format_run_tests)
 	register_command('runtime-promote', 'Export, validate, and atomically activate an immutable HEAD runtime snapshot with LKG fallback', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--store-dir', {'type': Path, 'help': 'Optional runtime snapshot store directory'}), ('--keep', {'type': int, 'default': 5, 'help': 'Number of recent releases to retain (default: 5)'})), _exec_runtime_promote)
+# 2026-11-26 "Add arch-auditor subagent role and content-addressed review CLI": https://github.com/dmitry-ai/harness/issues/361
 # @used-by :func:`_ensure_builtin_plugins()`
 def _register_builtins() -> None:
+	from .arch.review_cli import register_arch_commands
 	_register_analysis_builtins()
 	_register_runtime_builtins()
+	register_arch_commands(register_command)
 # @used-by :func:`_register_builtins()`
 def _register_runtime_builtins() -> None:
 	register_command('runtime-status', 'Inspect active and LKG immutable runtime snapshots', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--store-dir', {'type': Path, 'help': 'Optional runtime snapshot store directory'})), _exec_runtime_status)
@@ -288,12 +291,14 @@ def _register_runtime_builtins() -> None:
 	register_command('xref-check', 'Validate navigable cross-reference annotations (@used-by, @uses, @see, @override)', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), _exec_xref_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=_format_xref)
 	register_command('xref-sync', 'Synchronize navigable @used-by and @override/@see cross-reference annotations', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--dry-run', {'action': 'store_true'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), _exec_xref_sync, text_fn=_format_xref)
 # @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :func:`test_arch_review_cli._run_arch_cli()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_cli_parser_dispatches_tdd_exempt_mechanical_with_turn_key()`
 def add_registered_parsers(sub) -> None:
 	_ensure_builtin_plugins()
 	for name, entry in sorted(_REGISTRY.items()):
 		add_arg_specs(sub.add_parser(name, help=entry['help']), entry['specs'])
 # @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`test_arch_review_cli._run_arch_cli()`
 def dispatch_registered(args, dump_fn: Callable, exit_fn: Callable) -> tuple[bool, int | None]:
 	_ensure_builtin_plugins()
 	entry = _REGISTRY.get(args.command)
@@ -324,6 +329,7 @@ def execute_registered(args) -> tuple[bool, dict | None, int | None]:
 		r = (True, res, int(ec_fn(res)) if ec_fn else None)
 	return r
 # @used-by :func:`_exec_cli_docs()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_cli_registry_and_send_message_gate_expose_arch_commands_and_block_verdict_duplication()`
 # @used-by :meth:`test_repo_tags.RepoTagsTests.test_cli_repo_tag_and_repo_tag_retro_registered()`
 # @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_wait_repo_cli_and_registry_expose_wait_repo()`
 # @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_schema_help_command_returns_contract_for_all_topics()`
@@ -333,6 +339,7 @@ def registered_commands() -> tuple[str, ...]:
 	_ensure_builtin_plugins()
 	return tuple(sorted(_REGISTRY))
 # @used-by :func:`_register_analysis_builtins()`
+# @used-by :func:`_register_builtins()`
 # @used-by :func:`_register_runtime_builtins()`
 # @used-by :meth:`test_cli_registry.CliRegistryTests.test_dynamic_command_registration_roundtrip()`
 def register_command(name: str, help_text: str, specs: tuple | list, handler: Callable, *, exit_code_fn: Callable | None=None, text_fn: Callable | None=None) -> None:

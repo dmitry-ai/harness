@@ -65,6 +65,10 @@ class CleanupTests(TemporaryCase):
 		with closing(sqlite3.connect(path)) as connection:
 			connection.execute(sql, params)
 			connection.commit()
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_record_review()`
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_review_input()`
 	# @used-by :func:`agent_tools.cli_common.consume_scratch_input()`
 	# @used-by :func:`agent_tools.cli_common.load_operation_input()`
 	# @used-by :func:`agent_tools.cli_domains._op_adopt_requests()`

@@ -802,7 +802,10 @@ def _native_invocation(backend, parent_id, conversation_id, role, *, paths=None)
 # @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.ag_read()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
-	if role not in ('primary', 'AA', 'AF'):
+	# 2026-11-26
+	# "Add arch-auditor subagent role and content-addressed review CLI":
+	# https://github.com/dmitry-ai/harness/issues/361
+	if role not in ('primary', 'AA', 'AF', 'ARCH'):
 		raise ValueError('Unknown executor role')
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
@@ -887,6 +890,8 @@ def native_tool_trace(root, request):
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 # @used-by :func:`verify_native_proof()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_antigravity_native_review_proof_supports_arch_auditor_role()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_exact_native_workspace_allows_plain_continuation_and_independent_review()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace()`
@@ -894,19 +899,22 @@ def native_tool_trace(root, request):
 # @used-by :meth:`test_native_review_binding_m4.NativeReviewBindingM4Tests.test_native_review_proof_binds_launcher_chat_with_user_request_and_uses_native_meta()`
 # @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response()`
 # @used-by :meth:`test_text_native_binding.TextNativeBindingTests.test_antigravity_native_review_for_text_uses_actual_workspace_binding()`
-def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
+def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0, role='AA'):
 	# 2026-10-21
 	# "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
 	# https://github.com/dmitry-ai/harness/issues/14
-	root = Path(root).resolve()
+	# 2026-11-26
+	# "Add arch-auditor subagent role and content-addressed review CLI":
+	# https://github.com/dmitry-ai/harness/issues/361
+	root, expected_agent = (Path(root).resolve(), platform_settings('antigravity').get('roles', {}).get(role, {}).get('agent', 'self'))
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=reviewer_id or parent_id)
 	backend = Path(paths['backend_dir'])
 	if not all((re.fullmatch('[a-f0-9-]{36}', x) for x in (parent_id, reviewer_id))):
 		raise ValueError('Native parent/reviewer UUIDs required')
 	with open_readonly_sqlite(Path(paths['conversations_db']), row_factory=sqlite3.Row) as conn:
 		child = conn.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (reviewer_id,)).fetchone()
-	if None is child or child['parent_conversation_id'] != parent_id or 'self' != child['agent_name']:
-		raise ValueError('Native trace does not establish an independent self/A.A child of this parent')
+	if None is child or child['parent_conversation_id'] != parent_id or expected_agent != child['agent_name']:
+		raise ValueError(f'Native trace does not establish an independent {expected_agent}/{role} child of this parent')
 	# 2026-11-24
 	# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 	# https://github.com/dmitry-ai/harness/issues/212
@@ -915,9 +923,9 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 	parent_log = _transcript_path(paths['brain_dir'], parent_id)
 	parent_inputs = read_jsonl_objects(parent_log)
 	initial_prompt = rows[0].get('content', '')
-	matches, extra_msgs = _find_subagent_invocations(parent_inputs, reviewer_id, 'self', initial_prompt)
+	matches, extra_msgs = _find_subagent_invocations(parent_inputs, reviewer_id, expected_agent, initial_prompt)
 	if not matches:
-		raise ValueError('Matching native self/A.A invocation is not established')
+		raise ValueError(f'Matching native {expected_agent}/{role} invocation is not established')
 	exact_matches = [m for m in matches if m[2]]
 	selected_match = exact_matches[-1] if exact_matches else matches[-1]
 	invocation, invocation_sub = (selected_match[0], selected_match[1])
@@ -932,15 +940,15 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=resolve_parent_binding_inputs(backend, parent_id, parent_inputs, paths=paths, native_inputs_fn=_native_inputs, extract_transcript_fn=_extract_transcript_user_input), until=invocation)
 		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation, paths=paths), _query_step_model_ids(backend, reviewer_id, paths=paths))
 		if is_inherit and parent_models and child_models and (not child_models.issubset(parent_models)):
-			raise ValueError('Observed reviewer model differs from the inherited A.A model')
-		executor_metadata = native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=backend, instance=resolved_inst)
+			raise ValueError(f'Observed reviewer model differs from the inherited {role} model')
+		executor_metadata = native_executor_metadata(root, reviewer_id, role=role, parent_id=parent_id, backend=backend, instance=resolved_inst)
 		if 'mismatch' == executor_metadata['verification']['status']:
 			raise ValueError('Native reviewer generation/configuration differs from requested parent model/effort selection')
 		model_selection = {'selection': executor_metadata['requested']['selection'], 'requested_model': requested_model}
 		if executor_metadata['requested'].get('tier'):
 			model_selection['tier'] = executor_metadata['requested']['tier']
 		return {'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'model_selection': model_selection, 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation}
-	return build_native_review_proof(root, 'antigravity-ui', parent_id, reviewer_id, 'self', log, parent_log, raw, last['step_index'], last['content'], [initial_prompt, *extra_msgs, *(m[1]['Prompt'] for m in matches)], rows, extra_fields_fn=_extra, write=write)
+	return build_native_review_proof(root, 'antigravity-ui', parent_id, reviewer_id, expected_agent, log, parent_log, raw, last['step_index'], last['content'], [initial_prompt, *extra_msgs, *(m[1]['Prompt'] for m in matches)], rows, extra_fields_fn=_extra, write=write)
 # 2026-10-15
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
@@ -1189,8 +1197,11 @@ def _proof_backend(native):
 # @used-by :meth:`test_reused_reviewer_and_metadata_drift_m5.ReusedReviewerAndMetadataDriftM5Tests.test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention()`
 def verify_native_proof(root, native, package=None):
 	from .antigravity_review_helpers import reviewer_assigned_package
-	paths = _proof_paths(native)
-	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=paths['backend_dir'], instance=paths['instance'], write=False), ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'), allow_legacy_generation_model=True)
+	# 2026-11-26
+	# "Add arch-auditor subagent role and content-addressed review CLI":
+	# https://github.com/dmitry-ai/harness/issues/361
+	paths, role = (_proof_paths(native), (native.get('executor_metadata') or {}).get('role') or ('ARCH' if 'arch-auditor' == native.get('agent_name') else 'AA'))
+	r = verify_review_proof_core(root, native, native_review_proof(root, native.get('parent_id', ''), native.get('reviewer_id', ''), backend=paths['backend_dir'], instance=paths['instance'], write=False, role=role), ('native_log_sha256', 'final_response_sha256', 'final_step', 'job_id'), allow_legacy_generation_model=True)
 	if package and (not reviewer_assigned_package(r['native_log'], package, parent_id=r.get('parent_id'), final_step=r.get('final_step'))):
 		raise ValueError('Native reviewer was not assigned this immutable KB review package')
 	return r
