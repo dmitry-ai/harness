@@ -882,17 +882,10 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 # 2026-11-21
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
+# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
 def same_project_root(first: str | Path | None, second: str | Path | None, *, registry: PathRegistry | None=None) -> bool:
-	if None is first or None is second:
-		return False
-	s1, s2 = (str(first).strip(), str(second).strip())
-	if not s1 or not s2 or (isinstance(first, str) and (not Path(s1).is_absolute())) or (isinstance(second, str) and (not Path(s2).is_absolute())):
-		return False
-	reg = registry or load_registry()
-	try:
-		return _path_key(canonicalize_root_dir(s1, registry=reg)) == _path_key(canonicalize_root_dir(s2, registry=reg))
-	except (OSError, ValueError):
-		return False
+	from .project_rename_state import same_project_root_check
+	return same_project_root_check(first, second, lambda s: canonicalize_root_dir(s, registry=registry or load_registry()), _path_key)
 def _glob_parent_stat(pattern: str) -> tuple:
 	prefix = re.split('[*?\\[]', pattern, maxsplit=1)[0].rstrip('/\\')
 	parent = Path(prefix) if prefix else Path('.')

@@ -94,16 +94,20 @@ def migrate_journal_state(old_root: Path, new_root: Path) -> tuple[Path, Path]:
 			_rewrite_json_file(item, pairs)
 	return (old_state, new_state)
 # 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
+# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
 def rewrite_launcher_handoffs(launcher_root: Path, old_root: Path, new_root: Path) -> int:
 	turns_dir = project_paths(Path(launcher_root).resolve(), exact_root=True).turns_dir
 	pairs = _path_pairs(old_root, new_root, None, None)
 	count = 0
 	if turns_dir.is_dir():
 		for sf in sorted(turns_dir.glob('*.json')):
-			raw = sf.read_text(encoding='utf-8-sig')
-			updated = _rewrite_text(raw, pairs)
-			if updated != raw:
-				replace_bytes(sf, updated.encode('utf-8'))
+			try:
+				data = json.loads(sf.read_text(encoding='utf-8-sig'))
+			except (OSError, ValueError):
+				continue
+			updated = _rewrite_value(data, pairs)
+			if updated != data:
+				replace_bytes(sf, (json.dumps(updated, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 				count += 1
 	return count
 # 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
@@ -127,16 +131,55 @@ def rewrite_project_internal_state(old_root: Path, new_root: Path, new_label: st
 			if updated != orig:
 				replace_bytes(df, updated.encode('utf-8'))
 	return state
-def _has_rename_lineage(existing_root: Path, missing_root: Path) -> bool:
-	r = False
+# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
+def _rename_lineage_roots(existing_root: Path) -> tuple[Path, ...]:
 	pj_path = existing_root / '\ua616/project.json'
+	r: list[Path] = []
 	if pj_path.is_file():
 		try:
 			history = json.loads(pj_path.read_text(encoding='utf-8-sig')).get('renamed_from') or []
 		except (OSError, ValueError):
 			history = []
-		target_key = missing_root.as_posix().casefold()
-		r = any((isinstance(h, dict) and Path(str(h.get('from') or '')).resolve().as_posix().casefold() == target_key for h in history if h.get('from')))
+		for item in history:
+			if isinstance(item, dict) and item.get('from'):
+				cand = Path(str(item['from'])).resolve()
+				if not cand.is_dir():
+					r.append(cand)
+	return tuple(r)
+def _has_rename_lineage(existing_root: Path, missing_root: Path) -> bool:
+	target_key = missing_root.as_posix().casefold()
+	return any((cand.as_posix().casefold() == target_key for cand in _rename_lineage_roots(existing_root)))
+def capture_file_sha(path: Path) -> str | None:
+	return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+def find_sibling_project_path(raw_val: str, project_root: Path, daily_root: Path) -> Path | None:
+	r: Path | None = None
+	try:
+		candidate = Path(raw_val).resolve()
+	except OSError:
+		candidate = None
+	if None is not candidate and candidate.is_relative_to(daily_root):
+		allowed = (project_root, *_rename_lineage_roots(project_root))
+		if not any((candidate.is_relative_to(root_p) or root_p.is_relative_to(candidate) for root_p in allowed)):
+			r = candidate
+	return r
+def refresh_workflow_file_hash(new_root: Path, target_file: Path, old_sha: str | None) -> None:
+	new_sha = capture_file_sha(target_file)
+	if old_sha and new_sha and old_sha != new_sha:
+		wf_path = project_paths(new_root, exact_root=True).data_dir / 'workflow.json'
+		_rewrite_json_file(wf_path, [(old_sha, new_sha)])
+def same_project_root_check(first: str | Path | None, second: str | Path | None, canon_fn, key_fn) -> bool:
+	r = False
+	if None is not first and None is not second:
+		s1, s2 = (str(first).strip(), str(second).strip())
+		if s1 and s2 and (not (isinstance(first, str) and (not Path(s1).is_absolute()))) and (not (isinstance(second, str) and (not Path(s2).is_absolute()))):
+			try:
+				c1, c2 = (canon_fn(s1), canon_fn(s2))
+				if key_fn(c1) == key_fn(c2):
+					r = True
+				else:
+					r = (c1.is_dir() and (not c2.is_dir()) and _has_rename_lineage(c1, c2)) or (c2.is_dir() and (not c1.is_dir()) and _has_rename_lineage(c2, c1))
+			except (OSError, ValueError):
+				r = False
 	return r
 # 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 def same_journal_identity_with_rename(first: str | Path | None, second: str | Path | None, canon_fn) -> bool:

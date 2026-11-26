@@ -181,5 +181,38 @@ class ProjectRenameTests(unittest.TestCase):
 			p3 = _run_harness(base, 'save-analysis', str(proj3), '--candidate', str(cand3), '--consume-input', '--promote-domain')
 			self.assertEqual(0, p3.returncode, p3.stderr)
 			self.assertTrue(proj3.is_dir())
+	# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
+	def test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage(self) -> None:
+		from agent_tools import path_registry, workflow
+		from agent_tools.platforms.trace_common import reviewer_isolation_issues
+		from agent_tools.project_rename import rename_project
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			proj, daily = _init_provisional(base)
+			ag_dirs, folders, _ = _seed_dual_antigravity(base, proj)
+			reg_f = proj / '\ua616/data/registrations.json'
+			reg_sha_before = hashlib.sha256(reg_f.read_bytes()).hexdigest()
+			pj_sha_before = hashlib.sha256((proj / '\ua616/project.json').read_bytes()).hexdigest()
+			wf_f = proj / '\ua616/data/workflow.json'
+			wf_f.parent.mkdir(parents=True, exist_ok=True)
+			wf_f.write_text(json.dumps({'schema_version': 1, 'project_root': str(proj), 'job_id': '~022124567641351805598', 'stages': {'identity_init': {'status': 'complete', 'inputs': {'\ua616/project.json': pj_sha_before}, 'outputs': {'\ua616/data/registrations.json': reg_sha_before}}}, 'questions': {}, 'reviews': [], 'requests': [], 'events': []}), encoding='utf-8')
+			launcher = base / 'launcher'
+			l_turn = launcher / '\ua616/data/turns/handoff01.json'
+			l_turn.parent.mkdir(parents=True, exist_ok=True)
+			l_turn.write_text(json.dumps({'key': 'handoff01', 'status': 'handed_off', 'handed_off_to': {'project_root': str(proj), 'job_id': '~022124567641351805598'}}), encoding='utf-8')
+			res = rename_project(proj, domain='blueskypeptide.com', daily_root=daily, antigravity_projects_dirs=ag_dirs, antigravity_folders_json=folders, targets=['antigravity'], launcher_root=launcher)
+			new_proj = Path(res['project_dir']).resolve()
+			self.assertEqual(str(new_proj), json.loads(l_turn.read_text(encoding='utf-8'))['handed_off_to']['project_root'])
+			wf_after = json.loads((new_proj / '\ua616/data/workflow.json').read_text(encoding='utf-8'))
+			reg_sha_after = hashlib.sha256((new_proj / '\ua616/data/registrations.json').read_bytes()).hexdigest()
+			self.assertEqual(reg_sha_after, wf_after['stages']['identity_init']['outputs']['\ua616/data/registrations.json'])
+			self.assertTrue(workflow.WorkflowStateEngine(new_proj).receipt_current(wf_after['stages']['identity_init']))
+			self.assertTrue(path_registry.same_project_root(str(proj), new_proj))
+			sibling = proj.parent / '2 - other-client.com'
+			self.assertFalse(path_registry.same_project_root(str(sibling), new_proj))
+			rows_old = [{'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'read_file', 'args': {'Path': str(proj / '\ua616/KB/Analysis.json')}}]}]
+			self.assertEqual([], reviewer_isolation_issues(new_proj, rows_old))
+			rows_sib = [{'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'read_file', 'args': {'Path': str(sibling / '\ua616/KB/Analysis.json')}}]}]
+			self.assertTrue(any(('sibling project path' in msg for msg in reviewer_isolation_issues(new_proj, rows_sib))))
 if '__main__' == __name__:
 	unittest.main()

@@ -10,7 +10,7 @@ import uuid
 from .path_cache import clear_path_cache
 from .path_registry import clear_registry_cache, project_paths, store_path
 from .project_labels import LabelValidationError, normalize_domain_host, resolve_init_label
-from .project_rename_state import rewrite_launcher_handoffs, rewrite_project_internal_state
+from .project_rename_state import capture_file_sha, refresh_workflow_file_hash, rewrite_launcher_handoffs, rewrite_project_internal_state
 from .runtime import platform_instances, request_day
 from .storage import locked, replace_bytes
 _SEQ_PREFIX_RE = re.compile(r'^(\d+) - (.+)$')
@@ -153,7 +153,10 @@ def _sync_registrations(old_root: Path, new_root: Path, new_label: str, day_str:
 			custom_ag = _build_ag_registrar(ag_dirs, folders_json, pid)
 			if None is not custom_ag:
 				eff_regs['antigravity'] = custom_ag
+		# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
+		old_reg_sha = capture_file_sha(regs_f)
 		r = register_projects(new_root, new_label, day_str, targets=targets, registrars=eff_regs or None)
+		refresh_workflow_file_hash(new_root, regs_f, old_reg_sha)
 	return r
 def _target_name_and_root(old_root: Path, new_label: str) -> Path:
 	match = _SEQ_PREFIX_RE.match(old_root.name)

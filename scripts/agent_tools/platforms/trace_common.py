@@ -541,12 +541,11 @@ def reviewer_isolation_issues(root, rows):
 			val = args.get(key)
 			if not isinstance(val, str) or not val.strip():
 				continue
-			try:
-				candidate = Path(val).resolve()
-			except OSError:
-				continue
-			if candidate.is_relative_to(daily_root) and (not candidate.is_relative_to(project_root)) and (not project_root.is_relative_to(candidate)):
-				r.append(f'reviewer accessed sibling project path {candidate}')
+			# 2026-11-26 "Preserve finalized workflow and review lineage across rename-project": https://github.com/dmitry-ai/harness/issues/277
+			from ..project_rename_state import find_sibling_project_path
+			sib = find_sibling_project_path(val, project_root, daily_root)
+			if None is not sib:
+				r.append(f'reviewer accessed sibling project path {sib}')
 	r.extend(partial_candidate_read_issues(project_root, rows))
 	return r
 # 2026-11-14
