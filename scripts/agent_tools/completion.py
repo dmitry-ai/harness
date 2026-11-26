@@ -1120,41 +1120,14 @@ BUDGET_WINDOW_5H_MAX_STEPS = 400
 # 2026-11-10
 # "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
 # https://github.com/dmitry-ai/harness/issues/49
+# 2026-11-26 "Scope budget_check graceful checkpoint flag to client-artifact projects": https://github.com/dmitry-ai/harness/issues/369
 # @used-by :func:`_new()`
 # @used-by :func:`_state()`
+# @used-by :meth:`test_budget_status_scoping.BudgetStatusScopingTests.test_client_project_ignores_delivered_history_and_triggers_on_active_budget()`
+# @used-by :meth:`test_budget_status_scoping.BudgetStatusScopingTests.test_code_project_never_flags_graceful_checkpoint_from_history_or_steps()`
 def _budget_status(root, turn):
-	comp = dict(turn.get('compaction') or {})
-	del_info = dict(turn.get('delegation') or {})
-	cp_count = len(comp.get('checkpoint_steps') or [])
-	tool_steps = int(del_info.get('tool_step_count') or 0)
-	now_ts = datetime.now(timezone.utc).timestamp()
-	window_5h_steps = tool_steps
-	turns_dir = _folder(root)
-	cur_tid = turn.get('turn_id')
-	if turns_dir.is_dir():
-		for tf in turns_dir.glob('*.json'):
-			if '-' in tf.stem:
-				continue
-			try:
-				if now_ts - tf.stat().st_mtime <= 18000:
-					td = _read(tf)
-					if td.get('native_turn_id') != cur_tid:
-						window_5h_steps += int((td.get('delegation_check') or {}).get('tool_step_count') or 0)
-			except (OSError, ValueError):
-				pass
-	# 2026-11-19
-	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-	# https://github.com/dmitry-ai/harness/issues/96
-	from .path_registry import project_paths
-	pp = project_paths(root, exact_root=True)
-	cont_low = pp.continuation_md.as_posix().lower()
-	kb_prefix = pp.kb_dir.as_posix().lower().rstrip('/') + '/'
-	touched = [str(x).replace('\\', '/').lower() for x in (turn.get('touched_files') or [])]
-	continuation_saved = any((x.endswith('/data/continuation.md') or x.endswith('\ua616/data/continuation.md') or x == cont_low for x in touched))
-	kb_saved = any(('/\ua616/kb/' in x or x.endswith('/kb/analysis.md') or x.endswith('/kb/analysis.json') or x.startswith(kb_prefix) for x in touched))
-	exceeded = bool(cp_count >= BUDGET_MAX_CHECKPOINTS or tool_steps >= BUDGET_MAX_TOOL_STEPS or window_5h_steps >= BUDGET_WINDOW_5H_MAX_STEPS)
-	r = {'verified': True, 'checkpoint_count': cp_count, 'max_checkpoints': BUDGET_MAX_CHECKPOINTS, 'tool_step_count': tool_steps, 'max_tool_steps': BUDGET_MAX_TOOL_STEPS, 'window_5h_tool_steps': window_5h_steps, 'max_window_5h_tool_steps': BUDGET_WINDOW_5H_MAX_STEPS, 'graceful_checkpoint_required': exceeded, 'continuation_saved': continuation_saved, 'kb_saved': kb_saved}
-	return r
+	from .budget import compute_budget_status
+	return compute_budget_status(root, turn, turns_dir=_folder(root), read_fn=_read, max_checkpoints=BUDGET_MAX_CHECKPOINTS, max_tool_steps=BUDGET_MAX_TOOL_STEPS, max_window_5h_steps=BUDGET_WINDOW_5H_MAX_STEPS)
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16

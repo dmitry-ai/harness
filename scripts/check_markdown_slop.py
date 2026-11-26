@@ -194,6 +194,7 @@ def is_abbreviation_end(text):
 # @used-by :func:`agent_tools.completion.check_answer()`
 # @used-by :func:`check_markdown_content()`
 # @used-by :meth:`test_ask_question_clarifications_m8.AskQuestionClarificationsM8Tests.test_skill_and_turn_completion_docs_prohibit_ask_question_stop_gate_bypass()`
+# @used-by :meth:`test_budget_status_scoping.BudgetStatusScopingTests.test_turn_completion_doc_describes_client_artifact_budget_scoping()`
 # @used-by :meth:`test_cli_registry.CliRegistryTests.test_modular_docs_and_per_feature_test_rule_valid()`
 # @used-by :meth:`test_code_formatting_rules.CodeFormattingRulesContractTests._assert_clean_doc()`
 # @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_rules_doc_codifies_code4_size_ratchet()`

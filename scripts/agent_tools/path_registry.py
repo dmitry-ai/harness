@@ -1665,6 +1665,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_blocked_report_hygiene_and_doc5_m2`
 	# @used-by :mod:`test_blocked_report_m2`
 	# @used-by :mod:`test_bounded_foreign_sync`
+	# @used-by :mod:`test_budget_status_scoping`
 	# @used-by :mod:`test_chat_reply_link_issues_m5`
 	# @used-by :mod:`test_cleanup_audit`
 	# @used-by :mod:`test_cleanup_integration`
@@ -1899,7 +1900,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.analysis.publish_analysis()`
 	# @used-by :func:`agent_tools.analysis.save_analysis()`
 	# @used-by :func:`agent_tools.analysis_merge._load_merge_base()`
-	# @used-by :func:`agent_tools.completion._budget_status()`
+	# @used-by :func:`agent_tools.budget.compute_budget_status()`
 	# @used-by :func:`agent_tools.completion._factual_kb_note_issues()`
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :func:`agent_tools.context.default_context_config()`
@@ -2084,6 +2085,7 @@ class ProjectPaths:
 		return Path(self.paths_str['context_config'])
 	# @used-by :func:`agent_tools.blocked_report._authorize_workflow_errors()`
 	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
+	# @used-by :func:`agent_tools.budget.compute_budget_status()`
 	# @used-by :func:`agent_tools.claims._manifest_primary()`
 	# @used-by :func:`agent_tools.completion._delegation_status()`
 	# @used-by :func:`agent_tools.completion.begin()`
@@ -2121,7 +2123,7 @@ class ProjectPaths:
 	def workflow_json(self) -> Path:
 		return Path(self.paths_str['workflow_json'])
 	# @used-by :func:`agent_tools.blocked_report.blocked_report_issues()`
-	# @used-by :func:`agent_tools.completion._budget_status()`
+	# @used-by :func:`agent_tools.budget.compute_budget_status()`
 	@property
 	def continuation_md(self) -> Path:
 		return Path(self.paths_str['continuation_md'])
@@ -2233,9 +2235,9 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
+# @used-by :func:`agent_tools.budget.compute_budget_status()`
 # @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
-# @used-by :func:`agent_tools.completion._budget_status()`
 # @used-by :func:`agent_tools.completion._compaction_status()`
 # @used-by :func:`agent_tools.completion._delegation_status()`
 # @used-by :func:`agent_tools.completion._factual_kb_note_issues()`

@@ -35,9 +35,9 @@ class Later(datetime):
 	# @used-by :func:`Df.Core.lib.date.df_date()`
 	# @used-by :func:`Df.Core.lib.date.df_date_from_timestamp_14()`
 	# @used-by :func:`Df.Core.lib.date.df_now()`
+	# @used-by :func:`agent_tools.budget._active_window_5h_steps()`
 	# @used-by :func:`agent_tools.cleanup_audit._istanbul_stamp()`
 	# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
-	# @used-by :func:`agent_tools.completion._budget_status()`
 	# @used-by :func:`agent_tools.completion._now()`
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
