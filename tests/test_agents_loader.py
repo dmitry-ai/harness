@@ -3,6 +3,7 @@ from typing import override
 import json
 import shutil
 import tomllib
+from git_fixture_cache import clone_template_git_repo
 from test_agent_tools import TemporaryCase
 from agent_tools import configuration, runtime
 # 2026-10-23
@@ -127,10 +128,9 @@ class AgentsLoaderTests(TemporaryCase):
 	def test_read_git_and_git_shim_and_unflagged_detector(self):
 		from agent_tools import git_gate
 		import git_shim
-		import subprocess
 		repo = self.root / 'repo'
-		repo.mkdir()
-		subprocess.run(['git', 'init'], cwd=repo, check=True, capture_output=True)
+		# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+		clone_template_git_repo(repo)
 		(repo / 'README.md').write_text('hello\n', encoding='utf-8')
 		res = git_gate.read_git(repo, 'status', ['--short'])
 		self.assertTrue(res['valid'], res)
@@ -157,10 +157,8 @@ class AgentsLoaderTests(TemporaryCase):
 		code_repo = project / 'code'
 		(project / '_').mkdir(parents=True)
 		(project / '.agents').mkdir(parents=True)
-		code_repo.mkdir(parents=True)
-		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
-		subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
-		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+		# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+		clone_template_git_repo(code_repo)
 		self.assertTrue(git_gate.is_issue_tracked_code_repo(code_repo))
 		script = code_repo / 'mod.py'
 		script.write_text('x = 1\n', encoding='utf-8')
@@ -238,10 +236,8 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertEqual('closed', multi_actions[1].get('state'))
 		code_repo = self.root / 'sp_proj/code'
 		(self.root / 'sp_proj/_').mkdir(parents=True)
-		code_repo.mkdir(parents=True)
-		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True)
-		subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=code_repo, check=True, capture_output=True)
-		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
+		# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+		clone_template_git_repo(code_repo)
 		mod = code_repo / 'mod.py'
 		mod.write_text('# https://github.com/dmitry-ai/harness/issues/67\nx = 1\n', encoding='utf-8')
 		# 2026-11-23

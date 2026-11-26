@@ -234,6 +234,7 @@ class RAM:
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
 	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_arbitrary_intake_receipt_cannot_promote_own_note_or_attachment()`
 	# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_primary_reads_actual_generation_and_executor_configuration_paths()`
+	# @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_clone_template_git_repo_caches_init_and_isolates_clones()`
 	# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_isolated_synthetic_primary_skips_host_git_ignore_mutation()`
 	# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_and_consume_input_with_readback_verification()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_new_admission_still_rejects_aged_sources_and_cannot_recover_failed_gate()`

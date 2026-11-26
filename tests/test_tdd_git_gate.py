@@ -3,41 +3,32 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
-if str(SCRIPT_DIR) not in sys.path:
-	sys.path.insert(0, str(SCRIPT_DIR))
+TESTS_DIR = Path(__file__).resolve().parent
+for _p in (SCRIPT_DIR, TESTS_DIR):
+	if str(_p) not in sys.path:
+		sys.path.insert(0, str(_p))
 
 from agent_tools import git_gate
+from git_fixture_cache import clone_template_git_repo
 
 ISSUE_URL = 'https://github.com/dmitry-ai/harness/issues/137'
-# 2026-11-24
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
-_REPO_TEMPLATE: list[tuple[tempfile.TemporaryDirectory, Path]] = []
 
 
 # 2026-11-24
 # "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
 # https://github.com/dmitry-ai/harness/issues/175
+# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
 # @used-by :meth:`TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
 # @used-by :meth:`TddGitGateTests.test_doc_only_agent_commit_allowed_without_tests()`
 # @used-by :meth:`TddGitGateTests.test_ratchet_enforced_on_staged_test_edits_and_unlocked_by_ratchet_ok()`
 def _init_repo(repo: Path) -> None:
-	if not _REPO_TEMPLATE:
-		td = tempfile.TemporaryDirectory()
-		tmpl = Path(td.name).resolve() / 'repo'
-		tmpl.mkdir(parents=True, exist_ok=True)
-		subprocess.run(['git', 'init', '-b', 'main', str(tmpl)], check=True, capture_output=True)
-		cfg = tmpl / '.git/config'
-		cfg.write_text(cfg.read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test User\n', encoding='utf-8')
-		_REPO_TEMPLATE.append((td, tmpl))
-	shutil.copytree(_REPO_TEMPLATE[0][1], repo)
+	clone_template_git_repo(repo)
 
 
 # 2026-11-23

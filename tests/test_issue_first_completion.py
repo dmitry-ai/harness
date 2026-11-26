@@ -5,7 +5,6 @@ from contextlib import closing
 import json
 import os
 from pathlib import Path
-import shutil
 import sqlite3
 import subprocess
 import sys
@@ -14,13 +13,16 @@ import unittest
 import uuid
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
-if str(SCRIPT_DIR) not in sys.path:
-	sys.path.insert(0, str(SCRIPT_DIR))
+TESTS_DIR = Path(__file__).resolve().parent
+for _p in (SCRIPT_DIR, TESTS_DIR):
+	if str(_p) not in sys.path:
+		sys.path.insert(0, str(_p))
 
 from agent_tools import completion, git_gate
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 from agent_tools.repo_tags import ensure_commit_tag
 import check_stop_gate
+from git_fixture_cache import clone_template_bare_repo, clone_template_git_repo
 
 
 # @used-by :func:`_wire()`
@@ -67,48 +69,23 @@ def _write_issue_ev(proj: Path, slug: str, num: int, *, state: str = 'closed', p
 	return p
 
 
-# 2026-11-24
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
-_EMPTY_TEMPLATE: list[tuple[tempfile.TemporaryDirectory, Path, Path]] = []
-
-
-# @used-by :func:`_init_github_project()`
-def _get_empty_git_template() -> tuple[Path, Path]:
-	if not _EMPTY_TEMPLATE:
-		td = tempfile.TemporaryDirectory()
-		root = Path(td.name).resolve()
-		bare = root / 'bare.git'
-		code = root / 'code'
-		code.mkdir()
-		subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare)], check=True, capture_output=True)
-		subprocess.run(['git', 'init', '-b', 'main', str(code)], check=True, capture_output=True)
-		cfg = code / '.git/config'
-		cfg.write_text(cfg.read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test User\n', encoding='utf-8')
-		_EMPTY_TEMPLATE.append((td, bare, code))
-	_, bare, code = _EMPTY_TEMPLATE[0]
-	return (bare, code)
-
-
 # @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
 # @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_cli_issue_first_check_read_only_and_legacy_delivered_immutability()`
 # @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
 # @used-by :meth:`IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
 def _init_github_project(base: Path, *, slug: str = 'acme/demo', commit_issue: int = 51) -> tuple[Path, Path, Path]:
-	# 2026-11-24
-	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-	# https://github.com/dmitry-ai/harness/issues/175
-	t_bare, t_code = _get_empty_git_template()
 	proj = base / 'proj'
 	code = proj / 'code'
 	bare = base / 'remote.git'
 	(proj / '_/ꘖ/KB/Evidence/GitHub' / slug.replace('/', '__')).mkdir(parents=True, exist_ok=True)
 	(proj / '_/ꙮ/≻').mkdir(parents=True, exist_ok=True)
 	(proj / '_/ꙮ/≺').mkdir(parents=True, exist_ok=True)
-	shutil.copytree(t_bare, bare)
-	shutil.copytree(t_code, code)
-	cfg = code / '.git/config'
-	cfg.write_text(cfg.read_text(encoding='utf-8') + f'[remote "origin"]\n\turl = https://github.com/{slug}.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n', encoding='utf-8')
+	# 2026-11-24
+	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+	# https://github.com/dmitry-ai/harness/issues/175
+	# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+	clone_template_bare_repo(bare)
+	clone_template_git_repo(code, remote_url=f'https://github.com/{slug}.git', push_url=bare.as_posix())
 	(code / 'tests').mkdir(parents=True, exist_ok=True)
 	(code / 'tests/test_existing.py').write_text(
 		f'# https://github.com/{slug}/issues/{commit_issue}\nimport unittest\nclass E(unittest.TestCase):\n\tdef test_e(self):\n\t\tself.assertEqual(1, 1)\n',

@@ -17,6 +17,7 @@ for p in (SCRIPTS, TESTS):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
 HARNESS_PY = SCRIPTS / 'harness.py'
+from git_fixture_cache import run_harness_inprocess
 PRE_HOOK_PY = SCRIPTS / 'check_pre_invocation.py'
 STOP_HOOK_PY = SCRIPTS / 'check_stop_gate.py'
 JOB_ID = '~022124567641359999991'
@@ -46,6 +47,7 @@ def _wire(field: int, payload: bytes) -> bytes:
 # @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
+# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
 # @used-by :func:`_complete_pre_review_stages()`
 # @used-by :func:`_run_turn1_init_and_review()`
 # @used-by :func:`_run_turn2_continuation()`
@@ -53,7 +55,7 @@ def _iso_env(home: Path) -> dict[str, str]:
 # @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
 # @used-by :meth:`UpworkInitFullE2ETests.test_full_upwork_init_cli_and_hooks_lifecycle_two_turns()`
 def _run_cli(env: dict[str, str], *args: str, cwd: Path, expect_ok: bool=True) -> dict:
-	proc = subprocess.run([sys.executable, str(HARNESS_PY), *args], cwd=str(cwd), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=60, check=False)
+	proc = run_harness_inprocess(args, cwd=cwd, env=env)
 	if expect_ok and 0 != proc.returncode:
 		raise AssertionError(f'CLI failed ({proc.returncode}): {args}\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}')
 	return json.loads(proc.stdout)

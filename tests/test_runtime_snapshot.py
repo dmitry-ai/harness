@@ -9,8 +9,11 @@ import tempfile
 import unittest
 HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
-if str(SCRIPTS) not in sys.path:
-	sys.path.insert(0, str(SCRIPTS))
+TESTS = HARNESS_ROOT / 'tests'
+for _p in (SCRIPTS, TESTS):
+	if str(_p) not in sys.path:
+		sys.path.insert(0, str(_p))
+from git_fixture_cache import clone_template_git_repo
 # @used-by :func:`_seed_harness_git_repo()`
 # @used-by :meth:`RuntimeSnapshotTests.test_broken_head_rejected_by_validation_preserving_current()`
 # @used-by :meth:`RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
@@ -28,10 +31,9 @@ def _git(repo: Path, *args: str) -> str:
 # @used-by :meth:`RuntimeSnapshotTests.test_worktree_land_promotes_runtime_snapshot_after_merge()`
 def _seed_harness_git_repo(base: Path) -> Path:
 	repo = base / 'proj/\u2c0f/\u227b/\u2655/\u26ef'
+	# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+	clone_template_git_repo(repo)
 	(repo / 'scripts/agent_tools/gates').mkdir(parents=True, exist_ok=True)
-	_git(repo, 'init', '-b', 'main')
-	_git(repo, 'config', 'user.email', 'test@example.com')
-	_git(repo, 'config', 'user.name', 'Test')
 	(repo / 'paths.json').write_text((HARNESS_ROOT / 'paths.json').read_text(encoding='utf-8'), encoding='utf-8')
 	(repo / 'runtime.json').write_text((HARNESS_ROOT / 'runtime.json').read_text(encoding='utf-8'), encoding='utf-8')
 	(repo / 'scripts/agent_tools/__init__.py').write_text('', encoding='utf-8')

@@ -14,13 +14,16 @@ import unittest
 import uuid
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
-if str(SCRIPT_DIR) not in sys.path:
-	sys.path.insert(0, str(SCRIPT_DIR))
+TESTS_DIR = Path(__file__).resolve().parent
+for _p in (SCRIPT_DIR, TESTS_DIR):
+	if str(_p) not in sys.path:
+		sys.path.insert(0, str(_p))
 
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 from agent_tools import completion, repo_tags, tdd_gate
 import check_pre_invocation
 import check_stop_gate
+from git_fixture_cache import clone_template_bare_repo, clone_template_git_repo
 
 
 # @used-by :func:`_wire()`
@@ -58,11 +61,9 @@ def _build_template_project(issue_num: int) -> tuple[Path, Path]:
 		(proj / '_/ꘖ/KB/Evidence/GitHub/test-org__demo').mkdir(parents=True, exist_ok=True)
 		(proj / '_/ꙮ/≻').mkdir(parents=True, exist_ok=True)
 		(proj / '_/ꙮ/≺').mkdir(parents=True, exist_ok=True)
-		code.mkdir(parents=True, exist_ok=True)
-		subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare)], check=True, capture_output=True)
-		subprocess.run(['git', 'init', '-b', 'main', str(code)], check=True, capture_output=True)
-		cfg = code / '.git/config'
-		cfg.write_text(cfg.read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test User\n[remote "origin"]\n\turl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n', encoding='utf-8')
+		# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+		clone_template_bare_repo(bare)
+		clone_template_git_repo(code, remote_url=bare.as_posix())
 		(code / 'tests').mkdir(parents=True, exist_ok=True)
 		(code / 'tests/test_existing.py').write_text(
 			f'# https://github.com/test-org/demo/issues/{issue_num}\nimport unittest\nclass E(unittest.TestCase):\n\tdef test_e(self):\n\t\tself.assertEqual(1, 1)\n',

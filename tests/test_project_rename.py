@@ -18,9 +18,11 @@ for p in (SCRIPTS, TESTS):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
 HARNESS_PY = SCRIPTS / 'harness.py'
+from git_fixture_cache import run_harness_inprocess
 # @used-by :func:`_run_harness()`
 def _iso_env(home: Path) -> dict[str, str]:
 	return {**os.environ, 'USERPROFILE': str(home), 'HOME': str(home), 'APPDATA': str(home / 'AppData/Roaming'), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONIOENCODING': 'utf-8'}
+# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
 # @used-by :func:`test_project_domain_drift._complete_review_and_prepare()`
 # @used-by :func:`test_project_domain_drift._prepare_pre_finalize_with_target()`
 # @used-by :meth:`ProjectRenameTests.test_rename_project_cli_and_kebab_rejection()`
@@ -28,7 +30,7 @@ def _iso_env(home: Path) -> dict[str, str]:
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_finalize_stage_blocks_step_gap_dangling_reservation_and_reconciliation_error()`
 # @used-by :meth:`test_project_domain_drift.ProjectDomainDriftTests.test_finalize_rejects_provisional_topic_when_target_domain_resolved()`
 def _run_harness(base: Path, *args: str) -> subprocess.CompletedProcess:
-	return subprocess.run([sys.executable, str(HARNESS_PY), *args], cwd=str(base), env=_iso_env(base / 'home'), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', timeout=60, check=False)
+	return run_harness_inprocess(args, cwd=base, env=_iso_env(base / 'home'))
 # @used-by :meth:`ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
 # @used-by :meth:`ProjectRenameTests.test_rename_project_cleanup_integration()`
 # @used-by :meth:`ProjectRenameTests.test_rename_project_cli_and_kebab_rejection()`

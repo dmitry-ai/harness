@@ -615,6 +615,7 @@ def instances_report(*, platform=None, instance=None, conversation=None, include
 		record = inv['environments'][entry['platform']]['instances'][entry['id']]
 		return {'instance': record, 'available_handoff_targets': all_instances(config=config, include_disabled=False)['available_handoff_targets']}
 	return all_instances(config=config, platform=platform, include_disabled=include_disabled, check_exists=check_exists)
+# @used-by :func:`git_fixture_cache.run_harness_inprocess()`
 # @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_cli_logs_actual_stdin_answer_from_either_platform_without_running_cleanup()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_writes_metadata_header_links_manifest_and_consumes_scratch_file()`

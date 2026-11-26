@@ -68,6 +68,9 @@ def _stat_mtime_size(path: Path) -> tuple[int, int]:
 # @used-by :func:`agent_tools.project_rename._rollback_rename()`
 # @used-by :func:`agent_tools.shadow_replay_clone._restore_shadow_registry()`
 # @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
+# @used-by :func:`git_fixture_cache._clear_harness_caches()`
+# @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_executes_cli_isolates_env_cwd_and_clears_caches()`
+# @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_restores_env_and_cwd_on_system_exit_and_exception()`
 def clear_path_cache() -> None:
 	_FAST_PROJECT_PATHS.clear()
 	_OVERLAY_TTL_STATE['expires_at'] = 0.0

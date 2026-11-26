@@ -44,6 +44,7 @@ _DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'f
 # @used-by :func:`agent_tools.journal.upgrade_journal()`
 # @used-by :func:`agent_tools.project_rename._apply_rename_mutations()`
 # @used-by :func:`agent_tools.project_rename._rollback_rename()`
+# @used-by :func:`git_fixture_cache._clear_harness_caches()`
 # @used-by :func:`test_historical_admission._restore_tree_in_place()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.tearDown()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
@@ -1649,6 +1650,7 @@ class ProjectPaths:
 	# @used-by :mod:`df_article`
 	# @used-by :mod:`df_github_issue`
 	# @used-by :mod:`generate_context`
+	# @used-by :mod:`git_fixture_cache`
 	# @used-by :mod:`git_shim`
 	# @used-by :mod:`harness`
 	# @used-by :mod:`safe_commit`
@@ -1695,6 +1697,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_falsifier_default_send_message_and_schedule_m8`
 	# @used-by :mod:`test_finalized_project_contract`
 	# @used-by :mod:`test_gate_registry`
+	# @used-by :mod:`test_git_fixture_cache`
 	# @used-by :mod:`test_git_ignore`
 	# @used-by :mod:`test_git_lifecycle_memoization`
 	# @used-by :mod:`test_github_issue`

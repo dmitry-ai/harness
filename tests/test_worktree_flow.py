@@ -8,11 +8,14 @@ import tempfile
 import unittest
 HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
-if str(SCRIPTS) not in sys.path:
-	sys.path.insert(0, str(SCRIPTS))
+TESTS = HARNESS_ROOT / 'tests'
+for _p in (SCRIPTS, TESTS):
+	if str(_p) not in sys.path:
+		sys.path.insert(0, str(_p))
 from agent_tools import links
 from agent_tools.github_issue import _dirty_issue_first_files, _find_local_code_repo
 from agent_tools.issue_lifecycle import origin_repo_slug
+from git_fixture_cache import clone_template_git_repo
 import check_markdown_slop
 # 2026-11-23
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
@@ -34,11 +37,8 @@ class WorktreeFlowTests(unittest.TestCase):
 	# @used-by :meth:`WorktreeFlowTests.test_worktree_scoped_issue_first_ignores_dirty_main_checkout()`
 	def _init_repo(self, root: Path, *, with_tests: bool=True) -> Path:
 		repo = root / 'repo'
-		repo.mkdir(parents=True, exist_ok=True)
-		self._git(repo, 'init', '-b', 'main')
-		self._git(repo, 'config', 'user.email', 'test@example.com')
-		self._git(repo, 'config', 'user.name', 'Test')
-		self._git(repo, 'remote', 'add', 'origin', 'https://github.com/owner/demo.git')
+		# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+		clone_template_git_repo(repo, remote_url='https://github.com/owner/demo.git')
 		(repo / 'README.md').write_text('# Demo\n', encoding='utf-8')
 		if with_tests:
 			tdir = repo / 'tests'
@@ -153,10 +153,8 @@ class WorktreeFlowTests(unittest.TestCase):
 			root = Path(td).resolve()
 			proj = root / 'proj'
 			code_repo = proj / 'code'
-			code_repo.mkdir(parents=True, exist_ok=True)
-			self._git(code_repo, 'init', '-b', 'main')
-			self._git(code_repo, 'config', 'user.email', 'test@example.com')
-			self._git(code_repo, 'config', 'user.name', 'Test')
+			# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+			clone_template_git_repo(code_repo)
 			(code_repo / 'README.md').write_text('# Demo\n', encoding='utf-8')
 			self._git(code_repo, 'add', '.')
 			self._git(code_repo, 'commit', '-m', 'init')
@@ -178,11 +176,8 @@ class WorktreeFlowTests(unittest.TestCase):
 			root = Path(td).resolve()
 			proj = root / 'isolated_proj'
 			code_dir = proj / 'code'
-			code_dir.mkdir(parents=True, exist_ok=True)
-			self._git(code_dir, 'init', '-b', 'main')
-			self._git(code_dir, 'config', 'user.email', 'test@example.com')
-			self._git(code_dir, 'config', 'user.name', 'Test')
-			self._git(code_dir, 'remote', 'add', 'origin', 'https://github.com/dmitry-ai/harness.git')
+			# 2026-11-26 "Cache template Git repositories and in-process CLI helpers in slow test fixtures": https://github.com/dmitry-ai/harness/issues/355
+			clone_template_git_repo(code_dir, remote_url='https://github.com/dmitry-ai/harness.git')
 			(code_dir / 'README.md').write_text('# Demo\n', encoding='utf-8')
 			self._git(code_dir, 'add', '.')
 			self._git(code_dir, 'commit', '-m', 'init')

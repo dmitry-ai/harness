@@ -1100,6 +1100,7 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.xref.java_sync._expected_java_used_by()`
 	# @used-by :func:`agent_tools.xref.js_sync._expected_js_used_by()`
 	# @used-by :func:`agent_tools.xref.python_sync._expected_used_by_lines()`
+	# @used-by :func:`git_fixture_cache.run_harness_inprocess()`
 	# @used-by :func:`test_evidence_contract.v3_analysis()`
 	# @used-by :func:`test_issue_close_acceptance._run_close_cli()`
 	# @used-by :func:`test_stop_emergency_capture_and_foreign_sync._reserve_foreign()`
