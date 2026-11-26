@@ -46,5 +46,17 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		from Df.Core.lib.option import df_option_v
 		self.assertEqual('US', df_option_v({'value': 'US', 'label': 'USA'}))
 		self.assertEqual('fallback', df_option_v({}, 'fallback'))
+	# 2026-11-26 "Fix strict numeric comparison assertions using <= and >=": https://github.com/dmitry-ai/harness/issues/331
+	# Upstream defect: https://github.com/mage2pro/core/issues/474
+	# @used-by :mod:`unittest`
+	def test_331_strict_numeric_assertions(self) -> None:
+		from Df.Core.Exception import Exception as DFE
+		from Df.Qa.lib.validation.assert_.numeric_comparison import df_assert_gt, df_assert_gt0, df_assert_lt
+		with self.assertRaises(DFE):
+			df_assert_gt(5, 5)
+		with self.assertRaises(DFE):
+			df_assert_gt0(0)
+		with self.assertRaises(DFE):
+			df_assert_lt(5, 5)
 if '__main__' == __name__:
 	unittest.main()

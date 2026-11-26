@@ -36,8 +36,11 @@ def df_assert_ge(lowBound: Any, v: Any, m: Any=None) -> Any:
 # 2017-01-15 Assert that `v > lowBound` and return `v`.
 # https://github.com/mage2pro/core/blob/11.6.1/Qa/lib/validation/assert/numeric-comparison.php#L58-L60
 # @used-by :meth:`test_df_qa.TestDfQa.test_assert_numeric_comparison_and_check()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_331_strict_numeric_assertions()`
 def df_assert_gt(lowBound: Any, v: Any, m: Any=None) -> Any:
-	if not (lowBound <= v):
+	# 2026-11-26 "Fix strict numeric comparison assertions using <= and >=": https://github.com/dmitry-ai/harness/issues/331
+	# Upstream defect: https://github.com/mage2pro/core/issues/474
+	if not (lowBound < v):
 		df_error(m or f'A number > {lowBound} is expected, but got {v}.')
 	return v
 # Assert that `v > 0` and return `v`.
@@ -45,8 +48,11 @@ def df_assert_gt(lowBound: Any, v: Any, m: Any=None) -> Any:
 # @used-by :func:`Df.Qa.lib.validation.assert_.float.df_float_positive()`
 # @used-by :func:`Df.Qa.lib.validation.assert_.int.df_nat()`
 # @used-by :meth:`test_df_qa.TestDfQa.test_assert_numeric_comparison_and_check()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_331_strict_numeric_assertions()`
 def df_assert_gt0(v: Any, m: Any=None) -> Any:
-	if not (0 <= v):
+	# 2026-11-26 "Fix strict numeric comparison assertions using <= and >=": https://github.com/dmitry-ai/harness/issues/331
+	# Upstream defect: https://github.com/mage2pro/core/issues/474
+	if not (0 < v):
 		df_error(m or f'A positive number is expected, but got {v}.')
 	return v
 # Assert that `v <= highBound` and return `v`.
@@ -60,8 +66,11 @@ def df_assert_le(highBound: Any, v: Any, m: Any=None) -> Any:
 # https://github.com/mage2pro/core/blob/11.6.1/Qa/lib/validation/assert/numeric-comparison.php#L96-L98
 # @used-by :meth:`Df.Qa.Trace.Frame.Frame.__getParam()`
 # @used-by :meth:`test_df_qa.TestDfQa.test_assert_numeric_comparison_and_check()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_331_strict_numeric_assertions()`
 def df_assert_lt(highBound: Any, v: Any, m: Any=None) -> Any:
-	if not (highBound >= v):
+	# 2026-11-26 "Fix strict numeric comparison assertions using <= and >=": https://github.com/dmitry-ai/harness/issues/331
+	# Upstream defect: https://github.com/mage2pro/core/issues/474
+	if not (highBound > v):
 		df_error(m or f'A number < {highBound} is expected, but got {v}.')
 	return v
 # Assert strict inequality between `neResult` and `v` and return `v`.
