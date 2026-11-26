@@ -11,7 +11,7 @@ After three fruitless searches on the same question, report the specific gap or 
 In GitHub-backed repositories, satisfy `Issue-First` ([EXEC-5](#exec-5)) before writing any test or code.  
 Mandatory Red-First TDD for software code: write a behavioral test (no source-reading or empty stubs) and observe failure (`Red`) before editing production code (`Green`).  
 One-way Test Ratchet: never delete, skip, or weaken tests/assertions without audited `RATCHET-OK` (`>= 30` chars citing a requirement/decision via `harness.py ratchet-ok` or linked issue).  
-Run narrow fail-fast tests (`-x`/`-f`, `WaitMsBeforeAsync: 10000`) during Red/Green and the full suite (`harness.py run-tests` or parallel `pytest -x`) after the final edit (`harness.py tdd-check`).  
+Run narrow fail-fast tests (`-x`/`-f`, `WaitMsBeforeAsync: 10000`) during Red/Green and the full test suite (`harness.py run-tests` or parallel `pytest -x`) after the final edit (`harness.py tdd-check`).  
 ## EXEC-3
 Never navigate, reload, steal focus from, or close user-owned browser tabs, never terminate the shared browser or delete its lock files, and open agent-owned tabs in the verified profile instead of asking the user to pre-open pages.  
 ## EXEC-4
