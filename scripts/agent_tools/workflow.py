@@ -315,8 +315,8 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.journal.reserve_turn_steps()`
 	# @used-by :func:`agent_tools.journal_integrity._eligible_active_turn_keys()`
 	# @used-by :func:`agent_tools.journal_integrity.collect_handed_off_conversations()`
-	# @used-by :func:`agent_tools.journal_sync_all.reconcile_foreign_open_reservations()`
-	# @used-by :func:`agent_tools.journal_sync_all.sync_all_open()`
+	# @used-by :func:`agent_tools.journal_sync_all._run_all_open_sweep()`
+	# @used-by :func:`agent_tools.journal_sync_all._sync_foreign_batch()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.meta.identity._push_project_dir()`
 	# @used-by :func:`agent_tools.metrics.summarize()`
@@ -1136,6 +1136,8 @@ class WorkflowStateEngine:
 	# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_existing_heading_or_ancestor_anchor_is_required()`
 	# @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_no_anchor_exception_uses_an_observed_specific_section()`
 	# @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
+	# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_enforces_batch_cap_recency_order_and_index()`
+	# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_stops_on_time_budget_while_all_open_sweeps_all()`
 	# @used-by :meth:`test_cleanup.CleanupTests.control()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_new_chat_restores_a_partially_held_codex_project()`
 	# @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`

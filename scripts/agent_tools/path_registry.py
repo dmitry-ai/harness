@@ -1660,6 +1660,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_background_wait_and_tdd_inheritance`
 	# @used-by :mod:`test_blocked_report_hygiene_and_doc5_m2`
 	# @used-by :mod:`test_blocked_report_m2`
+	# @used-by :mod:`test_bounded_foreign_sync`
 	# @used-by :mod:`test_chat_reply_link_issues_m5`
 	# @used-by :mod:`test_cleanup_audit`
 	# @used-by :mod:`test_cleanup_integration`
@@ -1725,6 +1726,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_metadata`
 	# @used-by :mod:`test_multiturn_handoff_stop_guard_and_schedule_m1`
 	# @used-by :mod:`test_native_review_binding_m4`
+	# @used-by :mod:`test_observability_diagnostics`
 	# @used-by :mod:`test_parallel_runner`
 	# @used-by :mod:`test_parallel_test_runner`
 	# @used-by :mod:`test_path_registry_perf`

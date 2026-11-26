@@ -19,7 +19,8 @@ from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
-from .journal_sync_all import finalize_conflict_turn, reconcile_before_begin, resolve_sync_provenance, sync_all_open
+# 2026-11-26 "Bound synchronous foreign turn reconciliation with pending-sync index": https://github.com/dmitry-ai/harness/issues/341
+from .journal_sync_all import finalize_conflict_turn, persist_turn_state, reconcile_before_begin, resolve_sync_provenance, sync_all_open
 from .platforms import adapter
 # 2026-11-13
 # "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
@@ -1374,7 +1375,8 @@ def _persist(path, value):
 	if path.exists() and _read(path) == value:
 		return
 	value['updated_at'] = _now()
-	replace_bytes(path, _json(value))
+	# 2026-11-26 "Bound synchronous foreign turn reconciliation with pending-sync index": https://github.com/dmitry-ai/harness/issues/341
+	persist_turn_state(path, _json(value), value)
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
@@ -1729,7 +1731,8 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 				# 2026-11-25
 				# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 				# https://github.com/dmitry-ai/harness/issues/239
-				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
+				# 2026-11-26 "Bound synchronous foreign turn reconciliation with pending-sync index": https://github.com/dmitry-ai/harness/issues/341
+				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json', 'pending-sync.json')):
 					continue
 				try:
 					st_obj = _read(sf)
@@ -1776,7 +1779,8 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 		# 2026-11-25
 		# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 		# https://github.com/dmitry-ai/harness/issues/239
-		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
+		# 2026-11-26 "Bound synchronous foreign turn reconciliation with pending-sync index": https://github.com/dmitry-ai/harness/issues/341
+		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json', 'pending-sync.json')):
 			continue
 		try:
 			st = _read(sf)

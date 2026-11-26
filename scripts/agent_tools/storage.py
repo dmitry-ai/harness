@@ -297,7 +297,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
-# @used-by :func:`agent_tools.completion._persist()`
 # @used-by :func:`agent_tools.completion._persist_turn_recovery()`
 # @used-by :func:`agent_tools.completion._write_compaction_index_file()`
 # @used-by :func:`agent_tools.completion.ratchet_ok()`
@@ -312,6 +311,8 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.journal._sync_overlay_journal_slot()`
 # @used-by :func:`agent_tools.journal._write_turn_reservations()`
 # @used-by :func:`agent_tools.journal.record_answer()`
+# @used-by :func:`agent_tools.journal_pending_index._write_index_doc()`
+# @used-by :func:`agent_tools.journal_pending_index.persist_turn_state()`
 # @used-by :func:`agent_tools.knowledge._load_media_descriptions()`
 # @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 # @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
