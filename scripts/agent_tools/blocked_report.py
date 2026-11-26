@@ -122,6 +122,13 @@ def evaluate_check_workflow_errors(root_p: Path, pp, role: str, response: str, r
 		except (OSError, ValueError) as exc:
 			wf_errs.append(str(exc))
 	return wf_errs
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+# @used-by :func:`evaluate_runner_code_hygiene()`
+def _run_runner_audits(runner) -> None:
+	from .addon_observability import check_runner_addon_observability
+	from .hook_crash_audit import check_runner_hook_crashes
+	check_runner_hook_crashes(runner)
+	check_runner_addon_observability(runner)
 # 2026-11-24
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225
@@ -129,8 +136,8 @@ def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn
 	# 2026-11-25
 	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 	# https://github.com/dmitry-ai/harness/issues/251
-	from .hook_crash_audit import check_runner_hook_crashes
-	check_runner_hook_crashes(runner)
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	_run_runner_audits(runner)
 	if_chk = issue_first_fn(runner.root, runner.turn)
 	lc_chk = lifecycle_fn(runner.root, runner.turn, runner.value, response=runner.response)
 	tdd_chk = tdd_fn(runner.root, runner.turn)

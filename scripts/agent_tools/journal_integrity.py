@@ -214,6 +214,37 @@ def orphaned_reservation_issues(jdir: Path, *, project_root: Path | None=None, c
 			if None is not why:
 				r.append(why)
 	return r
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+# @used-by :func:`agent_tools.completion._conflict()`
+def finalize_conflict_turn(root_p: Path, path: Path, value: dict, turn: dict, *, dir_fn, persist_fn) -> None:
+	value.pop('reserved_journal_steps', None)
+	persist_fn(path, value)
+	if value.get('journal') and value.get('key'):
+		req_ids = [req['id'] for req in (turn.get('requests') or ()) if isinstance(req, dict) and req.get('id')]
+		journal.release_turn_steps(dir_fn(root_p, value['journal']), value['key'], request_ids=req_ids)
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+# @used-by :func:`prune_terminal_conflict_reservations()`
+def _is_terminal_conflict(st: dict | None, entry: dict, max_existing: int) -> bool:
+	r = False
+	if isinstance(st, dict) and 'conflict' == st.get('status'):
+		delivery = st.get('delivery') if isinstance(st.get('delivery'), dict) else {}
+		e_steps = [s for s in (entry.get('steps') or ()) if int is type(s) and 1 <= s]
+		r = False is delivery.get('retryable') or bool(delivery.get('conflict_evidence')) or any((s <= max_existing for s in e_steps))
+	return r
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+# @used-by :func:`agent_tools.journal_sync_all.reconcile_foreign_open_reservations()`
+# @used-by :func:`agent_tools.journal_sync_all.sync_all_open()`
+def prune_terminal_conflict_reservations(root: Path, jdir: Path, *, folder_fn, read_fn) -> list[str]:
+	pruned: list[str] = []
+	turns_dir = folder_fn(root)
+	max_existing = max(journal.get_existing_step_ids(jdir), default=0)
+	for turn_key, entry in sorted(journal.iter_turn_reservations(jdir).items()):
+		st_path = turns_dir / f'{turn_key}.json'
+		st = _load_json_dict(st_path) if st_path.is_file() else None
+		if _is_terminal_conflict(st, entry, max_existing):
+			if journal.release_turn_steps(jdir, turn_key, request_ids=list(entry.get('request_ids') or ())):
+				pruned.append(turn_key)
+	return pruned
 def prune_overlapping_reservations(reservations: dict[str, dict], turn_key: str | None, req_set: set[str], committed_steps: set[int]) -> bool:
 	changed = False
 	if turn_key and turn_key in reservations:

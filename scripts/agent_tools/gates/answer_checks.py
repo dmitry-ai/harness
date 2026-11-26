@@ -4,6 +4,15 @@ from __future__ import annotations
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225
 _BLOCKED_REPORT_DEFERRED_GATES = frozenset({'code_lifecycle', 'issue_first', 'tdd'})
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+# @used-by :data:`ANSWER_GATES`
+def _addon_observability_messages(ctx: dict) -> list[str]:
+	chk = ctx.get('addon_obs_chk')
+	if None is chk and None is not ctx.get('root'):
+		from ..addon_observability import evaluate_addon_observability
+		chk = evaluate_addon_observability(ctx['root'], ctx.get('native'), ctx.get('turn'), ctx.get('value'), ctx.get('response'))
+		ctx['addon_obs_chk'] = chk
+	return [] if (chk or {}).get('verified', True) else [str(chk['detail'])]
 def _compaction_messages(ctx: dict) -> list[str]:
 	msgs: list[str] = []
 	comp = ctx['comp_chk']
@@ -62,6 +71,8 @@ ANSWER_GATES = (
 	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 	# https://github.com/dmitry-ai/harness/issues/251
 	('hook_crash', 'turn.hook_crash', _hook_crash_messages),
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	('addon_observability', 'turn.addon_observability', _addon_observability_messages),
 	('http_fetch', 'turn.http_fetch', _http_messages),
 	('compaction', 'turn.compaction', _compaction_messages),
 	('evicted_citations', 'turn.evicted_citations', _evicted_messages),
@@ -76,7 +87,8 @@ def _build_checks_map(ctx: dict) -> dict[str, bool]:
 	# 2026-11-25
 	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 	# https://github.com/dmitry-ai/harness/issues/251
-	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'addon_observability': bool((ctx.get('addon_obs_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167

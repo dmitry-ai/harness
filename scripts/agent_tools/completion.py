@@ -18,7 +18,8 @@ from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_
 # 2026-11-26
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
-from .journal_sync_all import reconcile_before_begin, resolve_sync_provenance, sync_all_open
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+from .journal_sync_all import finalize_conflict_turn, reconcile_before_begin, resolve_sync_provenance, sync_all_open
 from .platforms import adapter
 # 2026-11-13
 # "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
@@ -607,7 +608,8 @@ def _hook_crash_status(root, native, turn, value, response):
 # 2026-11-25
 # "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 # https://github.com/dmitry-ai/harness/issues/251
-VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'addon_observability_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
 # 2026-11-14
 # "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
 # https://github.com/dmitry-ai/harness/issues/60
@@ -2585,7 +2587,8 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		# 2026-11-25
 		# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
 		# https://github.com/dmitry-ai/harness/issues/251
-		all_issues, checks = run_answer_gates({'role': role, 'blocked_report': bool(blocked_report), 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'hook_crash_chk': _hook_crash_status(root_p, native, turn_obj, value_obj, response), 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
+		# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+		all_issues, checks = run_answer_gates({'root': root_p, 'native': native, 'turn': turn_obj, 'value': value_obj, 'response': response, 'role': role, 'blocked_report': bool(blocked_report), 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'hook_crash_chk': _hook_crash_status(root_p, native, turn_obj, value_obj, response), 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
 		return {'valid': not all_issues, 'read_only': True, 'role': role, 'turn_key': turn_key, 'response_sha256': sha, 'issue_count': len(all_issues), 'issues': all_issues, 'checks': checks}
 # 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
@@ -2657,7 +2660,8 @@ def _conflict(root, path, value, native, turn, response, detail, *, retryable=Fa
 	rel_evidence = evidence.relative_to(root_p).as_posix() if evidence.is_relative_to(root_p) else str(evidence)
 	value['status'] = 'conflict'
 	value['delivery'] = {'verified': False, 'native_response_sha256': _hash(payload), 'source_file': native['source_file'], 'final_step': turn['final_step'], 'native_requests': turn['requests'], 'conflict_evidence': rel_evidence, 'detail': detail, 'retryable': retryable}
-	_persist(path, value)
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	finalize_conflict_turn(root_p, path, value, turn, dir_fn=_directory, persist_fn=_persist)
 	r = {'turn_key': value['key'], 'status': 'conflict', 'detail': detail, 'evidence': rel_evidence, 'retryable': retryable}
 	return r
 # 2026-10-30

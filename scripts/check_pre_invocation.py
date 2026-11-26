@@ -155,6 +155,30 @@ def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> 
 	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
 	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	return hashlib.sha256(raw).hexdigest()[:40]
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+# @used-by :func:`evaluate_pre_invocation_payload()`
+def _format_turn_begin_message(canon_root: Path, res: dict) -> dict:
+	from agent_tools.addon_observability import format_pre_invocation_companion_warning
+	from agent_tools.runtime import default_user_locale
+	turn_key = str(res['turn_key'])
+	scratch_ans = _scratch_answer_path(canon_root, turn_key)
+	# 2026-11-22
+	# "Auto-name Antigravity conversations from project journal step numbers":
+	# https://github.com/dmitry-ai/harness/issues/120
+	title_info = res.get('conversation_title_sync') if isinstance(res.get('conversation_title_sync'), dict) else {}
+	title_part = f", journal_title={title_info['title']}" if title_info.get('title') else ''
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
+	sim_peers = [str(p) for p in (res.get('similar_project_repos') or res.get('similar_projects') or ()) if str(p).strip()]
+	peer_part = f", similar_peers={','.join(sim_peers)}" if sim_peers else ''
+	# 2026-11-23
+	# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+	# https://github.com/dmitry-ai/harness/issues/131
+	def_loc = default_user_locale()
+	loc_part = f', user_default_locale={def_loc}' if def_loc else ''
+	comp_part = format_pre_invocation_companion_warning()
+	return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}{peer_part}{loc_part}{comp_part}, scratch_answer={scratch_ans}).'}}]}
 # 2026-11-25
 # "Unify handed-off turn routing and deterministic state selection across hooks":
 # https://github.com/dmitry-ai/harness/issues/231
@@ -270,25 +294,7 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
 	# https://github.com/dmitry-ai/harness/issues/132
 	if 'primary' == res.get('role') and res.get('turn_key') and 'handed_off' != res.get('status'):
-		turn_key = str(res['turn_key'])
-		scratch_ans = _scratch_answer_path(canon_root, turn_key)
-		# 2026-11-22
-		# "Auto-name Antigravity conversations from project journal step numbers":
-		# https://github.com/dmitry-ai/harness/issues/120
-		title_info = res.get('conversation_title_sync') if isinstance(res.get('conversation_title_sync'), dict) else {}
-		title_part = f", journal_title={title_info['title']}" if title_info.get('title') else ''
-		# 2026-11-22
-		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
-		# https://github.com/dmitry-ai/harness/issues/123
-		sim_peers = [str(p) for p in (res.get('similar_project_repos') or res.get('similar_projects') or ()) if str(p).strip()]
-		peer_part = f", similar_peers={','.join(sim_peers)}" if sim_peers else ''
-		# 2026-11-23
-		# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
-		# https://github.com/dmitry-ai/harness/issues/131
-		from agent_tools.runtime import default_user_locale
-		def_loc = default_user_locale()
-		loc_part = f', user_default_locale={def_loc}' if def_loc else ''
-		return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}{peer_part}{loc_part}, scratch_answer={scratch_ans}).'}}]}
+		return _format_turn_begin_message(canon_root, res)
 	return {}
 def main() -> None:
 	out: dict = {}

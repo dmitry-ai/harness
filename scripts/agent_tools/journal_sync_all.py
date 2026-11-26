@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 import sqlite3
 from . import journal
+# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+from .journal_integrity import finalize_conflict_turn, prune_terminal_conflict_reservations
 # 2026-11-26
 # "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
 # https://github.com/dmitry-ai/harness/issues/256
@@ -130,6 +132,8 @@ def reconcile_before_begin(root: Path, native: dict[str, Any], turn: dict[str, A
 	return (cur_rec, foreign)
 def reconcile_foreign_open_reservations(root: Path, current_cid: str | None, *, journal_directory: Any=None, folder_fn, dir_fn, read_fn, sync_fn) -> list[dict[str, Any]]:
 	jdir = dir_fn(root, journal_directory)
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	prune_terminal_conflict_reservations(root, jdir, folder_fn=folder_fn, read_fn=read_fn)
 	cur_low = str(current_cid or '').strip().lower()
 	synced: list[dict[str, Any]] = []
 	seen_cids: set[str] = set()
@@ -157,6 +161,8 @@ def resolve_sync_provenance(value: dict[str, Any], *, adopt_conflict: bool) -> s
 def sync_all_open(root: Path, *, journal_directory: Any=None, adopt_conflict: bool=False, from_step: int=0, folder_fn, dir_fn, read_fn, sync_fn) -> dict[str, Any]:
 	root_p = canonicalize_root_dir(root)
 	jdir = dir_fn(root_p, journal_directory)
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	pruned_conflicts = prune_terminal_conflict_reservations(root_p, jdir, folder_fn=folder_fn, read_fn=read_fn)
 	synced: list[dict[str, Any]] = []
 	skipped: list[dict[str, Any]] = []
 	seen_cids: set[str] = set()
@@ -171,5 +177,5 @@ def sync_all_open(root: Path, *, journal_directory: Any=None, adopt_conflict: bo
 		elif None is not miss:
 			skipped.append(miss)
 	valid = all((bool((item.get('result') or {}).get('valid')) for item in synced))
-	return {'valid': valid, 'all_open': True, 'adopt_conflict': bool(adopt_conflict), 'journal': str(jdir), 'synced_count': len(synced), 'skipped_count': len(skipped), 'synced': synced, 'skipped': skipped}
-__all__ = ['reconcile_before_begin', 'reconcile_foreign_open_reservations', 'resolve_sync_provenance', 'sync_all_open']
+	return {'valid': valid, 'all_open': True, 'adopt_conflict': bool(adopt_conflict), 'journal': str(jdir), 'pruned_conflict_reservations': pruned_conflicts, 'synced_count': len(synced), 'skipped_count': len(skipped), 'synced': synced, 'skipped': skipped}
+__all__ = ['finalize_conflict_turn', 'reconcile_before_begin', 'reconcile_foreign_open_reservations', 'resolve_sync_provenance', 'sync_all_open']

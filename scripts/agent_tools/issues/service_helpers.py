@@ -42,6 +42,8 @@ def _is_isolated_temp_root(code_repo: Path, project_root: str | Path | None) -> 
 			r = True
 	return r
 def _parse_dirty_porcelain(code_repo: Path, stdout: bytes) -> list[str]:
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	from ..addon_observability import is_live_runtime_data_file
 	from ..issue_first_gate import _is_excluded_meta_rel
 	from ..tdd_gate import classify_code_path
 	tracked = is_issue_tracked_code_repo(code_repo)
@@ -52,7 +54,7 @@ def _parse_dirty_porcelain(code_repo: Path, stdout: bytes) -> list[str]:
 		entry = entries[idx]
 		rel_path = entry[3:].replace('\\', '/')
 		idx += 2 if entry[:2].startswith(('R', 'C')) and idx + 1 < len(entries) else 1
-		if rel_path and (not _is_excluded_meta_rel(rel_path)) and (tracked or 'non_code' != classify_code_path(code_repo / rel_path)):
+		if rel_path and (not _is_excluded_meta_rel(rel_path)) and (not is_live_runtime_data_file(code_repo, rel_path)) and (tracked or 'non_code' != classify_code_path(code_repo / rel_path)):
 			if rel_path not in dirty:
 				dirty.append(rel_path)
 	return sorted(dirty)

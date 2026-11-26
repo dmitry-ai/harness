@@ -33,15 +33,21 @@ class GitHubIssueService:
 		if isinstance(extra_out, dict):
 			out.update(extra_out)
 		return out
-	def _check_close_commit_readiness(self, args: argparse.Namespace, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> tuple[Path | None, str | None]:
+	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+	def _check_close_commit_readiness(self, args: argparse.Namespace, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> tuple[Path | None, str | None, str]:
+		from ..addon_observability import check_close_companion_health
 		code_repo = self.workspace.find_local_code_repo(repo, project_root=project_root, source_files=consumable, repo_root=getattr(args, 'repo_root', None))
-		commit_err: str | None = None
+		commit_err, stage = (None, 'pre_flight_commit_check')
 		if None is not code_repo and is_issue_tracked_code_repo(code_repo):
 			try:
 				verify_repo_issue_ready_for_close(code_repo, repo, number, project_root=project_root)
 			except (ValueError, RuntimeError) as exc:
 				commit_err = str(exc)
-		return (code_repo, commit_err)
+		if None is commit_err:
+			comp_err = check_close_companion_health(repo, code_repo)
+			if None is not comp_err:
+				commit_err, stage = (comp_err, 'pre_flight_companion_health')
+		return (code_repo, commit_err, stage)
 	def _edit_parent_only(self, repo: str, number: int, parent_num: int, target_locale: str, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> int:
 		fetched = self._api(f'repos/{repo}/issues/{number}', method='GET')
 		remote_title, remote_body = (fetched.get('title') or '', fetched.get('body') or '')
@@ -173,12 +179,13 @@ class GitHubIssueService:
 			c_path, c_raw, comment_body = self.linter.read_utf8_no_bom_file(args.comment_file)
 			consumable.append((c_path, c_raw))
 			c_errors = self.linter.lint(comment_body, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=False)
-		code_repo, commit_err = self._check_close_commit_readiness(args, repo, number, consumable, project_root) if (not c_errors) and 'completed' == getattr(args, 'reason', 'completed') else (None, None)
+		# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
+		code_repo, commit_err, err_stage = self._check_close_commit_readiness(args, repo, number, consumable, project_root) if (not c_errors) and 'completed' == getattr(args, 'reason', 'completed') else (None, None, 'pre_flight_commit_check')
 		if c_errors:
 			dump_json({'ok': False, 'action': 'close', 'stage': 'pre_flight_comment_lint', 'repo': repo, 'number': number, 'comment_errors': c_errors})
 			err_rc: int | None = 2
 		elif commit_err:
-			dump_json({'ok': False, 'action': 'close', 'stage': 'pre_flight_commit_check', 'repo': repo, 'number': number, 'error': commit_err})
+			dump_json({'ok': False, 'action': 'close', 'stage': err_stage, 'repo': repo, 'number': number, 'error': commit_err})
 			err_rc = 2
 		else:
 			err_rc = None

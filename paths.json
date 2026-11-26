@@ -263,6 +263,14 @@
       ]
     }
   ],
+  "repo_runtime_data_files": {
+    "dmitry-ai/antigravity-addons": [
+      "Folders/folders.json"
+    ],
+    "dmitry-ai/chatgpt-desktop-addons": [
+      "Shared-Projects/state/catalog.json"
+    ]
+  },
   "project_profiles": {
     "default": {
       "fs_version": 1,
