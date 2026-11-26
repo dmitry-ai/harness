@@ -1,0 +1,19 @@
+{
+	"name": "planned_child_tdd_feature"
+	,"local_repo": "dmitry-ai/harness"
+	,"expected_doc5": false
+	,"request": "Implement subtask M-1-1 under parent #339."
+	,"response": "Implemented subtask M-1-1, verified all tests pass, and landed cleanly.  \n"
+	,"issue_actions": [
+		{"action": "create", "repo": "dmitry-ai/harness", "number": 368, "parent_number": 339, "step": 5}
+	]
+	,"rows": [
+		{"step_index": 0, "type": "USER_INPUT", "content": "Implement subtask M-1-1 under parent #339."}
+		,{"step_index": 1, "type": "PLANNER_RESPONSE", "tool_calls": [{"name": "run_command", "args": {"CommandLine": "python harness.py turn-begin \"C:/work/harness\" --platform antigravity"}}]}
+		,{"step_index": 2, "type": "GENERIC", "content": "Command exited with code 0.\n\nCommand output:\n{\"ok\": true, \"status\": \"open\", \"foreign_reconciliation\": [{\"result\": {\"valid\": false}}]}"}
+		,{"step_index": 6, "type": "PLANNER_RESPONSE", "tool_calls": [{"name": "run_command", "args": {"CommandLine": "python harness.py test-watchdog --timeout 120 -- python -m pytest tests/test_demo.py -x"}}]}
+		,{"step_index": 7, "type": "GENERIC", "content": "Command exited with code 1.\nAssertionError: Red TDD"}
+		,{"step_index": 8, "type": "PLANNER_RESPONSE", "tool_calls": [{"name": "run_command", "args": {"CommandLine": "python harness.py git-read \"C:/work/harness\" status"}}]}
+		,{"step_index": 9, "type": "GENERIC", "content": "Command exited with code 1.\nValueError: invalid ref"}
+	]
+}

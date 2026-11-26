@@ -179,16 +179,23 @@ def _parse_worktree_porcelain(text: str) -> list[dict]:
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 # 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+# 2026-11-26 "Enforce historical feature-turn regression audit before worktree landing": https://github.com/dmitry-ai/harness/issues/373
 # @used-by :func:`_run_land_checks()`
 def _check_land_diff_coverage(main_repo: Path, wt_path: Path, branch: str, target_branch: str, test_runs: int, test_res: dict | None, *, plan: dict | None=None) -> dict | None:
+	from .doc5_replay_audit import verify_worktree_answer_gate_corpus
 	from .tdd.diff_coverage import verify_worktree_diff_coverage
 	cov = verify_worktree_diff_coverage(wt_path, target_branch)
-	if cov.get('valid'):
-		r = None
-	else:
+	if not cov.get('valid'):
 		joined = ', '.join(cov.get('uncovered', ())[:8])
 		cov_msg = f'Diff coverage timed out with uncovered functions: {joined}' if cov.get('timed_out') else f'Uncovered newly added production functions: {joined}'
-		r = _fail_land(main_repo, wt_path, branch, 'diff_coverage', cov_msg, test_runs=test_runs, test_result=test_res, plan=plan)
+		r: dict | None = _fail_land(main_repo, wt_path, branch, 'diff_coverage', cov_msg, test_runs=test_runs, test_result=test_res, plan=plan)
+	else:
+		corpus = verify_worktree_answer_gate_corpus(wt_path, target_branch)
+		if corpus.get('valid'):
+			r = None
+		else:
+			bad = ', '.join([*(corpus.get('false_positives') or ()), *(corpus.get('false_negatives') or ())][:8]) or str(corpus.get('error') or 'corpus regression')
+			r = _fail_land(main_repo, wt_path, branch, 'answer_gate_corpus', f'Answer-gate feature-turn corpus regression: {bad}', test_runs=test_runs, test_result=test_res, plan=plan)
 	return r
 # 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
@@ -338,6 +345,7 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_worktree_land_passes_prev_head_base_ref_and_skips_canary_for_non_exec()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_attaches_telemetry_on_failed_landings()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_emits_telemetry_for_non_executable_executable_and_override()`
+# @used-by :meth:`test_doc5_replay_audit.Doc5ReplayAuditTests.test_worktree_land_enforces_answer_gate_corpus_before_merge()`
 # @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_worktree_land_emits_mixed_commit_warning_and_clean_commit_has_none()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
@@ -392,6 +400,7 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_doc5_replay_audit.Doc5ReplayAuditTests.test_worktree_land_enforces_answer_gate_corpus_before_merge()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_targeted_wait_blocks_when_turn_touches_leased_repo_or_worktree()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
@@ -450,6 +459,7 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_worktree_land_passes_prev_head_base_ref_and_skips_canary_for_non_exec()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_attaches_telemetry_on_failed_landings()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_emits_telemetry_for_non_executable_executable_and_override()`
+# @used-by :meth:`test_doc5_replay_audit.Doc5ReplayAuditTests.test_worktree_land_enforces_answer_gate_corpus_before_merge()`
 # @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_worktree_land_emits_mixed_commit_warning_and_clean_commit_has_none()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_dirty_worktree_fails_fast_without_acquiring_lease()`

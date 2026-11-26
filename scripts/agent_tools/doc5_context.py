@@ -115,6 +115,8 @@ def detect_df_analysis_mode(text: str, blocks: list[dict], requests: list | tupl
 			r = 'general' if hyps or mets else 'none'
 	return r
 # 2026-11-26 "Fix top-level JSON parsing and workspace repo scoping in doc5_context.py": https://github.com/dmitry-ai/harness/issues/368
+# @used-by :func:`agent_tools.doc5_replay_audit._audit_one_fixture()`
+# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`detect_df_analysis_mode()`
 # @used-by :meth:`test_cli_output_json.CliOutputJsonAndDoc5Tests.test_excluded_fetchers_and_readonly_linters_do_not_trigger_doc5()`
 # @used-by :meth:`test_cli_output_json.CliOutputJsonAndDoc5Tests.test_local_repo_scoping_ignores_external_upstream_issues_and_preserves_fallback()`

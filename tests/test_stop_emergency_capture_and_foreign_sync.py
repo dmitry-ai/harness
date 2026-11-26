@@ -30,6 +30,7 @@ def _reserve_foreign(backend: Path, proj: Path, cid: str, req_text: str, resp_te
 # @used-by :func:`_reserve_foreign()`
 # @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running()`
 # @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
+# @used-by :meth:`test_doc5_replay_audit.Doc5ReplayAuditTests.test_audit_local_saved_turns_flags_false_positives_and_passes_clean_history()`
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_all_open_syncs_idle_prepared_turn()`
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_idle_prepared_turn_transitions_to_delivered_via_foreign_sync_and_all_open_without_mutating_journal()`
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`

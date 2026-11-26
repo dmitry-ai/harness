@@ -11,6 +11,7 @@ from ..runtime import platform_adapter_name, platform_name, settings
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.completion._native()`
+# @used-by :func:`agent_tools.doc5_replay_audit._load_saved_turn_entry()`
 # @used-by :func:`agent_tools.metrics.native_executor_metadata()`
 # @used-by :func:`agent_tools.metrics.native_requests()`
 # @used-by :func:`agent_tools.metrics.native_review_proof()`

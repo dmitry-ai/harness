@@ -1704,6 +1704,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_dirty_diff_issue_scope`
 	# @used-by :mod:`test_doc5_context_trigger`
 	# @used-by :mod:`test_doc5_golden_feature_turn`
+	# @used-by :mod:`test_doc5_replay_audit`
 	# @used-by :mod:`test_env_isolation_and_worktree_gate_contracts`
 	# @used-by :mod:`test_evidence_unification`
 	# @used-by :mod:`test_executor_metadata`
@@ -2020,6 +2021,7 @@ class ProjectPaths:
 		return Path(self.paths_str['scratch_dir'])
 	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`agent_tools.completion._folder()`
+	# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 	# @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
 	# @used-by :func:`agent_tools.hook_crash_audit._load_violation_receipt()`
 	# @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
@@ -2274,6 +2276,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.context.default_context_config()`
 # @used-by :func:`agent_tools.context.generate()`
 # @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
+# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`agent_tools.evidence.local_file()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
