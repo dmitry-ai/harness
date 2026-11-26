@@ -58,5 +58,14 @@ class TestDfUpstreamFixes(unittest.TestCase):
 			df_assert_gt0(0)
 		with self.assertRaises(DFE):
 			df_assert_lt(5, 5)
+	# 2026-11-26 "Fix stray closing brace in df_assert_count() error message": https://github.com/dmitry-ai/harness/issues/332
+	# Upstream defect: https://github.com/mage2pro/core/issues/475
+	# @used-by :mod:`unittest`
+	def test_332_df_assert_count_no_stray_brace(self) -> None:
+		from Df.Core.Exception import Exception as DFE
+		from Df.Qa.lib.validation.assert_.array import df_assert_count
+		with self.assertRaises(DFE) as cm:
+			df_assert_count(3, [1, 2])
+		self.assertEqual('The array should have 3 elements, but it has 2.', cm.exception.message())
 if '__main__' == __name__:
 	unittest.main()

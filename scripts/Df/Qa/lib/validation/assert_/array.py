@@ -23,10 +23,13 @@ def df_assert_assoc(a: list[Any] | dict[Any, Any]) -> list[Any] | dict[Any, Any]
 # 2024-05-21 "Implement `df_assert_count()`": https://github.com/mage2pro/core/issues/380
 # https://github.com/mage2pro/core/blob/11.6.1/Qa/lib/validation/assert/array.php#L26-L28
 # @used-by :meth:`test_df_qa.TestDfQa.test_assert_array_and_bool()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_332_df_assert_count_no_stray_brace()`
 def df_assert_count(expected: int, a: list[Any] | dict[Any, Any], m: Any=None) -> list[Any] | dict[Any, Any]:
 	v = len(a)
 	if expected != v:
-		df_error(m or f'The array should have {expected}}} elements, but it has {v}.', {'array': a})
+		# 2026-11-26 "Fix stray closing brace in df_assert_count() error message": https://github.com/dmitry-ai/harness/issues/332
+		# Upstream defect: https://github.com/mage2pro/core/issues/475
+		df_error(m or f'The array should have {expected} elements, but it has {v}.', {'array': a})
 	return a
 # 2017-01-14 Assert that `v` is strictly present in `a` and return `v`.
 # https://github.com/mage2pro/core/blob/11.6.1/Qa/lib/validation/assert/array.php#L42-L51
