@@ -53,7 +53,8 @@ def _check_uncached_staged(uncached: list[dict[str, Any]], index: dict[str, Any]
 	r: list[str] = []
 	designs = [v for v in (index.get('approved_subjects') or {}).values() if isinstance(v, dict) and 'design' == v.get('kind')]
 	if designs:
-		missing = _missing_design_participants(designs[-1], roots, all_symbols)
+		# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
+		missing = _missing_design_participants(designs[-1], roots, all_symbols, [e['rel'] for e in uncached])
 		if missing:
 			joined = ', '.join(missing[:8])
 			r.append(f'ARCH-AUDIT-GATE: Pattern-washing detected at pre-commit — declared Participants missing from staged code: {joined}.')
@@ -108,6 +109,25 @@ def _is_in_tempdir(path: Path) -> bool:
 	except (OSError, ValueError):
 		r = False
 	return r
+# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
+# @used-by :func:`_missing_design_participants()`
+def _is_path_participant(token: str) -> bool:
+	return '/' in token or token.endswith(('.py', '.js', '.ts', '.java', '.php', '.go', '.rs', '.json'))
+# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
+# @used-by :func:`_missing_design_participants()`
+def _load_declared_participants(design_entry: dict[str, Any], roots: list[Path]) -> list[str]:
+	pkg_rel = str(design_entry.get('package') or '').strip()
+	r: list[str] = []
+	for root in roots if pkg_rel else ():
+		cand = (root / pkg_rel).resolve()
+		if cand.is_file():
+			try:
+				raw_p = json.loads(cand.read_text(encoding='utf-8')).get('declared_participants') or ()
+				r = [str(p) for p in raw_p if str(p).strip()]
+			except (OSError, ValueError):
+				r = []
+			break
+	return r
 # @used-by :func:`agent_tools.arch.evaluator._response_receipt_violations()`
 # @used-by :func:`evaluate_pre_tool_use_arch_audit()`
 # @used-by :func:`verify_staged_arch_audit()`
@@ -128,20 +148,24 @@ def _load_merged_index(idx_paths: list[Path]) -> tuple[dict[str, Any], list[Path
 		merged['approved_subjects'].update(data.get('approved_subjects') or {})
 		merged['open_findings'].extend(data.get('open_findings') or ())
 	return (merged, roots)
+# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
 # @used-by :func:`_check_uncached_staged()`
-def _missing_design_participants(design_entry: dict[str, Any], roots: list[Path], staged_symbols: set[str]) -> list[str]:
-	pkg_rel = str(design_entry.get('package') or '').strip()
-	declared: list[str] = []
-	for root in roots:
-		cand = (root / pkg_rel).resolve() if pkg_rel else None
-		if None is not cand and cand.is_file():
-			try:
-				pkg = json.loads(cand.read_text(encoding='utf-8'))
-				declared = [str(p) for p in pkg.get('declared_participants') or () if str(p).strip()]
-			except (OSError, ValueError):
-				declared = []
-			break
-	return [name for name in declared if name not in staged_symbols]
+def _missing_design_participants(design_entry: dict[str, Any], roots: list[Path], staged_symbols: set[str], staged_rels: list[str] | tuple[str, ...]=()) -> list[str]:
+	declared = _load_declared_participants(design_entry, roots)
+	sym_tokens = [tok for tok in declared if not _is_path_participant(tok)]
+	path_tokens = [tok for tok in declared if _is_path_participant(tok)]
+	if sym_tokens:
+		r = [] if any((_symbol_matches(tok, staged_symbols) for tok in sym_tokens)) else sym_tokens
+	elif path_tokens:
+		rel_set = set(staged_rels)
+		r = [] if any((_path_matches(tok, rel_set) for tok in path_tokens)) else path_tokens
+	else:
+		r = []
+	return r
+# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
+# @used-by :func:`_missing_design_participants()`
+def _path_matches(token: str, rels: set[str]) -> bool:
+	return any((rel == token or rel.endswith('/' + token) for rel in rels))
 # @used-by :func:`evaluate_pre_tool_use_arch_audit()`
 def _resolve_pre_tool_target(args: dict, payload: dict) -> tuple[Path | None, Path, str, Path | None] | None:
 	raw_p = str(args.get('Path') or '').strip()
@@ -176,6 +200,10 @@ def _staged_code_entries(repo: Path, staged_paths: list[str], use_index: bool) -
 		total_sloc += int(trig['added_sloc'])
 		entries.append({'rel': rel, 'sha256': hashlib.sha256(new_txt.encode('utf-8')).hexdigest(), 'trig': trig})
 	return (entries, all_symbols, total_sloc)
+# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
+# @used-by :func:`_missing_design_participants()`
+def _symbol_matches(token: str, symbols: set[str]) -> bool:
+	return token in symbols or ('.' in token and token.rsplit('.', 1)[-1] in symbols)
 # @used-by :func:`agent_tools.gates.arch_audit.check()`
 # @used-by :mod:`agent_tools.arch.enforcement`
 def evaluate_pre_tool_use_arch_audit(name: str, args: dict, payload: dict) -> str | None:

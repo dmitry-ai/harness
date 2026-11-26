@@ -18,11 +18,13 @@ _PARENT_ID = '11111111-1111-4111-8111-111111111111'
 _REVIEWER_ID = '22222222-2222-4222-8222-222222222222'
 # @used-by :func:`_seed_governed_repo()`
 # @used-by :meth:`ArchAuditGatesTests.test_staged_pre_commit_enforces_approved_receipts_cache_and_anti_pattern_washing()`
+# @used-by :meth:`ArchAuditGatesTests.test_staged_pre_commit_handles_participant_file_paths_and_incremental_multi_wave_commits()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
 # @used-by :meth:`ArchAuditGatesTests.test_answer_and_stop_gates_enforce_significant_response_receipt_and_open_findings()`
 # @used-by :meth:`ArchAuditGatesTests.test_pre_tool_use_blocks_unaudited_structural_write_and_allows_cached_or_approved_design()`
 # @used-by :meth:`ArchAuditGatesTests.test_staged_pre_commit_enforces_approved_receipts_cache_and_anti_pattern_washing()`
+# @used-by :meth:`ArchAuditGatesTests.test_staged_pre_commit_handles_participant_file_paths_and_incremental_multi_wave_commits()`
 def _record_verdict(proj: Path, prep: dict, *, result: str='approved', outcome: str='grounded', participants_ok: bool=True, findings: list | None=None) -> dict:
 	from agent_tools.arch.review_store import record_arch_review
 	verdict = {'schema_version': 1, 'review_mode': 'falsifier', 'package': prep['package'], 'package_sha256': prep['package_sha256'], 'result': result, 'summary': 'Falsifier architecture audit verdict.', 'pattern_checks': [{'pattern': 'Strategy', 'category': 'Behavioral', 'participants_verified': participants_ok, 'overengineering_risk': 'low', 'outcome': outcome, 'evidence': 'Checked module symbols and participants.'}], 'findings': [] if None is findings else findings}
@@ -34,6 +36,7 @@ def _record_verdict(proj: Path, prep: dict, *, result: str='approved', outcome: 
 # @used-by :meth:`ArchAuditGatesTests.test_arch_audit_gate_spawns_zero_subprocesses_and_allows_trivial_or_test_edits()`
 # @used-by :meth:`ArchAuditGatesTests.test_pre_tool_use_blocks_unaudited_structural_write_and_allows_cached_or_approved_design()`
 # @used-by :meth:`ArchAuditGatesTests.test_staged_pre_commit_enforces_approved_receipts_cache_and_anti_pattern_washing()`
+# @used-by :meth:`ArchAuditGatesTests.test_staged_pre_commit_handles_participant_file_paths_and_incremental_multi_wave_commits()`
 def _seed_governed_repo(base: Path, *, with_rule: bool=True) -> Path:
 	repo = base / 'repo'
 	repo.mkdir(parents=True)
@@ -174,5 +177,37 @@ class ArchAuditGatesTests(unittest.TestCase):
 			_record_verdict(repo, prep_c, result='needs_changes', outcome='overengineered', participants_ok=False, findings=[{'id': 'F-2', 'violation_class': 'overengineering', 'severity': 'critical', 'target': 'src/engine.py', 'description': 'Unnecessary wrapper.', 'status': 'open'}])
 			v_open = [v for v in verify_staged_extra_gates(repo, ['src/engine.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v]
 			self.assertTrue(any(('F-2' in v for v in v_open)), f'Expected open finding failure, got {v_open}')
+	# 2026-11-27 "Fix _missing_design_participants for file paths and multi-wave commits": https://github.com/dmitry-ai/harness/issues/395
+	# @used-by :mod:`unittest`
+	def test_staged_pre_commit_handles_participant_file_paths_and_incremental_multi_wave_commits(self) -> None:
+		from agent_tools.arch.review_store import prepare_arch_package
+		from agent_tools.staged_gates import verify_staged_extra_gates
+		with tempfile.TemporaryDirectory() as td:
+			base = Path(td).resolve()
+			r1 = _seed_governed_repo(base / 'mixed', with_rule=True)
+			mixed_spec = '- **Pattern:** Strategy\n- **Category:** Behavioral\n- **Intent:** Split waves across modules.\n- **Participants:** `scripts/a.py` (`WaveAlpha`), `scripts/b.py` (`WaveBeta`)\n- **Collaboration:** WaveAlpha collaborates with WaveBeta.\n- **Consequences:** Incremental multi-wave commits.\n'
+			_record_verdict(r1, prepare_arch_package(r1, _PARENT_ID, kind='design', spec_text=mixed_spec), result='approved')
+			a1 = r1 / 'scripts/a.py'
+			a1.parent.mkdir(parents=True)
+			a1.write_text('class WaveAlpha:\n\tdef run(self):\n\t\treturn 1\n', encoding='utf-8')
+			_git(r1, 'add', 'scripts/a.py')
+			self.assertEqual([], [v for v in verify_staged_extra_gates(r1, ['scripts/a.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v])
+			a1.write_text('class ProceduralBlob:\n\tdef run(self):\n\t\treturn 1\n', encoding='utf-8')
+			_git(r1, 'add', 'scripts/a.py')
+			v_bad = [v for v in verify_staged_extra_gates(r1, ['scripts/a.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v]
+			self.assertTrue(any(('WaveAlpha' in v for v in v_bad)), f'Expected missing symbol failure, got {v_bad}')
+			r2 = _seed_governed_repo(base / 'path_only', with_rule=True)
+			path_spec = '- **Pattern:** Facade\n- **Category:** Structural\n- **Intent:** Group modules behind facade.\n- **Participants:** `scripts/a.py`, `scripts/b.py`\n- **Collaboration:** Module a calls module b.\n- **Consequences:** Clear file boundaries.\n'
+			_record_verdict(r2, prepare_arch_package(r2, _PARENT_ID, kind='design', spec_text=path_spec), result='approved')
+			a2 = r2 / 'scripts/a.py'
+			a2.parent.mkdir(parents=True)
+			a2.write_text('class PathMod:\n\tdef run(self):\n\t\treturn 1\n', encoding='utf-8')
+			_git(r2, 'add', 'scripts/a.py')
+			self.assertEqual([], [v for v in verify_staged_extra_gates(r2, ['scripts/a.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v])
+			o2 = r2 / 'scripts/other.py'
+			o2.write_text('class OtherMod:\n\tdef run(self):\n\t\treturn 2\n', encoding='utf-8')
+			_git(r2, 'add', 'scripts/other.py')
+			v_other = [v for v in verify_staged_extra_gates(r2, ['scripts/other.py'], use_index=True) if 'ARCH-AUDIT-GATE' in v]
+			self.assertTrue(any(('scripts/a.py' in v for v in v_other)), f'Expected missing path participant failure, got {v_other}')
 if '__main__' == __name__:
 	unittest.main()
