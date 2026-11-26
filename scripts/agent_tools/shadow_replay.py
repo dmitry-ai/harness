@@ -9,6 +9,8 @@ from .metadata import strip_leading_metadata_header
 from .path_registry import project_paths
 from .runtime import resolve_antigravity_paths
 from .shadow_replay_clone import build_stop_transcript, cleanup_shadow_root, clone_project_tree, remap_shadow_state, shadow_isolation_context
+# 2026-11-26 "Add mutating command execution mode to shadow-replay with isolated native profiles": https://github.com/dmitry-ai/harness/issues/289
+from .shadow_replay_command import execute_shadow_command, persist_shadow_replay_receipt, resolve_shadow_launcher, stage_command_shadow_copies
 from .turn_routing import resolve_active_turn_state
 # 2026-11-25
 # "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
@@ -184,19 +186,39 @@ def _stage_shadow_copies(src_project: Path, src_launcher: Path | None, shadow_ro
 		old_states['launcher'] = state_dir(resolve_journal_dir(src_launcher))
 		relocations[src_launcher] = shadow_launcher
 	return (shadow_project, shadow_launcher, relocations, old_states)
-def run_shadow_replay(project: str | Path, conversation_id: str, *, launcher: str | Path | None=None, workspace: str | Path | None=None, platform: str='antigravity', backend: str | Path | None=None, response_file: str | Path | None=None, keep: bool=False) -> dict:
+# 2026-11-26 "Add mutating command execution mode to shadow-replay with isolated native profiles": https://github.com/dmitry-ai/harness/issues/289
+# @used-by :func:`run_shadow_replay()`
+def _prepare_shadow_stage(src_project: Path, src_launcher: Path | None, shadow_root: Path, command_mode: bool) -> tuple[Path, Path | None, dict[Path, Path], dict[str, Path], Path | None]:
+	if command_mode:
+		r = stage_command_shadow_copies(src_project, src_launcher, shadow_root)
+	else:
+		sp, sl, relocs, states = _stage_shadow_copies(src_project, src_launcher, shadow_root)
+		r = (sp, sl, relocs, states, None)
+	return r
+# @used-by :func:`run_shadow_replay()`
+def _run_shadow_mode(src_project: Path, shadow_project: Path, shadow_launcher: Path | None, shadow_daily: Path | None, shadow_root: Path, *, cid: str, platform: str, backend: str | Path | None, response_file: str | Path | None, exec_rename_domain: str | None, command: str | None, checks: dict, verified: list[str], errors: list[str]) -> None:
+	if exec_rename_domain or command:
+		execute_shadow_command(src_project, shadow_project, shadow_launcher, shadow_daily, shadow_root, exec_rename_domain=exec_rename_domain, command=command, checks=checks, verified=verified, errors=errors)
+	elif not cid:
+		raise ValueError('shadow-replay requires --conversation, --exec-rename-domain, or --command')
+	else:
+		backend_dir, native_tx = _resolve_native_paths(cid, Path(backend).resolve() if None is not backend else None)
+		_execute_replay_pipeline(shadow_project, shadow_launcher, shadow_root, cid, platform, backend_dir, native_tx, Path(response_file).resolve() if None is not response_file else None, checks, verified, errors)
+def run_shadow_replay(project: str | Path, conversation_id: str | None=None, *, launcher: str | Path | None=None, workspace: str | Path | None=None, platform: str='antigravity', backend: str | Path | None=None, response_file: str | Path | None=None, keep: bool=False, exec_rename_domain: str | None=None, command: str | None=None) -> dict:
 	src_project = Path(project).resolve()
-	src_launcher = Path(launcher).resolve() if None is not launcher else None
+	command_mode = bool(exec_rename_domain or command)
+	src_launcher = resolve_shadow_launcher(src_project, launcher) if command_mode else (Path(launcher).resolve() if None is not launcher else None)
 	ws_root = Path(workspace).resolve() if None is not workspace else src_project
 	cid = str(conversation_id or '').strip().lower()
 	shadow_root = project_paths(ws_root, exact_root=True).scratch_dir / 'shadow-replay' / f'run-{uuid.uuid4().hex[:12]}'
 	checks, verified, errors = ({}, [], [])
 	try:
-		shadow_project, shadow_launcher, relocations, old_states = _stage_shadow_copies(src_project, src_launcher, shadow_root)
-		backend_dir, native_tx = _resolve_native_paths(cid, Path(backend).resolve() if None is not backend else None)
+		shadow_project, shadow_launcher, relocations, old_states, shadow_daily = _prepare_shadow_stage(src_project, src_launcher, shadow_root, command_mode)
 		with shadow_isolation_context(relocations):
 			_remap_staged_copies(src_project, shadow_project, src_launcher, shadow_launcher, old_states)
-			_execute_replay_pipeline(shadow_project, shadow_launcher, shadow_root, cid, platform, backend_dir, native_tx, Path(response_file).resolve() if None is not response_file else None, checks, verified, errors)
+			_run_shadow_mode(src_project, shadow_project, shadow_launcher, shadow_daily, shadow_root, cid=cid, platform=platform, backend=backend, response_file=response_file, exec_rename_domain=exec_rename_domain, command=command, checks=checks, verified=verified, errors=errors)
 	finally:
 		cleaned = (not shadow_root.exists()) if keep else cleanup_shadow_root(shadow_root)
-	return {'valid': not errors, 'project': str(src_project), 'launcher': str(src_launcher) if None is not src_launcher else None, 'conversation_id': cid, 'platform': platform, 'shadow_dir': str(shadow_root), 'cleaned_up': cleaned, 'stages_verified': verified, 'stages_not_run': list(NOT_RUN_STAGES), 'checks': checks, 'errors': errors}
+	report = {'valid': not errors, 'project': str(src_project), 'launcher': str(src_launcher) if None is not src_launcher else None, 'conversation_id': cid, 'platform': platform, 'shadow_dir': str(shadow_root), 'cleaned_up': cleaned, 'stages_verified': verified, 'stages_not_run': list(NOT_RUN_STAGES), 'checks': checks, 'errors': errors}
+	report['receipt_file'] = persist_shadow_replay_receipt(ws_root, src_project, report, exec_rename_domain=exec_rename_domain, command=command)
+	return report
