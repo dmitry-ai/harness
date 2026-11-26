@@ -86,6 +86,8 @@ _LAZY_EXPORTS = {
 	'check_code_style_gate': ('agent_tools.gates.code_style', 'check'),
 	'check_external_write_gate': ('agent_tools.gates.external_write', 'check'),
 	'check_git_write_gate': ('agent_tools.gates.git_write', 'check'),
+	# 2026-11-26 "Add PreToolUse and pre-commit gate for issue-comment placement": https://github.com/dmitry-ai/harness/issues/273
+	'check_issue_comment_gate': ('agent_tools.gates.issue_comment', 'check'),
 	'check_issue_first_gate': ('agent_tools.gates.issue_first', 'check'),
 	'check_journal_write_gate': ('agent_tools.gates.journal_write', 'check'),
 	'check_rules_budget': ('agent_tools.gates.rules_budget', 'check'),

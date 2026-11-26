@@ -26,6 +26,8 @@ _BUILTIN_TOOLS_MANIFEST = {
 	'code_style': frozenset({'write_file', 'edit_file'}),
 	'external_write': frozenset({'run_command'}),
 	'git_write': frozenset({'run_command'}),
+	# 2026-11-26 "Add PreToolUse and pre-commit gate for issue-comment placement": https://github.com/dmitry-ai/harness/issues/273
+	'issue_comment': frozenset({'write_file', 'edit_file'}),
 	'issue_first': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'journal_write': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'rules_budget': frozenset({'write_file', 'edit_file'}),
