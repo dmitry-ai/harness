@@ -65,10 +65,6 @@ class CleanupTests(TemporaryCase):
 		with closing(sqlite3.connect(path)) as connection:
 			connection.execute(sql, params)
 			connection.commit()
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_record_review()`
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_review_input()`
 	# @used-by :func:`agent_tools.cli_common.consume_scratch_input()`
 	# @used-by :func:`agent_tools.cli_common.load_operation_input()`
 	# @used-by :func:`agent_tools.cli_domains._op_adopt_requests()`
@@ -130,6 +126,10 @@ class CleanupTests(TemporaryCase):
 	# @used-by :meth:`CleanupTests.test_preview_is_read_only_and_apply_cleans_both_platforms_preserving_entire_archive()`
 	# @used-by :meth:`CleanupTests.test_project_cleanup_scanner_reuses_single_pass_history_index_in_dry_run()`
 	# @used-by :meth:`CleanupTests.test_strict_72_hour_boundary_and_recent_projects_are_preserved()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_record_review()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_review_input()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.assert_stable()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.check_and_review()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.deliver()`

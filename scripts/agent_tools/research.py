@@ -115,10 +115,6 @@ def classify_network_error(exc):
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 # @used-by :func:`_write_cached_extraction()`
-# @used-by :func:`agent_tools.arch.review_store._persist_review_index()`
-# @used-by :func:`agent_tools.arch.review_store._register_package_index()`
-# @used-by :func:`agent_tools.arch.review_store._subject_digest()`
-# @used-by :func:`agent_tools.arch.review_store.prepare_arch_package()`
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
@@ -142,6 +138,10 @@ def classify_network_error(exc):
 # @used-by :func:`agent_tools.text_sources.save_source_check()`
 # @used-by :func:`collect()`
 # @used-by :func:`observed_use()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__subject_digest()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
 # @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
@@ -181,9 +181,6 @@ def _fingerprint(value):
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 # @used-by :func:`agent_tools.analysis.save_analysis()`
-# @used-by :func:`agent_tools.arch.review_store._collect_modules()`
-# @used-by :func:`agent_tools.arch.review_store._load_verified_package()`
-# @used-by :func:`agent_tools.arch.review_store.read_arch_review_input()`
 # @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
 # @used-by :func:`agent_tools.cli_domains._resolve_project_input()`
@@ -213,6 +210,9 @@ def _fingerprint(value):
 # @used-by :func:`extract_file()`
 # @used-by :func:`extract_observation()`
 # @used-by :func:`load_observation()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__collect_modules()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__load_verified_package()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.read_review_input()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.load()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.preregistration_issues()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`

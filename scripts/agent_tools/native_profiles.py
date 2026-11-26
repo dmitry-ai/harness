@@ -464,13 +464,13 @@ class _Plan:
 	# @used-by :func:`_retire_profile_skills()`
 	# @used-by :func:`_retire_shared_roles()`
 	# @used-by :func:`_shared_plan()`
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
 	# @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
 	# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
 	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
 	# @used-by :func:`retire_owned_project_projections()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
 	# @used-by :meth:`_Plan.file()`
 	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_close()`
 	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_comment()`

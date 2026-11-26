@@ -102,16 +102,16 @@ def _is_project_marker_dir(anc: Path) -> bool:
 # @used-by :func:`resolve_code_scope()`
 def _norm_posix(path: str | Path) -> str:
 	return df_path_posix(path)
-# @used-by :func:`agent_tools.arch.enforcement._resolve_pre_tool_target()`
-# @used-by :func:`agent_tools.arch.enforcement._staged_code_entries()`
-# @used-by :func:`agent_tools.arch.triggers._append_scale_reasons()`
-# @used-by :func:`agent_tools.arch.triggers.classify_code_change_trigger()`
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
 # @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :func:`agent_tools.tdd.commands.shell_write_targets()`
 # @used-by :func:`agent_tools.tdd.enforcement._eval_pre_write()`
 # @used-by :func:`agent_tools.tdd.enforcement._staged_entry_texts()`
 # @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
+# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__resolve_pre_tool_target()`
+# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__staged_code_entries()`
+# @used-by :meth:`Df.Harness.Arch.TriggerClassifier.TriggerClassifier.__append_scale_reasons()`
+# @used-by :meth:`Df.Harness.Arch.TriggerClassifier.TriggerClassifier.classify_code_change()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_classifier_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_universal_code_vs_test_vs_non_code_classification()`

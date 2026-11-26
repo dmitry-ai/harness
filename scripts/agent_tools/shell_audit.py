@@ -418,7 +418,6 @@ def is_code_file(rel_path: str | Path) -> bool:
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 def normalize_commit_message(message: str | None) -> str:
 	return '\n'.join((line for line in (message or '').splitlines() if not line.startswith('#'))).strip()
-# @used-by :func:`agent_tools.arch.enforcement._resolve_pre_tool_target()`
 # @used-by :func:`agent_tools.code_size_gate._resolve_python_target()`
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
@@ -446,6 +445,7 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :func:`agent_tools.xref_gate._resolve_xref_target()`
 # @used-by :func:`git_shim._normalize_arg_token()`
 # @used-by :func:`git_shim.resolve_system_git()`
+# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__resolve_pre_tool_target()`
 # @used-by :meth:`ShellCommandInspector.scan_git_global_opts()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.__init__()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.assert_toplevel()`

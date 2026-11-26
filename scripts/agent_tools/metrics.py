@@ -189,9 +189,9 @@ def native_requests(root, conversation_id, *, backend=None, platform=None, insta
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-# @used-by :func:`agent_tools.arch.review_store._authenticate_arch_report()`
 # @used-by :func:`agent_tools.cli_domains._op_native_review_proof()`
 # @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.authenticate_report()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_af_or_terminal_quota_error_is_not_an_independent_completed_aa_review()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_native_review_rejects_prompt_bias_and_reviewer_isolation_violations()`
@@ -223,9 +223,9 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-# @used-by :func:`agent_tools.arch.review_store._authenticate_arch_report()`
 # @used-by :func:`agent_tools.review.authenticate_report()`
 # @used-by :func:`agent_tools.review.verify_entry_native_proof()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.authenticate_report()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_parent_can_select_another_model_and_effort_with_native_proof()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_review_provenance_checks_parent_completion_model_and_assignment()`
 def verify_native_proof(root, native, package=None):

@@ -33,7 +33,6 @@ class RAM:
 	# @used-by :func:`agent_tools.admission.capture()`
 	# @used-by :func:`agent_tools.analysis.publish_owned()`
 	# @used-by :func:`agent_tools.analysis.save_analysis()`
-	# @used-by :func:`agent_tools.arch.enforcement._find_git_root()`
 	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
 	# @used-by :func:`agent_tools.claims._manifest_primary()`
 	# @used-by :func:`agent_tools.cleanup._finish_pending()`
@@ -170,6 +169,7 @@ class RAM:
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
 	# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
+	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__find_git_root()`
 	# @used-by :meth:`RAM.get()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._extract_added_diff_urls()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`

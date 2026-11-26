@@ -191,7 +191,6 @@ class AnswerPreparationRunner:
 		if aa_part_errs:
 			self._fail_gate('aa_partial_read', 'REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(aa_part_errs))
 	# @used-by :func:`agent_tools.addon_observability.check_runner_addon_observability()`
-	# @used-by :func:`agent_tools.arch.evaluator.check_runner_architecture()`
 	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
 	# @used-by :func:`agent_tools.blocked_report.evaluate_runner_code_hygiene()`
 	# @used-by :func:`agent_tools.blocked_report.prepare_and_sync_authorized_workflow()`
@@ -204,6 +203,7 @@ class AnswerPreparationRunner:
 	# @used-by :meth:`AnswerPreparationRunner._check_turn_hygiene()`
 	# @used-by :meth:`AnswerPreparationRunner._record_journal_entry()`
 	# @used-by :meth:`AnswerPreparationRunner.run()`
+	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.check_runner()`
 	def _fail_gate(self, gate_id, detail, *, admission_failed=False, status=None, extra=None, cause=None):
 		if admission_failed:
 			self.value['admission_failure'] = {'detail': detail, 'checked_at': _now()}

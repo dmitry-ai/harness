@@ -272,7 +272,6 @@ class ResearchQuestionRegistry:
 		q['searches'].append({'query': ' '.join(query.casefold().split()), 'useful': bool(useful), 'method_change': method_change, 'time': now()})
 	# @used-by :func:`Df.Core.lib.lang.other.df_no_rec()`
 	# @used-by :func:`add_question()`
-	# @used-by :func:`agent_tools.arch.enforcement._arch_index_paths()`
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.claims.collect_claim_closure()`
 	# @used-by :func:`agent_tools.claims.evaluate_safe_arithmetic()`
@@ -392,6 +391,7 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.xref.python_overrides._check_repo_ancestors()`
 	# @used-by :func:`agent_tools.xref_gate._staged_overrides()`
 	# @used-by :func:`split_project_rules.split_rules()`
+	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.arch_index_paths()`
 	# @used-by :meth:`ResearchQuestionRegistry.contract_issues()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_dependencies_and_caps()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_structure()`
@@ -1037,8 +1037,6 @@ class WorkflowStateEngine:
 			raise ValueError('Provide --conversation or at least one --request-id to unadopt')
 		return update(self.root, {'action': 'unadopt_requests', 'conversation_id': conversation_id, 'request_ids': sorted(req_ids)}, lambda state: self._apply_unadopt(state, conversation_id, req_ids))
 	# @used-by :func:`Df.Core.lib.array.other.unshift_assoc.dfa_unshift_assoc()`
-	# @used-by :func:`agent_tools.arch.enforcement._load_merged_index()`
-	# @used-by :func:`agent_tools.arch.enforcement._staged_code_entries()`
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.article.render()`
 	# @used-by :func:`agent_tools.claims.extract_verified_inline_calc_numbers()`
@@ -1122,6 +1120,8 @@ class WorkflowStateEngine:
 	# @used-by :func:`test_stop_emergency_capture_and_foreign_sync._reserve_foreign()`
 	# @used-by :func:`test_text_browser.dom_fixture()`
 	# @used-by :func:`update()`
+	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__staged_code_entries()`
+	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.load_merged_index()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_claim()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_finish()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_handoff()`

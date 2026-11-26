@@ -38,7 +38,6 @@ class Finding:
 	line: int
 	message: str
 	excerpt: str = ''
-	# @used-by :func:`agent_tools.arch.review_cli._format_arch_check()`
 	# @used-by :func:`agent_tools.cli_registry._format_perf_profile_tests()`
 	# @used-by :func:`agent_tools.cli_registry._format_perf_timesheet()`
 	# @used-by :func:`agent_tools.cli_registry._format_problem_metadata()`
@@ -51,6 +50,7 @@ class Finding:
 	# @used-by :func:`agent_tools.text_cli.findings_output()`
 	# @used-by :func:`agent_tools.text_cli.main()`
 	# @used-by :func:`agent_tools.upwork_project.run()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__format_arch_check()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate()`
 	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_reference_article_has_no_errors_and_only_known_warnings()`

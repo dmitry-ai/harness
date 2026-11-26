@@ -1699,6 +1699,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_harness_lib_s10`
+	# @used-by :mod:`test_df_harness_s11_wave2e_arch`
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
 	# @used-by :mod:`test_diff_coverage_gate`
@@ -1887,7 +1888,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.analysis.save_analysis()`
 	# @used-by :func:`agent_tools.analysis_merge._load_merge_base()`
 	# @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
-	# @used-by :func:`agent_tools.arch.review_store._arch_dir()`
 	# @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
 	# @used-by :func:`agent_tools.completion._folder()`
 	# @used-by :func:`agent_tools.intake.commit_capture()`
@@ -1914,6 +1914,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.upwork_project.configure_project()`
 	# @used-by :func:`agent_tools.worker_semaphore.default_slots_dir()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__arch_dir()`
 	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
@@ -2261,11 +2262,6 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.analysis_merge.save_merged_analysis()`
-# @used-by :func:`agent_tools.arch.review_store._arch_dir()`
-# @used-by :func:`agent_tools.arch.review_store._load_verified_package()`
-# @used-by :func:`agent_tools.arch.review_store.prepare_arch_package()`
-# @used-by :func:`agent_tools.arch.review_store.read_arch_review_input()`
-# @used-by :func:`agent_tools.arch.review_store.record_arch_review()`
 # @used-by :func:`agent_tools.budget.compute_budget_status()`
 # @used-by :func:`agent_tools.claims._manifest_primary()`
 # @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
@@ -2410,6 +2406,11 @@ class ProjectPaths:
 # @used-by :func:`paths_report()`
 # @used-by :func:`test_arch_review_cli._init_text_workspace()`
 # @used-by :func:`tool_value()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__arch_dir()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__load_verified_package()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.read_review_input()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._verify_saved_artifacts()`
