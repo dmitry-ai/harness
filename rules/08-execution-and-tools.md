@@ -4,16 +4,17 @@ description: "Core execution invariants: deterministic tools, Red-First TDD, for
 ---
 # Execution
 ## EXEC-1
-Use existing parameterized tools from [README-agent-tools.md](../scripts/README-agent-tools.md) (read when choosing Harness CLI subcommands or flags) instead of one-off scripts.  
+Use parameterized tools in [README-agent-tools.md](../scripts/README-agent-tools.md) (read for CLI subcommands/flags) instead of one-off scripts.  
 Collect external HTTP(S)/DOM evidence via `harness.py collect|collect-http|collect-browser` (`--browser auto`); direct shell HTTP calls (`curl`/`urllib`/`requests`/`Invoke-WebRequest`) and `search_web` quotes are prohibited.  
 After three fruitless searches on the same question, report the specific gap or justify a method change.  
 ## EXEC-2
-In GitHub-backed repositories, satisfy `Issue-First` ([EXEC-5](#exec-5)) before writing any test or code.  
-Mandatory Red-First TDD for software code: write a behavioral test (no source-reading or empty stubs) and observe failure (`Red`) before editing production code (`Green`).  
-One-way Test Ratchet: never delete, skip, or weaken tests/assertions without audited `RATCHET-OK` (`>= 30` chars citing a requirement/decision via `harness.py ratchet-ok` or linked issue).  
+Satisfy `Issue-First` ([EXEC-5](#exec-5)) before writing tests or code in GitHub repos.  
+Red-First TDD: write a behavioral test (no source-reading/stubs) and observe failure (`Red`) before editing production code (`Green`).  
+Test Ratchet: never delete, skip, or weaken tests without audited `RATCHET-OK` (`>= 30` chars via `harness.py ratchet-ok` or linked issue).  
 Run narrow fail-fast tests (`-x`/`-f`, `WaitMsBeforeAsync: 10000`) during Red/Green and the full test suite (`harness.py run-tests` or parallel `pytest -x`) after the final edit (`harness.py tdd-check`).  
+Never close CLI/workflow issues or recommend concrete mutating commands without a passing `shadow-replay`/live run (or explicit untested warning).  
 ## EXEC-3
-Never navigate, reload, steal focus from, or close user-owned browser tabs, never terminate the shared browser or delete its lock files, and open agent-owned tabs in the verified profile instead of asking the user to pre-open pages.  
+Never touch or close user browser tabs, kill the shared browser, or delete its locks; open agent tabs in the verified profile instead of asking the user.  
 ## EXEC-4
 Harness follows the foreground-only lifecycle in [FILE-3](01-file-boundaries.md#file-3) and bounds test or child commands with in-process timeouts; never attach one-shot `schedule` timers (`DurationSeconds`) to active `run_command` or `invoke_subagent` tasks.  
 Serialize repo landings via `harness.py land-acquire --wait` / `land-release` (or `swarm` / `workspace: "share"`), exhausting foreground waits (`wait-repo`, `land-acquire --wait`, `answer-prepare --wait-timeout`) before escalating lock contention.  

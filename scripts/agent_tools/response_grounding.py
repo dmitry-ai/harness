@@ -19,10 +19,12 @@ from .research import MAX_BYTES
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
+# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+from .cli_command_grounding import response_turn_gate_issues
 # 2026-11-24
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
-from .statements import analysis_gate_issues, external_anchor_issues
+from .statements import external_anchor_issues
 # 2026-11-16
 # "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
 # https://github.com/dmitry-ai/harness/issues/81
@@ -31,11 +33,9 @@ from .upwork_data import extract_upwork_job_url_id
 # "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
 # https://github.com/dmitry-ai/harness/issues/56
 class ResponseEvidenceAuditor:
-	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None):
-		self.root = Path(root).resolve()
-		self.response = response
-		self.requests = requests
-		self.touched_files = touched_files
+	# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None):
+		self.root, self.response, self.requests, self.touched_files, self.turn, self.native = (Path(root).resolve(), response, requests, touched_files, turn, native)
 		# 2026-11-25
 		# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 		# https://github.com/dmitry-ai/harness/issues/230
@@ -347,7 +347,8 @@ class ResponseEvidenceAuditor:
 		# 2026-11-24
 		# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 		# https://github.com/dmitry-ai/harness/issues/181
-		self.errors.extend(analysis_gate_issues(self.response, requests=self.requests))
+		# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+		self.errors.extend(response_turn_gate_issues(self.root, self.response, requests=self.requests, turn=self.turn, native=self.native))
 		return self.errors
 def _discourse_topic_key(url: str):
 	m = re.match('^https?://([^/:?#]+)/t/(?:[^/?#]+/)?(\\d+)(?:$|[/?#])', url.strip(), re.I)
@@ -377,5 +378,6 @@ def _titles_compatible(claimed: str, observed: str) -> bool:
 		c_set = set(c_tokens)
 		r = 0.6 <= len(c_set & set(o_tokens)) / max(1, len(c_set))
 	return r
-def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None) -> list[str]:
-	return ResponseEvidenceAuditor(root, response, requests, touched_files=touched_files).validate()
+# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> list[str]:
+	return ResponseEvidenceAuditor(root, response, requests, touched_files=touched_files, turn=turn, native=native).validate()

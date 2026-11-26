@@ -135,8 +135,9 @@ class AnswerPreparationRunner:
 		if unreread_cited:
 			detail = 'COMPACT-1 / KB-3 violation in active turn: primary source file(s) read before CHECKPOINT were evicted from context and cited in response without re-reading after checkpoint: ' + ', '.join(unreread_cited)
 			self._fail_gate('evicted_citations', detail, extra={'cited_files': unreread_cited})
+	# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
 	def _check_source_grounding(self):
-		source_issues = response_source_and_kb_issues(self.root, self.response, self.turn['requests'], touched_files=self.turn.get('touched_files'))
+		source_issues = response_source_and_kb_issues(self.root, self.response, self.turn['requests'], touched_files=self.turn.get('touched_files'), turn=self.turn, native=self.native)
 		self.value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
 		if source_issues:
 			self._fail_gate('source_grounding', '; '.join(source_issues))
@@ -2559,7 +2560,8 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		link_errs = _response_link_issues(root_p, response, response_path=response_path, scratch_dir=pp.scratch_dir)
 		prob_errs = [f'DOC-2: Unsupported causal probability basis: {item}' for item in unsupported_probability_claims(response)]
 		requests_list = list(turn_obj.get('requests') or []) if 'primary' == role else []
-		source_errs = response_source_and_kb_issues(root_p, response, requests_list, touched_files=turn_obj.get('touched_files'))
+		# 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
+		source_errs = response_source_and_kb_issues(root_p, response, requests_list, touched_files=turn_obj.get('touched_files'), turn=turn_obj, native=native)
 		lang_errs = _intermediate_or_language_issues(requests_list, response)
 		exec5_chk = value_obj['exec5_check']
 		http_chk = value_obj['http_fetch_check']
