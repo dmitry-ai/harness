@@ -24,5 +24,13 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		self.assertTrue(dff_eq(-10.0, -10.0))
 		self.assertTrue(dff_eq(-100.0, -100.05))
 		self.assertFalse(dff_eq(-100.0, -101.0))
+	# 2026-11-26 "Fix Marker::marked() return type to bool": https://github.com/dmitry-ai/harness/issues/328
+	# Upstream defect: https://github.com/mage2pro/core/issues/471
+	# @used-by :mod:`unittest`
+	def test_328_marker_marked_returns_bool(self) -> None:
+		from Df.Core.Text.Marker import Marker
+		mk = Marker('<![CDATA[', ']]>')
+		self.assertIs(True, mk.marked('<![CDATA[x]]>'))
+		self.assertIs(False, mk.marked('x'))
 if '__main__' == __name__:
 	unittest.main()
