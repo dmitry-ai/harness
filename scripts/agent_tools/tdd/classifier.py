@@ -143,6 +143,9 @@ def _resolve_deleted_worktree_scope(p: Path) -> Path | None:
 			rel = Path(*parts[idx + 4:]).as_posix()
 			cands = [cr.resolve() for cr in (*project_paths(proj_root).code_repos, proj_root / '\u2c0f/\u227b/\u2655/\u26ef', proj_root / 'code') if (cr / '.git').exists()]
 			uniq = list(dict.fromkeys(cands))
+			# 2026-11-26 "Resolve deleted worktree paths in TDD comment-only exemption": https://github.com/dmitry-ai/harness/issues/278
+			if not uniq and (proj_root / '.git').exists():
+				uniq = [proj_root]
 			r = next((cr for cr in uniq if (cr / rel).exists()), uniq[0] if 1 == len(uniq) else None)
 			break
 	return r
