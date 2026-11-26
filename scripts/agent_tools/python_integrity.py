@@ -35,6 +35,8 @@ def _collect_undefined_globals(table: symtable.SymbolTable, defined: set[str], o
 			out.add(sym.get_name())
 	for child in table.get_children():
 		_collect_undefined_globals(child, defined, out)
+# @used-by :func:`agent_tools.xref_gate._git_changed_paths()`
+# @used-by :func:`agent_tools.xref_gate.verify_worktree_xref_changes()`
 # @used-by :func:`verify_worktree_python_changes()`
 def _git_read_text(repo: Path, *args: str) -> str | None:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}

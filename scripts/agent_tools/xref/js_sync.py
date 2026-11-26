@@ -129,6 +129,7 @@ def _validate_js_file_uses(finfo: dict, repo_index: dict, errs: list[str]) -> No
 			if not ok:
 				ln, rval = (item['lineno'], item['raw_value'])
 				errs.append(f'XREF: {rel}:{ln} unresolved @uses target {rval}')
+# @used-by :func:`agent_tools.xref_gate.check_file_xref_violations()`
 # @used-by :mod:`agent_tools.xref`
 def check_js_file_local(rel_posix: str, source: str, *, baseline_source: str | None=None, strict_existing: bool=False) -> list[str]:
 	finfo = index_js_file(rel_posix, source)

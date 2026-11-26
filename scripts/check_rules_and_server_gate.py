@@ -80,6 +80,10 @@ _LAZY_EXPORTS = {
 	# https://github.com/dmitry-ai/harness/issues/136
 	'check_tdd_gate': ('agent_tools.gates.tdd', 'check'),
 	'check_worktree_isolation_gate': ('agent_tools.gates.worktree_isolation', 'check'),
+	# 2026-11-26
+	# "Enforce cross-reference compliance in PreToolUse and Git gates":
+	# https://github.com/dmitry-ai/harness/issues/306
+	'check_xref_gate': ('agent_tools.gates.xref', 'check'),
 	'evaluate_pre_tool_use_test_failfast': ('agent_tools.failfast_gate', 'evaluate_pre_tool_use_test_failfast'),
 	'run_pre_tool_gates': ('agent_tools.gates', 'run_pre_tool_gates'),
 }

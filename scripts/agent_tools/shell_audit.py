@@ -448,6 +448,7 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :func:`agent_tools.tdd.events._is_git_commit_command()`
 # @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
 # @used-by :func:`agent_tools.tdd.mechanical._resolve_repo_binding()`
+# @used-by :func:`agent_tools.xref_gate._resolve_xref_target()`
 # @used-by :func:`git_shim._normalize_arg_token()`
 # @used-by :func:`git_shim.resolve_system_git()`
 # @used-by :meth:`ShellCommandInspector.scan_git_global_opts()`

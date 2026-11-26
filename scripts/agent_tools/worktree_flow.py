@@ -169,8 +169,16 @@ def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch:
 		if py_errs:
 			r = (_fail_land(main_repo, wt_path, branch, 'python_integrity', '; '.join(py_errs[:5])), 0, None)
 		else:
-			# 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
-			r = _run_land_checks(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
+			# 2026-11-26
+			# "Enforce cross-reference compliance in PreToolUse and Git gates":
+			# https://github.com/dmitry-ai/harness/issues/306
+			from .xref_gate import verify_worktree_xref_changes
+			xref_errs = verify_worktree_xref_changes(wt_path, target_branch)
+			if xref_errs:
+				r = (_fail_land(main_repo, wt_path, branch, 'xref_integrity', '; '.join(xref_errs[:5])), 0, None)
+			else:
+				# 2026-11-26 "Enforce diff-coverage check for newly added functions in tdd-check and worktree-land": https://github.com/dmitry-ai/harness/issues/292
+				r = _run_land_checks(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
 	return r
 # @used-by :func:`resolve_touched_repo_file()`
 def _resolve_deleted_worktree_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
@@ -278,6 +286,7 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
 def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', worktrees_dir: Path | str | None=None) -> dict:
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	safe_id = _safe_task_id(task_id)
@@ -347,6 +356,7 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_two_parallel_worktrees_commit_and_land_with_single_test_run()`
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_worktree_land_aborts_when_tests_fail()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
 def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):

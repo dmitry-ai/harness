@@ -39,6 +39,8 @@ def format_xref_text(res: dict) -> str:
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
 # @used-by :func:`agent_tools.cli_registry._exec_xref_check()`
+# @used-by :func:`agent_tools.xref_gate.verify_staged_xref()`
+# @used-by :func:`agent_tools.xref_gate.verify_worktree_xref_changes()`
 # @used-by :meth:`test_harness_xref_compliance.HarnessXrefComplianceTests.test_harness_python_and_js_pass_xref_check_with_zero_issues()`
 # @used-by :mod:`agent_tools.xref`
 def run_xref_check(repo: Path, *, lang: str='all', files: list[str] | None=None, overrides_map: dict[str, str] | None=None) -> dict:
@@ -53,6 +55,8 @@ def run_xref_check(repo: Path, *, lang: str='all', files: list[str] | None=None,
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
 # @used-by :func:`agent_tools.cli_registry._exec_xref_sync()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_pre_commit_blocks_stale_cross_file_xref_and_passes_after_sync()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
 # @used-by :mod:`agent_tools.xref`
 def run_xref_sync(repo: Path, *, lang: str='all', apply: bool=True, files: list[str] | None=None) -> dict:
 	runners = {'java': sync_java_repo, 'js': sync_js_repo, 'python': sync_python_repo}

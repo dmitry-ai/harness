@@ -83,6 +83,7 @@ class GitRepoGate:
 	# @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
 	# @used-by :meth:`test_subprocess_hygiene_and_tree_kill.SubprocessHygieneAndTreeKillTests.test_pre_commit_and_pre_tool_use_enforce_subprocess_hygiene_ratchet()`
 	# @used-by :meth:`test_worktree_ignore.WorktreeIgnoreInvariantTests.test_worktree_commit_transaction_create_protects_enclosing_repo()`
+	# @used-by :meth:`test_xref_gate.XrefGateTests.test_pre_commit_blocks_stale_cross_file_xref_and_passes_after_sync()`
 	def __init__(self, root: Path, *, strict: bool=False):
 		self.root = normalize_host_path(root).resolve(strict=strict)
 	# 2026-11-02
@@ -325,6 +326,7 @@ class GitRepoGate:
 	# @used-by :func:`run_git_hook()`
 	# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
 	# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_pre_tool_use_and_pre_commit_enforce_issue_comment_gate()`
+	# @used-by :meth:`test_xref_gate.XrefGateTests.test_pre_commit_blocks_stale_cross_file_xref_and_passes_after_sync()`
 	def run_hook(self, hook_name: str, argv: list[str] | tuple[str, ...]=(), *, stdin_text: str | None=None, agent_context: bool | None=None) -> int:
 		is_agent = is_agent_git_context() if None is agent_context else bool(agent_context)
 		r = 0

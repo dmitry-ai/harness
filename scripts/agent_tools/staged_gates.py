@@ -13,6 +13,10 @@ from .repo_link_gate import verify_staged_repo_links
 # https://github.com/dmitry-ai/harness/issues/244
 from .rules_audit import verify_staged_rules_audit
 from .subprocess_hygiene_gate import verify_staged_subprocess_hygiene
+# 2026-11-26
+# "Enforce cross-reference compliance in PreToolUse and Git gates":
+# https://github.com/dmitry-ai/harness/issues/306
+from .xref_gate import verify_staged_xref
 # 2026-11-25
 # "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
 # https://github.com/dmitry-ai/harness/issues/243
@@ -32,4 +36,8 @@ def verify_staged_extra_gates(repo_root: Path, staged_paths: list[str], *, use_i
 	violations.extend(verify_staged_rules_audit(repo_root, staged_paths, use_index=use_index))
 	# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 	violations.extend(verify_staged_repo_links(repo_root, staged_paths, use_index=use_index))
+	# 2026-11-26
+	# "Enforce cross-reference compliance in PreToolUse and Git gates":
+	# https://github.com/dmitry-ai/harness/issues/306
+	violations.extend(verify_staged_xref(repo_root, staged_paths, use_index=use_index))
 	return violations

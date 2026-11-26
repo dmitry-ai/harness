@@ -38,6 +38,10 @@ _BUILTIN_TOOLS_MANIFEST = {
 	'tdd': frozenset({'run_command', 'write_file', 'edit_file'}),
 	# 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
 	'worktree_isolation': frozenset({'write_file', 'edit_file', 'run_command'}),
+	# 2026-11-26
+	# "Enforce cross-reference compliance in PreToolUse and Git gates":
+	# https://github.com/dmitry-ai/harness/issues/306
+	'xref': frozenset({'write_file', 'edit_file'}),
 }
 _MODULE_ENTRY_CACHE: dict[str, dict | None] = {}
 _NON_PRE_TOOL_MODULES = frozenset({'answer_checks', 'stop_checks'})
@@ -69,6 +73,7 @@ def _extract_pre_tool_entry(mod) -> dict | None:
 # @uses :func:`agent_tools.gates.subprocess_hygiene.check()`
 # @uses :func:`agent_tools.gates.tdd.check()`
 # @uses :func:`agent_tools.gates.worktree_isolation.check()`
+# @uses :func:`agent_tools.gates.xref.check()`
 def _load_builtin_entry(mod_name: str) -> dict | None:
 	if mod_name not in _MODULE_ENTRY_CACHE:
 		mod = importlib.import_module(f'{__name__}.{mod_name}')
@@ -115,6 +120,7 @@ def _tool_matches(tool_name: str | None, tools: frozenset[str] | None) -> bool:
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_builtin_pre_tool_gates_discovered_in_strict_priority_order()`
 # @used-by :meth:`test_hook_lazy_imports.HookLazyImportsTests.test_discover_pre_tool_gates_tool_filtering_and_manifest_parity()`
 # @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_harness_main_blocks_write_and_edit_while_linked_worktree_allows()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_pre_tool_use_blocks_unannotated_new_python_js_java_and_forbidden_syntax()`
 # @used-by :mod:`agent_tools.gates`
 def discover_pre_tool_gates(*, tool_name: str | None=None, extra_dirs: list[Path] | tuple[Path, ...] | None=None) -> list[dict]:
 	gates = _load_builtin_pre_tool_gates(tool_name=tool_name)
@@ -135,6 +141,8 @@ def discover_pre_tool_gates(*, tool_name: str | None=None, extra_dirs: list[Path
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_pre_tool_use_blocks_silent_shell_deletion_of_managed_worktrees()`
 # @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_harness_main_blocks_write_and_edit_while_linked_worktree_allows()`
 # @used-by :meth:`test_worktree_isolation_gate.WorktreeIsolationGateTests.test_non_harness_repo_allows_single_turn_and_blocks_concurrent_open_turns()`
+# @used-by :meth:`test_xref_gate.XrefGateTests._assert_pre_tool_allows_valid_and_legacy_ratchet()`
+# @used-by :meth:`test_xref_gate.XrefGateTests._assert_pre_tool_denies_bad_samples()`
 # @used-by :mod:`agent_tools.gates`
 def run_pre_tool_gates(name: str, args: dict, payload: dict, *, extra_dirs: list[Path] | tuple[Path, ...] | None=None) -> dict:
 	r = {'decision': 'allow'}

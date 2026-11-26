@@ -933,6 +933,9 @@ class NativeFixture:
 	# @used-by :func:`agent_tools.xref.python_tags.collect_file_uses()`
 	# @used-by :func:`agent_tools.xref.run_xref_check()`
 	# @used-by :func:`agent_tools.xref.run_xref_sync()`
+	# @used-by :func:`agent_tools.xref_gate._lang_for_rel()`
+	# @used-by :func:`agent_tools.xref_gate._resolve_xref_target()`
+	# @used-by :func:`agent_tools.xref_gate._verify_legacy_changed_files()`
 	# @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
 	# @used-by :func:`check_markdown_slop._evaluate_payload()`
 	# @used-by :func:`check_markdown_slop._resolve_markdown_content()`
@@ -1264,6 +1267,7 @@ class NativeFixture:
 	# @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_allows_new_job_in_launcher_instead_of_routing()`
 	# @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_routes_turn2_handed_off_to_daily_without_launcher_orphan()`
 	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_pdf_extractor_xml_layout_and_raw_stream_ligature_fallback()`
+	# @used-by :meth:`test_xref_gate.XrefGateTests.test_pre_tool_use_blocks_unannotated_new_python_js_java_and_forbidden_syntax()`
 	# @used-by :mod:`agent_tools.completion`
 	# @used-by :mod:`agent_tools.gates.answer_checks`
 	# @used-by :mod:`agent_tools.platforms.antigravity`

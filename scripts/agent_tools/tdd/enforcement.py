@@ -31,6 +31,7 @@ def _active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[
 # @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
 # @used-by :func:`agent_tools.issue_comment_gate.evaluate_pre_tool_use_issue_comment()`
 # @used-by :func:`agent_tools.subprocess_hygiene_gate.evaluate_pre_tool_use_subprocess_hygiene()`
+# @used-by :func:`agent_tools.xref_gate.evaluate_pre_tool_use_xref()`
 def _compute_edited_content(name: str, args: dict, target_path: Path) -> tuple[str | None, str | None, list[str], set[int]]:
 	old_disk = target_path.read_text(encoding='utf-8', errors='replace') if target_path.is_file() else None
 	new_text = _resolve_new_text(name, args, old_disk)
@@ -201,6 +202,8 @@ def _git_head_sha(repo_root: Path) -> str | None:
 # @used-by :func:`agent_tools.python_integrity.verify_touched_python_files()`
 # @used-by :func:`agent_tools.subprocess_hygiene_gate.evaluate_pre_tool_use_subprocess_hygiene()`
 # @used-by :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
+# @used-by :func:`agent_tools.xref_gate.evaluate_pre_tool_use_xref()`
+# @used-by :func:`agent_tools.xref_gate.verify_staged_xref()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
 def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 	sha = _git_head_sha(repo_root)
@@ -220,6 +223,7 @@ def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 # @used-by :func:`agent_tools.issue_comment_gate.verify_staged_issue_comment_placement()`
 # @used-by :func:`agent_tools.rules_audit._read_staged_overrides()`
 # @used-by :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
+# @used-by :func:`agent_tools.xref_gate._staged_overrides()`
 def _git_index_text(repo_root: Path, rel_posix: str) -> str | None:
 	return _git_show_text(repo_root, f':{rel_posix}')
 # @used-by :func:`_git_head_text()`

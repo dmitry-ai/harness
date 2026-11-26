@@ -1788,6 +1788,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_worktree_ignore`
 	# @used-by :mod:`test_worktree_isolation_gate`
 	# @used-by :mod:`test_worktree_lifecycle`
+	# @used-by :mod:`test_xref_gate`
 	# @used-by :mod:`upwork_project`
 	# @used-by :mod:`validate_anchors`
 	# @used-by :mod:`validate_links`

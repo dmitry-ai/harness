@@ -384,6 +384,7 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.xref.python_model._walk_class()`
 	# @used-by :func:`agent_tools.xref.python_model.discover_python_files()`
 	# @used-by :func:`agent_tools.xref.python_overrides._check_repo_ancestors()`
+	# @used-by :func:`agent_tools.xref_gate._staged_overrides()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`ResearchQuestionRegistry.contract_issues()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_dependencies_and_caps()`
