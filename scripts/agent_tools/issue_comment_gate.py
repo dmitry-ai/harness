@@ -203,6 +203,13 @@ def _record_py_node(node: ast.AST, spans: dict[int, tuple[int, int, str]], class
 	elif isinstance(node, _PY_BLOCK_TYPES):
 		st = int(node.lineno)
 		spans.setdefault(st, (st, int(getattr(node, 'end_lineno', st) or st), 'block'))
+# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+# @used-by :func:`_resolve_comment_target()`
+# @used-by :func:`check_issue_comment_violations()`
+# @used-by :func:`verify_staged_issue_comment_placement()`
+def _path_suffix(path: str | Path) -> str:
+	p = Path(path)
+	return p.suffix.lower() or (p.name.lower() if p.name.startswith('.') else '')
 # @used-by :func:`evaluate_pre_tool_use_issue_comment()`
 def _resolve_comment_target(args: dict, payload: dict) -> tuple[Path | None, Path, str] | None:
 	raw_p = str(args.get('Path') or '').strip()
@@ -211,7 +218,7 @@ def _resolve_comment_target(args: dict, payload: dict) -> tuple[Path | None, Pat
 		cwd_raw = str(payload.get('cwd') or '').strip()
 		cand = normalize_host_path(raw_p)
 		target = cand.resolve() if cand.is_absolute() else ((Path(cwd_raw).resolve() / cand).resolve() if cwd_raw else cand.resolve())
-		if target.suffix.lower() in _SUPPORTED_SUFFIXES:
+		if _path_suffix(target) in _SUPPORTED_SUFFIXES:
 			repo = _find_git_root(target)
 			rel = target.relative_to(repo).as_posix() if None is not repo and target.is_relative_to(repo) else target.name
 			if not rel.casefold().startswith(('\ua616/', '\ua66e/', '.git/')):
@@ -292,13 +299,15 @@ def _xml_span(lines: list[str], start_line: int) -> tuple[int, int, str]:
 # @used-by :func:`evaluate_pre_tool_use_issue_comment()`
 # @used-by :func:`verify_staged_issue_comment_placement()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_comment_gate_skips_body_misalignment_on_comment_only_diff()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 # @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_allows_block_adjacent_function_header_trailing_and_new_file_comments()`
 # @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_rejects_duplicate_and_out_of_header_author_lines()`
 # @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_rejects_header_dumped_and_misplaced_issue_comments_across_languages()`
 # @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_supports_xml_css_and_rejects_coarse_class_header_for_single_method_edit()`
 def check_issue_comment_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	p = Path(path)
-	suffix = p.suffix.lower()
+	# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+	suffix = _path_suffix(p)
 	errs: list[str] = []
 	if suffix in _SUPPORTED_SUFFIXES:
 		rel_label = p.as_posix()
@@ -328,7 +337,8 @@ def verify_staged_issue_comment_placement(repo_root: Path, staged_paths: list[st
 	repo = Path(repo_root).resolve()
 	violations: list[str] = []
 	for rel in staged_paths or ():
-		if Path(rel).suffix.lower() not in _SUPPORTED_SUFFIXES or rel.casefold().startswith(('\ua616/', '\ua66e/', '.git/')):
+		# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+		if _path_suffix(rel) not in _SUPPORTED_SUFFIXES or rel.casefold().startswith(('\ua616/', '\ua66e/', '.git/')):
 			continue
 		fpath = repo / rel
 		text = _git_index_text(repo, rel) if use_index else (fpath.read_text(encoding='utf-8', errors='replace') if fpath.is_file() else None)

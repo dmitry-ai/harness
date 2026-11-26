@@ -189,9 +189,11 @@ def discover_python_files(repo_root: Path, *, overrides_map: dict[str, str] | No
 	return out
 # @used-by :func:`agent_tools.xref.python_sync.check_python_file_local()`
 # @used-by :func:`build_python_repo_index()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_xref_python_model_and_check_support_dotpy_packages()`
 def index_python_file(rel_posix: str, module_name: str, source: str) -> dict:
 	lines = (source or '').splitlines()
-	is_pkg = rel_posix.endswith('/__init__.py') or '__init__.py' == rel_posix
+	# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+	is_pkg = rel_posix.endswith(('/__init__.py', '/.py')) or rel_posix in ('__init__.py', '.py')
 	try:
 		tree = ast.parse(source or '', filename=rel_posix)
 	except SyntaxError as exc:
@@ -201,6 +203,7 @@ def index_python_file(rel_posix: str, module_name: str, source: str) -> dict:
 		r = {'aliases': aliases, 'classes': classes, 'defs': defs, 'imports': imports, 'is_pkg': is_pkg, 'lines': lines, 'module': module_name, 'rel_path': rel_posix, 'source': source or '', 'syntax_error': None, 'top_names': top_names, 'tree': tree}
 	return r
 # @used-by :func:`discover_python_files()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_xref_python_model_and_check_support_dotpy_packages()`
 def module_name_for_rel(rel_posix: str, source_roots: tuple[str, ...]) -> str:
 	trimmed = rel_posix
 	for sr in source_roots:
@@ -208,9 +211,12 @@ def module_name_for_rel(rel_posix: str, source_roots: tuple[str, ...]) -> str:
 		if trimmed.startswith(pref):
 			trimmed = trimmed[len(pref):]
 			break
+	# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
 	if trimmed.endswith('/__init__.py'):
 		trimmed = trimmed[:-len('/__init__.py')]
-	elif '__init__.py' == trimmed:
+	elif trimmed.endswith('/.py'):
+		trimmed = trimmed[:-len('/.py')]
+	elif trimmed in ('__init__.py', '.py'):
 		trimmed = ''
 	elif trimmed.endswith('.py'):
 		trimmed = trimmed[:-3]

@@ -32,6 +32,12 @@ def _file_urls(fpath: Path, extract_urls_fn) -> set[str]:
 def _git_read(repo: Path, args: list[str]) -> subprocess.CompletedProcess:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
+# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+# @used-by :func:`_iter_untracked_files()`
+# @used-by :meth:`RepoReadCache.dirty_referencing_issue()`
+def _effective_suffix(path: str | Path) -> str:
+	p = Path(path)
+	return p.suffix.lower() or (p.name.lower() if p.name.startswith('.') else '')
 # 2026-11-24
 # "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 # https://github.com/dmitry-ai/harness/issues/196
@@ -39,9 +45,9 @@ def _git_read(repo: Path, args: list[str]) -> subprocess.CompletedProcess:
 def _iter_untracked_files(resolved: Path, rel_path: str, suffixes: frozenset[str]) -> list[tuple[str, Path]]:
 	fpath = resolved / rel_path
 	if fpath.is_file():
-		r = [(rel_path, fpath)] if fpath.suffix.lower() in suffixes else []
+		r = [(rel_path, fpath)] if _effective_suffix(fpath) in suffixes else []
 	elif fpath.is_dir():
-		r = sorted(((p.relative_to(resolved).as_posix(), p) for p in fpath.rglob('*') if p.is_file() and p.suffix.lower() in suffixes))
+		r = sorted(((p.relative_to(resolved).as_posix(), p) for p in fpath.rglob('*') if p.is_file() and _effective_suffix(p) in suffixes))
 	else:
 		r = []
 	return r
@@ -170,6 +176,7 @@ def _resolve_git_dir(repo: Path) -> Path | None:
 class RepoReadCache:
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor.__init__()`
+	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_git_read_cache_detects_issue_url_in_untracked_dotpy()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
 	def __init__(self) -> None:
@@ -243,12 +250,14 @@ class RepoReadCache:
 	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
 	# https://github.com/dmitry-ai/harness/issues/196
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_ready_for_close()`
+	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_git_read_cache_detects_issue_url_in_untracked_dotpy()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
 	def dirty_referencing_issue(self, repo: Path, issue_url: str, suffixes: frozenset[str], extract_urls_fn) -> list[str]:
 		resolved = Path(repo).resolve()
 		entries = self._dirty_entries(resolved)
-		tracked_rels = [rel for code, rel in entries if '??' != code and Path(rel).suffix.lower() in suffixes]
+		# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+		tracked_rels = [rel for code, rel in entries if '??' != code and _effective_suffix(rel) in suffixes]
 		untracked_rels = [rel for code, rel in entries if '??' == code]
 		diff_map = self._tracked_diff_urls(resolved, tracked_rels, extract_urls_fn)
 		hits = [rel for rel in tracked_rels if issue_url in diff_map.get(rel, ())]

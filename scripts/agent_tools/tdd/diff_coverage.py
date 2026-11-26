@@ -166,11 +166,13 @@ def _filter_tests_by_tokens(candidates: list[Path], tokens: set[str]) -> list[Pa
 	return r
 # 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
 # @used-by :func:`select_targeted_test_modules()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 def _prod_match_tokens(changed_prod_rels: list[str]) -> set[str]:
 	r: set[str] = set()
 	for rel in changed_prod_rels:
 		p = Path(rel)
-		if p.stem and '__init__' != p.stem:
+		# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+		if p.stem and p.stem not in ('__init__', '.py'):
 			r.add(p.stem)
 		parent = p.parent.name
 		if 3 <= len(parent) and parent not in _GENERIC_PROD_DIRS:

@@ -551,7 +551,8 @@ def doctor(primary=None, *, git_ignore_path=None):
 	primary = resolve_rules_primary(primary, PRIMARY_AGENTS_DIR)
 	files, sizes, rule_meta = validate_shared_rules_for_doctor(primary)
 	from .operations import COMMANDS
-	version_files = sorted((p for p in primary.rglob('*') if p.is_file() and p.suffix in ('.py', '.md', '.json') and ('__pycache__' not in p.parts)))
+	# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+	version_files = sorted((p for p in primary.rglob('*') if p.is_file() and (p.suffix in ('.py', '.md', '.json') or p.name in ('.py', '.md')) and ('__pycache__' not in p.parts)))
 	tool_version = hashlib.sha256(b''.join((p.relative_to(primary).as_posix().encode() + hashlib.sha256(p.read_bytes()).digest() for p in version_files))).hexdigest()
 	# 2026-11-19
 	# "Integrate declarative Antigravity addons health and sanctioning into Harness":

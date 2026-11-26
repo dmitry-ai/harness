@@ -137,13 +137,15 @@ def _read_first_line(path: Path, content: str | None) -> str:
 			r = ''
 	return r
 # @used-by :func:`is_comment_only_diff()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_comment_only_diffs_accepted_for_all_20_languages()`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def detect_comment_language(path: str | Path, *, content: str | None=None) -> str | None:
 	p = Path(str(path))
-	suffix = p.suffix.lower()
+	# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
 	name_low = p.name.lower()
+	suffix = p.suffix.lower() or (name_low if name_low.startswith('.') else '')
 	if suffix in _EXTENSION_LANG:
 		r: str | None = _EXTENSION_LANG[suffix]
 	elif name_low in _BASENAME_LANG:

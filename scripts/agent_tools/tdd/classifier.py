@@ -109,6 +109,7 @@ def _norm_posix(path: str | Path) -> str:
 # @used-by :func:`agent_tools.tdd.enforcement._eval_pre_write()`
 # @used-by :func:`agent_tools.tdd.enforcement._staged_entry_texts()`
 # @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_classifier_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_universal_code_vs_test_vs_non_code_classification()`
 # @used-by :mod:`agent_tools.tdd_gate`
@@ -144,8 +145,9 @@ def is_software_code_file(path: str | Path, *, content: str | None=None) -> bool
 	if '.git' in parts_low or '__pycache__' in parts_low or 'node_modules' in parts_low:
 		r = False
 	else:
-		suffix = p.suffix.lower()
+		# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
 		name_low = p.name.lower()
+		suffix = p.suffix.lower() or (name_low if name_low.startswith('.') else '')
 		is_hook = (not suffix) and name_low in _GIT_HOOK_SCRIPT_NAMES and any(seg in ('git_hooks', 'hooks') for seg in parts_low[:-1])
 		r = suffix in SOFTWARE_CODE_SUFFIXES or name_low in _EXTENSIONLESS_CODE_NAMES or is_hook or ((not suffix) and _has_shebang(p, content=content))
 	return r

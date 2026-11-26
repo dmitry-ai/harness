@@ -1639,6 +1639,7 @@ class ProjectPaths:
 	# @used-by :meth:`PathRegistry.__init__()`
 	# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._prune_delivered_checkpoint_recovery()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
+	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_df_bootstrap_loads_dotpy_packages_and_sibling_modules()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
@@ -1675,6 +1676,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_analysis_companion_tracks`
 	# @used-by :mod:`test_df_analysis_rules_contract`
 	# @used-by :mod:`test_df_analysis`
+	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_diff_coverage_gate`
 	# @used-by :mod:`test_dirty_diff_issue_scope`
 	# @used-by :mod:`test_doc5_context_trigger`

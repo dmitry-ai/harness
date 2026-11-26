@@ -409,14 +409,17 @@ def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> 
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._has_workspace_parent_issue()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_latest_commits()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_git_read_cache_detects_issue_url_in_untracked_dotpy()`
 # @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 # @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
 def extract_issue_urls(text: str) -> list[str]:
 	return list(dict.fromkeys(_GITHUB_ISSUE_URL_RE.findall(text or '')))
+# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
 # @used-by :func:`agent_tools.gates.cdp_bypass._check_write_content()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 def is_code_file(rel_path: str | Path) -> bool:
-	return Path(rel_path).suffix.lower() in _ISSUE_LINKED_CODE_SUFFIXES
+	return (Path(rel_path).suffix.lower() or (Path(rel_path).name.lower() if Path(rel_path).name.startswith('.') else '')) in _ISSUE_LINKED_CODE_SUFFIXES
 # @used-by :func:`agent_tools.tdd.mechanical.find_matching_mechanical_recipes()`
 # @used-by :meth:`ShellCommandInspector.prohibited_git_write_commands()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`

@@ -197,6 +197,7 @@ def check_python_file_local(rel_posix: str, source: str, *, baseline_source: str
 				errs.append(f'XREF: {rel_posix}:{ln} @override method {qn} missing # @see reference')
 	return errs
 # @used-by :func:`agent_tools.xref.run_xref_check()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_xref_python_model_and_check_support_dotpy_packages()`
 # @used-by :meth:`test_python_xref.PythonXrefTests.test_override_requires_typing_override_and_see()`
 # @used-by :meth:`test_python_xref.PythonXrefTests.test_reexport_through_package_init_and_all_resolves_callers()`
 # @used-by :meth:`test_python_xref.PythonXrefTests.test_sync_and_check_python_call_graph_and_uses_propagation()`

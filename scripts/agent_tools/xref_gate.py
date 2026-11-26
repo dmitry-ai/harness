@@ -97,6 +97,13 @@ def _is_repo_lang_synced(repo: Path, lang: str, changed_rels: set[str]) -> bool:
 # @used-by :func:`_resolve_xref_target()`
 def _is_skipped_rel(rel: str) -> bool:
 	return any((p in _SKIP_PARTS or p.lower() in _SKIP_PARTS for p in Path(rel).parts))
+# 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
+# @used-by :func:`_iter_repo_source_files()`
+# @used-by :func:`_lang_for_rel()`
+# @used-by :func:`_resolve_xref_target()`
+def _path_suffix(path: str | Path) -> str:
+	p = Path(path)
+	return p.suffix.lower() or (p.name.lower() if p.name.startswith('.') else '')
 # @used-by :func:`_is_repo_lang_synced()`
 # @used-by :func:`is_xref_governed_repo()`
 def _iter_repo_source_files(repo: Path, exts: tuple[str, ...] | None=None) -> list[tuple[str, Path]]:
@@ -107,7 +114,7 @@ def _iter_repo_source_files(repo: Path, exts: tuple[str, ...] | None=None) -> li
 		base = Path(dirpath)
 		for fname in sorted(files):
 			fp = base / fname
-			if fp.suffix.lower() in valid:
+			if _path_suffix(fp) in valid:
 				out.append((fp.relative_to(repo).as_posix(), fp))
 	return out
 # @used-by :func:`_staged_overrides()`
@@ -116,7 +123,7 @@ def _iter_repo_source_files(repo: Path, exts: tuple[str, ...] | None=None) -> li
 # @used-by :func:`verify_staged_xref()`
 # @used-by :func:`verify_worktree_xref_changes()`
 def _lang_for_rel(rel: str) -> str | None:
-	return None if _is_skipped_rel(rel) else _EXT_TO_LANG.get(Path(rel).suffix.lower())
+	return None if _is_skipped_rel(rel) else _EXT_TO_LANG.get(_path_suffix(rel))
 # @used-by :func:`evaluate_pre_tool_use_xref()`
 def _resolve_xref_target(args: dict, payload: dict) -> tuple[Path | None, Path, str] | None:
 	raw_p = str(args.get('Path') or '').strip()
@@ -125,7 +132,7 @@ def _resolve_xref_target(args: dict, payload: dict) -> tuple[Path | None, Path, 
 		cwd_raw = str(payload.get('cwd') or '').strip()
 		cand = normalize_host_path(raw_p)
 		target = cand.resolve() if cand.is_absolute() else ((Path(cwd_raw).resolve() / cand).resolve() if cwd_raw else cand.resolve())
-		if target.suffix.lower() in _EXT_TO_LANG:
+		if _path_suffix(target) in _EXT_TO_LANG:
 			repo = _find_git_root(target)
 			rel = target.relative_to(repo).as_posix() if None is not repo and target.is_relative_to(repo) else target.name
 			if not _is_skipped_rel(rel):
@@ -156,6 +163,7 @@ def _verify_legacy_changed_files(repo: Path, lang: str, rels: list[str], cur_tex
 	return errs
 # @used-by :func:`_verify_legacy_changed_files()`
 # @used-by :func:`evaluate_pre_tool_use_xref()`
+# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_pre_tool_use_blocks_unannotated_new_python_js_java_and_forbidden_syntax()`
 # @used-by :mod:`agent_tools.xref_gate`
 def check_file_xref_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
