@@ -349,6 +349,7 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.text_review.record()`
 # @used-by :func:`agent_tools.text_sources._attempt()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
+# @used-by :func:`agent_tools.trace_event_cache._save_disk_index()`
 # @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`

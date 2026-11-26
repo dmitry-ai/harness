@@ -19,6 +19,8 @@ _RUNNER_COMMON = (
 	'import runpy\n'
 	'import subprocess\n'
 	'import sys\n'
+	# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
+	'import threading\n'
 	# 2026-11-25
 	# "Add soft watchdog timeout with LKG fallback to harness_hook_runner":
 	# https://github.com/dmitry-ai/harness/issues/252
@@ -46,28 +48,49 @@ _RUNNER_COMMON = (
 	'\t\texcept ValueError:\n'
 	'\t\t\tpass\n'
 	'\treturn _WATCHDOG_DEFAULTS.get(script_name, 6.0)\n'
-	'def _exec_release_watchdog(release_dir: Path, script_name: str, extra_argv: list[str], raw_stdin: str, timeout_s: float) -> tuple[str, int]:\n'
-	"\tscript_path = (release_dir / 'scripts' / script_name).resolve()\n"
-	'\tif not script_path.is_file():\n'
-	"\t\traise FileNotFoundError(f'Missing snapshot script: {script_path}')\n"
-	"\tenv = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'}\n"
-	"\tproc = subprocess.Popen([sys.executable, '-c', _CHILD_RUNPY, str(script_path), *extra_argv], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))\n"
-	'\ttry:\n'
-	'\t\tout, err = proc.communicate(input=raw_stdin, timeout=timeout_s)\n'
-	'\texcept subprocess.TimeoutExpired:\n'
-	'\t\tproc.kill()\n'
-	'\t\tproc.communicate()\n'
-	"\t\traise TimeoutError(f'Hook watchdog timeout after {timeout_s:g}s')\n"
-	"\tif 86 == proc.returncode and 'HARNESS_HOOK_EXC:' in (err or ''):\n"
-	"\t\tdetail = next((ln.split('HARNESS_HOOK_EXC:', 1)[1].strip() for ln in err.splitlines() if 'HARNESS_HOOK_EXC:' in ln), err.strip())\n"
-	'\t\traise RuntimeError(detail)\n'
-	'\tif err:\n'
-	'\t\tsys.stderr.write(err)\n'
-	"\treturn (out or '', int(proc.returncode or 0))\n"
-	'def _log_fallback(store: Path, script_name: str, cur_sha: str, prev_sha: str, exc: BaseException) -> None:\n'
+	# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
+	'def _timeout_fallback_exit(store: Path, script_name: str, cur_sha: str, prev_sha: str, extra_argv: list[str], raw_stdin: str, timeout_s: float, orig_out, orig_err) -> None:\n'
+	"\t_log_fallback(store, script_name, cur_sha, prev_sha, TimeoutError(f'Hook watchdog timeout after {timeout_s:g}s'), err_stream=orig_err)\n"
+	'\trc = 1\n'
+	'\tif prev_sha and prev_sha != cur_sha:\n'
+	"\t\tlkg_path = (store / 'releases' / prev_sha / 'scripts' / script_name).resolve()\n"
+	'\t\tif lkg_path.is_file():\n'
+	"\t\t\tenv = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'}\n"
+	'\t\t\ttry:\n'
+	"\t\t\t\tproc = subprocess.run([sys.executable, '-c', _CHILD_RUNPY, str(lkg_path), *extra_argv], input=raw_stdin, capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, timeout=max(10.0, timeout_s), check=False, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))\n"
+	'\t\t\t\tif proc.stdout:\n'
+	'\t\t\t\t\torig_out.write(proc.stdout)\n'
+	'\t\t\t\tif proc.stderr:\n'
+	'\t\t\t\t\torig_err.write(proc.stderr)\n'
+	'\t\t\t\trc = int(proc.returncode or 0)\n'
+	'\t\t\texcept (OSError, subprocess.SubprocessError) as exc:\n'
+	'\t\t\t\torig_err.write(f"{type(exc).__name__}: {exc}\\n")\n'
+	'\torig_out.flush()\n'
+	'\torig_err.flush()\n'
+	'\tos._exit(rc)\n'
+	'def _exec_release_watchdog(store: Path, cur_sha: str, prev_sha: str, script_name: str, extra_argv: list[str], raw_stdin: str, timeout_s: float) -> tuple[str, int]:\n'
+	'\torig_out, orig_err = (sys.stdout, sys.stderr)\n'
+	'\tdone = threading.Event()\n'
+	"\tbox: dict = {'result': ('', 0), 'exc': None}\n"
+	'\tdef _worker() -> None:\n'
+	'\t\ttry:\n'
+	"\t\t\tbox['result'] = _exec_release_script(store / 'releases' / cur_sha, script_name, extra_argv, raw_stdin, capture_stdout=True)\n"
+	'\t\texcept Exception as exc:\n'
+	"\t\t\tbox['exc'] = exc\n"
+	'\t\tfinally:\n'
+	'\t\t\tdone.set()\n'
+	'\tthreading.Thread(target=_worker, daemon=True).start()\n'
+	'\tif not done.wait(timeout_s):\n'
+	'\t\t_timeout_fallback_exit(store, script_name, cur_sha, prev_sha, extra_argv, raw_stdin, timeout_s, orig_out, orig_err)\n'
+	"\tif None is not box['exc']:\n"
+	"\t\traise box['exc']\n"
+	"\treturn box['result']\n"
+	'def _log_fallback(store: Path, script_name: str, cur_sha: str, prev_sha: str, exc: BaseException, err_stream=None) -> None:\n'
 	'\tts = datetime.now(timezone.utc).isoformat()\n'
 	'\tline = f"{ts} fallback script={script_name} current={cur_sha} previous={prev_sha} error={type(exc).__name__}: {exc}\\n"\n'
-	'\tsys.stderr.write(line)\n'
+	'\tout_err = sys.stderr if None is err_stream else err_stream\n'
+	'\tout_err.write(line)\n'
+	'\tout_err.flush()\n'
 	'\ttry:\n'
 	'\t\tstore.mkdir(parents=True, exist_ok=True)\n'
 	"\t\twith (store / 'fallback.log').open('a', encoding='utf-8') as fh:\n"
@@ -117,7 +140,7 @@ _RUNNER_COMMON = (
 	'\t\treturn (False, 0)\n'
 	'\ttry:\n'
 	'\t\tif capture_stdout and None is not watchdog_s and 0.0 < watchdog_s:\n'
-	"\t\t\tout, rc = _exec_release_watchdog(store / 'releases' / cur_sha, script_name, extra_argv, raw_stdin, watchdog_s)\n"
+	'\t\t\tout, rc = _exec_release_watchdog(store, cur_sha, prev_sha, script_name, extra_argv, raw_stdin, watchdog_s)\n'
 	'\t\telse:\n'
 	"\t\t\tout, rc = _exec_release_script(store / 'releases' / cur_sha, script_name, extra_argv, raw_stdin, capture_stdout=capture_stdout)\n"
 	'\texcept Exception as exc:\n'

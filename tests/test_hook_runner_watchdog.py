@@ -35,6 +35,7 @@ def _is_pid_alive(pid: int) -> bool:
 	return r
 # @used-by :meth:`HookRunnerWatchdogTests.test_default_watchdog_falls_back_to_lkg_on_8s_delay_within_10s()`
 # @used-by :meth:`HookRunnerWatchdogTests.test_watchdog_env_override_terminates_hung_child_process_and_keeps_ascii_header()`
+# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_single_process_watchdog_and_hung_timeout_lkg_fallback()`
 def _seed_two_releases(base: Path) -> tuple[Path, Path, Path, str, str]:
 	from agent_tools.runtime_snapshot import harness_hook_runner_source, promote_runtime_snapshot
 	repo = base / 'proj/\u2c0f/\u227b/\u2655/\u26ef'

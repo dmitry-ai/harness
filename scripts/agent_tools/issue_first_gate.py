@@ -443,17 +443,12 @@ def evaluate_issue_first_events(
 
 # @used-by :func:`evaluate_pre_tool_use_issue_first()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_first_skips_denied_writes_and_reads_background_task_issue_actions()`
+# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_in_process_cache_shares_single_disk_read_across_pre_tool_gates()`
 def extract_antigravity_issue_first_events(transcript_path: Path, *, cwd: Path | None = None) -> tuple[list[dict], list[dict]]:
-	t_path = Path(transcript_path)
-	if 'transcript.jsonl' == t_path.name:
-		full_sib = t_path.parent / 'transcript_full.jsonl'
-		if full_sib.is_file():
-			t_path = full_sib
-	if not t_path.is_file():
-		return ([], [])
-	try:
-		rows = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
-	except (OSError, ValueError):
+	# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
+	from .trace_event_cache import load_transcript_rows_cached
+	rows = load_transcript_rows_cached(transcript_path, cwd=cwd)
+	if not rows:
 		return ([], [])
 	last_user = -1
 	for idx, row in enumerate(rows):

@@ -99,20 +99,11 @@ def _is_git_commit_command(cmd: str, *, cwd: Path | None=None) -> tuple[bool, Pa
 			repo = normalize_host_path(raw_r).resolve() if raw_r else (Path(cwd).resolve() if cwd else None)
 			r = (True, repo)
 	return r
+# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
 # @used-by :func:`extract_antigravity_tdd_events()`
-def _load_transcript_rows(transcript_path: Path) -> list[dict]:
-	t_path = Path(transcript_path)
-	if 'transcript.jsonl' == t_path.name:
-		full_sib = t_path.parent / 'transcript_full.jsonl'
-		if full_sib.is_file():
-			t_path = full_sib
-	r: list[dict] = []
-	if t_path.is_file():
-		try:
-			r = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
-		except (OSError, ValueError):
-			r = []
-	return r
+def _load_transcript_rows(transcript_path: Path, *, cwd: Path | None=None) -> list[dict]:
+	from ..trace_event_cache import load_transcript_rows_cached
+	return load_transcript_rows_cached(transcript_path, cwd=cwd)
 # @used-by :func:`_extract_row_call_events()`
 # @used-by :func:`_scan_segment_calls()`
 # @used-by :func:`agent_tools.issue_first_bg._dispatch_segment_call()`
@@ -288,13 +279,15 @@ def record_tdd_tool_write_event(acc: dict, step: int, raw_path: str | Path, *, c
 # @used-by :func:`agent_tools.tdd.enforcement._load_pre_tool_tdd_state()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_completed_prior_turn_does_not_bleed_tdd_events_into_unrelated_followup()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
+# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_in_process_cache_shares_single_disk_read_across_pre_tool_gates()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_events_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_extract_antigravity_tdd_events_handles_compact_and_full_transcripts()`
 # @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_denied_write_tool_call_is_excluded_from_tdd_events()`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None=None) -> list[dict]:
-	rows = _load_transcript_rows(transcript_path)
+	# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
+	rows = _load_transcript_rows(transcript_path, cwd=cwd)
 	segment = _select_active_segment(rows) if rows else []
 	events: list[dict] = []
 	bg_task_index: dict[str, int] = {}

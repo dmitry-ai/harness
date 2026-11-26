@@ -11,7 +11,8 @@ MULTI_SENT_RE = re.compile('(?:[\\u0410-\\u044f\\u0401\\u0451A-Za-z0-9\\u00ab\\u
 # "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
 # https://github.com/dmitry-ai/harness/issues/239
 # 2026-11-26 "Bound synchronous foreign turn reconciliation with pending-sync index": https://github.com/dmitry-ai/harness/issues/341
-_AUX_TURN_SUFFIXES = ('-recovery.json', '-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json', 'pending-sync.json')
+# 2026-11-26 "Add incremental transcript event cache and single-process hook watchdog": https://github.com/dmitry-ai/harness/issues/356
+_AUX_TURN_SUFFIXES = ('-recovery.json', '-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json', 'pending-sync.json', '-trace-index.json')
 _FENCE_RE = re.compile('^(`{3,}|~{3,})')
 _WF_BOLD_BULLET_RE = re.compile('^[-*]\\s+\\*\\*[^*]+\\*\\*')
 _WF_BOLD_SENT_RE = re.compile('[A-Za-z\\u0410-\\u042f\\u0430-\\u044f\\u0401\\u0451]{3,}[.!?]\\s+[A-Z\\u0410-\\u042f\\u0401][a-z\\u0430-\\u044f\\u0451]{2,}\\s+\\S+.*[.!?]\\s*$')
@@ -86,6 +87,7 @@ def _update_fence(stripped: str, in_fence: bool, marker: str) -> tuple[bool, str
 # @used-by :func:`agent_tools.issue_first_inherit._iter_candidate_issue_nums()`
 # @used-by :func:`agent_tools.turn_routing._collect_turn_candidates()`
 # @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
+# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_incremental_disk_cache_appends_and_invalidation()`
 # @used-by :meth:`test_hook_unification.HookUnificationTests.test_iter_turn_state_files_skips_aux_files()`
 # @used-by :meth:`test_stop_gate_contract.StopGateContractTests.test_continuation_active_guards_against_unchanged_readiness_loops_but_allows_progress()`
 def iter_turn_state_files(turns_dir: Path, *, exclude_hyphen: bool=False) -> list[tuple[Path, dict]]:

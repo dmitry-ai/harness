@@ -1642,6 +1642,7 @@ class ProjectPaths:
 	# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._prune_delivered_checkpoint_recovery()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
 	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_df_bootstrap_loads_dotpy_packages_and_sibling_modules()`
+	# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_in_process_cache_shares_single_disk_read_across_pre_tool_gates()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
@@ -1708,6 +1709,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_hook_lazy_imports`
 	# @used-by :mod:`test_hook_runner_e2e_budget`
 	# @used-by :mod:`test_hook_runner_watchdog`
+	# @used-by :mod:`test_hook_trace_cache_and_watchdog`
 	# @used-by :mod:`test_hook_unification`
 	# @used-by :mod:`test_issue44`
 	# @used-by :mod:`test_issue45_to_48`

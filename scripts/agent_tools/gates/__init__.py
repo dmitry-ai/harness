@@ -136,6 +136,7 @@ def discover_pre_tool_gates(*, tool_name: str | None=None, extra_dirs: list[Path
 # @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_send_message_gate_blocks_duplicate_json_verdicts_and_allows_prompts()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_dynamic_plugin_discovery_runs_without_touching_dispatcher()`
+# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_in_process_cache_shares_single_disk_read_across_pre_tool_gates()`
 # @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_pre_tool_use_and_pre_commit_enforce_issue_comment_gate()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_pre_tool_use_blocks_raw_git_worktree_remove()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_pre_tool_use_blocks_silent_shell_deletion_of_managed_worktrees()`

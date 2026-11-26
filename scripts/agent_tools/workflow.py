@@ -1098,6 +1098,7 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.text_review._source_reviews()`
 	# @used-by :func:`agent_tools.text_sources.save_source_check()`
 	# @used-by :func:`agent_tools.text_sources.validate_source_checks()`
+	# @used-by :func:`agent_tools.trace_event_cache.load_transcript_rows_cached()`
 	# @used-by :func:`agent_tools.worktree_flow._enrich_worktree_entry()`
 	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
 	# @used-by :func:`agent_tools.xref.java_graph._scan_plugin_xml_classes()`
