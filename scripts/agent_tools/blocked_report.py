@@ -133,14 +133,17 @@ def evaluate_check_workflow_errors(root_p: Path, pp, role: str, response: str, r
 	return wf_errs
 # 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 # 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
+# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
 # @used-by :func:`evaluate_runner_code_hygiene()`
 def _run_runner_audits(runner) -> None:
 	from .addon_observability import check_runner_addon_observability
+	from .arch.evaluator import check_runner_architecture
 	from .hook_crash_audit import check_runner_hook_crashes
 	from .verification_observability import check_runner_verification_observability
 	check_runner_hook_crashes(runner)
 	check_runner_addon_observability(runner)
 	check_runner_verification_observability(runner)
+	check_runner_architecture(runner)
 # 2026-11-24
 # "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 # https://github.com/dmitry-ai/harness/issues/225

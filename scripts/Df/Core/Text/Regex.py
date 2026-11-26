@@ -120,6 +120,7 @@ class Regex(O):
 	# @used-by :func:`Df.Core.lib.text.is_.guid.df_is_guid()`
 	# @used-by :func:`Df.Core.lib.text.regex.df_preg_match()`
 	# @used-by :func:`Df.Qa.lib.validation.check.df_is_email()`
+	# @used-by :func:`agent_tools.arch.spec._parse_field_line()`
 	# @used-by :func:`agent_tools.article._iter_headings()`
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.article.check_group_counts()`

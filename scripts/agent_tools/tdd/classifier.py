@@ -102,6 +102,8 @@ def _is_project_marker_dir(anc: Path) -> bool:
 # @used-by :func:`resolve_code_scope()`
 def _norm_posix(path: str | Path) -> str:
 	return df_path_posix(path)
+# @used-by :func:`agent_tools.arch.triggers._append_scale_reasons()`
+# @used-by :func:`agent_tools.arch.triggers.classify_code_change_trigger()`
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
 # @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :func:`agent_tools.tdd.commands.shell_write_targets()`

@@ -75,6 +75,19 @@ class IssueMarkdownLinter:
 			m_roots = IssueMarkdownLinter.extract_unlinked_m_subtasks(text, self_number=self_number, parent_number=parent_number)
 			if 2 <= len(m_roots):
 				out.append({'code': 'BUNDLED_SUBTASKS_IN_SINGLE_ISSUE', 'message': f'Issue body bundles multiple autonomous remediation subtasks ({", ".join(m_roots)}); document the original problem in a parent issue and create a separate child issue (--parent <N>) with its own commit for each autonomous subtask'})
+			# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
+			if None is parent_number:
+				IssueMarkdownLinter._check_arch_policy(text, out)
+	# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
+	# @used-by :meth:`IssueMarkdownLinter._check_body_policy()`
+	@staticmethod
+	def _check_arch_policy(text: str, out: list[dict[str, Any]]) -> None:
+		from ..arch.spec import validate_arch_spec_markdown
+		from ..arch.triggers import classify_markdown_arch_trigger
+		if classify_markdown_arch_trigger(text, is_issue=True, is_parent_issue=True)['triggered']:
+			spec_res = validate_arch_spec_markdown(text, require_full_fields=True)
+			for err in spec_res['issues']:
+				out.append({'code': err['code'], 'message': err['message']})
 	# @used-by :meth:`IssueMarkdownLinter.lint()`
 	@staticmethod
 	def _check_encoding_and_patterns(text: str, out: list[dict[str, Any]]) -> None:
@@ -192,6 +205,7 @@ class IssueMarkdownLinter:
 	# @used-by :func:`agent_tools.issues.repo_commands._audit_repo_comments()`
 	# @used-by :func:`agent_tools.issues.repo_commands._audit_repo_issues()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
+	# @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_issue_linter_enforces_architecture_pattern_specs_on_structural_parent_issues()`
 	# @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_markdown_table_blocked_across_doc4_hook_linter_and_grounding()`
 	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
 	# @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban()`

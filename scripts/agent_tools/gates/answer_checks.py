@@ -13,6 +13,15 @@ def _addon_observability_messages(ctx: dict) -> list[str]:
 		chk = evaluate_addon_observability(ctx['root'], ctx.get('native'), ctx.get('turn'), ctx.get('value'), ctx.get('response'))
 		ctx['addon_obs_chk'] = chk
 	return [] if (chk or {}).get('verified', True) else [str(chk['detail'])]
+# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
+# @used-by :mod:`agent_tools.gates.answer_checks`
+def _architecture_messages(ctx: dict) -> list[str]:
+	chk = ctx.get('arch_chk')
+	if None is chk and None is not ctx.get('response'):
+		from ..arch.evaluator import evaluate_response_architecture
+		chk = evaluate_response_architecture(ctx.get('root'), ctx.get('turn'), ctx.get('response'), blocked_report=bool(ctx.get('blocked_report')))
+		ctx['arch_chk'] = chk
+	return [] if (chk or {}).get('verified', True) else list((chk or {}).get('violations') or [])
 # @used-by :mod:`agent_tools.gates.answer_checks`
 def _compaction_messages(ctx: dict) -> list[str]:
 	msgs: list[str] = []
@@ -101,6 +110,8 @@ ANSWER_GATES = (
 	('addon_observability', 'turn.addon_observability', _addon_observability_messages),
 	# 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
 	('verification_observability', 'turn.verification_observability', _verification_obs_messages),
+	# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
+	('architecture', 'response.architecture', _architecture_messages),
 	('http_fetch', 'turn.http_fetch', _http_messages),
 	('compaction', 'turn.compaction', _compaction_messages),
 	('evicted_citations', 'turn.evicted_citations', _evicted_messages),
@@ -121,11 +132,13 @@ def _build_checks_map(ctx: dict) -> dict[str, bool]:
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 	# 2026-11-26 "Add verification observability gate for failed shadow-replay runs": https://github.com/dmitry-ai/harness/issues/296
 	# 2026-11-26 "Verify explicit user stop consent in clarifications during answer checks": https://github.com/dmitry-ai/harness/issues/375
-	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'addon_observability': bool((ctx.get('addon_obs_chk') or {}).get('verified', True)), 'verification_observability': bool((ctx.get('verification_observability_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'scope_deferral': bool((ctx.get('scope_deferral_chk') or {}).get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
+	# 2026-11-26 "Add software design pattern specification validator and trigger checks": https://github.com/dmitry-ai/harness/issues/349
+	return {'doc4': not ctx['doc4_errs'], 'links': not ctx['link_errs'], 'causal_probability': not ctx['prob_errs'], 'source_grounding': not ctx['source_errs'], 'language_and_stub': not ctx['lang_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)), 'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'addon_observability': bool((ctx.get('addon_obs_chk') or {}).get('verified', True)), 'verification_observability': bool((ctx.get('verification_observability_chk') or {}).get('verified', True)), 'architecture': bool((ctx.get('arch_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)), 'compaction': bool(ctx['comp_chk'].get('verified', True) and (not ctx['evicted_cited'])), 'delegation': bool(ctx['del_chk'].get('verified', True) and (not ctx['del_chk'].get('aa_partial_read_violations'))), 'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'code_lifecycle': bool(ctx['lifecycle_chk'].get('verified', True)), 'scope_deferral': bool((ctx.get('scope_deferral_chk') or {}).get('verified', True)), 'tdd': bool(ctx['tdd_chk'].get('verified', True)), 'workflow': not ctx['wf_errs']}
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 # @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_answer_gates_enforce_architecture_pattern_specs()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_explicit_user_stop_consent_in_clarifications_unblocks_deferral()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_step_100_102_real_clarifications_rejected_with_open_deferred_children()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_answer_gates_collect_issues_and_checks_map()`
