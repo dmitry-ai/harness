@@ -214,5 +214,46 @@ class ProjectRenameTests(unittest.TestCase):
 			self.assertEqual([], reviewer_isolation_issues(new_proj, rows_old))
 			rows_sib = [{'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'read_file', 'args': {'Path': str(sibling / '\ua616/KB/Analysis.json')}}]}]
 			self.assertTrue(any(('sibling project path' in msg for msg in reviewer_isolation_issues(new_proj, rows_sib))))
+	# 2026-11-26
+	# "Add cross-subsystem integration tests for upwork-cleanup lifecycle and audit":
+	# https://github.com/dmitry-ai/harness/issues/309
+	# @used-by :mod:`unittest`
+	def test_rename_project_cleanup_integration(self) -> None:
+		from copy import deepcopy
+		from datetime import datetime, timedelta, timezone
+		import sqlite3
+		from agent_tools import cleanup, runtime
+		from agent_tools.project_rename import rename_project
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			proj, daily = _init_provisional(base)
+			ag_dirs, folders, init_reg = _seed_dual_antigravity(base, proj)
+			now = datetime(2026, 11, 26, 12, 0, tzinfo=timezone.utc)
+			pj_f = proj / '\ua616/project.json'
+			pj = json.loads(pj_f.read_text(encoding='utf-8'))
+			pj['created_at'] = (now - timedelta(hours=120)).isoformat()
+			pj_f.write_text(json.dumps(pj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+			res = rename_project(proj, domain='blueskypeptide.com', daily_root=daily, antigravity_projects_dirs=ag_dirs, antigravity_folders_json=folders, targets=['antigravity'])
+			new_proj = Path(res['project_dir']).resolve()
+			new_pj_f = new_proj / '\ua616/project.json'
+			new_pj = json.loads(new_pj_f.read_text(encoding='utf-8'))
+			new_pj['renamed_from'][-1]['at'] = (now - timedelta(hours=1)).isoformat()
+			new_pj_f.write_text(json.dumps(new_pj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+			backend = base / 'ag/backend'
+			backend.mkdir(parents=True, exist_ok=True)
+			conn = sqlite3.connect(backend / 'conversation_summaries.db')
+			conn.execute('CREATE TABLE conversation_summaries (project_id TEXT, workspace_uris TEXT)')
+			conn.commit()
+			conn.close()
+			cfg = deepcopy(runtime.settings())
+			cfg['workspace_root'] = str(base)
+			cfg['daily_root'] = 'daily'
+			cfg['platforms']['antigravity']['folders_json'] = str(folders)
+			cfg['platforms']['codex']['instances'] = {}
+			cln = cleanup.cleanup_projects(apply=True, daily_root=daily, now=now, config=cfg, ag_directory=ag_dirs['A0'], ag_backend=backend, folders=folders)
+			self.assertTrue(cln['complete'], cln)
+			self.assertEqual('recent', cln['projects'][0]['status'])
+			self.assertEqual('project.renamed_from', cln['projects'][0]['age_basis'])
+			self.assertTrue((ag_dirs['A0'] / f"{init_reg['project_id']}.json").exists())
 if '__main__' == __name__:
 	unittest.main()
