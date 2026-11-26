@@ -113,5 +113,19 @@ class RepoTagsTests(unittest.TestCase):
 			self.assertEqual(['2026-11-24', '2026-11-24--2', '2026-11-25'], sorted(_git(origin, 'tag', '-l').splitlines()))
 			rerun = retro_tag_repo(repo, apply=True, push=True)
 			self.assertEqual(0, rerun['created_count'])
+	def test_ensure_commit_tag_uses_bounded_git_subprocesses(self) -> None:
+		from unittest.mock import patch
+		with tempfile.TemporaryDirectory() as td:
+			repo, _ = _init_repo_with_bare_origin(Path(td))
+			_commit_at(repo, 'a.py', 'x = 1\n', 'https://github.com/acme/demo/issues/1', '2026-11-26T10:00:00+03:00')
+			calls: list[list[str]] = []
+			real_run = subprocess.run
+			def spy(cmd, *args, **kwargs):
+				calls.append([str(c) for c in cmd])
+				return real_run(cmd, *args, **kwargs)
+			with patch.object(subprocess, 'run', side_effect=spy):
+				res = ensure_commit_tag(repo, push=False)
+			self.assertTrue(res['created'])
+			self.assertLessEqual(len(calls), 3, calls)
 if '__main__' == __name__:
 	unittest.main()

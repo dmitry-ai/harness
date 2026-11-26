@@ -10,14 +10,15 @@ import re
 import subprocess
 from .git_gate import _NO_WINDOW, run_git_read
 from .issues.repo_locator import origin_repo_slug
+from .worktree_flow import git_config_file
 DATE_TAG_RE = re.compile(r'^(?P<date>\d{4}-\d{2}-\d{2})(?:--(?P<num>[2-9]\d*|1\d+))?$')
 SEMVER_TAG_RE = re.compile(r'^v?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$')
 _ISSUE_URL_RE = re.compile(r'https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\d+)\b')
 _LINE_FRAG_RE = re.compile(r'^L(\d+)(?:-L?(\d+))?$')
-def _build_retro_entry(repo: Path, commit_row: tuple[str, str, str], reason: str, known: set[str], tz: ZoneInfo) -> dict:
+def _build_retro_entry(by_sha: dict[str, list[str]], commit_row: tuple[str, str, str], reason: str, known: set[str], tz: ZoneInfo) -> dict:
 	sha, ci_iso, subj = commit_row
 	day = _parse_iso_day(ci_iso, tz)
-	existing = pick_preferred_tag(tags_at_commit(repo, sha))
+	existing = pick_preferred_tag(by_sha.get(sha, ()))
 	if None is not existing:
 		r = {'sha': sha, 'day': day, 'tag': existing, 'already_tagged': True, 'reason': reason, 'subject': subj}
 	else:
@@ -25,6 +26,14 @@ def _build_retro_entry(repo: Path, commit_row: tuple[str, str, str], reason: str
 		known.add(tag)
 		r = {'sha': sha, 'day': day, 'tag': tag, 'already_tagged': False, 'reason': reason, 'subject': subj}
 	return r
+def _commit_sha_and_day(repo: Path, commit: str) -> tuple[str, str]:
+	proc = run_git_read(repo, ['show', '-s', '--format=%H%x1f%cI', f'{commit}^{{commit}}'], check=False)
+	raw = proc.stdout.decode('utf-8', errors='replace').strip() if 0 == proc.returncode else ''
+	if 0 != proc.returncode or '\x1f' not in raw:
+		err = proc.stderr.decode('utf-8', errors='replace').strip()
+		raise ValueError(f'Unknown commit "{commit}" in {repo}: {err}')
+	sha, ci_iso = raw.split('\x1f', 1)
+	return (sha.strip(), _parse_iso_day(ci_iso, _configured_timezone()))
 def _configured_timezone() -> ZoneInfo:
 	tz_name = 'Europe/Istanbul'
 	try:
@@ -68,6 +77,19 @@ def _qualifying_commit_indices(commits: list[tuple[str, str, str]], include_task
 	if include_task_groups:
 		_mark_task_group_ends(commits, reasons)
 	return reasons
+def _read_tag_refs(repo: Path) -> tuple[list[str], dict[str, list[str]]]:
+	proc = run_git_read(repo, ['for-each-ref', '--format=%(objectname)%09%(*objectname)%09%(refname:short)', 'refs/tags'], check=False)
+	all_tags, by_sha = ([], {})
+	if 0 == proc.returncode:
+		for line in proc.stdout.decode('utf-8', errors='replace').splitlines():
+			parts = line.split('\t')
+			if 3 == len(parts) and parts[2].strip():
+				name = parts[2].strip()
+				all_tags.append(name)
+				target = parts[1].strip() or parts[0].strip()
+				if target:
+					by_sha.setdefault(target, []).append(name)
+	return (all_tags, by_sha)
 def _resolve_commit_sha(repo: Path, commit: str) -> str:
 	proc = run_git_read(repo, ['rev-parse', f'{commit}^{{commit}}'], check=False)
 	if 0 != proc.returncode:
@@ -110,13 +132,14 @@ def commit_date_day(repo: Path, commit: str='HEAD') -> str:
 	return _parse_iso_day(proc.stdout.decode('utf-8', errors='replace'), _configured_timezone())
 def ensure_commit_tag(repo: Path | str, *, commit: str='HEAD', date_override: str | None=None, push: bool=False, remote: str='origin') -> dict:
 	repo_p = Path(repo).resolve()
-	sha = _resolve_commit_sha(repo_p, commit)
-	existing = pick_preferred_tag(tags_at_commit(repo_p, sha))
+	sha, auto_day = _commit_sha_and_day(repo_p, commit)
+	all_tags, by_sha = _read_tag_refs(repo_p)
+	existing = pick_preferred_tag(by_sha.get(sha, ()))
 	if None is not existing:
 		tag, created = (existing, False)
 	else:
-		day = date_override.strip() if date_override else commit_date_day(repo_p, sha)
-		tag = next_date_tag(list_repo_tags(repo_p), day)
+		day = date_override.strip() if date_override else auto_day
+		tag = next_date_tag(all_tags, day)
 		proc = _git_write(repo_p, ['tag', tag, sha])
 		if 0 != proc.returncode:
 			raise RuntimeError(f'git tag {tag} {sha[:12]} failed: {proc.stderr.strip() or proc.stdout.strip()}')
@@ -124,7 +147,12 @@ def ensure_commit_tag(repo: Path | str, *, commit: str='HEAD', date_override: st
 	pushed = push_tag(repo_p, tag, remote=remote) if push and has_origin_remote(repo_p, remote=remote) else False
 	return {'valid': True, 'repo': repo_p.as_posix(), 'commit': sha, 'tag': tag, 'created': created, 'pushed': pushed}
 def has_origin_remote(repo: Path, *, remote: str='origin') -> bool:
-	return 0 == run_git_read(repo, ['remote', 'get-url', remote], check=False).returncode
+	cfg = git_config_file(repo)
+	if cfg.is_file():
+		r = f'[remote "{remote}"]' in cfg.read_text(encoding='utf-8', errors='replace')
+	else:
+		r = 0 == run_git_read(repo, ['remote', 'get-url', remote], check=False).returncode
+	return r
 def is_valid_date_tag(tag: str) -> bool:
 	m = DATE_TAG_RE.fullmatch((tag or '').strip())
 	if None is m:
@@ -169,8 +197,9 @@ def plan_retro_tags(repo: Path, *, include_task_groups: bool=False, extra_commit
 	commits = [tuple(ln.split('\x1f', 2)) for ln in proc.stdout.decode('utf-8', errors='replace').splitlines() if 2 == ln.count('\x1f')]
 	extra_shas = {_resolve_commit_sha(repo, c) for c in extra_commits if c and str(c).strip()}
 	reasons = _qualifying_commit_indices(commits, include_task_groups, extra_shas)
-	tz, known = (_configured_timezone(), set(list_repo_tags(repo)))
-	return [_build_retro_entry(repo, commits[idx], reasons[idx], known, tz) for idx in sorted(reasons)]
+	all_tags, by_sha = _read_tag_refs(repo)
+	tz, known = (_configured_timezone(), set(all_tags))
+	return [_build_retro_entry(by_sha, commits[idx], reasons[idx], known, tz) for idx in sorted(reasons)]
 def push_tag(repo: Path, tag: str, *, remote: str='origin') -> bool:
 	proc = _git_write(repo, ['push', remote, f'refs/tags/{tag}'])
 	if 0 != proc.returncode:
