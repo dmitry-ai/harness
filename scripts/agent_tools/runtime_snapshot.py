@@ -122,16 +122,20 @@ def _has_git_head(repo: Path) -> bool:
 			r = False
 	return r
 # 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`promote_runtime_snapshot()`
-def _promote_locked(prim_p: Path, store: Path, *, keep: int, entrypoints: tuple[str, ...], configure_repo_hooks: bool, fail_on_fallback_spike: bool=False) -> dict:
+def _promote_locked(prim_p: Path, store: Path, *, keep: int, entrypoints: tuple[str, ...], configure_repo_hooks: bool, fail_on_fallback_spike: bool=False, base_ref: str | None=None) -> dict:
 	from .snapshot_latency_canary import finalize_snapshot_promotion
+	from .tdd.diff_executability import should_run_snapshot_canary
 	staging = store / f'.staging-{uuid.uuid4().hex[:10]}'
 	try:
 		sha = _export_git_archive(prim_p, staging)
 		meta = {'canonical_primary': prim_p.as_posix(), 'commit_sha': sha, 'created_at': datetime.now(timezone.utc).isoformat(), 'schema_version': 1}
 		replace_bytes(staging / 'snapshot.json', (json.dumps(meta, ensure_ascii=False, indent='\t', sort_keys=True) + '\n').encode('utf-8'))
-		ok, detail = _validate_staged_release(staging, prim_p, entrypoints)
+		run_canary, canary_reason = should_run_snapshot_canary(prim_p, base_ref)
+		ok, detail = _validate_staged_release(staging, prim_p, entrypoints, run_canary=run_canary)
 		r = finalize_snapshot_promotion(store, _read_pointer(store), sha, ok, detail, lambda: _activate_release(prim_p, store, staging, sha, keep=keep, configure_repo_hooks=configure_repo_hooks), fail_on_fallback_spike=fail_on_fallback_spike)
+		r.update(canary_skipped=not run_canary, canary_reason=canary_reason)
 	finally:
 		shutil.rmtree(staging, ignore_errors=True)
 	return r
@@ -185,8 +189,9 @@ def _set_local_hooks_path(main_repo: Path, hooks_dir: Path) -> None:
 	current = (proc.stdout or '').strip()
 	if (not current) or normalize_host_path(current).resolve() != hooks_dir.resolve():
 		subprocess.run(['git', '-C', str(main_repo), 'config', '--local', 'core.hooksPath', str(hooks_dir)], stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False, creationflags=_NO_WINDOW)
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`_promote_locked()`
-def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints: tuple[str, ...]) -> tuple[bool, str]:
+def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints: tuple[str, ...], *, run_canary: bool=True) -> tuple[bool, str]:
 	proc = subprocess.run([sys.executable, '-I', '-c', _VALIDATION_PROBE, str(staging), canonical_primary.as_posix(), json.dumps(list(entrypoints))], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60, check=False, creationflags=_NO_WINDOW)
 	detail = (proc.stderr or proc.stdout or '').strip()
 	# 2026-11-25
@@ -194,6 +199,8 @@ def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints
 	# https://github.com/dmitry-ai/harness/issues/251
 	if 0 != proc.returncode:
 		r = (False, detail)
+	elif not run_canary:
+		r = (True, '')
 	else:
 		from .snapshot_canary import run_pre_tool_use_canary
 		r = run_pre_tool_use_canary(staging)
@@ -269,10 +276,13 @@ def is_harness_code_repo(repo: str | Path) -> bool:
 	p = Path(repo).resolve()
 	return (p / 'paths.json').is_file() and (p / 'runtime.json').is_file() and (p / 'scripts/check_rules_and_server_gate.py').is_file()
 # 2026-11-26 "Add multi-MB hook latency canary and codify multi-track delegation policy": https://github.com/dmitry-ai/harness/issues/357
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`agent_tools.cli_registry._exec_runtime_promote()`
 # @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
 # @used-by :func:`finalize_native_install()`
 # @used-by :func:`test_hook_runner_watchdog._seed_two_releases()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_runtime_snapshot_canary_skips_non_executable_and_runs_for_code_or_config()`
 # @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_snapshot_promotion_and_auditor_reject_undefined_global()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_broken_head_rejected_by_validation_preserving_current()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_ensure_hooks_uses_deployed_immutable_git_hooks_dir()`
@@ -284,7 +294,7 @@ def is_harness_code_repo(repo: str | Path) -> bool:
 # @used-by :meth:`test_snapshot_latency_and_delegation_policy.SnapshotLatencyAndDelegationPolicyTests.test_fallback_spike_blocks_promotion_only_when_strict_and_ignores_historical_lines()`
 # @used-by :meth:`test_snapshot_latency_and_delegation_policy.SnapshotLatencyAndDelegationPolicyTests.test_promote_rejects_large_transcript_slow_snapshot_and_accepts_fast_snapshot()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
-def promote_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=None, keep: int=DEFAULT_KEEP_RELEASES, entrypoints: tuple[str, ...]=REQUIRED_ENTRYPOINTS, configure_repo_hooks: bool=True, fail_on_fallback_spike: bool=False) -> dict:
+def promote_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=None, keep: int=DEFAULT_KEEP_RELEASES, entrypoints: tuple[str, ...]=REQUIRED_ENTRYPOINTS, configure_repo_hooks: bool=True, fail_on_fallback_spike: bool=False, base_ref: str | None=None) -> dict:
 	prim_p = Path(primary).resolve()
 	if not _has_git_head(prim_p):
 		r = {'valid': True, 'promoted': False, 'skipped': True, 'reason': 'not_a_git_repo'}
@@ -292,7 +302,7 @@ def promote_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | Non
 		store = runtime_store_dir(prim_p, store_dir=store_dir)
 		store.mkdir(parents=True, exist_ok=True)
 		with locked(store / 'promote.lock'):
-			r = _promote_locked(prim_p, store, keep=keep, entrypoints=entrypoints, configure_repo_hooks=configure_repo_hooks, fail_on_fallback_spike=fail_on_fallback_spike)
+			r = _promote_locked(prim_p, store, keep=keep, entrypoints=entrypoints, configure_repo_hooks=configure_repo_hooks, fail_on_fallback_spike=fail_on_fallback_spike, base_ref=base_ref)
 	return r
 # @used-by :func:`check_runtime_snapshot()`
 # @used-by :func:`effective_git_hooks_dir()`

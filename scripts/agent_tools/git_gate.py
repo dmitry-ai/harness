@@ -51,6 +51,7 @@ class GitRepoGate:
 	# @used-by :func:`agent_tools.worktree_flow._current_branch()`
 	# @used-by :func:`agent_tools.worktree_flow._enrich_worktree_entry()`
 	# @used-by :func:`agent_tools.worktree_flow._land_under_lease()`
+	# @used-by :func:`agent_tools.worktree_flow._merge_and_finalize()`
 	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
 	# @used-by :func:`agent_tools.worktree_flow._rev_distance()`
 	# @used-by :func:`agent_tools.worktree_flow.git_config_file()`
@@ -213,6 +214,7 @@ class GitRepoGate:
 	# https://github.com/dmitry-ai/harness/issues/53
 	# @used-by :func:`agent_tools.polyglot_land.dirty_blocking_main_files()`
 	# @used-by :func:`agent_tools.worktree_flow._land_under_lease()`
+	# @used-by :func:`agent_tools.worktree_flow._merge_and_finalize()`
 	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_begin()`
 	# @used-by :func:`agent_tools.worktree_land_flow._branch_sha()`

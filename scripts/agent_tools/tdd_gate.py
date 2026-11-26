@@ -56,6 +56,8 @@ from .tdd.comment_diff import (
 from .tdd.diff_executability import (
 	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 	DEFAULT_MAX_REPORTED_FILES,
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	DIFF_EXECUTABILITY_GATES,
 	NON_EXECUTABLE_CATEGORIES,
 	classify_git_path,
 	classify_git_range,
@@ -65,6 +67,8 @@ from .tdd.diff_executability import (
 	is_git_path_non_executable,
 	is_non_executable_diff,
 	resolve_land_test_plan,
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	should_run_snapshot_canary,
 	validate_no_tests_override_reason,
 )
 from .tdd.enforcement import (
@@ -160,6 +164,8 @@ __all__ = [
 	'COMMENT_LEXER_LANGUAGES',
 	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 	'DEFAULT_MAX_REPORTED_FILES',
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	'DIFF_EXECUTABILITY_GATES',
 	'NON_EXECUTABLE_CATEGORIES',
 	'SOFTWARE_CODE_SUFFIXES',
 	'build_command_tdd_event',
@@ -198,6 +204,8 @@ __all__ = [
 	'shell_code_write_targets',
 	'shell_test_delete_targets',
 	'shell_write_targets',
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	'should_run_snapshot_canary',
 	'source_text_assertion_issues',
 	'validate_mechanical_reason',
 	'validate_no_tests_override_reason',

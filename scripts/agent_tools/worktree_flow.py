@@ -7,6 +7,22 @@ import subprocess
 from .git_gate import GitRepoGate, _NO_WINDOW
 from .git_ignore import ensure_worktree_dir_ignored, prepare_worktrees_base_dir
 from .path_registry import project_paths
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+LAND_STAGE_POLICIES: dict[str, str] = {
+	'diff_coverage': 'executable_only',
+	'ff_merge': 'always',
+	'polyglot_tests': 'executable_only',
+	'post_land_health': 'executable_only',
+	'push': 'always',
+	'python_integrity': 'always',
+	'rebase': 'always',
+	'snapshot_canary': 'executable_only',
+	'snapshot_promote': 'always',
+	'tag': 'always',
+	'tests': 'executable_only',
+	'worktree_cleanup': 'always',
+	'xref_integrity': 'always',
+}
 # 2026-11-23
 # "Add isolated git worktree task workflow and worktree-scoped issue gates":
 # https://github.com/dmitry-ai/harness/issues/165
@@ -76,33 +92,37 @@ def _git_exec(repo: Path, *args: str) -> subprocess.CompletedProcess:
 # 2026-11-24
 # "Deploy immutable Harness runtime snapshots with LKG fallback":
 # https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`_post_merge_checks()`
-def _maybe_promote_snapshot(main_repo: Path, *, promote_snapshot: bool | None, snapshot_store: Path | None) -> dict | None:
+def _maybe_promote_snapshot(main_repo: Path, *, promote_snapshot: bool | None, snapshot_store: Path | None, base_ref: str | None=None) -> dict | None:
 	from .runtime_snapshot import is_harness_code_repo, promote_runtime_snapshot
 	should = promote_snapshot if None is not promote_snapshot else is_harness_code_repo(main_repo)
-	return promote_runtime_snapshot(main_repo, store_dir=snapshot_store) if should else None
+	return promote_runtime_snapshot(main_repo, store_dir=snapshot_store, base_ref=base_ref) if should else None
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
 # 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`_land_under_lease()`
 # @used-by :func:`agent_tools.worktree_land_flow._phase2_commit_under_lease()`
 def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool=True, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False, plan: dict | None=None) -> dict:
+	prev_head = GitRepoGate(main_repo).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
 	ff = _git_exec(main_repo, 'merge', '--ff-only', branch)
 	if 0 != ff.returncode:
 		r = _fail_land(main_repo, wt_path, branch, 'ff_merge', ff.stderr.strip() or ff.stdout.strip(), test_runs=test_runs, test_result=test_res, plan=plan)
 	else:
 		if post_merge_fn:
 			post_merge_fn(main_repo)
-		snap, err_stage, err_msg = _post_merge_checks(main_repo, run_tests=run_tests, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
+		snap, err_stage, err_msg = _post_merge_checks(main_repo, run_tests=run_tests, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, base_ref=prev_head)
 		if None is not err_stage:
 			r = _fail_land(main_repo, wt_path, branch, err_stage, err_msg or 'Post-merge verification failed', test_runs=test_runs, test_result=test_res, plan=plan)
 		else:
 			r = _push_and_finish_land(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, snap=snap, tag=tag, plan=plan)
 	return r
 # 2026-11-26 "Add sandboxed polyglot land tests and post-land health checks": https://github.com/dmitry-ai/harness/issues/304
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`_merge_and_finalize()`
-def _post_merge_checks(main_repo: Path, *, run_tests: bool, promote_snapshot: bool | None, snapshot_store: Path | None) -> tuple[dict | None, str | None, str | None]:
-	snap = _maybe_promote_snapshot(main_repo, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store)
+def _post_merge_checks(main_repo: Path, *, run_tests: bool, promote_snapshot: bool | None, snapshot_store: Path | None, base_ref: str | None=None) -> tuple[dict | None, str | None, str | None]:
+	snap = _maybe_promote_snapshot(main_repo, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, base_ref=base_ref)
 	if None is not snap and (not snap.get('valid')):
 		r = (snap, 'snapshot_promote', str(snap.get('error') or 'Runtime snapshot promotion failed'))
 	elif run_tests:
@@ -310,6 +330,8 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_polyglot_land_skips_tests_and_health_for_comment_only_js()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_blocks_no_tests_on_executable_and_allows_audited_reason()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_skips_tests_for_non_executable_and_runs_for_executable()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_worktree_land_passes_prev_head_base_ref_and_skips_canary_for_non_exec()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_attaches_telemetry_on_failed_landings()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_emits_telemetry_for_non_executable_executable_and_override()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`
@@ -419,6 +441,8 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_polyglot_land_skips_tests_and_health_for_comment_only_js()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_blocks_no_tests_on_executable_and_allows_audited_reason()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_skips_tests_for_non_executable_and_runs_for_executable()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_worktree_land_passes_prev_head_base_ref_and_skips_canary_for_non_exec()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_attaches_telemetry_on_failed_landings()`
 # @used-by :meth:`test_diff_executability_telemetry.DiffExecutabilityTelemetryTests.test_worktree_land_emits_telemetry_for_non_executable_executable_and_override()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_concurrent_main_advance_retries_optimistically_and_lands()`

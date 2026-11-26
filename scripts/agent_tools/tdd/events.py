@@ -223,6 +223,7 @@ def build_command_tdd_event(step: int, cmd: str, outputs: list[str] | tuple[str,
 # @used-by :func:`_append_write_tool_event()`
 # @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
 # @used-by :func:`record_tdd_tool_write_event()`
+# @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_evaluator_exempts_comment_only_test_edits_in_idle_and_post_green()`

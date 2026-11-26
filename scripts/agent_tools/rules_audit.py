@@ -133,6 +133,7 @@ def _touches_audit_surface(staged_paths: list[str]) -> bool:
 # @used-by :func:`verify_staged_rules_audit()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_stop_gate_bypass_and_docs_codify_rule()`
 # @used-by :meth:`test_cli_command_grounding.CliCommandGroundingTests.test_exec2_rule_contains_shadow_replay_requirement_and_passes_rules_audit()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_docs_and_rules_codify_contract_within_rules_audit_budgets()`
 # @used-by :meth:`test_repo_tags_docs.RepoTagsDocsTests.test_rules_and_docs_codify_daily_tagging_and_link6_within_budgets()`
 # @used-by :meth:`test_rules_audit.RulesAuditTests.test_detects_broken_links_blind_references_drift_and_skill_leakage()`
 # @used-by :meth:`test_rules_audit.RulesAuditTests.test_detects_budget_html_comment_and_cross_platform_codex_leaks()`

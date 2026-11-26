@@ -12,3 +12,11 @@ Run host-global mutations (`harness.py build-native`, `harness.py install-global
 
 For requests spanning `>= 3` independent coding tracks, prefer short-lived per-track worktrees with parallel `self` subagents on disjoint file scopes and sequential coordinator landings onto `main` via `worktree-land` rather than accumulating a monolithic branch.  
 Runtime snapshot promotion runs an isolated multi-MB synthetic transcript `PreToolUse` latency canary that rejects releases whose median latency across `3` runs exceeds `1.5s`, and inspects `fallback.log` for new `TimeoutError` spikes strictly newer than the previous promotion timestamp (blocking promotion only when `fail_on_fallback_spike=True` so emergency hotfixes remain unblocked).  
+
+<!-- 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360 -->  
+## Single-Source Diff Executability Contract
+
+All six consumer gates registered in `DIFF_EXECUTABILITY_GATES` (`PreToolUse`, `pre-commit`, `tdd/evaluator.py`, `worktree_land`, `polyglot_land`, and `runtime_snapshot`) delegate diff-executability classification exclusively to `agent_tools.tdd.diff_executability`.  
+`LAND_STAGE_POLICIES` in `worktree_flow.py` marks every landing stage explicitly as `always` (`rebase`, `python_integrity`, `xref_integrity`, `ff_merge`, `snapshot_promote`, `push`, `tag`, `worktree_cleanup`) or `executable_only` (`tests`, `polyglot_tests`, `diff_coverage`, `post_land_health`, `snapshot_canary`).  
+Non-executable diffs (`non_code`, `comment_only`, `whitespace_only`, `mechanical_exempt`, `unchanged`) automatically skip `executable_only` test, diff-coverage, post-land health, and `runtime_snapshot` canary stages while keeping `current.json` synchronized with `HEAD` (changes to archived `paths.json` or `runtime.json` still run the canary).  
+Passing `--no-tests` to `worktree-land` on an executable diff fails closed unless an audited `--no-tests-reason` of at least 30 characters explaining the concrete external verification basis is provided.  

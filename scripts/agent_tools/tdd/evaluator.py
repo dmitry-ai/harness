@@ -33,21 +33,23 @@ def _apply_commit_reset(c_scope: str | None, scopes: dict[str, dict], orders: di
 			orders[sk]['written_test'] = None
 # 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`evaluate_tdd_events()`
-def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None, exempt_cache: dict[tuple[str, str], bool] | None=None) -> None:
+def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], *, project_root: Path | None=None, exempt_cache: dict[tuple[str, str], bool] | None=None, check_test_exempt: bool=True) -> None:
 	cls = ev.get('classification')
 	fpath = str(ev.get('path') or '')
 	scope_str = resolve_tdd_scope_key(fpath, str(ev.get('scope') or ''))
 	cache = {} if None is exempt_cache else exempt_cache
 	if 'test' == cls and scope_str:
-		_apply_test_file_event(fpath, scope_str, step, order, scopes, orders, project_root, cache)
+		_apply_test_file_event(fpath, scope_str, step, order, scopes, orders, project_root, cache, check_test_exempt=check_test_exempt)
 	elif 'production' == cls and scope_str:
 		_apply_prod_file_event(fpath, scope_str, step, order, scopes, orders, violations, project_root, cache)
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`_apply_file_write_event()`
-def _apply_test_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> None:
-	if _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
+def _apply_test_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool], *, check_test_exempt: bool=True) -> None:
+	if check_test_exempt and _is_exempt_cached(fpath, scope_str, project_root, exempt_cache):
 		_record_exempt_edit(scopes, orders, scope_str, fpath, step, 'test')
 	else:
 		st, st_ord = _ensure_scope(scopes, orders, scope_str)
@@ -279,6 +281,7 @@ def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step:
 # https://github.com/dmitry-ai/harness/issues/169
 # @used-by :func:`agent_tools.completion._tdd_status()`
 # @used-by :func:`agent_tools.tdd.enforcement._load_pre_tool_tdd_state()`
+# @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_completed_prior_turn_does_not_bleed_tdd_events_into_unrelated_followup()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
@@ -312,7 +315,8 @@ def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool=Tr
 		kind = ev.get('kind')
 		step = order[0]
 		if 'file_write' == kind:
-			_apply_file_write_event(ev, step, order, scopes, orders, violations, project_root=project_root, exempt_cache=exempt_cache)
+			# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+			_apply_file_write_event(ev, step, order, scopes, orders, violations, project_root=project_root, exempt_cache=exempt_cache, check_test_exempt=require_final_full_green)
 		elif 'command' == kind:
 			_apply_command_event(ev, step, order, scopes, orders, failfast_warnings)
 	if require_final_full_green:

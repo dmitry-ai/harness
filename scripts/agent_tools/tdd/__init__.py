@@ -8,7 +8,8 @@ from .commands import classify_test_command, shell_code_write_targets, shell_tes
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 from .comment_diff import COMMENT_LEXER_LANGUAGES, classify_comment_or_whitespace_diff, detect_comment_language, is_comment_only_diff, is_whitespace_only_diff
 # 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
-from .diff_executability import DEFAULT_MAX_REPORTED_FILES, NON_EXECUTABLE_CATEGORIES, classify_git_path, classify_git_range, classify_text_diff, format_land_diff_telemetry, is_git_path_non_executable, is_non_executable_diff, resolve_land_test_plan, validate_no_tests_override_reason
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+from .diff_executability import DEFAULT_MAX_REPORTED_FILES, DIFF_EXECUTABILITY_GATES, NON_EXECUTABLE_CATEGORIES, classify_git_path, classify_git_range, classify_text_diff, format_land_diff_telemetry, is_git_path_non_executable, is_non_executable_diff, resolve_land_test_plan, should_run_snapshot_canary, validate_no_tests_override_reason
 from .enforcement import evaluate_pre_tool_use_tdd, verify_staged_tdd_diff
 from .evaluator import evaluate_tdd_events
 from .events import build_command_tdd_event, build_file_write_tdd_event, extract_antigravity_tdd_events
@@ -30,6 +31,8 @@ __all__ = [
 	'COMMENT_LEXER_LANGUAGES',
 	# 2026-11-26 "Add diff executability telemetry to worktree_land output and tdd_check scopes": https://github.com/dmitry-ai/harness/issues/359
 	'DEFAULT_MAX_REPORTED_FILES',
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	'DIFF_EXECUTABILITY_GATES',
 	'NON_EXECUTABLE_CATEGORIES',
 	'SOFTWARE_CODE_SUFFIXES',
 	'build_command_tdd_event',
@@ -68,6 +71,8 @@ __all__ = [
 	'shell_code_write_targets',
 	'shell_test_delete_targets',
 	'shell_write_targets',
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	'should_run_snapshot_canary',
 	'source_text_assertion_issues',
 	'validate_mechanical_reason',
 	'validate_no_tests_override_reason',

@@ -194,6 +194,7 @@ def _execute_polyglot_spec(main_repo: Path, wt_path: Path, eff: dict[str, Any]) 
 	return (ok, {'ok': ok, 'runner': 'polyglot', 'failure_stage': stage, 'timed_out': timed_out, 'mutated_host_files': mutated, 'exit_code': rc, 'output': out})
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
 # @used-by :func:`agent_tools.worktree_flow._run_land_tests()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_host_state_mutation_fails_closed_while_heartbeat_timestamp_is_ignored()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :mod:`agent_tools.polyglot_land`

@@ -1084,6 +1084,7 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.research.collect_http()`
 	# @used-by :func:`agent_tools.research.compute_site_summary()`
 	# @used-by :func:`agent_tools.runtime.extract_platform_instances()`
+	# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
 	# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
 	# @used-by :func:`agent_tools.shell_audit.extract_comment_issue_urls()`
 	# @used-by :func:`agent_tools.stop_subagent_check._collect_invoke_outputs()`

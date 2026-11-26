@@ -333,6 +333,7 @@ def _verify_staged_test_file(repo: Path, rel: str, fpath: Path, head_text: str |
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
 # @used-by :func:`agent_tools.gates.tdd.check()`
+# @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_pre_tool_use_allows_comment_only_edit_and_denies_code_edit()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`
@@ -356,6 +357,7 @@ def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | Non
 # 2026-11-24
 # "Decompose tdd_gate.py into modular TDD verification package":
 # https://github.com/dmitry-ai/harness/issues/169
+# @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_tdd_commit()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_tdd_exempts_comment_only_test_edits_and_recognizes_java_assertions()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_enforcement_module_behavior_and_parity()`

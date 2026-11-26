@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 from .classifier import is_software_code_file
 from .comment_diff import _git_read_text, classify_comment_or_whitespace_diff
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+from .diff_contract import DIFF_EXECUTABILITY_GATES, should_run_snapshot_canary
 from .mechanical import find_matching_mechanical_recipes, is_mechanical_diff_exempt, matches_any_mechanical_recipes
 import os
 import re
@@ -157,17 +159,17 @@ def classify_text_diff(path: str | Path, old_text: str | None, new_text: str | N
 		else:
 			r = 'executable'
 	return r
+# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
 # @used-by :func:`_classify_existing_git_path()`
-def _classify_last_commit_path(repo: Path, rel_posix: str, project_root: Path | None) -> str:
-	sha_raw = _git_read_text(repo, ['log', '-n', '1', '--format=%H', '--', f':(literal){rel_posix}'])
-	sha = (sha_raw or '').strip()
+def _classify_last_commit_path(repo: Path, rel_posix: str, cur: str, project_root: Path | None) -> str:
+	raw = _git_read_text(repo, ['log', '-n', '1', '--format=%H%x00%B', '--', f':(literal){rel_posix}'])
+	sha, _, msg = (raw or '').partition('\x00')
+	sha = sha.strip()
 	if not sha:
 		r = 'executable' if is_software_code_file(rel_posix) else 'non_code'
 	else:
 		prev_txt = _git_read_text(repo, ['show', f'{sha}^:{rel_posix}'])
-		curr_txt = _git_read_text(repo, ['show', f'{sha}:{rel_posix}'])
-		msg = _git_read_text(repo, ['log', '-n', '1', '--format=%B', sha])
-		r = classify_text_diff(repo / rel_posix, prev_txt, curr_txt, repo_root=repo, message=msg, project_root=project_root)
+		r = classify_text_diff(repo / rel_posix, prev_txt, cur, repo_root=repo, message=msg, project_root=project_root)
 	return r
 # @used-by :func:`classify_git_path()`
 def _read_current_git_text(repo: Path, fpath: Path, rel_posix: str, disk_text: str | None, use_index: bool) -> str | None:
@@ -189,7 +191,8 @@ def _classify_existing_git_path(repo: Path, fpath: Path, rel_posix: str, cur: st
 		elif head != cur:
 			r = classify_text_diff(fpath, head, cur, repo_root=repo, message=message, project_root=project_root)
 		else:
-			r = _classify_last_commit_path(repo, rel_posix, project_root)
+			# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+			r = _classify_last_commit_path(repo, rel_posix, cur, project_root)
 	return r
 # @used-by :func:`is_git_path_non_executable()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
@@ -206,7 +209,9 @@ def classify_git_path(repo_root: Path, rel_posix: str, *, disk_text: str | None=
 		r = 'executable' if is_code else 'non_code'
 	return r
 # @used-by :func:`agent_tools.polyglot_land.run_polyglot_land_tests()`
+# @used-by :func:`agent_tools.tdd.diff_contract.should_run_snapshot_canary()`
 # @used-by :func:`resolve_land_test_plan()`
+# @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
@@ -224,12 +229,14 @@ def classify_git_range(repo_root: Path, base_ref: str, head_ref: str='HEAD', *, 
 		r = _summarize_categories(file_cats)
 	return r
 # @used-by :func:`agent_tools.tdd.exemption.is_git_path_exempt()`
+# @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def is_git_path_non_executable(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
 	return classify_git_path(repo_root, rel_posix, disk_text=disk_text, use_index=use_index, message=message, project_root=project_root) in NON_EXECUTABLE_CATEGORIES
 # @used-by :func:`agent_tools.tdd.exemption.is_diff_exempt()`
+# @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :mod:`agent_tools.tdd.diff_executability`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
@@ -283,6 +290,8 @@ def format_land_diff_telemetry(plan: dict[str, Any] | None, *, max_files: int=DE
 	return r
 __all__ = [
 	'DEFAULT_MAX_REPORTED_FILES',
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	'DIFF_EXECUTABILITY_GATES',
 	'NON_EXECUTABLE_CATEGORIES',
 	'classify_git_path',
 	'classify_git_range',
@@ -292,5 +301,7 @@ __all__ = [
 	'is_git_path_non_executable',
 	'is_non_executable_diff',
 	'resolve_land_test_plan',
+	# 2026-11-26 "Codify single-source diff executability contract across Harness gates and runtime snapshot": https://github.com/dmitry-ai/harness/issues/360
+	'should_run_snapshot_canary',
 	'validate_no_tests_override_reason',
 ]
