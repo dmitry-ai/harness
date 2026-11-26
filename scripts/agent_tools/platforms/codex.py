@@ -493,17 +493,18 @@ def native_requests(root, conversation_id, *, backend=None, instance=None):
 # 2026-11-23
 # "Use native workspace priority and AST command parsing in request binding":
 # https://github.com/dmitry-ai/harness/issues/129
+# 2026-11-27 "Pass ARCH role through Codex native_review_proof binding": https://github.com/dmitry-ai/harness/issues/394
 # @used-by :func:`native_review_proof()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_missing_native_root_keeps_legacy_job_id_but_foreign_root_does_not()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_same_words_in_another_native_root_do_not_establish_ownership()`
-def require_current_binding(root, conversation_id, *, backend=None, instance=None, rows=None, until=None):
-	from .request_binding import format_binding_diagnostic, native_project_id
+def require_current_binding(root, conversation_id, *, backend=None, instance=None, rows=None, until=None, role='AA'):
+	from .request_binding import format_binding_diagnostic, review_project_id
 	if None is rows:
 		paths = _paths(backend, profile=instance, conversation_id=conversation_id)
 		rows_val = _trace(paths['home'], conversation_id, paths=paths)[3]
 	else:
 		rows_val = rows
-	job_id = native_project_id(root)
+	job_id = review_project_id(root, role=role)
 	selected, active, binding = _request_scope(root, rows_val, until=until, identifier=job_id)
 	diag = format_binding_diagnostic(str(Path(root).resolve()), binding, expected_job_id=job_id)
 	return require_turn_binding(selected, active, binding, f'Native Codex conversation is currently bound to another project or no exact project root ({diag})')
@@ -747,6 +748,7 @@ def _review_inputs(root, rows, parent_id, reviewer_id, *, role='AA'):
 # "Add arch-auditor subagent role and content-addressed review CLI":
 # https://github.com/dmitry-ai/harness/issues/361
 # @used-by :func:`verify_native_proof()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_arch_native_review_proof_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_explicit_other_job_stays_foreign_despite_repeated_cwd_and_blocks_reviews()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds()`
@@ -773,7 +775,8 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 		raise ValueError('Codex reviewer has no completed final native turn')
 	final_index, final = events[-1]
 	invocation = _spawn(parent_rows, meta)
-	require_current_binding(root, parent_id, backend=home, rows=parent_rows, until=invocation[0])
+	# 2026-11-27 "Pass ARCH role through Codex native_review_proof binding": https://github.com/dmitry-ai/harness/issues/394
+	require_current_binding(root, parent_id, backend=home, rows=parent_rows, until=invocation[0], role=role)
 	selection, child_model = (_selection(parent_rows, meta, invocation), _model(rows))
 	if child_model['model'] != selection['model'] or (None is not selection['effort'] and child_model['effort'] != selection['effort']):
 		raise ValueError('Observed reviewer model/effort differs from the native parent spawn selection')
@@ -791,7 +794,8 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 				if isinstance(msg_txt, str) and msg_txt.strip():
 					matched_prompts.append(msg_txt)
 	resolved_inst = paths['instance'] or instance
-	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id, role=role), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role=role, parent_id=parent_id, backend=home, instance=resolved_inst), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write)
+	# 2026-11-27 "Pass ARCH role through Codex native_review_proof binding": https://github.com/dmitry-ai/harness/issues/394
+	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id, role=role), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role=role, parent_id=parent_id, backend=home, instance=resolved_inst), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write, role=role)
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
@@ -799,6 +803,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 # "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
 # https://github.com/dmitry-ai/harness/issues/52
 # @used-by :func:`agent_tools.platforms.adapter()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_arch_native_review_proof_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 def verify_native_proof(root, native, package=None):
 	# 2026-11-26

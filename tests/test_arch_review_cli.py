@@ -45,6 +45,7 @@ def _run_arch_cli(argv: list[str]) -> tuple[int, str]:
 # @used-by :meth:`ArchReviewCliTests.test_antigravity_native_review_proof_supports_arch_auditor_role()`
 # @used-by :meth:`ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
 # @used-by :meth:`ArchReviewCliTests.test_cli_registry_and_send_message_gate_expose_arch_commands_and_block_verdict_duplication()`
+# @used-by :meth:`ArchReviewCliTests.test_codex_arch_native_review_proof_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 # @used-by :meth:`ArchReviewCliTests.test_prepare_input_record_and_check_roundtrip_with_module_cache()`
 # @used-by :meth:`ArchReviewCliTests.test_validator_rejects_pattern_washing_and_rubber_stamp_approvals()`
@@ -90,9 +91,12 @@ def _seed_ag_arch_backend(root: Path, project: Path, pkg_rel: str, verdict_json:
 	(brain / _REVIEWER_ID / '.system_generated/logs/transcript_full.jsonl').write_text('\n'.join((json.dumps(r) for r in child_rows)) + '\n', encoding='utf-8')
 	return backend
 # 2026-11-26 "Add arch-auditor subagent role and content-addressed review CLI": https://github.com/dmitry-ai/harness/issues/361
+# 2026-11-27 "Pass ARCH role through Codex native_review_proof binding": https://github.com/dmitry-ai/harness/issues/394
+# @used-by :meth:`ArchReviewCliTests.test_codex_arch_native_review_proof_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
-def _seed_codex_arch_home(root: Path, project: Path, pkg_rel: str, receipt: dict, verdict_json: str) -> Path:
-	_init_text_workspace(project)
+def _seed_codex_arch_home(root: Path, project: Path, pkg_rel: str, receipt: dict, verdict_json: str, *, init_text: bool=True) -> Path:
+	if init_text:
+		_init_text_workspace(project)
 	cx_home = root / 'codex-home'
 	sess = cx_home / 'sessions/2026/11/26'
 	sess.mkdir(parents=True, exist_ok=True)
@@ -242,6 +246,31 @@ class ArchReviewCliTests(unittest.TestCase):
 		err = check_send_msg('send_message', {'Message': dup_verdict}, {})
 		self.assertIsNotNone(err)
 		self.assertIn('REVIEW-4-SEND-MESSAGE-GATE', err or '')
+	# 2026-11-27 "Pass ARCH role through Codex native_review_proof binding": https://github.com/dmitry-ai/harness/issues/394
+	# @used-by :mod:`unittest`
+	def test_codex_arch_native_review_proof_works_on_bare_code_workspace_without_text_marker(self) -> None:
+		from agent_tools.arch.review_store import prepare_arch_package, read_arch_review_input
+		from agent_tools.platforms import codex
+		with tempfile.TemporaryDirectory() as td:
+			base = Path(td).resolve()
+			proj = base / 'bare-cx'
+			proj.mkdir()
+			prep = prepare_arch_package(proj, _PARENT_ID, kind='response', response_text='Proposed Strategy routing with clear separation.\n')
+			receipt = read_arch_review_input(proj, prep['package'], parent_id=_PARENT_ID, reviewer_id=_REVIEWER_ID)
+			verdict_str = json.dumps(_sample_verdict(prep['package'], prep['package_sha256']))
+			cx_home = _seed_codex_arch_home(base, proj, prep['package'], receipt, verdict_str, init_text=False)
+			self.assertFalse((proj / '\ua616/data/text-project.json').is_file())
+			self.assertFalse((proj / '\ua616/project.json').is_file())
+			proof = codex.native_review_proof(proj, _PARENT_ID, _REVIEWER_ID, backend=cx_home, role='ARCH')
+			self.assertEqual('code_workspace', proof['project_kind'])
+			self.assertIsNone(proof['job_id'])
+			self.assertEqual('ARCH', proof['executor_metadata']['role'])
+			with patch.object(codex, 'extract_platform_homes', return_value={'C1': str(cx_home)}):
+				verified = codex.verify_native_proof(proj, proof, package=Path(prep['package']).name)
+			self.assertEqual('code_workspace', verified['project_kind'])
+			self.assertEqual('ARCH', verified['executor_metadata']['role'])
+			with self.assertRaises(ValueError):
+				codex.native_review_proof(proj, _PARENT_ID, _REVIEWER_ID, backend=cx_home, role='AA')
 	# @used-by :mod:`unittest`
 	def test_codex_native_review_proof_and_verify_support_arch_role(self) -> None:
 		from agent_tools import metrics
