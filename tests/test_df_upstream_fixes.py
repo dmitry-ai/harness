@@ -39,5 +39,12 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		from Df.Core.lib.option import df_option, df_option_0
 		r = df_option_0([df_option('a', 'A')])
 		self.assertEqual([{'label': '-- select a value --', 'value': 0}, {'label': 'A', 'value': 'a'}], r)
+	# 2026-11-26 "Fix df_option_v() rejecting scalar option values": https://github.com/dmitry-ai/harness/issues/330
+	# Upstream defect: https://github.com/mage2pro/core/issues/473
+	# @used-by :mod:`unittest`
+	def test_330_df_option_v_returns_scalar(self) -> None:
+		from Df.Core.lib.option import df_option_v
+		self.assertEqual('US', df_option_v({'value': 'US', 'label': 'USA'}))
+		self.assertEqual('fallback', df_option_v({}, 'fallback'))
 if '__main__' == __name__:
 	unittest.main()

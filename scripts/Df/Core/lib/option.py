@@ -52,13 +52,13 @@ def df_option(v: Any, l: str) -> dict[str, Any]:
 def df_option_0(tail: list[dict[str, Any]], l: str | None=None) -> list[dict[str, Any]]:
 	return df_map_to_options(df_map_0({}, '' if None is l else l)) + list(tail)
 # Extract the `'value'` field from an option dict.
+# 2026-11-26 "Fix df_option_v() rejecting scalar option values": https://github.com/dmitry-ai/harness/issues/330
+# Upstream defect: https://github.com/mage2pro/core/issues/473
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/option.php#L83-L89
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_html_js_and_option()`
-def df_option_v(o: dict[str, Any], d: Any=None) -> list[Any]:
-	r = dfa(o, 'value', d)
-	if not isinstance(r, list):
-		raise TypeError('df_option_v(): Return value must be of type list')
-	return r
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_330_df_option_v_returns_scalar()`
+def df_option_v(o: dict[str, Any], d: Any=None) -> Any:
+	return dfa(o, 'value', d)
 # Extract the list of `'value'` entries from an options list.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/option.php#L91-L97
 # @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_html_js_and_option()`
