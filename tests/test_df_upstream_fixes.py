@@ -110,5 +110,21 @@ class TestDfUpstreamFixes(unittest.TestCase):
 			def __iter__(self):
 				raise RuntimeError('broken trace')
 		self.assertEqual('broken trace', Formatter.p(BrokenTrace()))
+	# 2026-11-26 "Fix df_assert_stringable returning bool instead of input value": https://github.com/dmitry-ai/harness/issues/336
+	# Upstream defect: https://github.com/mage2pro/core/issues/479
+	# @used-by :mod:`unittest`
+	def test_336_df_assert_stringable_returns_value(self) -> None:
+		from Df.Core.lib.lang.type.conversion.string import df_string
+		from Df.Qa.lib.dump import df_dump
+		from Df.Qa.lib.dump.type import df_type
+		from Df.Qa.lib.validation.assert_.stringable import df_assert_stringable
+		class MultiStr:
+			# @used-by :meth:`TestDfUpstreamFixes.test_336_df_assert_stringable_returns_value()`
+			def __str__(self) -> str:
+				return 'line1\nline2'
+		self.assertEqual('ok', df_assert_stringable('ok', 'bad'))
+		self.assertEqual('hello', df_string('hello'))
+		self.assertEqual('«hi» (str)', df_type('hi'))
+		self.assertIn('\n\tline1', df_dump(MultiStr()))
 if '__main__' == __name__:
 	unittest.main()

@@ -11,6 +11,7 @@ from Df.Qa.lib.dump import df_dump
 # @used-by :func:`Df.Qa.lib.validation.result.df_result_s()`
 # @used-by :meth:`test_df_qa.TestDfQa.test_type_and_kv()`
 # @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_333_df_type_skips_unused_dump()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_336_df_assert_stringable_returns_value()`
 def df_type(v: Any) -> str:
 	if None is v:
 		r = '`null`'

@@ -16,6 +16,7 @@ from Df.Core.lib.json import df_json_dont_sort
 # @used-by :func:`type.df_type()`
 # @used-by :meth:`Df.Zf.Validate.Validate.message()`
 # @used-by :meth:`test_df_qa.TestDfQa.test_dump_and_dumper()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_336_df_assert_stringable_returns_value()`
 def df_dump(v: Any) -> str:
 	from Df.Qa.Dumper import Dumper
 	return Dumper.i().dump(v)

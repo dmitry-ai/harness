@@ -6,6 +6,7 @@ from typing import Any
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/lang/type/conversion/string.php#L2-L23
 # @used-by :func:`Df.Qa.lib.dump.type.df_type()`
 # @used-by :meth:`Df.Qa.Dumper.Dumper.__dumpObject()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_336_df_assert_stringable_returns_value()`
 def df_string(v: Any) -> str:
 	from Df.Qa.lib.dump import df_dump
 	from Df.Qa.lib.validation.assert_.stringable import df_assert_stringable
